@@ -123,8 +123,9 @@ public class IndexingViewModel
                         IndexingProgress.Error(
                             message = "Требуется авторизация для индексации форумов. Пожалуйста, войдите в аккаунт.",
                         )
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    if (e is CancellationException) throw e
                     logger.e({ "Indexing failed" }, e)
                     _indexingProgress.value =
                         IndexingProgress.Error(
@@ -160,8 +161,9 @@ public class IndexingViewModel
                     val size = forumIndexer.getIndexSize()
                     _indexSize.value = size
                     return size
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    if (e is CancellationException) throw e
                     lastError = e
                     attempt += 1
                     if (attempt < 3) {
@@ -219,13 +221,17 @@ public class IndexingViewModel
                 forumIndexer.clearIndex()
                 val duration = System.currentTimeMillis() - startTime
                 logger.i { "Index cleared successfully in ${duration}ms (${duration / 1000}s)" }
-                _clearingInProgress.value = false
+                _indexSize.value = 0
+                _isIndexing.value = false
+                _indexingProgress.value = IndexingProgress.Idle
                 true
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 logger.e({ "Failed to clear index" }, e)
-                _clearingInProgress.value = false
                 false
+            } finally {
+                _clearingInProgress.value = false
             }
 
         private fun startServiceCompletionMonitor() {

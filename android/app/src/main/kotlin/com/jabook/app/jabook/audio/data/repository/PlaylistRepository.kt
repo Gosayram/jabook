@@ -63,8 +63,9 @@ public class PlaylistRepository
                     )
                 playlistDao.upsertPlaylist(entity)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -86,8 +87,9 @@ public class PlaylistRepository
             try {
                 playlistDao.deletePlaylist(bookId)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 

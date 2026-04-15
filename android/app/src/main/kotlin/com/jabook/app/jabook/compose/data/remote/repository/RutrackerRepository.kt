@@ -357,8 +357,9 @@ public class RutrackerRepository
                             emit(Result.success(emptyList()))
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    if (e is CancellationException) throw e
                     logger.e(
                         { "❌ Indexed search failed for query '$query'" },
                         e,

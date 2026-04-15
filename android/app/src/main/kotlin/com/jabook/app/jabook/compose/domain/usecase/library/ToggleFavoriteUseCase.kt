@@ -45,8 +45,9 @@ public class ToggleFavoriteUseCase
             try {
                 booksDao.updateFavoriteStatus(bookId, isFavorite)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e.toAppError())
             }
     }

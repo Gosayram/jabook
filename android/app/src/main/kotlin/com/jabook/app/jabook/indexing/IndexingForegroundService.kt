@@ -291,8 +291,9 @@ public class IndexingForegroundService : Service() {
                             }
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    if (e is CancellationException) throw e
                     Log.e(TAG, "Indexing failed", e)
                     currentProgress = IndexingProgress.Error(e.message ?: "Unknown error")
                     updateNotification(currentProgress)

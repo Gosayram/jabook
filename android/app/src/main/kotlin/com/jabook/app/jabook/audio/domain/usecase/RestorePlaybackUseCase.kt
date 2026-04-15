@@ -68,8 +68,9 @@ public class RestorePlaybackUseCase
                         com.jabook.app.jabook.audio.core.result.Result.Loading
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 com.jabook.app.jabook.audio.core.result.Result
                     .Error(e)
             }

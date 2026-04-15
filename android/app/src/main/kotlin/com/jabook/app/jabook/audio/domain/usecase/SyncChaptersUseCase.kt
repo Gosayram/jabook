@@ -70,8 +70,9 @@ public class SyncChaptersUseCase
 
                 com.jabook.app.jabook.audio.core.result.Result
                     .Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 com.jabook.app.jabook.audio.core.result.Result
                     .Error(e)
             }

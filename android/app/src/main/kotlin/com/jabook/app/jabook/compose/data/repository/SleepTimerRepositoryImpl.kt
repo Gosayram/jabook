@@ -112,15 +112,17 @@ public class SleepTimerRepositoryImpl
                                 )
                             mediaController = controller
                             logger.d { "MediaController initialized" }
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
-                            if (e is CancellationException) throw e
                             logger.e({ "Failed to initialize MediaController" }, e)
                         }
                     },
                     ContextCompat.getMainExecutor(context),
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 logger.e({ "Failed to create MediaController" }, e)
             }
         }
@@ -170,8 +172,9 @@ public class SleepTimerRepositoryImpl
                             }
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    if (e is CancellationException) throw e
                     logger.e({ "Failed to get timer state via MediaController" }, e)
                     SleepTimerState.Idle
                 }
@@ -201,8 +204,9 @@ public class SleepTimerRepositoryImpl
                             // State will be updated by polling, but eagerly update for responsiveness
                             _timerState.value = SleepTimerState.Active(durationMinutes * 60)
                         }
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
-                        if (e is CancellationException) throw e
                         logger.e({ "Failed to set sleep timer" }, e)
                     }
                 } else {
@@ -238,8 +242,9 @@ public class SleepTimerRepositoryImpl
                                     SleepTimerState.EndOfChapter
                                 }
                         }
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
-                        if (e is CancellationException) throw e
                         logger.e({ "Failed to set sleep timer end of chapter" }, e)
                     }
                 } else {
@@ -263,8 +268,9 @@ public class SleepTimerRepositoryImpl
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
                             _timerState.value = SleepTimerState.EndOfTrack()
                         }
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
-                        if (e is CancellationException) throw e
                         logger.e({ "Failed to set sleep timer end of track" }, e)
                     }
                 } else {
@@ -289,8 +295,9 @@ public class SleepTimerRepositoryImpl
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
                             _timerState.value = SleepTimerState.Idle
                         }
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
-                        if (e is CancellationException) throw e
                         logger.e({ "Failed to cancel sleep timer" }, e)
                     }
                 } else {

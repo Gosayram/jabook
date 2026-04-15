@@ -89,8 +89,9 @@ public class AuthRepositoryImpl
                     } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                         logger.e({ "Auth validation timeout - provider may be blocking" }, e)
                         false
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
-                        if (e is CancellationException) throw e
                         logger.e({ "Auth validation error" }, e)
                         false
                     }
@@ -122,8 +123,9 @@ public class AuthRepositoryImpl
                         logger.d { "Found stored credentials, attempting auto-relogin" }
                         try {
                             login(stored)
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
-                            if (e is CancellationException) throw e
                             logger.e({ "Auto-relogin failed" }, e)
                         }
                     }
@@ -135,8 +137,9 @@ public class AuthRepositoryImpl
                     logger.d { "No session but found credentials, attempting auto-login" }
                     try {
                         login(stored)
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
-                        if (e is CancellationException) throw e
                         logger.e({ "Auto-login failed" }, e)
                         _authStatus.value = AuthStatus.Unauthenticated
                     }
@@ -171,8 +174,9 @@ public class AuthRepositoryImpl
                                             "Таймаут при проверке авторизации. Возможно, провайдер блокирует соединение.",
                                         )
                                     return@withLock Result.failure(Exception("Authentication validation timeout"))
+                                } catch (e: CancellationException) {
+                                    throw e
                                 } catch (e: Exception) {
-                                    if (e is CancellationException) throw e
                                     logger.e({ "[$operationId] Validation error" }, e)
                                     false
                                 }
@@ -182,8 +186,9 @@ public class AuthRepositoryImpl
                                 try {
                                     cookiePersistence.persistCookiesMultiStage(rutrackerUrl.toString())
                                     logger.d { "[$operationId] Cookies persisted to all layers" }
+                                } catch (e: CancellationException) {
+                                    throw e
                                 } catch (e: Exception) {
-                                    if (e is CancellationException) throw e
                                     logger.e({ "[$operationId] Cookie persistence failed" }, e)
                                 }
 
@@ -210,8 +215,9 @@ public class AuthRepositoryImpl
                             Result.failure(CaptchaRequiredException(result.data))
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    if (e is CancellationException) throw e
                     logger.e({ "Login exception" }, e)
                     _authStatus.value = AuthStatus.Error(e.message ?: "Unknown error")
                     Result.failure(e)
@@ -245,8 +251,9 @@ public class AuthRepositoryImpl
                                 try {
                                     cookiePersistence.persistCookiesMultiStage(rutrackerUrl.toString())
                                     logger.d { "[$operationId] Cookies persisted to all layers" }
+                                } catch (e: CancellationException) {
+                                    throw e
                                 } catch (e: Exception) {
-                                    if (e is CancellationException) throw e
                                     logger.e({ "[$operationId] Cookie persistence failed" }, e)
                                 }
 
@@ -270,8 +277,9 @@ public class AuthRepositoryImpl
                             Result.failure(CaptchaRequiredException(result.data))
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    if (e is CancellationException) throw e
                     logger.e({ "Captcha login exception" }, e)
                     Result.failure(e)
                 }

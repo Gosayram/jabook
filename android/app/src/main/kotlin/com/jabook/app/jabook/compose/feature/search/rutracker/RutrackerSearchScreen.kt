@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.search.rutracker
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +33,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Info
@@ -262,117 +264,119 @@ public fun RutrackerSearchScreen(
 
             Spacer(modifier = Modifier.height(itemSpacing))
 
-            // Index status card
-            when {
-                indexCheckCompleted &&
-                    indexSize == 0 &&
-                    (isIndexing || indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress) -> {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            ),
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
+            // Index status card (render only after initial index check completes)
+            if (indexCheckCompleted) {
+                when {
+                    indexCheckCompleted &&
+                        indexSize == 0 &&
+                        (isIndexing || indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress) -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors =
+                                CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                ),
                         ) {
-                            Text(
-                                text = stringResource(R.string.indexingInProgressTitle),
-                                style = MaterialTheme.typography.titleMedium,
-                                textAlign = TextAlign.Center,
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = stringResource(R.string.indexingInProgressDescription),
-                                style = MaterialTheme.typography.bodySmall,
-                                textAlign = TextAlign.Center,
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(itemSpacing))
-                }
-                indexCheckCompleted &&
-                    indexSize == 0 &&
-                    !isIndexing &&
-                    indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress -> {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            ),
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Text(
-                                text = stringResource(R.string.indexNotCreatedTitle),
-                                style = MaterialTheme.typography.titleMedium,
-                                textAlign = TextAlign.Center,
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = stringResource(R.string.indexNotCreatedDescriptionShort),
-                                style = MaterialTheme.typography.bodySmall,
-                                textAlign = TextAlign.Center,
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = {
-                                    showIndexingDialog = true
-                                    indexingViewModel.startIndexing(context)
-                                },
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                Text(stringResource(R.string.startIndexing))
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(itemSpacing))
-                }
-                else -> {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            ),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                val indexTopicsCount =
-                                    pluralStringResource(
-                                        R.plurals.indexTopicsCount,
-                                        indexSize,
-                                        indexSize,
-                                    )
                                 Text(
-                                    text = stringResource(R.string.indexStatusWithTopics, indexTopicsCount),
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    text = stringResource(R.string.indexingInProgressTitle),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    textAlign = TextAlign.Center,
                                 )
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = stringResource(R.string.searchWorksOffline),
+                                    text = stringResource(R.string.indexingInProgressDescription),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
                                 )
                             }
-                            TextButton(
-                                onClick = {
-                                    showIndexingDialog = true
-                                    indexingViewModel.startIndexing(context)
-                                },
+                        }
+                        Spacer(modifier = Modifier.height(itemSpacing))
+                    }
+                    indexCheckCompleted &&
+                        indexSize == 0 &&
+                        !isIndexing &&
+                        indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors =
+                                CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                ),
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                Text(stringResource(R.string.updateAction))
+                                Text(
+                                    text = stringResource(R.string.indexNotCreatedTitle),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    textAlign = TextAlign.Center,
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = stringResource(R.string.indexNotCreatedDescriptionShort),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    textAlign = TextAlign.Center,
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = {
+                                        showIndexingDialog = true
+                                        indexingViewModel.startIndexing(context)
+                                    },
+                                ) {
+                                    Text(stringResource(R.string.startIndexing))
+                                }
                             }
                         }
+                        Spacer(modifier = Modifier.height(itemSpacing))
                     }
-                    Spacer(modifier = Modifier.height(itemSpacing))
+                    else -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors =
+                                CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                ),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    val indexTopicsCount =
+                                        pluralStringResource(
+                                            R.plurals.indexTopicsCount,
+                                            indexSize,
+                                            indexSize,
+                                        )
+                                    Text(
+                                        text = stringResource(R.string.indexStatusWithTopics, indexTopicsCount),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.searchWorksOffline),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                TextButton(
+                                    onClick = {
+                                        showIndexingDialog = true
+                                        indexingViewModel.startIndexing(context)
+                                    },
+                                ) {
+                                    Text(stringResource(R.string.updateAction))
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(itemSpacing))
+                    }
                 }
             }
 
@@ -640,12 +644,11 @@ private fun SearchResultCard(
                     Modifier
                         .width(coverWidth)
                         .height(coverHeight)
-                        .clip(MaterialTheme.shapes.small)
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Default.Book,
+                    imageVector = Icons.Filled.Book,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

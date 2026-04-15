@@ -42,8 +42,9 @@ public class SavedPlayerStateRepository
             try {
                 val entity = stateDao.getState(groupPath)
                 Result.Success(entity)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -54,8 +55,9 @@ public class SavedPlayerStateRepository
             try {
                 val entity = stateDao.getLatestState()
                 Result.Success(entity)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -97,8 +99,9 @@ public class SavedPlayerStateRepository
                     )
                 stateDao.upsertState(entity)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -125,8 +128,9 @@ public class SavedPlayerStateRepository
                 } else {
                     Result.Success(Unit) // No state to update
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -169,8 +173,9 @@ public class SavedPlayerStateRepository
             try {
                 stateDao.deleteState(groupPath)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -181,8 +186,9 @@ public class SavedPlayerStateRepository
             try {
                 stateDao.deleteAllStates()
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e)
             }
     }

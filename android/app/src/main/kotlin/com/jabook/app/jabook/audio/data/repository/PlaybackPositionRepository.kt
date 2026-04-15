@@ -58,8 +58,9 @@ public class PlaybackPositionRepository
                     )
                 positionDao.upsertPosition(entity)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -70,8 +71,9 @@ public class PlaybackPositionRepository
             try {
                 positionDao.deletePosition(bookId)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 

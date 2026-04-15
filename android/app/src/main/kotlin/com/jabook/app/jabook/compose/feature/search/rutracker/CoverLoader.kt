@@ -137,8 +137,9 @@ public class CoverLoader
                     checkFlibusta(topicId)
                     scheduleRetry(topicId)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 // Log error
                 logger.e(e) { "Error loading cover for $topicId" }
                 scheduleRetry(topicId)

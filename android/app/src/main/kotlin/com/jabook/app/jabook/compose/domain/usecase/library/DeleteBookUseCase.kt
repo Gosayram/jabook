@@ -41,8 +41,9 @@ public class DeleteBookUseCase
             try {
                 booksRepository.deleteBook(bookId)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e.toAppError())
             }
     }
