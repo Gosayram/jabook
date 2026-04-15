@@ -388,6 +388,25 @@ public class AudioPlayerService : MediaLibraryService() {
         }
     }
 
+    internal fun markStoppedBySleepTimer() {
+        getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(SleepTimerPersistence.KEY_LAST_STOPPED_BY_SLEEP_TIMER, true)
+            .apply()
+    }
+
+    internal fun consumeStoppedBySleepTimerFlag(): Boolean {
+        val prefs = getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
+        val wasStoppedBySleepTimer = prefs.getBoolean(SleepTimerPersistence.KEY_LAST_STOPPED_BY_SLEEP_TIMER, false)
+        if (wasStoppedBySleepTimer) {
+            prefs
+                .edit()
+                .putBoolean(SleepTimerPersistence.KEY_LAST_STOPPED_BY_SLEEP_TIMER, false)
+                .apply()
+        }
+        return wasStoppedBySleepTimer
+    }
+
     // Limited dispatcher for MediaItem creation (max 16 parallel tasks)
     // Increased parallelism for faster loading on modern devices with fast storage
     // Modern devices can handle more concurrent I/O operations efficiently

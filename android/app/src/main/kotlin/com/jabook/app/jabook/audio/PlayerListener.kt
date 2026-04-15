@@ -50,6 +50,7 @@ internal class PlayerListener(
     private val getSleepTimerEndTime: () -> Long,
     private val cancelSleepTimer: () -> Unit,
     private val sendTimerExpiredEvent: () -> Unit,
+    private val markSleepTimerPause: () -> Unit = {},
     private val saveCurrentPosition: () -> Unit,
     private val startSleepTimerCheck: () -> Unit,
     private val getEmbeddedArtworkPath: () -> String?,
@@ -309,6 +310,8 @@ internal class PlayerListener(
                 // Check sleep timer "end of chapter" mode (inspired by EasyBook)
                 if (getSleepTimerEndOfChapter() || getSleepTimerEndOfTrack()) {
                     LogUtils.d("AudioPlayerService", "Sleep timer expired (end of chapter), pausing playback")
+                    markSleepTimerPause()
+                    saveCurrentPosition()
                     player.playWhenReady = false
                     cancelSleepTimer()
                     sendTimerExpiredEvent()
@@ -983,6 +986,8 @@ internal class PlayerListener(
                 "AudioPlayerService",
                 "Sleep timer expired (end of chapter on auto transition), pausing playback",
             )
+            markSleepTimerPause()
+            saveCurrentPosition()
             val player = getActivePlayer()
             player.playWhenReady = false
             cancelSleepTimer()

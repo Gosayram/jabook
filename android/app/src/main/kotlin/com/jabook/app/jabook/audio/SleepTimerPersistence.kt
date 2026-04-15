@@ -49,6 +49,7 @@ internal object SleepTimerPersistence {
     internal const val KEY_MODE: String = "sleepTimerMode"
     internal const val KEY_PAUSED: String = "sleepTimerPaused"
     internal const val KEY_PAUSED_REMAINING_MILLIS: String = "sleepTimerPausedRemainingMillis"
+    internal const val KEY_LAST_STOPPED_BY_SLEEP_TIMER: String = "sleepTimerLastStoppedPlayback"
     internal const val NO_REMAINING_MILLIS: Long = -1L
 
     internal fun toPersistedState(runtimeState: SleepTimerRuntimeState): SleepTimerPersistedState =

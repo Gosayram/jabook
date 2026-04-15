@@ -95,6 +95,10 @@ internal class PlayerConfigurator(
                     getSleepTimerEndTime = { service.sleepTimerManager?.sleepTimerEndTime ?: 0L },
                     cancelSleepTimer = { service.sleepTimerManager?.cancelSleepTimer() },
                     sendTimerExpiredEvent = { /* Handled by SleepTimerManager */ },
+                    markSleepTimerPause = {
+                        service.playbackController?.markSleepTimerPause()
+                        service.markStoppedBySleepTimer()
+                    },
                     saveCurrentPosition = { service.saveCurrentPosition() },
                     startSleepTimerCheck = { /* Handled automatically by SuspendableCountDownTimer */ },
                     getEmbeddedArtworkPath = { service.embeddedArtworkPath },

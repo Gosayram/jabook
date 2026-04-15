@@ -78,6 +78,7 @@ public class AudioPlayerServiceInitializer(
                         10
                     }
                 },
+                consumeSleepTimerStopFlag = { service.consumeStoppedBySleepTimerFlag() },
             )
 
         // 3.1 SleepTimerManager
@@ -88,6 +89,11 @@ public class AudioPlayerServiceInitializer(
                 playerServiceScope = service.playerServiceScope,
                 getActivePlayer = { service.getActivePlayer() },
                 sendBroadcast = { service.sendBroadcast(it) },
+                saveCurrentPositionOnExpiry = {
+                    service.playbackController?.markSleepTimerPause()
+                    service.markStoppedBySleepTimer()
+                    service.savePositionToRepository()
+                },
                 isShakeToExtendEnabled = {
                     try {
                         kotlinx.coroutines.runBlocking {

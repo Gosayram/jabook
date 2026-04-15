@@ -144,6 +144,50 @@ class PlaybackControllerTest {
             verify(exoPlayer, never()).playWhenReady = true
         }
 
+    @Test
+    fun `play skips resume rewind after sleep timer pause`() =
+        runTest(testDispatcher) {
+            whenever(exoPlayer.mediaItemCount).thenReturn(1)
+            whenever(exoPlayer.playbackState).thenReturn(Player.STATE_READY)
+            whenever(exoPlayer.currentPosition).thenReturn(50_000L)
+
+            playbackController.markSleepTimerPause()
+            playbackController.play()
+            advanceUntilIdle()
+
+            verify(exoPlayer, never()).seekTo(any<Long>())
+            verify(exoPlayer).playWhenReady = true
+        }
+
+    @Test
+    fun `play skips resume rewind when persisted sleep timer stop flag is consumed`() =
+        runTest(testDispatcher) {
+            whenever(exoPlayer.mediaItemCount).thenReturn(1)
+            whenever(exoPlayer.playbackState).thenReturn(Player.STATE_READY)
+            whenever(exoPlayer.currentPosition).thenReturn(50_000L)
+
+            var consumeCalls = 0
+            playbackController =
+                PlaybackController(
+                    getActivePlayer = { exoPlayer },
+                    playerServiceScope = testScope,
+                    resetInactivityTimer = { resetTimerCallCount++ },
+                    getResumeRewindSeconds = { 10 },
+                    consumeSleepTimerStopFlag = {
+                        consumeCalls++
+                        consumeCalls == 1
+                    },
+                )
+
+            playbackController.play()
+            advanceUntilIdle()
+            playbackController.play()
+            advanceUntilIdle()
+
+            verify(exoPlayer, times(1)).seekTo(40_000L)
+            assertTrue(consumeCalls >= 2)
+        }
+
     // ============ Pause Tests ============
 
     @Test

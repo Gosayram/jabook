@@ -43,6 +43,7 @@ internal class SleepTimerManager(
     private val playerServiceScope: CoroutineScope,
     private val getActivePlayer: () -> ExoPlayer,
     private val sendBroadcast: (Intent) -> Unit,
+    private val saveCurrentPositionOnExpiry: () -> Unit = {},
     private val isShakeToExtendEnabled: () -> Boolean = { true },
     private val isPowerSaveModeEnabled: () -> Boolean = {
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -140,6 +141,7 @@ internal class SleepTimerManager(
                 },
                 onFinished = {
                     LogUtils.d("AudioPlayerService", "Sleep timer expired, pausing playback")
+                    saveCurrentPositionOnExpiry()
                     val player = getActivePlayer()
                     player.playWhenReady = false
                     cancelSleepTimer()
@@ -544,6 +546,7 @@ internal class SleepTimerManager(
                 },
                 onFinished = {
                     LogUtils.d("AudioPlayerService", "Restored sleep timer expired, pausing playback")
+                    saveCurrentPositionOnExpiry()
                     val player = getActivePlayer()
                     player.playWhenReady = false
                     cancelSleepTimer()

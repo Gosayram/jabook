@@ -32,6 +32,7 @@ internal class PlaybackController(
     private val playerServiceScope: CoroutineScope,
     private val resetInactivityTimer: () -> Unit,
     private val getResumeRewindSeconds: () -> Int,
+    private val consumeSleepTimerStopFlag: () -> Boolean = { false },
 ) {
     /**
      * Starts or resumes playback.
@@ -39,6 +40,18 @@ internal class PlaybackController(
      * Simplified implementation matching lissen-android approach.
      */
     private var lastPauseTime: Long = 0L
+    private var suppressNextResumeRewind: Boolean = false
+
+    /**
+     * Marks pause cause as sleep timer expiry.
+     *
+     * Next [play] call will skip resume rewind once to respect user's intentional
+     * sleep-timer stop point.
+     */
+    public fun markSleepTimerPause() {
+        lastPauseTime = System.currentTimeMillis()
+        suppressNextResumeRewind = true
+    }
 
     /**
      * Starts or resumes playback.
@@ -75,11 +88,16 @@ internal class PlaybackController(
                     }
                 val currentTime = System.currentTimeMillis()
                 val pauseDurationMs = if (lastPauseTime > 0) currentTime - lastPauseTime else Long.MAX_VALUE
+                val shouldSuppressRewind = suppressNextResumeRewind || consumeSleepTimerStopFlag()
                 val rewindMs =
-                    ResumeRewindPolicy.resolveRewindMs(
-                        pauseDurationMs = pauseDurationMs,
-                        configuredSeconds = configuredRewindSeconds,
-                    )
+                    if (shouldSuppressRewind) {
+                        0L
+                    } else {
+                        ResumeRewindPolicy.resolveRewindMs(
+                            pauseDurationMs = pauseDurationMs,
+                            configuredSeconds = configuredRewindSeconds,
+                        )
+                    }
                 if (rewindMs > 0 && player.currentPosition > 5000L) {
                     val newPos = (player.currentPosition - rewindMs).coerceAtLeast(0L)
                     player.seekTo(newPos)
@@ -88,6 +106,7 @@ internal class PlaybackController(
                         "Resume rewind: ${rewindMs / 1000}s after pause ${pauseDurationMs / 1000}s",
                     )
                 }
+                suppressNextResumeRewind = false
 
                 // Match lissen-android: simply set playWhenReady=true
                 // ExoPlayer manages AudioFocus automatically when handleAudioFocus=true
@@ -117,6 +136,7 @@ internal class PlaybackController(
 
                 // Update lastPauseTime for Smart Rewind
                 lastPauseTime = System.currentTimeMillis()
+                suppressNextResumeRewind = false
 
                 // Small rewind on pause improves context retention for audiobooks.
                 if (player.playbackState != Player.STATE_ENDED) {
