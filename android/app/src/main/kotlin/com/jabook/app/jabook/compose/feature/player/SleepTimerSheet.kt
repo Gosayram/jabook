@@ -48,6 +48,7 @@ import java.time.LocalDateTime
  * Bottom sheet for managing sleep timer.
  *
  * @param currentState Current sleep timer state
+ * @param lastUsedDurationMinutes Last used fixed timer duration in minutes
  * @param onStartTimer Callback when timer duration is selected
  * @param onStartTimerEndOfChapter Callback when "End of Chapter" is selected
  * @param onStartTimerEndOfTrack Callback when "End of Track" is selected
@@ -58,6 +59,7 @@ import java.time.LocalDateTime
 @Composable
 public fun SleepTimerSheet(
     currentState: SleepTimerState,
+    lastUsedDurationMinutes: Int?,
     onStartTimer: (Int) -> Unit,
     onStartTimerEndOfChapter: () -> Unit,
     onStartTimerEndOfTrack: () -> Unit,
@@ -90,6 +92,39 @@ public fun SleepTimerSheet(
 
             when (currentState) {
                 is SleepTimerState.Idle -> {
+                    lastUsedDurationMinutes?.let { minutes ->
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    stringResource(
+                                        R.string.sleepTimerRepeatYesterday,
+                                        minutes,
+                                    ),
+                                )
+                            },
+                            supportingContent = {
+                                Text(
+                                    pluralStringResource(
+                                        R.plurals.durationMinutesFull,
+                                        minutes,
+                                        minutes,
+                                    ),
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Filled.Timer,
+                                    contentDescription = null,
+                                )
+                            },
+                            modifier =
+                                Modifier.clickable {
+                                    onStartTimer(minutes)
+                                    onDismiss()
+                                },
+                        )
+                    }
+
                     // End of Chapter option
                     ListItem(
                         headlineContent = {
@@ -196,6 +231,12 @@ public fun SleepTimerSheet(
                                 R.string.sleep_timer_active,
                                 formatSleepTimerRemaining(currentState.remainingSeconds),
                             ),
+                        detailsText =
+                            stringResource(
+                                R.string.sleepTimerStopsAt,
+                                formatSleepTimerStopAt(currentState.remainingSeconds),
+                                formatSleepTimerRemaining(currentState.remainingSeconds),
+                            ),
                         onCancelTimer = onCancelTimer,
                         onDismiss = onDismiss,
                     )
@@ -237,6 +278,7 @@ public fun SleepTimerSheet(
 @Composable
 private fun ActiveTimerContent(
     timeText: String,
+    detailsText: String? = null,
     onCancelTimer: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -264,6 +306,13 @@ private fun ActiveTimerContent(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (!detailsText.isNullOrBlank()) {
+            Text(
+                text = detailsText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
         Spacer(Modifier.height(8.dp))
 

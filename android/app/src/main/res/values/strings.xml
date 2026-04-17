@@ -2436,6 +2436,9 @@
     <string name="sleep_timer_end_of_track">%1$s</string>
     <string name="sleep_timer_idle">Not active</string>
     <string name="sleepTimerTitle">Sleep Timer</string>
+    <string name="sleepTimerRepeatYesterday">Same as yesterday (%1$d min)</string>
+    <string name="sleepTimerStopsAt">Stops at %1$s (in %2$s)</string>
+    <string name="sleepTimerResumeHint">Sleep timer paused playback. Continue from the same spot.</string>
     <string name="stopAtSpecificTime">Stop at specific time</string>
     <string name="stopAtSpecificTimeDesc">Choose clock time (for example, 23:30)</string>
     <string name="currentMirror">Current Mirror</string>

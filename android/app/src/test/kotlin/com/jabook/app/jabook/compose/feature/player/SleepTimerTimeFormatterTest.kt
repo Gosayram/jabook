@@ -14,19 +14,20 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
-import android.text.format.DateUtils
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
-internal fun formatSleepTimerRemaining(remainingSeconds: Int): String =
-    DateUtils.formatElapsedTime(remainingSeconds.coerceAtLeast(0).toLong())
+class SleepTimerTimeFormatterTest {
+    @Test
+    fun `formatSleepTimerStopAt formats same-day end time`() {
+        val now = LocalDateTime.of(2026, 4, 17, 22, 15, 0)
+        assertEquals("22:45", formatSleepTimerStopAt(remainingSeconds = 30 * 60, now = now))
+    }
 
-internal fun formatSleepTimerStopAt(
-    remainingSeconds: Int,
-    now: LocalDateTime = LocalDateTime.now(),
-): String {
-    val stopAt = now.plusSeconds(remainingSeconds.coerceAtLeast(0).toLong())
-    val formatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
-    return stopAt.format(formatter)
+    @Test
+    fun `formatSleepTimerStopAt wraps across midnight`() {
+        val now = LocalDateTime.of(2026, 4, 17, 23, 50, 0)
+        assertEquals("00:10", formatSleepTimerStopAt(remainingSeconds = 20 * 60, now = now))
+    }
 }

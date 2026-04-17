@@ -14,19 +14,10 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
-import android.text.format.DateUtils
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-
-internal fun formatSleepTimerRemaining(remainingSeconds: Int): String =
-    DateUtils.formatElapsedTime(remainingSeconds.coerceAtLeast(0).toLong())
-
-internal fun formatSleepTimerStopAt(
-    remainingSeconds: Int,
-    now: LocalDateTime = LocalDateTime.now(),
-): String {
-    val stopAt = now.plusSeconds(remainingSeconds.coerceAtLeast(0).toLong())
-    val formatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
-    return stopAt.format(formatter)
+internal object SleepTimerResumeHintPolicy {
+    fun shouldShowHint(
+        wasLastStopBySleepTimer: Boolean,
+        isPlaying: Boolean,
+        hasAlreadyShownInSession: Boolean,
+    ): Boolean = wasLastStopBySleepTimer && !isPlaying && !hasAlreadyShownInSession
 }

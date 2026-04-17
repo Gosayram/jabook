@@ -55,9 +55,12 @@ public class SleepTimerRepositoryImpl
     ) : SleepTimerRepository {
         private val logger = loggerFactory.get("SleepTimerRepository")
         private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+        private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         private val _timerState = MutableStateFlow<SleepTimerState>(SleepTimerState.Idle)
         override val timerState: StateFlow<SleepTimerState> = _timerState.asStateFlow()
+        private val _lastFixedDurationMinutes = MutableStateFlow(loadLastFixedDurationMinutes())
+        override val lastFixedDurationMinutes: StateFlow<Int?> = _lastFixedDurationMinutes.asStateFlow()
 
         // MediaController for accessing service through custom commands
         private var mediaController: MediaController? = null
@@ -208,6 +211,7 @@ public class SleepTimerRepositoryImpl
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
                             // State will be updated by polling, but eagerly update for responsiveness
                             _timerState.value = SleepTimerState.Active(durationMinutes * 60)
+                            persistLastFixedDurationMinutes(durationMinutes)
                         }
                     } catch (e: InterruptedException) {
                         Thread.currentThread().interrupt()
@@ -323,5 +327,24 @@ public class SleepTimerRepositoryImpl
                     logger.w { "MediaController not available for cancelTimer" }
                 }
             }
+        }
+
+        private fun loadLastFixedDurationMinutes(): Int? {
+            val storedValue = prefs.getInt(KEY_LAST_FIXED_DURATION_MINUTES, 0)
+            return storedValue.takeIf { it > 0 }
+        }
+
+        private fun persistLastFixedDurationMinutes(minutes: Int) {
+            if (minutes <= 0) return
+            prefs
+                .edit()
+                .putInt(KEY_LAST_FIXED_DURATION_MINUTES, minutes)
+                .apply()
+            _lastFixedDurationMinutes.value = minutes
+        }
+
+        private companion object {
+            private const val PREFS_NAME: String = "sleep_timer_repository"
+            private const val KEY_LAST_FIXED_DURATION_MINUTES: String = "last_fixed_duration_minutes"
         }
     }

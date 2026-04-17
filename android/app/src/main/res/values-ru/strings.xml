@@ -2436,6 +2436,9 @@
     <string name="sleep_timer_end_of_track">%1$s</string>
     <string name="sleep_timer_idle">Не активен</string>
     <string name="sleepTimerTitle">Таймер сна</string>
+    <string name="sleepTimerRepeatYesterday">Как вчера (%1$d мин)</string>
+    <string name="sleepTimerStopsAt">Остановка в %1$s (через %2$s)</string>
+    <string name="sleepTimerResumeHint">Таймер сна остановил воспроизведение. Продолжить с того же места.</string>
     <string name="stopAtSpecificTime">Остановить в конкретное время</string>
     <string name="stopAtSpecificTimeDesc">Выберите время по часам (например, 23:30)</string>
     <string name="currentMirror">Текущее зеркало</string>

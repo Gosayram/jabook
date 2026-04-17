@@ -22,6 +22,8 @@ import androidx.navigation.toRoute
 import coil3.SingletonImageLoader
 import coil3.request.allowHardware
 import coil3.toBitmap
+import com.jabook.app.jabook.R
+import com.jabook.app.jabook.audio.SleepTimerPersistence
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -131,6 +133,7 @@ public class PlayerViewModel
 
         private var lastPersistedPlayerSnapshot: PlayerStateSnapshot? = null
         private var restoredBootstrapSnapshot: RestoredBootstrapSnapshot? = null
+        private var hasShownSleepTimerResumeHint: Boolean = false
 
         // Chapter repeat mode state
         private val chapterRepeatModeState = MutableStateFlow(ChapterRepeatMode.OFF)
@@ -149,6 +152,7 @@ public class PlayerViewModel
             restoreStateSnapshotFromDataStore()
             restorePlaybackSpeedFromSnapshotIfNeeded()
             restoreSleepTimerModeFromSnapshotIfNeeded()
+            observeSleepTimerResumeHint()
 
             viewModelScope.launch {
                 commandFlow.collect { command ->
@@ -540,6 +544,8 @@ public class PlayerViewModel
          */
         public val sleepTimerState: StateFlow<com.jabook.app.jabook.compose.domain.model.SleepTimerState> =
             sleepTimerRepository.timerState
+
+        public val lastSleepTimerDurationMinutes: StateFlow<Int?> = sleepTimerRepository.lastFixedDurationMinutes
 
         // Unified player command dispatcher (incremental PlayerIntent migration)
         public fun dispatch(intent: PlayerIntent) {
@@ -972,6 +978,30 @@ public class PlayerViewModel
                     else -> Unit
                 }
             }
+        }
+
+        private fun observeSleepTimerResumeHint() {
+            viewModelScope.launch {
+                uiState.collect { state ->
+                    val activeState = state as? PlayerState.Active ?: return@collect
+                    val wasLastStopBySleepTimer = wasLastStoppedBySleepTimerFlagSet()
+                    if (
+                        SleepTimerResumeHintPolicy.shouldShowHint(
+                            wasLastStopBySleepTimer = wasLastStopBySleepTimer,
+                            isPlaying = activeState.isPlaying,
+                            hasAlreadyShownInSession = hasShownSleepTimerResumeHint,
+                        )
+                    ) {
+                        hasShownSleepTimerResumeHint = true
+                        emitEffect(PlayerEffect.ShowSnackbar(context.getString(R.string.sleepTimerResumeHint)))
+                    }
+                }
+            }
+        }
+
+        private fun wasLastStoppedBySleepTimerFlagSet(): Boolean {
+            val prefs = context.getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
+            return prefs.getBoolean(SleepTimerPersistence.KEY_LAST_STOPPED_BY_SLEEP_TIMER, false)
         }
 
         private fun PlayerIntent.isPlaybackControlIntent(): Boolean =

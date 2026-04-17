@@ -189,6 +189,7 @@ public fun PlayerScreen(
     val playbackSpeed by viewModel.playbackSpeed.collectAsStateWithLifecycle()
     val pitchCorrectionEnabled by viewModel.pitchCorrectionEnabled.collectAsStateWithLifecycle()
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
+    val lastSleepTimerDurationMinutes by viewModel.lastSleepTimerDurationMinutes.collectAsStateWithLifecycle()
     val normalizeEnabled by viewModel.normalizeChapterTitles.collectAsStateWithLifecycle()
     val audioSettings by viewModel.audioSettings.collectAsStateWithLifecycle()
     val visualizerWaveformData by viewModel.visualizerWaveformData.collectAsStateWithLifecycle()
@@ -432,6 +433,7 @@ public fun PlayerScreen(
     if (showSleepTimerSheet) {
         SleepTimerSheet(
             currentState = sleepTimerState,
+            lastUsedDurationMinutes = lastSleepTimerDurationMinutes,
             onStartTimer = { minutes ->
                 viewModel.dispatch(PlayerIntent.StartSleepTimer(minutes))
             },
@@ -565,17 +567,17 @@ public fun PlayerScreen(
                                             chapterRepeatMode = state.chapterRepeatMode,
                                             visualizerWaveformData = visualizerWaveformData,
                                             onPlayPause = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 clickDebouncer.debounce {
                                                     viewModel.dispatch(PlayerIntent.TogglePlayPause)
                                                 }
                                             },
                                             onSkipNext = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipNext) }
                                             },
                                             onSkipPrevious = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipPrevious) }
                                             },
                                             onSeek = { positionMs ->
@@ -821,6 +823,13 @@ private fun PlayerContent(
     }
     val seekScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
+    var lastChapterBoundaryIndex by remember(state.book.id) { mutableIntStateOf(state.currentChapterIndex) }
+    LaunchedEffect(state.currentChapterIndex) {
+        if (state.currentChapterIndex != lastChapterBoundaryIndex) {
+            hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+            lastChapterBoundaryIndex = state.currentChapterIndex
+        }
+    }
 
     // Dynamic Theme Background with Glassmorphism Effect
     // Background is now handled by PremiumPlayerBackground wrapping this content
