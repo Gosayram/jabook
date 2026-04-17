@@ -75,7 +75,6 @@ public fun SleepTimerSheet(
         modifier = modifier,
     ) {
         val context = LocalContext.current
-        val now = LocalDateTime.now()
         Column(
             modifier =
                 Modifier
@@ -175,6 +174,7 @@ public fun SleepTimerSheet(
                         },
                         modifier =
                             Modifier.clickable {
+                                val now = LocalDateTime.now()
                                 TimePickerDialog(
                                     context,
                                     { _, hourOfDay, minute ->

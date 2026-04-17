@@ -39,4 +39,22 @@ class SleepTimerSchedulePolicyTest {
         val minutes = SleepTimerSchedulePolicy.minutesUntil(targetHour = 23, targetMinute = 30, now = now)
         assertEquals(24 * 60, minutes)
     }
+
+    @Test
+    fun `minutesUntil returns 1 when target is only seconds away and clamps correctly`() {
+        // Now is 10:00:50, target is 10:01 - less than 1 minute away
+        val now = LocalDateTime.of(2026, 4, 17, 10, 0, 50)
+        val minutes = SleepTimerSchedulePolicy.minutesUntil(targetHour = 10, targetMinute = 1, now = now)
+        // Should clamp to at least 1 minute due to max(1, ...) in implementation
+        assertEquals(1, minutes)
+    }
+
+    @Test
+    fun `minutesUntil handles 23_59 to 00_00 midnight rollover`() {
+        // Now is 23:59, target is 00:00 - cross-midnight calculation
+        val now = LocalDateTime.of(2026, 4, 17, 23, 59, 30)
+        val minutes = SleepTimerSchedulePolicy.minutesUntil(targetHour = 0, targetMinute = 0, now = now)
+        // From 23:59:30 to 00:00:00 is less than 1 minute, should clamp to 1
+        assertEquals(1, minutes)
+    }
 }
