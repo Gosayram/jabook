@@ -30,4 +30,10 @@ class SleepTimerTimeFormatterTest {
         val now = LocalDateTime.of(2026, 4, 17, 23, 50, 0)
         assertEquals("00:10", formatSleepTimerStopAt(remainingSeconds = 20 * 60, now = now))
     }
+
+    @Test
+    fun `formatSleepTimerStopAt clamps negative seconds to now`() {
+        val now = LocalDateTime.of(2026, 4, 17, 14, 30, 0)
+        assertEquals("14:30", formatSleepTimerStopAt(remainingSeconds = -100, now = now))
+    }
 }

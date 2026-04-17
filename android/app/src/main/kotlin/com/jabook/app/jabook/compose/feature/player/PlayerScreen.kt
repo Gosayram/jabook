@@ -534,6 +534,13 @@ public fun PlayerScreen(
                                         fadeOut(animationSpec = tween(180)) + scaleOut(targetScale = 1.02f, animationSpec = tween(180)),
                                     )
                             },
+                            contentKey = { state ->
+                                when (state) {
+                                    is PlayerState.Loading -> "loading"
+                                    is PlayerState.Active -> "active"
+                                    is PlayerState.Error -> "error"
+                                }
+                            },
                             label = "player_state_transition",
                         ) { animatedState ->
                             when (animatedState) {
