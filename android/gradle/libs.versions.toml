@@ -23,7 +23,7 @@ androidxMedia = "1.7.1"
 androidxLifecycle = "2.10.0"
 
 # AndroidX Compose
-androidxComposeBom = "2026.03.01"
+androidxComposeBom = "2026.04.01"
 androidxComposeMaterial3Adaptive = "1.3.0-alpha10"
 androidxComposeMaterial3AdaptiveNavigation = "1.5.0-alpha17"
 androidxComposeUiTextGoogleFonts = "1.10.6"
