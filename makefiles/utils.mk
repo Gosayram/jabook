@@ -88,3 +88,13 @@ sync-arch-closed: ## Sync closed tasks: .reborn-arch-docs.md -> .closed-arch-doc
 .PHONY: sync-arch
 sync-arch: ## Run both arch docs sync directions
 	@python3 scripts/sync_arch_docs_open_tasks.py --direction both
+
+## Library Sources Sync
+
+.PHONY: sync-lib-sources
+sync-lib-sources: ## Sync test_results/source_codes/jabook_libs_sources from project direct deps
+	@python3 scripts/sync_jabook_lib_sources.py
+
+.PHONY: sync-lib-sources-dry
+sync-lib-sources-dry: ## Dry-run library sources sync without file changes
+	@python3 scripts/sync_jabook_lib_sources.py --dry-run --verbose
