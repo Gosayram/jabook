@@ -110,7 +110,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -581,10 +583,12 @@ public fun PlayerScreen(
                                             },
                                             onSkipNext = {
                                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                                skipTriggeredHaptic = true
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipNext) }
                                             },
                                             onSkipPrevious = {
                                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                                skipTriggeredHaptic = true
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipPrevious) }
                                             },
                                             onSeek = { positionMs ->
@@ -830,9 +834,16 @@ private fun PlayerContent(
     val seekScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
     var lastChapterBoundaryIndex by remember(state.book.id) { mutableIntStateOf(state.currentChapterIndex) }
+    var skipTriggeredHaptic by remember { mutableStateOf(false) }
     LaunchedEffect(state.currentChapterIndex) {
         if (state.currentChapterIndex != lastChapterBoundaryIndex) {
-            hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+            if (skipTriggeredHaptic) {
+                // Skip handlers already triggered haptic, just reset flag
+                skipTriggeredHaptic = false
+            } else {
+                // Passive boundary change (e.g., playback reached end), perform haptic
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+            }
             lastChapterBoundaryIndex = state.currentChapterIndex
         }
     }
@@ -2042,7 +2053,11 @@ private fun PlayerLoadingSkeleton(modifier: Modifier = Modifier) {
     Column(
         modifier =
             modifier
-                .padding(horizontal = 24.dp, vertical = 20.dp),
+                .padding(horizontal = 24.dp, vertical = 20.dp)
+                .semantics {
+                    contentDescription = "Loading player"
+                    progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
+                },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
