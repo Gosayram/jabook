@@ -645,7 +645,6 @@ public fun PlayerScreen(
                                     val state = animatedState
                                     ErrorScreen(
                                         message = state.message,
-                                        onRetry = { navigationClickGuard.run(onNavigateBack) },
                                     )
                                 }
                             }
