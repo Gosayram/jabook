@@ -6,7 +6,7 @@ minSdk = "30"
 targetSdk = "36"
 
 # Kotlin
-kotlin = "2.3.20"
+kotlin = "2.3.21"
 ksp = "2.3.6"
 kotlinxCoroutines = "1.10.2"
 kotlinxCollectionsImmutable = "0.4.0"
