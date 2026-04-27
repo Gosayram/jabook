@@ -18,6 +18,7 @@ import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.Cache
@@ -167,6 +168,9 @@ public object MediaModule {
                             .build(),
                         true, // handleAudioFocus=true - ExoPlayer manages AudioFocus automatically
                     ).build()
+                    .apply {
+                        setTrackSelectionParameters(createAudioOffloadTrackSelectionParameters())
+                    }
             } catch (e: Exception) {
                 android.util.Log.e("MediaModule", "Error creating ExoPlayer: ${e.message}", e)
                 throw e
@@ -244,7 +248,11 @@ public object MediaModule {
                     )
                 }
 
-                builder.build()
+                builder
+                    .build()
+                    .apply {
+                        setTrackSelectionParameters(createAudioOffloadTrackSelectionParameters())
+                    }
             } catch (e: Exception) {
                 android.util.Log.e("MediaModule", "Error creating ExoPlayer with processors: ${e.message}", e)
                 throw e
@@ -288,6 +296,21 @@ public object MediaModule {
         }
         return loadControlBuilder.build()
     }
+
+    @OptIn(UnstableApi::class)
+    private fun createAudioOffloadTrackSelectionParameters(): TrackSelectionParameters =
+        TrackSelectionParameters
+            .Builder()
+            .setAudioOffloadPreferences(
+                TrackSelectionParameters
+                    .AudioOffloadPreferences
+                    .Builder()
+                    .setAudioOffloadMode(
+                        TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED,
+                    ).setIsGaplessSupportRequired(false)
+                    .setIsSpeedChangeSupportRequired(false)
+                    .build(),
+            ).build()
 
     /**
      * Calculates optimal cache size limit based on available storage.

@@ -583,12 +583,10 @@ public fun PlayerScreen(
                                             },
                                             onSkipNext = {
                                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
-                                                skipTriggeredHaptic = true
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipNext) }
                                             },
                                             onSkipPrevious = {
                                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
-                                                skipTriggeredHaptic = true
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipPrevious) }
                                             },
                                             onSeek = { positionMs ->
