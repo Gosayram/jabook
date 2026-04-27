@@ -264,6 +264,9 @@ android {
             // Disable some optimizations for debug build speed
             isMinifyEnabled = false
             isShrinkResources = false
+            // Enable JaCoCo instrumentation so coverage data (.exec) is generated
+            enableAndroidTestCoverage = true
+            enableUnitTestCoverage = true
         }
     }
 

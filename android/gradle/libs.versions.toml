@@ -7,7 +7,7 @@ targetSdk = "36"
 
 # Kotlin
 kotlin = "2.3.21"
-ksp = "2.3.6"
+ksp = "2.3.7"
 kotlinxCoroutines = "1.10.2"
 kotlinxCollectionsImmutable = "0.4.0"
 kotlinxSerialization = "1.11.0"
@@ -23,13 +23,13 @@ androidxMedia = "1.7.1"
 androidxLifecycle = "2.10.0"
 
 # AndroidX Compose
-androidxComposeBom = "2026.03.01"
+androidxComposeBom = "2026.04.01"
 androidxComposeMaterial3Adaptive = "1.3.0-alpha10"
 androidxComposeMaterial3AdaptiveNavigation = "1.5.0-alpha17"
 androidxComposeUiTextGoogleFonts = "1.10.6"
 
 # AndroidX Navigation
-androidxNavigation = "2.9.7"
+androidxNavigation = "2.9.8"
 
 # AndroidX Room
 androidxRoom = "2.8.4"
