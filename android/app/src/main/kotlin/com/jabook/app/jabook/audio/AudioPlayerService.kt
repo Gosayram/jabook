@@ -139,16 +139,10 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     public fun getServiceMediaController(): MediaController? = serviceMediaController
 
-    // MediaSession custom layout helper (extracted from service)
-    private val mediaSessionLayoutHelper =
-        MediaSessionLayoutHelper(playerServiceScope) { mediaSession }
-
     // PlayerNotificationManager for direct notification control (androidx.media3.ui)
     // Replaces MediaNotification.Provider which doesn't work with background service warmup
     private var playerNotificationManager: PlayerNotificationManager? = null
 
-    // notificationManager removed - MediaSession handles notifications automatically via AudioPlayerNotificationProvider
-    // internal var notificationManager: NotificationManager? = null
     internal var notificationHelper: NotificationHelper? = null
     internal var mediaSessionManager: MediaSessionManager? = null
     internal var playbackTimer: PlaybackTimer? = null
@@ -217,10 +211,6 @@ public class AudioPlayerService : MediaLibraryService() {
             playlistManager?.actualTrackIndex = value
         }
 
-    // Track if playlist is currently being loaded to prevent duplicate calls
-    // This is now delegated to PlaylistManager
-    // internal var isPlaylistLoading = false // Removed as it's now a delegated property
-
     internal var currentLoadingPlaylist: List<String>?
         get() = playlistManager?.currentLoadingPlaylist
         set(_) { /* Read-only via AudioPlayerService */ }
@@ -230,12 +220,6 @@ public class AudioPlayerService : MediaLibraryService() {
         get() = playlistManager?.lastPlaylistLoadTime ?: 0
         set(_) { /* Read-only via AudioPlayerService */ }
 
-    // Periodic position saving designated to PlaybackPositionSaver
-    // private var positionSaveJob: kotlinx.coroutines.Job? = null // Removed
-    // private var lastPositionSaveTime: Int =  // Removed
-
-    // Store current playlist state for restoration after player recreation
-    // Store current playlist state for restoration after player recreation
     internal var currentFilePaths: List<String>?
         get() = playlistManager?.currentFilePaths
         set(_) { /* Read-only via AudioPlayerService - set via SetPlaylist */ }
@@ -262,13 +246,6 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     public fun setGetDurationFromDbCallback(callback: ((String) -> Long?)?) {
         durationManager.setGetDurationFromDbCallback(callback)
-    }
-
-    /**
-     * Deprecated: Flutter MethodChannel removed.
-     */
-    public fun setMethodChannel() {
-        // No-op: Flutter bridge removed
     }
 
     /**
@@ -301,11 +278,6 @@ public class AudioPlayerService : MediaLibraryService() {
         durationManager.saveDurationToCache(filePath, durationMs)
     }
 
-    // Audio processing settings
-    // internal var audioProcessingSettings = AudioProcessingSettings() // Delegated to PlayerConfigurator
-
-    // Custom ExoPlayer instance (wraps singleton ExoPlayer)
-    // internal var customExoPlayer: ExoPlayer? = null // Delegated to PlayerConfigurator
     internal var customExoPlayer: ExoPlayer? = null
 
     // Crossfade components
@@ -316,6 +288,10 @@ public class AudioPlayerService : MediaLibraryService() {
         CoroutineScope(
             Dispatchers.Main + SupervisorJob() + loggingCoroutineExceptionHandler("AudioPlayerService"),
         )
+
+    // MediaSession custom layout helper (extracted from service)
+    private val mediaSessionLayoutHelper =
+        MediaSessionLayoutHelper(playerServiceScope) { mediaSession }
 
     private val foregroundNotificationCoordinator by lazy {
         ForegroundNotificationCoordinator(
@@ -454,13 +430,6 @@ public class AudioPlayerService : MediaLibraryService() {
     // Flag to indicate if "Minimal Notification" mode is enabled
     // If true, artwork loading will be skipped to show a smaller notification
     internal var isMinimalNotification = false
-
-    /**
-     * Checks if service is fully initialized and ready to use.
-     *
-     * @return true if service is ready, false otherwise
-     */
-    public fun isFullyInitialized(): Boolean = isFullyInitializedFlag && (mediaLibrarySession != null || mediaSession != null)
 
     /**
      * Gets the MediaLibrarySession instance.
@@ -946,19 +915,6 @@ public class AudioPlayerService : MediaLibraryService() {
         updateCrashPlaybackContext()
     }
 
-    /**
-     * Sets notification type (full or minimal).
-     *
-     * @param isMinimal true for minimal notification (Play/Pause only),
-     * false for full notification (all controls)
-     */
-    public fun setNotificationType() {
-        // MediaLibraryService automatically manages notifications based on Player state
-        // If we need custom notification types, we should configure MediaButtonPreferences instead
-        // notificationManager?.setNotificationType(false)
-        // MediaLibraryService automatically updates notification when Player state changes
-    }
-
     public val isPlaying: Boolean
         get() = getActivePlayer().isPlaying
 
@@ -986,7 +942,6 @@ public class AudioPlayerService : MediaLibraryService() {
 
         listeningSessionTracker.onPlaybackStopped(reason = "pause")
         savePositionToRepository()
-        // storeCurrentMediaItem()
         stopPeriodicPositionSaving()
         updateCrashPlaybackContext()
     }
@@ -1002,7 +957,6 @@ public class AudioPlayerService : MediaLibraryService() {
 
         listeningSessionTracker.onPlaybackStopped(reason = "stop")
         savePositionToRepository()
-        // storeCurrentMediaItem()
         stopPeriodicPositionSaving()
         updateCrashPlaybackContext()
     }
@@ -1036,114 +990,30 @@ public class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    /**
-     * Stores current media item detailed state for persistence.
-     *
-     * Based on Media3 DemoPlaybackService example.
-     */
-    @OptIn(UnstableApi::class) // Player.listen, BitmapLoader
-    internal fun storeCurrentMediaItem() {
-    }
-
-    public fun seekTo(positionMs: Long): Unit =
-        playbackController?.seekTo(positionMs) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
+    public fun seekTo(positionMs: Long) { playbackController?.seekTo(positionMs) }
 
     public fun setSpeed(speed: Float) {
-        playbackController?.setSpeed(speed) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
+        playbackController?.setSpeed(speed)
         updateCrashPlaybackContext()
     }
 
-    public fun setRepeatMode(repeatMode: Int): Unit =
-        playbackController?.setRepeatMode(repeatMode) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
-
+    public fun setRepeatMode(repeatMode: Int) { playbackController?.setRepeatMode(repeatMode) }
     public fun getRepeatMode(): Int = playbackController?.getRepeatMode() ?: Player.REPEAT_MODE_OFF
-
     public fun getPlaybackSpeed(): Float = playbackController?.getSpeed() ?: 1.0f
-
-    public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean): Unit =
-        playbackController?.setShuffleModeEnabled(shuffleModeEnabled) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
-
+    public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) { playbackController?.setShuffleModeEnabled(shuffleModeEnabled) }
     public fun getShuffleModeEnabled(): Boolean = playbackController?.getShuffleModeEnabled() ?: false
 
-    /**
-     * Sets sleep timer with specified duration in minutes.
-     *
-     * Inspired by EasyBook implementation: uses absolute end time instead of periodic timer.
-     *
-     * @param minutes Timer duration in minutes
-     */
-    public fun setSleepTimerMinutes(minutes: Int) {
-        sleepTimerManager?.setSleepTimerMinutes(minutes)
-        updateCrashPlaybackContext()
-    }
-
-    /**
-     * Sets sleep timer to expire at end of current chapter.
-     *
-     * Inspired by EasyBook implementation: uses boolean flag for "end of chapter" mode.
-     */
-    public fun setSleepTimerEndOfChapter() {
-        sleepTimerManager?.setSleepTimerEndOfChapter()
-        updateCrashPlaybackContext()
-    }
-
-    /**
-     * Sets sleep timer to end of chapter when chapter boundaries are available.
-     * Falls back to end of track otherwise.
-     *
-     * @return true when chapter-end mode is active, false when fallback to track-end was applied
-     */
+    // --- Sleep timer delegation ---
+    public fun setSleepTimerMinutes(minutes: Int) { sleepTimerManager?.setSleepTimerMinutes(minutes); updateCrashPlaybackContext() }
+    public fun setSleepTimerEndOfChapter() { sleepTimerManager?.setSleepTimerEndOfChapter(); updateCrashPlaybackContext() }
     public fun setSleepTimerEndOfChapterOrFallback(): Boolean {
-        val hasChapterModeSupport = getActivePlayer().mediaItemCount > 1
-        return sleepTimerManager?.setSleepTimerEndOfChapterOrFallback(hasChapterModeSupport) ?: false
+        return sleepTimerManager?.setSleepTimerEndOfChapterOrFallback(getActivePlayer().mediaItemCount > 1) ?: false
     }
-
-    /**
-     * Sets sleep timer to expire at end of current track.
-     */
-    public fun setSleepTimerEndOfTrack() {
-        sleepTimerManager?.setSleepTimerEndOfTrack()
-        updateCrashPlaybackContext()
-    }
-
-    /**
-     * Cancels active sleep timer.
-     */
-    public fun cancelSleepTimer() {
-        sleepTimerManager?.cancelSleepTimer()
-        updateCrashPlaybackContext()
-    }
-
-    /**
-     * Gets remaining seconds for sleep timer, or null if not active.
-     *
-     * @return Remaining seconds, or null if timer is not active or set to "end of chapter"
-     */
+    public fun setSleepTimerEndOfTrack() { sleepTimerManager?.setSleepTimerEndOfTrack(); updateCrashPlaybackContext() }
+    public fun cancelSleepTimer() { sleepTimerManager?.cancelSleepTimer(); updateCrashPlaybackContext() }
     public fun getSleepTimerRemainingSeconds(): Int? = sleepTimerManager?.getSleepTimerRemainingSeconds()
-
-    /**
-     * Checks if sleep timer is active.
-     *
-     * @return true if timer is active (either fixed duration or end of chapter)
-     */
     public fun isSleepTimerActive(): Boolean = sleepTimerManager?.isSleepTimerActive() ?: false
-
-    /**
-     * Checks if sleep timer is set to end of chapter.
-     */
     public fun isSleepTimerEndOfChapter(): Boolean = sleepTimerManager?.sleepTimerEndOfChapter == true
-
-    /**
-     * Checks if sleep timer is set to end of track.
-     */
     public fun isSleepTimerEndOfTrack(): Boolean = sleepTimerManager?.sleepTimerEndOfTrack == true
 
     /**
@@ -1229,8 +1099,6 @@ public class AudioPlayerService : MediaLibraryService() {
         mediaSessionManager?.release()
         mediaSession = null
 
-        // Cancel notification
-        // notificationManager = null
 
         LogUtils.d("AudioPlayerService", "Player stopped and resources released")
     }
@@ -1249,11 +1117,6 @@ public class AudioPlayerService : MediaLibraryService() {
             rewindSeconds.toLong(),
             forwardSeconds.toLong(),
         )
-        // Update NotificationManager
-        // notificationManager?.updateSkipDurations(
-        //     rewindSeconds.toLong(),
-        //     forwardSeconds.toLong(),
-        // )
         LogUtils.d(
             "AudioPlayerService",
             "Updated skip durations: rewind=${rewindSeconds}s, forward=${forwardSeconds}s",
@@ -1303,7 +1166,6 @@ public class AudioPlayerService : MediaLibraryService() {
             LogUtils.e("AudioPlayerService", "UnloadManager not initialized")
         }
 
-    // Periodic position saving methods removed (delegated to PlaybackPositionSaver)
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         lifecycleManager?.onTaskRemoved() ?: super.onTaskRemoved(rootIntent)
@@ -1462,7 +1324,7 @@ public class AudioPlayerService : MediaLibraryService() {
             )
             return null
         }
-        if (!isFullyInitialized()) {
+        if (!isFullyInitializedFlag) {
             LogUtils.w(
                 "AudioPlayerService",
                 "Accepting controller ${controllerInfo.packageName} with partially initialized service; session is available",

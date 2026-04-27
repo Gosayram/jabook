@@ -15,22 +15,14 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
-import android.content.Intent
 import android.os.SystemClock
-import android.util.Log
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Metadata
 import androidx.media3.common.Player
-import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
-import com.jabook.app.jabook.audio.ErrorHandler
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -85,7 +77,6 @@ internal class PlayerListener(
             saveCurrentPosition = { saveCurrentPosition() },
             getCurrentBookId = { getCurrentBookId?.invoke() },
             markBookCompleted = markBookCompleted,
-            scheduleNotificationUpdate = { scheduleNotificationUpdate() },
         )
 
     // Error handler (extracted from PlayerListener)
@@ -95,7 +86,6 @@ internal class PlayerListener(
             getActualPlaylistSize = { getActualPlaylistSize?.invoke() ?: getActivePlayer().mediaItemCount },
             getCurrentMetadata = { getCurrentMetadata() },
             getCurrentBookId = { getCurrentBookId?.invoke() },
-            scheduleNotificationUpdate = { scheduleNotificationUpdate() },
         )
 
     /**
@@ -112,10 +102,6 @@ internal class PlayerListener(
     private var lastHandledTransitionAtElapsedMs: Long = 0L
     private val transitionDedupWindowMs = 300L
 
-    // Debounce mechanism for notification updates (inspired by Rhythm)
-    // Prevents multiple rapid updates that can cause UI jank
-    private var notificationUpdateJob: kotlinx.coroutines.Job? = null
-    private val notificationDebounceMs = 150L
     private val audioFocusDuckingController =
         AudioFocusDuckingController(
             getActivePlayer = getActivePlayer,
@@ -126,18 +112,6 @@ internal class PlayerListener(
             },
         )
 
-    /**
-     * Schedules a debounced notification update.
-     * Cancels any pending update and schedules a new one after delay.
-     * Inspired by Rhythm's scheduleCustomLayoutUpdate().
-     * NOTE: Now a no-op since MediaSession handles notification updates automatically.
-     */
-    private fun scheduleNotificationUpdate() {
-        // No-op: MediaSession + MediaLibraryService handle notification updates automatically
-        // via ExoPlayer state changes. Manual updates are no longer needed.
-    }
-
-    // Import kotlinx.coroutines.launch extension removed - causing conflict with standard library
 
     /**
      * Sets a deferred to be completed when track switch occurs.
@@ -255,16 +229,7 @@ internal class PlayerListener(
         player: Player,
         events: Player.Events,
     ) {
-        // CRITICAL: Use Log.e to bypass LogUtils filtering for debugging
-        Log.e("JABOOK_LISTENER", "=== onEvents START ===")
-        Log.e("JABOOK_LISTENER", "Events: $events")
-        Log.e(
-            "JABOOK_LISTENER",
-            "Player state: playbackState=${player.playbackState}, isPlaying=${player.isPlaying}, playWhenReady=${player.playWhenReady}, mediaItemCount=${player.mediaItemCount}",
-        )
-
-        // Log all events for debugging
-        LogUtils.d("AudioPlayerService", "onEvents called: $events")
+        LogUtils.v("AudioPlayerService", "onEvents: $events")
 
         // Handle playback state changes
         if (events.contains(Player.EVENT_PLAYBACK_STATE_CHANGED)) {
@@ -284,7 +249,6 @@ internal class PlayerListener(
 
             // Update notification when state changes
             // MediaSession automatically updates from ExoPlayer state
-            scheduleNotificationUpdate()
 
             // Update widget when playback state changes
             com.jabook.app.jabook.widget.PlayerWidgetProvider
@@ -359,7 +323,6 @@ internal class PlayerListener(
             )
             // Match lissen-android: just log, don't interfere with ExoPlayer's AudioFocus handling
             // Post notification update to main thread to ensure player state is fully updated
-            scheduleNotificationUpdate()
         }
 
         // Handle playing state changes
@@ -453,7 +416,6 @@ internal class PlayerListener(
             // The previous check was too aggressive and was preventing playback from starting
 
             // Post notification update to main thread to ensure player state is fully updated
-            scheduleNotificationUpdate()
         }
 
         // Handle media item transitions
@@ -475,7 +437,6 @@ internal class PlayerListener(
 
             // Track changed - update notification to show new track's embedded artwork
             // MediaSession automatically updates from ExoPlayer
-            scheduleNotificationUpdate()
 
             // Update widget when track changes
             com.jabook.app.jabook.widget.PlayerWidgetProvider
@@ -635,7 +596,6 @@ internal class PlayerListener(
 
     override fun onIsPlayingChanged(isPlaying: Boolean) {
         // This is also handled in onEvents, but kept for explicit handling
-        scheduleNotificationUpdate()
     }
 
     /**
@@ -696,7 +656,6 @@ internal class PlayerListener(
 
     override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
         audioFocusDuckingController.onPlaybackSuppressionReasonChanged(playbackSuppressionReason)
-        scheduleNotificationUpdate()
     }
 
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -894,7 +853,6 @@ internal class PlayerListener(
             }
         }
     }
-    }
 
     override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
         // Metadata (including embedded artwork) was extracted from audio file
@@ -975,8 +933,6 @@ internal class PlayerListener(
     }
 
     fun release() {
-        notificationUpdateJob?.cancel()
-        notificationUpdateJob = null
         stopPositionCheck()
         audioFocusDuckingController.release()
     }

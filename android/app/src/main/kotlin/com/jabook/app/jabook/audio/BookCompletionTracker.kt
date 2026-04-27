@@ -55,7 +55,7 @@ internal class BookCompletionTracker(
     private val saveCurrentPosition: () -> Unit,
     private val getCurrentBookId: () -> String?,
     private val markBookCompleted: ((String) -> Unit)?,
-    private val scheduleNotificationUpdate: () -> Unit,
+    private val scheduleNotificationUpdate: () -> Unit = {},
 ) {
     private var positionCheckJob: Job? = null
     private var lastPosition: Long = -1L

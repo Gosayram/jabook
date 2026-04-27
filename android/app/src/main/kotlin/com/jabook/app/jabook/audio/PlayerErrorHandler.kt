@@ -39,7 +39,7 @@ internal class PlayerErrorHandler(
     private val getActualPlaylistSize: () -> Int,
     private val getCurrentMetadata: () -> Map<String, String>?,
     private val getCurrentBookId: () -> String?,
-    private val scheduleNotificationUpdate: () -> Unit,
+    private val scheduleNotificationUpdate: () -> Unit = {},
 ) {
     private var retryCount = 0
     private var skipCount = 0
