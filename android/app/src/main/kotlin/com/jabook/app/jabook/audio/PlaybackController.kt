@@ -32,6 +32,9 @@ internal class PlaybackController(
     private val playerServiceScope: CoroutineScope,
     private val resetInactivityTimer: () -> Unit,
     private val getResumeRewindSeconds: () -> Int,
+    private val getResumeRewindMode: () -> ResumeRewindMode = { ResumeRewindMode.FIXED },
+    private val getResumeRewindAggressiveness: () -> Float = { 1.0f },
+    private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
     private val consumeSleepTimerStopFlag: () -> Boolean = { false },
 ) {
     /**
@@ -49,7 +52,7 @@ internal class PlaybackController(
      * sleep-timer stop point.
      */
     public fun markSleepTimerPause() {
-        lastPauseTime = System.currentTimeMillis()
+        lastPauseTime = nowMsProvider()
         suppressNextResumeRewind = true
     }
 
@@ -86,7 +89,19 @@ internal class PlaybackController(
                     } catch (e: Exception) {
                         10
                     }
-                val currentTime = System.currentTimeMillis()
+                val resumeRewindMode =
+                    try {
+                        getResumeRewindMode()
+                    } catch (e: Exception) {
+                        ResumeRewindMode.FIXED
+                    }
+                val resumeRewindAggressiveness =
+                    try {
+                        getResumeRewindAggressiveness()
+                    } catch (e: Exception) {
+                        1.0f
+                    }
+                val currentTime = nowMsProvider()
                 val pauseDurationMs = if (lastPauseTime > 0) currentTime - lastPauseTime else Long.MAX_VALUE
                 val shouldSuppressRewind = suppressNextResumeRewind || consumeSleepTimerStopFlag()
                 val rewindMs =
@@ -96,6 +111,8 @@ internal class PlaybackController(
                         ResumeRewindPolicy.resolveRewindMs(
                             pauseDurationMs = pauseDurationMs,
                             configuredSeconds = configuredRewindSeconds,
+                            mode = resumeRewindMode,
+                            aggressiveness = resumeRewindAggressiveness,
                         )
                     }
                 if (rewindMs > 0 && player.currentPosition > 5000L) {
@@ -135,7 +152,7 @@ internal class PlaybackController(
                 val player = getActivePlayer()
 
                 // Update lastPauseTime for Smart Rewind
-                lastPauseTime = System.currentTimeMillis()
+                lastPauseTime = nowMsProvider()
                 suppressNextResumeRewind = false
 
                 // Small rewind on pause improves context retention for audiobooks.

@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.data.network
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.preferences.PlayerStateSnapshotPreference
+import com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode
 import com.jabook.app.jabook.compose.data.preferences.ThemeMode
@@ -214,6 +215,8 @@ private class FakeSettingsRepository(
         rewindSeconds: Int?,
         forwardSeconds: Int?,
         resumeRewindSeconds: Int?,
+        resumeRewindMode: ResumeRewindMode?,
+        resumeRewindAggressiveness: Float?,
         sleepTimerShakeExtendEnabled: Boolean?,
         volumeBoost: String?,
         drcLevel: String?,

@@ -81,6 +81,8 @@ public interface SettingsRepository {
         rewindSeconds: Int? = null,
         forwardSeconds: Int? = null,
         resumeRewindSeconds: Int? = null,
+        resumeRewindMode: ResumeRewindMode? = null,
+        resumeRewindAggressiveness: Float? = null,
         sleepTimerShakeExtendEnabled: Boolean? = null,
         volumeBoost: String? = null,
         drcLevel: String? = null,
@@ -249,6 +251,8 @@ public class ProtoSettingsRepository
             rewindSeconds: Int?,
             forwardSeconds: Int?,
             resumeRewindSeconds: Int?,
+            resumeRewindMode: ResumeRewindMode?,
+            resumeRewindAggressiveness: Float?,
             sleepTimerShakeExtendEnabled: Boolean?,
             volumeBoost: String?,
             drcLevel: String?,
@@ -267,6 +271,8 @@ public class ProtoSettingsRepository
                 rewindSeconds?.let { builder.setRewindDurationSeconds(it) }
                 forwardSeconds?.let { builder.setForwardDurationSeconds(it) }
                 resumeRewindSeconds?.let { builder.setResumeRewindSeconds(it) }
+                resumeRewindMode?.let { builder.setResumeRewindMode(it) }
+                resumeRewindAggressiveness?.let { builder.setResumeRewindAggressiveness(it) }
                 sleepTimerShakeExtendEnabled?.let { builder.setSleepTimerShakeExtendEnabled(it) }
                 volumeBoost?.let { builder.setVolumeBoostLevel(it) }
                 drcLevel?.let { builder.setDrcLevel(it) }

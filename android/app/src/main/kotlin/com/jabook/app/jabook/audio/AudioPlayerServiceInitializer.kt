@@ -78,6 +78,35 @@ public class AudioPlayerServiceInitializer(
                         10
                     }
                 },
+                getResumeRewindMode = {
+                    try {
+                        kotlinx.coroutines.runBlocking {
+                            when (
+                                service.settingsRepository.userPreferences
+                                    .first()
+                                    .resumeRewindMode
+                            ) {
+                                com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART ->
+                                    ResumeRewindMode.SMART
+
+                                else -> ResumeRewindMode.FIXED
+                            }
+                        }
+                    } catch (e: Exception) {
+                        ResumeRewindMode.FIXED
+                    }
+                },
+                getResumeRewindAggressiveness = {
+                    try {
+                        kotlinx.coroutines.runBlocking {
+                            service.settingsRepository.userPreferences
+                                .first()
+                                .resumeRewindAggressiveness
+                        }
+                    } catch (e: Exception) {
+                        1.0f
+                    }
+                },
                 consumeSleepTimerStopFlag = { service.consumeStoppedBySleepTimerFlag() },
             )
 

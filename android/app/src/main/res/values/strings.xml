@@ -310,6 +310,12 @@
     <string name="auto_rewind_desc">Rewind 2 seconds when resuming after a long pause</string>
     <string name="resume_rewind_title">Resume Rewind After Long Pause</string>
     <string name="resume_rewind_desc">If paused for more than 30 minutes, rewind by selected value when resuming</string>
+    <string name="resume_rewind_mode_smart">Smart</string>
+    <string name="resume_rewind_mode_fixed">Fixed</string>
+    <string name="resume_rewind_fixed_title">Fixed Rewind Duration</string>
+    <string name="resume_rewind_fixed_desc">Used when fixed mode is selected</string>
+    <string name="resume_rewind_aggressiveness_title">Smart Rewind Aggressiveness</string>
+    <string name="resume_rewind_aggressiveness_desc">Controls how much context is replayed after pauses</string>
     <string name="resume_rewind_option_seconds">%1$d s</string>
     <string name="sleep_timer_shake_extend_title">Shake To Extend Sleep Timer</string>
     <string name="sleep_timer_shake_extend_desc">Shake device to add 5 minutes to active sleep timer (fixed mode)</string>

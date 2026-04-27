@@ -25,7 +25,7 @@ import androidx.datastore.core.DataMigration
  */
 public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
     public companion object {
-        public const val CURRENT_SCHEMA_VERSION: Int = 3
+        public const val CURRENT_SCHEMA_VERSION: Int = 4
     }
 
     override suspend fun shouldMigrate(currentData: UserPreferences): Boolean = currentData.schemaVersion < CURRENT_SCHEMA_VERSION
@@ -70,6 +70,17 @@ public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
                 builder.playerSnapshotSleepMode = "idle"
             }
             builder.schemaVersion = 3
+            migrated = builder.build()
+        }
+
+        // v4: smart resume rewind defaults and aggressiveness tuning.
+        if (migrated.schemaVersion < 4) {
+            val builder = migrated.toBuilder()
+            if (builder.resumeRewindAggressiveness <= 0f) {
+                builder.resumeRewindAggressiveness = 1.0f
+            }
+            builder.resumeRewindMode = ResumeRewindMode.SMART
+            builder.schemaVersion = 4
             migrated = builder.build()
         }
 

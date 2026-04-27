@@ -291,6 +291,12 @@
     <string name="auto_rewind_desc">Перематывать на 2 секунды назад при возобновлении после долгой паузы</string>
     <string name="resume_rewind_title">Перемотка при возобновлении после долгой паузы</string>
     <string name="resume_rewind_desc">Если пауза длится более 30 минут, при возобновлении перемотать назад на выбранное значение</string>
+    <string name="resume_rewind_mode_smart">Умный</string>
+    <string name="resume_rewind_mode_fixed">Фиксированный</string>
+    <string name="resume_rewind_fixed_title">Фиксированная перемотка</string>
+    <string name="resume_rewind_fixed_desc">Используется при фиксированном режиме</string>
+    <string name="resume_rewind_aggressiveness_title">Агрессивность умной перемотки</string>
+    <string name="resume_rewind_aggressiveness_desc">Определяет, сколько контекста повторять после паузы</string>
     <string name="resume_rewind_option_seconds">%1$d с</string>
     <string name="sleep_timer_shake_extend_title">Встряхивание для продления таймера сна</string>
     <string name="sleep_timer_shake_extend_desc">Встряхните устройство, чтобы добавить 5 минут к активному таймеру сна (фиксированный режим)</string>

@@ -53,6 +53,8 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setSkipSilenceMinMs(250)
             .setSkipSilenceMode(SkipSilenceMode.SKIP)
             .setResumeRewindSeconds(10)
+            .setResumeRewindMode(ResumeRewindMode.SMART)
+            .setResumeRewindAggressiveness(1.0f)
             .setSleepTimerShakeExtendEnabled(true)
             .setEqualizerPreset("FLAT")
             .setAutoLoadCoversOnCellular(true)

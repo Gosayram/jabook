@@ -105,24 +105,75 @@ public fun AudioSettingsScreen(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    val options = listOf(0, 5, 10, 30)
-                    options.forEach { seconds ->
-                        FilterChip(
-                            selected = protoSettings.resumeRewindSeconds == seconds,
-                            onClick = {
-                                viewModel.updateAudioSettings(resumeRewindSeconds = seconds)
-                            },
-                            label = {
-                                Text(
-                                    stringResource(
-                                        R.string.resume_rewind_option_seconds,
-                                        seconds,
-                                    ),
-                                )
-                            },
-                        )
+                    FilterChip(
+                        selected =
+                            protoSettings.resumeRewindMode ==
+                                com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART,
+                        onClick = {
+                            viewModel.updateAudioSettings(
+                                resumeRewindMode = com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART,
+                            )
+                        },
+                        label = { Text(stringResource(R.string.resume_rewind_mode_smart)) },
+                    )
+                    FilterChip(
+                        selected =
+                            protoSettings.resumeRewindMode ==
+                                com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.FIXED,
+                        onClick = {
+                            viewModel.updateAudioSettings(
+                                resumeRewindMode = com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.FIXED,
+                            )
+                        },
+                        label = { Text(stringResource(R.string.resume_rewind_mode_fixed)) },
+                    )
+                }
+            }
+
+            if (protoSettings.resumeRewindMode == com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.FIXED) {
+                SettingsItem(
+                    title = stringResource(R.string.resume_rewind_fixed_title),
+                    subtitle = stringResource(R.string.resume_rewind_fixed_desc),
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        val options = listOf(0, 5, 10, 30)
+                        options.forEach { seconds ->
+                            FilterChip(
+                                selected = protoSettings.resumeRewindSeconds == seconds,
+                                onClick = {
+                                    viewModel.updateAudioSettings(resumeRewindSeconds = seconds)
+                                },
+                                label = {
+                                    Text(
+                                        stringResource(
+                                            R.string.resume_rewind_option_seconds,
+                                            seconds,
+                                        ),
+                                    )
+                                },
+                            )
+                        }
                     }
                 }
+            } else {
+                SettingsSliderItem(
+                    title = stringResource(R.string.resume_rewind_aggressiveness_title),
+                    subtitle = stringResource(R.string.resume_rewind_aggressiveness_desc),
+                    sliderValue = protoSettings.resumeRewindAggressiveness,
+                    onValueChange = {
+                        viewModel.updateAudioSettings(
+                            resumeRewindAggressiveness = it,
+                        )
+                    },
+                    valueRange = 0.5f..2.0f,
+                    steps = 14,
+                    valueFormatter = { String.format(java.util.Locale.US, "%.2fx", it) },
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
+                )
             }
 
             SettingsSwitchItem(

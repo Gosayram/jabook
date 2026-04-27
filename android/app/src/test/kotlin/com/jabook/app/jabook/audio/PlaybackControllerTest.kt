@@ -188,6 +188,35 @@ class PlaybackControllerTest {
             assertTrue(consumeCalls >= 2)
         }
 
+    @Test
+    fun `play applies smart resume rewind with aggressiveness`() =
+        runTest(testDispatcher) {
+            whenever(exoPlayer.mediaItemCount).thenReturn(1)
+            whenever(exoPlayer.playbackState).thenReturn(Player.STATE_READY)
+            whenever(exoPlayer.currentPosition).thenReturn(100_000L)
+            var nowMs = 1_000L
+
+            playbackController =
+                PlaybackController(
+                    getActivePlayer = { exoPlayer },
+                    playerServiceScope = testScope,
+                    resetInactivityTimer = { resetTimerCallCount++ },
+                    getResumeRewindSeconds = { 10 },
+                    getResumeRewindMode = { ResumeRewindMode.SMART },
+                    getResumeRewindAggressiveness = { 1.5f },
+                    nowMsProvider = { nowMs },
+                )
+
+            playbackController.pause()
+            advanceUntilIdle()
+            // Simulate a pause > 2h (smart base 30s * 1.5 => 45s)
+            nowMs += 3L * 60L * 60L * 1000L
+            playbackController.play()
+            advanceUntilIdle()
+
+            verify(exoPlayer).seekTo(55_000L)
+        }
+
     // ============ Pause Tests ============
 
     @Test
