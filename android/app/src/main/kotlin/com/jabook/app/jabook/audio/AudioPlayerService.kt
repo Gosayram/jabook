@@ -20,7 +20,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import androidx.annotation.OptIn
-import androidx.core.app.NotificationCompat
 import androidx.core.app.TaskStackBuilder
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -28,16 +27,11 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
-import coil3.SingletonImageLoader
-import coil3.request.ImageRequest
-import coil3.request.SuccessResult
-import coil3.toBitmap
 import com.jabook.app.jabook.audio.processors.BookLoudnessCompensator
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
@@ -55,9 +49,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.Cache
 import javax.inject.Inject
-import androidx.media.app.NotificationCompat as MediaNotificationCompat
 
 /**
  * Native audio player service using Media3 ExoPlayer.
@@ -147,13 +139,9 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     public fun getServiceMediaController(): MediaController? = serviceMediaController
 
-    // Debounced custom layout updates (from Rhythm pattern)
-    // Track current custom layout state to avoid unnecessary updates
-    private var lastRewindSeconds: Int? = null
-    private var lastForwardSeconds: Int? = null
-
-    // Debounce custom layout updates to prevent flickering
-    private var updateLayoutJob: kotlinx.coroutines.Job? = null
+    // MediaSession custom layout helper (extracted from service)
+    private val mediaSessionLayoutHelper =
+        MediaSessionLayoutHelper(playerServiceScope) { mediaSession }
 
     // PlayerNotificationManager for direct notification control (androidx.media3.ui)
     // Replaces MediaNotification.Provider which doesn't work with background service warmup
@@ -1319,165 +1307,17 @@ public class AudioPlayerService : MediaLibraryService() {
         )
     }
 
-    /**
-     * Updates MediaSession custom layout commands with new durations.
-     * Uses debounced updates to prevent flickering (from Rhythm pattern).
-     */
+    /** Updates MediaSession custom layout via [MediaSessionLayoutHelper]. */
     public fun updateMediaSessionCommands(
         rewindSeconds: Int,
         forwardSeconds: Int,
     ) {
-        // Use smart update to check if layout actually needs to change
-        updateMediaSessionCommandsSmart(rewindSeconds, forwardSeconds)
+        mediaSessionLayoutHelper.updateSmart(rewindSeconds, forwardSeconds)
     }
 
-    /**
-     * Smart update that only updates if layout actually changed (from Rhythm pattern).
-     * Prevents unnecessary recreations and flickering.
-     */
-    private fun updateMediaSessionCommandsSmart(
-        rewindSeconds: Int,
-        forwardSeconds: Int,
-    ) {
-        mediaSession?.let { session ->
-            try {
-                // Check if anything actually changed
-                if (rewindSeconds == lastRewindSeconds &&
-                    forwardSeconds == lastForwardSeconds
-                ) {
-                    LogUtils.d("AudioPlayerService", "Custom layout state unchanged, skipping update")
-                    return
-                }
-
-                // Update state tracking
-                lastRewindSeconds = rewindSeconds
-                lastForwardSeconds = forwardSeconds
-
-                // Use built-in Media3 icons to avoid CustomAction conversion crash
-                val rewindCommandButton =
-                    CommandButton
-                        .Builder(CommandButton.ICON_SKIP_BACK)
-                        .setDisplayName("-$rewindSeconds")
-                        .setSessionCommand(
-                            androidx.media3.session.SessionCommand(
-                                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_REWIND,
-                                android.os.Bundle.EMPTY,
-                            ),
-                        ).build()
-
-                val forwardCommandButton =
-                    CommandButton
-                        .Builder(CommandButton.ICON_SKIP_FORWARD)
-                        .setDisplayName("+$forwardSeconds")
-                        .setSessionCommand(
-                            androidx.media3.session.SessionCommand(
-                                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_FORWARD,
-                                android.os.Bundle.EMPTY,
-                            ),
-                        ).build()
-
-                session.setCustomLayout(listOf(rewindCommandButton, forwardCommandButton))
-
-                LogUtils.d(
-                    "AudioPlayerService",
-                    "Smart updated custom layout - Rewind: ${rewindSeconds}s, Forward: ${forwardSeconds}s",
-                )
-            } catch (e: Exception) {
-                LogUtils.e("AudioPlayerService", "Error in smart custom layout update", e)
-            }
-        }
-    }
-
-    /**
-     * Schedules a debounced custom layout update (from Rhythm pattern).
-     * Prevents flickering when multiple updates happen quickly.
-     *
-     * @param delayMs Delay in milliseconds before update (default 150ms)
-     */
-    private fun scheduleCustomLayoutUpdate(
-        rewindSeconds: Int,
-        forwardSeconds: Int,
-        delayMs: Int = 150,
-    ) {
-        // Cancel any pending update
-        updateLayoutJob?.cancel()
-
-        // Schedule a new update with debouncing
-        updateLayoutJob =
-            playerServiceScope.launch {
-                kotlinx.coroutines.delay(delayMs.toLong())
-                updateMediaSessionCommandsSmart(rewindSeconds, forwardSeconds)
-            }
-    }
-
-    /**
-     * Forces an immediate custom layout update without debouncing (from Rhythm pattern).
-     * Used for initial setup.
-     */
-    private fun forceCustomLayoutUpdate(
-        rewindSeconds: Int,
-        forwardSeconds: Int,
-    ) {
-        playerServiceScope.launch {
-            updateMediaSessionCommandsSmart(rewindSeconds, forwardSeconds)
-        }
-    }
-
-    /**
-     * Sets initial CustomLayout for MediaSession (following Rhythm pattern).
-     * Called after MediaController initialization to avoid MediaSessionLegacyStub conversion issues.
-     * This method sets the initial layout with default rewind/forward durations.
-     */
-    @OptIn(UnstableApi::class)
+    /** Sets initial CustomLayout for MediaSession via [MediaSessionLayoutHelper]. */
     internal fun setInitialCustomLayout() {
-        mediaLibrarySession?.let { session ->
-            try {
-                // Use default durations for initial layout (will be updated when user changes settings)
-                val defaultRewindSeconds = 10
-                val defaultForwardSeconds = 30
-
-                val rewindCommand =
-                    androidx.media3.session.SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_REWIND,
-                        android.os.Bundle.EMPTY,
-                    )
-                val forwardCommand =
-                    androidx.media3.session.SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_FORWARD,
-                        android.os.Bundle.EMPTY,
-                    )
-
-                // Create CommandButtons with built-in Media3 icons
-                val rewindButton =
-                    CommandButton
-                        .Builder(CommandButton.ICON_SKIP_BACK)
-                        .setSessionCommand(rewindCommand)
-                        .setDisplayName("-$defaultRewindSeconds")
-                        .setEnabled(true)
-                        .build()
-
-                val forwardButton =
-                    CommandButton
-                        .Builder(CommandButton.ICON_SKIP_FORWARD)
-                        .setSessionCommand(forwardCommand)
-                        .setDisplayName("+$defaultForwardSeconds")
-                        .setEnabled(true)
-                        .build()
-
-                session.setCustomLayout(listOf(rewindButton, forwardButton))
-
-                // Initialize state tracking
-                lastRewindSeconds = defaultRewindSeconds
-                lastForwardSeconds = defaultForwardSeconds
-
-                LogUtils.d(
-                    "AudioPlayerService",
-                    "Initial CustomLayout set - Rewind: ${defaultRewindSeconds}s, Forward: ${defaultForwardSeconds}s",
-                )
-            } catch (e: Exception) {
-                LogUtils.e("AudioPlayerService", "Error setting initial CustomLayout", e)
-            }
-        }
+        mediaSessionLayoutHelper.setInitialLayout()
     }
 
     public fun getCurrentPosition(): Long = playerStateHelper?.getCurrentPosition() ?: 0L
@@ -1523,327 +1363,15 @@ public class AudioPlayerService : MediaLibraryService() {
             LogUtils.w("AudioPlayerService", "PlayerNotificationManager already initialized, skipping")
             return
         }
-
-        // CRITICAL: Only use PlayerNotificationManager as fallback when MediaLibrarySession is not available
-        // If MediaLibrarySession is active, it should handle notifications via MediaNotificationProvider
-        if (mediaLibrarySession != null) {
-            LogUtils.w(
-                "AudioPlayerService",
-                "MediaLibrarySession is active, PlayerNotificationManager should not be used. " +
-                    "This may cause duplicate notifications. Disabling PlayerNotificationManager.",
-            )
-            return
-        }
-
-        // CRITICAL: Create notification channel BEFORE PlayerNotificationManager
-        // Otherwise Android will crash with "invalid channel for service notification"
-        notificationHelper?.ensureNotificationChannel(NotificationHelper.CHANNEL_ID)
-            ?: LogUtils.e("AudioPlayerService", "NotificationHelper is null, channel may not be created!")
-
-        playerNotificationManager =
-            PlayerNotificationManager
-                .Builder(this, NotificationHelper.NOTIFICATION_ID, NotificationHelper.CHANNEL_ID)
-                .setMediaDescriptionAdapter(
-                    object : PlayerNotificationManager.MediaDescriptionAdapter {
-                        override fun getCurrentContentTitle(player: Player): CharSequence {
-                            // 1. Prefer player.mediaMetadata (it combines sources)
-                            val metadata = player.mediaMetadata
-                            val serviceMetadata = this@AudioPlayerService.currentMetadata
-
-                            val rawTitle =
-                                metadata.title?.toString()
-                                    ?: serviceMetadata?.get("title")
-                                    ?: serviceMetadata?.get("trackTitle")
-                                    ?: ""
-
-                            // Remove flavor suffix (" - Dev", " - Beta", " - Prod") if present
-                            return rawTitle.replace(Regex(" - (Dev|Beta|Prod)$"), "").ifEmpty {
-                                this@AudioPlayerService.getString(com.jabook.app.jabook.R.string.app_name)
-                            }
-                        }
-
-                        override fun createCurrentContentIntent(player: Player): PendingIntent? {
-                            val intent =
-                                Intent(this@AudioPlayerService, ComposeMainActivity::class.java).apply {
-                                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                                    putExtra("navigate_to_player", true)
-                                    // Add book_id if available for direct navigation
-                                    // currentGroupPath usually contains the book ID or path
-                                    this@AudioPlayerService.playlistManager?.currentGroupPath?.let { path ->
-                                        // Usually path is like "downloads/book_id" or just "book_id"
-                                        // For now, pass it as book_id
-                                        putExtra("book_id", path.substringAfterLast("/"))
-                                    }
-                                }
-                            return PendingIntent.getActivity(
-                                this@AudioPlayerService,
-                                0,
-                                intent,
-                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                            )
-                        }
-
-                        override fun getCurrentContentText(player: Player): CharSequence? {
-                            // ARTIST
-                            val artist = player.mediaMetadata.artist?.toString()
-                            val serviceMetadata = this@AudioPlayerService.currentMetadata
-                            return artist ?: serviceMetadata?.get("artist") ?: serviceMetadata?.get("author")
-                        }
-
-                        override fun getCurrentSubText(player: Player): CharSequence? {
-                            // ALBUM / BOOK TITLE
-                            val album = player.mediaMetadata.albumTitle?.toString()
-                            val serviceMetadata = this@AudioPlayerService.currentMetadata
-                            return album ?: serviceMetadata?.get("album") ?: serviceMetadata?.get("bookTitle")
-                        }
-
-                        override fun getCurrentLargeIcon(
-                            player: Player,
-                            callback: PlayerNotificationManager.BitmapCallback,
-                        ): android.graphics.Bitmap? {
-                            player.mediaMetadata.artworkUri?.let { artworkUri ->
-                                // Load cover bitmap via Coil3 (unified image pipeline)
-                                playerServiceScope.launch(Dispatchers.IO) {
-                                    try {
-                                        val loader = coil3.SingletonImageLoader.get(this@AudioPlayerService)
-                                        val request =
-                                            coil3.request.ImageRequest
-                                                .Builder(this@AudioPlayerService)
-                                                .data(artworkUri)
-                                                .size(512, 512)
-                                                .build()
-                                        val result = loader.execute(request)
-                                        if (result is SuccessResult) {
-                                            callback.onBitmap(result.image.toBitmap())
-                                        }
-                                    } catch (e: Exception) {
-                                        android.util.Log.w("AudioPlayerService", "Failed to load large icon via Coil", e)
-                                    }
-                                }
-                            }
-                            return null
-                        }
-                    },
-                ).setNotificationListener(
-                    object : PlayerNotificationManager.NotificationListener {
-                        override fun onNotificationCancelled(
-                            notificationId: Int,
-                            dismissedByUser: Boolean,
-                        ) {
-                            // USER REQUEST: Prevent notification dismissal by swipe
-                            // Always restore notification, never stop service when dismissed
-                            // This ensures player continues working even if user accidentally swipes notification
-                            LogUtils.d(
-                                "AudioPlayerService",
-                                "Notification cancelled (dismissedByUser=$dismissedByUser), restoring notification",
-                            )
-
-                            // Restore notification immediately by invalidating PlayerNotificationManager
-                            // This will trigger onNotificationPosted again
-                            playerNotificationManager?.invalidate()
-
-                            // Don't stop service - keep it running
-                            // User can only stop playback through app UI or notification controls
-                        }
-
-                        override fun onNotificationPosted(
-                            notificationId: Int,
-                            notification: android.app.Notification,
-                            ongoing: Boolean,
-                        ) {
-                            // CRITICAL FIX: ALWAYS stay in foreground, even when paused
-                            // This keeps notification visible like quality music apps (Spotify, YouTube Music)
-                            // Previously: stopForeground(DETACH) when ongoing==false (paused) → notification disappeared
-                            // Now: Always startForeground → notification persists
-                            LogUtils.d(
-                                "AudioPlayerService",
-                                "onNotificationPosted: ongoing=$ongoing, staying in foreground",
-                            )
-
-                            // USER REQUEST: Make notification non-dismissible by swipe
-                            // Create new notification with ongoing flag using NotificationCompat
-                            // Copy properties from original notification
-                            val nonDismissibleNotification =
-                                NotificationCompat
-                                    .Builder(this@AudioPlayerService, NotificationHelper.CHANNEL_ID)
-                                    .apply {
-                                        // Copy essential properties from original notification
-                                        val title = NotificationCompat.getContentTitle(notification)
-                                        val text = NotificationCompat.getContentText(notification)
-                                        if (title != null) setContentTitle(title)
-                                        if (text != null) setContentText(text)
-
-                                        // Get small icon from original notification
-                                        // notification.smallIcon is Icon, need to extract resource ID
-                                        val smallIconResId =
-                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                                try {
-                                                    val icon = notification.getSmallIcon()
-                                                    if (icon != null) {
-                                                        val iconType = icon.type
-                                                        if (iconType == android.graphics.drawable.Icon.TYPE_RESOURCE) {
-                                                            // Use reflection or IconCompat to get resource ID
-                                                            // For API 23+, we can use IconCompat
-                                                            androidx.core.graphics.drawable.IconCompat
-                                                                .createFromIcon(icon)
-                                                                .resId
-                                                        } else {
-                                                            com.jabook.app.jabook.R.drawable.ic_notification_logo
-                                                        }
-                                                    } else {
-                                                        com.jabook.app.jabook.R.drawable.ic_notification_logo
-                                                    }
-                                                } catch (e: Exception) {
-                                                    com.jabook.app.jabook.R.drawable.ic_notification_logo
-                                                }
-                                            } else {
-                                                com.jabook.app.jabook.R.drawable.ic_notification_logo
-                                            }
-                                        setSmallIcon(smallIconResId)
-
-                                        // Get large icon from original notification
-                                        val largeIcon = notification.getLargeIcon()
-                                        if (largeIcon != null) {
-                                            try {
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                                    if (largeIcon.type == android.graphics.drawable.Icon.TYPE_BITMAP) {
-                                                        val bitmap =
-                                                            largeIcon.loadDrawable(this@AudioPlayerService)?.let { drawable ->
-                                                                if (drawable is android.graphics.drawable.BitmapDrawable) {
-                                                                    drawable.bitmap
-                                                                } else {
-                                                                    null
-                                                                }
-                                                            }
-                                                        if (bitmap != null) {
-                                                            setLargeIcon(bitmap)
-                                                        }
-                                                    }
-                                                }
-                                            } catch (e: Exception) {
-                                                LogUtils.w("AudioPlayerService", "Failed to get large icon", e)
-                                            }
-                                        }
-
-                                        setContentIntent(notification.contentIntent)
-                                        setDeleteIntent(null) // Remove delete intent to prevent swipe dismissal
-
-                                        // Copy actions (Play/Pause, Next, Previous)
-                                        // Convert android.app.Notification.Action to NotificationCompat.Action
-                                        notification.actions?.forEach { action ->
-                                            // Try to extract resource ID from action icon
-                                            // If extraction fails, use fallback icon
-                                            val actionIconResId =
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                                    try {
-                                                        // Use getIcon() instead of deprecated icon field
-                                                        val icon = action.getIcon()
-                                                        // Use IconCompat to extract resource ID
-                                                        val iconCompat =
-                                                            androidx.core.graphics.drawable.IconCompat
-                                                                .createFromIcon(icon)
-                                                        if (iconCompat.type ==
-                                                            androidx.core.graphics.drawable.IconCompat.TYPE_RESOURCE
-                                                        ) {
-                                                            iconCompat.resId
-                                                        } else {
-                                                            android.R.drawable.ic_media_play
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        android.R.drawable.ic_media_play
-                                                    }
-                                                } else {
-                                                    android.R.drawable.ic_media_play
-                                                }
-                                            // Create NotificationCompat.Action with resource ID
-                                            addAction(
-                                                NotificationCompat.Action(
-                                                    actionIconResId,
-                                                    action.title,
-                                                    action.actionIntent,
-                                                ),
-                                            )
-                                        }
-
-                                        // Copy MediaStyle if present
-                                        // Use string keys directly as constants may not be available
-                                        val extras = notification.extras
-                                        if (extras != null) {
-                                            val mediaSessionKey = "android.mediaSession"
-                                            val compactActionsKey = "android.media.compactActions"
-                                            if (extras.containsKey(mediaSessionKey)) {
-                                                // Use getParcelable with type parameter for API 33+
-                                                val mediaSessionToken =
-                                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                                        extras.getParcelable(
-                                                            mediaSessionKey,
-                                                            android.os.Parcelable::class.java,
-                                                        )
-                                                    } else {
-                                                        @Suppress("DEPRECATION")
-                                                        extras.getParcelable<android.os.Parcelable>(mediaSessionKey)
-                                                    }
-                                                val compactActions =
-                                                    extras.getIntArray(compactActionsKey) ?: intArrayOf()
-                                                setStyle(
-                                                    MediaNotificationCompat
-                                                        .MediaStyle()
-                                                        .setShowActionsInCompactView(*compactActions)
-                                                        .setMediaSession(
-                                                            mediaSessionToken as? android.support.v4.media.session.MediaSessionCompat.Token,
-                                                        ),
-                                                )
-                                            }
-                                        }
-
-                                        // CRITICAL: Set ongoing flag to prevent swipe dismissal
-                                        setOngoing(true)
-                                        setAutoCancel(false)
-                                        priority = NotificationCompat.PRIORITY_LOW
-                                        setShowWhen(false)
-                                        setOnlyAlertOnce(true)
-                                    }.build()
-
-                            foregroundNotificationCoordinator.startWithFallback(
-                                service = this@AudioPlayerService,
-                                notificationId = notificationId,
-                                primaryNotification = nonDismissibleNotification,
-                                fallbackNotificationProvider = {
-                                    notificationHelper?.createFallbackNotification()
-                                        ?: NotificationHelper(this@AudioPlayerService).createFallbackNotification()
-                                },
-                                event = "player_notification_posted",
-                            )
-                        }
-                    },
-                ).setSmallIconResourceId(com.jabook.app.jabook.R.drawable.ic_notification_logo)
-                .build()
-
-        // listener to force refresh notification when metadata changes
-        // CRITICAL: Debounce notification updates to prevent spam
-        // Events can fire multiple times rapidly (e.g., onMediaItemTransition + onMediaMetadataChanged)
-        val notificationInvalidationPipeline =
-            PlayerNotificationInvalidationPipeline(
-                scope = playerServiceScope,
-                invalidate = {
-                    this@AudioPlayerService.playerNotificationManager?.invalidate()
-                },
-            )
-
-        notificationInvalidationPipeline.register(
-            player = exoPlayer,
-        )
-
-        playerNotificationManager?.setPlayer(exoPlayer)
-        mediaLibrarySession?.let { playerNotificationManager?.setMediaSessionToken(it.platformToken) }
-        playerNotificationManager?.setUseNextAction(true)
-        playerNotificationManager?.setUsePreviousAction(true)
-        playerNotificationManager?.setUsePlayPauseActions(true)
-        playerNotificationManager?.setUseStopAction(false)
-
-        // CRITICAL: Force immediate invalidate to ensure startForeground() is called within 5 seconds
-        // This prevents ForegroundServiceDidNotStartInTimeException crash
-        notificationInvalidationPipeline.forceInitialStateInvalidate()
+        playerNotificationManager = PlayerNotificationSetup(
+            service = this,
+            scope = playerServiceScope,
+            notificationHelper = notificationHelper ?: NotificationHelper(this),
+            foregroundNotificationCoordinator = foregroundNotificationCoordinator,
+            getActivePlayer = { exoPlayer },
+            getMediaLibrarySession = { mediaLibrarySession },
+        ).setup()
+        return
     }
 
     /**
@@ -1881,7 +1409,6 @@ public class AudioPlayerService : MediaLibraryService() {
                 crossFadePlayer != null ||
                 audioVisualizerManager != null ||
                 positionSaveJob != null ||
-                updateLayoutJob != null ||
                 visualizerBridgeJob != null
         if (hasExistingComponents) {
             LogUtils.w(
@@ -1959,8 +1486,7 @@ public class AudioPlayerService : MediaLibraryService() {
         mediaLibrarySession = null
         mediaSession = null
 
-        updateLayoutJob?.cancel()
-        updateLayoutJob = null
+        mediaSessionLayoutHelper.release()
 
         playerConfigurator?.release()
 
