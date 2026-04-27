@@ -227,9 +227,9 @@ public class AudioPlayerServiceInitializer(
         service.playerStateHelper =
             PlayerStateHelper(
                 getActivePlayer = { service.getActivePlayer() },
-                getCachedDuration = { service.getCachedDuration(it) },
-                saveDurationToCache = { path, duration -> service.saveDurationToCache(path, duration) },
-                getDurationForFile = { service.getDurationForFile(it) },
+                getCachedDuration = { service.durationManager.getCachedDuration(it) },
+                saveDurationToCache = { path, duration -> service.durationManager.saveDurationToCache(path, duration) },
+                getDurationForFile = { service.durationManager.getDurationForFile(it) },
                 getLastCompletedTrackIndex = { service.lastCompletedTrackIndex },
                 getActualPlaylistSize = { service.currentFilePaths?.size ?: service.exoPlayer.mediaItemCount },
                 getActualTrackIndex = { service.actualTrackIndex },
@@ -324,7 +324,7 @@ public class AudioPlayerServiceInitializer(
                     service.playerPersistenceManager,
                     service.torrentDownloadRepository,
                     service.mediaButtonHandler,
-                    { filePath -> service.getDurationForFile(filePath) },
+                    { filePath -> service.durationManager.getDurationForFile(filePath) },
                 )
 
             // Build MediaLibrarySession - Media3 handles notifications automatically

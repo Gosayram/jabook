@@ -39,12 +39,10 @@ internal class PlayerListener(
     private val setIsBookCompleted: (Boolean) -> Unit,
     private val getSleepTimerEndOfChapter: () -> Boolean,
     private val getSleepTimerEndOfTrack: () -> Boolean,
-    private val getSleepTimerEndTime: () -> Long,
     private val cancelSleepTimer: () -> Unit,
     private val sendTimerExpiredEvent: () -> Unit,
     private val markSleepTimerPause: () -> Unit = {},
     private val saveCurrentPosition: () -> Unit,
-    private val startSleepTimerCheck: () -> Unit,
     private val getEmbeddedArtworkPath: () -> String?,
     private val setEmbeddedArtworkPath: (String?) -> Unit,
     private val getCurrentMetadata: () -> Map<String, String>?,
@@ -53,7 +51,6 @@ internal class PlayerListener(
     private val getActualPlaylistSize: (() -> Int)? = null, // Get actual playlist size from filePaths
     private val updateActualTrackIndex: ((Int) -> Unit)? = null, // Callback to update actual track index
     private val isPlaylistLoading: (() -> Boolean)? = null, // Check if playlist is currently loading
-    private val storeCurrentMediaItem: (() -> Unit)? = null, // Callback to store current media item for playback resumption
     private val updateLastPlayedTimestamp: ((String) -> Unit)? = null, // Callback to update last played timestamp
     private val markBookCompleted: ((String) -> Unit)? = null, // Callback to mark book as completed
     private val getCurrentBookId: (() -> String?)? = null, // Get current book ID
@@ -147,7 +144,6 @@ internal class PlayerListener(
             return
         }
         updateTrackIndexFromTransition(currentIndex, source)
-        storeCurrentMediaItem?.invoke()
         completePendingTrackSwitchDeferred(currentIndex, source)
     }
 
@@ -592,10 +588,6 @@ internal class PlayerListener(
         } catch (e: Exception) {
             LogUtils.w("AudioPlayerService", "Failed to parse ReplayGain: ${e.message}")
         }
-    }
-
-    override fun onIsPlayingChanged(isPlaying: Boolean) {
-        // This is also handled in onEvents, but kept for explicit handling
     }
 
     /**

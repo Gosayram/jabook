@@ -23,26 +23,24 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.toBitmap
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import androidx.media.app.NotificationCompat as MediaNotificationCompat
 
 /**
  * Encapsulates the PlayerNotificationManager setup logic extracted from AudioPlayerService.
  *
- * This class handles:
- * - Creating and configuring [PlayerNotificationManager]
- * - Custom notification content with artwork loading
- * - Non-dismissible notification enforcement
- * - MediaStyle integration
+ * This is only used as a fallback when MediaLibrarySession is not available.
+ * When MediaLibrarySession is active, it handles notifications automatically.
  *
  * @param service The host [MediaLibraryService] (AudioPlayerService)
  * @param scope Coroutine scope for async operations
@@ -64,16 +62,11 @@ internal class PlayerNotificationSetup(
     /**
      * Creates and configures the [PlayerNotificationManager].
      *
-     * This is only used as a fallback when MediaLibrarySession is not available.
-     * When MediaLibrarySession is active, it handles notifications automatically.
-     *
      * @return The configured PlayerNotificationManager, or null if setup fails
      */
     fun setup(): PlayerNotificationManager? {
         val channelId = NotificationHelper.CHANNEL_ID
-
         val exoPlayer = getActivePlayer()
-        val session = getMediaLibrarySession()
 
         val manager = PlayerNotificationManager
             .Builder(service, NotificationHelper.NOTIFICATION_ID, channelId)
@@ -113,10 +106,10 @@ internal class PlayerNotificationSetup(
                         if (artworkUri != null) {
                             scope.launch {
                                 try {
+                                    // Coil 3: hardware bitmaps are auto-managed on API 30+
                                     val request = ImageRequest.Builder(service)
                                         .data(artworkUri)
                                         .size(256, 256)
-                                        .allowHardware(false)
                                         .build()
                                     val result = SingletonImageLoader.get(service).execute(request)
                                     if (result is SuccessResult) {
@@ -132,91 +125,20 @@ internal class PlayerNotificationSetup(
                     }
                 },
             ).setNotificationListener(
-                object : PlayerNotificationManager.Listener {
+                object : PlayerNotificationManager.NotificationListener {
                     override fun onNotificationPosted(
                         notificationId: Int,
                         notification: android.app.Notification,
                         ongoing: Boolean,
                     ) {
-                        // Make notification non-dismissible (copy + set ongoing)
-                        val nonDismissibleNotification =
-                            NotificationCompat.Builder(service, notification.channelId ?: channelId)
-                                .setContentTitle(notification.extras?.getCharSequence(android.app.Notification.EXTRA_TITLE))
-                                .setContentText(notification.extras?.getCharSequence(android.app.Notification.EXTRA_TEXT))
-                                .setSmallIcon(notification.smallIcon)
-                                .setContentIntent(notification.contentIntent)
-                                .setDeleteIntent(notification.deleteIntent)
-                                .apply {
-                                    // Copy actions from original notification with proper icon handling
-                                    notification.actions?.forEach { action ->
-                                        val actionIconResId =
-                                            try {
-                                                val icon = action.icon
-                                                if (icon != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                                    val iconCompat =
-                                                        androidx.core.graphics.drawable.IconCompat.createFromIcon(icon)
-                                                    if (iconCompat?.type ==
-                                                        androidx.core.graphics.drawable.IconCompat.TYPE_RESOURCE
-                                                    ) {
-                                                        iconCompat.resId
-                                                    } else {
-                                                        android.R.drawable.ic_media_play
-                                                    }
-                                                } else {
-                                                    android.R.drawable.ic_media_play
-                                                }
-                                            } catch (e: Exception) {
-                                                android.R.drawable.ic_media_play
-                                            }
-                                        addAction(
-                                            NotificationCompat.Action(
-                                                actionIconResId,
-                                                action.title,
-                                                action.actionIntent,
-                                            ),
-                                        )
-                                    }
-
-                                    // Copy MediaStyle if present
-                                    val extras = notification.extras
-                                    if (extras != null) {
-                                        val mediaSessionKey = "android.mediaSession"
-                                        val compactActionsKey = "android.media.compactActions"
-                                        if (extras.containsKey(mediaSessionKey)) {
-                                            val mediaSessionToken =
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                                    extras.getParcelable(
-                                                        mediaSessionKey,
-                                                        android.os.Parcelable::class.java,
-                                                    )
-                                                } else {
-                                                    @Suppress("DEPRECATION")
-                                                    extras.getParcelable<android.os.Parcelable>(mediaSessionKey)
-                                                }
-                                            val compactActions =
-                                                extras.getIntArray(compactActionsKey) ?: intArrayOf()
-                                            setStyle(
-                                                MediaNotificationCompat
-                                                    .MediaStyle()
-                                                    .setShowActionsInCompactView(*compactActions)
-                                                    .setMediaSession(
-                                                        mediaSessionToken as? android.support.v4.media.session.MediaSessionCompat.Token,
-                                                    ),
-                                            )
-                                        }
-                                    }
-
-                                    setOngoing(true)
-                                    setAutoCancel(false)
-                                    priority = NotificationCompat.PRIORITY_LOW
-                                    setShowWhen(false)
-                                    setOnlyAlertOnce(true)
-                                }.build()
+                        // Force notification to be non-dismissible while service is foreground
+                        notification.flags =
+                            notification.flags or android.app.Notification.FLAG_ONGOING_EVENT
 
                         foregroundNotificationCoordinator.startWithFallback(
                             service = service,
                             notificationId = notificationId,
-                            primaryNotification = nonDismissibleNotification,
+                            primaryNotification = notification,
                             fallbackNotificationProvider = {
                                 notificationHelper.createFallbackNotification()
                             },
@@ -224,7 +146,7 @@ internal class PlayerNotificationSetup(
                         )
                     }
                 },
-            ).setSmallIconResourceId(com.jabook.app.jabook.R.drawable.ic_notification_logo)
+            ).setSmallIconResourceId(R.drawable.ic_notification_logo)
             .build()
 
         // Set up invalidation pipeline to debounce notification updates
@@ -236,7 +158,6 @@ internal class PlayerNotificationSetup(
         invalidationPipeline.register(player = exoPlayer)
 
         manager.setPlayer(exoPlayer)
-        session?.let { manager.setMediaSessionToken(it.platformToken) }
         manager.setUseNextAction(true)
         manager.setUsePreviousAction(true)
         manager.setUsePlayPauseActions(true)

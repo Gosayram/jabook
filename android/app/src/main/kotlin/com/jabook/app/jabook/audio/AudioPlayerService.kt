@@ -241,42 +241,6 @@ public class AudioPlayerService : MediaLibraryService() {
     // DurationManager handles caching and database retrieval
     internal val durationManager = DurationManager()
 
-    /**
-     * Callback for database duration retrieval
-     */
-    public fun setGetDurationFromDbCallback(callback: ((String) -> Long?)?) {
-        durationManager.setGetDurationFromDbCallback(callback)
-    }
-
-    /**
-     * Gets duration for file path.
-     * Checks cache first, then database via callback, then returns null.
-     *
-     * @param filePath Absolute path to the audio file
-     * @return Duration in milliseconds, or null if not found
-     */
-    public fun getDurationForFile(filePath: String): Long? = durationManager.getDurationForFile(filePath)
-
-    /**
-     * Gets cached duration for file path.
-     *
-     * @param filePath Absolute path to the audio file
-     * @return Cached duration in milliseconds, or null if not cached
-     */
-    public fun getCachedDuration(filePath: String): Long? = durationManager.getCachedDuration(filePath)
-
-    /**
-     * Saves duration to cache.
-     *
-     * @param filePath Absolute path to the audio file
-     * @param durationMs Duration in milliseconds
-     */
-    public fun saveDurationToCache(
-        filePath: String,
-        durationMs: Long,
-    ) {
-        durationManager.saveDurationToCache(filePath, durationMs)
-    }
 
     internal var customExoPlayer: ExoPlayer? = null
 
@@ -426,6 +390,9 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     @Volatile
     internal var isFullyInitializedFlag = false
+
+    /** Checks if the service is fully initialized and ready to use. */
+    public fun isFullyInitialized(): Boolean = isFullyInitializedFlag
 
     // Flag to indicate if "Minimal Notification" mode is enabled
     // If true, artwork loading will be skipped to show a smaller notification
