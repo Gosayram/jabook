@@ -234,7 +234,19 @@ public fun PlayerScreen(
         viewModel.effects.collectLatest { effect ->
             when (effect) {
                 is PlayerEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
-                is PlayerEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
+                is PlayerEffect.ShowSnackbar -> {
+                    val result =
+                        snackbarHostState.showSnackbar(
+                            message = effect.message,
+                            actionLabel = effect.actionLabel,
+                        )
+                    if (
+                        result == androidx.compose.material3.SnackbarResult.ActionPerformed &&
+                        effect.actionIntent != null
+                    ) {
+                        viewModel.dispatch(effect.actionIntent)
+                    }
+                }
                 PlayerEffect.NavigateBack -> navigationClickGuard.run(onNavigateBack)
             }
         }

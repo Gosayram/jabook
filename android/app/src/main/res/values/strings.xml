@@ -2601,6 +2601,8 @@
     <!-- Player chapter pane strings -->
     <string name="currentlyPlaying">Currently playing</string>
     <string name="jumpToChapterNumber">Jump to chapter #...</string>
+    <string name="playerChapterNavigationSnackbar">Moved to chapter %1$d</string>
+    <string name="undoAction">Undo</string>
     <!-- Search filters pane strings -->
     <string name="sizeRange">Size Range</string>
     <string name="sizeRangeWithBounds">Size Range: %1$s - %2$s</string>

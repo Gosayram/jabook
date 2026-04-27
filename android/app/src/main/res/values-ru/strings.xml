@@ -2604,6 +2604,8 @@
     <!-- Строки панели глав плеера -->
     <string name="currentlyPlaying">Сейчас играет</string>
     <string name="jumpToChapterNumber">Перейти к главе №...</string>
+    <string name="playerChapterNavigationSnackbar">Перешли к главе %1$d</string>
+    <string name="undoAction">Отменить</string>
     <!-- Строки панели фильтров поиска -->
     <string name="sizeRange">Диапазон размера</string>
     <string name="sizeRangeWithBounds">Диапазон размера: %1$s - %2$s</string>

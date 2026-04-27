@@ -551,15 +551,42 @@ public class PlayerViewModel
         public fun dispatch(intent: PlayerIntent) {
             logger.d { "PlayerIntent received: $intent" }
             val currentState = uiState.value
-            val reducedState = PlayerReducer.reduce(currentState, intent)
-            if (currentState is PlayerState.Loading && reducedState is PlayerState.Loading && intent.isPlaybackControlIntent()) {
+            val chapterNavigationDecision = resolveChapterNavigationIntent(intent, currentState)
+            val effectiveIntent = chapterNavigationDecision.intent
+            val reducedState = PlayerReducer.reduce(currentState, effectiveIntent)
+            if (
+                currentState is PlayerState.Loading &&
+                reducedState is PlayerState.Loading &&
+                effectiveIntent.isPlaybackControlIntent()
+            ) {
                 emitEffect(PlayerEffect.ShowSnackbar("Player is not ready yet"))
                 return
             }
             handleIntentSideEffects(
-                intent = intent,
+                intent = effectiveIntent,
                 currentState = currentState,
                 reducedState = reducedState,
+            )
+            maybeEmitChapterNavigationUndo(chapterNavigationDecision)
+        }
+
+        private fun resolveChapterNavigationIntent(
+            intent: PlayerIntent,
+            state: PlayerState,
+        ): ChapterNavigationDecision =
+            (state as? PlayerState.Active)?.let { activeState ->
+                ChapterNavigationIntentPolicy.resolve(intent = intent, state = activeState)
+            } ?: ChapterNavigationDecision(intent = intent)
+
+        private fun maybeEmitChapterNavigationUndo(decision: ChapterNavigationDecision) {
+            val targetChapter = decision.movedToChapterDisplayIndex ?: return
+            val undoChapterIndex = decision.undoChapterIndex ?: return
+            emitEffect(
+                PlayerEffect.ShowSnackbar(
+                    message = context.getString(R.string.playerChapterNavigationSnackbar, targetChapter),
+                    actionLabel = context.getString(R.string.undoAction),
+                    actionIntent = PlayerIntent.SelectChapter(undoChapterIndex),
+                ),
             )
         }
 
