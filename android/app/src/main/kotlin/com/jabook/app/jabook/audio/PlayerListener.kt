@@ -759,106 +759,48 @@ internal class PlayerListener(
         ErrorHandler.handlePlaybackError("AudioPlayerService", error, "Player error during playback")
 
         val errorCode = error.errorCode
+        val resolution =
+            PlaybackErrorPolicy.resolve(
+                errorCode = errorCode,
+                hasRetriesLeft = retryCount < maxRetries,
+                canSkipTrack = skipCount < maxSkips,
+                fallbackMessage = error.message,
+            )
+
         val userFriendlyMessage =
-            when (errorCode) {
-                androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED -> {
-                    // Network errors - try to retry automatically
-                    if (retryCount < maxRetries) {
-                        retryCount++
-                        LogUtils.w(
-                            "AudioPlayerService",
-                            "Network connection failed, retrying ($retryCount/$maxRetries)...",
-                        )
+            when (resolution.action) {
+                PlaybackRecoveryAction.RETRY -> {
+                    retryCount++
+                    LogUtils.w(
+                        "AudioPlayerService",
+                        "${resolution.userMessage} ($retryCount/$maxRetries)",
+                    )
 
-                        // Retry after delay with exponential backoff
-                        val backoffDelay = retryDelayMs * retryCount
-                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            val player = getActivePlayer()
-                            player.prepare()
-                            // Following RiMusic pattern: set playWhenReady after prepare to resume playback
-                            player.playWhenReady = true
-                            LogUtils.d(
-                                "AudioPlayerService",
-                                "Retry attempt $retryCount after network error (delay: ${backoffDelay}ms)",
-                            )
-                        }, backoffDelay)
-
-                        return // Don't show error message yet, wait for retry
-                    }
-                    "Network error: Unable to connect. Please check your internet connection."
-                }
-                androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> {
-                    if (retryCount < maxRetries) {
-                        retryCount++
-                        LogUtils.w(
+                    // Retry after delay with exponential backoff.
+                    val backoffDelay = retryDelayMs * retryCount
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        val player = getActivePlayer()
+                        player.prepare()
+                        // Following RiMusic pattern: set playWhenReady after prepare to resume playback.
+                        player.playWhenReady = true
+                        LogUtils.d(
                             "AudioPlayerService",
-                            "Network timeout, retrying ($retryCount/$maxRetries)...",
+                            "Retry attempt $retryCount after playback error (delay: ${backoffDelay}ms)",
                         )
-                        val backoffDelay = retryDelayMs * retryCount
-                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            val player = getActivePlayer()
-                            player.prepare()
-                            // Following RiMusic pattern: set playWhenReady after prepare to resume playback
-                            player.playWhenReady = true
-                        }, backoffDelay)
-                        return
-                    }
-                    "Network timeout: Connection timed out. Please try again."
+                    }, backoffDelay)
+                    return
                 }
-                androidx.media3.common.PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> {
-                    "Server error: Unable to load audio from server. Please try again later."
-                }
-                androidx.media3.common.PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND -> {
-                    // File not found - try to skip to next available track
+                PlaybackRecoveryAction.SKIP_TRACK -> {
                     if (attemptSkipOnError()) {
-                        "File not found, skipping to next track..."
+                        resolution.userMessage
                     } else {
-                        "File not found: Audio file is missing or has been moved."
+                        "Playback error: Unable to recover automatically."
                     }
                 }
-                androidx.media3.common.PlaybackException.ERROR_CODE_IO_NO_PERMISSION -> {
-                    if (attemptSkipOnError()) {
-                        "Permission denied, skipping..."
-                    } else {
-                        "Permission denied: Cannot access audio file."
-                    }
+                PlaybackRecoveryAction.RESCAN_LIBRARY -> {
+                    "${resolution.userMessage} Try re-scanning your library."
                 }
-                androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED,
-                androidx.media3.common.PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED,
-                -> {
-                    if (attemptSkipOnError()) {
-                        "Format error, skipping..."
-                    } else {
-                        "Format error: Audio file is corrupted or in an unsupported format."
-                    }
-                }
-                androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
-                androidx.media3.common.PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED,
-                -> {
-                    if (attemptSkipOnError()) {
-                        "Decoder error, skipping..."
-                    } else {
-                        "Decoder error: Unable to decode audio."
-                    }
-                }
-                androidx.media3.common.PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED -> {
-                    if (attemptSkipOnError()) {
-                        "Audio track error, skipping..."
-                    } else {
-                        "Audio error: Unable to initialize audio playback."
-                    }
-                }
-                androidx.media3.common.PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED -> {
-                    if (attemptSkipOnError()) {
-                        "Audio write error, skipping..."
-                    } else {
-                        "Audio error: Failed to write audio data."
-                    }
-                }
-                else -> {
-                    val errorMessage = error.message ?: "Unknown error"
-                    "Playback error: $errorMessage (code: $errorCode)"
-                }
+                PlaybackRecoveryAction.NONE -> resolution.userMessage
             }
 
         val player = getActivePlayer()
