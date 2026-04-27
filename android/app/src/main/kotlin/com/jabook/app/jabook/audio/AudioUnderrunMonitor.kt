@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import android.os.SystemClock
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import com.jabook.app.jabook.crash.CrashDiagnostics
@@ -29,6 +30,7 @@ import com.jabook.app.jabook.util.LogUtils
  */
 internal class AudioUnderrunMonitor(
     private val player: ExoPlayer,
+    private val nowMsProvider: () -> Long = { SystemClock.elapsedRealtime() },
 ) : AnalyticsListener {
     companion object {
         private const val TAG = "AudioUnderrunMonitor"
@@ -41,11 +43,19 @@ internal class AudioUnderrunMonitor(
 
         /** Minimum interval between non-fatal crash reports to avoid spam. */
         private const val REPORT_COOLDOWN_MS = 60_000L // 1 minute
+
+        /** Buffering duration threshold to treat a rebuffer as a stall event. */
+        private const val STALL_DURATION_THRESHOLD_MS = 1_500L
     }
 
     private val underrunTimestamps = mutableListOf<Long>()
     private var lastReportTime = 0L
     private var totalUnderruns = 0
+    private var totalRebuffers = 0
+    private var totalStalls = 0
+    private var totalRebufferDurationMs = 0L
+    private var bufferingStartedAtMs: Long? = null
+    private var lastStallReportTime = 0L
 
     /**
      * Called by ExoPlayer when an audio underrun occurs on the AudioTrack.
@@ -62,7 +72,7 @@ internal class AudioUnderrunMonitor(
         elapsedSinceLastUnderrunMs: Long,
     ) {
         totalUnderruns++
-        val now = SystemClock.elapsedRealtime()
+        val now = nowMsProvider()
 
         // Track burst detection
         underrunTimestamps.add(now)
@@ -81,6 +91,53 @@ internal class AudioUnderrunMonitor(
         // Set custom key for CrashDiagnostics context
         CrashDiagnostics.setCustomKey("audio_underrun_total", totalUnderruns.toLong())
         CrashDiagnostics.setCustomKey("audio_underrun_last_buffer_ms", bufferSizeMs)
+    }
+
+    /**
+     * Tracks buffering stalls to complement underrun-only diagnostics.
+     */
+    override fun onPlaybackStateChanged(
+        eventTime: AnalyticsListener.EventTime,
+        @Player.State playbackState: Int,
+    ) {
+        when (playbackState) {
+            Player.STATE_BUFFERING -> {
+                if (bufferingStartedAtMs == null) {
+                    bufferingStartedAtMs = nowMsProvider()
+                }
+            }
+
+            Player.STATE_READY,
+            Player.STATE_ENDED,
+            Player.STATE_IDLE,
+            -> {
+                val start = bufferingStartedAtMs ?: return
+                bufferingStartedAtMs = null
+
+                val durationMs = (nowMsProvider() - start).coerceAtLeast(0L)
+                if (durationMs == 0L) return
+
+                totalRebuffers++
+                totalRebufferDurationMs += durationMs
+
+                CrashDiagnostics.setCustomKey("audio_rebuffer_total", totalRebuffers.toLong())
+                CrashDiagnostics.setCustomKey("audio_rebuffer_total_duration_ms", totalRebufferDurationMs)
+
+                if (durationMs >= STALL_DURATION_THRESHOLD_MS) {
+                    totalStalls++
+                    CrashDiagnostics.setCustomKey("audio_stall_total", totalStalls.toLong())
+                    maybeReportStall(
+                        now = nowMsProvider(),
+                        durationMs = durationMs,
+                    )
+                }
+
+                LogUtils.d(
+                    TAG,
+                    "Audio rebuffer #$totalRebuffers duration=${durationMs}ms totalDuration=${totalRebufferDurationMs}ms",
+                )
+            }
+        }
     }
 
     /**
@@ -116,6 +173,24 @@ internal class AudioUnderrunMonitor(
         )
     }
 
+    private fun maybeReportStall(
+        now: Long,
+        durationMs: Long,
+    ) {
+        if (now - lastStallReportTime < REPORT_COOLDOWN_MS) {
+            return
+        }
+        lastStallReportTime = now
+        LogUtils.w(TAG, "Audio stall detected: duration=${durationMs}ms, totalStalls=$totalStalls")
+        CrashDiagnostics.reportNonFatal(
+            TAG,
+            RuntimeException(
+                "Audio stall: duration=${durationMs}ms " +
+                    "(totalStalls=$totalStalls, totalRebuffers=$totalRebuffers, totalRebufferDurationMs=$totalRebufferDurationMs)",
+            ),
+        )
+    }
+
     /**
      * Register this monitor with the player.
      */
@@ -129,6 +204,24 @@ internal class AudioUnderrunMonitor(
      */
     fun unregister() {
         player.removeAnalyticsListener(this)
-        LogUtils.d(TAG, "Unregistered underrun monitor (totalUnderruns=$totalUnderruns)")
+        LogUtils.d(
+            TAG,
+            "Unregistered underrun monitor (totalUnderruns=$totalUnderruns, totalRebuffers=$totalRebuffers, totalRebufferDurationMs=$totalRebufferDurationMs)",
+        )
     }
+
+    internal data class MetricsSnapshot(
+        val totalUnderruns: Int,
+        val totalRebuffers: Int,
+        val totalStalls: Int,
+        val totalRebufferDurationMs: Long,
+    )
+
+    internal fun metricsSnapshotForTests(): MetricsSnapshot =
+        MetricsSnapshot(
+            totalUnderruns = totalUnderruns,
+            totalRebuffers = totalRebuffers,
+            totalStalls = totalStalls,
+            totalRebufferDurationMs = totalRebufferDurationMs,
+        )
 }
