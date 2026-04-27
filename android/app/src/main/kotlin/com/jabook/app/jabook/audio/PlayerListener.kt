@@ -71,13 +71,32 @@ internal class PlayerListener(
     private val getCrossfadeHandler: (() -> CrossfadeHandler?)? = null, // Callback to get crossfade handler (Phase 6)
     private val coroutineScope: kotlinx.coroutines.CoroutineScope? = null, // Coroutine scope for debounced operations (inspired by Rhythm)
 ) : Player.Listener {
-    private var retryCount = 0
-    private val maxRetries = 3
-    private val retryDelayMs = 2000L // 2 seconds
+    // Book completion tracker (extracted from PlayerListener)
+    private val bookCompletionTracker: BookCompletionTracker =
+        BookCompletionTracker(
+            context = context,
+            scope = coroutineScope ?: kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default),
+            getActivePlayer = { getActivePlayer() },
+            getIsBookCompleted = { getIsBookCompleted() },
+            setIsBookCompleted = { setIsBookCompleted(it) },
+            getActualPlaylistSize = { getActualPlaylistSize?.invoke() ?: getActivePlayer().mediaItemCount },
+            getLastCompletedTrackIndex = { getLastCompletedTrackIndex?.invoke() ?: -1 },
+            setLastCompletedTrackIndex = { setLastCompletedTrackIndex?.invoke(it) },
+            saveCurrentPosition = { saveCurrentPosition() },
+            getCurrentBookId = { getCurrentBookId?.invoke() },
+            markBookCompleted = markBookCompleted,
+            scheduleNotificationUpdate = { scheduleNotificationUpdate() },
+        )
 
-    // Error skipping mechanism (Auxio pattern)
-    private var skipCount = 0
-    private val maxSkips = 5 // Prevent infinite skip loops for bad playlists
+    // Error handler (extracted from PlayerListener)
+    private val playerErrorHandler: PlayerErrorHandler =
+        PlayerErrorHandler(
+            getActivePlayer = { getActivePlayer() },
+            getActualPlaylistSize = { getActualPlaylistSize?.invoke() ?: getActivePlayer().mediaItemCount },
+            getCurrentMetadata = { getCurrentMetadata() },
+            getCurrentBookId = { getCurrentBookId?.invoke() },
+            scheduleNotificationUpdate = { scheduleNotificationUpdate() },
+        )
 
     /**
      * Active LoudnessNormalizer for ReplayGain application.
@@ -229,23 +248,6 @@ internal class PlayerListener(
         }
     }
 
-    // Coroutine-based position check (inspired by Rhythm's crossfade monitoring)
-    // Uses Job instead of Handler for better performance and cancellation
-    private var positionCheckJob: kotlinx.coroutines.Job? = null
-    private var lastPosition: Long = -1L // Track last position to detect when playback stops advancing
-    private var positionStoppedCount: Int = 0 // Count how many times position hasn't changed
-    private var positionStoppedStartTime: Long = -1L // When position first stopped advancing
-    private val positionCheckIntervalMs = 1000L // Check every second
-    private val positionStoppedThreshold = 2 // Consider file ended if position hasn't changed for 2 checks (2 seconds)
-    private val maxPositionStoppedTimeMs = 3000L // Maximum time position can be stopped before considering file ended (3 seconds)
-
-    private fun resetPositionTrackingState() {
-        lastPosition = -1L
-        positionStoppedCount = 0
-        positionStoppedStartTime = -1L
-    }
-
-    private fun calculateEndOfFileThresholdMs(durationMs: Long): Long = EndOfFileDetectionPolicy.calculateThresholdMs(durationMs)
 
     // Use onEvents() for more efficient event handling (inspired by lissen-android)
     // This allows handling multiple events in one callback for better performance
@@ -290,8 +292,7 @@ internal class PlayerListener(
 
             // Reset retry and skip counts on successful playback
             if (playbackState == Player.STATE_READY || playbackState == Player.STATE_BUFFERING) {
-                retryCount = 0
-                skipCount = 0
+                playerErrorHandler.resetCounts()
             }
 
             // Stop position check when playback state changes to ENDED
@@ -331,7 +332,8 @@ internal class PlayerListener(
                 val error = player.playerError
                 if (error != null) {
                     LogUtils.e("AudioPlayerService", "Playback error: ${error.message}", error)
-                    handlePlayerError(error)
+                    playerErrorHandler.logErrorContext(error)
+                    playerErrorHandler.handlePlayerError(error)
                 }
             }
         }
@@ -544,7 +546,7 @@ internal class PlayerListener(
             // This is a fallback check
 
             // Reset retry count on track change (new track might work even if previous failed)
-            retryCount = 0
+            playerErrorHandler.resetCounts()
 
             // Restart position check if playing
             if (player.isPlaying && !getIsBookCompleted() && player.playbackState == Player.STATE_READY) {
@@ -698,202 +700,10 @@ internal class PlayerListener(
     }
 
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-        val player = getActivePlayer()
-        val currentIndex = player.currentMediaItemIndex
-        val mediaItem = player.currentMediaItem
-        val mediaId = mediaItem?.mediaId ?: "unknown"
-        val metadata = getCurrentMetadata.invoke()
-
-        // Enhanced error logging with context (inspired by Easybook)
-        val bookId = getCurrentBookId?.invoke() ?: "unknown"
-        val bookName = metadata?.get("title") ?: "unknown"
-        val chapterUrl = mediaId
-        val chapterIdx = currentIndex
-
-        LogUtils.e(
-            "AudioPlayerService",
-            "❌ Playback error: track=$currentIndex, mediaId=$mediaId, code=${error.errorCode}, message=${error.message}",
-            error,
-        )
-        LogUtils.e(
-            "AudioPlayerService",
-            "❌ Error context: bookId=$bookId, bookName=$bookName, chapterIdx=$chapterIdx, chapterUrl=$chapterUrl",
-        )
-
-        // Log HTTP-specific error details (inspired by Easybook)
-        val cause = error.cause
-        if (cause is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
-            LogUtils.e(
-                "AudioPlayerService",
-                "❌ HTTP error: responseCode=${cause.responseCode}, responseMessage=${cause.responseMessage}",
-            )
-            if (!cause.headerFields.isEmpty()) {
-                LogUtils.e(
-                    "AudioPlayerService",
-                    "❌ HTTP headers: ${cause.headerFields}",
-                )
-            }
-        } else if (cause is androidx.media3.datasource.HttpDataSource.HttpDataSourceException) {
-            LogUtils.e(
-                "AudioPlayerService",
-                "❌ HTTP data source error: type=${cause.type}",
-            )
-        } else if (cause is java.io.IOException) {
-            LogUtils.e(
-                "AudioPlayerService",
-                "❌ IO error: ${cause.message}",
-            )
-        }
-
-        handlePlayerError(error)
+        playerErrorHandler.logErrorContext(error)
+        playerErrorHandler.handlePlayerError(error)
     }
 
-    /**
-     * Handles player errors with automatic retry for network errors.
-     *
-     * Inspired by lissen-android: improved error handling with detailed messages.
-     *
-     * @param error The playback error that occurred
-     */
-    private fun handlePlayerError(error: androidx.media3.common.PlaybackException) {
-        ErrorHandler.handlePlaybackError("AudioPlayerService", error, "Player error during playback")
-
-        val errorCode = error.errorCode
-        val resolution =
-            PlaybackErrorPolicy.resolve(
-                errorCode = errorCode,
-                hasRetriesLeft = retryCount < maxRetries,
-                canSkipTrack = skipCount < maxSkips,
-                fallbackMessage = error.message,
-            )
-
-        val userFriendlyMessage =
-            when (resolution.action) {
-                PlaybackRecoveryAction.RETRY -> {
-                    retryCount++
-                    LogUtils.w(
-                        "AudioPlayerService",
-                        "${resolution.userMessage} ($retryCount/$maxRetries)",
-                    )
-
-                    // Retry after delay with exponential backoff.
-                    val backoffDelay = retryDelayMs * retryCount
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        val player = getActivePlayer()
-                        player.prepare()
-                        // Following RiMusic pattern: set playWhenReady after prepare to resume playback.
-                        player.playWhenReady = true
-                        LogUtils.d(
-                            "AudioPlayerService",
-                            "Retry attempt $retryCount after playback error (delay: ${backoffDelay}ms)",
-                        )
-                    }, backoffDelay)
-                    return
-                }
-                PlaybackRecoveryAction.SKIP_TRACK -> {
-                    if (attemptSkipOnError()) {
-                        resolution.userMessage
-                    } else {
-                        "Playback error: Unable to recover automatically."
-                    }
-                }
-                PlaybackRecoveryAction.RESCAN_LIBRARY -> {
-                    "${resolution.userMessage} Try re-scanning your library."
-                }
-                PlaybackRecoveryAction.NONE -> resolution.userMessage
-            }
-
-        val player = getActivePlayer()
-        val currentIndex = player.currentMediaItemIndex
-        val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
-        val metadata = getCurrentMetadata.invoke()
-        val bookId = getCurrentBookId?.invoke() ?: "unknown"
-        val bookName = metadata?.get("title") ?: "unknown"
-
-        LogUtils.e(
-            "AudioPlayerService",
-            "❌ Playback error (user-friendly): $userFriendlyMessage (track=$currentIndex/$totalTracks, retry=$retryCount/$maxRetries, bookId=$bookId, bookName=$bookName)",
-        )
-        scheduleNotificationUpdate()
-
-        // Store error for retrieval via MethodChannel if needed
-        // Error will be automatically propagated through state stream
-    }
-
-    /**
-     * Attempts to skip to the next track if an error occurs.
-     * Returns true if skip was initiated, false if max skips reached or cannot skip.
-     */
-    private fun attemptSkipOnError(): Boolean {
-        if (skipCount < maxSkips) {
-            skipCount++
-            LogUtils.w(
-                "AudioPlayerService",
-                "Attempting to skip track due to error (skip $skipCount/$maxSkips)",
-            )
-            handleFileNotFound() // Reuse existing skip logic
-            return true
-        } else {
-            LogUtils.e(
-                "AudioPlayerService",
-                "Max skips reached ($maxSkips), stopping playback to prevent loop.",
-            )
-            return false
-        }
-    }
-
-    /**
-     * Handles file not found errors by attempting to skip to next available track.
-     *
-     * Inspired by lissen-android's approach to handle missing files gracefully.
-     */
-    private fun handleFileNotFound() {
-        val player = getActivePlayer()
-        val currentIndex = player.currentMediaItemIndex
-        // Use actual playlist size from filePaths if available, otherwise use player.mediaItemCount
-        val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
-
-        if (totalTracks <= 1) {
-            // Only one track or no tracks, can't skip
-            LogUtils.w("AudioPlayerService", "Cannot skip: only one track or no tracks available")
-            return
-        }
-
-        // Don't advance if we're at the last track
-        if (currentIndex >= totalTracks - 1) {
-            LogUtils.w("AudioPlayerService", "Last track, cannot skip forward")
-            player.playWhenReady = false
-            return
-        }
-
-        // Try to skip to next track (not using modulo to prevent circular navigation)
-        val nextIndex = currentIndex + 1
-        if (nextIndex < totalTracks) {
-            LogUtils.w(
-                "AudioPlayerService",
-                "File not found at index $currentIndex, skipping to next track $nextIndex",
-            )
-            try {
-                player.seekTo(nextIndex, 0L)
-                // Auto-play next track if player was playing
-                // Use playWhenReady instead of play() for better compatibility
-                if (player.isPlaying || player.playWhenReady) {
-                    player.playWhenReady = true
-                }
-            } catch (e: Exception) {
-                LogUtils.e("AudioPlayerService", "Failed to skip to next track", e)
-                // Don't rethrow - log and continue
-            }
-        } else {
-            // No more tracks available, pause playback
-            LogUtils.w("AudioPlayerService", "No more tracks available, pausing playback")
-            try {
-                player.playWhenReady = false
-            } catch (e: Exception) {
-                LogUtils.e("AudioPlayerService", "Failed to pause playback", e)
-            }
-        }
-    }
 
     // onMediaItemTransition is now handled in onEvents() for better performance
     // Keeping this for backward compatibility and sleep timer "end of chapter" handling
@@ -1059,7 +869,7 @@ internal class PlayerListener(
             stopPositionCheck()
 
             // Reset retry count on track change
-            retryCount = 0
+            playerErrorHandler.resetCounts()
 
             // Inspired by lissen-android: check if current track is available
             // If track is not available, try to find next available track
@@ -1077,105 +887,13 @@ internal class PlayerListener(
                                 "Current track file not accessible: ${uri.path}, trying to skip",
                             )
                             // Try to skip to next available track
-                            skipToNextAvailableTrack(currentIndex, previousIndex)
+                            playerErrorHandler.skipToNextAvailableTrack(currentIndex, previousIndex)
                         }
                     }
                 }
             }
         }
     }
-
-    /**
-     * Skips to next available track if current track is unavailable.
-     * Inspired by lissen-android's PlaybackNotificationService.
-     *
-     * @param currentIndex Current track index
-     * @param previousIndex Previous track index
-     */
-    private fun skipToNextAvailableTrack(
-        currentIndex: Int,
-        previousIndex: Int,
-    ) {
-        val player = getActivePlayer()
-
-        if (player.mediaItemCount <= 1) {
-            // Only one track or no tracks, can't skip
-            LogUtils.w("AudioPlayerService", "Cannot skip: only one track or no tracks available")
-            return
-        }
-
-        // Determine direction (forward or backward)
-        val direction =
-            when {
-                currentIndex > previousIndex || (currentIndex == 0 && previousIndex == player.mediaItemCount - 1) -> 1 // FORWARD
-                else -> -1 // BACKWARD
-            }
-
-        // Try to find next available track
-        var nextIndex = currentIndex
-        var attempts = 0
-        val maxAttempts = player.mediaItemCount
-
-        while (attempts < maxAttempts) {
-            nextIndex =
-                when (direction) {
-                    1 -> {
-                        // Forward: don't use modulo, check bounds
-                        if (nextIndex + 1 < player.mediaItemCount) {
-                            nextIndex + 1
-                        } else {
-                            // Reached end, can't go forward
-                            LogUtils.w("AudioPlayerService", "Reached last track, cannot skip forward")
-                            player.playWhenReady = false
-                            return
-                        }
-                    }
-                    else -> {
-                        // Backward: can use modulo or bounds check
-                        if (nextIndex - 1 >= 0) nextIndex - 1 else player.mediaItemCount - 1
-                    }
-                }
-
-            // Check if this track is available
-            val item = player.getMediaItemAt(nextIndex)
-            val uri = item.localConfiguration?.uri
-
-            if (uri != null) {
-                val isAvailable =
-                    when (uri.scheme) {
-                        "file" -> {
-                            val file = File(uri.path ?: "")
-                            file.exists() && file.canRead()
-                        }
-                        "http", "https" -> true // Assume network URLs are available
-                        else -> true // Assume other schemes are available
-                    }
-
-                if (isAvailable) {
-                    LogUtils.d("AudioPlayerService", "Found available track at index $nextIndex, seeking to it")
-                    try {
-                        player.seekTo(nextIndex, 0L)
-                        // Restore playWhenReady if was playing
-                        if (player.playWhenReady) {
-                            player.playWhenReady = true
-                        }
-                        return
-                    } catch (e: Exception) {
-                        LogUtils.e("AudioPlayerService", "Failed to seek to available track", e)
-                    }
-                }
-            }
-
-            attempts++
-        }
-
-        // No available tracks found, pause playback
-        LogUtils.w("AudioPlayerService", "No available tracks found, pausing playback")
-        try {
-            player.playWhenReady = false
-        } catch (e: Exception) {
-            LogUtils.e("AudioPlayerService", "Failed to pause playback", e)
-        }
     }
 
     override fun onMediaMetadataChanged(mediaMetadata: androidx.media3.common.MediaMetadata) {
@@ -1234,326 +952,11 @@ internal class PlayerListener(
         // getNotificationManager()?.updateMetadata(getCurrentMetadata(), getEmbeddedArtworkPath())
     }
 
-    /**
-     * Starts periodic position checking to detect end of file when duration is incorrect.
-     * This is a workaround for cases where ExoPlayer doesn't correctly detect file end
-     * due to incorrect duration metadata.
-     */
-    private fun startPositionCheck() {
-        stopPositionCheck() // Stop any existing check
-
-        val player = getActivePlayer()
-        val currentIndex = player.currentMediaItemIndex
-        // Use actual playlist size from filePaths if available, otherwise use player.mediaItemCount
-        val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
-        LogUtils.i(
-            "AudioPlayerService",
-            "Starting position check: index=$currentIndex/$totalTracks (actual=${getActualPlaylistSize?.invoke()}, player=${player.mediaItemCount}), isPlaying=${player.isPlaying}, state=${player.playbackState}",
-        )
-
-        // Use coroutine instead of Handler for better performance (inspired by Rhythm)
-        val scope = coroutineScope ?: return
-        positionCheckJob =
-            scope.launch {
-                while (coroutineContext.isActive) {
-                    if (getIsBookCompleted()) {
-                        break
-                    }
-
-                    val player = getActivePlayer()
-
-                    // Stop check if book is already completed or player is in ENDED state
-                    if (player.playbackState == Player.STATE_ENDED) {
-                        break
-                    }
-
-                    // Don't stop check immediately if isPlaying is false - file might have just ended
-                    // and we need to check if position stopped advancing
-                    // Only stop if we're not on the last track
-                    val currentIndex = player.currentMediaItemIndex
-                    // Use actual playlist size from filePaths if available, otherwise use player.mediaItemCount
-                    val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
-                    if (!player.isPlaying && currentIndex < totalTracks - 1) {
-                        // Not playing and not on last track - stop check
-                        break
-                    }
-
-                    // Get current state (currentIndex and totalTracks already defined above)
-                    val currentPosition = player.currentPosition
-                    val duration = player.duration
-                    val endOfFileThresholdMs = calculateEndOfFileThresholdMs(duration)
-
-                    // Log position check for debugging (only on last track to reduce spam)
-                    if (currentIndex >= totalTracks - 1) {
-                        LogUtils.d(
-                            "AudioPlayerService",
-                            "Position check: index=$currentIndex/$totalTracks, position=${currentPosition}ms (${currentPosition / 1000}s), duration=${duration}ms (${duration / 1000}s), isPlaying=${player.isPlaying}, playWhenReady=${player.playWhenReady}, state=${player.playbackState}",
-                        )
-                    }
-
-                    // Only check on the last track
-                    if (currentIndex >= totalTracks - 1) {
-                        // Check 1: Position reached or exceeded duration (if duration is valid)
-                        if (duration != C.TIME_UNSET && duration > 0) {
-                            if (currentPosition >= duration) {
-                                LogUtils.i(
-                                    "AudioPlayerService",
-                                    "Detected end of last track: position reached/exceeded duration (position=$currentPosition, duration=$duration)",
-                                )
-                                handleBookCompletion(player, currentIndex)
-                                break
-                            }
-
-                            // Check 2: Smart completion detection (inspired by Easybook)
-                            // Mark as completed when within 3 minutes of the end (180000ms)
-                            // This helps users know they're near completion and prevents issues with credits/silence
-                            val remaining = duration - currentPosition
-                            val smartCompletionThresholdMs = 180000L // 3 minutes
-
-                            if (remaining <= smartCompletionThresholdMs && remaining > endOfFileThresholdMs) {
-                                LogUtils.i(
-                                    "AudioPlayerService",
-                                    "Smart completion: within 3 minutes of end (remaining=${remaining}ms, ${remaining / 1000}s)",
-                                )
-                                handleBookCompletion(player, currentIndex)
-                                break
-                            }
-
-                            // Check 3: Position is very close to duration (within threshold)
-                            if (remaining <= endOfFileThresholdMs) {
-                                LogUtils.i(
-                                    "AudioPlayerService",
-                                    "Detected end of last track by position check: position=$currentPosition, duration=$duration, remaining=$remaining",
-                                )
-                                handleBookCompletion(player, currentIndex)
-                                break
-                            }
-                        }
-
-                        // Check 3: Position stopped advancing (file ended but position didn't update)
-                        // This is the MOST IMPORTANT check - handles cases where duration is incorrect
-                        // and file actually ended but ExoPlayer doesn't update position or state
-                        // This check works even if duration is wrong!
-                        // Note: We check position stopped even if isPlaying is false, because ExoPlayer
-                        // may stop playing when file ends, but position might not update
-                        if (lastPosition >= 0 && currentPosition == lastPosition) {
-                            // Position hasn't changed - file might have ended
-                            val currentTime = System.currentTimeMillis()
-
-                            // Record when position first stopped
-                            if (positionStoppedStartTime < 0) {
-                                positionStoppedStartTime = currentTime
-                            }
-
-                            // Check if we were playing recently (within last check) or if position is near duration
-                            val wasPlayingRecently = player.isPlaying || player.playWhenReady
-                            val isNearEnd =
-                                duration != C.TIME_UNSET &&
-                                    duration > 0 &&
-                                    currentPosition >= duration - (endOfFileThresholdMs * 2)
-
-                            // Calculate how long position has been stopped
-                            val stoppedTimeMs = currentTime - positionStoppedStartTime
-
-                            // On last track, if position stopped and we were playing, it's likely the file ended
-                            // This works even if duration metadata is wrong!
-                            if (wasPlayingRecently || isNearEnd || stoppedTimeMs >= maxPositionStoppedTimeMs) {
-                                positionStoppedCount++
-                                LogUtils.d(
-                                    "AudioPlayerService",
-                                    "Position not advancing on last track: position=$currentPosition, stopped for $positionStoppedCount checks (${stoppedTimeMs}ms), isPlaying=${player.isPlaying}, playWhenReady=${player.playWhenReady}, duration=$duration, nearEnd=$isNearEnd",
-                                )
-
-                                // If position stopped for threshold checks OR for max time, consider file ended
-                                if (positionStoppedCount >= positionStoppedThreshold ||
-                                    stoppedTimeMs >= maxPositionStoppedTimeMs
-                                ) {
-                                    // Position hasn't changed for multiple checks or max time - file definitely ended
-                                    // This works even if duration is incorrect!
-                                    LogUtils.i(
-                                        "AudioPlayerService",
-                                        "Detected end of last track: position stopped advancing (position=$currentPosition, duration=$duration, stopped for $positionStoppedCount checks/${stoppedTimeMs}ms, isPlaying=${player.isPlaying}, playWhenReady=${player.playWhenReady})",
-                                    )
-                                    handleBookCompletion(player, currentIndex)
-                                    break
-                                }
-                            } else {
-                                // Not playing and not near end - might be paused, reset counter
-                                positionStoppedCount = 0
-                                positionStoppedStartTime = -1L
-                            }
-                        } else if (lastPosition >= 0 && currentPosition != lastPosition) {
-                            // Position changed, reset counter
-                            if (positionStoppedCount > 0) {
-                                LogUtils.v(
-                                    "AudioPlayerService",
-                                    "Position resumed advancing: was stopped for $positionStoppedCount checks, new position=$currentPosition",
-                                )
-                            }
-                            positionStoppedCount = 0
-                            positionStoppedStartTime = -1L
-                        }
-                        lastPosition = currentPosition
-                    } else {
-                        // Not on last track, reset tracking
-                        resetPositionTrackingState()
-                    }
-
-                    // Check 4: Playback stopped but we're still in READY state (file ended prematurely)
-                    // This can happen when file is shorter than reported duration
-                    if (currentIndex >= totalTracks - 1 &&
-                        player.playbackState == Player.STATE_READY &&
-                        !player.isPlaying &&
-                        !player.playWhenReady
-                    ) {
-                        // If we're near the end (within threshold) or position stopped, consider it completed
-                        val isNearEnd =
-                            duration != C.TIME_UNSET &&
-                                duration > 0 &&
-                                currentPosition >= duration - endOfFileThresholdMs
-                        val positionStopped =
-                            lastPosition >= 0 &&
-                                currentPosition == lastPosition &&
-                                positionStoppedCount >= 1
-
-                        if (isNearEnd || positionStopped) {
-                            LogUtils.i(
-                                "AudioPlayerService",
-                                "Detected end of last track: playback stopped near end (position=$currentPosition, duration=$duration, nearEnd=$isNearEnd, positionStopped=$positionStopped)",
-                            )
-                            handleBookCompletion(player, currentIndex)
-                            break
-                        }
-                    }
-
-                    // Wait for next check interval
-                    kotlinx.coroutines.delay(positionCheckIntervalMs)
-                }
-                // Reset tracking when loop ends
-                resetPositionTrackingState()
-            }
-    }
-
-    /**
-     * Stops periodic position checking.
-     */
-    private fun stopPositionCheck() {
-        positionCheckJob?.cancel()
-        positionCheckJob = null
-        // Reset tracking when stopping
-        resetPositionTrackingState()
-    }
-
-    /**
-     * Handles book completion when detected by position check.
-     * This is called when we detect that the file has ended even though ExoPlayer
-     * hasn't transitioned to STATE_ENDED (due to incorrect duration metadata).
-     */
-    private fun handleBookCompletion(
-        player: Player,
-        currentIndex: Int,
-        source: String = "unknown",
-    ): Boolean {
-        if (getIsBookCompleted()) {
-            LogUtils.v(
-                "AudioPlayerService",
-                "Skipping duplicate completion from $source: book is already marked completed",
-            )
-            return false
-        }
-
-        // Use actual playlist size from filePaths if available, otherwise use player.mediaItemCount
-        // This fixes issue where player.mediaItemCount may be incorrect (e.g., 20 instead of 16)
-        val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
-        if (totalTracks <= 0) {
-            return false
-        }
-
-        // CRITICAL: Resolve unstable/out-of-bounds indexes into a consistent completion index.
-        val savedIndex = getLastCompletedTrackIndex?.invoke() ?: -1
-        val actualIndex =
-            BookCompletionIndexPolicy.resolveCompletionIndex(
-                currentIndex = currentIndex,
-                totalTracks = totalTracks,
-                savedCompletedIndex = savedIndex,
-                currentPositionMs = player.currentPosition,
-                durationMs = player.duration,
-            )
-        if (actualIndex != currentIndex) {
-            LogUtils.d(
-                "AudioPlayerService",
-                "$source: normalized completion index $currentIndex -> $actualIndex (saved=$savedIndex, total=$totalTracks)",
-            )
-        }
-
-        if (actualIndex >= totalTracks - 1) {
-            // Last track finished - book completed
-            // Save values BEFORE stopping player (stop() resets index to 0)
-            val lastIndex = actualIndex
-            val lastPosition = player.currentPosition
-
-            LogUtils.i(
-                "AudioPlayerService",
-                "Book completed from $source: last track finished (track $lastIndex of ${totalTracks - 1}, position=${lastPosition}ms, originalIndex=$currentIndex)",
-            )
-
-            // Set flag to prevent further playback
-            setIsBookCompleted(true)
-
-            // Mark book as completed for activity sorting
-            getCurrentBookId?.invoke()?.let { bookId ->
-                markBookCompleted?.invoke(bookId)
-            }
-
-            // Save last track index so getState() can return correct index even if ExoPlayer resets it
-            setLastCompletedTrackIndex?.invoke(lastIndex)
-            LogUtils.d(
-                "AudioPlayerService",
-                "$source: saved last completed track index: $lastIndex",
-            )
-
-            // Stop playback completely to prevent auto-advance
-            // IMPORTANT: Don't call player.stop() - it resets index to 0 and clears playlist
-            // Instead, just pause and seek to end of last track
-            try {
-                // First, pause playback
-                player.pause()
-                player.playWhenReady = false
-
-                // Seek to end of last track to show completion
-                // This preserves the index and shows correct track number
-                if (lastIndex >= 0 && lastIndex < totalTracks) {
-                    // Seek to the end of the last track (or current position if near end)
-                    val seekPosition = if (lastPosition > 0) lastPosition else Long.MAX_VALUE
-                    player.seekTo(lastIndex, seekPosition)
-                    LogUtils.d(
-                        "AudioPlayerService",
-                        "Seeked to last track $lastIndex at position $seekPosition to preserve index",
-                    )
-                }
-            } catch (e: Exception) {
-                LogUtils.e("AudioPlayerService", "Error handling book completion", e)
-                // Fallback to just pausing
-                player.playWhenReady = false
-            }
-
-            // Save final position
-            saveCurrentPosition()
-
-            // Update notification to show completion
-            scheduleNotificationUpdate()
-
-            // Send broadcast to UI to show completion message
-            val intent =
-                Intent("com.jabook.app.jabook.BOOK_COMPLETED").apply {
-                    setPackage(context.packageName) // Set package for explicit broadcast
-                    putExtra("last_track_index", lastIndex)
-                }
-            context.sendBroadcast(intent)
-            return true
-        }
-        return false
-    }
+    private fun startPositionCheck() = bookCompletionTracker.startPositionCheck()
+    private fun stopPositionCheck() = bookCompletionTracker.stopPositionCheck()
+    private fun handleBookCompletion(player: Player, currentIndex: Int, source: String = "unknown"): Boolean =
+        bookCompletionTracker.handleBookCompletion(player, currentIndex, source)
+    private fun resetPositionTrackingState() { /* Handled by BookCompletionTracker */ }
 
     /**
      * Handles audio session ID changes (following Rhythm pattern).

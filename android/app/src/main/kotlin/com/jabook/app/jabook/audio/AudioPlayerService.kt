@@ -530,24 +530,16 @@ public class AudioPlayerService : MediaLibraryService() {
 
     @OptIn(UnstableApi::class) // MediaSessionService.setListener
     override fun onCreate() {
-        // CRITICAL: Use Log.e (ERROR) level - ProGuard won't strip these
-        LogUtils.e("JABOOK_SERVICE", "============================================")
-        LogUtils.e("JABOOK_SERVICE", "AudioPlayerService.onCreate() START")
-        LogUtils.e("JABOOK_SERVICE", "PID: ${android.os.Process.myPid()}, Instance: ${System.identityHashCode(this)}")
-        LogUtils.e("JABOOK_SERVICE", "============================================")
+        LogUtils.i("AudioPlayerService", "onCreate() started (PID=${android.os.Process.myPid()})")
 
         try {
             PlayerPerformanceLogger.start("service_onCreate")
-            PlayerPerformanceLogger.log("Service", "onCreate() started")
 
-            // CRITICAL: Clean up existing components if onCreate() is called multiple times
-            // Android can call onCreate() multiple times without onDestroy(), causing resource leaks
+            // Clean up existing components if onCreate() is called multiple times
             cleanupExistingComponents()
 
             super.onCreate()
             instance = this
-            LogUtils.e("JABOOK_SERVICE", "[OK] super.onCreate() completed")
-
             PlayerPerformanceLogger.log("Service", "super.onCreate() complete")
 
             // CRITICAL: Start foreground immediately to avoid ANR and timeout issues (following Rhythm pattern)
@@ -572,24 +564,17 @@ public class AudioPlayerService : MediaLibraryService() {
                     event = "service_on_create",
                 )
             if (foregroundStartResult == ForegroundStartResult.FAILED) {
-                LogUtils.e(
-                    "JABOOK_SERVICE",
-                    "[CRITICAL] Failed to start foreground with both primary and fallback notification",
-                )
+                LogUtils.e("AudioPlayerService", "Failed to start foreground with both notifications")
             } else {
-                LogUtils.e("JABOOK_SERVICE", "[OK] startForeground() completed with result=$foregroundStartResult")
+                LogUtils.d("AudioPlayerService", "startForeground() completed: $foregroundStartResult")
             }
 
             // Set MediaSessionService.Listener for handling foreground service start exceptions
             // This is required for Android 12+ when system doesn't allow foreground service start
             setListener(MediaSessionServiceListener(this))
-            LogUtils.e("JABOOK_SERVICE", "[OK] setListener completed")
-
             PlayerPerformanceLogger.log("Service", "listener set")
 
-            // CRITICAL: Initialize CrossFadePlayer BEFORE AudioPlayerServiceInitializer
-            // CrossfadeHandler (created in initializer) requires CrossFadePlayer to be initialized
-            LogUtils.e("JABOOK_SERVICE", "Initializing CrossFadePlayer...")
+            // Initialize CrossFadePlayer BEFORE AudioPlayerServiceInitializer
             crossFadePlayer =
                 CrossFadePlayer(this) { context ->
                     ExoPlayer
@@ -624,24 +609,18 @@ public class AudioPlayerService : MediaLibraryService() {
                     LogUtils.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
                 }
             }
-            LogUtils.e("JABOOK_SERVICE", "[OK] CrossFadePlayer initialized")
-
-            // Initialize service components using extracted initializer
-            // Media3 automatically manages notifications via MediaLibrarySession
-            LogUtils.e("JABOOK_SERVICE", "Starting AudioPlayerServiceInitializer...")
             AudioPlayerServiceInitializer(this).initialize()
-            LogUtils.e("JABOOK_SERVICE", "[OK] AudioPlayerServiceInitializer completed")
 
             // Restore playback speed (lissen-android pattern)
             playerServiceScope.launch {
                 try {
                     val savedSpeed = audioPreferences.playbackSpeed.first()
                     withContext(Dispatchers.Main) {
-                        LogUtils.d("JABOOK_SERVICE", "Restoring playback speed: ${savedSpeed}x")
+                        LogUtils.d("AudioPlayerService", "Restoring playback speed: ${savedSpeed}x")
                         exoPlayer.setPlaybackSpeed(savedSpeed)
                     }
                 } catch (e: Exception) {
-                    LogUtils.e("JABOOK_SERVICE", "Failed to restore playback speed", e)
+                    LogUtils.e("AudioPlayerService", "Failed to restore playback speed", e)
                 }
             }
 
@@ -659,32 +638,14 @@ public class AudioPlayerService : MediaLibraryService() {
             // CRITICAL: Disable PlayerNotificationManager when MediaLibrarySession is active
             // to prevent duplicate notifications and ensure system media player has priority
             if (mediaLibrarySession == null) {
-                LogUtils.w(
-                    "AudioPlayerService",
-                    "MediaLibrarySession not available, using PlayerNotificationManager as fallback",
-                )
+                LogUtils.w("AudioPlayerService", "MediaLibrarySession not available, using PlayerNotificationManager as fallback")
                 setupPlayerNotificationManager()
-            } else {
-                LogUtils.i(
-                    "AudioPlayerService",
-                    "MediaLibrarySession active, skipping PlayerNotificationManager to ensure system media player priority",
-                )
             }
 
-            // Initialize AudioOutputManager for proximity sensor handling (Speaker/Earpiece switching)
-            LogUtils.e("JABOOK_SERVICE", "Setting up AudioOutputManager...")
             setupAudioOutputManager()
-            LogUtils.e("JABOOK_SERVICE", "[OK] AudioOutputManager setup completed")
-
-            // Initialize PlaybackEnhancerService for volume boost (LoudnessEnhancer)
-            LogUtils.e("JABOOK_SERVICE", "Initializing PlaybackEnhancerService...")
             playbackEnhancerService.initialize()
-            LogUtils.e("JABOOK_SERVICE", "[OK] PlaybackEnhancerService initialized")
-
-            // CrossFadePlayer already initialized above (before AudioPlayerServiceInitializer)
 
             // Initialize AudioVisualizerManager
-            LogUtils.e("JABOOK_SERVICE", "Initializing AudioVisualizerManager...")
             audioVisualizerManager = AudioVisualizerManager(this)
             visualizerBridgeJob?.cancel()
             visualizerBridgeJob =
@@ -695,20 +656,12 @@ public class AudioPlayerService : MediaLibraryService() {
                             audioVisualizerStateBridge.updateWaveform(waveform)
                         }
                 }
-            // Visualizer will be enabled when playback starts (requires audio session)
-            LogUtils.e("JABOOK_SERVICE", "[OK] AudioVisualizerManager initialized")
-
             PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
-
-            LogUtils.e("JABOOK_SERVICE", "============================================")
-            LogUtils.e("JABOOK_SERVICE", "AudioPlayerService.onCreate() COMPLETE")
-            LogUtils.e("JABOOK_SERVICE", "============================================")
+            LogUtils.i("AudioPlayerService", "onCreate() completed successfully")
         } catch (e: Exception) {
-            LogUtils.e("JABOOK_SERVICE", "[CRASH] in onCreate()!", e)
-            LogUtils.e("JABOOK_SERVICE", "Exception: ${e.message}")
-            LogUtils.e("JABOOK_SERVICE", "Stack trace: ${e.stackTraceToString()}")
-            throw e // Re-throw to crash properly
+            LogUtils.e("AudioPlayerService", "onCreate() failed", e)
+            throw e
         }
     }
 
