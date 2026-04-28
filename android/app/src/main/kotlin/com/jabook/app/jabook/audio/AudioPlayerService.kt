@@ -119,10 +119,6 @@ public class AudioPlayerService : MediaLibraryService() {
 
     internal val bookLoudnessCompensator: BookLoudnessCompensator = BookLoudnessCompensator()
 
-    // Tracks the LUFS value of the previously playing book for transition gain
-    internal var previousBookLufs: Double? = null
-        private set
-
     internal var mediaLibrarySession: MediaLibrarySession? = null
 
     // Keep mediaSession for backward compatibility during migration
@@ -272,9 +268,6 @@ public class AudioPlayerService : MediaLibraryService() {
         )
     }
 
-    // Periodic position saving designated to PlaybackPositionRepository
-    private var positionSaveJob: kotlinx.coroutines.Job? = null
-    private val periodicPositionSaveIntervalMs: Long = 5_000L
     private val listeningSessionTracker: ListeningSessionTracker by lazy {
         ListeningSessionTracker(
             repository = listeningSessionRepository,
@@ -286,54 +279,25 @@ public class AudioPlayerService : MediaLibraryService() {
         )
     }
 
-    private fun startPeriodicPositionSaving() {
-        positionSaveJob?.cancel()
-        positionSaveJob =
-            playerServiceScope.launch {
-                while (coroutineContext[kotlinx.coroutines.Job]?.isActive == true) {
-                    kotlinx.coroutines.delay(periodicPositionSaveIntervalMs)
-                    savePositionToRepository()
-                }
-            }
-    }
-
-    private fun stopPeriodicPositionSaving() {
-        positionSaveJob?.cancel()
-        positionSaveJob = null
-    }
-
-    internal fun savePositionToRepository() {
-        val player = getActivePlayer()
-        val bookId = currentGroupPath
-        if (player.mediaItemCount > 0 && !bookId.isNullOrBlank()) {
-            playerServiceScope.launch(Dispatchers.IO) {
-                playbackPositionRepository.savePosition(
-                    bookId = bookId,
-                    trackIndex = player.currentMediaItemIndex,
-                    position = player.currentPosition,
-                )
-            }
-        }
+    private val periodicPositionSaver: PeriodicPositionSaver by lazy {
+        PeriodicPositionSaver(
+            scope = playerServiceScope,
+            repository = playbackPositionRepository,
+            getActivePlayer = { getActivePlayer() },
+            getCurrentBookId = { currentGroupPath },
+        )
     }
 
     internal fun markStoppedBySleepTimer() {
-        getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(SleepTimerPersistence.KEY_LAST_STOPPED_BY_SLEEP_TIMER, true)
-            .apply()
+        SleepTimerPersistence.markStoppedBySleepTimer(
+            getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE),
+        )
     }
 
-    internal fun consumeStoppedBySleepTimerFlag(): Boolean {
-        val prefs = getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
-        val wasStoppedBySleepTimer = prefs.getBoolean(SleepTimerPersistence.KEY_LAST_STOPPED_BY_SLEEP_TIMER, false)
-        if (wasStoppedBySleepTimer) {
-            prefs
-                .edit()
-                .putBoolean(SleepTimerPersistence.KEY_LAST_STOPPED_BY_SLEEP_TIMER, false)
-                .apply()
-        }
-        return wasStoppedBySleepTimer
-    }
+    internal fun consumeStoppedBySleepTimerFlag(): Boolean =
+        SleepTimerPersistence.consumeStoppedBySleepTimerFlag(
+            getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE),
+        )
 
     // Limited dispatcher for MediaItem creation (max 16 parallel tasks)
     // Increased parallelism for faster loading on modern devices with fast storage
@@ -783,11 +747,9 @@ public class AudioPlayerService : MediaLibraryService() {
         callback: ((Boolean, Exception?) -> Unit)? = null,
     ) {
         // Apply book loudness compensation when switching to a different book
-        val isBookSwitch = groupPath != null && groupPath != currentGroupPath
-        if (isBookSwitch) {
-            // Extract book ID from groupPath (format: "author/bookId" or similar)
+        if (groupPath != null && groupPath != currentGroupPath) {
             val bookId = groupPath.substringAfterLast("/").takeIf { it.isNotBlank() } ?: groupPath
-            applyBookLoudnessCompensation(bookId)
+            bookLoudnessCompensator.applyCompensation(bookId, booksDao, playerServiceScope) { getActivePlayer() }
         }
 
         playlistManager?.setPlaylist(
@@ -800,61 +762,6 @@ public class AudioPlayerService : MediaLibraryService() {
         ) ?: run {
             LogUtils.e("AudioPlayerService", "PlaylistManager not initialized")
             callback?.invoke(false, IllegalStateException("PlaylistManager not initialized"))
-        }
-    }
-
-    /**
-     * Applies loudness compensation when switching books.
-     *
-     * Reads the new book's measured LUFS value from the database and computes
-     * the gain needed to maintain consistent perceived volume. The gain is
-     * applied to the player volume after the book switch.
-     *
-     * This is a fire-and-forget operation — if the LUFS value is not yet
-     * available (e.g., [LufsAnalysisWorker] hasn't analyzed the book), the
-     * volume remains unchanged (gain = 1.0).
-     *
-     * @param newBookId the groupPath/bookId of the book being switched to
-     */
-    internal fun applyBookLoudnessCompensation(newBookId: String?) {
-        if (newBookId.isNullOrBlank()) return
-        playerServiceScope.launch(Dispatchers.IO) {
-            try {
-                val bookEntity = booksDao.getBookById(newBookId)
-                val newLufs = bookEntity?.lufsValue
-                val prevLufs = previousBookLufs
-
-                val gain =
-                    if (prevLufs != null && newLufs != null) {
-                        bookLoudnessCompensator.computeTransitionGain(prevLufs, newLufs)
-                    } else {
-                        bookLoudnessCompensator.computeBookGain(newLufs)
-                    }
-
-                // Update previous book LUFS for future transitions
-                previousBookLufs = newLufs
-
-                if (gain != BookLoudnessCompensator.NO_GAIN) {
-                    withContext(Dispatchers.Main) {
-                        val player = getActivePlayer()
-                        // Player.volume is an absolute linear multiplier. Loudness compensation gain
-                        // is relative, so it must be composed multiplicatively to preserve user volume.
-                        player.volume = (player.volume * gain).coerceIn(0f, 1f)
-                        LogUtils.i(
-                            "AudioPlayerService",
-                            "Book loudness compensation applied: gain=$gain, lufs=$newLufs, book=$newBookId",
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                // Re-throw CancellationException to preserve coroutine cancellation
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                LogUtils.w(
-                    "AudioPlayerService",
-                    "Failed to apply book loudness compensation for book=$newBookId: ${e.message}",
-                )
-                CrashDiagnostics.reportNonFatal("book_loudness_compensation", e)
-            }
         }
     }
 
@@ -897,7 +804,7 @@ public class AudioPlayerService : MediaLibraryService() {
         phoneCallListener?.startListening()
 
         listeningSessionTracker.onPlaybackStarted()
-        startPeriodicPositionSaving()
+        periodicPositionSaver.start()
         updateCrashPlaybackContext()
     }
 
@@ -908,8 +815,8 @@ public class AudioPlayerService : MediaLibraryService() {
         }
 
         listeningSessionTracker.onPlaybackStopped(reason = "pause")
-        savePositionToRepository()
-        stopPeriodicPositionSaving()
+        periodicPositionSaver.save()
+        periodicPositionSaver.stop()
         updateCrashPlaybackContext()
     }
 
@@ -923,10 +830,12 @@ public class AudioPlayerService : MediaLibraryService() {
         phoneCallListener?.stopListening()
 
         listeningSessionTracker.onPlaybackStopped(reason = "stop")
-        savePositionToRepository()
-        stopPeriodicPositionSaving()
+        periodicPositionSaver.save()
+        periodicPositionSaver.stop()
         updateCrashPlaybackContext()
     }
+
+    internal fun savePositionToRepository() { periodicPositionSaver.save() }
 
     internal fun finishListeningSessionIfActive(reason: String) {
         listeningSessionTracker.onPlaybackStopped(reason)
@@ -1190,7 +1099,6 @@ public class AudioPlayerService : MediaLibraryService() {
                 serviceMediaController != null ||
                 crossFadePlayer != null ||
                 audioVisualizerManager != null ||
-                positionSaveJob != null ||
                 visualizerBridgeJob != null
         if (hasExistingComponents) {
             LogUtils.w(
@@ -1212,7 +1120,7 @@ public class AudioPlayerService : MediaLibraryService() {
     }
 
     private fun releaseRuntimeComponents(cancelServiceScopeChildren: Boolean) {
-        stopPeriodicPositionSaving()
+        periodicPositionSaver.stop()
         if (cancelServiceScopeChildren) {
             playerServiceScope.coroutineContext.cancelChildren()
         }
