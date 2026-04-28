@@ -217,6 +217,9 @@ private fun StateBadge(
             TorrentState.DOWNLOADING -> stringResource(R.string.downloading_state) to MaterialTheme.colorScheme.primary
             TorrentState.PAUSED -> stringResource(R.string.paused_state) to MaterialTheme.colorScheme.onSurfaceVariant
             TorrentState.COMPLETED -> stringResource(R.string.completed_state) to MaterialTheme.colorScheme.tertiary
+            @Suppress("DEPRECATION")
+            TorrentState.FINISHED,
+            -> stringResource(R.string.completed_state) to MaterialTheme.colorScheme.tertiary
             TorrentState.ERROR -> stringResource(R.string.error_state) to MaterialTheme.colorScheme.error
             TorrentState.SEEDING -> stringResource(R.string.seeding_state) to MaterialTheme.colorScheme.tertiary
             TorrentState.STREAMING -> stringResource(R.string.streaming_state) to MaterialTheme.colorScheme.secondary

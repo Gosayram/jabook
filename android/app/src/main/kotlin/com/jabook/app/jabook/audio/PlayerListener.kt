@@ -109,7 +109,6 @@ internal class PlayerListener(
             },
         )
 
-
     /**
      * Sets a deferred to be completed when track switch occurs.
      * Used by PlaylistManager to wait for onMediaItemTransition event.
@@ -217,7 +216,6 @@ internal class PlayerListener(
             pendingTrackSwitchDeferred = null
         }
     }
-
 
     // Use onEvents() for more efficient event handling (inspired by lissen-android)
     // This allows handling multiple events in one callback for better performance
@@ -655,7 +653,6 @@ internal class PlayerListener(
         playerErrorHandler.handlePlayerError(error)
     }
 
-
     // onMediaItemTransition is now handled in onEvents() for better performance
     // Keeping this for backward compatibility and sleep timer "end of chapter" handling
     override fun onMediaItemTransition(
@@ -903,9 +900,15 @@ internal class PlayerListener(
     }
 
     private fun startPositionCheck() = bookCompletionTracker.startPositionCheck()
+
     private fun stopPositionCheck() = bookCompletionTracker.stopPositionCheck()
-    private fun handleBookCompletion(player: Player, currentIndex: Int, source: String = "unknown"): Boolean =
-        bookCompletionTracker.handleBookCompletion(player, currentIndex, source)
+
+    private fun handleBookCompletion(
+        player: Player,
+        currentIndex: Int,
+        source: String = "unknown",
+    ): Boolean = bookCompletionTracker.handleBookCompletion(player, currentIndex, source)
+
     private fun resetPositionTrackingState() { /* Handled by BookCompletionTracker */ }
 
     /**

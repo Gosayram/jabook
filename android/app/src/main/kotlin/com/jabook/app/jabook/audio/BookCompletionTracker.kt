@@ -88,19 +88,40 @@ internal class BookCompletionTracker(
 
                     if (currentIndex >= totalTracks - 1) {
                         if (duration != C.TIME_UNSET && duration > 0) {
-                            if (currentPosition >= duration) { handleBookCompletion(player, currentIndex); break }
+                            if (currentPosition >= duration) {
+                                handleBookCompletion(player, currentIndex)
+                                break
+                            }
                             val remaining = duration - currentPosition
-                            if (remaining in (eofThresholdMs + 1)..smartCompletionThresholdMs) { handleBookCompletion(player, currentIndex); break }
-                            if (remaining <= eofThresholdMs) { handleBookCompletion(player, currentIndex); break }
+                            if (remaining in (eofThresholdMs + 1)..smartCompletionThresholdMs) {
+                                handleBookCompletion(player, currentIndex)
+                                break
+                            }
+                            if (remaining <= eofThresholdMs) {
+                                handleBookCompletion(player, currentIndex)
+                                break
+                            }
                         }
-                        if (checkPositionStopped(player, currentPosition, duration, eofThresholdMs)) { handleBookCompletion(player, currentIndex); break }
+                        if (checkPositionStopped(player, currentPosition, duration, eofThresholdMs)) {
+                            handleBookCompletion(player, currentIndex)
+                            break
+                        }
                         lastPosition = currentPosition
-                    } else { resetPositionTrackingState() }
+                    } else {
+                        resetPositionTrackingState()
+                    }
 
-                    if (currentIndex >= totalTracks - 1 && player.playbackState == Player.STATE_READY && !player.isPlaying && !player.playWhenReady) {
+                    if (currentIndex >= totalTracks - 1 &&
+                        player.playbackState == Player.STATE_READY &&
+                        !player.isPlaying &&
+                        !player.playWhenReady
+                    ) {
                         val isNearEnd = duration != C.TIME_UNSET && duration > 0 && currentPosition >= duration - eofThresholdMs
                         val posStopped = lastPosition >= 0 && currentPosition == lastPosition && positionStoppedCount >= 1
-                        if (isNearEnd || posStopped) { handleBookCompletion(player, currentIndex); break }
+                        if (isNearEnd || posStopped) {
+                            handleBookCompletion(player, currentIndex)
+                            break
+                        }
                     }
                     kotlinx.coroutines.delay(positionCheckIntervalMs)
                 }
@@ -109,19 +130,36 @@ internal class BookCompletionTracker(
     }
 
     /** Stops periodic position checking. */
-    fun stopPositionCheck() { positionCheckJob?.cancel(); positionCheckJob = null; resetPositionTrackingState() }
+    fun stopPositionCheck() {
+        positionCheckJob?.cancel()
+        positionCheckJob = null
+        resetPositionTrackingState()
+    }
 
     /** Release all resources. */
-    fun release() { stopPositionCheck() }
+    fun release() {
+        stopPositionCheck()
+    }
 
     /** Handles book completion. Public so [PlayerListener] can delegate. */
-    fun handleBookCompletion(player: Player, currentIndex: Int, source: String = "position_check"): Boolean {
+    fun handleBookCompletion(
+        player: Player,
+        currentIndex: Int,
+        source: String = "position_check",
+    ): Boolean {
         if (getIsBookCompleted()) return false
         val totalTracks = getActualPlaylistSize()
         if (totalTracks <= 0) return false
 
         val savedIndex = getLastCompletedTrackIndex()
-        val actualIndex = BookCompletionIndexPolicy.resolveCompletionIndex(currentIndex, totalTracks, savedIndex, player.currentPosition, player.duration)
+        val actualIndex =
+            BookCompletionIndexPolicy.resolveCompletionIndex(
+                currentIndex,
+                totalTracks,
+                savedIndex,
+                player.currentPosition,
+                player.duration,
+            )
         if (actualIndex < totalTracks - 1) return false
 
         val lastIndex = actualIndex
@@ -132,17 +170,36 @@ internal class BookCompletionTracker(
         setLastCompletedTrackIndex(lastIndex)
 
         try {
-            player.pause(); player.playWhenReady = false
+            player.pause()
+            player.playWhenReady = false
             if (lastIndex in 0 until totalTracks) player.seekTo(lastIndex, if (lastPos > 0) lastPos else Long.MAX_VALUE)
-        } catch (e: Exception) { LogUtils.e(TAG, "Error handling completion", e); player.playWhenReady = false }
+        } catch (e: Exception) {
+            LogUtils.e(TAG, "Error handling completion", e)
+            player.playWhenReady = false
+        }
 
-        saveCurrentPosition(); scheduleNotificationUpdate()
-        context.sendBroadcast(Intent("com.jabook.app.jabook.BOOK_COMPLETED").apply { setPackage(context.packageName); putExtra("last_track_index", lastIndex) })
+        saveCurrentPosition()
+        scheduleNotificationUpdate()
+        context.sendBroadcast(
+            Intent("com.jabook.app.jabook.BOOK_COMPLETED").apply {
+                setPackage(context.packageName)
+                putExtra("last_track_index", lastIndex)
+            },
+        )
         return true
     }
 
-    private fun checkPositionStopped(player: Player, currentPosition: Long, duration: Long, eofThresholdMs: Long): Boolean {
-        if (lastPosition < 0 || currentPosition != lastPosition) { positionStoppedCount = 0; positionStoppedStartTime = -1L; return false }
+    private fun checkPositionStopped(
+        player: Player,
+        currentPosition: Long,
+        duration: Long,
+        eofThresholdMs: Long,
+    ): Boolean {
+        if (lastPosition < 0 || currentPosition != lastPosition) {
+            positionStoppedCount = 0
+            positionStoppedStartTime = -1L
+            return false
+        }
         val currentTime = System.currentTimeMillis()
         if (positionStoppedStartTime < 0) positionStoppedStartTime = currentTime
         val wasPlayingRecently = player.isPlaying || player.playWhenReady
@@ -152,10 +209,18 @@ internal class BookCompletionTracker(
             positionStoppedCount++
             return positionStoppedCount >= positionStoppedThreshold || stoppedTimeMs >= maxPositionStoppedTimeMs
         }
-        positionStoppedCount = 0; positionStoppedStartTime = -1L; return false
+        positionStoppedCount = 0
+        positionStoppedStartTime = -1L
+        return false
     }
 
-    private fun resetPositionTrackingState() { lastPosition = -1L; positionStoppedCount = 0; positionStoppedStartTime = -1L }
+    private fun resetPositionTrackingState() {
+        lastPosition = -1L
+        positionStoppedCount = 0
+        positionStoppedStartTime = -1L
+    }
 
-    private companion object { private const val TAG = "BookCompletion" }
+    private companion object {
+        private const val TAG = "BookCompletion"
+    }
 }

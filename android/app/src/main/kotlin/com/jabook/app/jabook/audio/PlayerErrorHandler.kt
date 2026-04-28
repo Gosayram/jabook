@@ -106,8 +106,11 @@ internal class PlayerErrorHandler(
                     return
                 }
                 PlaybackRecoveryAction.SKIP_TRACK -> {
-                    if (attemptSkipOnError()) resolution.userMessage
-                    else "Playback error: Unable to recover automatically."
+                    if (attemptSkipOnError()) {
+                        resolution.userMessage
+                    } else {
+                        "Playback error: Unable to recover automatically."
+                    }
                 }
                 PlaybackRecoveryAction.RESCAN_LIBRARY -> "${resolution.userMessage} Try re-scanning your library."
                 PlaybackRecoveryAction.NONE -> resolution.userMessage
@@ -124,8 +127,8 @@ internal class PlayerErrorHandler(
     }
 
     /** Attempts to skip to next track on error. Returns true if skip was initiated. */
-    private fun attemptSkipOnError(): Boolean {
-        return if (skipCount < maxSkips) {
+    private fun attemptSkipOnError(): Boolean =
+        if (skipCount < maxSkips) {
             skipCount++
             LogUtils.w(TAG, "Skipping track due to error ($skipCount/$maxSkips)")
             handleFileNotFound()
@@ -134,7 +137,6 @@ internal class PlayerErrorHandler(
             LogUtils.e(TAG, "Max skips reached ($maxSkips), stopping playback")
             false
         }
-    }
 
     /** Skips to next track when current file is not found. */
     fun handleFileNotFound() {
@@ -163,12 +165,18 @@ internal class PlayerErrorHandler(
             }
         } else {
             LogUtils.w(TAG, "No more tracks, pausing")
-            try { player.playWhenReady = false } catch (_: Exception) {}
+            try {
+                player.playWhenReady = false
+            } catch (_: Exception) {
+            }
         }
     }
 
     /** Skips to next available track when current is unavailable (file check). */
-    fun skipToNextAvailableTrack(currentIndex: Int, previousIndex: Int) {
+    fun skipToNextAvailableTrack(
+        currentIndex: Int,
+        previousIndex: Int,
+    ) {
         val player = getActivePlayer()
         if (player.mediaItemCount <= 1) {
             LogUtils.w(TAG, "Cannot skip: only one track")
@@ -176,8 +184,11 @@ internal class PlayerErrorHandler(
         }
 
         val direction =
-            if (currentIndex > previousIndex || (currentIndex == 0 && previousIndex == player.mediaItemCount - 1)) 1
-            else -1
+            if (currentIndex > previousIndex || (currentIndex == 0 && previousIndex == player.mediaItemCount - 1)) {
+                1
+            } else {
+                -1
+            }
 
         var nextIndex = currentIndex
         var attempts = 0
@@ -187,7 +198,10 @@ internal class PlayerErrorHandler(
             nextIndex =
                 when {
                     direction == 1 && nextIndex + 1 < player.mediaItemCount -> nextIndex + 1
-                    direction == 1 -> { player.playWhenReady = false; return }
+                    direction == 1 -> {
+                        player.playWhenReady = false
+                        return
+                    }
                     nextIndex - 1 >= 0 -> nextIndex - 1
                     else -> player.mediaItemCount - 1
                 }
@@ -197,7 +211,10 @@ internal class PlayerErrorHandler(
             if (uri != null) {
                 val isAvailable =
                     when (uri.scheme) {
-                        "file" -> { val f = File(uri.path ?: ""); f.exists() && f.canRead() }
+                        "file" -> {
+                            val f = File(uri.path ?: "")
+                            f.exists() && f.canRead()
+                        }
                         "http", "https" -> true
                         else -> true
                     }
@@ -207,14 +224,21 @@ internal class PlayerErrorHandler(
                         player.seekTo(nextIndex, 0L)
                         if (player.playWhenReady) player.playWhenReady = true
                         return
-                    } catch (e: Exception) { LogUtils.e(TAG, "Failed to seek", e) }
+                    } catch (e: Exception) {
+                        LogUtils.e(TAG, "Failed to seek", e)
+                    }
                 }
             }
             attempts++
         }
         LogUtils.w(TAG, "No available tracks found, pausing")
-        try { player.playWhenReady = false } catch (_: Exception) {}
+        try {
+            player.playWhenReady = false
+        } catch (_: Exception) {
+        }
     }
 
-    private companion object { private const val TAG = "AudioPlayerService" }
+    private companion object {
+        private const val TAG = "AudioPlayerService"
+    }
 }

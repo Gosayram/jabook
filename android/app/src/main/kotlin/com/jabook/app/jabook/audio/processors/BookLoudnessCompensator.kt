@@ -46,6 +46,7 @@ public class BookLoudnessCompensator(
     /** Tracks the LUFS value of the previously playing book for transition gain. */
     public var previousBookLufs: Double? = null
         private set
+
     /**
      * Computes the absolute linear gain to apply for a book based on its
      * measured LUFS value relative to the configured target LUFS.

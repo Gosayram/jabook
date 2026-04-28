@@ -115,6 +115,83 @@ public class TorrentManager
         }
 
         /**
+         * Add torrent from magnet link (compatibility alias for addTorrent).
+         * Returns the info hash on success, or throws on failure.
+         *
+         * @param magnetUri Magnet link to add
+         * @param savePath Directory to save files
+         * @param sequential Enable sequential download for streaming
+         * @return Info hash of the added torrent
+         */
+        public suspend fun addMagnetLink(
+            magnetUri: String,
+            savePath: String,
+            sequential: Boolean = true,
+        ): String {
+            val result = addTorrent(magnetUri, savePath)
+            if (result.isSuccess) {
+                val hash = result.getOrThrow()
+                if (sequential) {
+                    enableStreaming(hash)
+                }
+                return hash
+            } else {
+                throw result.exceptionOrNull() ?: IllegalStateException("Failed to add magnet link")
+            }
+        }
+
+        /**
+         * Pause download (compatibility alias for pauseTorrent).
+         */
+        public suspend fun pauseDownload(hash: String) {
+            pauseTorrent(hash)
+        }
+
+        /**
+         * Resume download (compatibility alias for resumeTorrent).
+         */
+        public suspend fun resumeDownload(hash: String) {
+            resumeTorrent(hash)
+        }
+
+        /**
+         * Remove download (compatibility alias for removeTorrent).
+         */
+        public suspend fun removeDownload(
+            hash: String,
+            deleteFiles: Boolean = false,
+        ) {
+            removeTorrent(hash, deleteFiles)
+        }
+
+        /**
+         * Get downloads state flow (compatibility property).
+         */
+        public val downloads: StateFlow<Map<String, TorrentDownload>>
+            get() = downloadsFlow
+
+        /**
+         * Add torrent and start download service (original implementation).
+         */
+        public fun addTorrentOriginal(
+            magnetUri: String,
+            savePath: String,
+            selectedFileIndices: List<Int>? = null,
+            topicId: String? = null,
+        ): Result<String> {
+            ensureInitialized()
+
+            val result = session.addTorrent(magnetUri, savePath, selectedFileIndices, topicId)
+
+            if (result.isSuccess) {
+                // Start foreground service
+                startDownloadService()
+            }
+
+            return result
+        }
+
+        /**
          * Remove torrent
          */
         public fun removeTorrent(
@@ -181,6 +258,17 @@ public class TorrentManager
          * Get specific download
          */
         public fun getDownload(hash: String): TorrentDownload? = session.getDownload(hash)
+
+        /**
+         * Get download progress as Flow for a specific torrent.
+         * This is a convenience method for compatibility with legacy code.
+         */
+        public fun getDownloadProgress(hash: String): kotlinx.coroutines.flow.Flow<TorrentDownload> =
+            kotlinx.coroutines.flow.flow {
+                downloadsFlow.collect { downloads ->
+                    downloads[hash]?.let { emit(it) }
+                }
+            }
 
         /**
          * Enable streaming mode for torrent

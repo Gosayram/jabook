@@ -217,7 +217,6 @@ public class AudioPlayerService : MediaLibraryService() {
     // DurationManager handles caching and database retrieval
     internal val durationManager = DurationManager()
 
-
     internal var customExoPlayer: ExoPlayer? = null
 
     // Crossfade components
@@ -810,7 +809,9 @@ public class AudioPlayerService : MediaLibraryService() {
         updateCrashPlaybackContext()
     }
 
-    internal fun savePositionToRepository() { periodicPositionSaver.save() }
+    internal fun savePositionToRepository() {
+        periodicPositionSaver.save()
+    }
 
     internal fun finishListeningSessionIfActive(reason: String) {
         listeningSessionTracker.onPlaybackStopped(reason)
@@ -841,30 +842,59 @@ public class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    public fun seekTo(positionMs: Long) { playbackController?.seekTo(positionMs) }
+    public fun seekTo(positionMs: Long) {
+        playbackController?.seekTo(positionMs)
+    }
 
     public fun setSpeed(speed: Float) {
         playbackController?.setSpeed(speed)
         updateCrashPlaybackContext()
     }
 
-    public fun setRepeatMode(repeatMode: Int) { playbackController?.setRepeatMode(repeatMode) }
+    public fun setRepeatMode(repeatMode: Int) {
+        playbackController?.setRepeatMode(repeatMode)
+    }
+
     public fun getRepeatMode(): Int = playbackController?.getRepeatMode() ?: Player.REPEAT_MODE_OFF
+
     public fun getPlaybackSpeed(): Float = playbackController?.getSpeed() ?: 1.0f
-    public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) { playbackController?.setShuffleModeEnabled(shuffleModeEnabled) }
+
+    public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
+        playbackController?.setShuffleModeEnabled(shuffleModeEnabled)
+    }
+
     public fun getShuffleModeEnabled(): Boolean = playbackController?.getShuffleModeEnabled() ?: false
 
     // --- Sleep timer delegation ---
-    public fun setSleepTimerMinutes(minutes: Int) { sleepTimerManager?.setSleepTimerMinutes(minutes); updateCrashPlaybackContext() }
-    public fun setSleepTimerEndOfChapter() { sleepTimerManager?.setSleepTimerEndOfChapter(); updateCrashPlaybackContext() }
-    public fun setSleepTimerEndOfChapterOrFallback(): Boolean {
-        return sleepTimerManager?.setSleepTimerEndOfChapterOrFallback(getActivePlayer().mediaItemCount > 1) ?: false
+    public fun setSleepTimerMinutes(minutes: Int) {
+        sleepTimerManager?.setSleepTimerMinutes(minutes)
+        updateCrashPlaybackContext()
     }
-    public fun setSleepTimerEndOfTrack() { sleepTimerManager?.setSleepTimerEndOfTrack(); updateCrashPlaybackContext() }
-    public fun cancelSleepTimer() { sleepTimerManager?.cancelSleepTimer(); updateCrashPlaybackContext() }
+
+    public fun setSleepTimerEndOfChapter() {
+        sleepTimerManager?.setSleepTimerEndOfChapter()
+        updateCrashPlaybackContext()
+    }
+
+    public fun setSleepTimerEndOfChapterOrFallback(): Boolean =
+        sleepTimerManager?.setSleepTimerEndOfChapterOrFallback(getActivePlayer().mediaItemCount > 1) ?: false
+
+    public fun setSleepTimerEndOfTrack() {
+        sleepTimerManager?.setSleepTimerEndOfTrack()
+        updateCrashPlaybackContext()
+    }
+
+    public fun cancelSleepTimer() {
+        sleepTimerManager?.cancelSleepTimer()
+        updateCrashPlaybackContext()
+    }
+
     public fun getSleepTimerRemainingSeconds(): Int? = sleepTimerManager?.getSleepTimerRemainingSeconds()
+
     public fun isSleepTimerActive(): Boolean = sleepTimerManager?.isSleepTimerActive() ?: false
+
     public fun isSleepTimerEndOfChapter(): Boolean = sleepTimerManager?.sleepTimerEndOfChapter == true
+
     public fun isSleepTimerEndOfTrack(): Boolean = sleepTimerManager?.sleepTimerEndOfTrack == true
 
     /**
@@ -950,7 +980,6 @@ public class AudioPlayerService : MediaLibraryService() {
         mediaSessionManager?.release()
         mediaSession = null
 
-
         LogUtils.d("AudioPlayerService", "Player stopped and resources released")
     }
 
@@ -1017,7 +1046,6 @@ public class AudioPlayerService : MediaLibraryService() {
             LogUtils.e("AudioPlayerService", "UnloadManager not initialized")
         }
 
-
     override fun onTaskRemoved(rootIntent: Intent?) {
         lifecycleManager?.onTaskRemoved() ?: super.onTaskRemoved(rootIntent)
     }
@@ -1029,14 +1057,15 @@ public class AudioPlayerService : MediaLibraryService() {
             LogUtils.w("AudioPlayerService", "PlayerNotificationManager already initialized, skipping")
             return
         }
-        playerNotificationManager = PlayerNotificationSetup(
-            service = this,
-            scope = playerServiceScope,
-            notificationHelper = notificationHelper ?: NotificationHelper(this),
-            foregroundNotificationCoordinator = foregroundNotificationCoordinator,
-            getActivePlayer = { exoPlayer },
-            getMediaLibrarySession = { mediaLibrarySession },
-        ).setup()
+        playerNotificationManager =
+            PlayerNotificationSetup(
+                service = this,
+                scope = playerServiceScope,
+                notificationHelper = notificationHelper ?: NotificationHelper(this),
+                foregroundNotificationCoordinator = foregroundNotificationCoordinator,
+                getActivePlayer = { exoPlayer },
+                getMediaLibrarySession = { mediaLibrarySession },
+            ).setup()
         return
     }
 

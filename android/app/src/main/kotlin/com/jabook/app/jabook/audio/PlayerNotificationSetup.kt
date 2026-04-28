@@ -18,13 +18,11 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import androidx.annotation.OptIn
-import androidx.core.app.NotificationCompat
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
-import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
@@ -58,7 +56,6 @@ internal class PlayerNotificationSetup(
     private val getActivePlayer: () -> ExoPlayer,
     private val getMediaLibrarySession: () -> MediaLibrarySession?,
 ) {
-
     /**
      * Creates and configures the [PlayerNotificationManager].
      *
@@ -68,86 +65,86 @@ internal class PlayerNotificationSetup(
         val channelId = NotificationHelper.CHANNEL_ID
         val exoPlayer = getActivePlayer()
 
-        val manager = PlayerNotificationManager
-            .Builder(service, NotificationHelper.NOTIFICATION_ID, channelId)
-            .setMediaDescriptionAdapter(
-                object : PlayerNotificationManager.MediaDescriptionAdapter {
-                    override fun getCurrentContentTitle(player: Player): CharSequence {
-                        return player.mediaMetadata.title ?: "JaBook"
-                    }
+        val manager =
+            PlayerNotificationManager
+                .Builder(service, NotificationHelper.NOTIFICATION_ID, channelId)
+                .setMediaDescriptionAdapter(
+                    object : PlayerNotificationManager.MediaDescriptionAdapter {
+                        override fun getCurrentContentTitle(player: Player): CharSequence = player.mediaMetadata.title ?: "JaBook"
 
-                    override fun createCurrentContentIntent(player: Player): PendingIntent? {
-                        val immutableFlag =
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                PendingIntent.FLAG_IMMUTABLE
-                            } else {
-                                0
-                            }
-                        return PendingIntent.getActivity(
-                            service,
-                            0,
-                            Intent(service, ComposeMainActivity::class.java).apply {
-                                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                                data = android.net.Uri.parse("jabook://player")
-                            },
-                            immutableFlag or PendingIntent.FLAG_UPDATE_CURRENT,
-                        )
-                    }
+                        override fun createCurrentContentIntent(player: Player): PendingIntent? {
+                            val immutableFlag =
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                    PendingIntent.FLAG_IMMUTABLE
+                                } else {
+                                    0
+                                }
+                            return PendingIntent.getActivity(
+                                service,
+                                0,
+                                Intent(service, ComposeMainActivity::class.java).apply {
+                                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                    data = android.net.Uri.parse("jabook://player")
+                                },
+                                immutableFlag or PendingIntent.FLAG_UPDATE_CURRENT,
+                            )
+                        }
 
-                    override fun getCurrentContentText(player: Player): CharSequence? {
-                        return player.mediaMetadata.artist ?: player.mediaMetadata.albumTitle
-                    }
+                        override fun getCurrentContentText(player: Player): CharSequence? =
+                            player.mediaMetadata.artist ?: player.mediaMetadata.albumTitle
 
-                    override fun getCurrentLargeIcon(
-                        player: Player,
-                        callback: PlayerNotificationManager.BitmapCallback,
-                    ): android.graphics.Bitmap? {
-                        val artworkUri = player.mediaMetadata.artworkUri
-                        if (artworkUri != null) {
-                            scope.launch {
-                                try {
-                                    // Coil 3: hardware bitmaps are auto-managed on API 30+
-                                    val request = ImageRequest.Builder(service)
-                                        .data(artworkUri)
-                                        .size(256, 256)
-                                        .build()
-                                    val result = SingletonImageLoader.get(service).execute(request)
-                                    if (result is SuccessResult) {
-                                        val bitmap = result.image.toBitmap()
-                                        callback.onBitmap(bitmap)
+                        override fun getCurrentLargeIcon(
+                            player: Player,
+                            callback: PlayerNotificationManager.BitmapCallback,
+                        ): android.graphics.Bitmap? {
+                            val artworkUri = player.mediaMetadata.artworkUri
+                            if (artworkUri != null) {
+                                scope.launch {
+                                    try {
+                                        // Coil 3: hardware bitmaps are auto-managed on API 30+
+                                        val request =
+                                            ImageRequest
+                                                .Builder(service)
+                                                .data(artworkUri)
+                                                .size(256, 256)
+                                                .build()
+                                        val result = SingletonImageLoader.get(service).execute(request)
+                                        if (result is SuccessResult) {
+                                            val bitmap = result.image.toBitmap()
+                                            callback.onBitmap(bitmap)
+                                        }
+                                    } catch (e: Exception) {
+                                        LogUtils.w("PlayerNotificationSetup", "Failed to load artwork: ${e.message}")
                                     }
-                                } catch (e: Exception) {
-                                    LogUtils.w("PlayerNotificationSetup", "Failed to load artwork: ${e.message}")
                                 }
                             }
+                            return null
                         }
-                        return null
-                    }
-                },
-            ).setNotificationListener(
-                object : PlayerNotificationManager.NotificationListener {
-                    override fun onNotificationPosted(
-                        notificationId: Int,
-                        notification: android.app.Notification,
-                        ongoing: Boolean,
-                    ) {
-                        // Force notification to be non-dismissible while service is foreground
-                        notification.flags =
-                            notification.flags or android.app.Notification.FLAG_ONGOING_EVENT
+                    },
+                ).setNotificationListener(
+                    object : PlayerNotificationManager.NotificationListener {
+                        override fun onNotificationPosted(
+                            notificationId: Int,
+                            notification: android.app.Notification,
+                            ongoing: Boolean,
+                        ) {
+                            // Force notification to be non-dismissible while service is foreground
+                            notification.flags =
+                                notification.flags or android.app.Notification.FLAG_ONGOING_EVENT
 
-                        foregroundNotificationCoordinator.startWithFallback(
-                            service = service,
-                            notificationId = notificationId,
-                            primaryNotification = notification,
-                            fallbackNotificationProvider = {
-                                notificationHelper.createFallbackNotification()
-                            },
-                            event = "player_notification_posted",
-                        )
-                    }
-                },
-            ).setSmallIconResourceId(R.drawable.ic_notification_logo)
-            .build()
+                            foregroundNotificationCoordinator.startWithFallback(
+                                service = service,
+                                notificationId = notificationId,
+                                primaryNotification = notification,
+                                fallbackNotificationProvider = {
+                                    notificationHelper.createFallbackNotification()
+                                },
+                                event = "player_notification_posted",
+                            )
+                        }
+                    },
+                ).setSmallIconResourceId(R.drawable.ic_notification_logo)
+                .build()
 
         // Set up invalidation pipeline to debounce notification updates
         val invalidationPipeline =
