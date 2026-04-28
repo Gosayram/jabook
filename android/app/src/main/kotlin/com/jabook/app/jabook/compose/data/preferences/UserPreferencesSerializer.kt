@@ -56,6 +56,7 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setResumeRewindMode(ResumeRewindMode.SMART)
             .setResumeRewindAggressiveness(1.0f)
             .setSleepTimerShakeExtendEnabled(true)
+            .setHoldToBoostSpeed(2.5f)
             .setEqualizerPreset("FLAT")
             .setAutoLoadCoversOnCellular(true)
             .setPlayerSnapshotPlaybackSpeed(1.0f)

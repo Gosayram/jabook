@@ -1124,7 +1124,9 @@ public class AudioPlayerService : MediaLibraryService() {
     }
 
     private fun releaseRuntimeComponents(cancelServiceScopeChildren: Boolean) {
-        periodicPositionSaver.stop()
+        if (::playbackPositionRepository.isInitialized) {
+            periodicPositionSaver.stop()
+        }
         if (cancelServiceScopeChildren) {
             playerServiceScope.coroutineContext.cancelChildren()
         }

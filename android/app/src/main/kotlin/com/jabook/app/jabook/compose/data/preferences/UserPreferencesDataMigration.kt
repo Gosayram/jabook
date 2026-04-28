@@ -25,7 +25,7 @@ import androidx.datastore.core.DataMigration
  */
 public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
     public companion object {
-        public const val CURRENT_SCHEMA_VERSION: Int = 4
+        public const val CURRENT_SCHEMA_VERSION: Int = 5
     }
 
     override suspend fun shouldMigrate(currentData: UserPreferences): Boolean = currentData.schemaVersion < CURRENT_SCHEMA_VERSION
@@ -81,6 +81,22 @@ public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
             }
             builder.resumeRewindMode = ResumeRewindMode.SMART
             builder.schemaVersion = 4
+            migrated = builder.build()
+        }
+
+        // v5: hold-to-boost speed default and normalization.
+        if (migrated.schemaVersion < 5) {
+            val builder = migrated.toBuilder()
+            val speed =
+                when (builder.holdToBoostSpeed) {
+                    2.0f,
+                    2.5f,
+                    3.0f,
+                    -> builder.holdToBoostSpeed
+                    else -> 2.5f
+                }
+            builder.holdToBoostSpeed = speed
+            builder.schemaVersion = 5
             migrated = builder.build()
         }
 

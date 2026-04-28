@@ -84,6 +84,7 @@ public interface SettingsRepository {
         resumeRewindMode: ResumeRewindMode? = null,
         resumeRewindAggressiveness: Float? = null,
         sleepTimerShakeExtendEnabled: Boolean? = null,
+        holdToBoostSpeed: Float? = null,
         volumeBoost: String? = null,
         drcLevel: String? = null,
         speechEnhancer: Boolean? = null,
@@ -254,6 +255,7 @@ public class ProtoSettingsRepository
             resumeRewindMode: ResumeRewindMode?,
             resumeRewindAggressiveness: Float?,
             sleepTimerShakeExtendEnabled: Boolean?,
+            holdToBoostSpeed: Float?,
             volumeBoost: String?,
             drcLevel: String?,
             speechEnhancer: Boolean?,
@@ -274,6 +276,7 @@ public class ProtoSettingsRepository
                 resumeRewindMode?.let { builder.setResumeRewindMode(it) }
                 resumeRewindAggressiveness?.let { builder.setResumeRewindAggressiveness(it) }
                 sleepTimerShakeExtendEnabled?.let { builder.setSleepTimerShakeExtendEnabled(it) }
+                holdToBoostSpeed?.let { builder.setHoldToBoostSpeed(it) }
                 volumeBoost?.let { builder.setVolumeBoostLevel(it) }
                 drcLevel?.let { builder.setDrcLevel(it) }
                 speechEnhancer?.let { builder.setSpeechEnhancer(it) }

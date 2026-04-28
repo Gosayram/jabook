@@ -218,6 +218,7 @@ private class FakeSettingsRepository(
         resumeRewindMode: ResumeRewindMode?,
         resumeRewindAggressiveness: Float?,
         sleepTimerShakeExtendEnabled: Boolean?,
+        holdToBoostSpeed: Float?,
         volumeBoost: String?,
         drcLevel: String?,
         speechEnhancer: Boolean?,

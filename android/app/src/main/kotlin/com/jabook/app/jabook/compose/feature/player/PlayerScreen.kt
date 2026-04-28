@@ -35,6 +35,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -630,6 +632,13 @@ public fun PlayerScreen(
                                                 }
                                             },
                                             onSpeedClick = { showSpeedSheet = true },
+                                            onHoldToBoostStart = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                viewModel.startHoldToBoost(playbackSpeed)
+                                            },
+                                            onHoldToBoostEnd = {
+                                                viewModel.endHoldToBoost()
+                                            },
                                             onAudioSettingsClick = { showAudioSettingsSheet = true },
                                             onSleepTimerClick = {
                                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -719,6 +728,8 @@ private fun PlayerContent(
     onSelectChapter: (Int) -> Unit,
     onChapterClick: () -> Unit,
     onSpeedClick: () -> Unit,
+    onHoldToBoostStart: () -> Unit,
+    onHoldToBoostEnd: () -> Unit,
     onAudioSettingsClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
     onChapterRepeatClick: () -> Unit,
@@ -790,6 +801,24 @@ private fun PlayerContent(
     val smallItemSpacing = if (isCompact) 8.dp else 12.dp
     val playbackSpeedLabel by remember(playbackSpeed) {
         derivedStateOf { formatPlaybackSpeedLabel(playbackSpeed) }
+    }
+    val speedButtonInteractionSource = remember { MutableInteractionSource() }
+    val speedButtonPressed by speedButtonInteractionSource.collectIsPressedAsState()
+    var holdToBoostActivated by remember { mutableStateOf(false) }
+    var suppressNextSpeedClick by remember { mutableStateOf(false) }
+
+    LaunchedEffect(speedButtonPressed) {
+        if (speedButtonPressed) {
+            delay(HOLD_TO_BOOST_ACTIVATION_DELAY_MS)
+            if (speedButtonPressed && !holdToBoostActivated) {
+                holdToBoostActivated = true
+                suppressNextSpeedClick = true
+                onHoldToBoostStart()
+            }
+        } else if (holdToBoostActivated) {
+            holdToBoostActivated = false
+            onHoldToBoostEnd()
+        }
     }
     // Large spacing for major sections
     val largeItemSpacing = if (isCompact) 24.dp else 32.dp
@@ -1542,7 +1571,14 @@ private fun PlayerContent(
                         ) {
                             // Playback Speed Button
                             FilledTonalButton(
-                                onClick = onSpeedClick,
+                                onClick = {
+                                    if (suppressNextSpeedClick) {
+                                        suppressNextSpeedClick = false
+                                    } else {
+                                        onSpeedClick()
+                                    }
+                                },
+                                interactionSource = speedButtonInteractionSource,
                                 modifier = Modifier.weight(1f).height(controlButtonHeight),
                             ) {
                                 Icon(
@@ -1689,7 +1725,14 @@ private fun PlayerContent(
                     ) {
                         // Playback Speed Button
                         FilledTonalButton(
-                            onClick = onSpeedClick,
+                            onClick = {
+                                if (suppressNextSpeedClick) {
+                                    suppressNextSpeedClick = false
+                                } else {
+                                    onSpeedClick()
+                                }
+                            },
+                            interactionSource = speedButtonInteractionSource,
                             modifier = Modifier.weight(1f).height(controlButtonHeight),
                         ) {
                             Icon(
@@ -2014,6 +2057,8 @@ internal fun formatPlaybackSpeedLabel(playbackSpeed: Float): String {
         }
     return "${formattedSpeed}x"
 }
+
+private const val HOLD_TO_BOOST_ACTIVATION_DELAY_MS: Long = 300L
 
 @Composable
 private fun DebugRecompositionCounter(modifier: Modifier = Modifier) {

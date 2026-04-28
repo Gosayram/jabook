@@ -23,6 +23,7 @@ import coil3.SingletonImageLoader
 import coil3.request.allowHardware
 import coil3.toBitmap
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.audio.HoldToBoostPolicy
 import com.jabook.app.jabook.audio.SleepTimerPersistence
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
@@ -92,6 +93,7 @@ public class PlayerViewModel
         @param:ApplicationContext private val context: Context,
     ) : ViewModel() {
         private val logger = loggerFactory.get("PlayerViewModel")
+        private var holdToBoostPolicy = HoldToBoostPolicy(boostSpeed = DEFAULT_HOLD_TO_BOOST_SPEED)
 
         // Get bookId from navigation arguments
         private val args = savedStateHandle.toRoute<PlayerRoute>()
@@ -153,6 +155,7 @@ public class PlayerViewModel
             restorePlaybackSpeedFromSnapshotIfNeeded()
             restoreSleepTimerModeFromSnapshotIfNeeded()
             observeSleepTimerResumeHint()
+            observeHoldToBoostSpeedSetting()
 
             viewModelScope.launch {
                 commandFlow.collect { command ->
@@ -746,6 +749,27 @@ public class PlayerViewModel
             }
         }
 
+        public fun startHoldToBoost(currentPlaybackSpeed: Float) {
+            val boostedSpeed = holdToBoostPolicy.onPress(currentPlaybackSpeed)
+            dispatch(PlayerIntent.SetPlaybackSpeed(boostedSpeed))
+        }
+
+        public fun endHoldToBoost() {
+            val restoreSpeed = holdToBoostPolicy.onRelease() ?: return
+            dispatch(PlayerIntent.SetPlaybackSpeed(restoreSpeed))
+        }
+
+        private fun observeHoldToBoostSpeedSetting() {
+            viewModelScope.launch {
+                settingsRepository.userPreferences
+                    .map { it.holdToBoostSpeed }
+                    .distinctUntilChanged()
+                    .collect { configuredSpeed ->
+                        holdToBoostPolicy = HoldToBoostPolicy(boostSpeed = resolveHoldToBoostSpeed(configuredSpeed))
+                    }
+            }
+        }
+
         public fun setPitchCorrectionEnabled(enabled: Boolean) {
             playerController.setPitchCorrectionEnabled(enabled)
         }
@@ -1074,6 +1098,16 @@ private const val STATE_SNAPSHOT_POSITION_MS: String = "player_snapshot.position
 private const val STATE_SNAPSHOT_CHAPTER_INDEX: String = "player_snapshot.chapter_index"
 private const val STATE_SNAPSHOT_PLAYBACK_SPEED: String = "player_snapshot.playback_speed"
 private const val STATE_SNAPSHOT_SLEEP_MODE: String = "player_snapshot.sleep_mode"
+private const val DEFAULT_HOLD_TO_BOOST_SPEED: Float = 2.5f
+
+private fun resolveHoldToBoostSpeed(configuredSpeed: Float): Float =
+    when (configuredSpeed) {
+        2.0f,
+        2.5f,
+        3.0f,
+        -> configuredSpeed
+        else -> DEFAULT_HOLD_TO_BOOST_SPEED
+    }
 
 private data class RestoredBootstrapSnapshot(
     val positionMs: Long,

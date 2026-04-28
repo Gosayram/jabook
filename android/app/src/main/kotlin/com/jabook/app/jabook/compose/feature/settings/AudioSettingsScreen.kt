@@ -188,6 +188,23 @@ public fun AudioSettingsScreen(
                 smallSpacing = smallSpacing,
             )
 
+            SettingsItem(
+                title = stringResource(R.string.hold_to_boost_speed_title),
+                subtitle = stringResource(R.string.hold_to_boost_speed_desc),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    listOf(2.0f, 2.5f, 3.0f).forEach { speed ->
+                        FilterChip(
+                            selected = kotlin.math.abs(protoSettings.holdToBoostSpeed - speed) < 0.01f,
+                            onClick = { viewModel.updateAudioSettings(holdToBoostSpeed = speed) },
+                            label = { Text(stringResource(R.string.playback_speed_format, speed)) },
+                        )
+                    }
+                }
+            }
+
             // Audio Quality (Phase 1.2 features)
             HorizontalDivider()
             SettingsSection(

@@ -113,8 +113,9 @@ class CoverWaterfallPolicyTest {
         val result = CoverWaterfallPolicy.resolveFolderImage(bookDir.absolutePath)
 
         assertNotNull(result)
-        assertEquals(CoverWaterfallPolicy.CoverSource.FOLDER_IMAGE, result!!.source)
-        assertEquals(largeFile, result!!.data)
+        val resolved = requireNotNull(result)
+        assertEquals(CoverWaterfallPolicy.CoverSource.FOLDER_IMAGE, resolved.source)
+        assertEquals(largeFile, resolved.data)
     }
 
     @Test

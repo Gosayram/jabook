@@ -87,6 +87,9 @@ message UserPreferences {
   // Resume rewind strategy after pause.
   ResumeRewindMode resume_rewind_mode = 44;
   float resume_rewind_aggressiveness = 45;
+
+  // Temporary playback speed while user holds speed button in player.
+  float hold_to_boost_speed = 46;
 }
 
 // Theme mode enum
