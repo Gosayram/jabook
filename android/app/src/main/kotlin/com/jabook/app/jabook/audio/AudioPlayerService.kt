@@ -144,14 +144,10 @@ public class AudioPlayerService : MediaLibraryService() {
     internal var playbackTimer: PlaybackTimer? = null
     internal var inactivityTimer: InactivityTimer? = null
     internal var playlistManager: PlaylistManager? = null
-    internal var isPlaylistLoading: Boolean
-        get() = playlistManager?.isPlaylistLoading ?: false
-        set(_) { /* Read-only from service perspective */ }
 
     // Current metadata delegated to PlaylistManager
-    internal var currentMetadata: Map<String, String>?
+    internal val currentMetadata: Map<String, String>?
         get() = playlistManager?.currentMetadata
-        set(value) { /* Read-only or handled via PlaylistManager? Service uses it in MetadataManager init */ }
 
     internal var lifecycleManager: ServiceLifecycleManager? = null
     internal var intentHandler: ServiceIntentHandler? = null
@@ -207,24 +203,8 @@ public class AudioPlayerService : MediaLibraryService() {
             playlistManager?.actualTrackIndex = value
         }
 
-    internal var currentLoadingPlaylist: List<String>?
-        get() = playlistManager?.currentLoadingPlaylist
-        set(_) { /* Read-only via AudioPlayerService */ }
-
-    // Track when playlist was last loaded
-    internal var lastPlaylistLoadTime: Long
-        get() = playlistManager?.lastPlaylistLoadTime ?: 0
-        set(_) { /* Read-only via AudioPlayerService */ }
-
-    internal var currentFilePaths: List<String>?
+    internal val currentFilePaths: List<String>?
         get() = playlistManager?.currentFilePaths
-        set(_) { /* Read-only via AudioPlayerService - set via SetPlaylist */ }
-
-    private var savedPlaybackState: SavedPlaybackState?
-        get() = playlistManager?.savedPlaybackState
-        set(value) {
-            playlistManager?.savedPlaybackState = value
-        }
 
     // Store current groupPath delegated to PlaylistManager
     internal val currentGroupPath: String?
@@ -708,15 +688,10 @@ public class AudioPlayerService : MediaLibraryService() {
     }
 
     private fun resetBookCompletionIfNeeded(actionLabel: String) {
-        if (!isBookCompleted) {
-            return
-        }
-        LogUtils.i(
-            "AudioPlayerService",
-            "$actionLabel called after book completion, resetting completion flag",
-        )
-        isBookCompleted = false
-        lastCompletedTrackIndex = -1
+        if (playlistManager?.isBookCompleted != true) return
+        LogUtils.i("AudioPlayerService", "$actionLabel resetting completion flag")
+        playlistManager?.isBookCompleted = false
+        playlistManager?.lastCompletedTrackIndex = -1
     }
 
     /**
