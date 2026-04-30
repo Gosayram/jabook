@@ -197,6 +197,7 @@ public fun PlayerScreen(
     val normalizeEnabled by viewModel.normalizeChapterTitles.collectAsStateWithLifecycle()
     val audioSettings by viewModel.audioSettings.collectAsStateWithLifecycle()
     val visualizerWaveformData by viewModel.visualizerWaveformData.collectAsStateWithLifecycle()
+    val seekbarWaveformData by viewModel.seekbarWaveformData.collectAsStateWithLifecycle()
     val hapticFeedback = LocalHapticFeedback.current
 
     val navigationClickGuard = remember { NavigationClickGuard() }
@@ -589,6 +590,7 @@ public fun PlayerScreen(
                                             normalizeEnabled = normalizeEnabled,
                                             chapterRepeatMode = state.chapterRepeatMode,
                                             visualizerWaveformData = visualizerWaveformData,
+                                            seekbarWaveformData = seekbarWaveformData,
                                             onPlayPause = {
                                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 clickDebouncer.debounce {
@@ -719,6 +721,7 @@ private fun PlayerContent(
     normalizeEnabled: Boolean,
     chapterRepeatMode: ChapterRepeatMode,
     visualizerWaveformData: FloatArray,
+    seekbarWaveformData: FloatArray,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -1232,6 +1235,7 @@ private fun PlayerContent(
                         },
                         isPlaying = state.isPlaying,
                         chapterMarkersFractions = chapterTimeline.chapterMarkersFractions,
+                        waveformData = seekbarWaveformData,
                         activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
                         inactiveTrackColor =
                             (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(

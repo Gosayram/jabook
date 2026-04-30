@@ -60,6 +60,7 @@ import kotlin.math.sin
  * @param squiggleWavelength Width of one wave cycle
  * @param trackHeight Height of the track area
  * @param thumbRadius Radius of the thumb
+ * @param waveformData Cached waveform window for seekbar visualization (0..1 amplitudes)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,6 +77,7 @@ public fun SquigglySlider(
     trackHeight: Dp = 4.dp, // Standard Material track is roughly 4dp
     thumbRadius: Dp = 10.dp,
     chapterMarkersFractions: List<Float> = emptyList(),
+    waveformData: FloatArray = FloatArray(0),
     activeTrackColor: Color = MaterialTheme.colorScheme.primary,
     inactiveTrackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     chapterMarkerColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
@@ -157,6 +159,26 @@ public fun SquigglySlider(
 
             // Ensure activeWidth is valid and finite
             val activeWidth = (width * fraction.coerceIn(0f, 1f)).coerceAtLeast(0f).coerceAtMost(width)
+
+            // Draw cached waveform behind the track for quick visual density preview.
+            if (waveformData.isNotEmpty()) {
+                val baseline = centerY
+                val availableHalfHeight = (thumbRadius.toPx() - trackHeight.toPx()).coerceAtLeast(2f)
+                val stepX = width / waveformData.size.toFloat()
+                var x = 0f
+                for (sample in waveformData) {
+                    val amplitude = sample.coerceIn(0f, 1f)
+                    val yOffset = amplitude * availableHalfHeight
+                    drawLine(
+                        color = inactiveTrackColor.copy(alpha = 0.22f),
+                        start = Offset(x, baseline - yOffset),
+                        end = Offset(x, baseline + yOffset),
+                        strokeWidth = 1.dp.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                    x += stepX
+                }
+            }
 
             // Draw Inactive Track (Straight line usually, strictly)
             // Or should the WHOLE track be squiggly? InnerTune usually has squiggly active part.

@@ -21,6 +21,7 @@ import com.jabook.app.jabook.compose.domain.model.Chapter
 import kotlinx.collections.immutable.toImmutableList
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -534,6 +535,48 @@ class PlayerReducerTest {
         allIntentsForMatrix().forEach { intent ->
             val reduced = PlayerReducer.reduce(active, intent)
             assertFalse("Active must not transition to Loading for $intent", reduced == PlayerState.Loading)
+        }
+    }
+
+    @Test
+    fun `full reducer matrix does not crash and preserves state invariants`() {
+        val states =
+            listOf<PlayerState>(
+                PlayerState.Loading,
+                PlayerState.Error("matrix"),
+                activeStateTemplate(),
+            )
+        val intents = allIntentsForMatrix()
+
+        states.forEach { state ->
+            intents.forEach { intent ->
+                val reduced = PlayerReducer.reduce(state, intent)
+                assertNotNull("Reducer returned null for state=$state intent=$intent", reduced)
+
+                when (state) {
+                    PlayerState.Loading -> {
+                        // Loading can only stay Loading or become Error.
+                        assertFalse(
+                            "Loading must not transition to Active for intent=$intent",
+                            reduced is PlayerState.Active,
+                        )
+                    }
+                    is PlayerState.Error -> {
+                        // Error can only stay Error or become Loading.
+                        assertFalse(
+                            "Error must not transition to Active for intent=$intent",
+                            reduced is PlayerState.Active,
+                        )
+                    }
+                    is PlayerState.Active -> {
+                        // Active can only stay Active or become Error.
+                        assertFalse(
+                            "Active must not transition to Loading for intent=$intent",
+                            reduced == PlayerState.Loading,
+                        )
+                    }
+                }
+            }
         }
     }
 

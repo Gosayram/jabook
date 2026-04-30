@@ -37,6 +37,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -55,6 +56,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.math.abs
 import com.jabook.app.jabook.compose.domain.model.Result as TypedResult
@@ -132,6 +134,8 @@ public class PlayerViewModel
         // Player Stats for Nerds
         public val playerStats: StateFlow<PlayerStats> = playerController.playerStats
         public val visualizerWaveformData: StateFlow<FloatArray> = audioVisualizerStateBridge.waveformData
+        private val _seekbarWaveformData = MutableStateFlow(FloatArray(SEEKBAR_WAVEFORM_CACHE_SIZE))
+        public val seekbarWaveformData: StateFlow<FloatArray> = _seekbarWaveformData.asStateFlow()
 
         private var lastPersistedPlayerSnapshot: PlayerStateSnapshot? = null
         private var restoredBootstrapSnapshot: RestoredBootstrapSnapshot? = null
@@ -156,6 +160,7 @@ public class PlayerViewModel
             restoreSleepTimerModeFromSnapshotIfNeeded()
             observeSleepTimerResumeHint()
             observeHoldToBoostSpeedSetting()
+            observeSeekbarWaveformCache()
 
             viewModelScope.launch {
                 commandFlow.collect { command ->
@@ -770,6 +775,21 @@ public class PlayerViewModel
             }
         }
 
+        private fun observeSeekbarWaveformCache() {
+            viewModelScope.launch {
+                visualizerWaveformData.collect { chunk ->
+                    _seekbarWaveformData.value =
+                        withContext(Dispatchers.Default) {
+                            mergeWaveformWindow(
+                                currentWindow = _seekbarWaveformData.value,
+                                incomingChunk = chunk,
+                                targetSize = SEEKBAR_WAVEFORM_CACHE_SIZE,
+                            )
+                        }
+                }
+            }
+        }
+
         public fun setPitchCorrectionEnabled(enabled: Boolean) {
             playerController.setPitchCorrectionEnabled(enabled)
         }
@@ -1099,6 +1119,7 @@ private const val STATE_SNAPSHOT_CHAPTER_INDEX: String = "player_snapshot.chapte
 private const val STATE_SNAPSHOT_PLAYBACK_SPEED: String = "player_snapshot.playback_speed"
 private const val STATE_SNAPSHOT_SLEEP_MODE: String = "player_snapshot.sleep_mode"
 private const val DEFAULT_HOLD_TO_BOOST_SPEED: Float = 2.5f
+private const val SEEKBAR_WAVEFORM_CACHE_SIZE: Int = 1000
 
 private fun resolveHoldToBoostSpeed(configuredSpeed: Float): Float =
     when (configuredSpeed) {
@@ -1108,6 +1129,40 @@ private fun resolveHoldToBoostSpeed(configuredSpeed: Float): Float =
         -> configuredSpeed
         else -> DEFAULT_HOLD_TO_BOOST_SPEED
     }
+
+private fun mergeWaveformWindow(
+    currentWindow: FloatArray,
+    incomingChunk: FloatArray,
+    targetSize: Int,
+): FloatArray {
+    if (targetSize <= 0) return FloatArray(0)
+    if (incomingChunk.isEmpty()) return currentWindow
+
+    if (incomingChunk.size >= targetSize) {
+        val result = FloatArray(targetSize)
+        val start = incomingChunk.size - targetSize
+        for (i in 0 until targetSize) {
+            result[i] = kotlin.math.abs(incomingChunk[start + i]).coerceIn(0f, 1f)
+        }
+        return result
+    }
+
+    val shift = incomingChunk.size
+    val keep = (targetSize - shift).coerceAtLeast(0)
+    val result = FloatArray(targetSize)
+
+    if (keep > 0 && currentWindow.isNotEmpty()) {
+        val copyLength = minOf(keep, currentWindow.size)
+        val fromIndex = (currentWindow.size - copyLength).coerceAtLeast(0)
+        System.arraycopy(currentWindow, fromIndex, result, keep - copyLength, copyLength)
+    }
+
+    for (i in incomingChunk.indices) {
+        result[keep + i] = kotlin.math.abs(incomingChunk[i]).coerceIn(0f, 1f)
+    }
+
+    return result
+}
 
 private data class RestoredBootstrapSnapshot(
     val positionMs: Long,
