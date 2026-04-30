@@ -267,6 +267,31 @@ public class AudioPlayerService : MediaLibraryService() {
         )
     }
 
+    // TASK-VERM-04: Extracted facades for delegation reduction
+    private val sleepTimerFacade: SleepTimerFacade by lazy {
+        SleepTimerFacade(
+            getSleepTimerManager = { sleepTimerManager },
+            getActivePlayer = { getActivePlayer() },
+            updateCrashContext = { updateCrashPlaybackContext() },
+        )
+    }
+
+    private val playbackLifecycleActions: PlaybackLifecycleActions by lazy {
+        PlaybackLifecycleActions(
+            getPhoneCallListener = { phoneCallListener },
+            getListeningSessionTracker = { listeningSessionTracker },
+            getPeriodicPositionSaver = { periodicPositionSaver },
+            updateCrashContext = { updateCrashPlaybackContext() },
+        )
+    }
+
+    private val visualizerFacade: VisualizerFacade by lazy {
+        VisualizerFacade(
+            getAudioVisualizerManager = { audioVisualizerManager },
+            getExoPlayerAudioSessionId = { exoPlayer.audioSessionId },
+        )
+    }
+
     internal fun markStoppedBySleepTimer() {
         SleepTimerPersistence.markStoppedBySleepTimer(
             getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE),
