@@ -319,6 +319,8 @@
     <string name="resume_rewind_option_seconds">%1$d s</string>
     <string name="hold_to_boost_speed_title">Hold-to-Boost Speed</string>
     <string name="hold_to_boost_speed_desc">Temporary speed while holding the speed button in player</string>
+    <string name="auto_pip_title">Auto Picture-in-Picture</string>
+    <string name="auto_pip_desc">Automatically enter Picture-in-Picture when leaving the player</string>
     <string name="playback_speed_format">%1$.1fx</string>
     <string name="sleep_timer_shake_extend_title">Shake To Extend Sleep Timer</string>
     <string name="sleep_timer_shake_extend_desc">Shake device to add 5 minutes to active sleep timer (fixed mode)</string>

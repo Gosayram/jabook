@@ -14,8 +14,10 @@
 
 package com.jabook.app.jabook.compose
 
+import android.app.PictureInPictureParams
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -27,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
@@ -36,9 +39,12 @@ import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.MediaControllerConstants
 import com.jabook.app.jabook.audio.MediaControllerExtensions
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.torrent.MagnetUriValidationPolicy
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
@@ -63,10 +69,15 @@ public class ComposeMainActivity : ComponentActivity() {
     @Inject
     public lateinit var loggerFactory: LoggerFactory
 
+    @Inject
+    public lateinit var settingsRepository: SettingsRepository
+
     private val logger by lazy { loggerFactory.get("ComposeMainActivity") }
 
     private var deepLinkIntent by androidx.compose.runtime.mutableStateOf<Intent?>(null)
     private var hasReportedFullyDrawn: Boolean = false
+    private var isPlayerScreenVisible: Boolean = false
+    private var autoPipEnabled: Boolean = false
 
     private companion object {
         private val ALLOWED_JABOOK_HOSTS =
@@ -106,6 +117,7 @@ public class ComposeMainActivity : ComponentActivity() {
         deepLinkIntent = sanitizeNavigableIntent(intent)
         handleIntent(intent)
         handleIntentExtras(intent)
+        observeAutoPipSettings()
 
         setContent {
             val windowSizeClass =
@@ -120,8 +132,16 @@ public class ComposeMainActivity : ComponentActivity() {
                         hasReportedFullyDrawn = true
                     }
                 },
+                onPlayerScreenVisibilityChanged = { isVisible ->
+                    isPlayerScreenVisible = isVisible
+                },
             )
         }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        tryEnterPipFromPlayer()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -238,6 +258,31 @@ public class ComposeMainActivity : ComponentActivity() {
 
         // Navigation is handled by JabookApp's NavHost which observes deepLinkIntent.
         // This method serves as an interception point for logging or analytics.
+    }
+
+    private fun observeAutoPipSettings() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+                settingsRepository.userPreferences
+                    .map { it.autoPipEnabled }
+                    .collect { enabled ->
+                        autoPipEnabled = enabled
+                    }
+            }
+        }
+    }
+
+    private fun tryEnterPipFromPlayer() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (!autoPipEnabled || !isPlayerScreenVisible || isInPictureInPictureMode) return
+        try {
+            val params = PictureInPictureParams.Builder().build()
+            enterPictureInPictureMode(params)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: IllegalStateException) {
+            logger.w { "Failed to enter Picture-in-Picture: ${e.message}" }
+        }
     }
 
     private fun sanitizeNavigableIntent(intent: Intent?): Intent? {

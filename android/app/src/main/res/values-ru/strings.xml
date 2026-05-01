@@ -300,6 +300,8 @@
     <string name="resume_rewind_option_seconds">%1$d с</string>
     <string name="hold_to_boost_speed_title">Скорость удержания для ускорения</string>
     <string name="hold_to_boost_speed_desc">Временная скорость при удержании кнопки скорости в плеере</string>
+    <string name="auto_pip_title">Авто Picture-in-Picture</string>
+    <string name="auto_pip_desc">Автоматически переходить в Picture-in-Picture при выходе из плеера</string>
     <string name="playback_speed_format">%1$.1fx</string>
     <string name="sleep_timer_shake_extend_title">Встряхивание для продления таймера сна</string>
     <string name="sleep_timer_shake_extend_desc">Встряхните устройство, чтобы добавить 5 минут к активному таймеру сна (фиксированный режим)</string>

@@ -225,6 +225,16 @@ public fun AudioSettingsScreen(
                 }
             }
 
+            SettingsSwitchItem(
+                title = stringResource(R.string.auto_pip_title),
+                subtitle = stringResource(R.string.auto_pip_desc),
+                checked = protoSettings.autoPipEnabled,
+                onCheckedChange = { viewModel.updateAudioSettings(autoPipEnabled = it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
             // Audio Quality (Phase 1.2 features)
             HorizontalDivider()
             SettingsSection(

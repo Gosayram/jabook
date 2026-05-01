@@ -90,6 +90,9 @@ message UserPreferences {
 
   // Temporary playback speed while user holds speed button in player.
   float hold_to_boost_speed = 46;
+
+  // Automatically enter PiP when user leaves app from Player screen.
+  bool auto_pip_enabled = 47;
 }
 
 // Theme mode enum
