@@ -22,6 +22,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -42,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.sin
@@ -71,6 +73,7 @@ public fun SquigglySlider(
     enabled: Boolean = true,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     onValueChangeFinished: (() -> Unit)? = null,
+    onLongPress: ((Float) -> Unit)? = null,
     isPlaying: Boolean = false,
     squiggleAmplitude: Dp = 3.dp,
     squiggleWavelength: Dp = 20.dp,
@@ -127,7 +130,22 @@ public fun SquigglySlider(
     )
 
     Box(
-        modifier = modifier.height(thumbRadius * 2), // Ensure enough height for thumb
+        modifier =
+            modifier
+                .height(thumbRadius * 2)
+                .pointerInput(onLongPress, enabled, normalizedRange) {
+                    if (onLongPress == null || !enabled) return@pointerInput
+                    detectTapGestures(
+                        onLongPress = { offset ->
+                            if (size.width <= 0) return@detectTapGestures
+                            val fraction = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                            val longPressValue =
+                                normalizedRange.start +
+                                    fraction * (normalizedRange.endInclusive - normalizedRange.start)
+                            onLongPress(longPressValue)
+                        },
+                    )
+                }, // Ensure enough height for thumb
         contentAlignment = Alignment.Center,
     ) {
         // Custom Track Drawing

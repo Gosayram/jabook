@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.media.MediaPlayer
+import android.media.MediaRecorder
 import android.os.PowerManager
 import android.text.format.DateUtils
 import android.view.WindowManager
@@ -58,6 +60,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -66,6 +69,7 @@ import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.Repeat
@@ -78,6 +82,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -147,6 +152,7 @@ import dagger.hilt.components.SingletonComponent
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -551,13 +557,7 @@ public fun PlayerScreen(
                                         fadeOut(animationSpec = tween(180)) + scaleOut(targetScale = 1.02f, animationSpec = tween(180)),
                                     )
                             },
-                            contentKey = { state ->
-                                when (state) {
-                                    is PlayerState.Loading -> "loading"
-                                    is PlayerState.Active -> "active"
-                                    is PlayerState.Error -> "error"
-                                }
-                            },
+                            contentKey = { state -> playerStateContentKey(state) },
                             label = "player_state_transition",
                         ) { animatedState ->
                             when (animatedState) {
@@ -653,6 +653,20 @@ public fun PlayerScreen(
                                                 }
                                             },
                                             onStatsClick = { showStatsOverlay = true },
+                                            onAddBookmarkAtPosition = { chapterIndex, positionMs, onCreated ->
+                                                viewModel.addBookmarkAtPosition(
+                                                    chapterIndex = chapterIndex,
+                                                    positionMs = positionMs,
+                                                    onCreated = onCreated,
+                                                )
+                                            },
+                                            onUpdateBookmark = { bookmarkId, noteText, noteAudioPath ->
+                                                viewModel.updateBookmarkContent(
+                                                    bookmarkId = bookmarkId,
+                                                    noteText = noteText,
+                                                    noteAudioPath = noteAudioPath,
+                                                )
+                                            },
                                             hasRecordAudioPermission = hasRecordAudioPermission,
                                             onRequestRecordAudioPermission = requestRecordAudioPermission,
                                             onInitializeVisualizer = {
@@ -709,6 +723,7 @@ public fun PlayerScreen(
 
 @OptIn(
     androidx.compose.animation.ExperimentalSharedTransitionApi::class,
+    ExperimentalMaterial3Api::class,
     ExperimentalMaterial3WindowSizeClassApi::class,
 )
 @Composable
@@ -737,6 +752,8 @@ private fun PlayerContent(
     onSleepTimerClick: () -> Unit,
     onChapterRepeatClick: () -> Unit,
     onStatsClick: () -> Unit,
+    onAddBookmarkAtPosition: (Int, Long, (com.jabook.app.jabook.compose.domain.model.BookmarkItem?) -> Unit) -> Unit,
+    onUpdateBookmark: (String, String?, String?) -> Unit,
     hasRecordAudioPermission: Boolean,
     onRequestRecordAudioPermission: () -> Unit,
     onInitializeVisualizer: () -> Unit,
@@ -875,18 +892,28 @@ private fun PlayerContent(
     }
     val seekScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
+    var showBookmarkNoteSheet by remember { mutableStateOf(false) }
+    var pendingBookmarkId by remember { mutableStateOf<String?>(null) }
+    var pendingBookmarkNote by remember { mutableStateOf("") }
+    var pendingBookmarkAudioPath by remember { mutableStateOf<String?>(null) }
+    var isRecordingBookmark by remember { mutableStateOf(false) }
+    var isPlayingBookmarkAudio by remember { mutableStateOf(false) }
+    val bookmarkRecorder = remember { mutableStateOf<MediaRecorder?>(null) }
+    val bookmarkPlayer = remember { mutableStateOf<MediaPlayer?>(null) }
+    val bookmarkRecordTimeoutJob = remember { mutableStateOf<Job?>(null) }
     var lastChapterBoundaryIndex by remember(state.book.id) { mutableIntStateOf(state.currentChapterIndex) }
     var skipTriggeredHaptic by remember { mutableStateOf(false) }
     LaunchedEffect(state.currentChapterIndex) {
-        if (state.currentChapterIndex != lastChapterBoundaryIndex) {
-            if (skipTriggeredHaptic) {
-                // Skip handlers already triggered haptic, just reset flag
-                skipTriggeredHaptic = false
-            } else {
-                // Passive boundary change (e.g., playback reached end), perform haptic
+        resolveChapterBoundaryHapticDecision(
+            previousChapterIndex = lastChapterBoundaryIndex,
+            newChapterIndex = state.currentChapterIndex,
+            skipTriggeredHaptic = skipTriggeredHaptic,
+        )?.let { decision ->
+            if (decision.shouldPerformHaptic) {
                 hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
             }
-            lastChapterBoundaryIndex = state.currentChapterIndex
+            skipTriggeredHaptic = decision.nextSkipTriggeredHaptic
+            lastChapterBoundaryIndex = decision.nextLastChapterBoundaryIndex
         }
     }
 
@@ -1232,6 +1259,23 @@ private fun PlayerContent(
                             }
                             dragPosition = null
                             lastSliderHapticProgress = null
+                        },
+                        onLongPress = { pressedProgress ->
+                            if (chapterTimeline.totalDurationMs <= 0) return@SquigglySlider
+                            val target =
+                                ChapterSeekbarPolicy.resolveSeekTarget(
+                                    chapters = state.chapters,
+                                    progress = pressedProgress.coerceIn(0f, 1f),
+                                )
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onAddBookmarkAtPosition(target.chapterIndex, target.chapterPositionMs) { createdBookmark ->
+                                if (createdBookmark != null) {
+                                    pendingBookmarkId = createdBookmark.id
+                                    pendingBookmarkNote = createdBookmark.noteText.orEmpty()
+                                    pendingBookmarkAudioPath = createdBookmark.noteAudioPath
+                                    showBookmarkNoteSheet = true
+                                }
+                            }
                         },
                         isPlaying = state.isPlaying,
                         chapterMarkersFractions = chapterTimeline.chapterMarkersFractions,
@@ -1861,6 +1905,233 @@ private fun PlayerContent(
             }
         }
     }
+
+    if (showBookmarkNoteSheet && pendingBookmarkId != null) {
+        JabookModalBottomSheet(
+            onDismissRequest = {
+                bookmarkRecordTimeoutJob.value?.cancel()
+                bookmarkRecordTimeoutJob.value = null
+                bookmarkRecorder.value?.runCatching {
+                    stop()
+                    reset()
+                    release()
+                }
+                bookmarkRecorder.value = null
+                bookmarkPlayer.value?.runCatching {
+                    stop()
+                    reset()
+                    release()
+                }
+                bookmarkPlayer.value = null
+                isRecordingBookmark = false
+                isPlayingBookmarkAudio = false
+                showBookmarkNoteSheet = false
+                pendingBookmarkId = null
+                pendingBookmarkNote = ""
+                pendingBookmarkAudioPath = null
+            },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.bookmarkNoteSheetTitle),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                OutlinedTextField(
+                    value = pendingBookmarkNote,
+                    onValueChange = { pendingBookmarkNote = it },
+                    label = { Text(stringResource(R.string.bookmarkNoteSheetLabel)) },
+                    placeholder = { Text(stringResource(R.string.bookmarkNoteSheetPlaceholder)) },
+                    singleLine = false,
+                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    FilledTonalButton(
+                        onClick = {
+                            if (!hasRecordAudioPermission) {
+                                onRequestRecordAudioPermission()
+                                return@FilledTonalButton
+                            }
+                            if (isRecordingBookmark) {
+                                bookmarkRecordTimeoutJob.value?.cancel()
+                                bookmarkRecordTimeoutJob.value = null
+                                bookmarkRecorder.value?.runCatching {
+                                    stop()
+                                    reset()
+                                    release()
+                                }
+                                bookmarkRecorder.value = null
+                                isRecordingBookmark = false
+                                return@FilledTonalButton
+                            }
+
+                            val bookmarkId = pendingBookmarkId ?: return@FilledTonalButton
+                            val outputDir = File(context.cacheDir, "bookmark_notes")
+                            outputDir.mkdirs()
+                            val outputFile = File(outputDir, "bookmark_$bookmarkId.m4a")
+                            val recorder =
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                    MediaRecorder(context)
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    MediaRecorder()
+                                }
+                            recorder.setAudioSource(MediaRecorder.AudioSource.MIC)
+                            recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                            recorder.setAudioEncodingBitRate(96_000)
+                            recorder.setAudioSamplingRate(44_100)
+                            recorder.setOutputFile(outputFile.absolutePath)
+                            recorder.prepare()
+                            recorder.start()
+                            bookmarkRecorder.value = recorder
+                            pendingBookmarkAudioPath = outputFile.absolutePath
+                            isRecordingBookmark = true
+                            bookmarkRecordTimeoutJob.value?.cancel()
+                            bookmarkRecordTimeoutJob.value =
+                                seekScope.launch {
+                                    delay(30_000L)
+                                    if (isRecordingBookmark) {
+                                        bookmarkRecorder.value?.runCatching {
+                                            stop()
+                                            reset()
+                                            release()
+                                        }
+                                        bookmarkRecorder.value = null
+                                        isRecordingBookmark = false
+                                    }
+                                }
+                        },
+                    ) {
+                        Icon(
+                            imageVector = if (isRecordingBookmark) Icons.Filled.Stop else Icons.Filled.Mic,
+                            contentDescription = null,
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text =
+                                if (isRecordingBookmark) {
+                                    stringResource(R.string.stopRecording)
+                                } else {
+                                    stringResource(R.string.recordVoiceNote)
+                                },
+                        )
+                    }
+
+                    FilledTonalButton(
+                        enabled = !pendingBookmarkAudioPath.isNullOrBlank(),
+                        onClick = {
+                            val path = pendingBookmarkAudioPath ?: return@FilledTonalButton
+                            if (isPlayingBookmarkAudio) {
+                                bookmarkPlayer.value?.runCatching {
+                                    stop()
+                                    reset()
+                                    release()
+                                }
+                                bookmarkPlayer.value = null
+                                isPlayingBookmarkAudio = false
+                                return@FilledTonalButton
+                            }
+                            val player = MediaPlayer()
+                            player.setDataSource(path)
+                            player.setOnCompletionListener {
+                                bookmarkPlayer.value?.runCatching {
+                                    reset()
+                                    release()
+                                }
+                                bookmarkPlayer.value = null
+                                isPlayingBookmarkAudio = false
+                            }
+                            player.prepare()
+                            player.start()
+                            bookmarkPlayer.value = player
+                            isPlayingBookmarkAudio = true
+                        },
+                    ) {
+                        Icon(
+                            imageVector = if (isPlayingBookmarkAudio) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text =
+                                if (isPlayingBookmarkAudio) {
+                                    stringResource(R.string.stopPlayback)
+                                } else {
+                                    stringResource(R.string.playVoiceNote)
+                                },
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    FilledTonalButton(
+                        onClick = {
+                            bookmarkRecordTimeoutJob.value?.cancel()
+                            bookmarkRecordTimeoutJob.value = null
+                            bookmarkRecorder.value?.runCatching {
+                                stop()
+                                reset()
+                                release()
+                            }
+                            bookmarkRecorder.value = null
+                            bookmarkPlayer.value?.runCatching {
+                                stop()
+                                reset()
+                                release()
+                            }
+                            bookmarkPlayer.value = null
+                            isRecordingBookmark = false
+                            isPlayingBookmarkAudio = false
+                            showBookmarkNoteSheet = false
+                            pendingBookmarkId = null
+                            pendingBookmarkNote = ""
+                            pendingBookmarkAudioPath = null
+                        },
+                    ) {
+                        Text(text = stringResource(R.string.skip))
+                    }
+                    FilledTonalButton(
+                        onClick = {
+                            val bookmarkId = pendingBookmarkId ?: return@FilledTonalButton
+                            bookmarkRecordTimeoutJob.value?.cancel()
+                            bookmarkRecordTimeoutJob.value = null
+                            bookmarkRecorder.value?.runCatching {
+                                stop()
+                                reset()
+                                release()
+                            }
+                            bookmarkRecorder.value = null
+                            bookmarkPlayer.value?.runCatching {
+                                stop()
+                                reset()
+                                release()
+                            }
+                            bookmarkPlayer.value = null
+                            isRecordingBookmark = false
+                            isPlayingBookmarkAudio = false
+                            onUpdateBookmark(bookmarkId, pendingBookmarkNote, pendingBookmarkAudioPath)
+                            showBookmarkNoteSheet = false
+                            pendingBookmarkId = null
+                            pendingBookmarkNote = ""
+                            pendingBookmarkAudioPath = null
+                        },
+                    ) {
+                        Text(text = stringResource(R.string.save))
+                    }
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -2064,6 +2335,40 @@ internal fun formatPlaybackSpeedLabel(playbackSpeed: Float): String {
 
 private const val HOLD_TO_BOOST_ACTIVATION_DELAY_MS: Long = 300L
 
+internal fun playerStateContentKey(state: PlayerState): String =
+    when (state) {
+        is PlayerState.Loading -> "loading"
+        is PlayerState.Active -> "active"
+        is PlayerState.Error -> "error"
+    }
+
+internal data class ChapterBoundaryHapticDecision(
+    val shouldPerformHaptic: Boolean,
+    val nextSkipTriggeredHaptic: Boolean,
+    val nextLastChapterBoundaryIndex: Int,
+)
+
+internal fun resolveChapterBoundaryHapticDecision(
+    previousChapterIndex: Int,
+    newChapterIndex: Int,
+    skipTriggeredHaptic: Boolean,
+): ChapterBoundaryHapticDecision? {
+    if (newChapterIndex == previousChapterIndex) return null
+    return if (skipTriggeredHaptic) {
+        ChapterBoundaryHapticDecision(
+            shouldPerformHaptic = false,
+            nextSkipTriggeredHaptic = false,
+            nextLastChapterBoundaryIndex = newChapterIndex,
+        )
+    } else {
+        ChapterBoundaryHapticDecision(
+            shouldPerformHaptic = true,
+            nextSkipTriggeredHaptic = false,
+            nextLastChapterBoundaryIndex = newChapterIndex,
+        )
+    }
+}
+
 @Composable
 private fun DebugRecompositionCounter(modifier: Modifier = Modifier) {
     var count by remember { mutableIntStateOf(0) }
@@ -2082,6 +2387,7 @@ private fun DebugRecompositionCounter(modifier: Modifier = Modifier) {
 
 @Composable
 private fun PlayerLoadingSkeleton(modifier: Modifier = Modifier) {
+    val loadingPlayerLabel = stringResource(R.string.loading_player)
     val transition = rememberInfiniteTransition(label = "player_loading_skeleton")
     val shimmerShift by transition.animateFloat(
         initialValue = 0f,
@@ -2114,7 +2420,7 @@ private fun PlayerLoadingSkeleton(modifier: Modifier = Modifier) {
             modifier
                 .padding(horizontal = 24.dp, vertical = 20.dp)
                 .semantics {
-                    contentDescription = "Loading player"
+                    contentDescription = loadingPlayerLabel
                     progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
                 },
         horizontalAlignment = Alignment.CenterHorizontally,

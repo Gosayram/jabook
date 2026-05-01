@@ -323,6 +323,12 @@
     <string name="audioEnhancementTitle">Улучшение звука</string>
     <!-- Описание настроек улучшения звука -->
     <string name="audioEnhancementDescription">Улучшение качества звука и стабильности громкости</string>
+    <string name="equalizer_section_title">Эквалайзер</string>
+    <string name="equalizer_preset_title">Пресет</string>
+    <string name="equalizer_preset_desc">Подстройка тембра речи под условия прослушивания</string>
+    <string name="equalizer_preset_flat">Плоский</string>
+    <string name="equalizer_preset_voice_clarity">Чёткость речи</string>
+    <string name="equalizer_preset_night">Ночной</string>
     <!-- Заголовок настройки нормализации громкости -->
     <string name="normalizeVolumeTitle">Нормализация громкости</string>
     <!-- Описание настройки нормализации громкости -->
@@ -1386,6 +1392,15 @@
     <string name="detectedRom">Обнаружена оболочка: {rom}</string>
     <!-- Кнопка пропустить -->
     <string name="skip">Пропустить</string>
+    <string name="save">Сохранить</string>
+    <string name="bookmarkNoteSheetTitle">Заметка к закладке</string>
+    <string name="bookmarkNoteSheetLabel">Заметка</string>
+    <string name="bookmarkNoteSheetPlaceholder">Добавьте короткую заметку к этой закладке</string>
+    <string name="loading_player">Загрузка плеера</string>
+    <string name="recordVoiceNote">Записать голосовую заметку</string>
+    <string name="stopRecording">Остановить запись</string>
+    <string name="playVoiceNote">Прослушать заметку</string>
+    <string name="stopPlayback">Остановить воспроизведение</string>
     <!-- Кнопка подтверждения -->
     <string name="gotIt">Понятно</string>
     <!-- Заголовок баннера совместимости фоновой работы -->

@@ -271,6 +271,12 @@ public class SettingsViewModel
             }
         }
 
+        public fun updateEqualizerPreset(presetName: String) {
+            viewModelScope.launch {
+                settingsRepository.updateEqualizerPreset(presetName)
+            }
+        }
+
         public fun updateNotifications(
             enabled: Boolean? = null,
             downloadNotifications: Boolean? = null,

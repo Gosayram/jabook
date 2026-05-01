@@ -820,6 +820,51 @@ public class PlayerViewModel
             }
         }
 
+        public fun addBookmarkAtPosition(
+            chapterIndex: Int,
+            positionMs: Long,
+            noteText: String? = null,
+            onCreated: (BookmarkItem?) -> Unit = {},
+        ) {
+            val state = uiState.value as? PlayerState.Active ?: return
+            viewModelScope.launch {
+                val result =
+                    bookmarkRepository.addBookmark(
+                        bookId = state.book.id,
+                        chapterIndex = chapterIndex,
+                        positionMs = positionMs,
+                        noteText = noteText,
+                    )
+                result
+                    .onSuccess { bookmark -> onCreated(bookmark) }
+                    .onFailure { error ->
+                        logger.e({ "Failed to add bookmark at custom position" }, error)
+                        dispatch(PlayerIntent.ReportError("Failed to add bookmark"))
+                        onCreated(null)
+                    }
+            }
+        }
+
+        public fun updateBookmarkContent(
+            bookmarkId: String,
+            noteText: String?,
+            noteAudioPath: String? = null,
+        ) {
+            val existing = bookmarks.value.firstOrNull { it.id == bookmarkId } ?: return
+            viewModelScope.launch {
+                bookmarkRepository
+                    .updateBookmark(
+                        existing.copy(
+                            noteText = noteText?.takeIf { it.isNotBlank() },
+                            noteAudioPath = noteAudioPath ?: existing.noteAudioPath,
+                        ),
+                    ).onFailure { error ->
+                        logger.e({ "Failed to update bookmark note" }, error)
+                        dispatch(PlayerIntent.ReportError("Failed to update bookmark"))
+                    }
+            }
+        }
+
         public fun initializeVisualizer() {
             playerController.initializeVisualizer()
         }
