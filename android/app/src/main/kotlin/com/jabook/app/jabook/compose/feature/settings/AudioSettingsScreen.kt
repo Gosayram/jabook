@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.settings
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -47,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -412,6 +414,9 @@ private fun EqualizerCurveCard(
     val gridColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
     val zeroLineColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
     val curveColor = MaterialTheme.colorScheme.primary
+    val selectedPointColor = MaterialTheme.colorScheme.tertiary
+    val selectedIndexState = androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(-1) }
+    val selectedIndex = selectedIndexState.intValue
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -421,7 +426,23 @@ private fun EqualizerCurveCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(150.dp),
+                    .height(150.dp)
+                    .pointerInput(Unit) {
+                        detectTapGestures { tapOffset ->
+                            val width = size.width.toFloat()
+                            if (width <= 0f) return@detectTapGestures
+                            val closestIndex =
+                                frequencies.indices.minByOrNull { index ->
+                                    val minFreq = frequencies.first()
+                                    val maxFreq = frequencies.last()
+                                    val lnMin = ln(minFreq)
+                                    val lnMax = ln(maxFreq)
+                                    val x = ((ln(frequencies[index]) - lnMin) / (lnMax - lnMin)) * width
+                                    kotlin.math.abs(tapOffset.x - x)
+                                } ?: -1
+                            selectedIndexState.intValue = closestIndex
+                        }
+                    },
         ) {
             val minFreq = frequencies.first()
             val maxFreq = frequencies.last()
@@ -463,6 +484,39 @@ private fun EqualizerCurveCard(
                 path = curve,
                 color = curveColor,
                 style = Stroke(width = 4f),
+            )
+
+            if (selectedIndex in frequencies.indices) {
+                val pointX = xFor(frequencies[selectedIndex])
+                val pointY = yFor(animatedGains[selectedIndex])
+                drawCircle(
+                    color = selectedPointColor,
+                    radius = 6f,
+                    center = Offset(pointX, pointY),
+                )
+                drawCircle(
+                    color = curveColor,
+                    radius = 3f,
+                    center = Offset(pointX, pointY),
+                )
+            }
+        }
+
+        if (selectedIndex in frequencies.indices) {
+            val selectedFrequency = frequencies[selectedIndex]
+            val selectedGainDb = animatedGains[selectedIndex]
+            val freqLabel =
+                if (selectedFrequency >= 1000f) {
+                    String.format(java.util.Locale.US, "%.1fkHz", selectedFrequency / 1000f)
+                } else {
+                    String.format(java.util.Locale.US, "%.0fHz", selectedFrequency)
+                }
+            val gainLabel = String.format(java.util.Locale.US, "%+.1f dB", selectedGainDb)
+            Text(
+                text = stringResource(R.string.equalizer_point_tooltip, freqLabel, gainLabel),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
             )
         }
 

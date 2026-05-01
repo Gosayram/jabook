@@ -348,6 +348,7 @@
     <string name="equalizer_preset_flat">Flat</string>
     <string name="equalizer_preset_voice_clarity">Voice clarity</string>
     <string name="equalizer_preset_night">Night</string>
+    <string name="equalizer_point_tooltip">%1$s • %2$s</string>
     <!-- Title for normalize volume setting -->
     <string name="normalizeVolumeTitle">Normalize Volume</string>
     <!-- Description for normalize volume setting -->

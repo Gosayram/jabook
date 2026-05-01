@@ -329,6 +329,7 @@
     <string name="equalizer_preset_flat">Плоский</string>
     <string name="equalizer_preset_voice_clarity">Чёткость речи</string>
     <string name="equalizer_preset_night">Ночной</string>
+    <string name="equalizer_point_tooltip">%1$s • %2$s</string>
     <!-- Заголовок настройки нормализации громкости -->
     <string name="normalizeVolumeTitle">Нормализация громкости</string>
     <!-- Описание настройки нормализации громкости -->
