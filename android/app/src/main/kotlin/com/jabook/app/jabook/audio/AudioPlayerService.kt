@@ -23,13 +23,13 @@ import androidx.annotation.OptIn
 import androidx.core.app.TaskStackBuilder
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
-import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
+import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
 import com.jabook.app.jabook.audio.processors.BookLoudnessCompensator
@@ -44,9 +44,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelChildren
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -137,7 +134,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     // PlayerNotificationManager for direct notification control (androidx.media3.ui)
     // Replaces MediaNotification.Provider which doesn't work with background service warmup
-    private var playerNotificationManager: PlayerNotificationManager? = null
+    internal var playerNotificationManager: PlayerNotificationManager? = null
 
     internal var notificationHelper: NotificationHelper? = null
     internal var mediaSessionManager: MediaSessionManager? = null
@@ -167,7 +164,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     // Audio visualizer manager
     internal var audioVisualizerManager: AudioVisualizerManager? = null
-    private var visualizerBridgeJob: kotlinx.coroutines.Job? = null
+    internal var visualizerBridgeJob: kotlinx.coroutines.Job? = null
 
     // Phone call listener for automatic resume after calls
     internal var phoneCallListener: PhoneCallListener? = null
@@ -229,10 +226,10 @@ public class AudioPlayerService : MediaLibraryService() {
         )
 
     // MediaSession custom layout helper (extracted from service)
-    private val mediaSessionLayoutHelper =
+    internal val mediaSessionLayoutHelper =
         MediaSessionLayoutHelper(playerServiceScope) { mediaSession }
 
-    private val foregroundNotificationCoordinator by lazy {
+    internal val foregroundNotificationCoordinator by lazy {
         ForegroundNotificationCoordinator(
             policy =
                 ForegroundServiceStartPolicy(
@@ -247,7 +244,7 @@ public class AudioPlayerService : MediaLibraryService() {
         )
     }
 
-    private val listeningSessionTracker: ListeningSessionTracker by lazy {
+    internal val listeningSessionTracker: ListeningSessionTracker by lazy {
         ListeningSessionTracker(
             repository = listeningSessionRepository,
             scope = playerServiceScope,
@@ -258,7 +255,7 @@ public class AudioPlayerService : MediaLibraryService() {
         )
     }
 
-    private val periodicPositionSaver: PeriodicPositionSaver by lazy {
+    internal val periodicPositionSaver: PeriodicPositionSaver by lazy {
         PeriodicPositionSaver(
             scope = playerServiceScope,
             repository = playbackPositionRepository,
@@ -289,6 +286,24 @@ public class AudioPlayerService : MediaLibraryService() {
         VisualizerFacade(
             getAudioVisualizerManager = { audioVisualizerManager },
             getExoPlayerAudioSessionId = { exoPlayer.audioSessionId },
+        )
+    }
+
+    private val releaseHandler: AudioServiceReleaseHandler by lazy {
+        AudioServiceReleaseHandler(getService = { this })
+    }
+
+    private val commandRouter: AudioServiceCommandRouter by lazy {
+        AudioServiceCommandRouter(
+            getPlaybackController = { playbackController },
+            getPositionManager = { positionManager },
+            getMetadataManager = { metadataManager },
+            getPlayerStateHelper = { playerStateHelper },
+            getUnloadManager = { unloadManager },
+            getActivePlayer = { getActivePlayer() },
+            getPlaybackLifecycleActions = { playbackLifecycleActions },
+            resetBookCompletionIfNeeded = { resetBookCompletionIfNeeded(it) },
+            updateCrashPlaybackContext = { updateCrashPlaybackContext() },
         )
     }
 
@@ -361,6 +376,15 @@ public class AudioPlayerService : MediaLibraryService() {
 
     /** Checks if the service is fully initialized and ready to use. */
     public fun isFullyInitialized(): Boolean = isFullyInitializedFlag
+
+    // Helper methods for AudioServiceReleaseHandler to check lateinit initialization
+    internal fun isPlaybackPositionRepositoryInitialized(): Boolean = ::playbackPositionRepository.isInitialized
+
+    internal fun isAudioOutputManagerInitialized(): Boolean = ::audioOutputManager.isInitialized
+
+    internal fun isPlaybackEnhancerServiceInitialized(): Boolean = ::playbackEnhancerService.isInitialized
+
+    internal fun isAudioVisualizerStateBridgeInitialized(): Boolean = ::audioVisualizerStateBridge.isInitialized
 
     // Flag to indicate if "Minimal Notification" mode is enabled
     // If true, artwork loading will be skipped to show a smaller notification
@@ -513,53 +537,10 @@ public class AudioPlayerService : MediaLibraryService() {
                     LogUtils.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
                 }
             }
-            AudioPlayerServiceInitializer(this).initialize()
-
-            // Restore playback speed (lissen-android pattern)
-            playerServiceScope.launch {
-                try {
-                    val savedSpeed = audioPreferences.playbackSpeed.first()
-                    withContext(Dispatchers.Main) {
-                        LogUtils.d("AudioPlayerService", "Restoring playback speed: ${savedSpeed}x")
-                        exoPlayer.setPlaybackSpeed(savedSpeed)
-                    }
-                } catch (e: Exception) {
-                    LogUtils.e("AudioPlayerService", "Failed to restore playback speed", e)
-                }
+            AudioPlayerServiceInitializer(this).let { initializer ->
+                initializer.initialize()
+                initializer.postInitialize()
             }
-
-            // Set MediaNotificationProvider for MediaLibrarySession (system media player)
-            // This ensures system media player notification has priority
-            if (mediaLibrarySession != null) {
-                setMediaNotificationProvider(AudioPlayerNotificationProvider(this))
-                LogUtils.i("AudioPlayerService", "MediaNotificationProvider set for MediaLibrarySession")
-            } else {
-                LogUtils.w("AudioPlayerService", "MediaLibrarySession is null, cannot set MediaNotificationProvider")
-            }
-
-            // Initialize PlayerNotificationManager (androidx.media3.ui) ONLY as fallback
-            // This should only be used when MediaLibrarySession is not available
-            // CRITICAL: Disable PlayerNotificationManager when MediaLibrarySession is active
-            // to prevent duplicate notifications and ensure system media player has priority
-            if (mediaLibrarySession == null) {
-                LogUtils.w("AudioPlayerService", "MediaLibrarySession not available, using PlayerNotificationManager as fallback")
-                setupPlayerNotificationManager()
-            }
-
-            setupAudioOutputManager()
-            playbackEnhancerService.initialize()
-
-            // Initialize AudioVisualizerManager
-            audioVisualizerManager = AudioVisualizerManager(this)
-            visualizerBridgeJob?.cancel()
-            visualizerBridgeJob =
-                playerServiceScope.launch {
-                    audioVisualizerManager
-                        ?.waveformData
-                        ?.collect { waveform ->
-                            audioVisualizerStateBridge.updateWaveform(waveform)
-                        }
-                }
             PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
             LogUtils.i("AudioPlayerService", "onCreate() completed successfully")
@@ -774,65 +755,18 @@ public class AudioPlayerService : MediaLibraryService() {
     public fun seekToTrackAndPosition(
         trackIndex: Int,
         positionMs: Long,
-    ) {
-        resetBookCompletionIfNeeded("Manual seekToTrackAndPosition($trackIndex, $positionMs)")
-        playbackController?.seekToTrackAndPosition(trackIndex, positionMs) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
-    }
+    ): Unit = commandRouter.seekToTrackAndPosition(trackIndex, positionMs)
 
-    public fun updateMetadata(metadata: Map<String, String>) {
-        metadataManager?.updateMetadata(metadata) ?: run {
-            LogUtils.e("AudioPlayerService", "MetadataManager not initialized")
-        }
-        updateCrashPlaybackContext()
-    }
+    public fun updateMetadata(metadata: Map<String, String>): Unit = commandRouter.updateMetadata(metadata)
 
     public val isPlaying: Boolean
-        get() = getActivePlayer().isPlaying
+        get() = commandRouter.isPlaying
 
-    public fun play() {
-        resetBookCompletionIfNeeded("play()")
+    public fun play(): Unit = commandRouter.play()
 
-        playbackController?.play() ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-            return
-        }
+    public fun pause(): Unit = commandRouter.pause()
 
-        // Start listening for phone calls when playback starts
-        phoneCallListener?.startListening()
-
-        listeningSessionTracker.onPlaybackStarted()
-        periodicPositionSaver.start()
-        updateCrashPlaybackContext()
-    }
-
-    public fun pause() {
-        playbackController?.pause() ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-            return
-        }
-
-        listeningSessionTracker.onPlaybackStopped(reason = "pause")
-        periodicPositionSaver.save()
-        periodicPositionSaver.stop()
-        updateCrashPlaybackContext()
-    }
-
-    public fun stop() {
-        playbackController?.stop() ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-            return
-        }
-
-        // Stop listening for phone calls when playback stops
-        phoneCallListener?.stopListening()
-
-        listeningSessionTracker.onPlaybackStopped(reason = "stop")
-        periodicPositionSaver.save()
-        periodicPositionSaver.stop()
-        updateCrashPlaybackContext()
-    }
+    public fun stop(): Unit = commandRouter.stop()
 
     internal fun savePositionToRepository() {
         periodicPositionSaver.save()
@@ -858,137 +792,64 @@ public class AudioPlayerService : MediaLibraryService() {
         headsetAutoplayHandler?.stopListening()
     }
 
-    internal fun saveCurrentPosition() {
-        positionManager?.saveCurrentPosition() ?: run {
-            LogUtils.e(
-                "AudioPlayerService",
-                "PositionManager not initialized",
-            )
-        }
-    }
+    internal fun saveCurrentPosition(): Unit = commandRouter.saveCurrentPosition()
 
-    public fun seekTo(positionMs: Long) {
-        playbackController?.seekTo(positionMs)
-    }
+    public fun seekTo(positionMs: Long): Unit = commandRouter.seekTo(positionMs)
 
-    public fun setSpeed(speed: Float) {
-        playbackController?.setSpeed(speed)
-        updateCrashPlaybackContext()
-    }
+    public fun setSpeed(speed: Float): Unit = commandRouter.setSpeed(speed)
 
-    public fun setRepeatMode(repeatMode: Int) {
-        playbackController?.setRepeatMode(repeatMode)
-    }
+    public fun setRepeatMode(repeatMode: Int): Unit = commandRouter.setRepeatMode(repeatMode)
 
-    public fun getRepeatMode(): Int = playbackController?.getRepeatMode() ?: Player.REPEAT_MODE_OFF
+    public fun getRepeatMode(): Int = commandRouter.getRepeatMode()
 
-    public fun getPlaybackSpeed(): Float = playbackController?.getSpeed() ?: 1.0f
+    public fun getPlaybackSpeed(): Float = commandRouter.getSpeed()
 
-    public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
-        playbackController?.setShuffleModeEnabled(shuffleModeEnabled)
-    }
+    public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean): Unit = commandRouter.setShuffleModeEnabled(shuffleModeEnabled)
 
-    public fun getShuffleModeEnabled(): Boolean = playbackController?.getShuffleModeEnabled() ?: false
+    public fun getShuffleModeEnabled(): Boolean = commandRouter.getShuffleModeEnabled()
 
-    // --- Sleep timer delegation ---
-    public fun setSleepTimerMinutes(minutes: Int) {
-        sleepTimerManager?.setSleepTimerMinutes(minutes)
-        updateCrashPlaybackContext()
-    }
+    // --- Sleep timer delegation (via SleepTimerFacade) ---
+    public fun setSleepTimerMinutes(minutes: Int): Unit = sleepTimerFacade.setSleepTimerMinutes(minutes)
 
-    public fun setSleepTimerEndOfChapter() {
-        sleepTimerManager?.setSleepTimerEndOfChapter()
-        updateCrashPlaybackContext()
-    }
+    public fun setSleepTimerEndOfChapter(): Unit = sleepTimerFacade.setSleepTimerEndOfChapter()
 
-    public fun setSleepTimerEndOfChapterOrFallback(): Boolean =
-        sleepTimerManager?.setSleepTimerEndOfChapterOrFallback(getActivePlayer().mediaItemCount > 1) ?: false
+    public fun setSleepTimerEndOfChapterOrFallback(): Boolean = sleepTimerFacade.setSleepTimerEndOfChapterOrFallback()
 
-    public fun setSleepTimerEndOfTrack() {
-        sleepTimerManager?.setSleepTimerEndOfTrack()
-        updateCrashPlaybackContext()
-    }
+    public fun setSleepTimerEndOfTrack(): Unit = sleepTimerFacade.setSleepTimerEndOfTrack()
 
-    public fun cancelSleepTimer() {
-        sleepTimerManager?.cancelSleepTimer()
-        updateCrashPlaybackContext()
-    }
+    public fun cancelSleepTimer(): Unit = sleepTimerFacade.cancelSleepTimer()
 
-    public fun getSleepTimerRemainingSeconds(): Int? = sleepTimerManager?.getSleepTimerRemainingSeconds()
+    public fun getSleepTimerRemainingSeconds(): Int? = sleepTimerFacade.getSleepTimerRemainingSeconds()
 
-    public fun isSleepTimerActive(): Boolean = sleepTimerManager?.isSleepTimerActive() ?: false
+    public fun isSleepTimerActive(): Boolean = sleepTimerFacade.isSleepTimerActive()
 
-    public fun isSleepTimerEndOfChapter(): Boolean = sleepTimerManager?.sleepTimerEndOfChapter == true
+    public fun isSleepTimerEndOfChapter(): Boolean = sleepTimerFacade.isSleepTimerEndOfChapter()
 
-    public fun isSleepTimerEndOfTrack(): Boolean = sleepTimerManager?.sleepTimerEndOfTrack == true
+    public fun isSleepTimerEndOfTrack(): Boolean = sleepTimerFacade.isSleepTimerEndOfTrack()
 
-    /**
-     * Gets the audio session ID from ExoPlayer.
-     * Required for audio visualizer to capture audio data.
-     */
-    public fun getAudioSessionId(): Int = exoPlayer.audioSessionId
+    // --- Visualizer delegation (via VisualizerFacade) ---
+    public fun getAudioSessionId(): Int = visualizerFacade.getAudioSessionId()
 
-    /**
-     * Gets the audio visualizer waveform data as a StateFlow.
-     */
-    public fun getVisualizerWaveformData(): kotlinx.coroutines.flow.StateFlow<FloatArray>? = audioVisualizerManager?.waveformData
+    public fun getVisualizerWaveformData(): kotlinx.coroutines.flow.StateFlow<FloatArray>? = visualizerFacade.getWaveformData()
 
-    /**
-     * Initializes the audio visualizer with the current audio session.
-     * Should be called when playback starts.
-     */
-    public fun initializeVisualizer() {
-        val sessionId = exoPlayer.audioSessionId
-        if (sessionId != 0) {
-            audioVisualizerManager?.initialize(sessionId)
-        }
-    }
+    public fun initializeVisualizer(): Unit = visualizerFacade.initialize()
 
-    /**
-     * Enables or disables the audio visualizer.
-     */
-    public fun setVisualizerEnabled(enabled: Boolean) {
-        audioVisualizerManager?.setEnabled(enabled)
-    }
+    public fun setVisualizerEnabled(enabled: Boolean): Unit = visualizerFacade.setEnabled(enabled)
 
-    public fun next() {
-        resetBookCompletionIfNeeded("Manual next()")
-        playbackController?.next() ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
-    }
+    public fun next(): Unit = commandRouter.next()
 
-    public fun previous() {
-        resetBookCompletionIfNeeded("Manual previous()")
-        playbackController?.previous() ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
-    }
+    public fun previous(): Unit = commandRouter.previous()
 
-    public fun seekToTrack(index: Int) {
-        resetBookCompletionIfNeeded("Manual seekToTrack($index)")
-        playbackController?.seekToTrack(index) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
-    }
+    public fun seekToTrack(index: Int): Unit = commandRouter.seekToTrack(index)
 
     public fun setPlaybackProgress(
         filePaths: List<String>,
         progressSeconds: Double?,
-    ): Unit =
-        positionManager?.setPlaybackProgress(filePaths, progressSeconds) ?: run {
-            LogUtils.e("AudioPlayerService", "PositionManager not initialized")
-        }
+    ): Unit = commandRouter.setPlaybackProgress(filePaths, progressSeconds)
 
-    public fun rewind(seconds: Int = 15): Unit =
-        playbackController?.rewind(seconds) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
+    public fun rewind(seconds: Int = 15): Unit = commandRouter.rewind(seconds)
 
-    public fun forward(seconds: Int = 30): Unit =
-        playbackController?.forward(seconds) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
+    public fun forward(seconds: Int = 30): Unit = commandRouter.forward(seconds)
 
     /**
      * Stops playback and releases resources.
@@ -1041,9 +902,9 @@ public class AudioPlayerService : MediaLibraryService() {
         mediaSessionLayoutHelper.setInitialLayout()
     }
 
-    public fun getCurrentPosition(): Long = playerStateHelper?.getCurrentPosition() ?: 0L
+    public fun getCurrentPosition(): Long = commandRouter.getCurrentPosition()
 
-    public fun getDuration(): Long = playerStateHelper?.getDuration() ?: 0L
+    public fun getDuration(): Long = commandRouter.getDuration()
 
     /**
      * Sets the inactivity timeout in minutes.
@@ -1058,25 +919,28 @@ public class AudioPlayerService : MediaLibraryService() {
         )
     }
 
-    public fun getPlayerState(): Map<String, Any> = playerStateHelper?.getPlayerState() ?: emptyMap()
+    public fun getPlayerState(): Map<String, Any> = commandRouter.getPlayerState()
 
-    public fun getCurrentMediaItemInfo(): Map<String, Any?> = metadataManager?.getCurrentMediaItemInfo() ?: emptyMap()
+    public fun getCurrentMediaItemInfo(): Map<String, Any?> = commandRouter.getCurrentMediaItemInfo()
 
-    public fun extractArtworkFromFile(filePath: String): String? = metadataManager?.extractArtworkFromFile(filePath)
+    public fun extractArtworkFromFile(filePath: String): String? = commandRouter.extractArtworkFromFile(filePath)
 
-    public fun getPlaylistInfo(): Map<String, Any> = playerStateHelper?.getPlaylistInfo() ?: emptyMap()
+    public fun getPlaylistInfo(): Map<String, Any> = commandRouter.getPlaylistInfo()
 
-    public fun unloadPlayerDueToInactivity(): Unit =
-        unloadManager?.unloadPlayerDueToInactivity() ?: run {
-            LogUtils.e("AudioPlayerService", "UnloadManager not initialized")
-        }
+    public fun unloadPlayerDueToInactivity(): Unit = commandRouter.unloadPlayerDueToInactivity()
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         lifecycleManager?.onTaskRemoved() ?: super.onTaskRemoved(rootIntent)
     }
 
+    /** Public wrapper for protected [setMediaNotificationProvider]. Called by [AudioPlayerServiceInitializer]. */
     @OptIn(UnstableApi::class)
-    private fun setupPlayerNotificationManager() {
+    internal fun setNotificationProvider(provider: MediaNotification.Provider) {
+        setMediaNotificationProvider(provider)
+    }
+
+    @OptIn(UnstableApi::class)
+    internal fun setupPlayerNotificationManager() {
         // Guard: Prevent duplicate initialization
         if (playerNotificationManager != null) {
             LogUtils.w("AudioPlayerService", "PlayerNotificationManager already initialized, skipping")
@@ -1094,124 +958,15 @@ public class AudioPlayerService : MediaLibraryService() {
         return
     }
 
-    /**
-     * Sets up the AudioOutputManager to handle proximity sensor switching.
-     * Automatically monitors playback state to enable/disable sensor.
-     */
-    private fun setupAudioOutputManager() {
-        // Initial state check
-        if (exoPlayer.isPlaying) {
-            audioOutputManager.startMonitoring()
-        }
-
-        exoPlayer.addListener(
-            object : Player.Listener {
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    if (isPlaying) {
-                        audioOutputManager.startMonitoring()
-                    } else {
-                        audioOutputManager.stopMonitoring()
-                    }
-                }
-            },
-        )
-    }
-
-    /**
-     * Cleans up existing components before reinitialization.
-     * Called at the start of onCreate() to prevent resource leaks when Android
-     * calls onCreate() multiple times without onDestroy().
-     */
     private fun cleanupExistingComponents() {
-        val hasExistingComponents =
-            mediaLibrarySession != null ||
-                serviceMediaController != null ||
-                crossFadePlayer != null ||
-                audioVisualizerManager != null ||
-                visualizerBridgeJob != null
-        if (hasExistingComponents) {
-            LogUtils.w(
-                "AudioPlayerService",
-                "onCreate() called with existing runtime components, performing pre-init cleanup",
-            )
-        }
-        releaseRuntimeComponents(cancelServiceScopeChildren = true)
-        if (hasExistingComponents) {
-            LogUtils.i("AudioPlayerService", "Existing components cleaned up")
-        }
+        releaseHandler.cleanupExistingComponents()
     }
 
     override fun onDestroy() {
-        releaseRuntimeComponents(cancelServiceScopeChildren = true)
+        releaseHandler.releaseRuntimeComponents(cancelServiceScopeChildren = true)
         // Delegate to lifecycle manager
         lifecycleManager?.onDestroy()
         super.onDestroy()
-    }
-
-    private fun releaseRuntimeComponents(cancelServiceScopeChildren: Boolean) {
-        if (::playbackPositionRepository.isInitialized) {
-            periodicPositionSaver.stop()
-        }
-        if (cancelServiceScopeChildren) {
-            playerServiceScope.coroutineContext.cancelChildren()
-        }
-
-        playerNotificationManager?.setPlayer(null)
-        playerNotificationManager = null
-
-        if (::audioOutputManager.isInitialized) {
-            audioOutputManager.stopMonitoring()
-        }
-        if (::playbackEnhancerService.isInitialized) {
-            playbackEnhancerService.release()
-        }
-
-        sleepTimerManager?.release()
-        sleepTimerManager = null
-
-        inactivityTimer?.release()
-        inactivityTimer = null
-
-        playbackTimer?.release()
-        playbackTimer = null
-        crossfadeHandler?.stopMonitoring()
-        crossfadeHandler = null
-        crossFadePlayer?.release()
-        crossFadePlayer = null
-
-        audioVisualizerManager?.release()
-        audioVisualizerManager = null
-        visualizerBridgeJob?.cancel()
-        visualizerBridgeJob = null
-        if (::audioVisualizerStateBridge.isInitialized) {
-            audioVisualizerStateBridge.reset()
-        }
-
-        phoneCallListener?.stopListening()
-        phoneCallListener = null
-
-        headsetAutoplayHandler?.stopListening()
-        headsetAutoplayHandler = null
-
-        // BP-13.3: Unregister audio output device monitor
-        audioOutputDeviceMonitor?.unregister()
-        audioOutputDeviceMonitor = null
-
-        serviceMediaController?.release()
-        serviceMediaController = null
-
-        mediaSessionManager?.release()
-        mediaSessionManager = null
-
-        mediaLibrarySession?.release()
-        mediaLibrarySession = null
-        mediaSession = null
-
-        mediaSessionLayoutHelper.release()
-
-        playerConfigurator?.release()
-
-        isFullyInitializedFlag = false
     }
 
     /**

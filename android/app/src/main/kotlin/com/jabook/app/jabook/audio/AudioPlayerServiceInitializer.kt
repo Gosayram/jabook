@@ -17,12 +17,16 @@ package com.jabook.app.jabook.audio
 import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
@@ -307,6 +311,81 @@ public class AudioPlayerServiceInitializer(
         initializeSettingsSync()
 
         android.util.Log.i("AudioPlayerService", "Service components initialized successfully")
+    }
+
+    /**
+     * Post-initialization setup called after initialize().
+     * Handles: playback speed restore, notification provider, audio output, visualizer, enhancer.
+     */
+    public fun postInitialize() {
+        restorePlaybackSpeed()
+        setupNotificationProvider()
+        setupPlayerNotificationManagerFallback()
+        setupAudioOutputManager()
+        service.playbackEnhancerService.initialize()
+        initializeVisualizer()
+    }
+
+    private fun restorePlaybackSpeed() {
+        service.playerServiceScope.launch {
+            try {
+                val savedSpeed = service.audioPreferences.playbackSpeed.first()
+                withContext(Dispatchers.Main) {
+                    LogUtils.d("AudioPlayerService", "Restoring playback speed: ${savedSpeed}x")
+                    service.exoPlayer.setPlaybackSpeed(savedSpeed)
+                }
+            } catch (e: Exception) {
+                LogUtils.e("AudioPlayerService", "Failed to restore playback speed", e)
+            }
+        }
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun setupNotificationProvider() {
+        if (service.mediaLibrarySession != null) {
+            service.setNotificationProvider(AudioPlayerNotificationProvider(service))
+            LogUtils.i("AudioPlayerService", "MediaNotificationProvider set for MediaLibrarySession")
+        } else {
+            LogUtils.w("AudioPlayerService", "MediaLibrarySession is null, cannot set MediaNotificationProvider")
+        }
+    }
+
+    private fun setupPlayerNotificationManagerFallback() {
+        if (service.mediaLibrarySession == null) {
+            LogUtils.w("AudioPlayerService", "MediaLibrarySession not available, using PlayerNotificationManager as fallback")
+            service.setupPlayerNotificationManager()
+        }
+    }
+
+    private fun setupAudioOutputManager() {
+        if (service.exoPlayer.isPlaying) {
+            service.audioOutputManager.startMonitoring()
+        }
+
+        service.exoPlayer.addListener(
+            object : Player.Listener {
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    if (isPlaying) {
+                        service.audioOutputManager.startMonitoring()
+                    } else {
+                        service.audioOutputManager.stopMonitoring()
+                    }
+                }
+            },
+        )
+    }
+
+    private fun initializeVisualizer() {
+        service.audioVisualizerManager = AudioVisualizerManager(service)
+        service.visualizerBridgeJob?.cancel()
+        service.visualizerBridgeJob =
+            service.playerServiceScope.launch {
+                service.audioVisualizerManager
+                    ?.waveformData
+                    ?.collect { waveform ->
+                        service.audioVisualizerStateBridge.updateWaveform(waveform)
+                    }
+            }
     }
 
     @OptIn(UnstableApi::class)
