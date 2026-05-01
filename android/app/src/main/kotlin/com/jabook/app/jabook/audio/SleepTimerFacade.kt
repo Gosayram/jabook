@@ -22,9 +22,28 @@ package com.jabook.app.jabook.audio
  */
 internal class SleepTimerFacade(
     private val getSleepTimerManager: () -> SleepTimerManager?,
+    private val getPlaybackTimer: () -> PlaybackTimer?,
     private val getActivePlayer: () -> androidx.media3.exoplayer.ExoPlayer,
     private val updateCrashContext: () -> Unit = {},
 ) {
+    /** Starts sleep timer with given delay and option. */
+    fun startTimer(
+        delayInSeconds: Double,
+        option: Int = 0,
+    ) {
+        val timerOption =
+            when (option) {
+                1 -> PlaybackTimer.TimerOption.CURRENT_TRACK
+                else -> PlaybackTimer.TimerOption.FIXED_DURATION
+            }
+        getPlaybackTimer()?.startTimer(delayInSeconds, timerOption)
+    }
+
+    /** Stops sleep timer. */
+    fun stopTimer() {
+        getPlaybackTimer()?.stopTimer()
+    }
+
     fun setSleepTimerMinutes(minutes: Int) {
         getSleepTimerManager()?.setSleepTimerMinutes(minutes)
         updateCrashContext()

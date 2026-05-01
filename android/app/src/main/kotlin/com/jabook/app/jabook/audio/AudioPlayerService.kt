@@ -250,6 +250,7 @@ public class AudioPlayerService : MediaLibraryService() {
     private val sleepTimerFacade: SleepTimerFacade by lazy {
         SleepTimerFacade(
             getSleepTimerManager = { sleepTimerManager },
+            getPlaybackTimer = { playbackTimer },
             getActivePlayer = { getActivePlayer() },
             updateCrashContext = { updateCrashPlaybackContext() },
         )
@@ -274,6 +275,15 @@ public class AudioPlayerService : MediaLibraryService() {
     private val releaseHandler: AudioServiceReleaseHandler by lazy {
         AudioServiceReleaseHandler(getService = { this })
     }
+
+    /** Facade for player configuration and active player resolution. */
+    internal val playerFacade =
+        PlayerFacade(
+            getPlayerConfigurator = { playerConfigurator },
+            getExoPlayer = { exoPlayer },
+            getCrossFadePlayer = { crossFadePlayer },
+            getCrossfadeHandler = { crossfadeHandler },
+        )
 
     /** Manages crash diagnostics context and book completion tracking. */
     internal val playbackContextHelper =
@@ -453,55 +463,25 @@ public class AudioPlayerService : MediaLibraryService() {
         return super.onStartCommand(intent, flags, startId)
     }
 
-    /** Starts sleep timer with given delay and option. */
     public fun startTimer(
         delayInSeconds: Double,
         option: Int = 0,
-    ) {
-        val timerOption =
-            when (option) {
-                1 -> PlaybackTimer.TimerOption.CURRENT_TRACK
-                else -> PlaybackTimer.TimerOption.FIXED_DURATION
-            }
-        playbackTimer?.startTimer(delayInSeconds, timerOption)
-    }
+    ): Unit = sleepTimerFacade.startTimer(delayInSeconds, option)
 
-    /** Stops sleep timer. */
-    public fun stopTimer() {
-        playbackTimer?.stopTimer()
-    }
+    public fun stopTimer(): Unit = sleepTimerFacade.stopTimer()
 
     internal val playerListener: PlayerListener?
-        get() = playerConfigurator?.playerListener
+        get() = playerFacade.playerListener
 
-    /** Configures ExoPlayer with listener and additional settings. */
-    internal fun configurePlayer() {
-        playerConfigurator?.configurePlayer() ?: run {
-            LogUtils.e("AudioPlayerService", "PlayerConfigurator not initialized")
-        }
-    }
+    internal fun configurePlayer(): Unit = playerFacade.configurePlayer()
 
     @OptIn(UnstableApi::class)
-    public fun configureExoPlayer(settings: com.jabook.app.jabook.audio.processors.AudioProcessingSettings) {
-        playerConfigurator?.configureExoPlayer(settings) ?: run {
-            LogUtils.e("AudioPlayerService", "PlayerConfigurator not initialized")
-        }
-    }
+    public fun configureExoPlayer(settings: com.jabook.app.jabook.audio.processors.AudioProcessingSettings): Unit =
+        playerFacade.configureExoPlayer(settings)
 
-    internal fun getActivePlayer(): ExoPlayer {
-        val settings = playerConfigurator?.audioProcessingSettings
-        if (settings?.isCrossfadeEnabled == true) {
-            crossFadePlayer?.let {
-                return it.getActivePlayer()
-            }
-        }
-        return playerConfigurator?.getActivePlayer(exoPlayer) ?: exoPlayer
-    }
+    internal fun getActivePlayer(): ExoPlayer = playerFacade.getActivePlayer()
 
-    /** Triggers crossfade transition via [CrossfadeHandler]. */
-    public fun triggerCrossfadeTransition() {
-        crossfadeHandler?.triggerCrossfadeTransition()
-    }
+    public fun triggerCrossfadeTransition(): Unit = playerFacade.triggerCrossfadeTransition()
 
     /** Delegates to [PlaybackContextHelper.updateActualTrackIndex]. */
     internal fun updateActualTrackIndex(index: Int) = playbackContextHelper.updateActualTrackIndex(index)
