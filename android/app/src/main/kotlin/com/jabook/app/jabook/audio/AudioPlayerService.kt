@@ -29,7 +29,6 @@ import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
 import com.jabook.app.jabook.audio.processors.BookLoudnessCompensator
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
-import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.capitalizeFirst
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
@@ -40,19 +39,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import javax.inject.Inject
 
-/**
- * Native audio player service using Media3 ExoPlayer.
- *
- * This service extends MediaLibraryService for proper integration with Android's
- * media controls, Android Auto, Wear OS, system notifications, and playback resumption.
- *
- * MediaLibraryService provides:
- * - Automatic notification management (no manual updates needed)
- * - Playback resumption support (onPlaybackResumption callback)
- * - Better integration with Quick Settings media controls
- *
- * Uses Dagger Hilt for dependency injection (ExoPlayer and Cache as singletons).
- */
+/** Audio player service using Media3 ExoPlayer with Dagger Hilt DI. */
 @OptIn(UnstableApi::class)
 @AndroidEntryPoint
 public class AudioPlayerService : MediaLibraryService() {
@@ -288,6 +275,17 @@ public class AudioPlayerService : MediaLibraryService() {
         AudioServiceReleaseHandler(getService = { this })
     }
 
+    /** Manages crash diagnostics context and book completion tracking. */
+    internal val playbackContextHelper =
+        PlaybackContextHelper(
+            getActivePlayer = { getActivePlayer() },
+            getCurrentMetadata = { currentMetadata },
+            getPlaylistManager = { playlistManager },
+            isSleepTimerEndOfChapter = { isSleepTimerEndOfChapter() },
+            isSleepTimerEndOfTrack = { isSleepTimerEndOfTrack() },
+            isSleepTimerActive = { isSleepTimerActive() },
+        )
+
     private val commandRouter: AudioServiceCommandRouter by lazy {
         AudioServiceCommandRouter(
             getPlaybackController = { playbackController },
@@ -362,10 +360,6 @@ public class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    /**
-     * Flag indicating if service is fully initialized and ready to use.
-     * Service is ready when MediaLibrarySession is created and all components are initialized.
-     */
     @Volatile
     internal var isFullyInitializedFlag = false
 
@@ -385,10 +379,6 @@ public class AudioPlayerService : MediaLibraryService() {
     // If true, artwork loading will be skipped to show a smaller notification
     internal var isMinimalNotification = false
 
-    /**
-     * Gets the MediaLibrarySession instance.
-     * Used by AudioPlayerMethodHandler to check if service is fully ready.
-     */
     public fun getMediaSession(): MediaSession? = mediaLibrarySession ?: mediaSession
 
     /** Delegates to [NotificationIntentFactory.getSingleTopActivity]. */
@@ -411,10 +401,6 @@ public class AudioPlayerService : MediaLibraryService() {
             instance = this
             PlayerPerformanceLogger.log("Service", "super.onCreate() complete")
 
-            // CRITICAL: Start foreground immediately to avoid ANR and timeout issues (following Rhythm pattern)
-            // MediaLibraryService will automatically manage notifications later, but we need to start foreground
-            // immediately to prevent ForegroundServiceDidNotStartInTimeException
-            // Initialize NotificationHelper first (needed for channel creation)
             val helper = NotificationHelper(this)
             notificationHelper = helper
             val initialNotification =
@@ -467,12 +453,7 @@ public class AudioPlayerService : MediaLibraryService() {
         return super.onStartCommand(intent, flags, startId)
     }
 
-    /**
-     * Starts sleep timer.
-     *
-     * @param delayInSeconds Timer duration in seconds
-     * @param option Timer option (FIXED_DURATION or CURRENT_TRACK)
-     */
+    /** Starts sleep timer with given delay and option. */
     public fun startTimer(
         delayInSeconds: Double,
         option: Int = 0,
@@ -485,44 +466,21 @@ public class AudioPlayerService : MediaLibraryService() {
         playbackTimer?.startTimer(delayInSeconds, timerOption)
     }
 
-    /**
-     * Stops sleep timer.
-     */
+    /** Stops sleep timer. */
     public fun stopTimer() {
         playbackTimer?.stopTimer()
     }
 
-    /**
-     * Player event listener instance.
-     * Delegated to PlayerConfigurator.
-     */
     internal val playerListener: PlayerListener?
         get() = playerConfigurator?.playerListener
 
-    /**
-     * Configures ExoPlayer instance (already created via Hilt).
-     *
-     * ExoPlayer is provided as singleton via Dagger Hilt MediaModule.
-     * LoadControl and AudioAttributes are already configured in MediaModule.
-     * This method only adds listener and configures additional settings.
-     *
-     * Inspired by lissen-android: lightweight configuration, no heavy operations.
-     */
+    /** Configures ExoPlayer with listener and additional settings. */
     internal fun configurePlayer() {
         playerConfigurator?.configurePlayer() ?: run {
             LogUtils.e("AudioPlayerService", "PlayerConfigurator not initialized")
         }
     }
 
-    /**
-     * Configures ExoPlayer with AudioProcessors based on settings.
-     *
-     * In Media3, AudioProcessors must be set during ExoPlayer creation.
-     * This method creates a new ExoPlayer instance with processors if needed,
-     * or uses the singleton ExoPlayer if no processing is required.
-     *
-     * @param settings Audio processing settings
-     */
     @OptIn(UnstableApi::class)
     public fun configureExoPlayer(settings: com.jabook.app.jabook.audio.processors.AudioProcessingSettings) {
         playerConfigurator?.configureExoPlayer(settings) ?: run {
@@ -530,9 +488,6 @@ public class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    /**
-     * Gets the active ExoPlayer instance (custom with processors or singleton).
-     */
     internal fun getActivePlayer(): ExoPlayer {
         val settings = playerConfigurator?.audioProcessingSettings
         if (settings?.isCrossfadeEnabled == true) {
@@ -543,75 +498,19 @@ public class AudioPlayerService : MediaLibraryService() {
         return playerConfigurator?.getActivePlayer(exoPlayer) ?: exoPlayer
     }
 
-    /**
-     * Triggers crossfade transition.
-     * Delegates to CrossfadeHandler.
-     */
+    /** Triggers crossfade transition via [CrossfadeHandler]. */
     public fun triggerCrossfadeTransition() {
         crossfadeHandler?.triggerCrossfadeTransition()
     }
 
-    /**
-     * Updates the actual track index from onMediaItemTransition events.
-     * This is the single source of truth for current track index.
-     *
-     * @param index The actual track index from ExoPlayer's onMediaItemTransition event
-     */
-    internal fun updateActualTrackIndex(index: Int) {
-        playlistManager?.actualTrackIndex = index
-        LogUtils.d("AudioPlayerService", "Updated actualTrackIndex to $index")
-        updateCrashPlaybackContext()
-    }
+    /** Delegates to [PlaybackContextHelper.updateActualTrackIndex]. */
+    internal fun updateActualTrackIndex(index: Int) = playbackContextHelper.updateActualTrackIndex(index)
 
-    private fun updateCrashPlaybackContext() {
-        val player = getActivePlayer()
-        val effectiveTitle =
-            currentMetadata?.get("title")
-                ?: currentMetadata?.get("bookTitle")
-                ?: currentMetadata?.get("album")
-                ?: player.mediaMetadata.albumTitle?.toString()
-                ?: player.mediaMetadata.title?.toString()
-        val sleepMode =
-            when {
-                isSleepTimerEndOfChapter() -> "chapter_end"
-                isSleepTimerEndOfTrack() -> "track_end"
-                isSleepTimerActive() -> "fixed"
-                else -> "none"
-            }
-        CrashDiagnostics.setPlaybackContext(
-            bookTitle = effectiveTitle,
-            playerState = player.playbackState.toString(),
-            playbackSpeed = player.playbackParameters.speed,
-            sleepMode = sleepMode,
-        )
-    }
+    private fun updateCrashPlaybackContext() = playbackContextHelper.updateCrashPlaybackContext()
 
-    private fun resetBookCompletionIfNeeded(actionLabel: String) {
-        if (playlistManager?.isBookCompleted != true) return
-        LogUtils.i("AudioPlayerService", "$actionLabel resetting completion flag")
-        playlistManager?.isBookCompleted = false
-        playlistManager?.lastCompletedTrackIndex = -1
-    }
+    private fun resetBookCompletionIfNeeded(actionLabel: String) = playbackContextHelper.resetBookCompletionIfNeeded(actionLabel)
 
-    /**
-     * Sets playlist from file paths or URLs.
-     *
-     * Supports both local file paths and HTTP(S) URLs for network streaming.
-     * Uses coroutines for async operations (inspired by lissen-android).
-     *
-     * CRITICAL: This method is asynchronous and uses coroutines to avoid blocking.
-     * Flutter should wait for completion via MethodChannel.Result callback.
-     *
-     * OPTIMIZATION: For fast startup, only the first MediaItem (or saved position track) is created
-     * synchronously. Remaining items are added asynchronously in background.
-     *
-     * @param filePaths List of absolute file paths or HTTP(S) URLs to audio files
-     * @param metadata Optional metadata map (title, artist, album, etc.)
-     * @param initialTrackIndex Optional track index to load first (for saved position). If null, loads first track.
-     * @param initialPosition Optional position in milliseconds to seek to after loading initial track
-     * @param groupPath Optional group path for saving playback position (used for fallback saving)
-     * @param callback Optional callback to notify when playlist is ready (for Flutter)
-     */
+    /** Delegates playlist setup to [PlaylistManager] with loudness compensation. */
     public fun setPlaylist(
         filePaths: List<String>,
         metadata: Map<String, String>? = null,
@@ -639,13 +538,6 @@ public class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    /**
-     * Applies initial position after playlist is loaded.
-     * This is called in background to avoid blocking setPlaylist callback.
-     *
-     * OPTIMIZATION: If the target track is already loaded as the first track (which is the case
-     * when initialTrackIndex is provided), we can apply the position immediately without waiting.
-     */
     public fun seekToTrackAndPosition(
         trackIndex: Int,
         positionMs: Long,
@@ -670,13 +562,7 @@ public class AudioPlayerService : MediaLibraryService() {
         listeningSessionTracker.onPlaybackStopped(reason)
     }
 
-    /**
-     * Stops playback and releases all resources.
-     * Closes notification and stops service.
-     *
-     * This is a complete cleanup method that should be called when
-     * playback is permanently stopped (e.g., from Stop button in notification).
-     */
+    /** Delegates to [ServiceLifecycleManager.stopAndCleanup]. */
     public fun stopAndCleanup() {
         lifecycleManager?.stopAndCleanup() ?: run {
             LogUtils.e("AudioPlayerService", "ServiceLifecycleManager not initialized for stopAndCleanup")
@@ -750,12 +636,6 @@ public class AudioPlayerService : MediaLibraryService() {
         releaseHandler.stopAndRelease()
     }
 
-    /**
-     * Updates skip durations for MediaSessionManager.
-     *
-     * @param rewindSeconds Duration in seconds for rewind action
-     * @param forwardSeconds Duration in seconds for forward action
-     */
     public fun updateSkipDurations(
         rewindSeconds: Int,
         forwardSeconds: Int,
