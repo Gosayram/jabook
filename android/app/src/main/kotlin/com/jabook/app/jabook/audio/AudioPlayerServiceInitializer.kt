@@ -39,6 +39,7 @@ public class AudioPlayerServiceInitializer(
 ) {
     @OptIn(UnstableApi::class)
     public fun initialize() {
+        initializeCrossFadePlayer()
         android.util.Log.i("AudioPlayerService", "Initializing service components...")
 
         // NOTE: NotificationHelper is already initialized in onCreate() for immediate startForeground()
@@ -324,6 +325,42 @@ public class AudioPlayerServiceInitializer(
         setupAudioOutputManager()
         service.playbackEnhancerService.initialize()
         initializeVisualizer()
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun initializeCrossFadePlayer() {
+        service.crossFadePlayer =
+            CrossFadePlayer(service) { context ->
+                androidx.media3.exoplayer.ExoPlayer
+                    .Builder(context)
+                    .setRenderersFactory(androidx.media3.exoplayer.DefaultRenderersFactory(context))
+                    .setWakeMode(androidx.media3.common.C.WAKE_MODE_LOCAL)
+                    .setHandleAudioBecomingNoisy(true)
+                    .setAudioAttributes(
+                        androidx.media3.common.AudioAttributes
+                            .Builder()
+                            .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                            .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_SPEECH)
+                            .build(),
+                        true,
+                    ).build()
+            }
+        service.crossFadePlayer?.onPlayerChanged = { newPlayer ->
+            try {
+                service.mediaLibrarySession?.let { session ->
+                    session.player = newPlayer
+                    LogUtils.d(
+                        "AudioPlayerService",
+                        "MediaSession player updated after crossfade: ${newPlayer.javaClass.simpleName}",
+                    )
+                } ?: LogUtils.w(
+                    "AudioPlayerService",
+                    "MediaLibrarySession is null, cannot update player after crossfade",
+                )
+            } catch (e: Exception) {
+                LogUtils.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
+            }
+        }
     }
 
     private fun restorePlaybackSpeed() {

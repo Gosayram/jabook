@@ -132,4 +132,23 @@ internal class AudioServiceReleaseHandler(
 
         service.isFullyInitializedFlag = false
     }
+
+    /**
+     * Stops playback and releases player resources.
+     * Called for explicit stop (e.g., from Stop button in notification).
+     */
+    public fun stopAndRelease() {
+        val service = getService()
+        val player = service.getActivePlayer()
+        player.stop()
+        player.clearMediaItems()
+        service.playbackTimer?.stopTimer()
+        service.inactivityTimer?.stopTimer()
+
+        // Release MediaSession
+        service.mediaSessionManager?.release()
+        service.mediaSession = null
+
+        LogUtils.d("AudioServiceReleaseHandler", "Player stopped and resources released")
+    }
 }

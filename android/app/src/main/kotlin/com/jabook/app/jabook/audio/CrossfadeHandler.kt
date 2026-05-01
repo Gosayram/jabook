@@ -16,6 +16,9 @@ package com.jabook.app.jabook.audio
 
 import android.os.Handler
 import android.os.Looper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Handles crossfade scheduling and monitoring.
@@ -67,10 +70,25 @@ internal class CrossfadeHandler(
 
         // If within crossfade window AND next track not yet started
         if (remaining <= crossfadeDuration && remaining > 0) {
-            // Trigger crossfade if not already fading
-            // But we need to ensure next track is ready via CrossFadePlayer
-            // logic is handled inside service/playlist manager interaction
-            service.triggerCrossfadeTransition()
+            triggerCrossfadeTransition()
+        }
+    }
+
+    /**
+     * Triggers crossfade transition.
+     * Prepares next track on secondary player and starts crossfade.
+     */
+    public fun triggerCrossfadeTransition() {
+        service.playerServiceScope.launch {
+            val currentPlayer = service.getActivePlayer()
+            val nextSource = playlistManager.getNextMediaSource(currentPlayer.currentMediaItemIndex)
+
+            if (nextSource != null) {
+                withContext(Dispatchers.Main) {
+                    crossFadePlayer.setNextMediaSource(nextSource)
+                    crossFadePlayer.startCrossFade()
+                }
+            }
         }
     }
 }

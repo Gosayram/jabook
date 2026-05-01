@@ -18,13 +18,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.os.Build
 import androidx.annotation.OptIn
-import androidx.core.app.TaskStackBuilder
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
@@ -33,7 +28,6 @@ import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
 import com.jabook.app.jabook.audio.processors.BookLoudnessCompensator
-import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
@@ -44,8 +38,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -226,6 +218,9 @@ public class AudioPlayerService : MediaLibraryService() {
         )
 
     // MediaSession custom layout helper (extracted from service)
+    /** Notification content intent factory (extracted from service). */
+    internal val notificationIntentFactory = NotificationIntentFactory(this)
+
     internal val mediaSessionLayoutHelper =
         MediaSessionLayoutHelper(playerServiceScope) { mediaSession }
 
@@ -396,65 +391,11 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     public fun getMediaSession(): MediaSession? = mediaLibrarySession ?: mediaSession
 
-    /**
-     * Returns the single top activity. It is used by the notification when the app task is
-     * active and an activity is in the fore or background.
-     *
-     * Tapping the notification then typically should trigger a single top activity. This way, the
-     * user navigates to the previous activity when pressing back.
-     *
-     * Based on Media3 DemoPlaybackService example.
-     * Updated to use deep link for direct navigation to PlayerScreen.
-     */
-    internal fun getSingleTopActivity(): PendingIntent? {
-        val immutableFlag =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                PendingIntent.FLAG_IMMUTABLE
-            } else {
-                0
-            }
-        return PendingIntent.getActivity(
-            this,
-            0,
-            Intent(this, ComposeMainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                // Use deep link to navigate directly to PlayerScreen
-                // This works with Compose Navigation's navDeepLink
-                data = android.net.Uri.parse("jabook://player")
-            },
-            immutableFlag or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-    }
+    /** Delegates to [NotificationIntentFactory.getSingleTopActivity]. */
+    internal fun getSingleTopActivity(): PendingIntent? = notificationIntentFactory.getSingleTopActivity()
 
-    /**
-     * Returns a back stacked session activity that is used by the notification when the service is
-     * running standalone as a foreground service. This is typically the case after the app has been
-     * dismissed from the recent tasks, or after automatic playback resumption.
-     *
-     * Typically, a playback activity should be started with a stack of activities underneath. This
-     * way, when pressing back, the user doesn't land on the home screen of the device, but on an
-     * activity defined in the back stack.
-     *
-     * Based on Media3 DemoPlaybackService example.
-     * Uses TaskStackBuilder to create proper back stack: MainActivity -> (Player Screen via Flutter)
-     */
-    internal fun getBackStackedActivity(): PendingIntent? {
-        val immutableFlag =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                PendingIntent.FLAG_IMMUTABLE
-            } else {
-                0
-            }
-        return TaskStackBuilder.create(this).run {
-            // Add MainActivity to back stack
-            addNextIntent(
-                Intent(this@AudioPlayerService, ComposeMainActivity::class.java),
-            )
-            // MainActivity will handle opening player screen via Flutter (open_player flag)
-            // Flutter navigation is handled in MainActivity.onNewIntent() and onResume()
-            getPendingIntent(0, immutableFlag or PendingIntent.FLAG_UPDATE_CURRENT)
-        }
-    }
+    /** Delegates to [NotificationIntentFactory.getBackStackedActivity]. */
+    internal fun getBackStackedActivity(): PendingIntent? = notificationIntentFactory.getBackStackedActivity()
 
     @OptIn(UnstableApi::class) // MediaSessionService.setListener
     override fun onCreate() {
@@ -502,41 +443,6 @@ public class AudioPlayerService : MediaLibraryService() {
             setListener(MediaSessionServiceListener(this))
             PlayerPerformanceLogger.log("Service", "listener set")
 
-            // Initialize CrossFadePlayer BEFORE AudioPlayerServiceInitializer
-            crossFadePlayer =
-                CrossFadePlayer(this) { context ->
-                    ExoPlayer
-                        .Builder(context)
-                        .setRenderersFactory(DefaultRenderersFactory(context))
-                        .setWakeMode(C.WAKE_MODE_LOCAL) // CRITICAL: Keep CPU awake during playback
-                        .setHandleAudioBecomingNoisy(true)
-                        .setAudioAttributes(
-                            AudioAttributes
-                                .Builder()
-                                .setUsage(C.USAGE_MEDIA)
-                                .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                                .build(),
-                            true, // handleAudioFocus=true
-                        ).build()
-                }
-            crossFadePlayer?.onPlayerChanged = { newPlayer ->
-                // CRITICAL: Update MediaSession player when crossfade swaps players (following Rhythm pattern)
-                // This ensures MediaSessionLegacyStub always has the correct player reference
-                try {
-                    mediaLibrarySession?.let { session ->
-                        session.player = newPlayer
-                        LogUtils.d(
-                            "AudioPlayerService",
-                            "MediaSession player updated after crossfade: ${newPlayer.javaClass.simpleName}",
-                        )
-                    } ?: LogUtils.w(
-                        "AudioPlayerService",
-                        "MediaLibrarySession is null, cannot update player after crossfade",
-                    )
-                } catch (e: Exception) {
-                    LogUtils.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
-                }
-            }
             AudioPlayerServiceInitializer(this).let { initializer ->
                 initializer.initialize()
                 initializer.postInitialize()
@@ -639,22 +545,10 @@ public class AudioPlayerService : MediaLibraryService() {
 
     /**
      * Triggers crossfade transition.
-     * Called by CrossfadeHandler when condition is met.
+     * Delegates to CrossfadeHandler.
      */
     public fun triggerCrossfadeTransition() {
-        // Delegate to PlaylistManager to prepare next track on secondary player
-        // Then start crossfade
-        playerServiceScope.launch {
-            val currentPlayer = getActivePlayer()
-            val nextSource = playlistManager?.getNextMediaSource(currentPlayer.currentMediaItemIndex)
-
-            if (nextSource != null) {
-                withContext(Dispatchers.Main) {
-                    crossFadePlayer?.setNextMediaSource(nextSource)
-                    crossFadePlayer?.startCrossFade()
-                }
-            }
-        }
+        crossfadeHandler?.triggerCrossfadeTransition()
     }
 
     /**
@@ -851,22 +745,9 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun forward(seconds: Int = 30): Unit = commandRouter.forward(seconds)
 
-    /**
-     * Stops playback and releases resources.
-     * Closes notification and stops service.
-     */
+    /** Stops playback and releases resources. Delegates to [AudioServiceReleaseHandler]. */
     public fun stopAndRelease() {
-        val player = getActivePlayer()
-        player.stop()
-        player.clearMediaItems()
-        playbackTimer?.stopTimer()
-        inactivityTimer?.stopTimer()
-
-        // Release MediaSession
-        mediaSessionManager?.release()
-        mediaSession = null
-
-        LogUtils.d("AudioPlayerService", "Player stopped and resources released")
+        releaseHandler.stopAndRelease()
     }
 
     /**
