@@ -19,6 +19,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.jabook.app.jabook.compose.domain.model.BookmarkItem
 
 /**
  * Room entity for per-book timeline bookmarks.
@@ -51,3 +52,27 @@ public data class BookmarkEntity(
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
+
+public fun BookmarkEntity.toBookmarkItem(): BookmarkItem =
+    BookmarkItem(
+        id = id,
+        bookId = bookId,
+        chapterIndex = chapterIndex,
+        positionMs = positionMs,
+        noteText = noteText,
+        noteAudioPath = noteAudioPath,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+    )
+
+public fun BookmarkItem.toBookmarkEntity(): BookmarkEntity =
+    BookmarkEntity(
+        id = id,
+        bookId = bookId,
+        chapterIndex = chapterIndex,
+        positionMs = positionMs,
+        noteText = noteText,
+        noteAudioPath = noteAudioPath,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+    )

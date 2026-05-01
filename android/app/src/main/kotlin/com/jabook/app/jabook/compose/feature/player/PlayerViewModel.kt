@@ -28,6 +28,7 @@ import com.jabook.app.jabook.audio.SleepTimerPersistence
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.BookmarkItem
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import com.jabook.app.jabook.compose.domain.model.toTypedResult
 import com.jabook.app.jabook.compose.domain.usecase.library.GetBookDetailsUseCase
@@ -88,6 +89,7 @@ public class PlayerViewModel
         private val sleepTimerRepository: com.jabook.app.jabook.compose.data.repository.SleepTimerRepository,
         private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
         private val booksRepository: com.jabook.app.jabook.compose.data.repository.BooksRepository,
+        private val bookmarkRepository: com.jabook.app.jabook.compose.data.repository.BookmarkRepository,
         private val playbackPositionRepository: PlaybackPositionRepository,
         private val lyricsRepository: com.jabook.app.jabook.data.lyrics.LyricsRepository,
         private val audioVisualizerStateBridge: com.jabook.app.jabook.audio.AudioVisualizerStateBridge,
@@ -136,6 +138,14 @@ public class PlayerViewModel
         public val visualizerWaveformData: StateFlow<FloatArray> = audioVisualizerStateBridge.waveformData
         private val _seekbarWaveformData = MutableStateFlow(FloatArray(SEEKBAR_WAVEFORM_CACHE_SIZE))
         public val seekbarWaveformData: StateFlow<FloatArray> = _seekbarWaveformData.asStateFlow()
+        public val bookmarks: StateFlow<List<BookmarkItem>> =
+            bookmarkRepository
+                .observeBookmarks(bookId)
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = emptyList(),
+                )
 
         private var lastPersistedPlayerSnapshot: PlayerStateSnapshot? = null
         private var restoredBootstrapSnapshot: RestoredBootstrapSnapshot? = null
@@ -792,6 +802,22 @@ public class PlayerViewModel
 
         public fun setPitchCorrectionEnabled(enabled: Boolean) {
             playerController.setPitchCorrectionEnabled(enabled)
+        }
+
+        public fun addBookmarkAtCurrentPosition(noteText: String? = null) {
+            val state = uiState.value as? PlayerState.Active ?: return
+            viewModelScope.launch {
+                bookmarkRepository
+                    .addBookmark(
+                        bookId = state.book.id,
+                        chapterIndex = state.currentChapterIndex,
+                        positionMs = state.currentPosition,
+                        noteText = noteText,
+                    ).onFailure { error ->
+                        logger.e({ "Failed to add bookmark" }, error)
+                        dispatch(PlayerIntent.ReportError("Failed to add bookmark"))
+                    }
+            }
         }
 
         public fun initializeVisualizer() {
