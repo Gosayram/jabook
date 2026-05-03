@@ -115,6 +115,22 @@ internal class PlaylistManager(
     private var lastQueueMutationKey: String? = null
     private var lastQueueMutationAtMs: Long = 0L
 
+    private val playlistLoadCoordinator by lazy {
+        PlaylistLoadCoordinator(
+            isLoading = { isPlaylistLoading },
+            setLoading = { isPlaylistLoading = it },
+            setCurrentLoadingPlaylist = { currentLoadingPlaylist = it },
+            setLastLoadTimestampMs = { lastPlaylistLoadTime = it },
+            cancelAndClearActiveLoadingJob = { cancelAndClearActiveLoadingJob() },
+            nextGeneration = { ++playlistLoadGeneration },
+        )
+    }
+
+    private fun cancelAndClearActiveLoadingJob() {
+        activeLoadingJob?.cancel()
+        activeLoadingJob = null
+    }
+
     /**
      * Applies queue mutation atomically against in-memory queue state.
      *
@@ -285,15 +301,11 @@ internal class PlaylistManager(
                         return@launch
                     }
 
-                    // Cancel any previous loading job to prevent conflicts
-                    activeLoadingJob?.cancel()
-                    activeLoadingJob = null
-
-                    // Mark as loading immediately to prevent concurrent calls
-                    isPlaylistLoading = true
-                    currentLoadingPlaylist = filePaths
-                    lastPlaylistLoadTime = System.currentTimeMillis()
-                    val loadGeneration = ++playlistLoadGeneration
+                    val loadGeneration =
+                        playlistLoadCoordinator.beginOrSkip(filePaths) ?: run {
+                            callback?.invoke(true, null)
+                            return@launch
+                        }
 
                     try {
                         setPlaylistInternal(
@@ -306,10 +318,7 @@ internal class PlaylistManager(
                             loadGeneration = loadGeneration,
                         )
                     } finally {
-                        // Clear loading flag when done
-                        isPlaylistLoading = false
-                        currentLoadingPlaylist = null
-                        activeLoadingJob = null
+                        playlistLoadCoordinator.finish()
                         LogUtils.d(
                             "AudioPlayerService",
                             "Released playlistLoadMutex lock after setPlaylist",
@@ -323,9 +332,7 @@ internal class PlaylistManager(
                     e,
                 )
                 // Ensure cleanup even on error
-                isPlaylistLoading = false
-                currentLoadingPlaylist = null
-                activeLoadingJob = null
+                playlistLoadCoordinator.fail()
                 callback?.invoke(false, e)
             }
         }
@@ -351,9 +358,14 @@ internal class PlaylistManager(
         isBookCompleted = false
         lastCompletedTrackIndex = -1 // Reset saved index for new book
 
-        // Initialize actualTrackIndex from initialTrackIndex or default to 0
-        // Initialize actualTrackIndex from initialTrackIndex or default to 0
-        actualTrackIndex = initialTrackIndex?.coerceIn(0, filePaths.size - 1) ?: 0
+        val sessionState =
+            PlaylistSessionStatePolicy.buildSnapshot(
+                filePaths = filePaths,
+                initialTrackIndex = initialTrackIndex,
+            )
+
+        // Initialize actualTrackIndex from normalized initial track index.
+        actualTrackIndex = sessionState.normalizedTrackIndex
         LogUtils.d(
             "AudioPlayerService",
             "Initialized actualTrackIndex to $actualTrackIndex (from initialTrackIndex=$initialTrackIndex)",
@@ -366,7 +378,7 @@ internal class PlaylistManager(
         // CRITICAL: Sort file paths by numeric prefix to ensure correct playback order
         // This fixes the issue where "10.mp3" might come before "2.mp3" in simple string sort
         // or where the UI chapter list order doesn't match the file list order
-        val sortedFilePaths = sortFilesByNumericPrefix(filePaths)
+        val sortedFilePaths = sessionState.sortedFilePaths
         currentFilePaths = sortedFilePaths
 
         LogUtils.i(
@@ -414,23 +426,31 @@ internal class PlaylistManager(
                 callback?.invoke(true, null)
             }
 
-            // Apply initial position if provided (in background, non-blocking)
-            if (initialTrackIndex != null && initialPosition != null && initialPosition > 0) {
-                val firstTrackIndex = initialTrackIndex.coerceIn(0, filePaths.size - 1)
-                if (firstTrackIndex != initialTrackIndex) {
-                    LogUtils.d(
-                        "AudioPlayerService",
-                        "Target track ($initialTrackIndex) differs from first loaded track ($firstTrackIndex), scheduling position application",
-                    )
-                    playerServiceScope.launch {
-                        playbackController.applyInitialPosition(initialTrackIndex, initialPosition, filePaths.size)
-                    }
-                } else {
-                    LogUtils.d(
-                        "AudioPlayerService",
-                        "Target track ($initialTrackIndex) is first loaded track, position already applied in preparePlaybackOptimized",
+            // Apply initial position if needed (in background, non-blocking).
+            val initialPositionDecision =
+                PlaylistInitialPositionPolicy.decidePostPrepare(
+                    requestedTrackIndex = initialTrackIndex,
+                    requestedPositionMs = initialPosition,
+                    playlistSize = filePaths.size,
+                )
+            if (initialPositionDecision.shouldScheduleDeferredApply) {
+                LogUtils.d(
+                    "AudioPlayerService",
+                    "Target track ($initialTrackIndex) differs from first loaded track " +
+                        "(${initialPositionDecision.normalizedTargetTrackIndex}), scheduling position application",
+                )
+                playerServiceScope.launch {
+                    playbackController.applyInitialPosition(
+                        requireNotNull(initialTrackIndex),
+                        requireNotNull(initialPosition),
+                        filePaths.size,
                     )
                 }
+            } else if (initialTrackIndex != null && initialPosition != null && initialPosition > 0) {
+                LogUtils.d(
+                    "AudioPlayerService",
+                    "Target track ($initialTrackIndex) is first loaded track, position already applied in preparePlaybackOptimized",
+                )
             }
         } catch (e: Exception) {
             LogUtils.e("AudioPlayerService", "Failed to prepare playback", e)
@@ -489,34 +509,38 @@ internal class PlaylistManager(
             LogUtils.w("AudioPlayerService", "Ignoring empty playlist request")
             return@withContext
         }
-        val isSmallPlaylist = playlistSize < 50
+        val strategy = PlaylistLoadStrategyPolicy.select(totalTracks = playlistSize)
 
         LogUtils.i(
             "AudioPlayerService",
             "📥 Starting playlist load: totalTracks=$playlistSize, targetTrack=$initialTrackIndex, " +
-                "targetPosition=${initialPosition}ms, strategy=${if (isSmallPlaylist) "SYNC" else "ASYNC"}",
+                "targetPosition=${initialPosition}ms, strategy=$strategy",
         )
 
         try {
-            if (isSmallPlaylist) {
-                // Use simplified synchronous loading for small playlists (like Rhythm)
-                preparePlaybackSynchronous(
-                    filePaths,
-                    metadata,
-                    initialTrackIndex,
-                    initialPosition,
-                    playlistLoadStartTime,
-                )
-            } else {
-                // Use optimized async loading for large playlists
-                preparePlaybackAsync(
-                    filePaths = filePaths,
-                    metadata = metadata,
-                    initialTrackIndex = initialTrackIndex,
-                    initialPosition = initialPosition,
-                    loadStartTime = playlistLoadStartTime,
-                    loadGeneration = loadGeneration,
-                )
+            when (strategy) {
+                PlaylistLoadStrategy.SYNC -> {
+                    // Use simplified synchronous loading for small playlists (like Rhythm)
+                    preparePlaybackSynchronous(
+                        filePaths,
+                        metadata,
+                        initialTrackIndex,
+                        initialPosition,
+                        playlistLoadStartTime,
+                    )
+                }
+
+                PlaylistLoadStrategy.ASYNC -> {
+                    // Use optimized async loading for large playlists
+                    preparePlaybackAsync(
+                        filePaths = filePaths,
+                        metadata = metadata,
+                        initialTrackIndex = initialTrackIndex,
+                        initialPosition = initialPosition,
+                        loadStartTime = playlistLoadStartTime,
+                        loadGeneration = loadGeneration,
+                    )
+                }
             }
         } catch (e: Exception) {
             LogUtils.e("AudioPlayerService", "Failed to prepare playback", e)
@@ -863,17 +887,19 @@ internal class PlaylistManager(
                         // Don't throw - player is already working with first item
                     } finally {
                         val isCurrentGeneration = isLoadGenerationActive(loadGeneration)
+                        val asyncInitialPositionDecision =
+                            PlaylistAsyncInitialPositionPolicy.decide(
+                                isCurrentGeneration = isCurrentGeneration,
+                                initialTrackIndex = initialTrackIndex,
+                                initialPositionMs = initialPosition,
+                            )
                         // Apply initial position after all tracks are loaded
                         // This prevents ExoPlayer from switching to another track when MediaItems are added
-                        if (isCurrentGeneration &&
-                            initialTrackIndex != null &&
-                            initialPosition != null &&
-                            initialPosition > 0
-                        ) {
+                        if (asyncInitialPositionDecision.shouldApply) {
                             withContext(dispatchers.main) {
                                 applyInitialPositionAfterLoad(
-                                    initialTrackIndex,
-                                    initialPosition,
+                                    requireNotNull(initialTrackIndex),
+                                    requireNotNull(initialPosition),
                                     filePaths.size,
                                     loadStartTime,
                                 )
