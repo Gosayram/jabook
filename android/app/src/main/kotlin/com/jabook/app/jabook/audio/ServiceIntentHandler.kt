@@ -180,6 +180,43 @@ internal class ServiceIntentHandler(
                     }
                     true
                 }
+                AudioPlayerService.ACTION_PLAY -> {
+                    service.play()
+                    true
+                }
+                AudioPlayerService.ACTION_PAUSE -> {
+                    service.pause()
+                    true
+                }
+                AudioPlayerService.ACTION_PLAY_PAUSE -> {
+                    val player = service.getActivePlayer()
+                    if (player.isPlaying) {
+                        service.pause()
+                    } else {
+                        service.play()
+                    }
+                    true
+                }
+                AudioPlayerService.ACTION_NEXT -> {
+                    service.next()
+                    true
+                }
+                AudioPlayerService.ACTION_PREVIOUS -> {
+                    service.previous()
+                    true
+                }
+                AudioPlayerService.ACTION_REWIND -> {
+                    service.rewind()
+                    true
+                }
+                AudioPlayerService.ACTION_FORWARD -> {
+                    service.forward()
+                    true
+                }
+                AudioPlayerService.ACTION_STOP -> {
+                    service.stop()
+                    true
+                }
                 // Widget actions
                 "com.jabook.app.jabook.WIDGET_PLAY_PAUSE" -> {
                     android.util.Log.d("AudioPlayerService", "Widget play/pause action")

@@ -333,6 +333,7 @@ public class AudioPlayerService : MediaLibraryService() {
         // Playback action constants (migrated from deprecated NotificationManager)
         public const val ACTION_PLAY: String = "com.jabook.app.jabook.audio.PLAY"
         public const val ACTION_PAUSE: String = "com.jabook.app.jabook.audio.PAUSE"
+        public const val ACTION_PLAY_PAUSE: String = "com.jabook.app.jabook.audio.PLAY_PAUSE"
         public const val ACTION_NEXT: String = "com.jabook.app.jabook.audio.NEXT"
         public const val ACTION_PREVIOUS: String = "com.jabook.app.jabook.audio.PREVIOUS"
         public const val ACTION_REWIND: String = "com.jabook.app.jabook.audio.REWIND"

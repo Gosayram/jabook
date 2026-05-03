@@ -14,8 +14,11 @@
 
 package com.jabook.app.jabook.compose
 
+import android.app.PendingIntent
 import android.app.PictureInPictureParams
+import android.app.RemoteAction
 import android.content.Intent
+import android.graphics.drawable.Icon
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -276,13 +279,64 @@ public class ComposeMainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         if (!autoPipEnabled || !isPlayerScreenVisible || isInPictureInPictureMode) return
         try {
-            val params = PictureInPictureParams.Builder().build()
+            val params =
+                PictureInPictureParams
+                    .Builder()
+                    .setActions(buildPipActions())
+                    .build()
             enterPictureInPictureMode(params)
         } catch (e: CancellationException) {
             throw e
         } catch (e: IllegalStateException) {
             logger.w { "Failed to enter Picture-in-Picture: ${e.message}" }
         }
+    }
+
+    private fun buildPipActions(): List<RemoteAction> =
+        listOf(
+            createPipAction(
+                requestCode = 101,
+                action = AudioPlayerService.ACTION_REWIND,
+                iconRes = R.drawable.ic_rewind,
+                title = getString(R.string.rewind),
+            ),
+            createPipAction(
+                requestCode = 102,
+                action = AudioPlayerService.ACTION_PLAY_PAUSE,
+                iconRes = R.drawable.ic_play,
+                title = getString(R.string.play),
+            ),
+            createPipAction(
+                requestCode = 103,
+                action = AudioPlayerService.ACTION_FORWARD,
+                iconRes = R.drawable.ic_forward,
+                title = getString(R.string.forward),
+            ),
+        )
+
+    private fun createPipAction(
+        requestCode: Int,
+        action: String,
+        iconRes: Int,
+        title: String,
+    ): RemoteAction {
+        val intent =
+            Intent(this, AudioPlayerService::class.java).apply {
+                this.action = action
+            }
+        val pendingIntent =
+            PendingIntent.getService(
+                this,
+                requestCode,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+        return RemoteAction(
+            Icon.createWithResource(this, iconRes),
+            title,
+            title,
+            pendingIntent,
+        )
     }
 
     private fun sanitizeNavigableIntent(intent: Intent?): Intent? {
