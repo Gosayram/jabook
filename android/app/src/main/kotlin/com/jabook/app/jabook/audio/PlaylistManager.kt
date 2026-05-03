@@ -18,7 +18,6 @@ import android.content.Context
 import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.ContentDataSource
 import androidx.media3.datasource.DataSource
@@ -1011,11 +1010,30 @@ internal class PlaylistManager(
 
         // Apply position with validation
         try {
-            if (!validateTrackIndex(initialTrackIndex, expectedTrackCount, activePlayer)) {
-                LogUtils.e(
-                    "AudioPlayerService",
-                    "Track index validation failed, skipping position application",
+            val trackIndexValidation =
+                PlaylistTrackIndexValidationPolicy.validate(
+                    trackIndex = initialTrackIndex,
+                    expectedCount = expectedTrackCount,
+                    playerItemCount = activePlayer.mediaItemCount,
                 )
+            if (!trackIndexValidation.isValid) {
+                when (trackIndexValidation.failure) {
+                    PlaylistTrackIndexValidationFailure.OUT_OF_EXPECTED_BOUNDS -> {
+                        LogUtils.e(
+                            "AudioPlayerService",
+                            "ERROR: Target track $initialTrackIndex is out of bounds (expected count=$expectedTrackCount)!",
+                        )
+                    }
+                    PlaylistTrackIndexValidationFailure.OUT_OF_PLAYER_BOUNDS -> {
+                        LogUtils.e(
+                            "AudioPlayerService",
+                            "ERROR: Target track $initialTrackIndex >= mediaItemCount=${activePlayer.mediaItemCount}!",
+                        )
+                    }
+                    null -> {
+                        LogUtils.e("AudioPlayerService", "Track index validation failed, skipping position application")
+                    }
+                }
                 return
             }
 
@@ -1048,59 +1066,28 @@ internal class PlaylistManager(
         expectedCount: Int,
         loadStartTime: Long,
     ): Boolean {
-        var attempts = 0
-        var stableCount = 0
-        var lastCount = 0
-        var unchangedCount = 0 // Track how many times count hasn't changed (for test optimization)
-
-        while (attempts < 200) { // Max 20 seconds
+        var state = PlaylistLoadStabilityState()
+        while (state.attempts < PlaylistLoadStabilityPolicy.MAX_WAIT_ATTEMPTS) {
             val currentCount = player.mediaItemCount
-
-            // OPTIMIZATION: Early exit for tests - if count hasn't changed after 10 attempts (1 second),
-            // it's likely a mock that won't change. Accept current count if it matches expected.
-            if (currentCount == lastCount) {
-                unchangedCount++
-                if (unchangedCount >= 10 && attempts >= 10) {
-                    // Count hasn't changed for 1 second - likely a mock in tests
-                    if (currentCount == expectedCount) {
-                        LogUtils.d(
-                            "AudioPlayerService",
-                            "Early exit: mediaItemCount stable at $currentCount (expected $expectedCount) - likely test mock",
-                        )
-                        return true
-                    } else if (currentCount > 0) {
-                        // Some tracks loaded, but not all - accept it for tests
-                        LogUtils.d(
-                            "AudioPlayerService",
-                            "Early exit: mediaItemCount stable at $currentCount (expected $expectedCount) - accepting for test",
-                        )
-                        return currentCount >= expectedCount
-                    }
+            val evaluation =
+                PlaylistLoadStabilityPolicy.evaluate(
+                    state = state,
+                    currentCount = currentCount,
+                    expectedCount = expectedCount,
+                )
+            val terminalResult = evaluation.terminalResult
+            if (terminalResult != null) {
+                if (terminalResult) {
+                    val duration = System.currentTimeMillis() - loadStartTime
+                    LogUtils.i(
+                        "AudioPlayerService",
+                        "✅ Playlist loaded: $currentCount tracks (expected $expectedCount, ${duration}ms)",
+                    )
                 }
-            } else {
-                unchangedCount = 0 // Reset counter when count changes
+                return terminalResult
             }
-
-            if (currentCount == expectedCount) {
-                if (currentCount == lastCount) {
-                    stableCount++
-                    if (stableCount >= 5) { // Stable for 500ms
-                        val duration = System.currentTimeMillis() - loadStartTime
-                        LogUtils.i(
-                            "AudioPlayerService",
-                            "✅ Playlist loaded: $currentCount tracks (expected $expectedCount, ${duration}ms)",
-                        )
-                        return true
-                    }
-                } else {
-                    stableCount = 0
-                }
-            } else {
-                stableCount = 0
-            }
-            lastCount = currentCount
-            delay(100L)
-            attempts++
+            state = evaluation.nextState
+            delay(PlaylistLoadStabilityPolicy.WAIT_POLL_DELAY_MS)
         }
 
         val finalCount = player.mediaItemCount
@@ -1125,41 +1112,10 @@ internal class PlaylistManager(
      */
     private suspend fun waitForPlayerReady(player: ExoPlayer) {
         var attempts = 0
-        while (attempts < 50 &&
-            player.playbackState != Player.STATE_READY &&
-            player.playbackState != Player.STATE_BUFFERING
-        ) {
-            delay(100L)
+        while (PlaylistPlayerReadyWaitPolicy.shouldContinueWaiting(attempts, player.playbackState)) {
+            delay(PlaylistPlayerReadyWaitPolicy.POLL_DELAY_MS)
             attempts++
         }
-    }
-
-    /**
-     * Validates that the track index is within bounds.
-     * Returns true if valid, false otherwise.
-     */
-    private fun validateTrackIndex(
-        trackIndex: Int,
-        expectedCount: Int,
-        player: ExoPlayer,
-    ): Boolean {
-        if (trackIndex >= expectedCount) {
-            LogUtils.e(
-                "AudioPlayerService",
-                "ERROR: Target track $trackIndex is out of bounds (expected count=$expectedCount)!",
-            )
-            return false
-        }
-
-        if (trackIndex >= player.mediaItemCount) {
-            LogUtils.e(
-                "AudioPlayerService",
-                "ERROR: Target track $trackIndex >= mediaItemCount=${player.mediaItemCount}!",
-            )
-            return false
-        }
-
-        return true
     }
 
     /**
@@ -1193,7 +1149,10 @@ internal class PlaylistManager(
 
         // Use CompletableDeferred for event-based waiting if available
         // If not available (e.g., in tests), fall back to polling immediately
-        val useDeferred = setPendingTrackSwitchDeferred != null
+        val useDeferred =
+            PlaylistTrackSwitchDeferredPolicy.shouldUseDeferred(
+                callbackAvailable = setPendingTrackSwitchDeferred != null,
+            )
         if (!useDeferred) {
             LogUtils.d(
                 "AudioPlayerService",
@@ -1204,7 +1163,7 @@ internal class PlaylistManager(
             if (useDeferred) {
                 CompletableDeferred<Int>().also { deferred ->
                     try {
-                        setPendingTrackSwitchDeferred.invoke(deferred)
+                        requireNotNull(setPendingTrackSwitchDeferred).invoke(deferred)
                         LogUtils.d(
                             "AudioPlayerService",
                             "Set pendingTrackSwitchDeferred for track switch to $targetIndex",
@@ -1219,15 +1178,25 @@ internal class PlaylistManager(
             } else {
                 null
             }
+        val deferredToAwait =
+            if (
+                PlaylistTrackSwitchDeferredPolicy.canAwaitDeferred(
+                    useDeferred = useDeferred,
+                    deferredCreated = trackSwitchDeferred != null,
+                )
+            ) {
+                trackSwitchDeferred
+            } else {
+                null
+            }
 
         // Wait for track switch event with timeout
-        if (useDeferred && trackSwitchDeferred != null) {
+        if (deferredToAwait != null) {
             try {
                 // Use withTimeout to prevent infinite waiting in tests
                 val actualIndex =
-                    withTimeout(5000) {
-                        // 5 second timeout
-                        trackSwitchDeferred.await()
+                    withTimeout(PlaylistTrackSwitchDeferredPolicy.SWITCH_TIMEOUT_MS) {
+                        deferredToAwait.await()
                     }
                 LogUtils.d(
                     "AudioPlayerService",
@@ -1246,7 +1215,7 @@ internal class PlaylistManager(
                     "Timeout waiting for track switch event (5s), falling back to polling",
                 )
                 // Cancel deferred to clean up
-                trackSwitchDeferred.cancel()
+                deferredToAwait.cancel()
             } catch (e: Exception) {
                 LogUtils.w(
                     "AudioPlayerService",
@@ -1261,21 +1230,23 @@ internal class PlaylistManager(
             "Using polling fallback to verify track switch to $targetIndex",
         )
         var attempts = 0
-        val maxPollingAttempts = 50 // 5 seconds max
-        while (attempts < maxPollingAttempts) {
+        while (PlaylistTrackSwitchPollingPolicy.shouldContinuePolling(attempts)) {
             val newIndex = player.currentMediaItemIndex
-            val isReady =
-                player.playbackState == Player.STATE_READY ||
-                    player.playbackState == Player.STATE_BUFFERING
 
-            if (newIndex == targetIndex && isReady) {
+            if (
+                PlaylistTrackSwitchPollingPolicy.isSwitchCompleted(
+                    newIndex = newIndex,
+                    targetIndex = targetIndex,
+                    playbackState = player.playbackState,
+                )
+            ) {
                 LogUtils.d(
                     "AudioPlayerService",
                     "Successfully switched to track $targetIndex after $attempts attempts (polling fallback)",
                 )
                 return
             }
-            delay(100L)
+            delay(PlaylistTrackSwitchPollingPolicy.POLLING_DELAY_MS)
             attempts++
         }
 
@@ -1283,7 +1254,7 @@ internal class PlaylistManager(
         val finalIndex = player.currentMediaItemIndex
         LogUtils.w(
             "AudioPlayerService",
-            "Track switch to $targetIndex did not complete after $maxPollingAttempts attempts (current: $finalIndex)",
+            "Track switch to $targetIndex did not complete after ${PlaylistTrackSwitchPollingPolicy.MAX_POLLING_ATTEMPTS} attempts (current: $finalIndex)",
         )
     }
 
