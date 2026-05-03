@@ -50,38 +50,6 @@ import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-internal enum class MediaDataSourceRoute {
-    NETWORK_CACHED,
-    LOCAL_FILE,
-    LOCAL_CONTENT,
-    DEFAULT,
-}
-
-internal fun buildPlaybackUri(path: String): Uri {
-    val isUrl = path.startsWith("http://") || path.startsWith("https://")
-    if (isUrl || path.startsWith("content://") || path.startsWith("file://")) {
-        return Uri.parse(path)
-    }
-
-    return Uri.fromFile(File(path))
-}
-
-internal fun resolveMediaDataSourceRoute(uri: Uri): MediaDataSourceRoute =
-    when (uri.scheme) {
-        "http",
-        "https",
-        -> MediaDataSourceRoute.NETWORK_CACHED
-
-        "file",
-        null,
-        -> MediaDataSourceRoute.LOCAL_FILE
-
-        "content",
-        -> MediaDataSourceRoute.LOCAL_CONTENT
-
-        else -> MediaDataSourceRoute.DEFAULT
-    }
-
 /**
  * Manages playlist preparation and MediaSource creation.
  *
@@ -1463,41 +1431,6 @@ internal class PlaylistManager(
     }
 
     /**
-     * Sorts file paths based on numeric prefix in the filename.
-     *
-     * Extracts number from start of filename (e.g. "01.mp3" -> 1, "10 Chapter.mp3" -> 10).
-     * Falls back to standard string sorting if no number found.
-     */
-    private fun sortFilesByNumericPrefix(filePaths: List<String>): List<String> {
-        val numericPrefixRegex = Regex("^(\\d+)")
-
-        return filePaths.sortedWith(
-            Comparator { path1, path2 ->
-                val name1 = path1.substringAfterLast('/')
-                val name2 = path2.substringAfterLast('/')
-
-                val match1 = numericPrefixRegex.find(name1)
-                val match2 = numericPrefixRegex.find(name2)
-
-                if (match1 != null && match2 != null) {
-                    // Both have numeric prefix - compare as numbers
-                    val num1 = match1.groupValues[1].toLongOrNull() ?: 0L
-                    val num2 = match2.groupValues[1].toLongOrNull() ?: 0L
-
-                    val defaultComparison = num1.compareTo(num2)
-                    if (defaultComparison != 0) {
-                        return@Comparator defaultComparison
-                    }
-                }
-
-                // Fallback: mixed or no numbers, or equal numbers - compare as strings
-                // Use natural sort order logic or simple string compare
-                name1.compareTo(name2, ignoreCase = true)
-            },
-        )
-    }
-
-    /**
      * Creates and returns the MediaSource for the next track.
      * Used for Crossfade pre-loading.
      */
@@ -1671,50 +1604,33 @@ internal class PlaylistManager(
         val player = getActivePlayer()
         val totalTracks = player.mediaItemCount
 
-        if (totalTracks <= keepWindow * 2 + 1) {
-            // Playlist is small, no need to optimize
-            return
-        }
-
-        val filePaths = currentFilePaths ?: return
-
-        // Calculate range of tracks to keep
-        val keepStart = (currentTrackIndex - keepWindow).coerceAtLeast(0)
-        val keepEnd = (currentTrackIndex + keepWindow).coerceAtMost(totalTracks - 1)
-
-        // Find tracks to remove (outside the keep window)
-        val tracksToRemove = mutableListOf<Int>()
-        for (i in 0 until totalTracks) {
-            if (i < keepStart || i > keepEnd) {
-                // Check if track exists before trying to remove
-                // getMediaItemAt throws IndexOutOfBoundsException if index is invalid, not null
-                try {
-                    player.getMediaItemAt(i)
-                    tracksToRemove.add(i) // Track exists, can be removed
-                } catch (e: IndexOutOfBoundsException) {
-                    // Track doesn't exist, skip
-                } catch (e: Exception) {
-                    // Other error, skip
-                }
-            }
-        }
-
-        if (tracksToRemove.isEmpty()) {
-            return
-        }
-
-        // Remove tracks in reverse order to maintain indices
-        tracksToRemove.sortDescending()
+        currentFilePaths ?: return
+        val plan =
+            PlaylistMemoryOptimizationPolicy.buildPlan(
+                totalTracks = totalTracks,
+                currentTrackIndex = currentTrackIndex,
+                keepWindow = keepWindow,
+                trackExistsAt = { index ->
+                    try {
+                        player.getMediaItemAt(index)
+                        true
+                    } catch (e: IndexOutOfBoundsException) {
+                        false
+                    } catch (e: Exception) {
+                        false
+                    }
+                },
+            ) ?: return
 
         LogUtils.d(
             "AudioPlayerService",
-            "🧹 Memory optimization: removing ${tracksToRemove.size} distant tracks " +
-                "(keeping window: $keepStart-$keepEnd around track $currentTrackIndex)",
+            "🧹 Memory optimization: removing ${plan.removalIndicesDescending.size} distant tracks " +
+                "(keeping window: ${plan.keepStartIndex}-${plan.keepEndIndex} around track $currentTrackIndex)",
         )
 
         // Remove tracks from player (ExoPlayer will handle memory cleanup)
         // Note: We remove from highest index to lowest to maintain correct indices
-        for (index in tracksToRemove) {
+        for (index in plan.removalIndicesDescending) {
             try {
                 player.removeMediaItem(index)
                 LogUtils.v("AudioPlayerService", "Removed track $index from memory")
@@ -1725,8 +1641,8 @@ internal class PlaylistManager(
 
         LogUtils.i(
             "AudioPlayerService",
-            "✅ Memory optimized: removed ${tracksToRemove.size} tracks, " +
-                "keeping ${keepEnd - keepStart + 1} tracks around current position",
+            "✅ Memory optimized: removed ${plan.removalIndicesDescending.size} tracks, " +
+                "keeping ${plan.keepEndIndex - plan.keepStartIndex + 1} tracks around current position",
         )
     }
 }

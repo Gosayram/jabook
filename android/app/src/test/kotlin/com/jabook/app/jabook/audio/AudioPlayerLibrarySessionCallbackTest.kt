@@ -18,11 +18,16 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
+import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import androidx.test.core.app.ApplicationProvider
+import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
+import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
@@ -50,6 +55,7 @@ class AudioPlayerLibrarySessionCallbackTest {
     private lateinit var callback: AudioPlayerLibrarySessionCallback
     private lateinit var service: AudioPlayerService
     private lateinit var session: MediaSession
+    private lateinit var librarySession: MediaLibraryService.MediaLibrarySession
     private lateinit var controller: MediaSession.ControllerInfo
     private lateinit var persistenceManager: PlayerPersistenceManager
     private lateinit var torrentRepository: TorrentDownloadRepository
@@ -84,6 +90,7 @@ class AudioPlayerLibrarySessionCallbackTest {
         // because notifyLibraryRootsChanged() returns early when session is not MediaLibrarySession
 
         session = mock()
+        librarySession = mock()
         controller = mock()
         whenever(controller.packageName).thenReturn("com.jabook.app.jabook")
 
@@ -109,6 +116,78 @@ class AudioPlayerLibrarySessionCallbackTest {
         verify(service).rewind(15)
         val result = future.get(1, TimeUnit.SECONDS)
         assertEquals(SessionResult.RESULT_SUCCESS, result.resultCode)
+    }
+
+    @Test
+    fun `onConnect excludes sleep timer commands for automotive controllers`() {
+        whenever(session.isMediaNotificationController(controller)).thenReturn(false)
+        whenever(session.isAutomotiveController(controller)).thenReturn(true)
+        whenever(session.isAutoCompanionController(controller)).thenReturn(false)
+        whenever(controller.packageName).thenReturn("com.android.car.media")
+
+        val result = callback.onConnect(session, controller)
+
+        val sleepTimerCommand =
+            SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY)
+        val rewindCommand =
+            SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_REWIND, Bundle.EMPTY)
+
+        assertTrue(result.availableSessionCommands.contains(rewindCommand))
+        assertTrue(!result.availableSessionCommands.contains(sleepTimerCommand))
+    }
+
+    @Test
+    fun `onConnect includes sleep timer commands for app controller`() {
+        whenever(session.isMediaNotificationController(controller)).thenReturn(false)
+        whenever(session.isAutomotiveController(controller)).thenReturn(false)
+        whenever(session.isAutoCompanionController(controller)).thenReturn(false)
+        whenever(controller.packageName).thenReturn("com.jabook.app.jabook")
+
+        val result = callback.onConnect(session, controller)
+
+        val sleepTimerCommand =
+            SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY)
+        val setPlaylistCommand =
+            SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_PLAYLIST, Bundle.EMPTY)
+
+        assertTrue(result.availableSessionCommands.contains(sleepTimerCommand))
+        assertTrue(result.availableSessionCommands.contains(setPlaylistCommand))
+    }
+
+    @Test
+    fun `onCustomCommand blocks automotive sleep timer command`() {
+        whenever(session.isAutomotiveController(controller)).thenReturn(true)
+        whenever(controller.packageName).thenReturn("com.android.car.media")
+
+        val command =
+            SessionCommand(
+                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES,
+                Bundle.EMPTY,
+            )
+        val args = Bundle().apply { putInt(AudioPlayerLibrarySessionCallback.ARG_MINUTES, 20) }
+
+        val result = callback.onCustomCommand(session, controller, command, args).get(1, TimeUnit.SECONDS)
+
+        assertEquals(SessionError.ERROR_NOT_SUPPORTED, result.resultCode)
+        verify(service, never()).setSleepTimerMinutes(any())
+    }
+
+    @Test
+    fun `onCustomCommand allows app sleep timer command`() {
+        whenever(session.isAutomotiveController(controller)).thenReturn(false)
+        whenever(controller.packageName).thenReturn("com.jabook.app.jabook")
+
+        val command =
+            SessionCommand(
+                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES,
+                Bundle.EMPTY,
+            )
+        val args = Bundle().apply { putInt(AudioPlayerLibrarySessionCallback.ARG_MINUTES, 20) }
+
+        val result = callback.onCustomCommand(session, controller, command, args).get(1, TimeUnit.SECONDS)
+
+        assertEquals(SessionResult.RESULT_SUCCESS, result.resultCode)
+        verify(service).setSleepTimerMinutes(20)
     }
 
     @Test
@@ -309,6 +388,95 @@ class AudioPlayerLibrarySessionCallbackTest {
             assertTrue(result.mediaItems.isEmpty())
             assertEquals(0, result.startIndex)
             assertEquals(0L, result.startPositionMs)
+        }
+
+    @Test
+    fun `onGetLibraryRoot returns offline root id when offline browse params requested`() {
+        val offlineParams =
+            MediaLibraryService
+                .LibraryParams
+                .Builder()
+                .setOffline(true)
+                .build()
+
+        val result =
+            callback
+                .onGetLibraryRoot(librarySession, controller, offlineParams)
+                .get(1, TimeUnit.SECONDS)
+
+        assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
+        assertEquals(AudioPlayerLibrarySessionCallback.ROOT_ID_OFFLINE, result.value?.mediaId)
+    }
+
+    @Test
+    fun `onGetChildren root offline returns only downloaded and seeding torrents`() =
+        runTest {
+            whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(null)
+            whenever(torrentRepository.getAllFlow()).thenReturn(
+                flowOf(
+                    listOf(
+                        TorrentDownload(hash = "h1", name = "Completed", state = TorrentState.COMPLETED),
+                        TorrentDownload(hash = "h2", name = "Seeding", state = TorrentState.SEEDING),
+                        TorrentDownload(hash = "h3", name = "Downloading", state = TorrentState.DOWNLOADING),
+                    ),
+                ),
+            )
+            val offlineParams =
+                MediaLibraryService
+                    .LibraryParams
+                    .Builder()
+                    .setOffline(true)
+                    .build()
+
+            val result =
+                callback
+                    .onGetChildren(
+                        librarySession,
+                        controller,
+                        AudioPlayerLibrarySessionCallback.ROOT_ID_OFFLINE,
+                        page = 0,
+                        pageSize = 100,
+                        params = offlineParams,
+                    ).get(1, TimeUnit.SECONDS)
+
+            assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
+            val mediaIds = result.value?.map { it.mediaId }.orEmpty()
+            assertEquals(listOf("h1", "h2"), mediaIds)
+        }
+
+    @Test
+    fun `onGetChildren root suggested caps to 10 items`() =
+        runTest {
+            whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(null)
+            val downloads =
+                (1..12).map { idx ->
+                    TorrentDownload(
+                        hash = "hash-$idx",
+                        name = "Book $idx",
+                        state = TorrentState.COMPLETED,
+                    )
+                }
+            whenever(torrentRepository.getAllFlow()).thenReturn(flowOf(downloads))
+            val suggestedParams =
+                MediaLibraryService
+                    .LibraryParams
+                    .Builder()
+                    .setSuggested(true)
+                    .build()
+
+            val result =
+                callback
+                    .onGetChildren(
+                        librarySession,
+                        controller,
+                        AudioPlayerLibrarySessionCallback.ROOT_ID_SUGGESTED,
+                        page = 0,
+                        pageSize = 100,
+                        params = suggestedParams,
+                    ).get(1, TimeUnit.SECONDS)
+
+            assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
+            assertEquals(10, result.value?.size)
         }
 
     @Test

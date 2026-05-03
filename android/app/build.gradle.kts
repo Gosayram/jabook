@@ -661,3 +661,35 @@ tasks.register<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jaco
         ),
     )
 }
+
+tasks.register("generateBaselineProfile") {
+    group = "verification"
+    description = "Validates and materializes app baseline profile artifact from src/main/baseline-prof.txt"
+
+    val sourceFile = layout.projectDirectory.file("src/main/baseline-prof.txt")
+    val outputFile = layout.buildDirectory.file("generated/baseline-prof/baseline-prof.txt")
+    outputs.file(outputFile)
+
+    doLast {
+        val input = sourceFile.asFile
+        if (!input.exists()) {
+            throw GradleException(
+                "Missing baseline profile file at ${input.absolutePath}. " +
+                    "Create it before running generateBaselineProfile.",
+            )
+        }
+        val lines =
+            input
+                .readLines()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() && !it.startsWith("#") }
+        if (lines.isEmpty()) {
+            throw GradleException("Baseline profile is empty: ${input.absolutePath}")
+        }
+
+        val output = outputFile.get().asFile
+        output.parentFile.mkdirs()
+        input.copyTo(target = output, overwrite = true)
+        logger.lifecycle("Baseline profile materialized: ${output.absolutePath} (${lines.size} rules)")
+    }
+}
