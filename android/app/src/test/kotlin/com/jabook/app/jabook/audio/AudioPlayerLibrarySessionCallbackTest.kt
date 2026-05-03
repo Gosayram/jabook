@@ -15,7 +15,9 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
@@ -24,8 +26,10 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -38,6 +42,7 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
@@ -251,5 +256,140 @@ class AudioPlayerLibrarySessionCallbackTest {
             result.extras.getString(SetPlaylistCommandResultPolicy.EXTRA_ERROR_REASON),
         )
         verify(service, never()).setPlaylist(any(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull())
+    }
+
+    @Test
+    fun `onPlaybackResumption returns empty when current book is completed`() =
+        runTest {
+            whenever(service.isBookCompleted).thenReturn(true)
+
+            val result = callback.onPlaybackResumption(session, controller).get(1, TimeUnit.SECONDS)
+
+            assertTrue(result.mediaItems.isEmpty())
+            assertEquals(0, result.startIndex)
+            assertEquals(0L, result.startPositionMs)
+        }
+
+    @Test
+    fun `onPlaybackResumption restores persisted playlist with start index and position`() =
+        runTest {
+            whenever(service.isBookCompleted).thenReturn(false)
+
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val existingFile = File(context.cacheDir, "resume_chapter_01.mp3").apply { writeText("fake-audio") }
+            val missingFile = File(context.cacheDir, "resume_missing.mp3").absolutePath
+
+            whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(
+                PlayerPersistenceManager.PersistedPlayerState(
+                    groupPath = "book://resume-case",
+                    filePaths = listOf(existingFile.absolutePath, missingFile),
+                    currentIndex = 0,
+                    currentPosition = 42_000L,
+                    metadata = mapOf("title" to "Resume Book", "artist" to "Narrator"),
+                ),
+            )
+
+            val result = callback.onPlaybackResumption(session, controller).get(1, TimeUnit.SECONDS)
+
+            assertEquals(1, result.mediaItems.size)
+            assertEquals(existingFile.absolutePath, result.mediaItems.first().mediaId)
+            assertEquals(0, result.startIndex)
+            assertEquals(42_000L, result.startPositionMs)
+        }
+
+    @Test
+    fun `onPlaybackResumption returns empty when no persisted and no fallback item`() =
+        runTest {
+            whenever(service.isBookCompleted).thenReturn(false)
+            whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(null)
+            whenever(persistenceManager.retrieveLastStoredMediaItem()).thenReturn(null)
+
+            val result = callback.onPlaybackResumption(session, controller).get(1, TimeUnit.SECONDS)
+
+            assertTrue(result.mediaItems.isEmpty())
+            assertEquals(0, result.startIndex)
+            assertEquals(0L, result.startPositionMs)
+        }
+
+    @Test
+    fun `onMediaButtonEvent routes NEXT and PREVIOUS to forward and rewind`() {
+        val nextIntent =
+            Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                putExtra(
+                    Intent.EXTRA_KEY_EVENT,
+                    KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_NEXT),
+                )
+            }
+        val previousIntent =
+            Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                putExtra(
+                    Intent.EXTRA_KEY_EVENT,
+                    KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS),
+                )
+            }
+
+        val nextHandled = callback.onMediaButtonEvent(session, controller, nextIntent)
+        val previousHandled = callback.onMediaButtonEvent(session, controller, previousIntent)
+
+        assertTrue(nextHandled)
+        assertTrue(previousHandled)
+        verify(service).forward(30)
+        verify(service).rewind(15)
+    }
+
+    @Test
+    fun `onMediaButtonEvent routes single double triple clicks to play pause next previous`() {
+        val playPauseIntent =
+            Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                putExtra(
+                    Intent.EXTRA_KEY_EVENT,
+                    KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE),
+                )
+            }
+
+        callback.onMediaButtonEvent(session, controller, playPauseIntent)
+
+        val keyCodeCaptor = argumentCaptor<Int>()
+        val singleClickCaptor = argumentCaptor<() -> Unit>()
+        val doubleClickCaptor = argumentCaptor<() -> Unit>()
+        val tripleClickCaptor = argumentCaptor<() -> Unit>()
+        verify(mediaButtonHandler).onMediaButtonEvent(
+            keyCodeCaptor.capture(),
+            onSingleClick = singleClickCaptor.capture(),
+            onDoubleClick = doubleClickCaptor.capture(),
+            onTripleClick = tripleClickCaptor.capture(),
+        )
+        assertEquals(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, keyCodeCaptor.firstValue)
+
+        whenever(service.isPlaying).thenReturn(false, true)
+
+        singleClickCaptor.firstValue.invoke()
+        singleClickCaptor.firstValue.invoke()
+        doubleClickCaptor.firstValue.invoke()
+        tripleClickCaptor.firstValue.invoke()
+
+        verify(service).play()
+        verify(service).pause()
+        verify(service).next()
+        verify(service).previous()
+    }
+
+    @Test
+    fun `onMediaButtonEvent ignores ACTION_UP events`() {
+        val actionUpIntent =
+            Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                putExtra(
+                    Intent.EXTRA_KEY_EVENT,
+                    KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE),
+                )
+            }
+
+        callback.onMediaButtonEvent(session, controller, actionUpIntent)
+
+        verify(mediaButtonHandler, never()).onMediaButtonEvent(any(), any(), any(), any())
+        verify(service, never()).play()
+        verify(service, never()).pause()
+        verify(service, never()).next()
+        verify(service, never()).previous()
     }
 }
