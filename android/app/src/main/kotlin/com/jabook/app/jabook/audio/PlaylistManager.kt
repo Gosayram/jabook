@@ -706,42 +706,16 @@ internal class PlaylistManager(
                             "Loading ${remainingIndices.size} remaining MediaItems asynchronously in parallel (large playlist: $isLargePlaylist)",
                         )
 
-                        // OPTIMIZATION: Prioritize loading critical tracks for faster navigation
-                        // Priority order:
-                        // 1. 2 previous tracks (if exist) - highest priority for backward navigation
-                        // 2. 2 next tracks (if exist) - highest priority for forward navigation
-                        // 3. All other tracks - can load in any order
-                        val criticalPrevious = mutableListOf<Int>() // 2 tracks before target
-                        val criticalNext = mutableListOf<Int>() // 2 tracks after target
-                        val otherIndices = mutableListOf<Int>() // All other tracks
-
-                        for (index in remainingIndices) {
-                            when {
-                                // 2 previous tracks (if exist) - highest priority
-                                index >= firstTrackIndex - 2 && index < firstTrackIndex -> {
-                                    criticalPrevious.add(index)
-                                }
-                                // 2 next tracks (if exist) - highest priority
-                                index > firstTrackIndex && index <= firstTrackIndex + 2 -> {
-                                    criticalNext.add(index)
-                                }
-                                // All other tracks - lower priority
-                                else -> {
-                                    otherIndices.add(index)
-                                }
-                            }
-                        }
-
-                        // Sort critical tracks to maintain order (previous descending, next ascending)
-                        criticalPrevious.sortDescending() // Load closest to target first
-                        criticalNext.sort() // Load closest to target first
-                        // Other tracks sorted by index to maintain order
-                        otherIndices.sort()
+                        val loadPriorityPlan =
+                            PlaylistAsyncLoadPriorityPolicy.buildPlan(
+                                remainingIndices = remainingIndices,
+                                firstTrackIndex = firstTrackIndex,
+                            )
 
                         LogUtils.d(
                             "AudioPlayerService",
-                            "Loading priority: ${criticalPrevious.size} previous (target-2 to target-1), " +
-                                "${criticalNext.size} next (target+1 to target+2), ${otherIndices.size} others",
+                            "Loading priority: ${loadPriorityPlan.criticalPrevious.size} previous (target-2 to target-1), " +
+                                "${loadPriorityPlan.criticalNext.size} next (target+1 to target+2), ${loadPriorityPlan.otherIndices.size} others",
                         )
 
                         // Mutex to synchronize addMediaSource calls and ensure correct order
@@ -774,52 +748,72 @@ internal class PlaylistManager(
                                 // Wait for all previous indices to be added before adding this one
                                 // CRITICAL: We must wait for all previous indices to be in addedIndices
                                 // This ensures that ExoPlayer has all previous items before we add the next one
+                                val orderedInsertWaitDecision = PlaylistOrderedInsertWaitPolicy.decide()
                                 var waitAttempts = 0
-                                while (waitAttempts < 200) { // Max 20 seconds wait
+                                while (
+                                    PlaylistOrderedInsertWaitPolicy.shouldContinueWaiting(
+                                        waitAttempts = waitAttempts,
+                                        maxAttempts = orderedInsertWaitDecision.maxAttempts,
+                                    )
+                                ) {
                                     val allPreviousAdded =
                                         addMutex.withLock {
                                             // Check if all previous indices (except firstTrackIndex) are in addedIndices
-                                            (0 until index).all { it == firstTrackIndex || it in addedIndices }
+                                            PlaylistOrderedInsertWaitPolicy.areAllPreviousIndicesAdded(
+                                                index = index,
+                                                firstTrackIndex = firstTrackIndex,
+                                                addedIndices = addedIndices,
+                                            )
                                         }
                                     if (allPreviousAdded) {
                                         break
                                     }
-                                    delay(100L)
+                                    delay(orderedInsertWaitDecision.delayMs)
                                     waitAttempts++
                                 }
 
                                 // Add to player with synchronization to maintain order
                                 withContext(dispatchers.main) {
                                     addMutex.withLock {
-                                        // CRITICAL: Check if already added BEFORE getting player (prevent duplicates)
-                                        if (index in addedIndices) {
-                                            LogUtils.w(
-                                                "AudioPlayerService",
-                                                "MediaItem at index $index already added, skipping duplicate",
-                                            )
-                                            return@withContext
-                                        }
-
                                         val activePlayer = getActivePlayer()
                                         val currentCount = activePlayer.mediaItemCount
 
-                                        // Double-check: verify the index is not already in the player
-                                        // This prevents race conditions where another coroutine added it
+                                        var existingPathAtIndex: String? = null
                                         if (currentCount > index) {
-                                            // Check if this position already has a media item
                                             try {
-                                                val existingItem = activePlayer.getMediaItemAt(index)
-                                                if (existingItem.localConfiguration?.uri?.path == filePaths[index]) {
-                                                    LogUtils.w(
-                                                        "AudioPlayerService",
-                                                        "MediaItem at index $index already exists in player, skipping duplicate",
-                                                    )
-                                                    addedIndices.add(index) // Mark as added to prevent future attempts
-                                                    return@withContext
-                                                }
+                                                existingPathAtIndex =
+                                                    activePlayer
+                                                        .getMediaItemAt(index)
+                                                        .localConfiguration
+                                                        ?.uri
+                                                        ?.path
                                             } catch (e: Exception) {
-                                                // Index might be out of bounds, continue with add
+                                                // Index might be out of bounds, continue with add.
                                             }
+                                        }
+                                        val dedupDecision =
+                                            PlaylistAddDedupPolicy.decide(
+                                                index = index,
+                                                expectedPath = filePaths[index],
+                                                addedIndices = addedIndices,
+                                                currentPlayerItemCount = currentCount,
+                                                existingPathAtIndex = existingPathAtIndex,
+                                            )
+                                        if (dedupDecision.shouldMarkAdded) {
+                                            addedIndices.add(index)
+                                        }
+                                        if (dedupDecision.shouldSkipAdd) {
+                                            val reason =
+                                                when (dedupDecision.reason) {
+                                                    PlaylistAddDedupReason.ALREADY_MARKED_ADDED -> "already added"
+                                                    PlaylistAddDedupReason.PLAYER_ALREADY_HAS_EXPECTED_ITEM -> "already exists in player"
+                                                    PlaylistAddDedupReason.PROCEED -> "skip"
+                                                }
+                                            LogUtils.w(
+                                                "AudioPlayerService",
+                                                "MediaItem at index $index $reason, skipping duplicate",
+                                            )
+                                            return@withContext
                                         }
 
                                         // All checks passed, add the MediaItem
@@ -846,23 +840,19 @@ internal class PlaylistManager(
                         // Load all tracks in parallel using launch for each
                         // The dispatcher will limit parallelism to 16 concurrent tasks
                         // Order: critical previous, critical next, then others
-                        val allIndices = criticalPrevious + criticalNext + otherIndices
+                        val allIndices = loadPriorityPlan.orderedIndices
                         val jobs =
                             allIndices.map { index ->
-                                val priority =
-                                    when {
-                                        index in criticalPrevious -> "critical_previous"
-                                        index in criticalNext -> "critical_next"
-                                        else -> "other"
-                                    }
+                                val priority = PlaylistAsyncLoadPriorityPolicy.priorityLabelFor(index, loadPriorityPlan)
                                 playerServiceScope.launch(mediaItemDispatcher) {
                                     loadMediaItem(index, priority)
                                 }
                             }
 
+                        val asyncLoadWaitDecision = PlaylistAsyncLoadWaitPolicy.decide(isLargePlaylist)
                         // Wait for all jobs to complete (optional - they run in background anyway)
                         // This allows us to verify completion if needed
-                        if (isLargePlaylist) {
+                        if (!asyncLoadWaitDecision.shouldDelayForCriticalStart) {
                             // For large playlists, don't wait - let them load in background
                             LogUtils.d(
                                 "AudioPlayerService",
@@ -870,14 +860,14 @@ internal class PlaylistManager(
                             )
                         } else {
                             // For smaller playlists, wait briefly to ensure critical tracks load
-                            kotlinx.coroutines.delay(100L) // Small delay to let priority tracks start
+                            kotlinx.coroutines.delay(asyncLoadWaitDecision.delayMs)
                         }
 
                         LogUtils.i(
                             "AudioPlayerService",
                             "All ${filePaths.size} MediaItems scheduled for parallel loading " +
-                                "(critical previous: ${criticalPrevious.size}, " +
-                                "critical next: ${criticalNext.size}, others: ${otherIndices.size})",
+                                "(critical previous: ${loadPriorityPlan.criticalPrevious.size}, " +
+                                "critical next: ${loadPriorityPlan.criticalNext.size}, others: ${loadPriorityPlan.otherIndices.size})",
                         )
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         LogUtils.d("AudioPlayerService", "MediaItems loading job cancelled")
@@ -921,45 +911,59 @@ internal class PlaylistManager(
             // Verify playlist order after all items are loaded (in separate coroutine to not block)
             playerServiceScope.launch {
                 try {
-                    if (!isLoadGenerationActive(loadGeneration)) {
+                    val initialDecision =
+                        PlaylistOrderVerificationPolicy.decide(
+                            isCurrentGeneration = isLoadGenerationActive(loadGeneration),
+                        )
+                    if (!initialDecision.shouldProceed) {
                         return@launch
                     }
                     // Wait a bit for items to load
-                    delay(2000L)
-                    if (!isLoadGenerationActive(loadGeneration)) {
+                    delay(initialDecision.waitBeforeVerificationMs)
+                    val postDelayDecision =
+                        PlaylistOrderVerificationPolicy.decide(
+                            isCurrentGeneration = isLoadGenerationActive(loadGeneration),
+                        )
+                    if (!postDelayDecision.shouldProceed) {
                         return@launch
                     }
                     withContext(dispatchers.main) {
                         val activePlayer = getActivePlayer()
-                        if (activePlayer.mediaItemCount == filePaths.size) {
-                            var orderMismatchCount = 0
-                            for (i in 0 until activePlayer.mediaItemCount) {
-                                val item = activePlayer.getMediaItemAt(i)
-                                val expectedPath = filePaths[i]
-                                val actualPath = item.localConfiguration?.uri?.path
-                                if (actualPath != expectedPath) {
-                                    orderMismatchCount++
-                                    LogUtils.w(
-                                        "AudioPlayerService",
-                                        "Playlist order mismatch at index $i: expected $expectedPath, got $actualPath",
-                                    )
-                                }
+                        val actualPaths =
+                            (0 until activePlayer.mediaItemCount).map { index ->
+                                activePlayer
+                                    .getMediaItemAt(index)
+                                    .localConfiguration
+                                    ?.uri
+                                    ?.path
                             }
-                            if (orderMismatchCount == 0) {
-                                LogUtils.d(
-                                    "AudioPlayerService",
-                                    "Playlist order verified: all ${activePlayer.mediaItemCount} items are in correct order",
-                                )
-                            } else {
-                                LogUtils.w(
-                                    "AudioPlayerService",
-                                    "Playlist order verification found $orderMismatchCount mismatches out of ${activePlayer.mediaItemCount} items",
-                                )
-                            }
+                        val verificationResult =
+                            PlaylistOrderVerificationResultPolicy.evaluate(
+                                expectedPaths = filePaths,
+                                actualPaths = actualPaths,
+                            )
+                        if (!verificationResult.sizeMatches) {
+                            LogUtils.w(
+                                "AudioPlayerService",
+                                "Playlist size mismatch: expected ${verificationResult.expectedSize}, got ${verificationResult.actualSize}",
+                            )
+                            return@withContext
+                        }
+                        for (mismatch in verificationResult.mismatches) {
+                            LogUtils.w(
+                                "AudioPlayerService",
+                                "Playlist order mismatch at index ${mismatch.index}: expected ${mismatch.expectedPath}, got ${mismatch.actualPath}",
+                            )
+                        }
+                        if (verificationResult.mismatchCount == 0) {
+                            LogUtils.d(
+                                "AudioPlayerService",
+                                "Playlist order verified: all ${verificationResult.actualSize} items are in correct order",
+                            )
                         } else {
                             LogUtils.w(
                                 "AudioPlayerService",
-                                "Playlist size mismatch: expected ${filePaths.size}, got ${activePlayer.mediaItemCount}",
+                                "Playlist order verification found ${verificationResult.mismatchCount} mismatches out of ${verificationResult.actualSize} items",
                             )
                         }
                     }
