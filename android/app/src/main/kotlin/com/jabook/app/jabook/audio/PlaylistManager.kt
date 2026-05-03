@@ -71,6 +71,10 @@ internal class PlaylistManager(
     private val playbackController: PlaybackController,
     private val getCurrentTrackIndex: () -> Int = { 0 }, // fallback
 ) {
+    private val preloadExecutor by lazy {
+        PlaylistPreloadExecutor(mainDispatcher = dispatchers.main)
+    }
+
     internal data class QueueSnapshot(
         val filePaths: List<String>,
         val currentIndex: Int,
@@ -1511,79 +1515,77 @@ internal class PlaylistManager(
      * @param nextTrackIndex Index of the track to preload
      */
     public fun preloadNextTrack(nextTrackIndex: Int) {
-        val filePaths =
-            this.currentFilePaths ?: run {
+        val filePaths = this.currentFilePaths
+        val playlistSize = filePaths?.size
+
+        val player = getActivePlayer()
+        val alreadyLoaded = TrackExistencePolicy.exists(player, nextTrackIndex)
+        when (PlaylistPreloadPolicy.decide(playlistSize = playlistSize, targetIndex = nextTrackIndex, alreadyLoaded = alreadyLoaded)) {
+            PreloadDecision.SKIP_NO_PATHS -> {
                 LogUtils.w("AudioPlayerService", "Cannot preload track $nextTrackIndex: no file paths available")
                 return
             }
 
-        if (nextTrackIndex < 0 || nextTrackIndex >= filePaths.size) {
-            LogUtils.w(
-                "AudioPlayerService",
-                "Cannot preload track $nextTrackIndex: index out of bounds (size=${filePaths.size})",
-            )
-            return
-        }
-
-        val player = getActivePlayer()
-
-        // Check if track is already loaded
-        // getMediaItemAt throws IndexOutOfBoundsException if index is invalid, not null
-        val alreadyLoaded =
-            try {
-                player.getMediaItemAt(nextTrackIndex)
-                true // Track exists if no exception thrown
-            } catch (e: IndexOutOfBoundsException) {
-                false // Track doesn't exist
-            } catch (e: Exception) {
-                false // Other error, assume not loaded
+            PreloadDecision.SKIP_OUT_OF_BOUNDS -> {
+                LogUtils.w(
+                    "AudioPlayerService",
+                    "Cannot preload track $nextTrackIndex: index out of bounds (size=${playlistSize ?: 0})",
+                )
+                return
             }
 
-        if (alreadyLoaded) {
-            LogUtils.v("AudioPlayerService", "Track $nextTrackIndex already loaded, skipping preload")
-            return
+            PreloadDecision.SKIP_ALREADY_LOADED -> {
+                LogUtils.v("AudioPlayerService", "Track $nextTrackIndex already loaded, skipping preload")
+                return
+            }
+
+            PreloadDecision.PRELOAD -> Unit
         }
+        val nonNullPaths = filePaths ?: return
 
         // Preload in background to avoid blocking
         playerServiceScope.launch(mediaItemDispatcher) {
-            try {
-                LogUtils.d("AudioPlayerService", "🔄 Preloading next track: $nextTrackIndex")
-                val dataSourceFactory = SimpleMediaDataSourceFactory()
-                val currentMetadata = currentMetadata
-
-                val mediaSource =
-                    createMediaSourceForIndex(
-                        filePaths = filePaths,
-                        index = nextTrackIndex,
-                        metadata = currentMetadata,
-                        dataSourceFactory = dataSourceFactory,
-                    )
-
-                withContext(dispatchers.main) {
-                    // Check again if track was loaded while we were creating MediaSource
-                    // getMediaItemAt throws IndexOutOfBoundsException if index is invalid, not null
-                    val stillNeeded =
-                        try {
-                            player.getMediaItemAt(nextTrackIndex)
-                            false // Track exists, no need to add
-                        } catch (e: IndexOutOfBoundsException) {
-                            true // Track doesn't exist, need to add
-                        } catch (e: Exception) {
-                            true // Other error, assume need to add
-                        }
-
-                    if (stillNeeded) {
-                        player.addMediaSource(nextTrackIndex, mediaSource)
-                        LogUtils.i("AudioPlayerService", "✅ Preloaded track $nextTrackIndex for smooth transition")
-                    } else {
-                        LogUtils.v(
-                            "AudioPlayerService",
-                            "Track $nextTrackIndex was loaded by another process, skipping",
+            LogUtils.d("AudioPlayerService", "🔄 Preloading next track: $nextTrackIndex")
+            val dataSourceFactory = SimpleMediaDataSourceFactory()
+            val metadataSnapshot = currentMetadata
+            val executionResult =
+                preloadExecutor.execute(
+                    buildMediaSource = {
+                        createMediaSourceForIndex(
+                            filePaths = nonNullPaths,
+                            index = nextTrackIndex,
+                            metadata = metadataSnapshot,
+                            dataSourceFactory = dataSourceFactory,
                         )
-                    }
+                    },
+                    shouldAttachOnMain = {
+                        PlaylistPreloadPolicy.shouldAttachAfterBuild(
+                            !TrackExistencePolicy.exists(player, nextTrackIndex),
+                        )
+                    },
+                    attachOnMain = { mediaSource ->
+                        player.addMediaSource(nextTrackIndex, mediaSource)
+                    },
+                )
+            when (executionResult) {
+                PlaylistPreloadExecutionResult.Attached -> {
+                    LogUtils.i("AudioPlayerService", "✅ Preloaded track $nextTrackIndex for smooth transition")
                 }
-            } catch (e: Exception) {
-                LogUtils.w("AudioPlayerService", "Failed to preload track $nextTrackIndex", e)
+
+                PlaylistPreloadExecutionResult.SkippedAlreadyAvailable -> {
+                    LogUtils.v(
+                        "AudioPlayerService",
+                        "Track $nextTrackIndex was loaded by another process, skipping",
+                    )
+                }
+
+                is PlaylistPreloadExecutionResult.Failed -> {
+                    LogUtils.w(
+                        "AudioPlayerService",
+                        "Failed to preload track $nextTrackIndex",
+                        executionResult.error,
+                    )
+                }
             }
         }
     }
@@ -1610,16 +1612,7 @@ internal class PlaylistManager(
                 totalTracks = totalTracks,
                 currentTrackIndex = currentTrackIndex,
                 keepWindow = keepWindow,
-                trackExistsAt = { index ->
-                    try {
-                        player.getMediaItemAt(index)
-                        true
-                    } catch (e: IndexOutOfBoundsException) {
-                        false
-                    } catch (e: Exception) {
-                        false
-                    }
-                },
+                trackExistsAt = { index -> TrackExistencePolicy.exists(player, index) },
             ) ?: return
 
         LogUtils.d(
@@ -1628,20 +1621,21 @@ internal class PlaylistManager(
                 "(keeping window: ${plan.keepStartIndex}-${plan.keepEndIndex} around track $currentTrackIndex)",
         )
 
-        // Remove tracks from player (ExoPlayer will handle memory cleanup)
-        // Note: We remove from highest index to lowest to maintain correct indices
-        for (index in plan.removalIndicesDescending) {
-            try {
-                player.removeMediaItem(index)
-                LogUtils.v("AudioPlayerService", "Removed track $index from memory")
-            } catch (e: Exception) {
-                LogUtils.w("AudioPlayerService", "Failed to remove track $index", e)
-            }
-        }
+        val report =
+            PlaylistMemoryOptimizer.applyPlan(
+                plan = plan,
+                removeByIndex = { index ->
+                    player.removeMediaItem(index)
+                    LogUtils.v("AudioPlayerService", "Removed track $index from memory")
+                },
+                onRemovalFailed = { index, error ->
+                    LogUtils.w("AudioPlayerService", "Failed to remove track $index", error)
+                },
+            )
 
         LogUtils.i(
             "AudioPlayerService",
-            "✅ Memory optimized: removed ${plan.removalIndicesDescending.size} tracks, " +
+            "✅ Memory optimized: removed ${report.successfulRemovals}/${report.attemptedRemovals} tracks, " +
                 "keeping ${plan.keepEndIndex - plan.keepStartIndex + 1} tracks around current position",
         )
     }
