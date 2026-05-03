@@ -218,6 +218,8 @@
     <string name="statusLabelNoColon">Статус</string>
     <!-- Метка для прогресса загрузки -->
     <string name="downloadProgressLabel">Прогресс</string>
+    <!-- Текст бейджа прогресса активной загрузки на обложке книги -->
+    <string name="downloadProgressBadge">Загрузка %1$d%%</string>
     <!-- Заголовок статистики кэша -->
     <string name="cacheStatistics">Статистика кэша</string>
     <!-- Метка для общего количества записей -->
@@ -289,7 +291,18 @@
     <string name="auto_rewind_desc">Перематывать на 2 секунды назад при возобновлении после долгой паузы</string>
     <string name="resume_rewind_title">Перемотка при возобновлении после долгой паузы</string>
     <string name="resume_rewind_desc">Если пауза длится более 30 минут, при возобновлении перемотать назад на выбранное значение</string>
+    <string name="resume_rewind_mode_smart">Умный</string>
+    <string name="resume_rewind_mode_fixed">Фиксированный</string>
+    <string name="resume_rewind_fixed_title">Фиксированная перемотка</string>
+    <string name="resume_rewind_fixed_desc">Используется при фиксированном режиме</string>
+    <string name="resume_rewind_aggressiveness_title">Агрессивность умной перемотки</string>
+    <string name="resume_rewind_aggressiveness_desc">Определяет, сколько контекста повторять после паузы</string>
     <string name="resume_rewind_option_seconds">%1$d с</string>
+    <string name="hold_to_boost_speed_title">Скорость удержания для ускорения</string>
+    <string name="hold_to_boost_speed_desc">Временная скорость при удержании кнопки скорости в плеере</string>
+    <string name="auto_pip_title">Авто Picture-in-Picture</string>
+    <string name="auto_pip_desc">Автоматически переходить в Picture-in-Picture при выходе из плеера</string>
+    <string name="playback_speed_format">%1$.1fx</string>
     <string name="sleep_timer_shake_extend_title">Встряхивание для продления таймера сна</string>
     <string name="sleep_timer_shake_extend_desc">Встряхните устройство, чтобы добавить 5 минут к активному таймеру сна (фиксированный режим)</string>
 
@@ -312,6 +325,13 @@
     <string name="audioEnhancementTitle">Улучшение звука</string>
     <!-- Описание настроек улучшения звука -->
     <string name="audioEnhancementDescription">Улучшение качества звука и стабильности громкости</string>
+    <string name="equalizer_section_title">Эквалайзер</string>
+    <string name="equalizer_preset_title">Пресет</string>
+    <string name="equalizer_preset_desc">Подстройка тембра речи под условия прослушивания</string>
+    <string name="equalizer_preset_flat">Плоский</string>
+    <string name="equalizer_preset_voice_clarity">Чёткость речи</string>
+    <string name="equalizer_preset_night">Ночной</string>
+    <string name="equalizer_point_tooltip">%1$s • %2$s</string>
     <!-- Заголовок настройки нормализации громкости -->
     <string name="normalizeVolumeTitle">Нормализация громкости</string>
     <!-- Описание настройки нормализации громкости -->
@@ -1375,6 +1395,15 @@
     <string name="detectedRom">Обнаружена оболочка: {rom}</string>
     <!-- Кнопка пропустить -->
     <string name="skip">Пропустить</string>
+    <string name="save">Сохранить</string>
+    <string name="bookmarkNoteSheetTitle">Заметка к закладке</string>
+    <string name="bookmarkNoteSheetLabel">Заметка</string>
+    <string name="bookmarkNoteSheetPlaceholder">Добавьте короткую заметку к этой закладке</string>
+    <string name="loading_player">Загрузка плеера</string>
+    <string name="recordVoiceNote">Записать голосовую заметку</string>
+    <string name="stopRecording">Остановить запись</string>
+    <string name="playVoiceNote">Прослушать заметку</string>
+    <string name="stopPlayback">Остановить воспроизведение</string>
     <!-- Кнопка подтверждения -->
     <string name="gotIt">Понятно</string>
     <!-- Заголовок баннера совместимости фоновой работы -->
@@ -2434,6 +2463,11 @@
     <string name="sleep_timer_end_of_track">%1$s</string>
     <string name="sleep_timer_idle">Не активен</string>
     <string name="sleepTimerTitle">Таймер сна</string>
+    <string name="sleepTimerRepeatYesterday">Как вчера (%1$d мин)</string>
+    <string name="sleepTimerStopsAt">Остановка в %1$s (через %2$s)</string>
+    <string name="sleepTimerResumeHint">Таймер сна остановил воспроизведение. Продолжить с того же места.</string>
+    <string name="stopAtSpecificTime">Остановить в конкретное время</string>
+    <string name="stopAtSpecificTimeDesc">Выберите время по часам (например, 23:30)</string>
     <string name="currentMirror">Текущее зеркало</string>
     <string name="theme">Тема</string>
     <string name="darkThemeName">Тёмная</string>
@@ -2591,6 +2625,8 @@
     <!-- Строки панели глав плеера -->
     <string name="currentlyPlaying">Сейчас играет</string>
     <string name="jumpToChapterNumber">Перейти к главе №...</string>
+    <string name="playerChapterNavigationSnackbar">Перешли к главе %1$d</string>
+    <string name="undoAction">Отменить</string>
     <!-- Строки панели фильтров поиска -->
     <string name="sizeRange">Диапазон размера</string>
     <string name="sizeRangeWithBounds">Диапазон размера: %1$s - %2$s</string>
@@ -2758,6 +2794,8 @@
     <string name="updateAction">Обновить</string>
     <string name="indexingInProgressTitle">Индексация в процессе...</string>
     <string name="indexingInProgressDescription">Пожалуйста, подождите завершения индексации. Прогресс можно увидеть в уведомлениях.</string>
+    <string name="downloadsPausedWifiRequired">Загрузки приостановлены (требуется Wi-Fi)</string>
+    <string name="downloadsResumed">Загрузки возобновлены</string>
     <string name="indexRequiredForOnlineSearchDescription">Для онлайн поиска необходимо создать индекс. Локальный поиск работает всегда.</string>
     <string name="indexingDialogTitle">Индексация</string>
     <string name="indexingCompletedTitle">Индексация завершена</string>

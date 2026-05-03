@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio.data.repository
 import com.jabook.app.jabook.audio.core.result.Result
 import com.jabook.app.jabook.audio.data.local.dao.SavedPlayerStateDao
 import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEntity
+import kotlinx.coroutines.CancellationException
 import org.json.JSONArray
 import org.json.JSONObject
 import javax.inject.Inject
@@ -41,6 +42,8 @@ public class SavedPlayerStateRepository
             try {
                 val entity = stateDao.getState(groupPath)
                 Result.Success(entity)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e)
             }
@@ -52,6 +55,8 @@ public class SavedPlayerStateRepository
             try {
                 val entity = stateDao.getLatestState()
                 Result.Success(entity)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e)
             }
@@ -94,6 +99,8 @@ public class SavedPlayerStateRepository
                     )
                 stateDao.upsertState(entity)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e)
             }
@@ -121,6 +128,8 @@ public class SavedPlayerStateRepository
                 } else {
                     Result.Success(Unit) // No state to update
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e)
             }
@@ -164,6 +173,8 @@ public class SavedPlayerStateRepository
             try {
                 stateDao.deleteState(groupPath)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e)
             }
@@ -175,6 +186,8 @@ public class SavedPlayerStateRepository
             try {
                 stateDao.deleteAllStates()
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e)
             }

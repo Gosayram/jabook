@@ -18,6 +18,7 @@ import android.content.Context
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.test.core.app.ApplicationProvider
+import com.jabook.app.jabook.compose.core.di.AppDispatchers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -68,6 +69,15 @@ class GaplessPlaybackTest {
         val playerPersistenceManager = mock<PlayerPersistenceManager>()
         val playbackController = mock<PlaybackController>()
 
+        // Create a test AppDispatchers
+        val testAppDispatchers =
+            object : AppDispatchers {
+                override val io = testDispatcher
+                override val default = testDispatcher
+                override val main = testDispatcher
+                override val unconfined = testDispatcher
+            }
+
         // Create PlaylistManager with mocks
         playlistManager =
             PlaylistManager(
@@ -76,6 +86,7 @@ class GaplessPlaybackTest {
                 getActivePlayer = { exoPlayer },
                 playerServiceScope = testScope,
                 mediaItemDispatcher = testDispatcher,
+                dispatchers = testAppDispatchers,
                 getFlavorSuffix = { "" },
                 durationManager = durationManager,
                 playerPersistenceManager = playerPersistenceManager,

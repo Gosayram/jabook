@@ -17,12 +17,19 @@ package com.jabook.app.jabook.compose.feature.search.rutracker
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.selects.select
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -37,22 +44,45 @@ import javax.inject.Singleton
  */
 @Singleton
 public class CoverLoader
-    @Inject
     constructor(
         private val repository: RutrackerRepository,
         private val loggerFactory: LoggerFactory,
+        private val ioDispatcher: CoroutineDispatcher,
+        private val fetchCover: suspend (String) -> Result<String?> = { topicId ->
+            repository.fetchAndSaveCover(topicId)
+        },
     ) {
+        @Inject
+        public constructor(
+            repository: RutrackerRepository,
+            loggerFactory: LoggerFactory,
+        ) : this(
+            repository = repository,
+            loggerFactory = loggerFactory,
+            ioDispatcher = Dispatchers.IO,
+        )
+
+        public data class CoverLoadedEvent(
+            val topicId: String,
+            val coverUrl: String,
+        )
+
         private val logger = loggerFactory.get("CoverLoader")
         private val scope =
             CoroutineScope(
-                SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("CoverLoader"),
+                SupervisorJob() + ioDispatcher + loggingCoroutineExceptionHandler("CoverLoader"),
             )
-        private val loadQueue = Channel<String>(Channel.UNLIMITED)
+        private val primaryQueue = Channel<String>(Channel.UNLIMITED)
+        private val retryQueue = Channel<String>(Channel.UNLIMITED)
         private val activeLoads = ConcurrentHashMap.newKeySet<String>()
         private val loadedCache = ConcurrentHashMap.newKeySet<String>() // Simple memory cache for session
+        private val retryAttempts = ConcurrentHashMap<String, Int>()
+        private val maxRetryAttempts = 3
+        private val retryDelayMs = 1200L
+        private val _coverLoadedEvents = MutableSharedFlow<CoverLoadedEvent>(replay = 0, extraBufferCapacity = 64)
+        public val coverLoadedEvents: SharedFlow<CoverLoadedEvent> = _coverLoadedEvents.asSharedFlow()
 
         // Concurrency control: allow only N simultaneous loads
-        private val concurrencyPermits = Mutex()
         private val maxConcurrentLoads = 3
 
         init {
@@ -70,7 +100,7 @@ public class CoverLoader
 
             // Mark as active immediately to prevent duplicates in queue
             if (activeLoads.add(topicId)) {
-                loadQueue.trySend(topicId)
+                primaryQueue.trySend(topicId)
             }
         }
 
@@ -78,7 +108,12 @@ public class CoverLoader
             // Launch N workers
             repeat(maxConcurrentLoads) {
                 scope.launch {
-                    for (topicId in loadQueue) {
+                    while (true) {
+                        val topicId =
+                            select<String?> {
+                                primaryQueue.onReceiveCatching { it.getOrNull() }
+                                retryQueue.onReceiveCatching { it.getOrNull() }
+                            } ?: break
                         processTopic(topicId)
                     }
                 }
@@ -87,29 +122,64 @@ public class CoverLoader
 
         private suspend fun processTopic(topicId: String) {
             try {
-                // Artificial delay to prevent burst if needed, or just proceed
-                // delay(100L)
+                val result = fetchCover(topicId)
 
-                val result = repository.fetchAndSaveCover(topicId)
-
-                // Mark as loaded regardless of success to avoid endless retries in this session
-                // If it failed, user can retry by restarting app or we can implement retry logic later
-                loadedCache.add(topicId)
-
-                if (result.isFailure) {
+                if (result.isSuccess) {
+                    val resolvedCoverUrl = result.getOrNull()?.takeIf { it.isNotBlank() }
+                    if (resolvedCoverUrl != null) {
+                        _coverLoadedEvents.tryEmit(
+                            CoverLoadedEvent(
+                                topicId = topicId,
+                                coverUrl = resolvedCoverUrl,
+                            ),
+                        )
+                        loadedCache.add(topicId)
+                        retryAttempts.remove(topicId)
+                    } else {
+                        // Treat empty successful response as transient miss; retry a few times.
+                        scheduleRetry(topicId)
+                    }
+                } else {
                     // If Rutracker failed (e.g. no cover), check Flibusta (To Be Implemented)
                     checkFlibusta(topicId)
+                    scheduleRetry(topicId)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // Log error
                 logger.e(e) { "Error loading cover for $topicId" }
+                scheduleRetry(topicId)
             } finally {
                 activeLoads.remove(topicId)
+            }
+        }
+
+        private fun scheduleRetry(topicId: String) {
+            val currentAttempt = retryAttempts[topicId] ?: 0
+            if (currentAttempt >= maxRetryAttempts) {
+                logger.d { "Cover retries exhausted for topic $topicId" }
+                return
+            }
+            retryAttempts[topicId] = currentAttempt + 1
+            scope.launch {
+                delay(retryDelayMs * (currentAttempt + 1))
+                if (topicId !in loadedCache && topicId !in activeLoads) {
+                    if (activeLoads.add(topicId)) {
+                        retryQueue.trySend(topicId)
+                    }
+                }
             }
         }
 
         private fun checkFlibusta(topicId: String) {
             // TODO: Implement fallback to Flibusta
             // FlibustaCoverProvider.fetch(topicId)
+        }
+
+        internal fun shutdown() {
+            primaryQueue.close()
+            retryQueue.close()
+            scope.cancel("CoverLoader shutdown")
         }
     }

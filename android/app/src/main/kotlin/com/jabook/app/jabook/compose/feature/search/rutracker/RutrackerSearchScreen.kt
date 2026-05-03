@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.search.rutracker
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,9 +29,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Info
@@ -62,6 +65,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -71,14 +75,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.CoverWaterfallPolicy
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * RuTracker search screen.
@@ -90,7 +96,6 @@ import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
  * - MirrorManager, proper headers
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
-@Suppress("DEPRECATION") // hiltViewModel is from correct package
 @Composable
 public fun RutrackerSearchScreen(
     onNavigateBack: () -> Unit,
@@ -117,26 +122,20 @@ public fun RutrackerSearchScreen(
     // Indexing state
     val indexingProgress by indexingViewModel.indexingProgress.collectAsStateWithLifecycle()
     val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
+    val indexSize by indexingViewModel.indexSize.collectAsStateWithLifecycle()
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
     var showIndexingDialog by remember { mutableStateOf(false) }
 
     var showFilters by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
+    var indexCheckCompleted by remember { mutableStateOf(false) }
 
-    // Check if indexing is needed on first load
+    // Initial index check for UI status; do not auto-open indexing dialog here to avoid
+    // false-positive prompts while foreground indexing state is still synchronizing.
     LaunchedEffect(Unit) {
-        val indexSize = indexingViewModel.getIndexSize()
-        if (indexSize == 0) {
-            // No index, show dialog to start indexing
-            showIndexingDialog = true
-        } else {
-            val needsUpdate = indexingViewModel.needsUpdate()
-            if (needsUpdate) {
-                // Index is old, suggest update
-                showIndexingDialog = true
-            }
-        }
+        indexingViewModel.getIndexSize()
+        indexCheckCompleted = true
     }
 
     // Show indexing dialog when indexing is active
@@ -265,88 +264,120 @@ public fun RutrackerSearchScreen(
 
             Spacer(modifier = Modifier.height(itemSpacing))
 
-            // Index status card
-            val indexSize = remember { mutableStateOf(0) }
-            LaunchedEffect(Unit) {
-                indexSize.value = indexingViewModel.getIndexSize()
-            }
-
-            if (indexSize.value == 0) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        ),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.indexNotCreatedTitle),
-                            style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center,
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.indexNotCreatedDescriptionShort),
-                            style = MaterialTheme.typography.bodySmall,
-                            textAlign = TextAlign.Center,
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(
-                            onClick = {
-                                showIndexingDialog = true
-                                indexingViewModel.startIndexing(context)
-                            },
+            // Index status card (render only after initial index check completes)
+            if (indexCheckCompleted) {
+                when {
+                    indexCheckCompleted &&
+                        indexSize == 0 &&
+                        (isIndexing || indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress) -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors =
+                                CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                ),
                         ) {
-                            Text(stringResource(R.string.startIndexing))
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(itemSpacing))
-            } else {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        ),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            val indexTopicsCount =
-                                pluralStringResource(
-                                    R.plurals.indexTopicsCount,
-                                    indexSize.value,
-                                    indexSize.value,
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.indexingInProgressTitle),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    textAlign = TextAlign.Center,
                                 )
-                            Text(
-                                text = stringResource(R.string.indexStatusWithTopics, indexTopicsCount),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Text(
-                                text = stringResource(R.string.searchWorksOffline),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = stringResource(R.string.indexingInProgressDescription),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
                         }
-                        TextButton(
-                            onClick = {
-                                showIndexingDialog = true
-                                indexingViewModel.startIndexing(context)
-                            },
+                        Spacer(modifier = Modifier.height(itemSpacing))
+                    }
+                    indexCheckCompleted &&
+                        indexSize == 0 &&
+                        !isIndexing &&
+                        indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors =
+                                CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                ),
                         ) {
-                            Text(stringResource(R.string.updateAction))
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.indexNotCreatedTitle),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    textAlign = TextAlign.Center,
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = stringResource(R.string.indexNotCreatedDescriptionShort),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    textAlign = TextAlign.Center,
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Button(
+                                    onClick = {
+                                        showIndexingDialog = true
+                                        indexingViewModel.startIndexing(context)
+                                    },
+                                ) {
+                                    Text(stringResource(R.string.startIndexing))
+                                }
+                            }
                         }
+                        Spacer(modifier = Modifier.height(itemSpacing))
+                    }
+                    else -> {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors =
+                                CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                ),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    val indexTopicsCount =
+                                        pluralStringResource(
+                                            R.plurals.indexTopicsCount,
+                                            indexSize,
+                                            indexSize,
+                                        )
+                                    Text(
+                                        text = stringResource(R.string.indexStatusWithTopics, indexTopicsCount),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.searchWorksOffline),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                TextButton(
+                                    onClick = {
+                                        showIndexingDialog = true
+                                        indexingViewModel.startIndexing(context)
+                                    },
+                                ) {
+                                    Text(stringResource(R.string.updateAction))
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(itemSpacing))
                     }
                 }
-                Spacer(modifier = Modifier.height(itemSpacing))
             }
 
             // Results
@@ -374,7 +405,23 @@ public fun RutrackerSearchScreen(
                 }
 
                 is SearchState.Success -> {
+                    val resultsListState = rememberLazyListState()
+                    LaunchedEffect(state.results) {
+                        snapshotFlow {
+                            resultsListState.layoutInfo.visibleItemsInfo
+                                .mapNotNull { visibleItem ->
+                                    state.results.getOrNull(visibleItem.index)?.result?.let { result ->
+                                        result.topicId.takeIf {
+                                            it.isNotBlank() && result.coverUrl.isNullOrBlank()
+                                        }
+                                    }
+                                }.filter(String::isNotBlank)
+                        }.distinctUntilChanged()
+                            .collect(viewModel::requestCoverLoads)
+                    }
+
                     LazyColumn(
+                        state = resultsListState,
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(itemSpacing),
                         contentPadding = PaddingValues(vertical = itemSpacing),
@@ -389,6 +436,7 @@ public fun RutrackerSearchScreen(
                                 result = uiModel.result,
                                 isInLibrary = uiModel.isInLibrary,
                                 onClick = { onTopicClick(uiModel.result.topicId) },
+                                onCoverNeeded = viewModel::requestCoverLoad,
                             )
                         }
                     }
@@ -542,6 +590,7 @@ private fun SearchResultCard(
     result: RutrackerSearchResult,
     isInLibrary: Boolean,
     onClick: () -> Unit,
+    onCoverNeeded: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -566,14 +615,22 @@ private fun SearchResultCard(
             modifier = Modifier.padding(cardPadding),
             horizontalArrangement = Arrangement.spacedBy(itemSpacing),
         ) {
+            if (result.coverUrl.isNullOrBlank()) {
+                LaunchedEffect(result.topicId) {
+                    onCoverNeeded(result.topicId)
+                }
+            }
             // Cover image - adaptive size based on screen size
-            result.coverUrl?.let { coverUrl ->
-                // Adaptive cover size: smaller on compact screens
-                val coverWidth = if (isCompact) 60.dp else 80.dp
-                val coverHeight = if (isCompact) 90.dp else 120.dp
+            // Adaptive cover size: smaller on compact screens
+            val coverWidth = if (isCompact) 60.dp else 80.dp
+            val coverHeight = if (isCompact) 90.dp else 120.dp
+            result.coverUrl?.takeIf { it.isNotBlank() }?.let { coverUrl ->
+                val normalizedCoverUrl =
+                    (CoverWaterfallPolicy.resolveOnlineUrl(coverUrl)?.data as? String)
+                        ?: coverUrl
 
                 RemoteImage(
-                    src = coverUrl,
+                    src = normalizedCoverUrl,
                     contentDescription = result.title,
                     modifier =
                         Modifier
@@ -581,6 +638,19 @@ private fun SearchResultCard(
                             .height(coverHeight),
                     contentScale = ContentScale.Crop,
                     cornerRadius = 8f,
+                )
+            } ?: Box(
+                modifier =
+                    Modifier
+                        .width(coverWidth)
+                        .height(coverHeight)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Book,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 

@@ -286,3 +286,36 @@ test-coverage-verify: test-coverage ## Verify test coverage ≥ 85%
 .PHONY: warnings
 warnings: ## Count compiler warnings
 	@cd android && ./gradlew :app:compileDevDebugKotlin --no-daemon 2>&1 | grep "^w:" | wc -l | xargs -I{} echo "Found {} warnings"
+
+.PHONY: audit-dispatchers
+audit-dispatchers: ## Audit hardcoded Dispatchers usage (should use injectable AppDispatchers)
+	@echo "Auditing hardcoded Dispatchers.* usage..."
+	@if command -v rg >/dev/null 2>&1; then \
+		COUNT=$$(rg -c "Dispatchers\.(IO|Default|Main|Unconfined)" android/app/src/main/kotlin 2>/dev/null | awk -F: '{sum+=$$2} END {print sum}'); \
+		if [ -n "$$COUNT" ] && [ "$$COUNT" -gt 0 ]; then \
+			echo "⚠️  Found $$COUNT hardcoded Dispatchers.* usages. Use injectable AppDispatchers instead."; \
+			echo ""; \
+			echo "Top files by usage:"; \
+			rg -c "Dispatchers\.(IO|Default|Main|Unconfined)" android/app/src/main/kotlin 2>/dev/null | sort -t: -k2 -rn | head -10; \
+			echo ""; \
+			echo "Run 'make audit-dispatchers-verbose' for full list."; \
+		else \
+			echo "✅ No hardcoded Dispatchers found."; \
+		fi; \
+	else \
+		COUNT=$$(grep -r -E "Dispatchers\.(IO|Default|Main|Unconfined)" android/app/src/main/kotlin 2>/dev/null | wc -l | tr -d ' '); \
+		if [ "$$COUNT" -gt 0 ]; then \
+			echo "⚠️  Found $$COUNT hardcoded Dispatchers.* usages. Use injectable AppDispatchers instead."; \
+		else \
+			echo "✅ No hardcoded Dispatchers found."; \
+		fi; \
+	fi
+
+.PHONY: audit-dispatchers-verbose
+audit-dispatchers-verbose: ## Show all hardcoded Dispatchers usage with line numbers
+	@echo "All hardcoded Dispatchers.* usages:"
+	@if command -v rg >/dev/null 2>&1; then \
+		rg -n "Dispatchers\.(IO|Default|Main|Unconfined)" android/app/src/main/kotlin; \
+	else \
+		grep -r -n -E "Dispatchers\.(IO|Default|Main|Unconfined)" android/app/src/main/kotlin; \
+	fi

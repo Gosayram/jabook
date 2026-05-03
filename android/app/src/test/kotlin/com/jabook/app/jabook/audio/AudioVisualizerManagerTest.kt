@@ -167,4 +167,44 @@ class AudioVisualizerManagerTest {
         assertEquals(0, factoryCalls)
         assertFalse(manager.isActive.value)
     }
+
+    @Test
+    fun `setSuspendedForAudioOffload disables visualizer and restores desired state on resume`() {
+        val visualizer = mock<Visualizer>()
+        val manager =
+            AudioVisualizerManager(
+                context = context,
+                permissionChecker = { true },
+                visualizerFactory = { visualizer },
+            )
+
+        manager.initialize(audioSessionId = 44)
+        assertTrue(manager.isActive.value)
+
+        manager.setSuspendedForAudioOffload(suspended = true)
+        assertFalse(manager.isActive.value)
+
+        manager.setSuspendedForAudioOffload(suspended = false)
+        assertTrue(manager.isActive.value)
+    }
+
+    @Test
+    fun `setSuspendedForAudioOffload keeps disabled state when user disabled visualizer during suspend`() {
+        val visualizer = mock<Visualizer>()
+        val manager =
+            AudioVisualizerManager(
+                context = context,
+                permissionChecker = { true },
+                visualizerFactory = { visualizer },
+            )
+
+        manager.initialize(audioSessionId = 45)
+        assertTrue(manager.isActive.value)
+
+        manager.setSuspendedForAudioOffload(suspended = true)
+        manager.setEnabled(enabled = false)
+        manager.setSuspendedForAudioOffload(suspended = false)
+
+        assertFalse(manager.isActive.value)
+    }
 }

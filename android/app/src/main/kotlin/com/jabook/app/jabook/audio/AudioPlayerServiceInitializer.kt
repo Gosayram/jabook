@@ -17,12 +17,16 @@ package com.jabook.app.jabook.audio
 import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.core.content.ContextCompat
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
@@ -35,6 +39,7 @@ public class AudioPlayerServiceInitializer(
 ) {
     @OptIn(UnstableApi::class)
     public fun initialize() {
+        initializeCrossFadePlayer()
         android.util.Log.i("AudioPlayerService", "Initializing service components...")
 
         // NOTE: NotificationHelper is already initialized in onCreate() for immediate startForeground()
@@ -78,6 +83,36 @@ public class AudioPlayerServiceInitializer(
                         10
                     }
                 },
+                getResumeRewindMode = {
+                    try {
+                        kotlinx.coroutines.runBlocking {
+                            when (
+                                service.settingsRepository.userPreferences
+                                    .first()
+                                    .resumeRewindMode
+                            ) {
+                                com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART ->
+                                    ResumeRewindMode.SMART
+
+                                else -> ResumeRewindMode.FIXED
+                            }
+                        }
+                    } catch (e: Exception) {
+                        ResumeRewindMode.FIXED
+                    }
+                },
+                getResumeRewindAggressiveness = {
+                    try {
+                        kotlinx.coroutines.runBlocking {
+                            service.settingsRepository.userPreferences
+                                .first()
+                                .resumeRewindAggressiveness
+                        }
+                    } catch (e: Exception) {
+                        1.0f
+                    }
+                },
+                consumeSleepTimerStopFlag = { service.consumeStoppedBySleepTimerFlag() },
             )
 
         // 3.1 SleepTimerManager
@@ -88,6 +123,11 @@ public class AudioPlayerServiceInitializer(
                 playerServiceScope = service.playerServiceScope,
                 getActivePlayer = { service.getActivePlayer() },
                 sendBroadcast = { service.sendBroadcast(it) },
+                saveCurrentPositionOnExpiry = {
+                    service.playbackController?.markSleepTimerPause()
+                    service.markStoppedBySleepTimer()
+                    service.savePositionToRepository()
+                },
                 isShakeToExtendEnabled = {
                     try {
                         kotlinx.coroutines.runBlocking {
@@ -111,6 +151,7 @@ public class AudioPlayerServiceInitializer(
                 // getNotificationManager callback removed - MediaSession handles updates automatically
                 playerServiceScope = service.playerServiceScope,
                 mediaItemDispatcher = service.mediaItemDispatcher,
+                dispatchers = service.dispatchers,
                 getFlavorSuffix = { AudioPlayerService.getFlavorSuffix(service) },
                 setPendingTrackSwitchDeferred = { deferred ->
                     service.playerListener?.setPendingTrackSwitchDeferred(deferred)
@@ -191,9 +232,9 @@ public class AudioPlayerServiceInitializer(
         service.playerStateHelper =
             PlayerStateHelper(
                 getActivePlayer = { service.getActivePlayer() },
-                getCachedDuration = { service.getCachedDuration(it) },
-                saveDurationToCache = { path, duration -> service.saveDurationToCache(path, duration) },
-                getDurationForFile = { service.getDurationForFile(it) },
+                getCachedDuration = { service.durationManager.getCachedDuration(it) },
+                saveDurationToCache = { path, duration -> service.durationManager.saveDurationToCache(path, duration) },
+                getDurationForFile = { service.durationManager.getDurationForFile(it) },
                 getLastCompletedTrackIndex = { service.lastCompletedTrackIndex },
                 getActualPlaylistSize = { service.currentFilePaths?.size ?: service.exoPlayer.mediaItemCount },
                 getActualTrackIndex = { service.actualTrackIndex },
@@ -273,6 +314,117 @@ public class AudioPlayerServiceInitializer(
         android.util.Log.i("AudioPlayerService", "Service components initialized successfully")
     }
 
+    /**
+     * Post-initialization setup called after initialize().
+     * Handles: playback speed restore, notification provider, audio output, visualizer, enhancer.
+     */
+    public fun postInitialize() {
+        restorePlaybackSpeed()
+        setupNotificationProvider()
+        setupPlayerNotificationManagerFallback()
+        setupAudioOutputManager()
+        service.playbackEnhancerService.initialize()
+        initializeVisualizer()
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun initializeCrossFadePlayer() {
+        service.crossFadePlayer =
+            CrossFadePlayer(service) { context ->
+                androidx.media3.exoplayer.ExoPlayer
+                    .Builder(context)
+                    .setRenderersFactory(androidx.media3.exoplayer.DefaultRenderersFactory(context))
+                    .setWakeMode(androidx.media3.common.C.WAKE_MODE_LOCAL)
+                    .setHandleAudioBecomingNoisy(true)
+                    .setAudioAttributes(
+                        androidx.media3.common.AudioAttributes
+                            .Builder()
+                            .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                            .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_SPEECH)
+                            .build(),
+                        true,
+                    ).build()
+            }
+        service.crossFadePlayer?.onPlayerChanged = { newPlayer ->
+            try {
+                service.mediaLibrarySession?.let { session ->
+                    session.player = newPlayer
+                    LogUtils.d(
+                        "AudioPlayerService",
+                        "MediaSession player updated after crossfade: ${newPlayer.javaClass.simpleName}",
+                    )
+                } ?: LogUtils.w(
+                    "AudioPlayerService",
+                    "MediaLibrarySession is null, cannot update player after crossfade",
+                )
+            } catch (e: Exception) {
+                LogUtils.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
+            }
+        }
+    }
+
+    private fun restorePlaybackSpeed() {
+        service.playerServiceScope.launch {
+            try {
+                val savedSpeed = service.audioPreferences.playbackSpeed.first()
+                withContext(Dispatchers.Main) {
+                    LogUtils.d("AudioPlayerService", "Restoring playback speed: ${savedSpeed}x")
+                    service.exoPlayer.setPlaybackSpeed(savedSpeed)
+                }
+            } catch (e: Exception) {
+                LogUtils.e("AudioPlayerService", "Failed to restore playback speed", e)
+            }
+        }
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun setupNotificationProvider() {
+        if (service.mediaLibrarySession != null) {
+            service.setNotificationProvider(AudioPlayerNotificationProvider(service))
+            LogUtils.i("AudioPlayerService", "MediaNotificationProvider set for MediaLibrarySession")
+        } else {
+            LogUtils.w("AudioPlayerService", "MediaLibrarySession is null, cannot set MediaNotificationProvider")
+        }
+    }
+
+    private fun setupPlayerNotificationManagerFallback() {
+        if (service.mediaLibrarySession == null) {
+            LogUtils.w("AudioPlayerService", "MediaLibrarySession not available, using PlayerNotificationManager as fallback")
+            service.setupPlayerNotificationManager()
+        }
+    }
+
+    private fun setupAudioOutputManager() {
+        if (service.exoPlayer.isPlaying) {
+            service.audioOutputManager.startMonitoring()
+        }
+
+        service.exoPlayer.addListener(
+            object : Player.Listener {
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    if (isPlaying) {
+                        service.audioOutputManager.startMonitoring()
+                    } else {
+                        service.audioOutputManager.stopMonitoring()
+                    }
+                }
+            },
+        )
+    }
+
+    private fun initializeVisualizer() {
+        service.audioVisualizerManager = AudioVisualizerManager(service)
+        service.visualizerBridgeJob?.cancel()
+        service.visualizerBridgeJob =
+            service.playerServiceScope.launch {
+                service.audioVisualizerManager
+                    ?.waveformData
+                    ?.collect { waveform ->
+                        service.audioVisualizerStateBridge.updateWaveform(waveform)
+                    }
+            }
+    }
+
     @OptIn(UnstableApi::class)
     private fun initializeMediaSession() {
         if (service.mediaLibrarySession != null) return
@@ -288,7 +440,7 @@ public class AudioPlayerServiceInitializer(
                     service.playerPersistenceManager,
                     service.torrentDownloadRepository,
                     service.mediaButtonHandler,
-                    { filePath -> service.getDurationForFile(filePath) },
+                    { filePath -> service.durationManager.getDurationForFile(filePath) },
                 )
 
             // Build MediaLibrarySession - Media3 handles notifications automatically

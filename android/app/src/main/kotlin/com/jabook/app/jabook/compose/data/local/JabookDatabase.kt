@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import com.jabook.app.jabook.compose.data.local.dao.BookmarkDao
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.compose.data.local.dao.CookiesDao
@@ -27,6 +28,7 @@ import com.jabook.app.jabook.compose.data.local.dao.ScanPathDao
 import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.BookFtsEntity
+import com.jabook.app.jabook.compose.data.local.entity.BookmarkEntity
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
@@ -61,11 +63,13 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 17: Added last_scan_timestamp to scan_paths for incremental scanning.
  * Database version 18: Added hot-path indices for books/chapters query performance.
  * Database version 19: Added lufs_value and preferred_speed columns for per-book loudness analysis and speed preference.
+ * Database version 20: Added bookmarks table for timeline bookmarks and voice-note metadata.
  */
 @Database(
     entities = [
         BookEntity::class,
         BookFtsEntity::class,
+        BookmarkEntity::class,
         ChapterEntity::class,
         SearchHistoryEntity::class,
         CookieEntity::class,
@@ -77,11 +81,13 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         CachedTopicEntity::class,
         SearchQueryEntity::class,
     ],
-    version = 19,
+    version = 20,
     exportSchema = true, // Enable schema export for migration validation and debugging
 )
 public abstract class JabookDatabase : RoomDatabase() {
     public abstract fun booksDao(): BooksDao
+
+    public abstract fun bookmarkDao(): BookmarkDao
 
     public abstract fun chaptersDao(): ChaptersDao
 

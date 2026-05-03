@@ -237,6 +237,8 @@
     <string name="statusLabelNoColon">Status</string>
     <!-- Label for download progress -->
     <string name="downloadProgressLabel">Progress</string>
+    <!-- Badge text for active download progress on book cover -->
+    <string name="downloadProgressBadge">Downloading %1$d%%</string>
     <!-- Title for cache statistics -->
     <string name="cacheStatistics">Cache Statistics</string>
     <!-- Label for total entries -->
@@ -308,7 +310,18 @@
     <string name="auto_rewind_desc">Rewind 2 seconds when resuming after a long pause</string>
     <string name="resume_rewind_title">Resume Rewind After Long Pause</string>
     <string name="resume_rewind_desc">If paused for more than 30 minutes, rewind by selected value when resuming</string>
+    <string name="resume_rewind_mode_smart">Smart</string>
+    <string name="resume_rewind_mode_fixed">Fixed</string>
+    <string name="resume_rewind_fixed_title">Fixed Rewind Duration</string>
+    <string name="resume_rewind_fixed_desc">Used when fixed mode is selected</string>
+    <string name="resume_rewind_aggressiveness_title">Smart Rewind Aggressiveness</string>
+    <string name="resume_rewind_aggressiveness_desc">Controls how much context is replayed after pauses</string>
     <string name="resume_rewind_option_seconds">%1$d s</string>
+    <string name="hold_to_boost_speed_title">Hold-to-Boost Speed</string>
+    <string name="hold_to_boost_speed_desc">Temporary speed while holding the speed button in player</string>
+    <string name="auto_pip_title">Auto Picture-in-Picture</string>
+    <string name="auto_pip_desc">Automatically enter Picture-in-Picture when leaving the player</string>
+    <string name="playback_speed_format">%1$.1fx</string>
     <string name="sleep_timer_shake_extend_title">Shake To Extend Sleep Timer</string>
     <string name="sleep_timer_shake_extend_desc">Shake device to add 5 minutes to active sleep timer (fixed mode)</string>
     
@@ -331,6 +344,13 @@
     <string name="audioEnhancementTitle">Audio Enhancement</string>
     <!-- Description for audio enhancement settings -->
     <string name="audioEnhancementDescription">Improve audio quality and volume consistency</string>
+    <string name="equalizer_section_title">Equalizer</string>
+    <string name="equalizer_preset_title">Preset</string>
+    <string name="equalizer_preset_desc">Adjust speech timbre for your listening environment</string>
+    <string name="equalizer_preset_flat">Flat</string>
+    <string name="equalizer_preset_voice_clarity">Voice clarity</string>
+    <string name="equalizer_preset_night">Night</string>
+    <string name="equalizer_point_tooltip">%1$s • %2$s</string>
     <!-- Title for normalize volume setting -->
     <string name="normalizeVolumeTitle">Normalize Volume</string>
     <!-- Description for normalize volume setting -->
@@ -1412,6 +1432,15 @@
     <string name="detectedRom">Detected ROM: {rom}</string>
     <!-- Button to skip -->
     <string name="skip">Skip</string>
+    <string name="save">Save</string>
+    <string name="bookmarkNoteSheetTitle">Bookmark note</string>
+    <string name="bookmarkNoteSheetLabel">Note</string>
+    <string name="bookmarkNoteSheetPlaceholder">Add a quick note for this bookmark</string>
+    <string name="loading_player">Loading player</string>
+    <string name="recordVoiceNote">Record voice note</string>
+    <string name="stopRecording">Stop recording</string>
+    <string name="playVoiceNote">Play voice note</string>
+    <string name="stopPlayback">Stop playback</string>
     <!-- Button to acknowledge -->
     <string name="gotIt">Got It</string>
     <!-- Title for background compatibility banner -->
@@ -2434,6 +2463,11 @@
     <string name="sleep_timer_end_of_track">%1$s</string>
     <string name="sleep_timer_idle">Not active</string>
     <string name="sleepTimerTitle">Sleep Timer</string>
+    <string name="sleepTimerRepeatYesterday">Same as yesterday (%1$d min)</string>
+    <string name="sleepTimerStopsAt">Stops at %1$s (in %2$s)</string>
+    <string name="sleepTimerResumeHint">Sleep timer paused playback. Continue from the same spot.</string>
+    <string name="stopAtSpecificTime">Stop at specific time</string>
+    <string name="stopAtSpecificTimeDesc">Choose clock time (for example, 23:30)</string>
     <string name="currentMirror">Current Mirror</string>
     <string name="theme">Theme</string>
     <string name="darkThemeName">Dark</string>
@@ -2588,6 +2622,8 @@
     <!-- Player chapter pane strings -->
     <string name="currentlyPlaying">Currently playing</string>
     <string name="jumpToChapterNumber">Jump to chapter #...</string>
+    <string name="playerChapterNavigationSnackbar">Moved to chapter %1$d</string>
+    <string name="undoAction">Undo</string>
     <!-- Search filters pane strings -->
     <string name="sizeRange">Size Range</string>
     <string name="sizeRangeWithBounds">Size Range: %1$s - %2$s</string>
@@ -2715,6 +2751,8 @@
     <string name="updateAction">Update</string>
     <string name="indexingInProgressTitle">Indexing in progress...</string>
     <string name="indexingInProgressDescription">Please wait until indexing is complete. Progress is available in notifications.</string>
+    <string name="downloadsPausedWifiRequired">Downloads paused (Wi-Fi required)</string>
+    <string name="downloadsResumed">Downloads resumed</string>
     <string name="indexRequiredForOnlineSearchDescription">Online search requires index creation. Local search is always available.</string>
     <string name="indexingDialogTitle">Indexing</string>
     <string name="indexingCompletedTitle">Indexing completed</string>

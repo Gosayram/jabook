@@ -14,9 +14,16 @@
 
 package com.jabook.app.jabook.audio
 
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
+import org.robolectric.RobolectricTestRunner
 import kotlin.test.assertEquals
 
 /**
@@ -26,6 +33,7 @@ import kotlin.test.assertEquals
  * - onEvents() handles correct playback state changes
  * - Playback state changes are properly handled
  */
+@RunWith(RobolectricTestRunner::class)
 class PlayerListenerEventTest {
     @Test
     fun `PlayerListener can be instantiated with required parameters`() {
@@ -44,11 +52,9 @@ class PlayerListenerEventTest {
                 setIsBookCompleted = { },
                 getSleepTimerEndOfChapter = { false },
                 getSleepTimerEndOfTrack = { false },
-                getSleepTimerEndTime = { 0L },
                 cancelSleepTimer = { },
                 sendTimerExpiredEvent = { },
                 saveCurrentPosition = { },
-                startSleepTimerCheck = { },
                 getEmbeddedArtworkPath = { null },
                 setEmbeddedArtworkPath = { },
                 getCurrentMetadata = { null },
@@ -76,11 +82,9 @@ class PlayerListenerEventTest {
                 setIsBookCompleted = { },
                 getSleepTimerEndOfChapter = { false },
                 getSleepTimerEndOfTrack = { false },
-                getSleepTimerEndTime = { 0L },
                 cancelSleepTimer = { },
                 sendTimerExpiredEvent = { },
                 saveCurrentPosition = { },
-                startSleepTimerCheck = { },
                 getEmbeddedArtworkPath = { null },
                 setEmbeddedArtworkPath = { },
                 getCurrentMetadata = { null },
@@ -112,5 +116,91 @@ class PlayerListenerEventTest {
         assertEquals(5, Player.EVENT_PLAY_WHEN_READY_CHANGED)
         assertEquals(6, Player.EVENT_PLAYBACK_SUPPRESSION_REASON_CHANGED)
         assertEquals(7, Player.EVENT_IS_PLAYING_CHANGED)
+    }
+
+    @Test
+    fun `onMediaItemTransition saves position when sleep timer ends on auto transition`() {
+        val context: android.content.Context = mock()
+        val player: ExoPlayer = mock()
+        whenever(player.currentMediaItemIndex).thenReturn(2)
+
+        var savedPositionCalls = 0
+        var cancelSleepTimerCalls = 0
+        var timerExpiredCalls = 0
+        var markSleepTimerPauseCalls = 0
+
+        val listener =
+            PlayerListener(
+                context = context,
+                getActivePlayer = { player },
+                getIsBookCompleted = { false },
+                setIsBookCompleted = { },
+                getSleepTimerEndOfChapter = { true },
+                getSleepTimerEndOfTrack = { false },
+                cancelSleepTimer = { cancelSleepTimerCalls++ },
+                sendTimerExpiredEvent = { timerExpiredCalls++ },
+                markSleepTimerPause = { markSleepTimerPauseCalls++ },
+                saveCurrentPosition = { savedPositionCalls++ },
+                getEmbeddedArtworkPath = { null },
+                setEmbeddedArtworkPath = { },
+                getCurrentMetadata = { null },
+                setLastCompletedTrackIndex = { },
+                getLastCompletedTrackIndex = { -1 },
+                getActualPlaylistSize = { 10 },
+                updateActualTrackIndex = { },
+                isPlaylistLoading = { false },
+            )
+
+        listener.onMediaItemTransition(
+            MediaItem.Builder().setMediaId("chapter-3").build(),
+            Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,
+        )
+
+        assertEquals(1, savedPositionCalls)
+        assertEquals(1, cancelSleepTimerCalls)
+        assertEquals(1, timerExpiredCalls)
+        assertEquals(1, markSleepTimerPauseCalls)
+        verify(player).playWhenReady = false
+    }
+
+    @Test
+    fun `onMediaItemTransition does not save position for manual transition with sleep timer`() {
+        val context: android.content.Context = mock()
+        val player: ExoPlayer = mock()
+        whenever(player.currentMediaItemIndex).thenReturn(2)
+
+        var savedPositionCalls = 0
+        var markSleepTimerPauseCalls = 0
+
+        val listener =
+            PlayerListener(
+                context = context,
+                getActivePlayer = { player },
+                getIsBookCompleted = { false },
+                setIsBookCompleted = { },
+                getSleepTimerEndOfChapter = { true },
+                getSleepTimerEndOfTrack = { false },
+                cancelSleepTimer = { },
+                sendTimerExpiredEvent = { },
+                markSleepTimerPause = { markSleepTimerPauseCalls++ },
+                saveCurrentPosition = { savedPositionCalls++ },
+                getEmbeddedArtworkPath = { null },
+                setEmbeddedArtworkPath = { },
+                getCurrentMetadata = { null },
+                setLastCompletedTrackIndex = { },
+                getLastCompletedTrackIndex = { -1 },
+                getActualPlaylistSize = { 10 },
+                updateActualTrackIndex = { },
+                isPlaylistLoading = { false },
+            )
+
+        listener.onMediaItemTransition(
+            MediaItem.Builder().setMediaId("chapter-3").build(),
+            Player.MEDIA_ITEM_TRANSITION_REASON_SEEK,
+        )
+
+        assertEquals(0, savedPositionCalls)
+        assertEquals(0, markSleepTimerPauseCalls)
+        verify(player, never()).playWhenReady = false
     }
 }

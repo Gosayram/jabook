@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio.core.result
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -53,4 +54,7 @@ public sealed interface Result<out T> {
 public fun <T> Flow<T>.asResult(): Flow<Result<T>> =
     map<T, Result<T>> { Result.Success(it) }
         .onStart { emit(Result.Loading) }
-        .catch { emit(Result.Error(it)) }
+        .catch {
+            if (it is CancellationException) throw it
+            emit(Result.Error(it))
+        }

@@ -49,7 +49,22 @@ internal object SleepTimerPersistence {
     internal const val KEY_MODE: String = "sleepTimerMode"
     internal const val KEY_PAUSED: String = "sleepTimerPaused"
     internal const val KEY_PAUSED_REMAINING_MILLIS: String = "sleepTimerPausedRemainingMillis"
+    internal const val KEY_LAST_STOPPED_BY_SLEEP_TIMER: String = "sleepTimerLastStoppedPlayback"
     internal const val NO_REMAINING_MILLIS: Long = -1L
+
+    /** Marks that playback was stopped by the sleep timer. */
+    internal fun markStoppedBySleepTimer(prefs: android.content.SharedPreferences) {
+        prefs.edit().putBoolean(KEY_LAST_STOPPED_BY_SLEEP_TIMER, true).apply()
+    }
+
+    /** Consumes and clears the "stopped by sleep timer" flag. Returns true if it was set. */
+    internal fun consumeStoppedBySleepTimerFlag(prefs: android.content.SharedPreferences): Boolean {
+        val wasStopped = prefs.getBoolean(KEY_LAST_STOPPED_BY_SLEEP_TIMER, false)
+        if (wasStopped) {
+            prefs.edit().putBoolean(KEY_LAST_STOPPED_BY_SLEEP_TIMER, false).apply()
+        }
+        return wasStopped
+    }
 
     internal fun toPersistedState(runtimeState: SleepTimerRuntimeState): SleepTimerPersistedState =
         SleepTimerPersistedState(

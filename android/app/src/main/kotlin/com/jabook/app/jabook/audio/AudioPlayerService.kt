@@ -18,30 +18,17 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.os.Build
 import androidx.annotation.OptIn
-import androidx.core.app.NotificationCompat
-import androidx.core.app.TaskStackBuilder
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
-import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
+import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.ui.PlayerNotificationManager
-import coil3.SingletonImageLoader
-import coil3.request.ImageRequest
-import coil3.request.SuccessResult
-import coil3.toBitmap
 import com.jabook.app.jabook.audio.processors.BookLoudnessCompensator
-import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
-import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.capitalizeFirst
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
@@ -50,28 +37,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelChildren
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.Cache
 import javax.inject.Inject
-import androidx.media.app.NotificationCompat as MediaNotificationCompat
 
-/**
- * Native audio player service using Media3 ExoPlayer.
- *
- * This service extends MediaLibraryService for proper integration with Android's
- * media controls, Android Auto, Wear OS, system notifications, and playback resumption.
- *
- * MediaLibraryService provides:
- * - Automatic notification management (no manual updates needed)
- * - Playback resumption support (onPlaybackResumption callback)
- * - Better integration with Quick Settings media controls
- *
- * Uses Dagger Hilt for dependency injection (ExoPlayer and Cache as singletons).
- */
+/** Audio player service using Media3 ExoPlayer with Dagger Hilt DI. */
 @OptIn(UnstableApi::class)
 @AndroidEntryPoint
 public class AudioPlayerService : MediaLibraryService() {
@@ -117,15 +85,15 @@ public class AudioPlayerService : MediaLibraryService() {
     @Inject
     public lateinit var audioVisualizerStateBridge: AudioVisualizerStateBridge
 
+    // AppDispatchers for testable coroutine dispatchers
+    @Inject
+    public lateinit var dispatchers: com.jabook.app.jabook.compose.core.di.AppDispatchers
+
     // Book loudness compensation for consistent volume across books
     @Inject
     public lateinit var booksDao: BooksDao
 
     internal val bookLoudnessCompensator: BookLoudnessCompensator = BookLoudnessCompensator()
-
-    // Tracks the LUFS value of the previously playing book for transition gain
-    internal var previousBookLufs: Double? = null
-        private set
 
     internal var mediaLibrarySession: MediaLibrarySession? = null
 
@@ -143,33 +111,19 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     public fun getServiceMediaController(): MediaController? = serviceMediaController
 
-    // Debounced custom layout updates (from Rhythm pattern)
-    // Track current custom layout state to avoid unnecessary updates
-    private var lastRewindSeconds: Int? = null
-    private var lastForwardSeconds: Int? = null
-
-    // Debounce custom layout updates to prevent flickering
-    private var updateLayoutJob: kotlinx.coroutines.Job? = null
-
     // PlayerNotificationManager for direct notification control (androidx.media3.ui)
     // Replaces MediaNotification.Provider which doesn't work with background service warmup
-    private var playerNotificationManager: PlayerNotificationManager? = null
+    internal var playerNotificationManager: PlayerNotificationManager? = null
 
-    // notificationManager removed - MediaSession handles notifications automatically via AudioPlayerNotificationProvider
-    // internal var notificationManager: NotificationManager? = null
     internal var notificationHelper: NotificationHelper? = null
     internal var mediaSessionManager: MediaSessionManager? = null
     internal var playbackTimer: PlaybackTimer? = null
     internal var inactivityTimer: InactivityTimer? = null
     internal var playlistManager: PlaylistManager? = null
-    internal var isPlaylistLoading: Boolean
-        get() = playlistManager?.isPlaylistLoading ?: false
-        set(_) { /* Read-only from service perspective */ }
 
     // Current metadata delegated to PlaylistManager
-    internal var currentMetadata: Map<String, String>?
+    internal val currentMetadata: Map<String, String>?
         get() = playlistManager?.currentMetadata
-        set(value) { /* Read-only or handled via PlaylistManager? Service uses it in MetadataManager init */ }
 
     internal var lifecycleManager: ServiceLifecycleManager? = null
     internal var intentHandler: ServiceIntentHandler? = null
@@ -189,7 +143,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     // Audio visualizer manager
     internal var audioVisualizerManager: AudioVisualizerManager? = null
-    private var visualizerBridgeJob: kotlinx.coroutines.Job? = null
+    internal var visualizerBridgeJob: kotlinx.coroutines.Job? = null
 
     // Phone call listener for automatic resume after calls
     internal var phoneCallListener: PhoneCallListener? = null
@@ -225,34 +179,8 @@ public class AudioPlayerService : MediaLibraryService() {
             playlistManager?.actualTrackIndex = value
         }
 
-    // Track if playlist is currently being loaded to prevent duplicate calls
-    // This is now delegated to PlaylistManager
-    // internal var isPlaylistLoading = false // Removed as it's now a delegated property
-
-    internal var currentLoadingPlaylist: List<String>?
-        get() = playlistManager?.currentLoadingPlaylist
-        set(_) { /* Read-only via AudioPlayerService */ }
-
-    // Track when playlist was last loaded
-    internal var lastPlaylistLoadTime: Long
-        get() = playlistManager?.lastPlaylistLoadTime ?: 0
-        set(_) { /* Read-only via AudioPlayerService */ }
-
-    // Periodic position saving designated to PlaybackPositionSaver
-    // private var positionSaveJob: kotlinx.coroutines.Job? = null // Removed
-    // private var lastPositionSaveTime: Int =  // Removed
-
-    // Store current playlist state for restoration after player recreation
-    // Store current playlist state for restoration after player recreation
-    internal var currentFilePaths: List<String>?
+    internal val currentFilePaths: List<String>?
         get() = playlistManager?.currentFilePaths
-        set(_) { /* Read-only via AudioPlayerService - set via SetPlaylist */ }
-
-    private var savedPlaybackState: SavedPlaybackState?
-        get() = playlistManager?.savedPlaybackState
-        set(value) {
-            playlistManager?.savedPlaybackState = value
-        }
 
     // Store current groupPath delegated to PlaylistManager
     internal val currentGroupPath: String?
@@ -265,55 +193,6 @@ public class AudioPlayerService : MediaLibraryService() {
     // DurationManager handles caching and database retrieval
     internal val durationManager = DurationManager()
 
-    /**
-     * Callback for database duration retrieval
-     */
-    public fun setGetDurationFromDbCallback(callback: ((String) -> Long?)?) {
-        durationManager.setGetDurationFromDbCallback(callback)
-    }
-
-    /**
-     * Deprecated: Flutter MethodChannel removed.
-     */
-    public fun setMethodChannel() {
-        // No-op: Flutter bridge removed
-    }
-
-    /**
-     * Gets duration for file path.
-     * Checks cache first, then database via callback, then returns null.
-     *
-     * @param filePath Absolute path to the audio file
-     * @return Duration in milliseconds, or null if not found
-     */
-    public fun getDurationForFile(filePath: String): Long? = durationManager.getDurationForFile(filePath)
-
-    /**
-     * Gets cached duration for file path.
-     *
-     * @param filePath Absolute path to the audio file
-     * @return Cached duration in milliseconds, or null if not cached
-     */
-    public fun getCachedDuration(filePath: String): Long? = durationManager.getCachedDuration(filePath)
-
-    /**
-     * Saves duration to cache.
-     *
-     * @param filePath Absolute path to the audio file
-     * @param durationMs Duration in milliseconds
-     */
-    public fun saveDurationToCache(
-        filePath: String,
-        durationMs: Long,
-    ) {
-        durationManager.saveDurationToCache(filePath, durationMs)
-    }
-
-    // Audio processing settings
-    // internal var audioProcessingSettings = AudioProcessingSettings() // Delegated to PlayerConfigurator
-
-    // Custom ExoPlayer instance (wraps singleton ExoPlayer)
-    // internal var customExoPlayer: ExoPlayer? = null // Delegated to PlayerConfigurator
     internal var customExoPlayer: ExoPlayer? = null
 
     // Crossfade components
@@ -325,7 +204,14 @@ public class AudioPlayerService : MediaLibraryService() {
             Dispatchers.Main + SupervisorJob() + loggingCoroutineExceptionHandler("AudioPlayerService"),
         )
 
-    private val foregroundNotificationCoordinator by lazy {
+    // MediaSession custom layout helper (extracted from service)
+    /** Notification content intent factory (extracted from service). */
+    internal val notificationIntentFactory = NotificationIntentFactory(this)
+
+    internal val mediaSessionLayoutHelper =
+        MediaSessionLayoutHelper(playerServiceScope) { mediaSession }
+
+    internal val foregroundNotificationCoordinator by lazy {
         ForegroundNotificationCoordinator(
             policy =
                 ForegroundServiceStartPolicy(
@@ -340,10 +226,7 @@ public class AudioPlayerService : MediaLibraryService() {
         )
     }
 
-    // Periodic position saving designated to PlaybackPositionRepository
-    private var positionSaveJob: kotlinx.coroutines.Job? = null
-    private val periodicPositionSaveIntervalMs: Long = 5_000L
-    private val listeningSessionTracker: ListeningSessionTracker by lazy {
+    internal val listeningSessionTracker: ListeningSessionTracker by lazy {
         ListeningSessionTracker(
             repository = listeningSessionRepository,
             scope = playerServiceScope,
@@ -354,35 +237,89 @@ public class AudioPlayerService : MediaLibraryService() {
         )
     }
 
-    private fun startPeriodicPositionSaving() {
-        positionSaveJob?.cancel()
-        positionSaveJob =
-            playerServiceScope.launch {
-                while (coroutineContext[kotlinx.coroutines.Job]?.isActive == true) {
-                    kotlinx.coroutines.delay(periodicPositionSaveIntervalMs)
-                    savePositionToRepository()
-                }
-            }
+    internal val periodicPositionSaver: PeriodicPositionSaver by lazy {
+        PeriodicPositionSaver(
+            scope = playerServiceScope,
+            repository = playbackPositionRepository,
+            getActivePlayer = { getActivePlayer() },
+            getCurrentBookId = { currentGroupPath },
+        )
     }
 
-    private fun stopPeriodicPositionSaving() {
-        positionSaveJob?.cancel()
-        positionSaveJob = null
+    // TASK-VERM-04: Extracted facades for delegation reduction
+    private val sleepTimerFacade: SleepTimerFacade by lazy {
+        SleepTimerFacade(
+            getSleepTimerManager = { sleepTimerManager },
+            getPlaybackTimer = { playbackTimer },
+            getActivePlayer = { getActivePlayer() },
+            updateCrashContext = { updateCrashPlaybackContext() },
+        )
     }
 
-    internal fun savePositionToRepository() {
-        val player = getActivePlayer()
-        val bookId = currentGroupPath
-        if (player.mediaItemCount > 0 && !bookId.isNullOrBlank()) {
-            playerServiceScope.launch(Dispatchers.IO) {
-                playbackPositionRepository.savePosition(
-                    bookId = bookId,
-                    trackIndex = player.currentMediaItemIndex,
-                    position = player.currentPosition,
-                )
-            }
-        }
+    private val playbackLifecycleActions: PlaybackLifecycleActions by lazy {
+        PlaybackLifecycleActions(
+            getPhoneCallListener = { phoneCallListener },
+            getListeningSessionTracker = { listeningSessionTracker },
+            getPeriodicPositionSaver = { periodicPositionSaver },
+            updateCrashContext = { updateCrashPlaybackContext() },
+        )
     }
+
+    private val visualizerFacade: VisualizerFacade by lazy {
+        VisualizerFacade(
+            getAudioVisualizerManager = { audioVisualizerManager },
+            getExoPlayerAudioSessionId = { exoPlayer.audioSessionId },
+        )
+    }
+
+    private val releaseHandler: AudioServiceReleaseHandler by lazy {
+        AudioServiceReleaseHandler(getService = { this })
+    }
+
+    /** Facade for player configuration and active player resolution. */
+    internal val playerFacade =
+        PlayerFacade(
+            getPlayerConfigurator = { playerConfigurator },
+            getExoPlayer = { exoPlayer },
+            getCrossFadePlayer = { crossFadePlayer },
+            getCrossfadeHandler = { crossfadeHandler },
+        )
+
+    /** Manages crash diagnostics context and book completion tracking. */
+    internal val playbackContextHelper =
+        PlaybackContextHelper(
+            getActivePlayer = { getActivePlayer() },
+            getCurrentMetadata = { currentMetadata },
+            getPlaylistManager = { playlistManager },
+            isSleepTimerEndOfChapter = { isSleepTimerEndOfChapter() },
+            isSleepTimerEndOfTrack = { isSleepTimerEndOfTrack() },
+            isSleepTimerActive = { isSleepTimerActive() },
+        )
+
+    private val commandRouter: AudioServiceCommandRouter by lazy {
+        AudioServiceCommandRouter(
+            getPlaybackController = { playbackController },
+            getPositionManager = { positionManager },
+            getMetadataManager = { metadataManager },
+            getPlayerStateHelper = { playerStateHelper },
+            getUnloadManager = { unloadManager },
+            getActivePlayer = { getActivePlayer() },
+            getPlaybackLifecycleActions = { playbackLifecycleActions },
+            resetBookCompletionIfNeeded = { resetBookCompletionIfNeeded(it) },
+            updateCrashPlaybackContext = { updateCrashPlaybackContext() },
+        )
+    }
+
+    internal fun markStoppedBySleepTimer() {
+        SleepTimerPersistence.markStoppedBySleepTimer(
+            getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE),
+        )
+    }
+
+    internal fun consumeStoppedBySleepTimerFlag(): Boolean =
+        SleepTimerPersistence.consumeStoppedBySleepTimerFlag(
+            getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE),
+        )
 
     // Limited dispatcher for MediaItem creation (max 16 parallel tasks)
     // Increased parallelism for faster loading on modern devices with fast storage
@@ -396,6 +333,7 @@ public class AudioPlayerService : MediaLibraryService() {
         // Playback action constants (migrated from deprecated NotificationManager)
         public const val ACTION_PLAY: String = "com.jabook.app.jabook.audio.PLAY"
         public const val ACTION_PAUSE: String = "com.jabook.app.jabook.audio.PAUSE"
+        public const val ACTION_PLAY_PAUSE: String = "com.jabook.app.jabook.audio.PLAY_PAUSE"
         public const val ACTION_NEXT: String = "com.jabook.app.jabook.audio.NEXT"
         public const val ACTION_PREVIOUS: String = "com.jabook.app.jabook.audio.PREVIOUS"
         public const val ACTION_REWIND: String = "com.jabook.app.jabook.audio.REWIND"
@@ -433,116 +371,47 @@ public class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    /**
-     * Flag indicating if service is fully initialized and ready to use.
-     * Service is ready when MediaLibrarySession is created and all components are initialized.
-     */
     @Volatile
     internal var isFullyInitializedFlag = false
+
+    /** Checks if the service is fully initialized and ready to use. */
+    public fun isFullyInitialized(): Boolean = isFullyInitializedFlag
+
+    // Helper methods for AudioServiceReleaseHandler to check lateinit initialization
+    internal fun isPlaybackPositionRepositoryInitialized(): Boolean = ::playbackPositionRepository.isInitialized
+
+    internal fun isAudioOutputManagerInitialized(): Boolean = ::audioOutputManager.isInitialized
+
+    internal fun isPlaybackEnhancerServiceInitialized(): Boolean = ::playbackEnhancerService.isInitialized
+
+    internal fun isAudioVisualizerStateBridgeInitialized(): Boolean = ::audioVisualizerStateBridge.isInitialized
 
     // Flag to indicate if "Minimal Notification" mode is enabled
     // If true, artwork loading will be skipped to show a smaller notification
     internal var isMinimalNotification = false
 
-    /**
-     * Checks if service is fully initialized and ready to use.
-     *
-     * @return true if service is ready, false otherwise
-     */
-    public fun isFullyInitialized(): Boolean = isFullyInitializedFlag && (mediaLibrarySession != null || mediaSession != null)
-
-    /**
-     * Gets the MediaLibrarySession instance.
-     * Used by AudioPlayerMethodHandler to check if service is fully ready.
-     */
     public fun getMediaSession(): MediaSession? = mediaLibrarySession ?: mediaSession
 
-    /**
-     * Returns the single top activity. It is used by the notification when the app task is
-     * active and an activity is in the fore or background.
-     *
-     * Tapping the notification then typically should trigger a single top activity. This way, the
-     * user navigates to the previous activity when pressing back.
-     *
-     * Based on Media3 DemoPlaybackService example.
-     * Updated to use deep link for direct navigation to PlayerScreen.
-     */
-    internal fun getSingleTopActivity(): PendingIntent? {
-        val immutableFlag =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                PendingIntent.FLAG_IMMUTABLE
-            } else {
-                0
-            }
-        return PendingIntent.getActivity(
-            this,
-            0,
-            Intent(this, ComposeMainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                // Use deep link to navigate directly to PlayerScreen
-                // This works with Compose Navigation's navDeepLink
-                data = android.net.Uri.parse("jabook://player")
-            },
-            immutableFlag or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-    }
+    /** Delegates to [NotificationIntentFactory.getSingleTopActivity]. */
+    internal fun getSingleTopActivity(): PendingIntent? = notificationIntentFactory.getSingleTopActivity()
 
-    /**
-     * Returns a back stacked session activity that is used by the notification when the service is
-     * running standalone as a foreground service. This is typically the case after the app has been
-     * dismissed from the recent tasks, or after automatic playback resumption.
-     *
-     * Typically, a playback activity should be started with a stack of activities underneath. This
-     * way, when pressing back, the user doesn't land on the home screen of the device, but on an
-     * activity defined in the back stack.
-     *
-     * Based on Media3 DemoPlaybackService example.
-     * Uses TaskStackBuilder to create proper back stack: MainActivity -> (Player Screen via Flutter)
-     */
-    internal fun getBackStackedActivity(): PendingIntent? {
-        val immutableFlag =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                PendingIntent.FLAG_IMMUTABLE
-            } else {
-                0
-            }
-        return TaskStackBuilder.create(this).run {
-            // Add MainActivity to back stack
-            addNextIntent(
-                Intent(this@AudioPlayerService, ComposeMainActivity::class.java),
-            )
-            // MainActivity will handle opening player screen via Flutter (open_player flag)
-            // Flutter navigation is handled in MainActivity.onNewIntent() and onResume()
-            getPendingIntent(0, immutableFlag or PendingIntent.FLAG_UPDATE_CURRENT)
-        }
-    }
+    /** Delegates to [NotificationIntentFactory.getBackStackedActivity]. */
+    internal fun getBackStackedActivity(): PendingIntent? = notificationIntentFactory.getBackStackedActivity()
 
     @OptIn(UnstableApi::class) // MediaSessionService.setListener
     override fun onCreate() {
-        // CRITICAL: Use Log.e (ERROR) level - ProGuard won't strip these
-        LogUtils.e("JABOOK_SERVICE", "============================================")
-        LogUtils.e("JABOOK_SERVICE", "AudioPlayerService.onCreate() START")
-        LogUtils.e("JABOOK_SERVICE", "PID: ${android.os.Process.myPid()}, Instance: ${System.identityHashCode(this)}")
-        LogUtils.e("JABOOK_SERVICE", "============================================")
+        LogUtils.i("AudioPlayerService", "onCreate() started (PID=${android.os.Process.myPid()})")
 
         try {
             PlayerPerformanceLogger.start("service_onCreate")
-            PlayerPerformanceLogger.log("Service", "onCreate() started")
 
-            // CRITICAL: Clean up existing components if onCreate() is called multiple times
-            // Android can call onCreate() multiple times without onDestroy(), causing resource leaks
+            // Clean up existing components if onCreate() is called multiple times
             cleanupExistingComponents()
 
             super.onCreate()
             instance = this
-            LogUtils.e("JABOOK_SERVICE", "[OK] super.onCreate() completed")
-
             PlayerPerformanceLogger.log("Service", "super.onCreate() complete")
 
-            // CRITICAL: Start foreground immediately to avoid ANR and timeout issues (following Rhythm pattern)
-            // MediaLibraryService will automatically manage notifications later, but we need to start foreground
-            // immediately to prevent ForegroundServiceDidNotStartInTimeException
-            // Initialize NotificationHelper first (needed for channel creation)
             val helper = NotificationHelper(this)
             notificationHelper = helper
             val initialNotification =
@@ -561,143 +430,26 @@ public class AudioPlayerService : MediaLibraryService() {
                     event = "service_on_create",
                 )
             if (foregroundStartResult == ForegroundStartResult.FAILED) {
-                LogUtils.e(
-                    "JABOOK_SERVICE",
-                    "[CRITICAL] Failed to start foreground with both primary and fallback notification",
-                )
+                LogUtils.e("AudioPlayerService", "Failed to start foreground with both notifications")
             } else {
-                LogUtils.e("JABOOK_SERVICE", "[OK] startForeground() completed with result=$foregroundStartResult")
+                LogUtils.d("AudioPlayerService", "startForeground() completed: $foregroundStartResult")
             }
 
             // Set MediaSessionService.Listener for handling foreground service start exceptions
             // This is required for Android 12+ when system doesn't allow foreground service start
             setListener(MediaSessionServiceListener(this))
-            LogUtils.e("JABOOK_SERVICE", "[OK] setListener completed")
-
             PlayerPerformanceLogger.log("Service", "listener set")
 
-            // CRITICAL: Initialize CrossFadePlayer BEFORE AudioPlayerServiceInitializer
-            // CrossfadeHandler (created in initializer) requires CrossFadePlayer to be initialized
-            LogUtils.e("JABOOK_SERVICE", "Initializing CrossFadePlayer...")
-            crossFadePlayer =
-                CrossFadePlayer(this) { context ->
-                    ExoPlayer
-                        .Builder(context)
-                        .setRenderersFactory(DefaultRenderersFactory(context))
-                        .setWakeMode(C.WAKE_MODE_LOCAL) // CRITICAL: Keep CPU awake during playback
-                        .setHandleAudioBecomingNoisy(true)
-                        .setAudioAttributes(
-                            AudioAttributes
-                                .Builder()
-                                .setUsage(C.USAGE_MEDIA)
-                                .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                                .build(),
-                            true, // handleAudioFocus=true
-                        ).build()
-                }
-            crossFadePlayer?.onPlayerChanged = { newPlayer ->
-                // CRITICAL: Update MediaSession player when crossfade swaps players (following Rhythm pattern)
-                // This ensures MediaSessionLegacyStub always has the correct player reference
-                try {
-                    mediaLibrarySession?.let { session ->
-                        session.player = newPlayer
-                        LogUtils.d(
-                            "AudioPlayerService",
-                            "MediaSession player updated after crossfade: ${newPlayer.javaClass.simpleName}",
-                        )
-                    } ?: LogUtils.w(
-                        "AudioPlayerService",
-                        "MediaLibrarySession is null, cannot update player after crossfade",
-                    )
-                } catch (e: Exception) {
-                    LogUtils.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
-                }
+            AudioPlayerServiceInitializer(this).let { initializer ->
+                initializer.initialize()
+                initializer.postInitialize()
             }
-            LogUtils.e("JABOOK_SERVICE", "[OK] CrossFadePlayer initialized")
-
-            // Initialize service components using extracted initializer
-            // Media3 automatically manages notifications via MediaLibrarySession
-            LogUtils.e("JABOOK_SERVICE", "Starting AudioPlayerServiceInitializer...")
-            AudioPlayerServiceInitializer(this).initialize()
-            LogUtils.e("JABOOK_SERVICE", "[OK] AudioPlayerServiceInitializer completed")
-
-            // Restore playback speed (lissen-android pattern)
-            playerServiceScope.launch {
-                try {
-                    val savedSpeed = audioPreferences.playbackSpeed.first()
-                    withContext(Dispatchers.Main) {
-                        LogUtils.d("JABOOK_SERVICE", "Restoring playback speed: ${savedSpeed}x")
-                        exoPlayer.setPlaybackSpeed(savedSpeed)
-                    }
-                } catch (e: Exception) {
-                    LogUtils.e("JABOOK_SERVICE", "Failed to restore playback speed", e)
-                }
-            }
-
-            // Set MediaNotificationProvider for MediaLibrarySession (system media player)
-            // This ensures system media player notification has priority
-            if (mediaLibrarySession != null) {
-                setMediaNotificationProvider(AudioPlayerNotificationProvider(this))
-                LogUtils.i("AudioPlayerService", "MediaNotificationProvider set for MediaLibrarySession")
-            } else {
-                LogUtils.w("AudioPlayerService", "MediaLibrarySession is null, cannot set MediaNotificationProvider")
-            }
-
-            // Initialize PlayerNotificationManager (androidx.media3.ui) ONLY as fallback
-            // This should only be used when MediaLibrarySession is not available
-            // CRITICAL: Disable PlayerNotificationManager when MediaLibrarySession is active
-            // to prevent duplicate notifications and ensure system media player has priority
-            if (mediaLibrarySession == null) {
-                LogUtils.w(
-                    "AudioPlayerService",
-                    "MediaLibrarySession not available, using PlayerNotificationManager as fallback",
-                )
-                setupPlayerNotificationManager()
-            } else {
-                LogUtils.i(
-                    "AudioPlayerService",
-                    "MediaLibrarySession active, skipping PlayerNotificationManager to ensure system media player priority",
-                )
-            }
-
-            // Initialize AudioOutputManager for proximity sensor handling (Speaker/Earpiece switching)
-            LogUtils.e("JABOOK_SERVICE", "Setting up AudioOutputManager...")
-            setupAudioOutputManager()
-            LogUtils.e("JABOOK_SERVICE", "[OK] AudioOutputManager setup completed")
-
-            // Initialize PlaybackEnhancerService for volume boost (LoudnessEnhancer)
-            LogUtils.e("JABOOK_SERVICE", "Initializing PlaybackEnhancerService...")
-            playbackEnhancerService.initialize()
-            LogUtils.e("JABOOK_SERVICE", "[OK] PlaybackEnhancerService initialized")
-
-            // CrossFadePlayer already initialized above (before AudioPlayerServiceInitializer)
-
-            // Initialize AudioVisualizerManager
-            LogUtils.e("JABOOK_SERVICE", "Initializing AudioVisualizerManager...")
-            audioVisualizerManager = AudioVisualizerManager(this)
-            visualizerBridgeJob?.cancel()
-            visualizerBridgeJob =
-                playerServiceScope.launch {
-                    audioVisualizerManager
-                        ?.waveformData
-                        ?.collect { waveform ->
-                            audioVisualizerStateBridge.updateWaveform(waveform)
-                        }
-                }
-            // Visualizer will be enabled when playback starts (requires audio session)
-            LogUtils.e("JABOOK_SERVICE", "[OK] AudioVisualizerManager initialized")
-
             PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
-
-            LogUtils.e("JABOOK_SERVICE", "============================================")
-            LogUtils.e("JABOOK_SERVICE", "AudioPlayerService.onCreate() COMPLETE")
-            LogUtils.e("JABOOK_SERVICE", "============================================")
+            LogUtils.i("AudioPlayerService", "onCreate() completed successfully")
         } catch (e: Exception) {
-            LogUtils.e("JABOOK_SERVICE", "[CRASH] in onCreate()!", e)
-            LogUtils.e("JABOOK_SERVICE", "Exception: ${e.message}")
-            LogUtils.e("JABOOK_SERVICE", "Stack trace: ${e.stackTraceToString()}")
-            throw e // Re-throw to crash properly
+            LogUtils.e("AudioPlayerService", "onCreate() failed", e)
+            throw e
         }
     }
 
@@ -712,168 +464,34 @@ public class AudioPlayerService : MediaLibraryService() {
         return super.onStartCommand(intent, flags, startId)
     }
 
-    /**
-     * Starts sleep timer.
-     *
-     * @param delayInSeconds Timer duration in seconds
-     * @param option Timer option (FIXED_DURATION or CURRENT_TRACK)
-     */
     public fun startTimer(
         delayInSeconds: Double,
         option: Int = 0,
-    ) {
-        val timerOption =
-            when (option) {
-                1 -> PlaybackTimer.TimerOption.CURRENT_TRACK
-                else -> PlaybackTimer.TimerOption.FIXED_DURATION
-            }
-        playbackTimer?.startTimer(delayInSeconds, timerOption)
-    }
+    ): Unit = sleepTimerFacade.startTimer(delayInSeconds, option)
 
-    /**
-     * Stops sleep timer.
-     */
-    public fun stopTimer() {
-        playbackTimer?.stopTimer()
-    }
+    public fun stopTimer(): Unit = sleepTimerFacade.stopTimer()
 
-    /**
-     * Player event listener instance.
-     * Delegated to PlayerConfigurator.
-     */
     internal val playerListener: PlayerListener?
-        get() = playerConfigurator?.playerListener
+        get() = playerFacade.playerListener
 
-    /**
-     * Configures ExoPlayer instance (already created via Hilt).
-     *
-     * ExoPlayer is provided as singleton via Dagger Hilt MediaModule.
-     * LoadControl and AudioAttributes are already configured in MediaModule.
-     * This method only adds listener and configures additional settings.
-     *
-     * Inspired by lissen-android: lightweight configuration, no heavy operations.
-     */
-    internal fun configurePlayer() {
-        playerConfigurator?.configurePlayer() ?: run {
-            LogUtils.e("AudioPlayerService", "PlayerConfigurator not initialized")
-        }
-    }
+    internal fun configurePlayer(): Unit = playerFacade.configurePlayer()
 
-    /**
-     * Configures ExoPlayer with AudioProcessors based on settings.
-     *
-     * In Media3, AudioProcessors must be set during ExoPlayer creation.
-     * This method creates a new ExoPlayer instance with processors if needed,
-     * or uses the singleton ExoPlayer if no processing is required.
-     *
-     * @param settings Audio processing settings
-     */
     @OptIn(UnstableApi::class)
-    public fun configureExoPlayer(settings: com.jabook.app.jabook.audio.processors.AudioProcessingSettings) {
-        playerConfigurator?.configureExoPlayer(settings) ?: run {
-            LogUtils.e("AudioPlayerService", "PlayerConfigurator not initialized")
-        }
-    }
+    public fun configureExoPlayer(settings: com.jabook.app.jabook.audio.processors.AudioProcessingSettings): Unit =
+        playerFacade.configureExoPlayer(settings)
 
-    /**
-     * Gets the active ExoPlayer instance (custom with processors or singleton).
-     */
-    internal fun getActivePlayer(): ExoPlayer {
-        val settings = playerConfigurator?.audioProcessingSettings
-        if (settings?.isCrossfadeEnabled == true) {
-            crossFadePlayer?.let {
-                return it.getActivePlayer()
-            }
-        }
-        return playerConfigurator?.getActivePlayer(exoPlayer) ?: exoPlayer
-    }
+    internal fun getActivePlayer(): ExoPlayer = playerFacade.getActivePlayer()
 
-    /**
-     * Triggers crossfade transition.
-     * Called by CrossfadeHandler when condition is met.
-     */
-    public fun triggerCrossfadeTransition() {
-        // Delegate to PlaylistManager to prepare next track on secondary player
-        // Then start crossfade
-        playerServiceScope.launch {
-            val currentPlayer = getActivePlayer()
-            val nextSource = playlistManager?.getNextMediaSource(currentPlayer.currentMediaItemIndex)
+    public fun triggerCrossfadeTransition(): Unit = playerFacade.triggerCrossfadeTransition()
 
-            if (nextSource != null) {
-                withContext(Dispatchers.Main) {
-                    crossFadePlayer?.setNextMediaSource(nextSource)
-                    crossFadePlayer?.startCrossFade()
-                }
-            }
-        }
-    }
+    /** Delegates to [PlaybackContextHelper.updateActualTrackIndex]. */
+    internal fun updateActualTrackIndex(index: Int) = playbackContextHelper.updateActualTrackIndex(index)
 
-    /**
-     * Updates the actual track index from onMediaItemTransition events.
-     * This is the single source of truth for current track index.
-     *
-     * @param index The actual track index from ExoPlayer's onMediaItemTransition event
-     */
-    internal fun updateActualTrackIndex(index: Int) {
-        playlistManager?.actualTrackIndex = index
-        LogUtils.d("AudioPlayerService", "Updated actualTrackIndex to $index")
-        updateCrashPlaybackContext()
-    }
+    private fun updateCrashPlaybackContext() = playbackContextHelper.updateCrashPlaybackContext()
 
-    private fun updateCrashPlaybackContext() {
-        val player = getActivePlayer()
-        val effectiveTitle =
-            currentMetadata?.get("title")
-                ?: currentMetadata?.get("bookTitle")
-                ?: currentMetadata?.get("album")
-                ?: player.mediaMetadata.albumTitle?.toString()
-                ?: player.mediaMetadata.title?.toString()
-        val sleepMode =
-            when {
-                isSleepTimerEndOfChapter() -> "chapter_end"
-                isSleepTimerEndOfTrack() -> "track_end"
-                isSleepTimerActive() -> "fixed"
-                else -> "none"
-            }
-        CrashDiagnostics.setPlaybackContext(
-            bookTitle = effectiveTitle,
-            playerState = player.playbackState.toString(),
-            playbackSpeed = player.playbackParameters.speed,
-            sleepMode = sleepMode,
-        )
-    }
+    private fun resetBookCompletionIfNeeded(actionLabel: String) = playbackContextHelper.resetBookCompletionIfNeeded(actionLabel)
 
-    private fun resetBookCompletionIfNeeded(actionLabel: String) {
-        if (!isBookCompleted) {
-            return
-        }
-        LogUtils.i(
-            "AudioPlayerService",
-            "$actionLabel called after book completion, resetting completion flag",
-        )
-        isBookCompleted = false
-        lastCompletedTrackIndex = -1
-    }
-
-    /**
-     * Sets playlist from file paths or URLs.
-     *
-     * Supports both local file paths and HTTP(S) URLs for network streaming.
-     * Uses coroutines for async operations (inspired by lissen-android).
-     *
-     * CRITICAL: This method is asynchronous and uses coroutines to avoid blocking.
-     * Flutter should wait for completion via MethodChannel.Result callback.
-     *
-     * OPTIMIZATION: For fast startup, only the first MediaItem (or saved position track) is created
-     * synchronously. Remaining items are added asynchronously in background.
-     *
-     * @param filePaths List of absolute file paths or HTTP(S) URLs to audio files
-     * @param metadata Optional metadata map (title, artist, album, etc.)
-     * @param initialTrackIndex Optional track index to load first (for saved position). If null, loads first track.
-     * @param initialPosition Optional position in milliseconds to seek to after loading initial track
-     * @param groupPath Optional group path for saving playback position (used for fallback saving)
-     * @param callback Optional callback to notify when playlist is ready (for Flutter)
-     */
+    /** Delegates playlist setup to [PlaylistManager] with loudness compensation. */
     public fun setPlaylist(
         filePaths: List<String>,
         metadata: Map<String, String>? = null,
@@ -883,11 +501,9 @@ public class AudioPlayerService : MediaLibraryService() {
         callback: ((Boolean, Exception?) -> Unit)? = null,
     ) {
         // Apply book loudness compensation when switching to a different book
-        val isBookSwitch = groupPath != null && groupPath != currentGroupPath
-        if (isBookSwitch) {
-            // Extract book ID from groupPath (format: "author/bookId" or similar)
+        if (groupPath != null && groupPath != currentGroupPath) {
             val bookId = groupPath.substringAfterLast("/").takeIf { it.isNotBlank() } ?: groupPath
-            applyBookLoudnessCompensation(bookId)
+            bookLoudnessCompensator.applyCompensation(bookId, booksDao, playerServiceScope) { getActivePlayer() }
         }
 
         playlistManager?.setPlaylist(
@@ -903,157 +519,31 @@ public class AudioPlayerService : MediaLibraryService() {
         }
     }
 
-    /**
-     * Applies loudness compensation when switching books.
-     *
-     * Reads the new book's measured LUFS value from the database and computes
-     * the gain needed to maintain consistent perceived volume. The gain is
-     * applied to the player volume after the book switch.
-     *
-     * This is a fire-and-forget operation — if the LUFS value is not yet
-     * available (e.g., [LufsAnalysisWorker] hasn't analyzed the book), the
-     * volume remains unchanged (gain = 1.0).
-     *
-     * @param newBookId the groupPath/bookId of the book being switched to
-     */
-    internal fun applyBookLoudnessCompensation(newBookId: String?) {
-        if (newBookId.isNullOrBlank()) return
-        playerServiceScope.launch(Dispatchers.IO) {
-            try {
-                val bookEntity = booksDao.getBookById(newBookId)
-                val newLufs = bookEntity?.lufsValue
-                val prevLufs = previousBookLufs
-
-                val gain =
-                    if (prevLufs != null && newLufs != null) {
-                        bookLoudnessCompensator.computeTransitionGain(prevLufs, newLufs)
-                    } else {
-                        bookLoudnessCompensator.computeBookGain(newLufs)
-                    }
-
-                // Update previous book LUFS for future transitions
-                previousBookLufs = newLufs
-
-                if (gain != BookLoudnessCompensator.NO_GAIN) {
-                    withContext(Dispatchers.Main) {
-                        val player = getActivePlayer()
-                        // Player.volume is an absolute linear multiplier. Loudness compensation gain
-                        // is relative, so it must be composed multiplicatively to preserve user volume.
-                        player.volume = (player.volume * gain).coerceIn(0f, 1f)
-                        LogUtils.i(
-                            "AudioPlayerService",
-                            "Book loudness compensation applied: gain=$gain, lufs=$newLufs, book=$newBookId",
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                // Re-throw CancellationException to preserve coroutine cancellation
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                LogUtils.w(
-                    "AudioPlayerService",
-                    "Failed to apply book loudness compensation for book=$newBookId: ${e.message}",
-                )
-                CrashDiagnostics.reportNonFatal("book_loudness_compensation", e)
-            }
-        }
-    }
-
-    /**
-     * Applies initial position after playlist is loaded.
-     * This is called in background to avoid blocking setPlaylist callback.
-     *
-     * OPTIMIZATION: If the target track is already loaded as the first track (which is the case
-     * when initialTrackIndex is provided), we can apply the position immediately without waiting.
-     */
     public fun seekToTrackAndPosition(
         trackIndex: Int,
         positionMs: Long,
-    ) {
-        resetBookCompletionIfNeeded("Manual seekToTrackAndPosition($trackIndex, $positionMs)")
-        playbackController?.seekToTrackAndPosition(trackIndex, positionMs) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
-    }
+    ): Unit = commandRouter.seekToTrackAndPosition(trackIndex, positionMs)
 
-    public fun updateMetadata(metadata: Map<String, String>) {
-        metadataManager?.updateMetadata(metadata) ?: run {
-            LogUtils.e("AudioPlayerService", "MetadataManager not initialized")
-        }
-        updateCrashPlaybackContext()
-    }
-
-    /**
-     * Sets notification type (full or minimal).
-     *
-     * @param isMinimal true for minimal notification (Play/Pause only),
-     * false for full notification (all controls)
-     */
-    public fun setNotificationType() {
-        // MediaLibraryService automatically manages notifications based on Player state
-        // If we need custom notification types, we should configure MediaButtonPreferences instead
-        // notificationManager?.setNotificationType(false)
-        // MediaLibraryService automatically updates notification when Player state changes
-    }
+    public fun updateMetadata(metadata: Map<String, String>): Unit = commandRouter.updateMetadata(metadata)
 
     public val isPlaying: Boolean
-        get() = getActivePlayer().isPlaying
+        get() = commandRouter.isPlaying
 
-    public fun play() {
-        resetBookCompletionIfNeeded("play()")
+    public fun play(): Unit = commandRouter.play()
 
-        playbackController?.play() ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-            return
-        }
+    public fun pause(): Unit = commandRouter.pause()
 
-        // Start listening for phone calls when playback starts
-        phoneCallListener?.startListening()
+    public fun stop(): Unit = commandRouter.stop()
 
-        listeningSessionTracker.onPlaybackStarted()
-        startPeriodicPositionSaving()
-        updateCrashPlaybackContext()
-    }
-
-    public fun pause() {
-        playbackController?.pause() ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-            return
-        }
-
-        listeningSessionTracker.onPlaybackStopped(reason = "pause")
-        savePositionToRepository()
-        // storeCurrentMediaItem()
-        stopPeriodicPositionSaving()
-        updateCrashPlaybackContext()
-    }
-
-    public fun stop() {
-        playbackController?.stop() ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-            return
-        }
-
-        // Stop listening for phone calls when playback stops
-        phoneCallListener?.stopListening()
-
-        listeningSessionTracker.onPlaybackStopped(reason = "stop")
-        savePositionToRepository()
-        // storeCurrentMediaItem()
-        stopPeriodicPositionSaving()
-        updateCrashPlaybackContext()
+    internal fun savePositionToRepository() {
+        periodicPositionSaver.save()
     }
 
     internal fun finishListeningSessionIfActive(reason: String) {
         listeningSessionTracker.onPlaybackStopped(reason)
     }
 
-    /**
-     * Stops playback and releases all resources.
-     * Closes notification and stops service.
-     *
-     * This is a complete cleanup method that should be called when
-     * playback is permanently stopped (e.g., from Stop button in notification).
-     */
+    /** Delegates to [ServiceLifecycleManager.stopAndCleanup]. */
     public fun stopAndCleanup() {
         lifecycleManager?.stopAndCleanup() ?: run {
             LogUtils.e("AudioPlayerService", "ServiceLifecycleManager not initialized for stopAndCleanup")
@@ -1063,220 +553,70 @@ public class AudioPlayerService : MediaLibraryService() {
         headsetAutoplayHandler?.stopListening()
     }
 
-    internal fun saveCurrentPosition() {
-        positionManager?.saveCurrentPosition() ?: run {
-            LogUtils.e(
-                "AudioPlayerService",
-                "PositionManager not initialized",
-            )
-        }
-    }
+    internal fun saveCurrentPosition(): Unit = commandRouter.saveCurrentPosition()
 
-    /**
-     * Stores current media item detailed state for persistence.
-     *
-     * Based on Media3 DemoPlaybackService example.
-     */
-    @OptIn(UnstableApi::class) // Player.listen, BitmapLoader
-    internal fun storeCurrentMediaItem() {
-    }
+    public fun seekTo(positionMs: Long): Unit = commandRouter.seekTo(positionMs)
 
-    public fun seekTo(positionMs: Long): Unit =
-        playbackController?.seekTo(positionMs) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
+    public fun setSpeed(speed: Float): Unit = commandRouter.setSpeed(speed)
 
-    public fun setSpeed(speed: Float) {
-        playbackController?.setSpeed(speed) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
-        updateCrashPlaybackContext()
-    }
+    public fun setRepeatMode(repeatMode: Int): Unit = commandRouter.setRepeatMode(repeatMode)
 
-    public fun setRepeatMode(repeatMode: Int): Unit =
-        playbackController?.setRepeatMode(repeatMode) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
+    public fun getRepeatMode(): Int = commandRouter.getRepeatMode()
 
-    public fun getRepeatMode(): Int = playbackController?.getRepeatMode() ?: Player.REPEAT_MODE_OFF
+    public fun getPlaybackSpeed(): Float = commandRouter.getSpeed()
 
-    public fun getPlaybackSpeed(): Float = playbackController?.getSpeed() ?: 1.0f
+    public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean): Unit = commandRouter.setShuffleModeEnabled(shuffleModeEnabled)
 
-    public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean): Unit =
-        playbackController?.setShuffleModeEnabled(shuffleModeEnabled) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
+    public fun getShuffleModeEnabled(): Boolean = commandRouter.getShuffleModeEnabled()
 
-    public fun getShuffleModeEnabled(): Boolean = playbackController?.getShuffleModeEnabled() ?: false
+    // --- Sleep timer delegation (via SleepTimerFacade) ---
+    public fun setSleepTimerMinutes(minutes: Int): Unit = sleepTimerFacade.setSleepTimerMinutes(minutes)
 
-    /**
-     * Sets sleep timer with specified duration in minutes.
-     *
-     * Inspired by EasyBook implementation: uses absolute end time instead of periodic timer.
-     *
-     * @param minutes Timer duration in minutes
-     */
-    public fun setSleepTimerMinutes(minutes: Int) {
-        sleepTimerManager?.setSleepTimerMinutes(minutes)
-        updateCrashPlaybackContext()
-    }
+    public fun setSleepTimerEndOfChapter(): Unit = sleepTimerFacade.setSleepTimerEndOfChapter()
 
-    /**
-     * Sets sleep timer to expire at end of current chapter.
-     *
-     * Inspired by EasyBook implementation: uses boolean flag for "end of chapter" mode.
-     */
-    public fun setSleepTimerEndOfChapter() {
-        sleepTimerManager?.setSleepTimerEndOfChapter()
-        updateCrashPlaybackContext()
-    }
+    public fun setSleepTimerEndOfChapterOrFallback(): Boolean = sleepTimerFacade.setSleepTimerEndOfChapterOrFallback()
 
-    /**
-     * Sets sleep timer to end of chapter when chapter boundaries are available.
-     * Falls back to end of track otherwise.
-     *
-     * @return true when chapter-end mode is active, false when fallback to track-end was applied
-     */
-    public fun setSleepTimerEndOfChapterOrFallback(): Boolean {
-        val hasChapterModeSupport = getActivePlayer().mediaItemCount > 1
-        return sleepTimerManager?.setSleepTimerEndOfChapterOrFallback(hasChapterModeSupport) ?: false
-    }
+    public fun setSleepTimerEndOfTrack(): Unit = sleepTimerFacade.setSleepTimerEndOfTrack()
 
-    /**
-     * Sets sleep timer to expire at end of current track.
-     */
-    public fun setSleepTimerEndOfTrack() {
-        sleepTimerManager?.setSleepTimerEndOfTrack()
-        updateCrashPlaybackContext()
-    }
+    public fun cancelSleepTimer(): Unit = sleepTimerFacade.cancelSleepTimer()
 
-    /**
-     * Cancels active sleep timer.
-     */
-    public fun cancelSleepTimer() {
-        sleepTimerManager?.cancelSleepTimer()
-        updateCrashPlaybackContext()
-    }
+    public fun getSleepTimerRemainingSeconds(): Int? = sleepTimerFacade.getSleepTimerRemainingSeconds()
 
-    /**
-     * Gets remaining seconds for sleep timer, or null if not active.
-     *
-     * @return Remaining seconds, or null if timer is not active or set to "end of chapter"
-     */
-    public fun getSleepTimerRemainingSeconds(): Int? = sleepTimerManager?.getSleepTimerRemainingSeconds()
+    public fun isSleepTimerActive(): Boolean = sleepTimerFacade.isSleepTimerActive()
 
-    /**
-     * Checks if sleep timer is active.
-     *
-     * @return true if timer is active (either fixed duration or end of chapter)
-     */
-    public fun isSleepTimerActive(): Boolean = sleepTimerManager?.isSleepTimerActive() ?: false
+    public fun isSleepTimerEndOfChapter(): Boolean = sleepTimerFacade.isSleepTimerEndOfChapter()
 
-    /**
-     * Checks if sleep timer is set to end of chapter.
-     */
-    public fun isSleepTimerEndOfChapter(): Boolean = sleepTimerManager?.sleepTimerEndOfChapter == true
+    public fun isSleepTimerEndOfTrack(): Boolean = sleepTimerFacade.isSleepTimerEndOfTrack()
 
-    /**
-     * Checks if sleep timer is set to end of track.
-     */
-    public fun isSleepTimerEndOfTrack(): Boolean = sleepTimerManager?.sleepTimerEndOfTrack == true
+    // --- Visualizer delegation (via VisualizerFacade) ---
+    public fun getAudioSessionId(): Int = visualizerFacade.getAudioSessionId()
 
-    /**
-     * Gets the audio session ID from ExoPlayer.
-     * Required for audio visualizer to capture audio data.
-     */
-    public fun getAudioSessionId(): Int = exoPlayer.audioSessionId
+    public fun getVisualizerWaveformData(): kotlinx.coroutines.flow.StateFlow<FloatArray>? = visualizerFacade.getWaveformData()
 
-    /**
-     * Gets the audio visualizer waveform data as a StateFlow.
-     */
-    public fun getVisualizerWaveformData(): kotlinx.coroutines.flow.StateFlow<FloatArray>? = audioVisualizerManager?.waveformData
+    public fun initializeVisualizer(): Unit = visualizerFacade.initialize()
 
-    /**
-     * Initializes the audio visualizer with the current audio session.
-     * Should be called when playback starts.
-     */
-    public fun initializeVisualizer() {
-        val sessionId = exoPlayer.audioSessionId
-        if (sessionId != 0) {
-            audioVisualizerManager?.initialize(sessionId)
-        }
-    }
+    public fun setVisualizerEnabled(enabled: Boolean): Unit = visualizerFacade.setEnabled(enabled)
 
-    /**
-     * Enables or disables the audio visualizer.
-     */
-    public fun setVisualizerEnabled(enabled: Boolean) {
-        audioVisualizerManager?.setEnabled(enabled)
-    }
+    public fun next(): Unit = commandRouter.next()
 
-    public fun next() {
-        resetBookCompletionIfNeeded("Manual next()")
-        playbackController?.next() ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
-    }
+    public fun previous(): Unit = commandRouter.previous()
 
-    public fun previous() {
-        resetBookCompletionIfNeeded("Manual previous()")
-        playbackController?.previous() ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
-    }
-
-    public fun seekToTrack(index: Int) {
-        resetBookCompletionIfNeeded("Manual seekToTrack($index)")
-        playbackController?.seekToTrack(index) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
-    }
+    public fun seekToTrack(index: Int): Unit = commandRouter.seekToTrack(index)
 
     public fun setPlaybackProgress(
         filePaths: List<String>,
         progressSeconds: Double?,
-    ): Unit =
-        positionManager?.setPlaybackProgress(filePaths, progressSeconds) ?: run {
-            LogUtils.e("AudioPlayerService", "PositionManager not initialized")
-        }
+    ): Unit = commandRouter.setPlaybackProgress(filePaths, progressSeconds)
 
-    public fun rewind(seconds: Int = 15): Unit =
-        playbackController?.rewind(seconds) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
+    public fun rewind(seconds: Int = 15): Unit = commandRouter.rewind(seconds)
 
-    public fun forward(seconds: Int = 30): Unit =
-        playbackController?.forward(seconds) ?: run {
-            LogUtils.e("AudioPlayerService", "PlaybackController not initialized")
-        }
+    public fun forward(seconds: Int = 30): Unit = commandRouter.forward(seconds)
 
-    /**
-     * Stops playback and releases resources.
-     * Closes notification and stops service.
-     */
+    /** Stops playback and releases resources. Delegates to [AudioServiceReleaseHandler]. */
     public fun stopAndRelease() {
-        val player = getActivePlayer()
-        player.stop()
-        player.clearMediaItems()
-        playbackTimer?.stopTimer()
-        inactivityTimer?.stopTimer()
-
-        // Release MediaSession
-        mediaSessionManager?.release()
-        mediaSession = null
-
-        // Cancel notification
-        // notificationManager = null
-
-        LogUtils.d("AudioPlayerService", "Player stopped and resources released")
+        releaseHandler.stopAndRelease()
     }
 
-    /**
-     * Updates skip durations for MediaSessionManager.
-     *
-     * @param rewindSeconds Duration in seconds for rewind action
-     * @param forwardSeconds Duration in seconds for forward action
-     */
     public fun updateSkipDurations(
         rewindSeconds: Int,
         forwardSeconds: Int,
@@ -1285,181 +625,28 @@ public class AudioPlayerService : MediaLibraryService() {
             rewindSeconds.toLong(),
             forwardSeconds.toLong(),
         )
-        // Update NotificationManager
-        // notificationManager?.updateSkipDurations(
-        //     rewindSeconds.toLong(),
-        //     forwardSeconds.toLong(),
-        // )
         LogUtils.d(
             "AudioPlayerService",
             "Updated skip durations: rewind=${rewindSeconds}s, forward=${forwardSeconds}s",
         )
     }
 
-    /**
-     * Updates MediaSession custom layout commands with new durations.
-     * Uses debounced updates to prevent flickering (from Rhythm pattern).
-     */
+    /** Updates MediaSession custom layout via [MediaSessionLayoutHelper]. */
     public fun updateMediaSessionCommands(
         rewindSeconds: Int,
         forwardSeconds: Int,
     ) {
-        // Use smart update to check if layout actually needs to change
-        updateMediaSessionCommandsSmart(rewindSeconds, forwardSeconds)
+        mediaSessionLayoutHelper.updateSmart(rewindSeconds, forwardSeconds)
     }
 
-    /**
-     * Smart update that only updates if layout actually changed (from Rhythm pattern).
-     * Prevents unnecessary recreations and flickering.
-     */
-    private fun updateMediaSessionCommandsSmart(
-        rewindSeconds: Int,
-        forwardSeconds: Int,
-    ) {
-        mediaSession?.let { session ->
-            try {
-                // Check if anything actually changed
-                if (rewindSeconds == lastRewindSeconds &&
-                    forwardSeconds == lastForwardSeconds
-                ) {
-                    LogUtils.d("AudioPlayerService", "Custom layout state unchanged, skipping update")
-                    return
-                }
-
-                // Update state tracking
-                lastRewindSeconds = rewindSeconds
-                lastForwardSeconds = forwardSeconds
-
-                // Use built-in Media3 icons to avoid CustomAction conversion crash
-                val rewindCommandButton =
-                    CommandButton
-                        .Builder(CommandButton.ICON_SKIP_BACK)
-                        .setDisplayName("-$rewindSeconds")
-                        .setSessionCommand(
-                            androidx.media3.session.SessionCommand(
-                                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_REWIND,
-                                android.os.Bundle.EMPTY,
-                            ),
-                        ).build()
-
-                val forwardCommandButton =
-                    CommandButton
-                        .Builder(CommandButton.ICON_SKIP_FORWARD)
-                        .setDisplayName("+$forwardSeconds")
-                        .setSessionCommand(
-                            androidx.media3.session.SessionCommand(
-                                AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_FORWARD,
-                                android.os.Bundle.EMPTY,
-                            ),
-                        ).build()
-
-                session.setCustomLayout(listOf(rewindCommandButton, forwardCommandButton))
-
-                LogUtils.d(
-                    "AudioPlayerService",
-                    "Smart updated custom layout - Rewind: ${rewindSeconds}s, Forward: ${forwardSeconds}s",
-                )
-            } catch (e: Exception) {
-                LogUtils.e("AudioPlayerService", "Error in smart custom layout update", e)
-            }
-        }
-    }
-
-    /**
-     * Schedules a debounced custom layout update (from Rhythm pattern).
-     * Prevents flickering when multiple updates happen quickly.
-     *
-     * @param delayMs Delay in milliseconds before update (default 150ms)
-     */
-    private fun scheduleCustomLayoutUpdate(
-        rewindSeconds: Int,
-        forwardSeconds: Int,
-        delayMs: Int = 150,
-    ) {
-        // Cancel any pending update
-        updateLayoutJob?.cancel()
-
-        // Schedule a new update with debouncing
-        updateLayoutJob =
-            playerServiceScope.launch {
-                kotlinx.coroutines.delay(delayMs.toLong())
-                updateMediaSessionCommandsSmart(rewindSeconds, forwardSeconds)
-            }
-    }
-
-    /**
-     * Forces an immediate custom layout update without debouncing (from Rhythm pattern).
-     * Used for initial setup.
-     */
-    private fun forceCustomLayoutUpdate(
-        rewindSeconds: Int,
-        forwardSeconds: Int,
-    ) {
-        playerServiceScope.launch {
-            updateMediaSessionCommandsSmart(rewindSeconds, forwardSeconds)
-        }
-    }
-
-    /**
-     * Sets initial CustomLayout for MediaSession (following Rhythm pattern).
-     * Called after MediaController initialization to avoid MediaSessionLegacyStub conversion issues.
-     * This method sets the initial layout with default rewind/forward durations.
-     */
-    @OptIn(UnstableApi::class)
+    /** Sets initial CustomLayout for MediaSession via [MediaSessionLayoutHelper]. */
     internal fun setInitialCustomLayout() {
-        mediaLibrarySession?.let { session ->
-            try {
-                // Use default durations for initial layout (will be updated when user changes settings)
-                val defaultRewindSeconds = 10
-                val defaultForwardSeconds = 30
-
-                val rewindCommand =
-                    androidx.media3.session.SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_REWIND,
-                        android.os.Bundle.EMPTY,
-                    )
-                val forwardCommand =
-                    androidx.media3.session.SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_FORWARD,
-                        android.os.Bundle.EMPTY,
-                    )
-
-                // Create CommandButtons with built-in Media3 icons
-                val rewindButton =
-                    CommandButton
-                        .Builder(CommandButton.ICON_SKIP_BACK)
-                        .setSessionCommand(rewindCommand)
-                        .setDisplayName("-$defaultRewindSeconds")
-                        .setEnabled(true)
-                        .build()
-
-                val forwardButton =
-                    CommandButton
-                        .Builder(CommandButton.ICON_SKIP_FORWARD)
-                        .setSessionCommand(forwardCommand)
-                        .setDisplayName("+$defaultForwardSeconds")
-                        .setEnabled(true)
-                        .build()
-
-                session.setCustomLayout(listOf(rewindButton, forwardButton))
-
-                // Initialize state tracking
-                lastRewindSeconds = defaultRewindSeconds
-                lastForwardSeconds = defaultForwardSeconds
-
-                LogUtils.d(
-                    "AudioPlayerService",
-                    "Initial CustomLayout set - Rewind: ${defaultRewindSeconds}s, Forward: ${defaultForwardSeconds}s",
-                )
-            } catch (e: Exception) {
-                LogUtils.e("AudioPlayerService", "Error setting initial CustomLayout", e)
-            }
-        }
+        mediaSessionLayoutHelper.setInitialLayout()
     }
 
-    public fun getCurrentPosition(): Long = playerStateHelper?.getCurrentPosition() ?: 0L
+    public fun getCurrentPosition(): Long = commandRouter.getCurrentPosition()
 
-    public fun getDuration(): Long = playerStateHelper?.getDuration() ?: 0L
+    public fun getDuration(): Long = commandRouter.getDuration()
 
     /**
      * Sets the inactivity timeout in minutes.
@@ -1474,472 +661,54 @@ public class AudioPlayerService : MediaLibraryService() {
         )
     }
 
-    public fun getPlayerState(): Map<String, Any> = playerStateHelper?.getPlayerState() ?: emptyMap()
+    public fun getPlayerState(): Map<String, Any> = commandRouter.getPlayerState()
 
-    public fun getCurrentMediaItemInfo(): Map<String, Any?> = metadataManager?.getCurrentMediaItemInfo() ?: emptyMap()
+    public fun getCurrentMediaItemInfo(): Map<String, Any?> = commandRouter.getCurrentMediaItemInfo()
 
-    public fun extractArtworkFromFile(filePath: String): String? = metadataManager?.extractArtworkFromFile(filePath)
+    public fun extractArtworkFromFile(filePath: String): String? = commandRouter.extractArtworkFromFile(filePath)
 
-    public fun getPlaylistInfo(): Map<String, Any> = playerStateHelper?.getPlaylistInfo() ?: emptyMap()
+    public fun getPlaylistInfo(): Map<String, Any> = commandRouter.getPlaylistInfo()
 
-    public fun unloadPlayerDueToInactivity(): Unit =
-        unloadManager?.unloadPlayerDueToInactivity() ?: run {
-            LogUtils.e("AudioPlayerService", "UnloadManager not initialized")
-        }
-
-    // Periodic position saving methods removed (delegated to PlaybackPositionSaver)
+    public fun unloadPlayerDueToInactivity(): Unit = commandRouter.unloadPlayerDueToInactivity()
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         lifecycleManager?.onTaskRemoved() ?: super.onTaskRemoved(rootIntent)
     }
 
+    /** Public wrapper for protected [setMediaNotificationProvider]. Called by [AudioPlayerServiceInitializer]. */
     @OptIn(UnstableApi::class)
-    private fun setupPlayerNotificationManager() {
+    internal fun setNotificationProvider(provider: MediaNotification.Provider) {
+        setMediaNotificationProvider(provider)
+    }
+
+    @OptIn(UnstableApi::class)
+    internal fun setupPlayerNotificationManager() {
         // Guard: Prevent duplicate initialization
         if (playerNotificationManager != null) {
             LogUtils.w("AudioPlayerService", "PlayerNotificationManager already initialized, skipping")
             return
         }
-
-        // CRITICAL: Only use PlayerNotificationManager as fallback when MediaLibrarySession is not available
-        // If MediaLibrarySession is active, it should handle notifications via MediaNotificationProvider
-        if (mediaLibrarySession != null) {
-            LogUtils.w(
-                "AudioPlayerService",
-                "MediaLibrarySession is active, PlayerNotificationManager should not be used. " +
-                    "This may cause duplicate notifications. Disabling PlayerNotificationManager.",
-            )
-            return
-        }
-
-        // CRITICAL: Create notification channel BEFORE PlayerNotificationManager
-        // Otherwise Android will crash with "invalid channel for service notification"
-        notificationHelper?.ensureNotificationChannel(NotificationHelper.CHANNEL_ID)
-            ?: LogUtils.e("AudioPlayerService", "NotificationHelper is null, channel may not be created!")
-
         playerNotificationManager =
-            PlayerNotificationManager
-                .Builder(this, NotificationHelper.NOTIFICATION_ID, NotificationHelper.CHANNEL_ID)
-                .setMediaDescriptionAdapter(
-                    object : PlayerNotificationManager.MediaDescriptionAdapter {
-                        override fun getCurrentContentTitle(player: Player): CharSequence {
-                            // 1. Prefer player.mediaMetadata (it combines sources)
-                            val metadata = player.mediaMetadata
-                            val serviceMetadata = this@AudioPlayerService.currentMetadata
-
-                            val rawTitle =
-                                metadata.title?.toString()
-                                    ?: serviceMetadata?.get("title")
-                                    ?: serviceMetadata?.get("trackTitle")
-                                    ?: ""
-
-                            // Remove flavor suffix (" - Dev", " - Beta", " - Prod") if present
-                            return rawTitle.replace(Regex(" - (Dev|Beta|Prod)$"), "").ifEmpty {
-                                this@AudioPlayerService.getString(com.jabook.app.jabook.R.string.app_name)
-                            }
-                        }
-
-                        override fun createCurrentContentIntent(player: Player): PendingIntent? {
-                            val intent =
-                                Intent(this@AudioPlayerService, ComposeMainActivity::class.java).apply {
-                                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                                    putExtra("navigate_to_player", true)
-                                    // Add book_id if available for direct navigation
-                                    // currentGroupPath usually contains the book ID or path
-                                    this@AudioPlayerService.playlistManager?.currentGroupPath?.let { path ->
-                                        // Usually path is like "downloads/book_id" or just "book_id"
-                                        // For now, pass it as book_id
-                                        putExtra("book_id", path.substringAfterLast("/"))
-                                    }
-                                }
-                            return PendingIntent.getActivity(
-                                this@AudioPlayerService,
-                                0,
-                                intent,
-                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-                            )
-                        }
-
-                        override fun getCurrentContentText(player: Player): CharSequence? {
-                            // ARTIST
-                            val artist = player.mediaMetadata.artist?.toString()
-                            val serviceMetadata = this@AudioPlayerService.currentMetadata
-                            return artist ?: serviceMetadata?.get("artist") ?: serviceMetadata?.get("author")
-                        }
-
-                        override fun getCurrentSubText(player: Player): CharSequence? {
-                            // ALBUM / BOOK TITLE
-                            val album = player.mediaMetadata.albumTitle?.toString()
-                            val serviceMetadata = this@AudioPlayerService.currentMetadata
-                            return album ?: serviceMetadata?.get("album") ?: serviceMetadata?.get("bookTitle")
-                        }
-
-                        override fun getCurrentLargeIcon(
-                            player: Player,
-                            callback: PlayerNotificationManager.BitmapCallback,
-                        ): android.graphics.Bitmap? {
-                            player.mediaMetadata.artworkUri?.let { artworkUri ->
-                                // Load cover bitmap via Coil3 (unified image pipeline)
-                                playerServiceScope.launch(Dispatchers.IO) {
-                                    try {
-                                        val loader = coil3.SingletonImageLoader.get(this@AudioPlayerService)
-                                        val request =
-                                            coil3.request.ImageRequest
-                                                .Builder(this@AudioPlayerService)
-                                                .data(artworkUri)
-                                                .size(512, 512)
-                                                .build()
-                                        val result = loader.execute(request)
-                                        if (result is SuccessResult) {
-                                            callback.onBitmap(result.image.toBitmap())
-                                        }
-                                    } catch (e: Exception) {
-                                        android.util.Log.w("AudioPlayerService", "Failed to load large icon via Coil", e)
-                                    }
-                                }
-                            }
-                            return null
-                        }
-                    },
-                ).setNotificationListener(
-                    object : PlayerNotificationManager.NotificationListener {
-                        override fun onNotificationCancelled(
-                            notificationId: Int,
-                            dismissedByUser: Boolean,
-                        ) {
-                            // USER REQUEST: Prevent notification dismissal by swipe
-                            // Always restore notification, never stop service when dismissed
-                            // This ensures player continues working even if user accidentally swipes notification
-                            LogUtils.d(
-                                "AudioPlayerService",
-                                "Notification cancelled (dismissedByUser=$dismissedByUser), restoring notification",
-                            )
-
-                            // Restore notification immediately by invalidating PlayerNotificationManager
-                            // This will trigger onNotificationPosted again
-                            playerNotificationManager?.invalidate()
-
-                            // Don't stop service - keep it running
-                            // User can only stop playback through app UI or notification controls
-                        }
-
-                        override fun onNotificationPosted(
-                            notificationId: Int,
-                            notification: android.app.Notification,
-                            ongoing: Boolean,
-                        ) {
-                            // CRITICAL FIX: ALWAYS stay in foreground, even when paused
-                            // This keeps notification visible like quality music apps (Spotify, YouTube Music)
-                            // Previously: stopForeground(DETACH) when ongoing==false (paused) → notification disappeared
-                            // Now: Always startForeground → notification persists
-                            LogUtils.d(
-                                "AudioPlayerService",
-                                "onNotificationPosted: ongoing=$ongoing, staying in foreground",
-                            )
-
-                            // USER REQUEST: Make notification non-dismissible by swipe
-                            // Create new notification with ongoing flag using NotificationCompat
-                            // Copy properties from original notification
-                            val nonDismissibleNotification =
-                                NotificationCompat
-                                    .Builder(this@AudioPlayerService, NotificationHelper.CHANNEL_ID)
-                                    .apply {
-                                        // Copy essential properties from original notification
-                                        val title = NotificationCompat.getContentTitle(notification)
-                                        val text = NotificationCompat.getContentText(notification)
-                                        if (title != null) setContentTitle(title)
-                                        if (text != null) setContentText(text)
-
-                                        // Get small icon from original notification
-                                        // notification.smallIcon is Icon, need to extract resource ID
-                                        val smallIconResId =
-                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                                try {
-                                                    val icon = notification.getSmallIcon()
-                                                    if (icon != null) {
-                                                        val iconType = icon.type
-                                                        if (iconType == android.graphics.drawable.Icon.TYPE_RESOURCE) {
-                                                            // Use reflection or IconCompat to get resource ID
-                                                            // For API 23+, we can use IconCompat
-                                                            androidx.core.graphics.drawable.IconCompat
-                                                                .createFromIcon(icon)
-                                                                .resId
-                                                        } else {
-                                                            com.jabook.app.jabook.R.drawable.ic_notification_logo
-                                                        }
-                                                    } else {
-                                                        com.jabook.app.jabook.R.drawable.ic_notification_logo
-                                                    }
-                                                } catch (e: Exception) {
-                                                    com.jabook.app.jabook.R.drawable.ic_notification_logo
-                                                }
-                                            } else {
-                                                com.jabook.app.jabook.R.drawable.ic_notification_logo
-                                            }
-                                        setSmallIcon(smallIconResId)
-
-                                        // Get large icon from original notification
-                                        val largeIcon = notification.getLargeIcon()
-                                        if (largeIcon != null) {
-                                            try {
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                                    if (largeIcon.type == android.graphics.drawable.Icon.TYPE_BITMAP) {
-                                                        val bitmap =
-                                                            largeIcon.loadDrawable(this@AudioPlayerService)?.let { drawable ->
-                                                                if (drawable is android.graphics.drawable.BitmapDrawable) {
-                                                                    drawable.bitmap
-                                                                } else {
-                                                                    null
-                                                                }
-                                                            }
-                                                        if (bitmap != null) {
-                                                            setLargeIcon(bitmap)
-                                                        }
-                                                    }
-                                                }
-                                            } catch (e: Exception) {
-                                                LogUtils.w("AudioPlayerService", "Failed to get large icon", e)
-                                            }
-                                        }
-
-                                        setContentIntent(notification.contentIntent)
-                                        setDeleteIntent(null) // Remove delete intent to prevent swipe dismissal
-
-                                        // Copy actions (Play/Pause, Next, Previous)
-                                        // Convert android.app.Notification.Action to NotificationCompat.Action
-                                        notification.actions?.forEach { action ->
-                                            // Try to extract resource ID from action icon
-                                            // If extraction fails, use fallback icon
-                                            val actionIconResId =
-                                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                                                    try {
-                                                        // Use getIcon() instead of deprecated icon field
-                                                        val icon = action.getIcon()
-                                                        // Use IconCompat to extract resource ID
-                                                        val iconCompat =
-                                                            androidx.core.graphics.drawable.IconCompat
-                                                                .createFromIcon(icon)
-                                                        if (iconCompat.type ==
-                                                            androidx.core.graphics.drawable.IconCompat.TYPE_RESOURCE
-                                                        ) {
-                                                            iconCompat.resId
-                                                        } else {
-                                                            android.R.drawable.ic_media_play
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        android.R.drawable.ic_media_play
-                                                    }
-                                                } else {
-                                                    android.R.drawable.ic_media_play
-                                                }
-                                            // Create NotificationCompat.Action with resource ID
-                                            addAction(
-                                                NotificationCompat.Action(
-                                                    actionIconResId,
-                                                    action.title,
-                                                    action.actionIntent,
-                                                ),
-                                            )
-                                        }
-
-                                        // Copy MediaStyle if present
-                                        // Use string keys directly as constants may not be available
-                                        val extras = notification.extras
-                                        if (extras != null) {
-                                            val mediaSessionKey = "android.mediaSession"
-                                            val compactActionsKey = "android.media.compactActions"
-                                            if (extras.containsKey(mediaSessionKey)) {
-                                                // Use getParcelable with type parameter for API 33+
-                                                val mediaSessionToken =
-                                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                                        extras.getParcelable(
-                                                            mediaSessionKey,
-                                                            android.os.Parcelable::class.java,
-                                                        )
-                                                    } else {
-                                                        @Suppress("DEPRECATION")
-                                                        extras.getParcelable<android.os.Parcelable>(mediaSessionKey)
-                                                    }
-                                                val compactActions =
-                                                    extras.getIntArray(compactActionsKey) ?: intArrayOf()
-                                                setStyle(
-                                                    MediaNotificationCompat
-                                                        .MediaStyle()
-                                                        .setShowActionsInCompactView(*compactActions)
-                                                        .setMediaSession(
-                                                            mediaSessionToken as? android.support.v4.media.session.MediaSessionCompat.Token,
-                                                        ),
-                                                )
-                                            }
-                                        }
-
-                                        // CRITICAL: Set ongoing flag to prevent swipe dismissal
-                                        setOngoing(true)
-                                        setAutoCancel(false)
-                                        priority = NotificationCompat.PRIORITY_LOW
-                                        setShowWhen(false)
-                                        setOnlyAlertOnce(true)
-                                    }.build()
-
-                            foregroundNotificationCoordinator.startWithFallback(
-                                service = this@AudioPlayerService,
-                                notificationId = notificationId,
-                                primaryNotification = nonDismissibleNotification,
-                                fallbackNotificationProvider = {
-                                    notificationHelper?.createFallbackNotification()
-                                        ?: NotificationHelper(this@AudioPlayerService).createFallbackNotification()
-                                },
-                                event = "player_notification_posted",
-                            )
-                        }
-                    },
-                ).setSmallIconResourceId(com.jabook.app.jabook.R.drawable.ic_notification_logo)
-                .build()
-
-        // listener to force refresh notification when metadata changes
-        // CRITICAL: Debounce notification updates to prevent spam
-        // Events can fire multiple times rapidly (e.g., onMediaItemTransition + onMediaMetadataChanged)
-        val notificationInvalidationPipeline =
-            PlayerNotificationInvalidationPipeline(
+            PlayerNotificationSetup(
+                service = this,
                 scope = playerServiceScope,
-                invalidate = {
-                    this@AudioPlayerService.playerNotificationManager?.invalidate()
-                },
-            )
-
-        notificationInvalidationPipeline.register(
-            player = exoPlayer,
-        )
-
-        playerNotificationManager?.setPlayer(exoPlayer)
-        mediaLibrarySession?.let { playerNotificationManager?.setMediaSessionToken(it.platformToken) }
-        playerNotificationManager?.setUseNextAction(true)
-        playerNotificationManager?.setUsePreviousAction(true)
-        playerNotificationManager?.setUsePlayPauseActions(true)
-        playerNotificationManager?.setUseStopAction(false)
-
-        // CRITICAL: Force immediate invalidate to ensure startForeground() is called within 5 seconds
-        // This prevents ForegroundServiceDidNotStartInTimeException crash
-        notificationInvalidationPipeline.forceInitialStateInvalidate()
+                notificationHelper = notificationHelper ?: NotificationHelper(this),
+                foregroundNotificationCoordinator = foregroundNotificationCoordinator,
+                getActivePlayer = { exoPlayer },
+                getMediaLibrarySession = { mediaLibrarySession },
+            ).setup()
+        return
     }
 
-    /**
-     * Sets up the AudioOutputManager to handle proximity sensor switching.
-     * Automatically monitors playback state to enable/disable sensor.
-     */
-    private fun setupAudioOutputManager() {
-        // Initial state check
-        if (exoPlayer.isPlaying) {
-            audioOutputManager.startMonitoring()
-        }
-
-        exoPlayer.addListener(
-            object : Player.Listener {
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    if (isPlaying) {
-                        audioOutputManager.startMonitoring()
-                    } else {
-                        audioOutputManager.stopMonitoring()
-                    }
-                }
-            },
-        )
-    }
-
-    /**
-     * Cleans up existing components before reinitialization.
-     * Called at the start of onCreate() to prevent resource leaks when Android
-     * calls onCreate() multiple times without onDestroy().
-     */
     private fun cleanupExistingComponents() {
-        val hasExistingComponents =
-            mediaLibrarySession != null ||
-                serviceMediaController != null ||
-                crossFadePlayer != null ||
-                audioVisualizerManager != null ||
-                positionSaveJob != null ||
-                updateLayoutJob != null ||
-                visualizerBridgeJob != null
-        if (hasExistingComponents) {
-            LogUtils.w(
-                "AudioPlayerService",
-                "onCreate() called with existing runtime components, performing pre-init cleanup",
-            )
-        }
-        releaseRuntimeComponents(cancelServiceScopeChildren = true)
-        if (hasExistingComponents) {
-            LogUtils.i("AudioPlayerService", "Existing components cleaned up")
-        }
+        releaseHandler.cleanupExistingComponents()
     }
 
     override fun onDestroy() {
-        releaseRuntimeComponents(cancelServiceScopeChildren = true)
+        releaseHandler.releaseRuntimeComponents(cancelServiceScopeChildren = true)
         // Delegate to lifecycle manager
         lifecycleManager?.onDestroy()
         super.onDestroy()
-    }
-
-    private fun releaseRuntimeComponents(cancelServiceScopeChildren: Boolean) {
-        stopPeriodicPositionSaving()
-        if (cancelServiceScopeChildren) {
-            playerServiceScope.coroutineContext.cancelChildren()
-        }
-
-        playerNotificationManager?.setPlayer(null)
-        playerNotificationManager = null
-
-        if (::audioOutputManager.isInitialized) {
-            audioOutputManager.stopMonitoring()
-        }
-        if (::playbackEnhancerService.isInitialized) {
-            playbackEnhancerService.release()
-        }
-
-        sleepTimerManager?.release()
-        sleepTimerManager = null
-
-        inactivityTimer?.release()
-        inactivityTimer = null
-
-        playbackTimer?.release()
-        playbackTimer = null
-        crossfadeHandler?.stopMonitoring()
-        crossfadeHandler = null
-        crossFadePlayer?.release()
-        crossFadePlayer = null
-
-        audioVisualizerManager?.release()
-        audioVisualizerManager = null
-        visualizerBridgeJob?.cancel()
-        visualizerBridgeJob = null
-        audioVisualizerStateBridge.reset()
-
-        phoneCallListener?.stopListening()
-        phoneCallListener = null
-
-        headsetAutoplayHandler?.stopListening()
-        headsetAutoplayHandler = null
-
-        // BP-13.3: Unregister audio output device monitor
-        audioOutputDeviceMonitor?.unregister()
-        audioOutputDeviceMonitor = null
-
-        serviceMediaController?.release()
-        serviceMediaController = null
-
-        mediaSessionManager?.release()
-        mediaSessionManager = null
-
-        mediaLibrarySession?.release()
-        mediaLibrarySession = null
-        mediaSession = null
-
-        updateLayoutJob?.cancel()
-        updateLayoutJob = null
-
-        playerConfigurator?.release()
-
-        isFullyInitializedFlag = false
     }
 
     /**
@@ -1958,7 +727,7 @@ public class AudioPlayerService : MediaLibraryService() {
             )
             return null
         }
-        if (!isFullyInitialized()) {
+        if (!isFullyInitializedFlag) {
             LogUtils.w(
                 "AudioPlayerService",
                 "Accepting controller ${controllerInfo.packageName} with partially initialized service; session is available",

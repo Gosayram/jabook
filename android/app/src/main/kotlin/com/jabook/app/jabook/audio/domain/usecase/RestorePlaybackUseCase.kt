@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio.domain.usecase
 import com.jabook.app.jabook.audio.core.model.PlaybackState
 import com.jabook.app.jabook.audio.core.result.Result
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 
@@ -67,6 +68,8 @@ public class RestorePlaybackUseCase
                         com.jabook.app.jabook.audio.core.result.Result.Loading
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 com.jabook.app.jabook.audio.core.result.Result
                     .Error(e)

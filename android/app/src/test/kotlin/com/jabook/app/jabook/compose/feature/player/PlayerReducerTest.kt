@@ -21,6 +21,7 @@ import com.jabook.app.jabook.compose.domain.model.Chapter
 import kotlinx.collections.immutable.toImmutableList
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -181,6 +182,15 @@ class PlayerReducerTest {
     }
 
     @Test
+    fun `reduce keeps state when end-of-track timer already active`() {
+        val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.END_OF_TRACK, sleepTimerRemainingSeconds = null)
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimerEndOfTrack)
+
+        assertEquals(state, reduced)
+    }
+
+    @Test
     fun `reduce updates state when fixed sleep timer request differs`() {
         val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.FIXED, sleepTimerRemainingSeconds = 120)
 
@@ -198,6 +208,26 @@ class PlayerReducerTest {
         val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimerEndOfChapter)
 
         assertEquals(state, reduced)
+    }
+
+    @Test
+    fun `reduce cancel sleep timer keeps state when already idle`() {
+        val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.IDLE, sleepTimerRemainingSeconds = null)
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.CancelSleepTimer)
+
+        assertEquals(state, reduced)
+    }
+
+    @Test
+    fun `reduce cancel sleep timer resets mode and remaining when active`() {
+        val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.FIXED, sleepTimerRemainingSeconds = 600)
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.CancelSleepTimer)
+
+        require(reduced is PlayerState.Active)
+        assertEquals(PlayerSleepTimerMode.IDLE, reduced.sleepTimerMode)
+        assertEquals(null, reduced.sleepTimerRemainingSeconds)
     }
 
     @Test
@@ -442,6 +472,135 @@ class PlayerReducerTest {
         assertEquals(PlayerState.Loading, reduced)
     }
 
+    @Test
+    fun `reduce replaces error message when report error on error state`() {
+        val reduced = PlayerReducer.reduce(PlayerState.Error("old"), PlayerIntent.ReportError("new"))
+
+        require(reduced is PlayerState.Error)
+        assertEquals("new", reduced.message)
+    }
+
+    @Test
+    fun `reduce transitions active to error on report error intent`() {
+        val reduced = PlayerReducer.reduce(activeStateTemplate(), PlayerIntent.ReportError("boom"))
+
+        require(reduced is PlayerState.Error)
+        assertEquals("boom", reduced.message)
+    }
+
+    @Test
+    fun `loading state matrix keeps state for all non error intents`() {
+        val loading = PlayerState.Loading
+
+        nonErrorIntents().forEach { intent ->
+            val reduced = PlayerReducer.reduce(loading, intent)
+            assertSame("Expected Loading state to stay unchanged for $intent", loading, reduced)
+        }
+    }
+
+    @Test
+    fun `error state matrix keeps state for all non recovery intents`() {
+        val error = PlayerState.Error("boom")
+
+        nonErrorAndInitializeIntents().forEach { intent ->
+            val reduced = PlayerReducer.reduce(error, intent)
+            assertSame("Expected Error state to stay unchanged for $intent", error, reduced)
+        }
+    }
+
+    @Test
+    fun `loading state never transitions directly to active for any intent`() {
+        val loading = PlayerState.Loading
+
+        allIntentsForMatrix().forEach { intent ->
+            val reduced = PlayerReducer.reduce(loading, intent)
+            assertFalse("Loading must not transition to Active for $intent", reduced is PlayerState.Active)
+        }
+    }
+
+    @Test
+    fun `error state never transitions directly to active for any intent`() {
+        val error = PlayerState.Error("boom")
+
+        allIntentsForMatrix().forEach { intent ->
+            val reduced = PlayerReducer.reduce(error, intent)
+            assertFalse("Error must not transition to Active for $intent", reduced is PlayerState.Active)
+        }
+    }
+
+    @Test
+    fun `active state never transitions to loading for any intent`() {
+        val active = activeStateTemplate()
+
+        allIntentsForMatrix().forEach { intent ->
+            val reduced = PlayerReducer.reduce(active, intent)
+            assertFalse("Active must not transition to Loading for $intent", reduced == PlayerState.Loading)
+        }
+    }
+
+    @Test
+    fun `full reducer matrix does not crash and preserves state invariants`() {
+        val states =
+            listOf<PlayerState>(
+                PlayerState.Loading,
+                PlayerState.Error("matrix"),
+                activeStateTemplate(),
+            )
+        val intents = allIntentsForMatrix()
+
+        states.forEach { state ->
+            intents.forEach { intent ->
+                val reduced = PlayerReducer.reduce(state, intent)
+                assertNotNull("Reducer returned null for state=$state intent=$intent", reduced)
+
+                when (state) {
+                    PlayerState.Loading -> {
+                        // Loading can only stay Loading or become Error.
+                        assertFalse(
+                            "Loading must not transition to Active for intent=$intent",
+                            reduced is PlayerState.Active,
+                        )
+                    }
+                    is PlayerState.Error -> {
+                        // Error can only stay Error or become Loading.
+                        assertFalse(
+                            "Error must not transition to Active for intent=$intent",
+                            reduced is PlayerState.Active,
+                        )
+                    }
+                    is PlayerState.Active -> {
+                        // Active can only stay Active or become Error.
+                        assertFalse(
+                            "Active must not transition to Loading for intent=$intent",
+                            reduced == PlayerState.Loading,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `active state matrix keeps state for command-only intents`() {
+        val active = activeStateTemplate()
+
+        commandOnlyNoOpIntents().forEach { intent ->
+            val reduced = PlayerReducer.reduce(active, intent)
+            assertSame("Expected Active state to stay unchanged for $intent", active, reduced)
+        }
+    }
+
+    @Test
+    fun `start sleep timer clamps zero minutes to one minute`() {
+        val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.IDLE, sleepTimerRemainingSeconds = null)
+
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimer(minutes = 0))
+
+        require(reduced is PlayerState.Active)
+        assertEquals(PlayerSleepTimerMode.FIXED, reduced.sleepTimerMode)
+        assertEquals(60, reduced.sleepTimerRemainingSeconds)
+    }
+
     private fun activeStateTemplate(): PlayerState.Active =
         PlayerState.Active(
             book = Book.preview().copy(id = "book-1"),
@@ -467,4 +626,47 @@ class PlayerReducerTest {
             sleepTimerRemainingSeconds = null,
             chapterRepeatMode = ChapterRepeatMode.OFF,
         )
+
+    private fun nonErrorIntents(): List<PlayerIntent> =
+        listOf(
+            PlayerIntent.InitializePlayer,
+            PlayerIntent.TogglePlayPause,
+            PlayerIntent.Play,
+            PlayerIntent.Pause,
+            PlayerIntent.SkipNext,
+            PlayerIntent.SkipPrevious,
+            PlayerIntent.SeekTo(positionMs = 1234L),
+            PlayerIntent.SeekForward,
+            PlayerIntent.SeekBackward,
+            PlayerIntent.SelectChapter(chapterIndex = 2),
+            PlayerIntent.ToggleChapterRepeat,
+            PlayerIntent.InitializeVisualizer,
+            PlayerIntent.SetVisualizerEnabled(enabled = true),
+            PlayerIntent.SetPlaybackSpeed(speed = 1.75f),
+            PlayerIntent.SetPitchCorrectionEnabled(enabled = false),
+            PlayerIntent.StartSleepTimer(minutes = 10),
+            PlayerIntent.StartSleepTimerEndOfChapter,
+            PlayerIntent.StartSleepTimerEndOfTrack,
+            PlayerIntent.CancelSleepTimer,
+            PlayerIntent.UpdateBookSeekSettings(rewindSeconds = 15, forwardSeconds = 45),
+            PlayerIntent.ResetBookSeekSettings,
+            PlayerIntent.UpdateAudioSettings(
+                skipSilence = true,
+                skipSilenceThresholdDb = -30f,
+            ),
+        )
+
+    private fun nonErrorAndInitializeIntents(): List<PlayerIntent> = nonErrorIntents().filterNot { it == PlayerIntent.InitializePlayer }
+
+    private fun commandOnlyNoOpIntents(): List<PlayerIntent> =
+        listOf(
+            PlayerIntent.InitializePlayer,
+            PlayerIntent.SkipNext,
+            PlayerIntent.SkipPrevious,
+            PlayerIntent.InitializeVisualizer,
+            PlayerIntent.SetVisualizerEnabled(enabled = true),
+            PlayerIntent.SetPitchCorrectionEnabled(enabled = false),
+        )
+
+    private fun allIntentsForMatrix(): List<PlayerIntent> = nonErrorIntents() + PlayerIntent.ReportError("matrix-error")
 }

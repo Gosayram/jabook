@@ -22,9 +22,13 @@ import androidx.navigation.toRoute
 import coil3.SingletonImageLoader
 import coil3.request.allowHardware
 import coil3.toBitmap
+import com.jabook.app.jabook.R
+import com.jabook.app.jabook.audio.HoldToBoostPolicy
+import com.jabook.app.jabook.audio.SleepTimerPersistence
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.BookmarkItem
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import com.jabook.app.jabook.compose.domain.model.toTypedResult
 import com.jabook.app.jabook.compose.domain.usecase.library.GetBookDetailsUseCase
@@ -34,6 +38,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -52,6 +57,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.math.abs
 import com.jabook.app.jabook.compose.domain.model.Result as TypedResult
@@ -83,6 +89,7 @@ public class PlayerViewModel
         private val sleepTimerRepository: com.jabook.app.jabook.compose.data.repository.SleepTimerRepository,
         private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
         private val booksRepository: com.jabook.app.jabook.compose.data.repository.BooksRepository,
+        private val bookmarkRepository: com.jabook.app.jabook.compose.data.repository.BookmarkRepository,
         private val playbackPositionRepository: PlaybackPositionRepository,
         private val lyricsRepository: com.jabook.app.jabook.data.lyrics.LyricsRepository,
         private val audioVisualizerStateBridge: com.jabook.app.jabook.audio.AudioVisualizerStateBridge,
@@ -90,12 +97,17 @@ public class PlayerViewModel
         @param:ApplicationContext private val context: Context,
     ) : ViewModel() {
         private val logger = loggerFactory.get("PlayerViewModel")
+        private var holdToBoostPolicy = HoldToBoostPolicy(boostSpeed = DEFAULT_HOLD_TO_BOOST_SPEED)
 
         // Get bookId from navigation arguments
         private val args = savedStateHandle.toRoute<PlayerRoute>()
         private val bookId = args.bookId
 
-        private val _effects = MutableSharedFlow<PlayerEffect>(extraBufferCapacity = 8)
+        private val _effects =
+            MutableSharedFlow<PlayerEffect>(
+                replay = 0,
+                extraBufferCapacity = 16,
+            )
         public val effects: PlayerEventFlowContract = _effects.asSharedFlow()
         private val commandChannel: Channel<PlayerCommand> = Channel(Channel.BUFFERED)
         private val commandFlow: PlayerCommandFlowContract = commandChannel.receiveAsFlow()
@@ -124,9 +136,20 @@ public class PlayerViewModel
         // Player Stats for Nerds
         public val playerStats: StateFlow<PlayerStats> = playerController.playerStats
         public val visualizerWaveformData: StateFlow<FloatArray> = audioVisualizerStateBridge.waveformData
+        private val _seekbarWaveformData = MutableStateFlow(FloatArray(SEEKBAR_WAVEFORM_CACHE_SIZE))
+        public val seekbarWaveformData: StateFlow<FloatArray> = _seekbarWaveformData.asStateFlow()
+        public val bookmarks: StateFlow<List<BookmarkItem>> =
+            bookmarkRepository
+                .observeBookmarks(bookId)
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = emptyList(),
+                )
 
         private var lastPersistedPlayerSnapshot: PlayerStateSnapshot? = null
         private var restoredBootstrapSnapshot: RestoredBootstrapSnapshot? = null
+        private var hasShownSleepTimerResumeHint: Boolean = false
 
         // Chapter repeat mode state
         private val chapterRepeatModeState = MutableStateFlow(ChapterRepeatMode.OFF)
@@ -145,6 +168,9 @@ public class PlayerViewModel
             restoreStateSnapshotFromDataStore()
             restorePlaybackSpeedFromSnapshotIfNeeded()
             restoreSleepTimerModeFromSnapshotIfNeeded()
+            observeSleepTimerResumeHint()
+            observeHoldToBoostSpeedSetting()
+            observeSeekbarWaveformCache()
 
             viewModelScope.launch {
                 commandFlow.collect { command ->
@@ -537,19 +563,48 @@ public class PlayerViewModel
         public val sleepTimerState: StateFlow<com.jabook.app.jabook.compose.domain.model.SleepTimerState> =
             sleepTimerRepository.timerState
 
+        public val lastSleepTimerDurationMinutes: StateFlow<Int?> = sleepTimerRepository.lastFixedDurationMinutes
+
         // Unified player command dispatcher (incremental PlayerIntent migration)
         public fun dispatch(intent: PlayerIntent) {
             logger.d { "PlayerIntent received: $intent" }
             val currentState = uiState.value
-            val reducedState = PlayerReducer.reduce(currentState, intent)
-            if (currentState is PlayerState.Loading && reducedState is PlayerState.Loading && intent.isPlaybackControlIntent()) {
+            val chapterNavigationDecision = resolveChapterNavigationIntent(intent, currentState)
+            val effectiveIntent = chapterNavigationDecision.intent
+            val reducedState = PlayerReducer.reduce(currentState, effectiveIntent)
+            if (
+                currentState is PlayerState.Loading &&
+                reducedState is PlayerState.Loading &&
+                effectiveIntent.isPlaybackControlIntent()
+            ) {
                 emitEffect(PlayerEffect.ShowSnackbar("Player is not ready yet"))
                 return
             }
             handleIntentSideEffects(
-                intent = intent,
+                intent = effectiveIntent,
                 currentState = currentState,
                 reducedState = reducedState,
+            )
+            maybeEmitChapterNavigationUndo(chapterNavigationDecision)
+        }
+
+        private fun resolveChapterNavigationIntent(
+            intent: PlayerIntent,
+            state: PlayerState,
+        ): ChapterNavigationDecision =
+            (state as? PlayerState.Active)?.let { activeState ->
+                ChapterNavigationIntentPolicy.resolve(intent = intent, state = activeState)
+            } ?: ChapterNavigationDecision(intent = intent)
+
+        private fun maybeEmitChapterNavigationUndo(decision: ChapterNavigationDecision) {
+            val targetChapter = decision.movedToChapterDisplayIndex ?: return
+            val undoChapterIndex = decision.undoChapterIndex ?: return
+            emitEffect(
+                PlayerEffect.ShowSnackbar(
+                    message = context.getString(R.string.playerChapterNavigationSnackbar, targetChapter),
+                    actionLabel = context.getString(R.string.undoAction),
+                    actionIntent = PlayerIntent.SelectChapter(undoChapterIndex),
+                ),
             )
         }
 
@@ -592,11 +647,11 @@ public class PlayerViewModel
             }
 
         private fun dispatchCommand(command: PlayerCommand) {
-            if (!commandChannel.trySend(command).isSuccess) {
-                logger.w { "Command channel buffer is full, falling back to suspending send for $command" }
-                viewModelScope.launch {
-                    commandChannel.send(command)
-                }
+            viewModelScope.launch {
+                runCatching { commandChannel.send(command) }
+                    .onFailure { error ->
+                        logger.w(error) { "Command dispatch failed for $command" }
+                    }
             }
         }
 
@@ -709,8 +764,105 @@ public class PlayerViewModel
             }
         }
 
+        public fun startHoldToBoost(currentPlaybackSpeed: Float) {
+            val boostedSpeed = holdToBoostPolicy.onPress(currentPlaybackSpeed)
+            dispatch(PlayerIntent.SetPlaybackSpeed(boostedSpeed))
+        }
+
+        public fun endHoldToBoost() {
+            val restoreSpeed = holdToBoostPolicy.onRelease() ?: return
+            dispatch(PlayerIntent.SetPlaybackSpeed(restoreSpeed))
+        }
+
+        private fun observeHoldToBoostSpeedSetting() {
+            viewModelScope.launch {
+                settingsRepository.userPreferences
+                    .map { it.holdToBoostSpeed }
+                    .distinctUntilChanged()
+                    .collect { configuredSpeed ->
+                        holdToBoostPolicy = HoldToBoostPolicy(boostSpeed = resolveHoldToBoostSpeed(configuredSpeed))
+                    }
+            }
+        }
+
+        private fun observeSeekbarWaveformCache() {
+            viewModelScope.launch {
+                visualizerWaveformData.collect { chunk ->
+                    _seekbarWaveformData.value =
+                        withContext(Dispatchers.Default) {
+                            mergeWaveformWindow(
+                                currentWindow = _seekbarWaveformData.value,
+                                incomingChunk = chunk,
+                                targetSize = SEEKBAR_WAVEFORM_CACHE_SIZE,
+                            )
+                        }
+                }
+            }
+        }
+
         public fun setPitchCorrectionEnabled(enabled: Boolean) {
             playerController.setPitchCorrectionEnabled(enabled)
+        }
+
+        public fun addBookmarkAtCurrentPosition(noteText: String? = null) {
+            val state = uiState.value as? PlayerState.Active ?: return
+            viewModelScope.launch {
+                bookmarkRepository
+                    .addBookmark(
+                        bookId = state.book.id,
+                        chapterIndex = state.currentChapterIndex,
+                        positionMs = state.currentPosition,
+                        noteText = noteText,
+                    ).onFailure { error ->
+                        logger.e({ "Failed to add bookmark" }, error)
+                        dispatch(PlayerIntent.ReportError("Failed to add bookmark"))
+                    }
+            }
+        }
+
+        public fun addBookmarkAtPosition(
+            chapterIndex: Int,
+            positionMs: Long,
+            noteText: String? = null,
+            onCreated: (BookmarkItem?) -> Unit = {},
+        ) {
+            val state = uiState.value as? PlayerState.Active ?: return
+            viewModelScope.launch {
+                val result =
+                    bookmarkRepository.addBookmark(
+                        bookId = state.book.id,
+                        chapterIndex = chapterIndex,
+                        positionMs = positionMs,
+                        noteText = noteText,
+                    )
+                result
+                    .onSuccess { bookmark -> onCreated(bookmark) }
+                    .onFailure { error ->
+                        logger.e({ "Failed to add bookmark at custom position" }, error)
+                        dispatch(PlayerIntent.ReportError("Failed to add bookmark"))
+                        onCreated(null)
+                    }
+            }
+        }
+
+        public fun updateBookmarkContent(
+            bookmarkId: String,
+            noteText: String?,
+            noteAudioPath: String? = null,
+        ) {
+            val existing = bookmarks.value.firstOrNull { it.id == bookmarkId } ?: return
+            viewModelScope.launch {
+                bookmarkRepository
+                    .updateBookmark(
+                        existing.copy(
+                            noteText = noteText?.takeIf { it.isNotBlank() },
+                            noteAudioPath = noteAudioPath ?: existing.noteAudioPath,
+                        ),
+                    ).onFailure { error ->
+                        logger.e({ "Failed to update bookmark note" }, error)
+                        dispatch(PlayerIntent.ReportError("Failed to update bookmark"))
+                    }
+            }
         }
 
         public fun initializeVisualizer() {
@@ -854,7 +1006,12 @@ public class PlayerViewModel
         }
 
         private fun emitEffect(effect: PlayerEffect) {
-            _effects.tryEmit(effect)
+            viewModelScope.launch {
+                runCatching { _effects.emit(effect) }
+                    .onFailure { error ->
+                        logger.w(error) { "Player effect emit failed: $effect" }
+                    }
+            }
         }
 
         /**
@@ -965,6 +1122,30 @@ public class PlayerViewModel
             }
         }
 
+        private fun observeSleepTimerResumeHint() {
+            viewModelScope.launch {
+                uiState.collect { state ->
+                    val activeState = state as? PlayerState.Active ?: return@collect
+                    val wasLastStopBySleepTimer = wasLastStoppedBySleepTimerFlagSet()
+                    if (
+                        SleepTimerResumeHintPolicy.shouldShowHint(
+                            wasLastStopBySleepTimer = wasLastStopBySleepTimer,
+                            isPlaying = activeState.isPlaying,
+                            hasAlreadyShownInSession = hasShownSleepTimerResumeHint,
+                        )
+                    ) {
+                        hasShownSleepTimerResumeHint = true
+                        emitEffect(PlayerEffect.ShowSnackbar(context.getString(R.string.sleepTimerResumeHint)))
+                    }
+                }
+            }
+        }
+
+        private fun wasLastStoppedBySleepTimerFlagSet(): Boolean {
+            val prefs = context.getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
+            return prefs.getBoolean(SleepTimerPersistence.KEY_LAST_STOPPED_BY_SLEEP_TIMER, false)
+        }
+
         private fun PlayerIntent.isPlaybackControlIntent(): Boolean =
             when (this) {
                 PlayerIntent.TogglePlayPause,
@@ -1008,6 +1189,51 @@ private const val STATE_SNAPSHOT_POSITION_MS: String = "player_snapshot.position
 private const val STATE_SNAPSHOT_CHAPTER_INDEX: String = "player_snapshot.chapter_index"
 private const val STATE_SNAPSHOT_PLAYBACK_SPEED: String = "player_snapshot.playback_speed"
 private const val STATE_SNAPSHOT_SLEEP_MODE: String = "player_snapshot.sleep_mode"
+private const val DEFAULT_HOLD_TO_BOOST_SPEED: Float = 2.5f
+private const val SEEKBAR_WAVEFORM_CACHE_SIZE: Int = 1000
+
+private fun resolveHoldToBoostSpeed(configuredSpeed: Float): Float =
+    when (configuredSpeed) {
+        2.0f,
+        2.5f,
+        3.0f,
+        -> configuredSpeed
+        else -> DEFAULT_HOLD_TO_BOOST_SPEED
+    }
+
+private fun mergeWaveformWindow(
+    currentWindow: FloatArray,
+    incomingChunk: FloatArray,
+    targetSize: Int,
+): FloatArray {
+    if (targetSize <= 0) return FloatArray(0)
+    if (incomingChunk.isEmpty()) return currentWindow
+
+    if (incomingChunk.size >= targetSize) {
+        val result = FloatArray(targetSize)
+        val start = incomingChunk.size - targetSize
+        for (i in 0 until targetSize) {
+            result[i] = kotlin.math.abs(incomingChunk[start + i]).coerceIn(0f, 1f)
+        }
+        return result
+    }
+
+    val shift = incomingChunk.size
+    val keep = (targetSize - shift).coerceAtLeast(0)
+    val result = FloatArray(targetSize)
+
+    if (keep > 0 && currentWindow.isNotEmpty()) {
+        val copyLength = minOf(keep, currentWindow.size)
+        val fromIndex = (currentWindow.size - copyLength).coerceAtLeast(0)
+        System.arraycopy(currentWindow, fromIndex, result, keep - copyLength, copyLength)
+    }
+
+    for (i in incomingChunk.indices) {
+        result[keep + i] = kotlin.math.abs(incomingChunk[i]).coerceIn(0f, 1f)
+    }
+
+    return result
+}
 
 private data class RestoredBootstrapSnapshot(
     val positionMs: Long,

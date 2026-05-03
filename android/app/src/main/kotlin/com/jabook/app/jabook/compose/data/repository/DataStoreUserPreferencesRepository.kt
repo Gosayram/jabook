@@ -47,6 +47,7 @@ public class DataStoreUserPreferencesRepository
             private val VIEW_MODE = stringPreferencesKey("view_mode")
             private val AUTO_PLAY_NEXT = booleanPreferencesKey("auto_play_next")
             private val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
+            private val PITCH_CORRECTION_ENABLED = booleanPreferencesKey("pitch_correction_enabled")
             private val FONT = stringPreferencesKey("font")
             private val NORMALIZE_CHAPTER_TITLES = booleanPreferencesKey("normalize_chapter_titles")
             private val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
@@ -82,6 +83,7 @@ public class DataStoreUserPreferencesRepository
                         } ?: LibraryViewMode.LIST_COMPACT,
                     autoPlayNext = preferences[AUTO_PLAY_NEXT] ?: true,
                     playbackSpeed = preferences[PLAYBACK_SPEED] ?: 1.0f,
+                    pitchCorrectionEnabled = preferences[PITCH_CORRECTION_ENABLED] ?: true,
                     font =
                         preferences[FONT]?.let { fontName ->
                             try {
@@ -123,6 +125,12 @@ public class DataStoreUserPreferencesRepository
         override suspend fun setPlaybackSpeed(speed: Float) {
             dataStore.edit { preferences ->
                 preferences[PLAYBACK_SPEED] = speed
+            }
+        }
+
+        override suspend fun setPitchCorrectionEnabled(enabled: Boolean) {
+            dataStore.edit { preferences ->
+                preferences[PITCH_CORRECTION_ENABLED] = enabled
             }
         }
 

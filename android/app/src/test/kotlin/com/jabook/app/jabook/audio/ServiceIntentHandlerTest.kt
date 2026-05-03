@@ -209,4 +209,34 @@ class ServiceIntentHandlerTest {
         verify(service, never()).stopAndCleanup()
         verify(service, never()).stopSelf()
     }
+
+    @Test
+    fun `playback actions are routed to service commands`() {
+        handler.handleStartCommand(Intent(AudioPlayerService.ACTION_PLAY), flags = 0, startId = 40)
+        handler.handleStartCommand(Intent(AudioPlayerService.ACTION_PAUSE), flags = 0, startId = 41)
+        handler.handleStartCommand(Intent(AudioPlayerService.ACTION_NEXT), flags = 0, startId = 42)
+        handler.handleStartCommand(Intent(AudioPlayerService.ACTION_PREVIOUS), flags = 0, startId = 43)
+        handler.handleStartCommand(Intent(AudioPlayerService.ACTION_REWIND), flags = 0, startId = 44)
+        handler.handleStartCommand(Intent(AudioPlayerService.ACTION_FORWARD), flags = 0, startId = 45)
+        handler.handleStartCommand(Intent(AudioPlayerService.ACTION_STOP), flags = 0, startId = 46)
+
+        verify(service, times(1)).play()
+        verify(service, times(1)).pause()
+        verify(service, times(1)).next()
+        verify(service, times(1)).previous()
+        verify(service, times(1)).rewind()
+        verify(service, times(1)).forward()
+        verify(service, times(1)).stop()
+    }
+
+    @Test
+    fun `play pause action toggles based on current player state`() {
+        whenever(player.isPlaying).thenReturn(true, false)
+
+        handler.handleStartCommand(Intent(AudioPlayerService.ACTION_PLAY_PAUSE), flags = 0, startId = 47)
+        handler.handleStartCommand(Intent(AudioPlayerService.ACTION_PLAY_PAUSE), flags = 0, startId = 48)
+
+        verify(service, times(1)).pause()
+        verify(service, times(1)).play()
+    }
 }

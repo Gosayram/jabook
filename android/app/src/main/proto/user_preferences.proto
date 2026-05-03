@@ -83,6 +83,16 @@ message UserPreferences {
   int32 player_snapshot_chapter_index = 41;
   float player_snapshot_playback_speed = 42;
   string player_snapshot_sleep_mode = 43;
+
+  // Resume rewind strategy after pause.
+  ResumeRewindMode resume_rewind_mode = 44;
+  float resume_rewind_aggressiveness = 45;
+
+  // Temporary playback speed while user holds speed button in player.
+  float hold_to_boost_speed = 46;
+
+  // Automatically enter PiP when user leaves app from Player screen.
+  bool auto_pip_enabled = 47;
 }
 
 // Theme mode enum
@@ -96,4 +106,9 @@ enum ThemeMode {
 enum SkipSilenceMode {
   SKIP = 0;
   SPEED_UP = 1;
+}
+
+enum ResumeRewindMode {
+  FIXED = 0;
+  SMART = 1;
 }

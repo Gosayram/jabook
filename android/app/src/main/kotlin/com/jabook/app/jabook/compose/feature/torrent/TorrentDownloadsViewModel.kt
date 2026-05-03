@@ -22,6 +22,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
+import com.jabook.app.jabook.compose.data.network.TorrentDownloadNetworkPolicy
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
@@ -317,7 +318,12 @@ public class TorrentDownloadsViewModel
             val prefs = settingsRepository.userPreferences.first()
             val networkType = networkMonitor.networkType.first()
 
-            if (prefs.wifiOnlyDownload && networkType != com.jabook.app.jabook.compose.data.network.NetworkType.WIFI) {
+            if (
+                TorrentDownloadNetworkPolicy.shouldPauseForNetwork(
+                    wifiOnlyEnabled = prefs.wifiOnlyDownload,
+                    networkType = networkType,
+                )
+            ) {
                 _snackbarEvent.send("Download queued: Waiting for WiFi connection")
             }
         }

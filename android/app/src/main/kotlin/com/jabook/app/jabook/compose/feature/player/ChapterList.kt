@@ -54,7 +54,20 @@ public fun ChapterList(
 
     LaunchedEffect(currentChapterIndex, chapters.size) {
         if (currentChapterIndex in chapters.indices) {
-            listState.animateScrollToItem(currentChapterIndex)
+            val visibleItems = listState.layoutInfo.visibleItemsInfo
+            val firstVisible = visibleItems.firstOrNull()?.index ?: 0
+            val lastVisible = visibleItems.lastOrNull()?.index ?: firstVisible
+            when (
+                ChapterAutoScrollPolicy.resolve(
+                    targetIndex = currentChapterIndex,
+                    firstVisibleIndex = firstVisible,
+                    lastVisibleIndex = lastVisible,
+                )
+            ) {
+                ChapterAutoScrollPolicy.ScrollAction.NONE -> Unit
+                ChapterAutoScrollPolicy.ScrollAction.ANIMATE -> listState.animateScrollToItem(currentChapterIndex)
+                ChapterAutoScrollPolicy.ScrollAction.SNAP -> listState.scrollToItem(currentChapterIndex)
+            }
         }
     }
 
@@ -75,6 +88,36 @@ public fun ChapterList(
                 isCurrent = index == currentChapterIndex,
                 onClick = { onChapterClick(index) },
             )
+        }
+    }
+}
+
+internal object ChapterAutoScrollPolicy {
+    internal enum class ScrollAction {
+        NONE,
+        ANIMATE,
+        SNAP,
+    }
+
+    private const val SNAP_DISTANCE_THRESHOLD = 20
+
+    fun resolve(
+        targetIndex: Int,
+        firstVisibleIndex: Int,
+        lastVisibleIndex: Int,
+    ): ScrollAction {
+        if (targetIndex in firstVisibleIndex..lastVisibleIndex) {
+            return ScrollAction.NONE
+        }
+        val edgeDistance =
+            minOf(
+                kotlin.math.abs(targetIndex - firstVisibleIndex),
+                kotlin.math.abs(targetIndex - lastVisibleIndex),
+            )
+        return if (edgeDistance > SNAP_DISTANCE_THRESHOLD) {
+            ScrollAction.SNAP
+        } else {
+            ScrollAction.ANIMATE
         }
     }
 }

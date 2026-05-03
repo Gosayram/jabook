@@ -81,7 +81,11 @@ public interface SettingsRepository {
         rewindSeconds: Int? = null,
         forwardSeconds: Int? = null,
         resumeRewindSeconds: Int? = null,
+        resumeRewindMode: ResumeRewindMode? = null,
+        resumeRewindAggressiveness: Float? = null,
         sleepTimerShakeExtendEnabled: Boolean? = null,
+        holdToBoostSpeed: Float? = null,
+        autoPipEnabled: Boolean? = null,
         volumeBoost: String? = null,
         drcLevel: String? = null,
         speechEnhancer: Boolean? = null,
@@ -249,7 +253,11 @@ public class ProtoSettingsRepository
             rewindSeconds: Int?,
             forwardSeconds: Int?,
             resumeRewindSeconds: Int?,
+            resumeRewindMode: ResumeRewindMode?,
+            resumeRewindAggressiveness: Float?,
             sleepTimerShakeExtendEnabled: Boolean?,
+            holdToBoostSpeed: Float?,
+            autoPipEnabled: Boolean?,
             volumeBoost: String?,
             drcLevel: String?,
             speechEnhancer: Boolean?,
@@ -267,7 +275,11 @@ public class ProtoSettingsRepository
                 rewindSeconds?.let { builder.setRewindDurationSeconds(it) }
                 forwardSeconds?.let { builder.setForwardDurationSeconds(it) }
                 resumeRewindSeconds?.let { builder.setResumeRewindSeconds(it) }
+                resumeRewindMode?.let { builder.setResumeRewindMode(it) }
+                resumeRewindAggressiveness?.let { builder.setResumeRewindAggressiveness(it) }
                 sleepTimerShakeExtendEnabled?.let { builder.setSleepTimerShakeExtendEnabled(it) }
+                holdToBoostSpeed?.let { builder.setHoldToBoostSpeed(it) }
+                autoPipEnabled?.let { builder.setAutoPipEnabled(it) }
                 volumeBoost?.let { builder.setVolumeBoostLevel(it) }
                 drcLevel?.let { builder.setDrcLevel(it) }
                 speechEnhancer?.let { builder.setSpeechEnhancer(it) }

@@ -25,6 +25,7 @@ public data class UserData(
     val viewMode: LibraryViewMode = LibraryViewMode.LIST_COMPACT,
     val autoPlayNext: Boolean = true,
     val playbackSpeed: Float = 1.0f,
+    val pitchCorrectionEnabled: Boolean = true,
     val font: AppFont = AppFont.DEFAULT,
     val normalizeChapterTitles: Boolean = false, // Default: OFF
     val onboardingCompleted: Boolean = false,

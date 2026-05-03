@@ -77,18 +77,41 @@ class SearchStaleWhileRevalidatePolicyTest {
         assertTrue(SearchStaleWhileRevalidatePolicy.isMeaningfulRefresh(stale, refreshed))
     }
 
-    private fun result(topicId: String): RutrackerSearchResult =
+    @Test
+    fun `meaningful refresh true when cover url changed for same topic ids`() {
+        val stale = listOf(result(topicId = "1", coverUrl = null), result(topicId = "2", coverUrl = null))
+        val refreshed = listOf(result(topicId = "1", coverUrl = "https://example.com/1.jpg"), result(topicId = "2", coverUrl = null))
+
+        assertTrue(SearchStaleWhileRevalidatePolicy.isMeaningfulRefresh(stale, refreshed))
+    }
+
+    @Test
+    fun `meaningful refresh true when seeders or leechers changed for same topic ids`() {
+        val stale = listOf(result(topicId = "1", seeders = 10, leechers = 1))
+        val refreshed = listOf(result(topicId = "1", seeders = 11, leechers = 1))
+        val refreshedLeechers = listOf(result(topicId = "1", seeders = 10, leechers = 2))
+
+        assertTrue(SearchStaleWhileRevalidatePolicy.isMeaningfulRefresh(stale, refreshed))
+        assertTrue(SearchStaleWhileRevalidatePolicy.isMeaningfulRefresh(stale, refreshedLeechers))
+    }
+
+    private fun result(
+        topicId: String,
+        coverUrl: String? = null,
+        seeders: Int = 10,
+        leechers: Int = 1,
+    ): RutrackerSearchResult =
         RutrackerSearchResult(
             topicId = topicId,
             title = "Title $topicId",
             author = "Author",
             category = "Audiobooks",
             size = "1 GB",
-            seeders = 10,
-            leechers = 1,
+            seeders = seeders,
+            leechers = leechers,
             magnetUrl = null,
             torrentUrl = "https://example.com/$topicId",
-            coverUrl = null,
+            coverUrl = coverUrl,
             uploader = null,
         )
 }

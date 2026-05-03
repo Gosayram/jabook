@@ -59,6 +59,11 @@ public interface UserPreferencesRepository {
     public suspend fun setPlaybackSpeed(speed: Float)
 
     /**
+     * Update pitch correction preference for playback speed changes.
+     */
+    public suspend fun setPitchCorrectionEnabled(enabled: Boolean)
+
+    /**
      * Update font preference.
      */
     public suspend fun setFont(font: AppFont)

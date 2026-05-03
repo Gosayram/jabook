@@ -225,7 +225,11 @@ public class SettingsViewModel
             rewindSeconds: Int? = null,
             forwardSeconds: Int? = null,
             resumeRewindSeconds: Int? = null,
+            resumeRewindMode: com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode? = null,
+            resumeRewindAggressiveness: Float? = null,
             sleepTimerShakeExtendEnabled: Boolean? = null,
+            holdToBoostSpeed: Float? = null,
+            autoPipEnabled: Boolean? = null,
             volumeBoost: String? = null,
             drcLevel: String? = null,
             speechEnhancer: Boolean? = null,
@@ -243,7 +247,11 @@ public class SettingsViewModel
                     rewindSeconds = rewindSeconds,
                     forwardSeconds = forwardSeconds,
                     resumeRewindSeconds = resumeRewindSeconds,
+                    resumeRewindMode = resumeRewindMode,
+                    resumeRewindAggressiveness = resumeRewindAggressiveness,
                     sleepTimerShakeExtendEnabled = sleepTimerShakeExtendEnabled,
+                    holdToBoostSpeed = holdToBoostSpeed,
+                    autoPipEnabled = autoPipEnabled,
                     volumeBoost = volumeBoost,
                     drcLevel = drcLevel,
                     speechEnhancer = speechEnhancer,
@@ -262,6 +270,12 @@ public class SettingsViewModel
         public fun updateLanguage(languageCode: String) {
             viewModelScope.launch {
                 settingsRepository.updateLanguage(languageCode)
+            }
+        }
+
+        public fun updateEqualizerPreset(presetName: String) {
+            viewModelScope.launch {
+                settingsRepository.updateEqualizerPreset(presetName)
             }
         }
 
@@ -369,8 +383,8 @@ public class SettingsViewModel
                         }
                     }
                 }
-            } catch (_: CancellationException) {
-                throw CancellationException()
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
                 // Ignore parsing errors and return original
             }

@@ -14,13 +14,31 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.media.MediaPlayer
+import android.media.MediaRecorder
 import android.os.PowerManager
 import android.text.format.DateUtils
 import android.view.WindowManager
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +60,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -50,6 +69,7 @@ import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.Repeat
@@ -62,6 +82,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -88,6 +109,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -95,7 +117,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -118,7 +142,6 @@ import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
-import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
 import com.jabook.app.jabook.compose.feature.player.SquigglySlider
 import com.jabook.app.jabook.compose.feature.player.lyrics.LyricsView
 import com.jabook.app.jabook.compose.util.rememberClickDebouncer
@@ -129,6 +152,7 @@ import dagger.hilt.components.SingletonComponent
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -175,9 +199,11 @@ public fun PlayerScreen(
     val playbackSpeed by viewModel.playbackSpeed.collectAsStateWithLifecycle()
     val pitchCorrectionEnabled by viewModel.pitchCorrectionEnabled.collectAsStateWithLifecycle()
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
+    val lastSleepTimerDurationMinutes by viewModel.lastSleepTimerDurationMinutes.collectAsStateWithLifecycle()
     val normalizeEnabled by viewModel.normalizeChapterTitles.collectAsStateWithLifecycle()
     val audioSettings by viewModel.audioSettings.collectAsStateWithLifecycle()
     val visualizerWaveformData by viewModel.visualizerWaveformData.collectAsStateWithLifecycle()
+    val seekbarWaveformData by viewModel.seekbarWaveformData.collectAsStateWithLifecycle()
     val hapticFeedback = LocalHapticFeedback.current
 
     val navigationClickGuard = remember { NavigationClickGuard() }
@@ -217,7 +243,19 @@ public fun PlayerScreen(
         viewModel.effects.collectLatest { effect ->
             when (effect) {
                 is PlayerEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
-                is PlayerEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
+                is PlayerEffect.ShowSnackbar -> {
+                    val result =
+                        snackbarHostState.showSnackbar(
+                            message = effect.message,
+                            actionLabel = effect.actionLabel,
+                        )
+                    if (
+                        result == androidx.compose.material3.SnackbarResult.ActionPerformed &&
+                        effect.actionIntent != null
+                    ) {
+                        viewModel.dispatch(effect.actionIntent)
+                    }
+                }
                 PlayerEffect.NavigateBack -> navigationClickGuard.run(onNavigateBack)
             }
         }
@@ -418,6 +456,7 @@ public fun PlayerScreen(
     if (showSleepTimerSheet) {
         SleepTimerSheet(
             currentState = sleepTimerState,
+            lastUsedDurationMinutes = lastSleepTimerDurationMinutes,
             onStartTimer = { minutes ->
                 viewModel.dispatch(PlayerIntent.StartSleepTimer(minutes))
             },
@@ -510,107 +549,143 @@ public fun PlayerScreen(
                                 .padding(padding)
                                 .windowInsetsPadding(WindowInsets.systemBars),
                     ) {
-                        when (val state = uiState) {
-                            is PlayerState.Loading -> {
-                                LoadingScreen(message = stringResource(R.string.loadingPlayer))
-                            }
-
-                            is PlayerState.Active -> {
-                                // Click debouncer for preventing double clicks (inspired by Easybook)
-                                val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300)
-
-                                // Haze State for Glassmorphism
-                                val hazeState = rememberHazeState()
-
-                                // Removed GestureOverlay as per user request to disable brightness/volume/seek swipes
-                                PremiumPlayerBackground(
-                                    themeColors = state.themeColors,
-                                    hazeState = hazeState,
-                                    isPowerSaveMode = isPowerSaveMode,
-                                ) {
-                                    PlayerContent(
-                                        state = state,
-                                        playbackSpeed = playbackSpeed,
-                                        hazeState = hazeState,
-                                        isVinylMode = isVinylMode,
-                                        sleepTimerState = sleepTimerState,
-                                        normalizeEnabled = normalizeEnabled,
-                                        chapterRepeatMode = state.chapterRepeatMode,
-                                        visualizerWaveformData = visualizerWaveformData,
-                                        onPlayPause = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            clickDebouncer.debounce {
-                                                viewModel.dispatch(PlayerIntent.TogglePlayPause)
-                                            }
-                                        },
-                                        onSkipNext = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipNext) }
-                                        },
-                                        onSkipPrevious = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipPrevious) }
-                                        },
-                                        onSeek = { positionMs ->
-                                            viewModel.dispatch(PlayerIntent.SeekTo(positionMs))
-                                        },
-                                        onSeekForward = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekForward) }
-                                        },
-                                        onSeekBackward = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekBackward) }
-                                        },
-                                        onSelectChapter = { chapterIndex ->
-                                            viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex))
-                                        },
-                                        onChapterClick = {
-                                            // Toggle chapters pane on medium/expanded screens
-                                            clickDebouncer.debounce {
-                                                scope.launch {
-                                                    if (scaffoldNavigator.canNavigateBack()) {
-                                                        scaffoldNavigator.navigateBack()
-                                                    } else {
-                                                        scaffoldNavigator.navigateTo(
-                                                            SupportingPaneScaffoldRole.Supporting,
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        onSpeedClick = { showSpeedSheet = true },
-                                        onAudioSettingsClick = { showAudioSettingsSheet = true },
-                                        onSleepTimerClick = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            showSleepTimerSheet = true
-                                        },
-                                        onChapterRepeatClick = {
-                                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                            clickDebouncer.debounce {
-                                                viewModel.dispatch(PlayerIntent.ToggleChapterRepeat)
-                                            }
-                                        },
-                                        onStatsClick = { showStatsOverlay = true },
-                                        hasRecordAudioPermission = hasRecordAudioPermission,
-                                        onRequestRecordAudioPermission = requestRecordAudioPermission,
-                                        onInitializeVisualizer = {
-                                            viewModel.dispatch(PlayerIntent.InitializeVisualizer)
-                                        },
-                                        onSetVisualizerEnabled = { enabled ->
-                                            viewModel.dispatch(PlayerIntent.SetVisualizerEnabled(enabled))
-                                        },
-                                        sharedTransitionScope = sharedTransitionScope,
-                                        animatedVisibilityScope = animatedVisibilityScope,
+                        AnimatedContent(
+                            targetState = uiState,
+                            transitionSpec = {
+                                (fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.98f, animationSpec = tween(220)))
+                                    .togetherWith(
+                                        fadeOut(animationSpec = tween(180)) + scaleOut(targetScale = 1.02f, animationSpec = tween(180)),
+                                    )
+                            },
+                            contentKey = { state -> playerStateContentKey(state) },
+                            label = "player_state_transition",
+                        ) { animatedState ->
+                            when (animatedState) {
+                                is PlayerState.Loading -> {
+                                    PlayerLoadingSkeleton(
+                                        modifier = Modifier.fillMaxSize(),
                                     )
                                 }
-                            }
+                                is PlayerState.Active -> {
+                                    val state = animatedState
 
-                            is PlayerState.Error -> {
-                                ErrorScreen(
-                                    message = state.message,
-                                    onRetry = { navigationClickGuard.run(onNavigateBack) },
-                                )
+                                    // Click debouncer for preventing double clicks (inspired by Easybook)
+                                    val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300)
+
+                                    // Haze State for Glassmorphism
+                                    val hazeState = rememberHazeState()
+
+                                    // Removed GestureOverlay as per user request to disable brightness/volume/seek swipes
+                                    PremiumPlayerBackground(
+                                        themeColors = state.themeColors,
+                                        hazeState = hazeState,
+                                        isPowerSaveMode = isPowerSaveMode,
+                                    ) {
+                                        PlayerContent(
+                                            state = state,
+                                            playbackSpeed = playbackSpeed,
+                                            hazeState = hazeState,
+                                            isVinylMode = isVinylMode,
+                                            sleepTimerState = sleepTimerState,
+                                            normalizeEnabled = normalizeEnabled,
+                                            chapterRepeatMode = state.chapterRepeatMode,
+                                            visualizerWaveformData = visualizerWaveformData,
+                                            seekbarWaveformData = seekbarWaveformData,
+                                            onPlayPause = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                clickDebouncer.debounce {
+                                                    viewModel.dispatch(PlayerIntent.TogglePlayPause)
+                                                }
+                                            },
+                                            onSkipNext = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                                clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipNext) }
+                                            },
+                                            onSkipPrevious = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                                clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipPrevious) }
+                                            },
+                                            onSeek = { positionMs ->
+                                                viewModel.dispatch(PlayerIntent.SeekTo(positionMs))
+                                            },
+                                            onSeekForward = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekForward) }
+                                            },
+                                            onSeekBackward = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekBackward) }
+                                            },
+                                            onSelectChapter = { chapterIndex ->
+                                                viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex))
+                                            },
+                                            onChapterClick = {
+                                                // Toggle chapters pane on medium/expanded screens
+                                                clickDebouncer.debounce {
+                                                    scope.launch {
+                                                        if (scaffoldNavigator.canNavigateBack()) {
+                                                            scaffoldNavigator.navigateBack()
+                                                        } else {
+                                                            scaffoldNavigator.navigateTo(
+                                                                SupportingPaneScaffoldRole.Supporting,
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            onSpeedClick = { showSpeedSheet = true },
+                                            onHoldToBoostStart = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                viewModel.startHoldToBoost(playbackSpeed)
+                                            },
+                                            onHoldToBoostEnd = {
+                                                viewModel.endHoldToBoost()
+                                            },
+                                            onAudioSettingsClick = { showAudioSettingsSheet = true },
+                                            onSleepTimerClick = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                showSleepTimerSheet = true
+                                            },
+                                            onChapterRepeatClick = {
+                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                clickDebouncer.debounce {
+                                                    viewModel.dispatch(PlayerIntent.ToggleChapterRepeat)
+                                                }
+                                            },
+                                            onStatsClick = { showStatsOverlay = true },
+                                            onAddBookmarkAtPosition = { chapterIndex, positionMs, onCreated ->
+                                                viewModel.addBookmarkAtPosition(
+                                                    chapterIndex = chapterIndex,
+                                                    positionMs = positionMs,
+                                                    onCreated = onCreated,
+                                                )
+                                            },
+                                            onUpdateBookmark = { bookmarkId, noteText, noteAudioPath ->
+                                                viewModel.updateBookmarkContent(
+                                                    bookmarkId = bookmarkId,
+                                                    noteText = noteText,
+                                                    noteAudioPath = noteAudioPath,
+                                                )
+                                            },
+                                            hasRecordAudioPermission = hasRecordAudioPermission,
+                                            onRequestRecordAudioPermission = requestRecordAudioPermission,
+                                            onInitializeVisualizer = {
+                                                viewModel.dispatch(PlayerIntent.InitializeVisualizer)
+                                            },
+                                            onSetVisualizerEnabled = { enabled ->
+                                                viewModel.dispatch(PlayerIntent.SetVisualizerEnabled(enabled))
+                                            },
+                                            sharedTransitionScope = sharedTransitionScope,
+                                            animatedVisibilityScope = animatedVisibilityScope,
+                                        )
+                                    }
+                                }
+                                is PlayerState.Error -> {
+                                    val state = animatedState
+                                    ErrorScreen(
+                                        message = state.message,
+                                    )
+                                }
                             }
                         }
                     }
@@ -648,6 +723,7 @@ public fun PlayerScreen(
 
 @OptIn(
     androidx.compose.animation.ExperimentalSharedTransitionApi::class,
+    ExperimentalMaterial3Api::class,
     ExperimentalMaterial3WindowSizeClassApi::class,
 )
 @Composable
@@ -660,6 +736,7 @@ private fun PlayerContent(
     normalizeEnabled: Boolean,
     chapterRepeatMode: ChapterRepeatMode,
     visualizerWaveformData: FloatArray,
+    seekbarWaveformData: FloatArray,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -669,10 +746,14 @@ private fun PlayerContent(
     onSelectChapter: (Int) -> Unit,
     onChapterClick: () -> Unit,
     onSpeedClick: () -> Unit,
+    onHoldToBoostStart: () -> Unit,
+    onHoldToBoostEnd: () -> Unit,
     onAudioSettingsClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
     onChapterRepeatClick: () -> Unit,
     onStatsClick: () -> Unit,
+    onAddBookmarkAtPosition: (Int, Long, (com.jabook.app.jabook.compose.domain.model.BookmarkItem?) -> Unit) -> Unit,
+    onUpdateBookmark: (String, String?, String?) -> Unit,
     hasRecordAudioPermission: Boolean,
     onRequestRecordAudioPermission: () -> Unit,
     onInitializeVisualizer: () -> Unit,
@@ -699,6 +780,24 @@ private fun PlayerContent(
     val playPauseIconSize = if (isCompact) 40.dp else 48.dp
     val skipIconSize = if (isCompact) 40.dp else 48.dp
     val seekIconSize = if (isCompact) 32.dp else 40.dp
+    val playPauseButtonScale by animateFloatAsState(
+        targetValue = if (state.isPlaying) 1.0f else 0.94f,
+        animationSpec =
+            spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow,
+            ),
+        label = "play_pause_button_scale",
+    )
+    val playPauseIconScale by animateFloatAsState(
+        targetValue = if (state.isPlaying) 1.0f else 0.92f,
+        animationSpec =
+            spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMedium,
+            ),
+        label = "play_pause_icon_scale",
+    )
     // Adaptive sizes for control buttons (Speed, Repeat, Timer) - increased for better ergonomics
     val controlButtonHeight = if (isCompact) 48.dp else 56.dp
     val controlButtonIconSize = if (isCompact) 22.dp else 24.dp
@@ -722,6 +821,24 @@ private fun PlayerContent(
     val smallItemSpacing = if (isCompact) 8.dp else 12.dp
     val playbackSpeedLabel by remember(playbackSpeed) {
         derivedStateOf { formatPlaybackSpeedLabel(playbackSpeed) }
+    }
+    val speedButtonInteractionSource = remember { MutableInteractionSource() }
+    val speedButtonPressed by speedButtonInteractionSource.collectIsPressedAsState()
+    var holdToBoostActivated by remember { mutableStateOf(false) }
+    var suppressNextSpeedClick by remember { mutableStateOf(false) }
+
+    LaunchedEffect(speedButtonPressed) {
+        if (speedButtonPressed) {
+            delay(HOLD_TO_BOOST_ACTIVATION_DELAY_MS)
+            if (speedButtonPressed && !holdToBoostActivated) {
+                holdToBoostActivated = true
+                suppressNextSpeedClick = true
+                onHoldToBoostStart()
+            }
+        } else if (holdToBoostActivated) {
+            holdToBoostActivated = false
+            onHoldToBoostEnd()
+        }
     }
     // Large spacing for major sections
     val largeItemSpacing = if (isCompact) 24.dp else 32.dp
@@ -775,6 +892,30 @@ private fun PlayerContent(
     }
     val seekScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
+    var showBookmarkNoteSheet by remember { mutableStateOf(false) }
+    var pendingBookmarkId by remember { mutableStateOf<String?>(null) }
+    var pendingBookmarkNote by remember { mutableStateOf("") }
+    var pendingBookmarkAudioPath by remember { mutableStateOf<String?>(null) }
+    var isRecordingBookmark by remember { mutableStateOf(false) }
+    var isPlayingBookmarkAudio by remember { mutableStateOf(false) }
+    val bookmarkRecorder = remember { mutableStateOf<MediaRecorder?>(null) }
+    val bookmarkPlayer = remember { mutableStateOf<MediaPlayer?>(null) }
+    val bookmarkRecordTimeoutJob = remember { mutableStateOf<Job?>(null) }
+    var lastChapterBoundaryIndex by remember(state.book.id) { mutableIntStateOf(state.currentChapterIndex) }
+    var skipTriggeredHaptic by remember { mutableStateOf(false) }
+    LaunchedEffect(state.currentChapterIndex) {
+        resolveChapterBoundaryHapticDecision(
+            previousChapterIndex = lastChapterBoundaryIndex,
+            newChapterIndex = state.currentChapterIndex,
+            skipTriggeredHaptic = skipTriggeredHaptic,
+        )?.let { decision ->
+            if (decision.shouldPerformHaptic) {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+            }
+            skipTriggeredHaptic = decision.nextSkipTriggeredHaptic
+            lastChapterBoundaryIndex = decision.nextLastChapterBoundaryIndex
+        }
+    }
 
     // Dynamic Theme Background with Glassmorphism Effect
     // Background is now handled by PremiumPlayerBackground wrapping this content
@@ -1119,8 +1260,26 @@ private fun PlayerContent(
                             dragPosition = null
                             lastSliderHapticProgress = null
                         },
+                        onLongPress = { pressedProgress ->
+                            if (chapterTimeline.totalDurationMs <= 0) return@SquigglySlider
+                            val target =
+                                ChapterSeekbarPolicy.resolveSeekTarget(
+                                    chapters = state.chapters,
+                                    progress = pressedProgress.coerceIn(0f, 1f),
+                                )
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onAddBookmarkAtPosition(target.chapterIndex, target.chapterPositionMs) { createdBookmark ->
+                                if (createdBookmark != null) {
+                                    pendingBookmarkId = createdBookmark.id
+                                    pendingBookmarkNote = createdBookmark.noteText.orEmpty()
+                                    pendingBookmarkAudioPath = createdBookmark.noteAudioPath
+                                    showBookmarkNoteSheet = true
+                                }
+                            }
+                        },
                         isPlaying = state.isPlaying,
                         chapterMarkersFractions = chapterTimeline.chapterMarkersFractions,
+                        waveformData = seekbarWaveformData,
                         activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
                         inactiveTrackColor =
                             (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(
@@ -1371,7 +1530,11 @@ private fun PlayerContent(
                         contentAlignment = Alignment.Center,
                         modifier =
                             Modifier
-                                .size(playPauseButtonSize * 1.2f),
+                                .size(playPauseButtonSize * 1.2f)
+                                .graphicsLayer {
+                                    scaleX = playPauseButtonScale
+                                    scaleY = playPauseButtonScale
+                                },
                     ) {
                         FilledIconButton(
                             onClick = onPlayPause,
@@ -1391,7 +1554,13 @@ private fun PlayerContent(
                                     } else {
                                         stringResource(R.string.playButton)
                                     },
-                                modifier = Modifier.size(playPauseIconSize * 1.2f),
+                                modifier =
+                                    Modifier
+                                        .size(playPauseIconSize * 1.2f)
+                                        .graphicsLayer {
+                                            scaleX = playPauseIconScale
+                                            scaleY = playPauseIconScale
+                                        },
                             )
                         }
                     }
@@ -1450,7 +1619,14 @@ private fun PlayerContent(
                         ) {
                             // Playback Speed Button
                             FilledTonalButton(
-                                onClick = onSpeedClick,
+                                onClick = {
+                                    if (suppressNextSpeedClick) {
+                                        suppressNextSpeedClick = false
+                                    } else {
+                                        onSpeedClick()
+                                    }
+                                },
+                                interactionSource = speedButtonInteractionSource,
                                 modifier = Modifier.weight(1f).height(controlButtonHeight),
                             ) {
                                 Icon(
@@ -1597,7 +1773,14 @@ private fun PlayerContent(
                     ) {
                         // Playback Speed Button
                         FilledTonalButton(
-                            onClick = onSpeedClick,
+                            onClick = {
+                                if (suppressNextSpeedClick) {
+                                    suppressNextSpeedClick = false
+                                } else {
+                                    onSpeedClick()
+                                }
+                            },
+                            interactionSource = speedButtonInteractionSource,
                             modifier = Modifier.weight(1f).height(controlButtonHeight),
                         ) {
                             Icon(
@@ -1717,6 +1900,233 @@ private fun PlayerContent(
                                 )
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showBookmarkNoteSheet && pendingBookmarkId != null) {
+        JabookModalBottomSheet(
+            onDismissRequest = {
+                bookmarkRecordTimeoutJob.value?.cancel()
+                bookmarkRecordTimeoutJob.value = null
+                bookmarkRecorder.value?.runCatching {
+                    stop()
+                    reset()
+                    release()
+                }
+                bookmarkRecorder.value = null
+                bookmarkPlayer.value?.runCatching {
+                    stop()
+                    reset()
+                    release()
+                }
+                bookmarkPlayer.value = null
+                isRecordingBookmark = false
+                isPlayingBookmarkAudio = false
+                showBookmarkNoteSheet = false
+                pendingBookmarkId = null
+                pendingBookmarkNote = ""
+                pendingBookmarkAudioPath = null
+            },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.bookmarkNoteSheetTitle),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                OutlinedTextField(
+                    value = pendingBookmarkNote,
+                    onValueChange = { pendingBookmarkNote = it },
+                    label = { Text(stringResource(R.string.bookmarkNoteSheetLabel)) },
+                    placeholder = { Text(stringResource(R.string.bookmarkNoteSheetPlaceholder)) },
+                    singleLine = false,
+                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    FilledTonalButton(
+                        onClick = {
+                            if (!hasRecordAudioPermission) {
+                                onRequestRecordAudioPermission()
+                                return@FilledTonalButton
+                            }
+                            if (isRecordingBookmark) {
+                                bookmarkRecordTimeoutJob.value?.cancel()
+                                bookmarkRecordTimeoutJob.value = null
+                                bookmarkRecorder.value?.runCatching {
+                                    stop()
+                                    reset()
+                                    release()
+                                }
+                                bookmarkRecorder.value = null
+                                isRecordingBookmark = false
+                                return@FilledTonalButton
+                            }
+
+                            val bookmarkId = pendingBookmarkId ?: return@FilledTonalButton
+                            val outputDir = File(context.cacheDir, "bookmark_notes")
+                            outputDir.mkdirs()
+                            val outputFile = File(outputDir, "bookmark_$bookmarkId.m4a")
+                            val recorder =
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                    MediaRecorder(context)
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    MediaRecorder()
+                                }
+                            recorder.setAudioSource(MediaRecorder.AudioSource.MIC)
+                            recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                            recorder.setAudioEncodingBitRate(96_000)
+                            recorder.setAudioSamplingRate(44_100)
+                            recorder.setOutputFile(outputFile.absolutePath)
+                            recorder.prepare()
+                            recorder.start()
+                            bookmarkRecorder.value = recorder
+                            pendingBookmarkAudioPath = outputFile.absolutePath
+                            isRecordingBookmark = true
+                            bookmarkRecordTimeoutJob.value?.cancel()
+                            bookmarkRecordTimeoutJob.value =
+                                seekScope.launch {
+                                    delay(30_000L)
+                                    if (isRecordingBookmark) {
+                                        bookmarkRecorder.value?.runCatching {
+                                            stop()
+                                            reset()
+                                            release()
+                                        }
+                                        bookmarkRecorder.value = null
+                                        isRecordingBookmark = false
+                                    }
+                                }
+                        },
+                    ) {
+                        Icon(
+                            imageVector = if (isRecordingBookmark) Icons.Filled.Stop else Icons.Filled.Mic,
+                            contentDescription = null,
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text =
+                                if (isRecordingBookmark) {
+                                    stringResource(R.string.stopRecording)
+                                } else {
+                                    stringResource(R.string.recordVoiceNote)
+                                },
+                        )
+                    }
+
+                    FilledTonalButton(
+                        enabled = !pendingBookmarkAudioPath.isNullOrBlank(),
+                        onClick = {
+                            val path = pendingBookmarkAudioPath ?: return@FilledTonalButton
+                            if (isPlayingBookmarkAudio) {
+                                bookmarkPlayer.value?.runCatching {
+                                    stop()
+                                    reset()
+                                    release()
+                                }
+                                bookmarkPlayer.value = null
+                                isPlayingBookmarkAudio = false
+                                return@FilledTonalButton
+                            }
+                            val player = MediaPlayer()
+                            player.setDataSource(path)
+                            player.setOnCompletionListener {
+                                bookmarkPlayer.value?.runCatching {
+                                    reset()
+                                    release()
+                                }
+                                bookmarkPlayer.value = null
+                                isPlayingBookmarkAudio = false
+                            }
+                            player.prepare()
+                            player.start()
+                            bookmarkPlayer.value = player
+                            isPlayingBookmarkAudio = true
+                        },
+                    ) {
+                        Icon(
+                            imageVector = if (isPlayingBookmarkAudio) Icons.Filled.Stop else Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text =
+                                if (isPlayingBookmarkAudio) {
+                                    stringResource(R.string.stopPlayback)
+                                } else {
+                                    stringResource(R.string.playVoiceNote)
+                                },
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    FilledTonalButton(
+                        onClick = {
+                            bookmarkRecordTimeoutJob.value?.cancel()
+                            bookmarkRecordTimeoutJob.value = null
+                            bookmarkRecorder.value?.runCatching {
+                                stop()
+                                reset()
+                                release()
+                            }
+                            bookmarkRecorder.value = null
+                            bookmarkPlayer.value?.runCatching {
+                                stop()
+                                reset()
+                                release()
+                            }
+                            bookmarkPlayer.value = null
+                            isRecordingBookmark = false
+                            isPlayingBookmarkAudio = false
+                            showBookmarkNoteSheet = false
+                            pendingBookmarkId = null
+                            pendingBookmarkNote = ""
+                            pendingBookmarkAudioPath = null
+                        },
+                    ) {
+                        Text(text = stringResource(R.string.skip))
+                    }
+                    FilledTonalButton(
+                        onClick = {
+                            val bookmarkId = pendingBookmarkId ?: return@FilledTonalButton
+                            bookmarkRecordTimeoutJob.value?.cancel()
+                            bookmarkRecordTimeoutJob.value = null
+                            bookmarkRecorder.value?.runCatching {
+                                stop()
+                                reset()
+                                release()
+                            }
+                            bookmarkRecorder.value = null
+                            bookmarkPlayer.value?.runCatching {
+                                stop()
+                                reset()
+                                release()
+                            }
+                            bookmarkPlayer.value = null
+                            isRecordingBookmark = false
+                            isPlayingBookmarkAudio = false
+                            onUpdateBookmark(bookmarkId, pendingBookmarkNote, pendingBookmarkAudioPath)
+                            showBookmarkNoteSheet = false
+                            pendingBookmarkId = null
+                            pendingBookmarkNote = ""
+                            pendingBookmarkAudioPath = null
+                        },
+                    ) {
+                        Text(text = stringResource(R.string.save))
                     }
                 }
             }
@@ -1923,6 +2333,42 @@ internal fun formatPlaybackSpeedLabel(playbackSpeed: Float): String {
     return "${formattedSpeed}x"
 }
 
+private const val HOLD_TO_BOOST_ACTIVATION_DELAY_MS: Long = 300L
+
+internal fun playerStateContentKey(state: PlayerState): String =
+    when (state) {
+        is PlayerState.Loading -> "loading"
+        is PlayerState.Active -> "active"
+        is PlayerState.Error -> "error"
+    }
+
+internal data class ChapterBoundaryHapticDecision(
+    val shouldPerformHaptic: Boolean,
+    val nextSkipTriggeredHaptic: Boolean,
+    val nextLastChapterBoundaryIndex: Int,
+)
+
+internal fun resolveChapterBoundaryHapticDecision(
+    previousChapterIndex: Int,
+    newChapterIndex: Int,
+    skipTriggeredHaptic: Boolean,
+): ChapterBoundaryHapticDecision? {
+    if (newChapterIndex == previousChapterIndex) return null
+    return if (skipTriggeredHaptic) {
+        ChapterBoundaryHapticDecision(
+            shouldPerformHaptic = false,
+            nextSkipTriggeredHaptic = false,
+            nextLastChapterBoundaryIndex = newChapterIndex,
+        )
+    } else {
+        ChapterBoundaryHapticDecision(
+            shouldPerformHaptic = true,
+            nextSkipTriggeredHaptic = false,
+            nextLastChapterBoundaryIndex = newChapterIndex,
+        )
+    }
+}
+
 @Composable
 private fun DebugRecompositionCounter(modifier: Modifier = Modifier) {
     var count by remember { mutableIntStateOf(0) }
@@ -1937,4 +2383,128 @@ private fun DebugRecompositionCounter(modifier: Modifier = Modifier) {
                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.65f))
                 .padding(horizontal = 8.dp, vertical = 4.dp),
     )
+}
+
+@Composable
+private fun PlayerLoadingSkeleton(modifier: Modifier = Modifier) {
+    val loadingPlayerLabel = stringResource(R.string.loading_player)
+    val transition = rememberInfiniteTransition(label = "player_loading_skeleton")
+    val shimmerShift by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 1100, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+        label = "player_loading_shimmer_shift",
+    )
+    val shimmerBrush =
+        Brush.linearGradient(
+            colors =
+                listOf(
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f),
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                ),
+            start =
+                androidx.compose.ui.geometry
+                    .Offset(x = -600f + 1200f * shimmerShift, y = 0f),
+            end =
+                androidx.compose.ui.geometry
+                    .Offset(x = 0f + 1200f * shimmerShift, y = 600f),
+        )
+
+    Column(
+        modifier =
+            modifier
+                .padding(horizontal = 24.dp, vertical = 20.dp)
+                .semantics {
+                    contentDescription = loadingPlayerLabel
+                    progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
+                },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.72f)
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(shimmerBrush),
+        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.64f)
+                    .height(22.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(shimmerBrush),
+        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.46f)
+                    .height(16.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(shimmerBrush),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth(0.92f)
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(shimmerBrush),
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(0.92f),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(width = 48.dp, height = 14.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(shimmerBrush),
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .size(width = 48.dp, height = 14.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(shimmerBrush),
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(21.dp))
+                        .background(shimmerBrush),
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .size(60.dp)
+                        .clip(RoundedCornerShape(30.dp))
+                        .background(shimmerBrush),
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .size(42.dp)
+                        .clip(RoundedCornerShape(21.dp))
+                        .background(shimmerBrush),
+            )
+        }
+    }
 }
