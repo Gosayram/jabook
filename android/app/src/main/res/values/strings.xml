@@ -2636,6 +2636,15 @@
     <string name="playerChapterNavigationSnackbar">Moved to chapter %1$d</string>
     <string name="undoAction">Undo</string>
     <string name="bookmarkAddedMessage">Bookmark added</string>
+    <string name="weeklyRecapTitle">Your week</string>
+    <string name="minutesLabel">minutes</string>
+    <string name="booksLabel">books</string>
+    <string name="streakDaysLabel">streak</string>
+    <string name="productivePeriodLabel">Most productive: %1$s</string>
+    <string name="productiveMorning">Morning</string>
+    <string name="productiveDay">Day</string>
+    <string name="productiveEvening">Evening</string>
+    <string name="productiveNight">Night</string>
     <!-- Search filters pane strings -->
     <string name="sizeRange">Size Range</string>
     <string name="sizeRangeWithBounds">Size Range: %1$s - %2$s</string>

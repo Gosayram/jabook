@@ -23,6 +23,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import com.jabook.app.jabook.audio.domain.usecase.ListeningStatsUseCase
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.data.repository.FavoritesRepository
@@ -53,6 +54,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 /**
@@ -84,6 +86,7 @@ public class LibraryViewModel
         private val booksDao: com.jabook.app.jabook.compose.data.local.dao.BooksDao,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val application: android.app.Application,
+        private val listeningStatsUseCase: ListeningStatsUseCase,
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
@@ -148,6 +151,30 @@ public class LibraryViewModel
                     started = SharingStarted.WhileSubscribed(5000),
                     initialValue = LibraryUiState.Loading,
                 )
+
+        public val weeklyRecapState: StateFlow<WeeklyRecapState?> =
+            combine(
+                uiState,
+                listeningStatsUseCase.observeSummary(
+                    fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
+                    toEpochMs = System.currentTimeMillis(),
+                ),
+            ) { state, summary ->
+                val books = (state as? LibraryUiState.Success)?.books ?: return@combine null
+                val fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
+                val weeklyCompletedBooks =
+                    books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= fromEpochMs }
+                WeeklyRecapState(
+                    minutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt(),
+                    booksCompleted = weeklyCompletedBooks,
+                    productivePeriod = resolveProductivePeriod(books),
+                    streakDays = summary.activeDays.coerceAtLeast(0),
+                )
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = null,
+            )
 
         /**
          * Update search query.
@@ -419,6 +446,42 @@ public sealed interface LibraryUiState {
     ) : LibraryUiState
 }
 
+@Immutable
+public data class WeeklyRecapState(
+    val minutesListened: Int,
+    val booksCompleted: Int,
+    val productivePeriod: ProductivePeriod,
+    val streakDays: Int,
+)
+
+public enum class ProductivePeriod {
+    MORNING,
+    DAY,
+    EVENING,
+    NIGHT,
+    UNKNOWN,
+}
+
+private fun resolveProductivePeriod(books: ImmutableList<Book>): ProductivePeriod {
+    val hour =
+        books
+            .mapNotNull { it.lastPlayedDate }
+            .maxOrNull()
+            ?.let {
+                java.time.Instant
+                    .ofEpochMilli(it)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .hour
+            }
+            ?: return ProductivePeriod.UNKNOWN
+    return when (hour) {
+        in 5..11 -> ProductivePeriod.MORNING
+        in 12..16 -> ProductivePeriod.DAY
+        in 17..22 -> ProductivePeriod.EVENING
+        else -> ProductivePeriod.NIGHT
+    }
+}
+
 /**
  * State of library scanning operation.
  */
@@ -454,12 +517,13 @@ public sealed interface ScanState {
  */
 public fun LibraryViewModel.createBookActionsProvider(
     onBookClick: (String) -> Unit,
+    onBookLongPress: ((String) -> Unit)? = null,
 ): com.jabook.app.jabook.compose.domain.model.BookActionsProvider {
     val favoriteIds = favoriteBooks.value.map { it.id }.toSet()
 
     return com.jabook.app.jabook.compose.domain.model.BookActionsProvider(
         onBookClick = onBookClick,
-        onBookLongPress = { bookId -> showBookProperties(bookId) },
+        onBookLongPress = onBookLongPress ?: { bookId -> showBookProperties(bookId) },
         onToggleFavorite = ::toggleFavorite,
         favoriteIds = favoriteIds,
         showProgress = true,

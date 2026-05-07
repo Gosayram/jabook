@@ -39,8 +39,12 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -58,13 +62,14 @@ import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -77,6 +82,7 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
+import com.jabook.app.jabook.compose.designsystem.component.BookActionsBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
@@ -115,6 +121,7 @@ public fun LibraryScreen(
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val selectedBook by viewModel.selectedBookForProperties.collectAsStateWithLifecycle()
+    val weeklyRecap by viewModel.weeklyRecapState.collectAsStateWithLifecycle()
     val snackbarHostState = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val navigationClickGuard = remember { NavigationClickGuard() }
@@ -126,6 +133,7 @@ public fun LibraryScreen(
     var searchQuery by remember { mutableStateOf("") }
     var searchBarExpanded by remember { mutableStateOf(false) }
     var spotlightStep by rememberSaveable { mutableStateOf(0) }
+    var selectedBookForActions by remember { mutableStateOf<Book?>(null) }
 
     val storagePermissionText = stringResource(R.string.storagePermissionRequired)
     val foundBooksMessageTemplate = stringResource(R.string.foundBooksMessage)
@@ -371,9 +379,18 @@ public fun LibraryScreen(
                                                     )
                                                 }
                                             },
+                                            onBookLongPress = { bookId ->
+                                                selectedBookForActions = books.firstOrNull { it.id == bookId }
+                                            },
                                         )
 
                                     Column(modifier = Modifier.fillMaxSize()) {
+                                        weeklyRecap?.let { recap ->
+                                            WeeklyRecapCard(
+                                                stats = recap,
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            )
+                                        }
                                         SearchBar(
                                             inputField = {
                                                 SearchBarDefaults.InputField(
@@ -508,6 +525,43 @@ public fun LibraryScreen(
             },
         )
 
+        selectedBookForActions?.let { book ->
+            val contextMenuActionsProvider =
+                BookActionsProvider(
+                    onBookClick = onBookClick,
+                    onBookLongPress = {},
+                    onToggleFavorite = viewModel::toggleFavorite,
+                    favoriteIds =
+                        (uiState as? LibraryUiState.Success)
+                            ?.books
+                            ?.filter { it.isFavorite }
+                            ?.map { it.id }
+                            ?.toSet()
+                            .orEmpty(),
+                    onShareBook = {
+                        val shareIntent =
+                            android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(android.content.Intent.EXTRA_TEXT, "${book.title} — ${book.author}")
+                            }
+                        context.startActivity(
+                            android.content.Intent.createChooser(
+                                shareIntent,
+                                context.getString(R.string.share),
+                            ),
+                        )
+                    },
+                    onDeleteBook = viewModel::deleteBook,
+                    onShowBookInfo = { viewModel.showBookProperties(it) },
+                )
+            BookActionsBottomSheet(
+                book = book,
+                actionsProvider = contextMenuActionsProvider,
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                onDismiss = { selectedBookForActions = null },
+            )
+        }
+
         if (uiState is LibraryUiState.Success && spotlightStep in 1..2) {
             val overlayCenter =
                 if (spotlightStep == 1) {
@@ -546,6 +600,87 @@ public fun LibraryScreen(
         if (uiState is LibraryUiState.Success && spotlightStep == 0) {
             spotlightStep = 1
         }
+    }
+}
+
+@Composable
+private fun WeeklyRecapCard(
+    stats: WeeklyRecapState,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.weeklyRecapTitle),
+                style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                WeeklyStatItem(
+                    icon = Icons.Filled.Headphones,
+                    value = stats.minutesListened.toString(),
+                    label = stringResource(R.string.minutesLabel),
+                )
+                WeeklyStatItem(
+                    icon = Icons.Filled.Check,
+                    value = stats.booksCompleted.toString(),
+                    label = stringResource(R.string.booksLabel),
+                )
+                WeeklyStatItem(
+                    icon = Icons.Filled.Whatshot,
+                    value = stats.streakDays.toString(),
+                    label = stringResource(R.string.streakDaysLabel),
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text =
+                    stringResource(
+                        R.string.productivePeriodLabel,
+                        when (stats.productivePeriod) {
+                            ProductivePeriod.MORNING -> stringResource(R.string.productiveMorning)
+                            ProductivePeriod.DAY -> stringResource(R.string.productiveDay)
+                            ProductivePeriod.EVENING -> stringResource(R.string.productiveEvening)
+                            ProductivePeriod.NIGHT -> stringResource(R.string.productiveNight)
+                            ProductivePeriod.UNKNOWN -> stringResource(R.string.unknown)
+                        },
+                    ),
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeeklyStatItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String,
+    label: String,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        Text(
+            text = value,
+            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        Text(
+            text = label,
+            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+        )
     }
 }
 

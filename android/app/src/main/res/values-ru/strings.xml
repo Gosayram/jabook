@@ -2639,6 +2639,15 @@
     <string name="playerChapterNavigationSnackbar">Перешли к главе %1$d</string>
     <string name="undoAction">Отменить</string>
     <string name="bookmarkAddedMessage">Закладка добавлена</string>
+    <string name="weeklyRecapTitle">Ваша неделя</string>
+    <string name="minutesLabel">минут</string>
+    <string name="booksLabel">книг</string>
+    <string name="streakDaysLabel">дней подряд</string>
+    <string name="productivePeriodLabel">Самое продуктивное время: %1$s</string>
+    <string name="productiveMorning">Утро</string>
+    <string name="productiveDay">День</string>
+    <string name="productiveEvening">Вечер</string>
+    <string name="productiveNight">Ночь</string>
     <!-- Строки панели фильтров поиска -->
     <string name="sizeRange">Диапазон размера</string>
     <string name="sizeRangeWithBounds">Диапазон размера: %1$s - %2$s</string>
