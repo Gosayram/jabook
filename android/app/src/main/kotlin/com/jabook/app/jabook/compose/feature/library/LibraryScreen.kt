@@ -63,7 +63,7 @@ import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
-import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
+import com.jabook.app.jabook.compose.designsystem.component.LibraryLoadingSkeleton
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
 import kotlinx.coroutines.launch
@@ -306,7 +306,7 @@ public fun LibraryScreen(
                         ) {
                             when (uiState) {
                                 is LibraryUiState.Loading -> {
-                                    LoadingScreen(message = stringResource(R.string.loadingLibrary))
+                                    LibraryLoadingSkeleton(message = stringResource(R.string.loadingLibrary))
                                 }
 
                                 is LibraryUiState.Success -> {
@@ -337,6 +337,9 @@ public fun LibraryScreen(
                                 is LibraryUiState.Empty -> {
                                     EmptyState(
                                         message = stringResource(R.string.noBooksInLibrary),
+                                        subtitle = stringResource(R.string.noFoldersConfiguredPleaseAddInSettings),
+                                        ctaText = stringResource(R.string.retry),
+                                        onCta = { viewModel.startLibraryScan() },
                                     )
                                 }
 
@@ -437,7 +440,7 @@ private fun LibraryContent(
     Box(modifier = modifier) {
         when (uiState) {
             is LibraryUiState.Loading -> {
-                LoadingScreen(message = stringResource(R.string.loadingLibrary))
+                LibraryLoadingSkeleton(message = stringResource(R.string.loadingLibrary))
             }
 
             is LibraryUiState.Success -> {
@@ -460,6 +463,9 @@ private fun LibraryContent(
             is LibraryUiState.Empty -> {
                 EmptyState(
                     message = stringResource(R.string.noBooksInLibrary),
+                    subtitle = stringResource(R.string.noFoldersConfiguredPleaseAddInSettings),
+                    ctaText = stringResource(R.string.retry),
+                    onCta = { viewModel.startLibraryScan() },
                 )
             }
 

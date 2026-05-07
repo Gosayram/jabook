@@ -19,6 +19,7 @@ import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -197,29 +199,29 @@ public fun SleepTimerSheet(
                     // Timer options
                     val durations = listOf(5, 10, 15, 30, 45, 60)
 
-                    durations.forEach { minutes ->
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    pluralStringResource(
-                                        R.plurals.durationMinutesFull,
-                                        minutes,
-                                        minutes,
-                                    ),
-                                )
-                            },
-                            leadingContent = {
-                                Icon(
-                                    Icons.Filled.Timer,
-                                    contentDescription = null,
-                                )
-                            },
-                            modifier =
-                                Modifier.clickable {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        durations.forEach { minutes ->
+                            FilterChip(
+                                selected = false,
+                                onClick = {
                                     onStartTimer(minutes)
                                     onDismiss()
                                 },
-                        )
+                                label = {
+                                    Text(
+                                        pluralStringResource(
+                                            R.plurals.durationMinutesFull,
+                                            minutes,
+                                            minutes,
+                                        ),
+                                    )
+                                },
+                            )
+                        }
                     }
                 }
 

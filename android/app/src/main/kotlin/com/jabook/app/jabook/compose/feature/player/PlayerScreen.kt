@@ -126,6 +126,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.getSystemService
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -140,6 +141,7 @@ import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
+import com.jabook.app.jabook.compose.core.util.HapticManager
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
@@ -622,28 +624,28 @@ public fun PlayerScreen(
                                             visualizerWaveformData = visualizerWaveformData,
                                             seekbarWaveformData = seekbarWaveformData,
                                             onPlayPause = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                HapticManager.performLongPress(hapticFeedback)
                                                 clickDebouncer.debounce {
                                                     viewModel.dispatch(PlayerIntent.TogglePlayPause)
                                                 }
                                             },
                                             onSkipNext = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                                HapticManager.performGesture(hapticFeedback)
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipNext) }
                                             },
                                             onSkipPrevious = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                                HapticManager.performGesture(hapticFeedback)
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipPrevious) }
                                             },
                                             onSeek = { positionMs ->
                                                 viewModel.dispatch(PlayerIntent.SeekTo(positionMs))
                                             },
                                             onSeekForward = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                HapticManager.performTap(hapticFeedback)
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekForward) }
                                             },
                                             onSeekBackward = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                HapticManager.performTap(hapticFeedback)
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekBackward) }
                                             },
                                             onSelectChapter = { chapterIndex ->
@@ -665,7 +667,7 @@ public fun PlayerScreen(
                                             },
                                             onSpeedClick = { showSpeedSheet = true },
                                             onHoldToBoostStart = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                HapticManager.performLongPress(hapticFeedback)
                                                 viewModel.startHoldToBoost(playbackSpeed)
                                             },
                                             onHoldToBoostEnd = {
@@ -673,11 +675,11 @@ public fun PlayerScreen(
                                             },
                                             onAudioSettingsClick = { showAudioSettingsSheet = true },
                                             onSleepTimerClick = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                HapticManager.performLongPress(hapticFeedback)
                                                 showSleepTimerSheet = true
                                             },
                                             onChapterRepeatClick = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                HapticManager.performTap(hapticFeedback)
                                                 clickDebouncer.debounce {
                                                     viewModel.dispatch(PlayerIntent.ToggleChapterRepeat)
                                                 }
@@ -832,15 +834,7 @@ private fun PlayerContent(
     val controlButtonHeight = if (isCompact) 48.dp else 56.dp
     val controlButtonIconSize = if (isCompact) 22.dp else 24.dp
     val controlButtonTextSize =
-        if (isCompact) {
-            androidx.compose.ui.unit.TextUnit(
-                14f,
-                androidx.compose.ui.unit.TextUnitType.Sp,
-            )
-        } else {
-            androidx.compose.ui.unit
-                .TextUnit(16f, androidx.compose.ui.unit.TextUnitType.Sp)
-        }
+        if (isCompact) 14.sp else 16.sp
     val controlButtonSpacing = if (isCompact) 8.dp else 12.dp
     // Optimized cover size: 70% for compact (phone optimization), 88% for larger screens
     val coverWidth = if (isCompact) 0.70f else 0.88f
@@ -1498,16 +1492,7 @@ private fun PlayerContent(
                                 ),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            fontSize =
-                                if (isCompact) {
-                                    androidx.compose.ui.unit.TextUnit(
-                                        13f,
-                                        androidx.compose.ui.unit.TextUnitType.Sp,
-                                    )
-                                } else {
-                                    androidx.compose.ui.unit
-                                        .TextUnit(14f, androidx.compose.ui.unit.TextUnitType.Sp)
-                                },
+                            fontSize = if (isCompact) 13.sp else 14.sp,
                         )
                     }
                 }

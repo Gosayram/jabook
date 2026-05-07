@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,7 +38,11 @@ import com.jabook.app.jabook.R
 /**
  * Standard empty state screen with icon and message.
  *
- * @param message Message to display in empty state
+ * @param message Message to display in empty state (legacy single-line mode)
+ * @param title Optional title (preferred for richer mode)
+ * @param subtitle Optional subtitle shown under title
+ * @param ctaText Optional call-to-action text
+ * @param onCta Optional call-to-action handler
  * @param modifier Modifier to be applied to the container
  * @param icon Optional icon to display (defaults to Inbox)
  */
@@ -46,7 +51,13 @@ public fun EmptyState(
     message: String,
     modifier: Modifier = Modifier,
     icon: ImageVector = Icons.Filled.Inbox,
+    title: String? = null,
+    subtitle: String? = null,
+    ctaText: String? = null,
+    onCta: (() -> Unit)? = null,
 ) {
+    val resolvedTitle = title ?: message
+    val resolvedSubtitle = subtitle
     Column(
         modifier =
             modifier
@@ -65,10 +76,27 @@ public fun EmptyState(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            text = resolvedTitle,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
         )
+
+        if (!resolvedSubtitle.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = resolvedSubtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        if (!ctaText.isNullOrBlank() && onCta != null) {
+            Spacer(modifier = Modifier.height(20.dp))
+            FilledTonalButton(onClick = onCta) {
+                Text(text = ctaText)
+            }
+        }
     }
 }
