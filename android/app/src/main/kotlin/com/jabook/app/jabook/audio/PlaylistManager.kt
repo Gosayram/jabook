@@ -1043,7 +1043,7 @@ internal class PlaylistManager(
 
             // Apply position within the track
             activePlayer.seekTo(initialTrackIndex, initialPosition)
-            delay(500L) // Wait for position to stabilize
+            delay(PlaylistInitialSeekStabilizationPolicy.STABILIZATION_DELAY_MS)
 
             // Verify final state
             verifyPositionApplied(activePlayer, initialTrackIndex, initialPosition)
@@ -1137,14 +1137,19 @@ internal class PlaylistManager(
         )
 
         // Switch tracks first
+        val seekPlan = PlaylistTrackSeekFallbackPolicy.buildTrackSwitchSeekPlan()
         try {
-            player.seekToDefaultPosition(targetIndex)
+            when (seekPlan.first()) {
+                PlaylistTrackSeekStep.DEFAULT_POSITION -> player.seekToDefaultPosition(targetIndex)
+                PlaylistTrackSeekStep.EXPLICIT_ZERO -> player.seekTo(targetIndex, 0)
+            }
         } catch (e: Exception) {
-            LogUtils.w(
-                "AudioPlayerService",
-                "seekToDefaultPosition failed, trying seekTo: ${e.message}",
-            )
-            player.seekTo(targetIndex, 0)
+            LogUtils.w("AudioPlayerService", "seekToDefaultPosition failed, trying seekTo: ${e.message}")
+            when (seekPlan.getOrNull(1)) {
+                PlaylistTrackSeekStep.EXPLICIT_ZERO -> player.seekTo(targetIndex, 0)
+                PlaylistTrackSeekStep.DEFAULT_POSITION -> player.seekToDefaultPosition(targetIndex)
+                null -> throw e
+            }
         }
 
         // Use CompletableDeferred for event-based waiting if available
@@ -1276,17 +1281,18 @@ internal class PlaylistManager(
                 "finalIndex=$finalIndex, finalPosition=${finalPosition}ms",
         )
 
-        if (finalIndex != targetIndex) {
+        if (PlaylistPositionRetryPolicy.shouldRetry(finalIndex = finalIndex, targetIndex = targetIndex)) {
             LogUtils.e(
                 "AudioPlayerService",
                 "ERROR: Final index ($finalIndex) differs from target ($targetIndex) after seekTo!",
             )
+            val retryPlan = PlaylistPositionRetryPolicy.buildRetryPlan()
             // Retry as last resort
             try {
                 player.seekToDefaultPosition(targetIndex)
-                delay(300L)
+                delay(retryPlan.seekDefaultDelayMs)
                 player.seekTo(targetIndex, targetPosition)
-                delay(500L)
+                delay(retryPlan.seekTargetDelayMs)
             } catch (e: Exception) {
                 LogUtils.e("AudioPlayerService", "Retry failed: ${e.message}")
             }
@@ -1324,11 +1330,13 @@ internal class PlaylistManager(
      */
     private fun createUriForPath(path: String): Uri {
         val uri = buildPlaybackUri(path)
-        if (uri.scheme == "file" || uri.scheme == null) {
-            val localPath = uri.path
-            if (localPath.isNullOrEmpty() || !File(localPath).exists()) {
-                LogUtils.w("AudioPlayerService", "File does not exist: $path")
-            }
+        if (
+            PlaylistUriValidationPolicy.shouldWarnMissingLocalPath(
+                scheme = uri.scheme,
+                localPath = uri.path,
+            ) { localPath -> File(localPath).exists() }
+        ) {
+            LogUtils.w("AudioPlayerService", "File does not exist: $path")
         }
         return uri
     }
@@ -1342,25 +1350,15 @@ internal class PlaylistManager(
         index: Int,
         metadata: Map<String, String>?,
     ): androidx.media3.common.MediaMetadata {
-        val isUrl = path.startsWith("http://") || path.startsWith("https://")
-        val fileName =
-            if (isUrl) {
-                val urlPath = Uri.parse(path).lastPathSegment ?: "Track ${index + 1}"
-                urlPath.substringBeforeLast('.', urlPath)
-            } else {
-                File(path).nameWithoutExtension
-            }
-
-        val providedTitle = metadata?.get("title") ?: metadata?.get("trackTitle")
-        val providedArtist = metadata?.get("artist") ?: metadata?.get("author")
-        val providedAlbum = metadata?.get("album") ?: metadata?.get("bookTitle")
+        val fileName = PlaylistTrackTitlePolicy.deriveFileName(path, index)
+        val resolvedFields = PlaylistMetadataFieldPolicy.resolve(metadata)
 
         // Get flavor suffix for title
         val flavorSuffix = getFlavorSuffix()
         val flavorText = flavorSuffix.takeIf { it.isNotEmpty() }?.let { " - $it" }.orEmpty()
 
         // Always add flavor suffix to title for quick settings player
-        val baseTitle = providedTitle ?: fileName.ifEmpty { "Track ${index + 1}" }
+        val baseTitle = PlaylistTrackTitlePolicy.resolveBaseTitle(resolvedFields.title, fileName, index)
         val titleWithFlavor = baseTitle + flavorText
 
         val metadataBuilder =
@@ -1375,12 +1373,12 @@ internal class PlaylistManager(
                     ),
                 )
 
-        if (providedArtist != null) {
-            metadataBuilder.setArtist(providedArtist)
+        if (resolvedFields.artist != null) {
+            metadataBuilder.setArtist(resolvedFields.artist)
         }
 
-        if (providedAlbum != null) {
-            metadataBuilder.setAlbumTitle(providedAlbum)
+        if (resolvedFields.album != null) {
+            metadataBuilder.setAlbumTitle(resolvedFields.album)
         }
 
         val artworkUriString = metadata?.get("artworkUri")?.takeIf { it.isNotEmpty() }
