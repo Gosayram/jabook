@@ -56,14 +56,18 @@ import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -80,6 +84,7 @@ import com.jabook.app.jabook.compose.designsystem.component.LibraryLoadingSkelet
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
+import com.jabook.app.jabook.compose.feature.onboarding.SpotlightOverlay
 import kotlinx.coroutines.launch
 
 /**
@@ -120,6 +125,7 @@ public fun LibraryScreen(
     var showSortBottomSheet by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var searchBarExpanded by remember { mutableStateOf(false) }
+    var spotlightStep by rememberSaveable { mutableStateOf(0) }
 
     val storagePermissionText = stringResource(R.string.storagePermissionRequired)
     val foundBooksMessageTemplate = stringResource(R.string.foundBooksMessage)
@@ -128,6 +134,12 @@ public fun LibraryScreen(
     val scanCompleteNoBooksMessage = stringResource(R.string.scanCompleteNoBooks)
     val coverUpdatedMessage = stringResource(R.string.coverUpdated)
     val coverUpdateFailedMessage = stringResource(R.string.coverUpdateFailed)
+    val spotlightSkipText = stringResource(R.string.spotlightSkip)
+    val spotlightNextText = stringResource(R.string.spotlightNext)
+    val spotlightSearchTitle = stringResource(R.string.spotlightSearchTitle)
+    val spotlightSearchDescription = stringResource(R.string.spotlightSearchDescription)
+    val spotlightDownloadsTitle = stringResource(R.string.spotlightDownloadsTitle)
+    val spotlightDownloadsDescription = stringResource(R.string.spotlightDownloadsDescription)
     var hasReportedMeaningfulContent by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
@@ -296,7 +308,9 @@ public fun LibraryScreen(
                         modifier = Modifier.fillMaxSize(),
                     ) { padding ->
                         val isRefreshing = scanState is ScanState.Scanning
+                        val pullToRefreshState = rememberPullToRefreshState()
                         androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                            state = pullToRefreshState,
                             isRefreshing = isRefreshing,
                             onRefresh = {
                                 if (isRefreshing) {
@@ -320,6 +334,15 @@ public fun LibraryScreen(
                                 } else {
                                     permissionLauncher.launch(permission)
                                 }
+                            },
+                            indicator = {
+                                PullToRefreshDefaults.Indicator(
+                                    state = pullToRefreshState,
+                                    isRefreshing = isRefreshing,
+                                    modifier = Modifier.align(Alignment.TopCenter),
+                                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                                )
                             },
                             modifier = Modifier.padding(padding).fillMaxSize(),
                         ) {
@@ -484,6 +507,28 @@ public fun LibraryScreen(
                 )
             },
         )
+
+        if (uiState is LibraryUiState.Success && spotlightStep in 1..2) {
+            val overlayCenter =
+                if (spotlightStep == 1) {
+                    Offset(x = 72f, y = 180f)
+                } else {
+                    Offset(x = 128f, y = 180f)
+                }
+            SpotlightOverlay(
+                title = if (spotlightStep == 1) spotlightSearchTitle else spotlightDownloadsTitle,
+                description = if (spotlightStep == 1) spotlightSearchDescription else spotlightDownloadsDescription,
+                skipText = spotlightSkipText,
+                nextText = spotlightNextText,
+                targetCenter = overlayCenter,
+                targetRadius = 30.dp,
+                onSkip = { spotlightStep = 0 },
+                onNext = {
+                    spotlightStep = if (spotlightStep == 1) 2 else 0
+                },
+                modifier = Modifier.align(Alignment.Center),
+            )
+        }
     }
 
     if (showSortBottomSheet) {
@@ -495,6 +540,12 @@ public fun LibraryScreen(
             },
             onDismiss = { showSortBottomSheet = false },
         )
+    }
+
+    LaunchedEffect(uiState) {
+        if (uiState is LibraryUiState.Success && spotlightStep == 0) {
+            spotlightStep = 1
+        }
     }
 }
 

@@ -2451,6 +2451,12 @@
     <string name="errorMessageFormat">Error: $message</string>
     <string name="pause">Pause</string>
     <string name="searchBooksTitle">Search books</string>
+    <string name="spotlightSkip">Skip</string>
+    <string name="spotlightNext">Next</string>
+    <string name="spotlightSearchTitle">Search books faster</string>
+    <string name="spotlightSearchDescription">Use search to quickly find books by title or author.</string>
+    <string name="spotlightDownloadsTitle">Track downloads</string>
+    <string name="spotlightDownloadsDescription">Open downloads to monitor progress and manage queued items.</string>
     <string name="previousChapterTitle">Previous chapter</string>
     <string name="check">Check</string>
     <string name="expand">Expand</string>

@@ -2451,6 +2451,12 @@
     <string name="errorMessageFormat">Ошибка: $message</string>
     <string name="pause">Пауза</string>
     <string name="searchBooksTitle">Поиск книг</string>
+    <string name="spotlightSkip">Пропустить</string>
+    <string name="spotlightNext">Далее</string>
+    <string name="spotlightSearchTitle">Поиск книг быстрее</string>
+    <string name="spotlightSearchDescription">Используйте поиск, чтобы быстро находить книги по названию или автору.</string>
+    <string name="spotlightDownloadsTitle">Контроль загрузок</string>
+    <string name="spotlightDownloadsDescription">Откройте загрузки, чтобы следить за прогрессом и очередью.</string>
     <string name="previousChapterTitle">Предыдущая глава</string>
     <string name="check">Проверить</string>
     <string name="expand">Развернуть</string>

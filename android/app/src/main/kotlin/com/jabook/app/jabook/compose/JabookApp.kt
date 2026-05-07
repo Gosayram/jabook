@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalNavigationDrawer
@@ -73,8 +75,10 @@ public fun JabookApp(
     appState: JabookAppState = rememberJabookAppState(),
     viewModel: MainViewModel = hiltViewModel(),
     permissionViewModel: com.jabook.app.jabook.compose.feature.permissions.PermissionViewModel = hiltViewModel(),
+    settingsViewModel: com.jabook.app.jabook.compose.feature.settings.SettingsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val activeDownloads by settingsViewModel.activeDownloads.collectAsStateWithLifecycle()
 
     // Detect if this is a beta/dev/stage flavor by checking package name
     // Beta: com.jabook.app.jabook.beta, Dev: .dev, Stage: .stage, Prod: com.jabook.app.jabook
@@ -261,15 +265,31 @@ public fun JabookApp(
 
                         item(
                             icon = {
-                                Icon(
-                                    imageVector =
-                                        if (selected) {
-                                            destination.selectedIcon
-                                        } else {
-                                            destination.unselectedIcon
+                                val icon =
+                                    if (selected) {
+                                        destination.selectedIcon
+                                    } else {
+                                        destination.unselectedIcon
+                                    }
+                                if (destination == TopLevelDestination.SETTINGS && activeDownloads.isNotEmpty()) {
+                                    BadgedBox(
+                                        badge = {
+                                            Badge {
+                                                Text(activeDownloads.size.toString())
+                                            }
                                         },
-                                    contentDescription = stringResource(destination.iconTextId),
-                                )
+                                    ) {
+                                        Icon(
+                                            imageVector = icon,
+                                            contentDescription = stringResource(destination.iconTextId),
+                                        )
+                                    }
+                                } else {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = stringResource(destination.iconTextId),
+                                    )
+                                }
                             },
                             label = { Text(stringResource(destination.titleTextId)) },
                             selected = selected,
