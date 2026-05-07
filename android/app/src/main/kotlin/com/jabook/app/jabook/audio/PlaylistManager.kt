@@ -35,6 +35,7 @@ import com.jabook.app.jabook.audio.SavedPlaybackState
 import com.jabook.app.jabook.compose.core.di.AppDispatchers
 import com.jabook.app.jabook.core.network.NetworkRuntimePolicy
 import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -316,22 +317,27 @@ internal class PlaylistManager(
                             callback = callback,
                             loadGeneration = loadGeneration,
                         )
-                    } finally {
                         playlistLoadCoordinator.finish()
                         LogUtils.d(
                             "AudioPlayerService",
                             "Released playlistLoadMutex lock after setPlaylist",
                         )
+                    } catch (e: CancellationException) {
+                        playlistLoadCoordinator.finish()
+                        throw e
+                    } catch (e: Exception) {
+                        playlistLoadCoordinator.fail()
+                        throw e
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 LogUtils.e(
                     "AudioPlayerService",
                     "Error in setPlaylist mutex block: ${e.message}",
                     e,
                 )
-                // Ensure cleanup even on error
-                playlistLoadCoordinator.fail()
                 callback?.invoke(false, e)
             }
         }
@@ -454,9 +460,6 @@ internal class PlaylistManager(
         } catch (e: Exception) {
             LogUtils.e("AudioPlayerService", "Failed to prepare playback", e)
             ErrorHandler.handleGeneralError("AudioPlayerService", e, "preparePlayback failed")
-            withContext(dispatchers.main) {
-                callback?.invoke(false, e)
-            }
             throw e // Re-throw to let finally block handle cleanup
         }
     }
@@ -786,7 +789,7 @@ internal class PlaylistManager(
                                                         .localConfiguration
                                                         ?.uri
                                                         ?.path
-                                            } catch (e: Exception) {
+                                            } catch (_: IndexOutOfBoundsException) {
                                                 // Index might be out of bounds, continue with add.
                                             }
                                         }
@@ -1601,40 +1604,42 @@ internal class PlaylistManager(
         currentTrackIndex: Int,
         keepWindow: Int = 5,
     ) {
-        val player = getActivePlayer()
-        val totalTracks = player.mediaItemCount
+        playerServiceScope.launch(dispatchers.main) {
+            val player = getActivePlayer()
+            val totalTracks = player.mediaItemCount
 
-        currentFilePaths ?: return
-        val plan =
-            PlaylistMemoryOptimizationPolicy.buildPlan(
-                totalTracks = totalTracks,
-                currentTrackIndex = currentTrackIndex,
-                keepWindow = keepWindow,
-                trackExistsAt = { index -> TrackExistencePolicy.exists(player, index) },
-            ) ?: return
+            currentFilePaths ?: return@launch
+            val plan =
+                PlaylistMemoryOptimizationPolicy.buildPlan(
+                    totalTracks = totalTracks,
+                    currentTrackIndex = currentTrackIndex,
+                    keepWindow = keepWindow,
+                    trackExistsAt = { index -> TrackExistencePolicy.exists(player, index) },
+                ) ?: return@launch
 
-        LogUtils.d(
-            "AudioPlayerService",
-            "🧹 Memory optimization: removing ${plan.removalIndicesDescending.size} distant tracks " +
-                "(keeping window: ${plan.keepStartIndex}-${plan.keepEndIndex} around track $currentTrackIndex)",
-        )
-
-        val report =
-            PlaylistMemoryOptimizer.applyPlan(
-                plan = plan,
-                removeByIndex = { index ->
-                    player.removeMediaItem(index)
-                    LogUtils.v("AudioPlayerService", "Removed track $index from memory")
-                },
-                onRemovalFailed = { index, error ->
-                    LogUtils.w("AudioPlayerService", "Failed to remove track $index", error)
-                },
+            LogUtils.d(
+                "AudioPlayerService",
+                "🧹 Memory optimization: removing ${plan.removalIndicesDescending.size} distant tracks " +
+                    "(keeping window: ${plan.keepStartIndex}-${plan.keepEndIndex} around track $currentTrackIndex)",
             )
 
-        LogUtils.i(
-            "AudioPlayerService",
-            "✅ Memory optimized: removed ${report.successfulRemovals}/${report.attemptedRemovals} tracks, " +
-                "keeping ${plan.keepEndIndex - plan.keepStartIndex + 1} tracks around current position",
-        )
+            val report =
+                PlaylistMemoryOptimizer.applyPlan(
+                    plan = plan,
+                    removeByIndex = { index ->
+                        player.removeMediaItem(index)
+                        LogUtils.v("AudioPlayerService", "Removed track $index from memory")
+                    },
+                    onRemovalFailed = { index, error ->
+                        LogUtils.w("AudioPlayerService", "Failed to remove track $index", error)
+                    },
+                )
+
+            LogUtils.i(
+                "AudioPlayerService",
+                "✅ Memory optimized: removed ${report.successfulRemovals}/${report.attemptedRemovals} tracks, " +
+                    "keeping ${plan.keepEndIndex - plan.keepStartIndex + 1} tracks around current position",
+            )
+        }
     }
 }

@@ -364,6 +364,12 @@ android {
     }
 }
 
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
+}
+
 // REMOVED: Flutter configuration block - no longer needed
 // REMOVED: fixIntegrationTestPlugin task - GeneratedPluginRegistrant.java no longer exists
 

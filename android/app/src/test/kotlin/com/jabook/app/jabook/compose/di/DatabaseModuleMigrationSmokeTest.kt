@@ -65,8 +65,9 @@ class DatabaseModuleMigrationSmokeTest {
     }
 
     @Test
-    fun `migration contract includes 14 to 15 and 15 to 16 and 16 to 17 and 17 to 18 and 18 to 19 and 19 to 20 and migration updates blank category`() {
-        val migrationPairs = DatabaseModule.configuredMigrations.map { it.startVersion to it.endVersion }
+    fun `migration contract includes 14 to 20 chain and updates blank category`() {
+        val migrationPairs =
+            DatabaseModule.configuredMigrations.map { it.startVersion to it.endVersion }
         assertTrue(migrationPairs.contains(14 to 15))
         assertTrue(migrationPairs.contains(15 to 16))
         assertTrue(migrationPairs.contains(16 to 17))
@@ -201,6 +202,28 @@ class DatabaseModuleMigrationSmokeTest {
                 "SELECT lufs_value FROM books WHERE id = 'book-lufs-test'",
             )
         assertTrue("lufs_value should be -20.5", updatedLufs?.toDoubleOrNull()?.equals(-20.5) == true)
+    }
+
+    @Test
+    fun `migration 19 to 20 creates bookmarks table with required indices`() {
+        database = DatabaseModule.provideJabookDatabase(context)
+        val initialSqlDb = requireNotNull(database).openHelper.writableDatabase
+        assertEquals(20, pragmaUserVersion(initialSqlDb))
+        requireNotNull(database).close()
+        database = null
+
+        val dbPath = context.getDatabasePath(DatabaseModule.DATABASE_NAME).absolutePath
+        SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READWRITE).use { rawDb ->
+            rawDb.execSQL("PRAGMA user_version = 19")
+        }
+
+        database = DatabaseModule.provideJabookDatabase(context)
+        val migratedSqlDb = requireNotNull(database).openHelper.writableDatabase
+
+        assertEquals(20, pragmaUserVersion(migratedSqlDb))
+        assertTrue(tableExists(migratedSqlDb, "bookmarks"))
+        assertTrue(indexExists(migratedSqlDb, "index_bookmarks_book_id"))
+        assertTrue(indexExists(migratedSqlDb, "index_bookmarks_book_id_position_ms"))
     }
 
     private fun tableExists(
