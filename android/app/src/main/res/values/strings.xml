@@ -2636,6 +2636,7 @@
     <string name="playerChapterNavigationSnackbar">Moved to chapter %1$d</string>
     <string name="undoAction">Undo</string>
     <string name="bookmarkAddedMessage">Bookmark added</string>
+    <string name="dragToReorder">Drag to reorder</string>
     <string name="weeklyRecapTitle">Your week</string>
     <string name="minutesLabel">minutes</string>
     <string name="booksLabel">books</string>

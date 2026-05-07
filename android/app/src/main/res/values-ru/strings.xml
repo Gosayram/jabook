@@ -2639,6 +2639,7 @@
     <string name="playerChapterNavigationSnackbar">Перешли к главе %1$d</string>
     <string name="undoAction">Отменить</string>
     <string name="bookmarkAddedMessage">Закладка добавлена</string>
+    <string name="dragToReorder">Перетащите для сортировки</string>
     <string name="weeklyRecapTitle">Ваша неделя</string>
     <string name="minutesLabel">минут</string>
     <string name="booksLabel">книг</string>
