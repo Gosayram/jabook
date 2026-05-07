@@ -142,6 +142,7 @@ import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.theme.GlassmorphismTokens
 import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
@@ -158,6 +159,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -754,6 +756,7 @@ public fun PlayerScreen(
                                                 viewModel.dispatch(PlayerIntent.SetVisualizerEnabled(enabled))
                                             },
                                             snackbarHostState = snackbarHostState,
+                                            modifier = Modifier.hazeEffect(state = hazeState),
                                             sharedTransitionScope = sharedTransitionScope,
                                             animatedVisibilityScope = animatedVisibilityScope,
                                         )
@@ -774,7 +777,10 @@ public fun PlayerScreen(
                                 secondsLeft = autoplayState.secondsLeft,
                                 onContinue = viewModel::continueSeriesNow,
                                 onDismiss = viewModel::dismissSeriesAutoplay,
-                                modifier = Modifier.align(Alignment.BottomCenter),
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .hazeEffect(state = hazeState),
                             )
                         }
                     }
@@ -825,7 +831,10 @@ private fun NextBookCountdownCard(
                 .padding(horizontal = 16.dp, vertical = 20.dp),
         colors =
             CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                containerColor =
+                    MaterialTheme.colorScheme.surface.copy(
+                        alpha = GlassmorphismTokens.PLAYER_CONTROLS_TINT_ALPHA,
+                    ),
             ),
         elevation = CardDefaults.cardElevation(defaultElevation = SurfaceElevationTokens.Level2),
     ) {
@@ -1207,7 +1216,12 @@ private fun PlayerContent(
                 } else {
                     AsyncImage(
                         model = imageRequest,
-                        contentDescription = state.book.title,
+                        contentDescription =
+                            stringResource(
+                                R.string.playerCoverAccessibilityDescription,
+                                state.book.title,
+                                state.book.author,
+                            ),
                         modifier =
                             imageModifier
                                 .fillMaxWidth(coverWidth)
@@ -1727,7 +1741,17 @@ private fun PlayerContent(
                     ) {
                         FilledIconButton(
                             onClick = onPlayPause,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .semantics {
+                                        stateDescription =
+                                            if (state.isPlaying) {
+                                                stringResource(R.string.playbackStatePlaying)
+                                            } else {
+                                                stringResource(R.string.playbackStatePaused)
+                                            }
+                                    },
                             shape = androidx.compose.foundation.shape.CircleShape,
                             colors =
                                 IconButtonDefaults.filledIconButtonColors(
@@ -2271,7 +2295,12 @@ private fun PlayerContent(
                     ) {
                         Icon(
                             imageVector = if (isPlayingBookmarkAudio) Icons.Filled.Stop else Icons.Filled.PlayArrow,
-                            contentDescription = null,
+                            contentDescription =
+                                if (isPlayingBookmarkAudio) {
+                                    stringResource(R.string.stopPlayback)
+                                } else {
+                                    stringResource(R.string.playVoiceNote)
+                                },
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(

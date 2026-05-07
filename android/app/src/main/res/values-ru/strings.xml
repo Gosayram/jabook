@@ -2644,6 +2644,9 @@
     <string name="continueSeriesLabel">Продолжить серию</string>
     <string name="playNowAction">Слушать сейчас</string>
     <string name="dismissAction">Скрыть</string>
+    <string name="playerCoverAccessibilityDescription">Обложка книги «%1$s», автор %2$s</string>
+    <string name="playbackStatePlaying">Воспроизводится</string>
+    <string name="playbackStatePaused">На паузе</string>
     <string name="minutesLabel">минут</string>
     <string name="booksLabel">книг</string>
     <string name="streakDaysLabel">дней подряд</string>

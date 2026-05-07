@@ -2640,6 +2640,9 @@
     <string name="continueSeriesLabel">Continue series</string>
     <string name="playNowAction">Play now</string>
     <string name="dismissAction">Dismiss</string>
+    <string name="playerCoverAccessibilityDescription">%1$s cover art by %2$s</string>
+    <string name="playbackStatePlaying">Playing</string>
+    <string name="playbackStatePaused">Paused</string>
     <string name="weeklyRecapTitle">Your week</string>
     <string name="minutesLabel">minutes</string>
     <string name="booksLabel">books</string>
