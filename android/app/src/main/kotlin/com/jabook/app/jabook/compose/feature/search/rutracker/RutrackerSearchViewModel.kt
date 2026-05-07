@@ -67,6 +67,7 @@ public class RutrackerSearchViewModel
 
         // Store original results for client-side filtering/sorting
         private var originalResults: List<RutrackerSearchResult> = emptyList()
+        private val eagerCoverBatchSize = 24
 
         // Cache of library book source URLs to check "In Library" status against
         private val librarySourceUrls: StateFlow<Set<String>> =
@@ -78,6 +79,17 @@ public class RutrackerSearchViewModel
                     started = SharingStarted.WhileSubscribed(5000),
                     initialValue = emptySet(),
                 )
+
+        init {
+            viewModelScope.launch {
+                coverLoader.coverLoadedEvents.collect { event ->
+                    applyCoverUpdate(
+                        topicId = event.topicId,
+                        coverUrl = event.coverUrl,
+                    )
+                }
+            }
+        }
 
         /**
          * Search for audiobooks.
@@ -154,9 +166,9 @@ public class RutrackerSearchViewModel
                                     SearchState.Success(uiResults, isCached = isCachedEmission)
                                 }
 
-                            // Trigger background cover loading for items without covers
+                            // Eager-load only first visible-ish batch to avoid network fan-out stalls.
                             if (filtered.isNotEmpty()) {
-                                filtered.forEach { item ->
+                                filtered.take(eagerCoverBatchSize).forEach { item ->
                                     if (item.coverUrl.isNullOrBlank()) {
                                         coverLoader.loadCover(item.topicId)
                                     }
@@ -186,6 +198,20 @@ public class RutrackerSearchViewModel
         public fun clearSearch() {
             _searchState.value = SearchState.Empty
             originalResults = emptyList()
+        }
+
+        public fun requestCoverLoad(topicId: String) {
+            if (topicId.isBlank()) return
+            coverLoader.loadCover(topicId)
+        }
+
+        public fun requestCoverLoads(topicIds: List<String>) {
+            if (topicIds.isEmpty()) return
+            topicIds
+                .asSequence()
+                .filter { it.isNotBlank() }
+                .distinct()
+                .forEach(coverLoader::loadCover)
         }
 
         /**
@@ -230,6 +256,24 @@ public class RutrackerSearchViewModel
                 } else {
                     SearchState.Success(uiResults, isCached = currentIsCached)
                 }
+        }
+
+        private fun applyCoverUpdate(
+            topicId: String,
+            coverUrl: String,
+        ) {
+            if (originalResults.none { it.topicId == topicId && it.coverUrl != coverUrl }) {
+                return
+            }
+            originalResults =
+                originalResults.map { item ->
+                    if (item.topicId == topicId) {
+                        item.copy(coverUrl = coverUrl)
+                    } else {
+                        item
+                    }
+                }
+            reapplyFiltersAndSort()
         }
 
         /**

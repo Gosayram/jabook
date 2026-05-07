@@ -75,8 +75,9 @@ public class ChapterMetadataRepository
                     )
                 chapterDao.upsertChapter(entity)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -98,8 +99,9 @@ public class ChapterMetadataRepository
                     chapters = chapters,
                 )
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -110,8 +112,9 @@ public class ChapterMetadataRepository
             try {
                 chapterDao.deleteChapters(bookId)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e)
             }
 
@@ -122,8 +125,9 @@ public class ChapterMetadataRepository
             try {
                 chapterDao.deleteChapter(id)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 Result.Error(e)
             }
     }

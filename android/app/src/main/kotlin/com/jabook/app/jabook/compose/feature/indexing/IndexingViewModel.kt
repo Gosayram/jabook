@@ -26,9 +26,13 @@ import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.usecase.auth.WithAuthorisedCheckUseCase
 import com.jabook.app.jabook.indexing.IndexingForegroundService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -44,6 +48,11 @@ public class IndexingViewModel
         private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase,
         private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
+        private companion object {
+            const val POST_COMPLETION_VERIFY_ATTEMPTS = 6
+            const val POST_COMPLETION_VERIFY_DELAY_MS = 750L
+        }
+
         private val logger = loggerFactory.get("IndexingViewModel")
 
         private val _indexingProgress = MutableStateFlow<IndexingProgress>(IndexingProgress.Idle)
@@ -58,6 +67,16 @@ public class IndexingViewModel
 
         private val _isIndexing = MutableStateFlow(false)
         public val isIndexing: StateFlow<Boolean> = _isIndexing.asStateFlow()
+        private val _indexSize = MutableStateFlow(0)
+        public val indexSize: StateFlow<Int> = _indexSize.asStateFlow()
+        private var serviceMonitorJob: Job? = null
+
+        init {
+            startServiceCompletionMonitor()
+            viewModelScope.launch {
+                refreshIndexSize()
+            }
+        }
 
         /**
          * Start full indexing of all audiobook forums using Foreground Service.
@@ -79,6 +98,7 @@ public class IndexingViewModel
                 _indexingStartTime.value = System.currentTimeMillis()
                 _indexingProgress.value = IndexingProgress.Idle
                 IndexingForegroundService.start(context)
+                startServiceCompletionMonitor()
                 // Progress will be updated from service via broadcast or we can observe service state
                 // For now, we'll update state when service completes
                 return
@@ -108,6 +128,8 @@ public class IndexingViewModel
                         IndexingProgress.Error(
                             message = "Требуется авторизация для индексации форумов. Пожалуйста, войдите в аккаунт.",
                         )
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e({ "Indexing failed" }, e)
                     _indexingProgress.value =
@@ -132,7 +154,47 @@ public class IndexingViewModel
         /**
          * Get current index size.
          */
-        public suspend fun getIndexSize(): Int = forumIndexer.getIndexSize()
+        public suspend fun getIndexSize(): Int = refreshIndexSize()
+
+        private suspend fun refreshIndexSize(): Int = retryingIndexSizeRead()
+
+        private suspend fun resolveIndexSizeAfterServiceCompletion(): Int {
+            var size = refreshIndexSize()
+            if (size > 0) return size
+
+            repeat(POST_COMPLETION_VERIFY_ATTEMPTS) {
+                delay(POST_COMPLETION_VERIFY_DELAY_MS)
+                size = refreshIndexSize()
+                if (size > 0) {
+                    logger.d { "Index materialized after service stop on attempt ${it + 1}" }
+                    return size
+                }
+            }
+
+            return size
+        }
+
+        private suspend fun retryingIndexSizeRead(): Int {
+            var attempt = 0
+            var lastError: Exception? = null
+            while (attempt < 3) {
+                try {
+                    val size = forumIndexer.getIndexSize()
+                    _indexSize.value = size
+                    return size
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    lastError = e
+                    attempt += 1
+                    if (attempt < 3) {
+                        delay(150L * attempt)
+                    }
+                }
+            }
+            logger.e({ "Failed to refresh index size after retries, using cached value" }, lastError)
+            return _indexSize.value
+        }
 
         /**
          * Check if index needs update.
@@ -164,6 +226,8 @@ public class IndexingViewModel
 
             // Start foreground service
             IndexingForegroundService.start(context)
+            _isIndexing.value = true
+            startServiceCompletionMonitor()
         }
 
         /**
@@ -178,11 +242,72 @@ public class IndexingViewModel
                 forumIndexer.clearIndex()
                 val duration = System.currentTimeMillis() - startTime
                 logger.i { "Index cleared successfully in ${duration}ms (${duration / 1000}s)" }
-                _clearingInProgress.value = false
+                _indexSize.value = 0
+                _isIndexing.value = false
+                _indexingProgress.value = IndexingProgress.Idle
                 true
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e({ "Failed to clear index" }, e)
-                _clearingInProgress.value = false
                 false
+            } finally {
+                _clearingInProgress.value = false
             }
+
+        private fun startServiceCompletionMonitor() {
+            if (serviceMonitorJob?.isActive == true) {
+                return
+            }
+            serviceMonitorJob =
+                viewModelScope.launch {
+                    var serviceWasRunning = false
+                    var lastIdleIndexRefreshAt = 0L
+                    while (isActive) {
+                        val running = IndexingForegroundService.isRunning()
+                        val serviceProgress = IndexingForegroundService.getCurrentProgress()
+
+                        if (running) {
+                            serviceWasRunning = true
+                            _isIndexing.value = true
+                            if (serviceProgress != null) {
+                                _indexingProgress.value = serviceProgress
+                            }
+                        } else {
+                            if (serviceWasRunning) {
+                                serviceWasRunning = false
+                                val sizeAfterFinish = resolveIndexSizeAfterServiceCompletion()
+                                if (
+                                    _indexingProgress.value is IndexingProgress.InProgress ||
+                                    _indexingProgress.value is IndexingProgress.Idle
+                                ) {
+                                    _indexingProgress.value =
+                                        if (sizeAfterFinish > 0) {
+                                            IndexingProgress.Completed(
+                                                totalTopics = sizeAfterFinish,
+                                                durationMs = 0L,
+                                            )
+                                        } else {
+                                            IndexingProgress.Error("Индексация завершилась без данных")
+                                        }
+                                }
+                            } else if (_indexingProgress.value is IndexingProgress.Idle) {
+                                val now = System.currentTimeMillis()
+                                if (now - lastIdleIndexRefreshAt >= 10_000L) {
+                                    refreshIndexSize()
+                                    lastIdleIndexRefreshAt = now
+                                }
+                            }
+                            _isIndexing.value = false
+                        }
+                        delay(1000L)
+                    }
+                }
+        }
+
+        override fun onCleared() {
+            super.onCleared()
+            serviceMonitorJob?.cancel()
+            serviceMonitorJob = null
+        }
     }

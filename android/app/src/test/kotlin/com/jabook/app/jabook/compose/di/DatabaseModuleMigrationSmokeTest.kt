@@ -46,15 +46,16 @@ class DatabaseModuleMigrationSmokeTest {
     }
 
     @Test
-    fun `database initializes at version 19 with required tables`() {
+    fun `database initializes at version 20 with required tables`() {
         database = DatabaseModule.provideJabookDatabase(context)
         val sqlDb = requireNotNull(database).openHelper.writableDatabase
 
-        assertEquals(19, pragmaUserVersion(sqlDb))
+        assertEquals(20, pragmaUserVersion(sqlDb))
         assertTrue(tableExists(sqlDb, "books"))
         assertTrue(tableExists(sqlDb, "chapters"))
         assertTrue(tableExists(sqlDb, "cached_topics"))
         assertTrue(tableExists(sqlDb, "books_fts"))
+        assertTrue(tableExists(sqlDb, "bookmarks"))
         assertTrue(indexExists(sqlDb, "index_books_is_favorite"))
         assertTrue(indexExists(sqlDb, "index_books_last_played_date"))
         assertTrue(indexExists(sqlDb, "index_books_download_status"))
@@ -64,13 +65,15 @@ class DatabaseModuleMigrationSmokeTest {
     }
 
     @Test
-    fun `migration contract includes 14 to 15 and 15 to 16 and 16 to 17 and 17 to 18 and 18 to 19 and migration updates blank category`() {
-        val migrationPairs = DatabaseModule.configuredMigrations.map { it.startVersion to it.endVersion }
+    fun `migration contract includes 14 to 20 chain and updates blank category`() {
+        val migrationPairs =
+            DatabaseModule.configuredMigrations.map { it.startVersion to it.endVersion }
         assertTrue(migrationPairs.contains(14 to 15))
         assertTrue(migrationPairs.contains(15 to 16))
         assertTrue(migrationPairs.contains(16 to 17))
         assertTrue(migrationPairs.contains(17 to 18))
         assertTrue(migrationPairs.contains(18 to 19))
+        assertTrue(migrationPairs.contains(19 to 20))
 
         database = DatabaseModule.provideJabookDatabase(context)
         val initialSqlDb = requireNotNull(database).openHelper.writableDatabase
@@ -119,7 +122,7 @@ class DatabaseModuleMigrationSmokeTest {
         database = DatabaseModule.provideJabookDatabase(context)
         val migratedSqlDb = requireNotNull(database).openHelper.writableDatabase
 
-        assertEquals(19, pragmaUserVersion(migratedSqlDb))
+        assertEquals(20, pragmaUserVersion(migratedSqlDb))
         assertEquals(
             "Аудиокниги",
             querySingleString(
@@ -133,6 +136,7 @@ class DatabaseModuleMigrationSmokeTest {
         )
         assertTrue(indexExists(migratedSqlDb, "index_books_is_favorite"))
         assertTrue(indexExists(migratedSqlDb, "index_chapters_book_id_chapter_index"))
+        assertTrue(tableExists(migratedSqlDb, "bookmarks"))
 
         // Verify v19 columns exist on books table
         val columns = columnNames(migratedSqlDb, "books")
@@ -141,11 +145,11 @@ class DatabaseModuleMigrationSmokeTest {
     }
 
     @Test
-    fun `migration 18 to 19 adds lufs_value and preferred_speed columns`() {
+    fun `migration 18 to 20 keeps lufs_value and preferred_speed columns`() {
         // Create database at v18 first
         database = DatabaseModule.provideJabookDatabase(context)
         val initialSqlDb = requireNotNull(database).openHelper.writableDatabase
-        assertEquals(19, pragmaUserVersion(initialSqlDb))
+        assertEquals(20, pragmaUserVersion(initialSqlDb))
 
         // Insert a book
         initialSqlDb.execSQL(
@@ -169,11 +173,11 @@ class DatabaseModuleMigrationSmokeTest {
             rawDb.execSQL("PRAGMA user_version = 18")
         }
 
-        // Re-open to trigger migration 18→19
+        // Re-open to trigger migration 18→19→20 chain
         database = DatabaseModule.provideJabookDatabase(context)
         val migratedSqlDb = requireNotNull(database).openHelper.writableDatabase
 
-        assertEquals(19, pragmaUserVersion(migratedSqlDb))
+        assertEquals(20, pragmaUserVersion(migratedSqlDb))
 
         // Verify columns exist and default to NULL
         val lufsValue =
@@ -198,6 +202,28 @@ class DatabaseModuleMigrationSmokeTest {
                 "SELECT lufs_value FROM books WHERE id = 'book-lufs-test'",
             )
         assertTrue("lufs_value should be -20.5", updatedLufs?.toDoubleOrNull()?.equals(-20.5) == true)
+    }
+
+    @Test
+    fun `migration 19 to 20 creates bookmarks table with required indices`() {
+        database = DatabaseModule.provideJabookDatabase(context)
+        val initialSqlDb = requireNotNull(database).openHelper.writableDatabase
+        assertEquals(20, pragmaUserVersion(initialSqlDb))
+        requireNotNull(database).close()
+        database = null
+
+        val dbPath = context.getDatabasePath(DatabaseModule.DATABASE_NAME).absolutePath
+        SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READWRITE).use { rawDb ->
+            rawDb.execSQL("PRAGMA user_version = 19")
+        }
+
+        database = DatabaseModule.provideJabookDatabase(context)
+        val migratedSqlDb = requireNotNull(database).openHelper.writableDatabase
+
+        assertEquals(20, pragmaUserVersion(migratedSqlDb))
+        assertTrue(tableExists(migratedSqlDb, "bookmarks"))
+        assertTrue(indexExists(migratedSqlDb, "index_bookmarks_book_id"))
+        assertTrue(indexExists(migratedSqlDb, "index_bookmarks_book_id_position_ms"))
     }
 
     private fun tableExists(

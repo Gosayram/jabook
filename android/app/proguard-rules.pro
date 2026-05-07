@@ -1,8 +1,11 @@
 # JaBook R8 rules (minimal - optimized for size)
 
-# Temporary stability workaround: keep shrinking/obfuscation but disable optimizer
-# to avoid R8 internal crash (IndexOutOfBoundsException) on release minification.
--dontoptimize
+# TASK-VERM-22: R8 full mode optimization enabled.
+# The previous -dontoptimize workaround for IndexOutOfBoundsException has been removed.
+# Keep rules below are sufficient for R8 full mode compatibility.
+# If R8 crashes recur, add -dontoptimize back and file a bug.
+-optimizationpasses 5
+-optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
 
 # -------- Kotlin Metadata (essential only) --------
 -keepattributes Signature, InnerClasses, EnclosingMethod

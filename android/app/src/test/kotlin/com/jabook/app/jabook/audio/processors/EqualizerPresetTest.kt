@@ -130,4 +130,77 @@ class EqualizerPresetTest {
             }
         }
     }
+
+    // --- TASK-VERM-09: Preamp protection tests ---
+
+    @Test
+    fun `FLAT preset has zero preamp`() {
+        assertEquals(0, EqualizerPreset.FLAT.preampMillibels)
+        assertEquals(0, EqualizerPreset.FLAT.effectivePreamp())
+    }
+
+    @Test
+    fun `VOICE_CLARITY uses auto preamp`() {
+        assertEquals(EqualizerPreset.PREAMP_AUTO, EqualizerPreset.VOICE_CLARITY.preampMillibels)
+        // Max positive gain is 400mB, so effective preamp should be -400mB
+        assertEquals(-400, EqualizerPreset.VOICE_CLARITY.effectivePreamp())
+    }
+
+    @Test
+    fun `NIGHT uses auto preamp`() {
+        assertEquals(EqualizerPreset.PREAMP_AUTO, EqualizerPreset.NIGHT.preampMillibels)
+        // Max positive gain is 300mB, so effective preamp should be -300mB
+        assertEquals(-300, EqualizerPreset.NIGHT.effectivePreamp())
+    }
+
+    @Test
+    fun `calculateSafePreamp returns negative of max positive gain`() {
+        val gains = intArrayOf(-200, 0, 300, 500, 200)
+        assertEquals(-500, EqualizerPreset.calculateSafePreamp(gains))
+    }
+
+    @Test
+    fun `calculateSafePreamp returns zero when all gains are negative`() {
+        val gains = intArrayOf(-300, -200, -100)
+        assertEquals(0, EqualizerPreset.calculateSafePreamp(gains))
+    }
+
+    @Test
+    fun `calculateSafePreamp returns zero when all gains are zero`() {
+        val gains = intArrayOf(0, 0, 0, 0)
+        assertEquals(0, EqualizerPreset.calculateSafePreamp(gains))
+    }
+
+    @Test
+    fun `effectivePreamp with auto preamp never causes clipping`() {
+        for (preset in EqualizerPreset.entries) {
+            val preamp = preset.effectivePreamp()
+            val totalGains = preset.bandGainsMb.map { it + preamp }
+            val maxTotal = totalGains.maxOrNull() ?: 0
+            assertTrue(
+                "Preset ${preset.name} with preamp $preamp should not clip (max total gain: $maxTotal mB)",
+                maxTotal <= 0,
+            )
+        }
+    }
+
+    @Test
+    fun `calculateHeadroomDb is non-negative with auto preamp`() {
+        for (preset in EqualizerPreset.entries) {
+            val preamp = preset.effectivePreamp()
+            val headroom = EqualizerPreset.calculateHeadroomDb(preset.bandGainsMb, preamp)
+            assertTrue(
+                "Preset ${preset.name} should have non-negative headroom, got $headroom dB",
+                headroom >= -0.01, // Allow tiny floating-point error
+            )
+        }
+    }
+
+    @Test
+    fun `calculateHeadroomDb detects clipping risk`() {
+        // No preamp with positive gains = negative headroom (clipping risk)
+        val gains = intArrayOf(0, 0, 0, 400, 0)
+        val headroom = EqualizerPreset.calculateHeadroomDb(gains, 0)
+        assertTrue("Should detect clipping risk", headroom < 0)
+    }
 }

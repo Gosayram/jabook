@@ -32,6 +32,25 @@ import kotlinx.coroutines.launch
 internal class PlayerConfigurator(
     private val service: AudioPlayerService,
 ) {
+    private var offloadListenerTarget: ExoPlayer? = null
+    private val audioOffloadListener =
+        object : ExoPlayer.AudioOffloadListener {
+            override fun onSleepingForOffloadChanged(isSleepingForOffload: Boolean) {
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Audio offload scheduling changed: sleepingForOffload=$isSleepingForOffload",
+                )
+            }
+
+            override fun onOffloadedPlayback(isOffloadedPlayback: Boolean) {
+                service.audioVisualizerManager?.setSuspendedForAudioOffload(isOffloadedPlayback)
+                android.util.Log.d(
+                    "AudioPlayerService",
+                    "Audio offload playback changed: isOffloadedPlayback=$isOffloadedPlayback",
+                )
+            }
+        }
+
     /**
      * Player event listener instance.
      */
@@ -92,11 +111,13 @@ internal class PlayerConfigurator(
                     setIsBookCompleted = { service.playlistManager?.isBookCompleted = it },
                     getSleepTimerEndOfChapter = { service.sleepTimerManager?.sleepTimerEndOfChapter ?: false },
                     getSleepTimerEndOfTrack = { service.sleepTimerManager?.sleepTimerEndOfTrack ?: false },
-                    getSleepTimerEndTime = { service.sleepTimerManager?.sleepTimerEndTime ?: 0L },
                     cancelSleepTimer = { service.sleepTimerManager?.cancelSleepTimer() },
                     sendTimerExpiredEvent = { /* Handled by SleepTimerManager */ },
+                    markSleepTimerPause = {
+                        service.playbackController?.markSleepTimerPause()
+                        service.markStoppedBySleepTimer()
+                    },
                     saveCurrentPosition = { service.saveCurrentPosition() },
-                    startSleepTimerCheck = { /* Handled automatically by SuspendableCountDownTimer */ },
                     getEmbeddedArtworkPath = { service.embeddedArtworkPath },
                     setEmbeddedArtworkPath = { service.embeddedArtworkPath = it },
                     getCurrentMetadata = { service.playlistManager?.currentMetadata },
@@ -142,6 +163,7 @@ internal class PlayerConfigurator(
 
             // BP-13.1: Register audio underrun monitor
             underrunMonitor = AudioUnderrunMonitor(activePlayer).also { it.register() }
+            registerAudioOffloadListener(activePlayer)
 
             // Match lissen-android: don't set WakeMode or ScrubbingMode
             // These may interfere with AudioFocus handling
@@ -231,11 +253,13 @@ internal class PlayerConfigurator(
             // If processors are needed, create custom ExoPlayer
             if (processors.isNotEmpty()) {
                 // Release old custom player if exists
+                unregisterAudioOffloadListener(customExoPlayer)
                 customExoPlayer?.release()
                 customExoPlayer = null
 
                 // Create new ExoPlayer with processors
                 customExoPlayer = MediaModule.createExoPlayerWithProcessors(service, settings)
+                registerAudioOffloadListener(customExoPlayer)
 
                 // Copy listener from singleton player (using instance from this class)
                 playerListener?.let {
@@ -249,8 +273,10 @@ internal class PlayerConfigurator(
                 )
             } else {
                 // No processors needed, release custom player if exists
+                unregisterAudioOffloadListener(customExoPlayer)
                 customExoPlayer?.release()
                 customExoPlayer = null
+                registerAudioOffloadListener(service.exoPlayer)
                 android.util.Log.d("AudioPlayerService", "No processors needed, using singleton ExoPlayer")
             }
 
@@ -375,6 +401,9 @@ internal class PlayerConfigurator(
     }
 
     public fun release() {
+        unregisterAudioOffloadListener(service.exoPlayer)
+        unregisterAudioOffloadListener(customExoPlayer)
+
         // BP-13.1: Unregister underrun monitor
         underrunMonitor?.unregister()
         underrunMonitor = null
@@ -393,5 +422,26 @@ internal class PlayerConfigurator(
         customExoPlayer?.release()
         customExoPlayer = null
         playerListener = null
+    }
+
+    private fun registerAudioOffloadListener(player: ExoPlayer?) {
+        if (player == null) return
+        if (offloadListenerTarget === player) return
+
+        unregisterAudioOffloadListener(offloadListenerTarget)
+        player.addAudioOffloadListener(audioOffloadListener)
+        offloadListenerTarget = player
+    }
+
+    private fun unregisterAudioOffloadListener(player: ExoPlayer?) {
+        if (player == null) return
+        try {
+            player.removeAudioOffloadListener(audioOffloadListener)
+        } catch (_: Exception) {
+        } finally {
+            if (offloadListenerTarget === player) {
+                offloadListenerTarget = null
+            }
+        }
     }
 }

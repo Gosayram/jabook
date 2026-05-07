@@ -21,9 +21,9 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.jabook.app.jabook.compose.data.torrent.TorrentManager
+import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.crash.CrashDiagnostics
-import com.jabook.app.jabook.torrent.TorrentManager
-import com.jabook.app.jabook.torrent.data.TorrentState
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
@@ -115,26 +115,26 @@ public class DownloadWorker
         ): Result {
             var result: Result? = null
 
-            torrentManager.getDownloadProgress(infoHash).collect { progress ->
+            torrentManager.getDownloadProgress(infoHash).collect { download ->
                 // Update progress
                 setProgress(
                     workDataOf(
-                        KEY_PROGRESS to progress.percentage.toInt(),
-                        KEY_STATE to progress.state.name,
-                        KEY_DOWNLOAD_RATE to progress.downloadRate,
-                        KEY_NUM_PEERS to progress.numPeers,
+                        KEY_PROGRESS to (download.progress * 100).toInt(),
+                        KEY_STATE to download.state.name,
+                        KEY_DOWNLOAD_RATE to download.downloadSpeed.toLong(),
+                        KEY_NUM_PEERS to download.numPeers,
                     ),
                 )
 
                 Log.d(
                     TAG,
-                    "Progress: ${progress.percentage.toInt()}% - ${progress.state} - " +
-                        "${progress.downloadRate / 1024}KB/s - ${progress.numPeers} peers",
+                    "Progress: ${(download.progress * 100).toInt()}% - ${download.state} - " +
+                        "${download.downloadSpeed / 1024}KB/s - ${download.numPeers} peers",
                 )
 
                 // Check if download is complete
-                when (progress.state) {
-                    TorrentState.FINISHED -> {
+                when (download.state) {
+                    TorrentState.COMPLETED -> {
                         Log.i(TAG, "Download completed: $bookTitle")
                         Log.i(TAG, "Download worker success stopReason=${runCatching { stopReason }.getOrDefault(-1)}")
                         result =
@@ -144,7 +144,6 @@ public class DownloadWorker
                                     KEY_FINAL_PATH to inputData.getString(KEY_SAVE_PATH),
                                 ),
                             )
-                        return@collect // Exit collect
                     }
                     TorrentState.ERROR -> {
                         Log.e(TAG, "Download failed: $bookTitle")
@@ -165,7 +164,6 @@ public class DownloadWorker
                                     "error" to "Torrent download failed",
                                 ),
                             )
-                        return@collect // Exit collect
                     }
                     else -> {
                         // Continue monitoring

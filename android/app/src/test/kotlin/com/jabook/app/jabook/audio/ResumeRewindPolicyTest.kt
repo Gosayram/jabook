@@ -24,6 +24,7 @@ class ResumeRewindPolicyTest {
             ResumeRewindPolicy.resolveRewindMs(
                 pauseDurationMs = 30L * 60L * 1000L,
                 configuredSeconds = 10,
+                mode = ResumeRewindMode.FIXED,
             )
 
         assertEquals(0L, rewindMs)
@@ -35,6 +36,7 @@ class ResumeRewindPolicyTest {
             ResumeRewindPolicy.resolveRewindMs(
                 pauseDurationMs = 30L * 60L * 1000L + 1L,
                 configuredSeconds = 30,
+                mode = ResumeRewindMode.FIXED,
             )
 
         assertEquals(30_000L, rewindMs)
@@ -46,8 +48,90 @@ class ResumeRewindPolicyTest {
             ResumeRewindPolicy.resolveRewindMs(
                 pauseDurationMs = 30L * 60L * 1000L + 1L,
                 configuredSeconds = 99,
+                mode = ResumeRewindMode.FIXED,
             )
 
         assertEquals(10_000L, rewindMs)
+    }
+
+    @Test
+    fun `smart mode returns expected base ranges`() {
+        assertEquals(
+            0L,
+            ResumeRewindPolicy.resolveRewindMs(
+                pauseDurationMs = 4L * 60L * 1000L,
+                configuredSeconds = 10,
+                mode = ResumeRewindMode.SMART,
+            ),
+        )
+        assertEquals(
+            10_000L,
+            ResumeRewindPolicy.resolveRewindMs(
+                pauseDurationMs = 10L * 60L * 1000L,
+                configuredSeconds = 10,
+                mode = ResumeRewindMode.SMART,
+            ),
+        )
+        assertEquals(
+            20_000L,
+            ResumeRewindPolicy.resolveRewindMs(
+                pauseDurationMs = 60L * 60L * 1000L,
+                configuredSeconds = 10,
+                mode = ResumeRewindMode.SMART,
+            ),
+        )
+        assertEquals(
+            30_000L,
+            ResumeRewindPolicy.resolveRewindMs(
+                pauseDurationMs = 4L * 60L * 60L * 1000L,
+                configuredSeconds = 10,
+                mode = ResumeRewindMode.SMART,
+            ),
+        )
+        assertEquals(
+            45_000L,
+            ResumeRewindPolicy.resolveRewindMs(
+                pauseDurationMs = 12L * 60L * 60L * 1000L,
+                configuredSeconds = 10,
+                mode = ResumeRewindMode.SMART,
+            ),
+        )
+        assertEquals(
+            60_000L,
+            ResumeRewindPolicy.resolveRewindMs(
+                pauseDurationMs = 36L * 60L * 60L * 1000L,
+                configuredSeconds = 10,
+                mode = ResumeRewindMode.SMART,
+            ),
+        )
+    }
+
+    @Test
+    fun `smart mode scales by aggressiveness with clamping`() {
+        val moderate =
+            ResumeRewindPolicy.resolveRewindMs(
+                pauseDurationMs = 4L * 60L * 60L * 1000L, // base 30s
+                configuredSeconds = 10,
+                mode = ResumeRewindMode.SMART,
+                aggressiveness = 1.5f,
+            )
+        val clampedLow =
+            ResumeRewindPolicy.resolveRewindMs(
+                pauseDurationMs = 4L * 60L * 60L * 1000L, // base 30s
+                configuredSeconds = 10,
+                mode = ResumeRewindMode.SMART,
+                aggressiveness = 0.1f, // clamp to 0.5
+            )
+        val clampedHigh =
+            ResumeRewindPolicy.resolveRewindMs(
+                pauseDurationMs = 36L * 60L * 60L * 1000L, // base 60s
+                configuredSeconds = 10,
+                mode = ResumeRewindMode.SMART,
+                aggressiveness = 10f, // clamp to 2.0
+            )
+
+        assertEquals(45_000L, moderate)
+        assertEquals(15_000L, clampedLow)
+        assertEquals(120_000L, clampedHigh)
     }
 }

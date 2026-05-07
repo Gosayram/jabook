@@ -18,6 +18,7 @@ import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.domain.model.AppError
 import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.compose.domain.model.toAppError
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 /**
@@ -44,6 +45,8 @@ public class ToggleFavoriteUseCase
             try {
                 booksDao.updateFavoriteStatus(bookId, isFavorite)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e.toAppError())
             }

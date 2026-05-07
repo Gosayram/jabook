@@ -27,6 +27,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
@@ -157,9 +158,9 @@ private fun BooksGridLayout(
     selectedIds: Set<String> = emptySet(),
     onToggleSelection: ((String) -> Unit)? = null,
 ) {
-    val gridCells = displayMode.getGridCells(windowSizeClass) ?: return
-    val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
-    val itemSpacing = AdaptiveUtils.getItemSpacing(windowSizeClass)
+    val gridCells = remember(displayMode, windowSizeClass) { displayMode.getGridCells(windowSizeClass) } ?: return
+    val contentPadding = remember(windowSizeClass) { AdaptiveUtils.getContentPadding(windowSizeClass) }
+    val itemSpacing = remember(windowSizeClass) { AdaptiveUtils.getItemSpacing(windowSizeClass) }
     val context = LocalContext.current
 
     // Create grid state for preloading
@@ -181,7 +182,11 @@ private fun BooksGridLayout(
         contentPadding = PaddingValues(contentPadding),
         modifier = modifier.fillMaxSize(),
     ) {
-        items(books, key = { it.id }) { book ->
+        items(
+            items = books,
+            key = { it.id },
+            contentType = { "book_grid_${displayMode.name}" },
+        ) { book ->
             UnifiedBookCard(
                 book = book,
                 displayMode = displayMode,
@@ -208,8 +213,8 @@ private fun BooksListLayout(
     selectedIds: Set<String> = emptySet(),
     onToggleSelection: ((String) -> Unit)? = null,
 ) {
-    val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
-    val itemSpacing = AdaptiveUtils.getItemSpacing(windowSizeClass)
+    val contentPadding = remember(windowSizeClass) { AdaptiveUtils.getContentPadding(windowSizeClass) }
+    val itemSpacing = remember(windowSizeClass) { AdaptiveUtils.getItemSpacing(windowSizeClass) }
     val context = LocalContext.current
 
     // Create list state for preloading
@@ -229,7 +234,11 @@ private fun BooksListLayout(
         contentPadding = PaddingValues(horizontal = contentPadding, vertical = contentPadding * 0.75f),
         verticalArrangement = Arrangement.spacedBy(itemSpacing * 0.75f),
     ) {
-        items(books, key = { it.id }) { book ->
+        items(
+            items = books,
+            key = { it.id },
+            contentType = { "book_list_${displayMode.name}" },
+        ) { book ->
             UnifiedBookCard(
                 book = book,
                 displayMode = displayMode,

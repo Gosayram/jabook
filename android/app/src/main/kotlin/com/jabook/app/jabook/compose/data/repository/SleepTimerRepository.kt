@@ -29,6 +29,11 @@ public interface SleepTimerRepository {
     public val timerState: StateFlow<SleepTimerState>
 
     /**
+     * Last successfully used fixed sleep timer duration in minutes.
+     */
+    public val lastFixedDurationMinutes: StateFlow<Int?>
+
+    /**
      * Start sleep timer.
      *
      * @param durationMinutes Duration in minutes before auto-pause

@@ -211,6 +211,7 @@ public class AudioEqualizerManager
             eq.enabled = true
 
             val presetGains = preset.bandGainsMb
+            val preamp = preset.effectivePreamp()
 
             for (i in 0 until numBands) {
                 // Map device band index to preset index (evenly distributed)
@@ -218,7 +219,8 @@ public class AudioEqualizerManager
                     (i.toDouble() * (presetGains.size.toDouble() / numBands.toDouble()))
                         .toInt()
                         .coerceIn(0, presetGains.size - 1)
-                var gainMb = presetGains[presetIndex]
+                // Apply preamp offset to prevent clipping from positive band gains
+                var gainMb = presetGains[presetIndex] + preamp
 
                 // Clamp to device band limits
                 try {

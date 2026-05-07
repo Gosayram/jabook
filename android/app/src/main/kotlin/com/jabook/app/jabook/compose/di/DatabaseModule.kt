@@ -21,6 +21,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
+import com.jabook.app.jabook.compose.data.local.dao.BookmarkDao
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao
@@ -31,6 +32,7 @@ import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_15_16
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_16_17
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_17_18
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_18_19
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_19_20
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_6_7
 import dagger.Module
 import dagger.Provides
@@ -326,6 +328,7 @@ public object DatabaseModule {
             MIGRATION_16_17,
             MIGRATION_17_18,
             MIGRATION_18_19,
+            MIGRATION_19_20,
         )
 
     @Provides
@@ -410,6 +413,9 @@ public object DatabaseModule {
 
     @Provides
     public fun provideBooksDao(database: JabookDatabase): BooksDao = database.booksDao()
+
+    @Provides
+    public fun provideBookmarkDao(database: JabookDatabase): BookmarkDao = database.bookmarkDao()
 
     @Provides
     public fun provideChaptersDao(database: JabookDatabase): ChaptersDao = database.chaptersDao()

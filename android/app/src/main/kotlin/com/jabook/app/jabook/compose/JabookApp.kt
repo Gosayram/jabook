@@ -69,6 +69,7 @@ public fun JabookApp(
     windowSizeClass: WindowSizeClass,
     intent: android.content.Intent? = null,
     onFirstMeaningfulContentDrawn: () -> Unit = {},
+    onPlayerScreenVisibilityChanged: (Boolean) -> Unit = {},
     appState: JabookAppState = rememberJabookAppState(),
     viewModel: MainViewModel = hiltViewModel(),
     permissionViewModel: com.jabook.app.jabook.compose.feature.permissions.PermissionViewModel = hiltViewModel(),
@@ -212,6 +213,9 @@ public fun JabookApp(
 
         // Check if we're on the player screen - hide mini player in that case
         val isOnPlayerScreen = currentDestination?.route?.contains("player", ignoreCase = true) == true
+        LaunchedEffect(isOnPlayerScreen) {
+            onPlayerScreenVisibilityChanged(isOnPlayerScreen)
+        }
 
         // State for mini player visibility (can be hidden by swipe)
         var isMiniPlayerVisible by remember { mutableStateOf(true) }

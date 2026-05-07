@@ -22,6 +22,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -42,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.sin
@@ -60,6 +62,7 @@ import kotlin.math.sin
  * @param squiggleWavelength Width of one wave cycle
  * @param trackHeight Height of the track area
  * @param thumbRadius Radius of the thumb
+ * @param waveformData Cached waveform window for seekbar visualization (0..1 amplitudes)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,12 +73,14 @@ public fun SquigglySlider(
     enabled: Boolean = true,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     onValueChangeFinished: (() -> Unit)? = null,
+    onLongPress: ((Float) -> Unit)? = null,
     isPlaying: Boolean = false,
     squiggleAmplitude: Dp = 3.dp,
     squiggleWavelength: Dp = 20.dp,
     trackHeight: Dp = 4.dp, // Standard Material track is roughly 4dp
     thumbRadius: Dp = 10.dp,
     chapterMarkersFractions: List<Float> = emptyList(),
+    waveformData: FloatArray = FloatArray(0),
     activeTrackColor: Color = MaterialTheme.colorScheme.primary,
     inactiveTrackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     chapterMarkerColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
@@ -125,7 +130,22 @@ public fun SquigglySlider(
     )
 
     Box(
-        modifier = modifier.height(thumbRadius * 2), // Ensure enough height for thumb
+        modifier =
+            modifier
+                .height(thumbRadius * 2)
+                .pointerInput(onLongPress, enabled, normalizedRange) {
+                    if (onLongPress == null || !enabled) return@pointerInput
+                    detectTapGestures(
+                        onLongPress = { offset ->
+                            if (size.width <= 0) return@detectTapGestures
+                            val fraction = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                            val longPressValue =
+                                normalizedRange.start +
+                                    fraction * (normalizedRange.endInclusive - normalizedRange.start)
+                            onLongPress(longPressValue)
+                        },
+                    )
+                }, // Ensure enough height for thumb
         contentAlignment = Alignment.Center,
     ) {
         // Custom Track Drawing
@@ -157,6 +177,26 @@ public fun SquigglySlider(
 
             // Ensure activeWidth is valid and finite
             val activeWidth = (width * fraction.coerceIn(0f, 1f)).coerceAtLeast(0f).coerceAtMost(width)
+
+            // Draw cached waveform behind the track for quick visual density preview.
+            if (waveformData.isNotEmpty()) {
+                val baseline = centerY
+                val availableHalfHeight = (thumbRadius.toPx() - trackHeight.toPx()).coerceAtLeast(2f)
+                val stepX = width / waveformData.size.toFloat()
+                var x = 0f
+                for (sample in waveformData) {
+                    val amplitude = sample.coerceIn(0f, 1f)
+                    val yOffset = amplitude * availableHalfHeight
+                    drawLine(
+                        color = inactiveTrackColor.copy(alpha = 0.22f),
+                        start = Offset(x, baseline - yOffset),
+                        end = Offset(x, baseline + yOffset),
+                        strokeWidth = 1.dp.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                    x += stepX
+                }
+            }
 
             // Draw Inactive Track (Straight line usually, strictly)
             // Or should the WHOLE track be squiggly? InnerTune usually has squiggly active part.

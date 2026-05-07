@@ -38,6 +38,14 @@ public object SearchStaleWhileRevalidatePolicy {
 
         val staleIds = stale.map { it.topicId }
         val refreshedIds = refreshed.map { it.topicId }
-        return staleIds != refreshedIds
+        if (staleIds != refreshedIds) return true
+
+        // Same set/order of topics, but details may have changed (e.g. coverUrl loaded in background).
+        // This is essential for re-rendering search cards after delayed cover resolution.
+        return stale.zip(refreshed).any { (oldItem, newItem) ->
+            oldItem.coverUrl.orEmpty() != newItem.coverUrl.orEmpty() ||
+                oldItem.seeders != newItem.seeders ||
+                oldItem.leechers != newItem.leechers
+        }
     }
 }

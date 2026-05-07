@@ -16,6 +16,7 @@ package com.jabook.app.jabook.download
 
 import android.app.Notification
 import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -28,8 +29,8 @@ import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.audio.ForegroundServiceStartPolicy
 import com.jabook.app.jabook.audio.ForegroundStartOutcome
 import com.jabook.app.jabook.compose.ComposeMainActivity
-import com.jabook.app.jabook.torrent.TorrentManager
-import com.jabook.app.jabook.torrent.data.TorrentState
+import com.jabook.app.jabook.compose.data.torrent.TorrentManager
+import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -40,7 +41,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import android.app.NotificationManager as AndroidNotificationManager
 
 /**
  * Foreground service for managing torrent downloads.
@@ -58,7 +58,6 @@ public class DownloadForegroundService : Service() {
         private const val CHANNEL_ID = "jabook_downloads"
         private const val CHANNEL_NAME = "Downloads"
         private const val NOTIFICATION_ID = 2
-        private const val UPDATE_INTERVAL_MS = 1000L // Update notification every second
 
         public const val ACTION_START: String = "com.jabook.app.jabook.download.START"
         public const val ACTION_STOP: String = "com.jabook.app.jabook.download.STOP"
@@ -107,7 +106,7 @@ public class DownloadForegroundService : Service() {
             logWarn = { message, throwable -> Log.w(TAG, message, throwable) },
         )
 
-    private var notificationManager: AndroidNotificationManager? = null
+    private var notificationManager: NotificationManager? = null
     private var isServiceRunning = false
 
     // Coroutine scope for background work
@@ -122,7 +121,7 @@ public class DownloadForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
+        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         createNotificationChannel()
 
         // Initialize TorrentManager with error handling
@@ -328,16 +327,16 @@ public class DownloadForegroundService : Service() {
                             TorrentState.DOWNLOADING -> {
                                 createDownloadNotification(
                                     "Downloading (${downloads.size} active)",
-                                    firstDownload.percentage,
+                                    firstDownload.progress * 100f,
                                 )
                             }
-                            TorrentState.FINISHED -> {
+                            TorrentState.COMPLETED -> {
                                 createDownloadNotification("Download complete", 100f)
                             }
                             else -> {
                                 createDownloadNotification(
                                     firstDownload.state.name,
-                                    firstDownload.percentage,
+                                    firstDownload.progress * 100f,
                                 )
                             }
                         }
@@ -359,7 +358,7 @@ public class DownloadForegroundService : Service() {
                 NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
-                    AndroidNotificationManager.IMPORTANCE_LOW,
+                    NotificationManager.IMPORTANCE_LOW,
                 ).apply {
                     description = "Download progress notifications"
                     setShowBadge(true)

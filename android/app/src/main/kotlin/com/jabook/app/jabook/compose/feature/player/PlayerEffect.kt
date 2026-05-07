@@ -24,6 +24,8 @@ public sealed interface PlayerEffect {
 
     public data class ShowSnackbar(
         val message: String,
+        val actionLabel: String? = null,
+        val actionIntent: PlayerIntent? = null,
     ) : PlayerEffect
 
     public data object NavigateBack : PlayerEffect

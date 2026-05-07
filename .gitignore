@@ -272,3 +272,6 @@ android/app/schemas/
 
 # Virtual environment
 scripts/.venv/
+
+# Python cache
+__pycache__/

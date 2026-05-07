@@ -171,12 +171,12 @@ android {
     // ndkVersion no longer needed without Flutter
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_25
+        targetCompatibility = JavaVersion.VERSION_25
     }
 
     kotlin {
-        jvmToolchain(21)
+        jvmToolchain(25)
 
         compilerOptions {
             // Kotlin compilation optimization
@@ -264,6 +264,9 @@ android {
             // Disable some optimizations for debug build speed
             isMinifyEnabled = false
             isShrinkResources = false
+            // Enable JaCoCo instrumentation so coverage data (.exec) is generated
+            enableAndroidTestCoverage = true
+            enableUnitTestCoverage = true
         }
     }
 
@@ -358,6 +361,12 @@ android {
             include("armeabi-v7a", "arm64-v8a", "x86_64")
             isUniversalApk = true // Also build a universal APK
         }
+    }
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
     }
 }
 
@@ -657,4 +666,36 @@ tasks.register<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jaco
             },
         ),
     )
+}
+
+tasks.register("generateBaselineProfile") {
+    group = "verification"
+    description = "Validates and materializes app baseline profile artifact from src/main/baseline-prof.txt"
+
+    val sourceFile = layout.projectDirectory.file("src/main/baseline-prof.txt")
+    val outputFile = layout.buildDirectory.file("generated/baseline-prof/baseline-prof.txt")
+    outputs.file(outputFile)
+
+    doLast {
+        val input = sourceFile.asFile
+        if (!input.exists()) {
+            throw GradleException(
+                "Missing baseline profile file at ${input.absolutePath}. " +
+                    "Create it before running generateBaselineProfile.",
+            )
+        }
+        val lines =
+            input
+                .readLines()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() && !it.startsWith("#") }
+        if (lines.isEmpty()) {
+            throw GradleException("Baseline profile is empty: ${input.absolutePath}")
+        }
+
+        val output = outputFile.get().asFile
+        output.parentFile.mkdirs()
+        input.copyTo(target = output, overwrite = true)
+        logger.lifecycle("Baseline profile materialized: ${output.absolutePath} (${lines.size} rules)")
+    }
 }

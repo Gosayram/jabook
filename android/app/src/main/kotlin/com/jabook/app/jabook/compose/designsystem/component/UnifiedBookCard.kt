@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.designsystem.component
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,7 +33,6 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -250,6 +250,16 @@ private fun GridBookCard(
                         )
                     }
                 }
+
+                if (actionsProvider.showDownloadStatus && book.isDownloading) {
+                    DownloadProgressBadge(
+                        progress = book.downloadProgress,
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(8.dp),
+                    )
+                }
             }
 
             // Progress indicator
@@ -258,28 +268,6 @@ private fun GridBookCard(
                     progress = { book.progress },
                     modifier = Modifier.fillMaxWidth(),
                 )
-
-                // Download progress indicator overlay
-                if (actionsProvider.showDownloadStatus && book.isDownloading) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .align(Alignment.CenterHorizontally)
-                                .size(64.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(
-                            progress = { book.downloadProgress },
-                            modifier = Modifier.size(56.dp),
-                            strokeWidth = 4.dp,
-                        )
-                        Text(
-                            text = "${(book.downloadProgress * 100).toInt()}%",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                }
             }
 
             // Title and author with adaptive text sizes and improved spacing
@@ -407,25 +395,13 @@ private fun ListBookCard(
 
                 // Download progress indicator for list mode
                 if (actionsProvider.showDownloadStatus && book.isDownloading) {
-                    Box(
+                    DownloadProgressBadge(
+                        progress = book.downloadProgress,
                         modifier =
                             Modifier
                                 .align(Alignment.BottomEnd)
-                                .padding(4.dp)
-                                .size(32.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(
-                            progress = { book.downloadProgress },
-                            modifier = Modifier.size(28.dp),
-                            strokeWidth = 3.dp,
-                        )
-                        Text(
-                            text = "${(book.downloadProgress * 100).toInt()}%",
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
+                                .padding(4.dp),
+                    )
                 }
             }
 
@@ -496,5 +472,33 @@ private fun ListBookCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DownloadProgressBadge(
+    progress: Float,
+    modifier: Modifier = Modifier,
+) {
+    val clampedPercent = (progress.coerceIn(0f, 1f) * 100).toInt()
+    Box(
+        modifier =
+            modifier
+                .semantics(mergeDescendants = true) {}
+                .padding(2.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.downloadProgressBadge, clampedPercent),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier =
+                Modifier
+                    .background(
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
+                        shape =
+                            androidx.compose.foundation.shape
+                                .RoundedCornerShape(999.dp),
+                    ).padding(horizontal = 8.dp, vertical = 4.dp),
+        )
     }
 }

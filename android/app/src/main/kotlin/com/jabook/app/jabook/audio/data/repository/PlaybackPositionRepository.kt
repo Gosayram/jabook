@@ -18,6 +18,7 @@ import com.jabook.app.jabook.audio.core.result.Result
 import com.jabook.app.jabook.audio.core.result.asResult
 import com.jabook.app.jabook.audio.data.local.dao.PlaybackPositionDao
 import com.jabook.app.jabook.audio.data.local.database.entity.PlaybackPositionEntity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -57,6 +58,8 @@ public class PlaybackPositionRepository
                     )
                 positionDao.upsertPosition(entity)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e)
             }
@@ -68,6 +71,8 @@ public class PlaybackPositionRepository
             try {
                 positionDao.deletePosition(bookId)
                 Result.Success(Unit)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.Error(e)
             }

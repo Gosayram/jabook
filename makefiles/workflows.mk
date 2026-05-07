@@ -12,3 +12,12 @@ beta: fmt-kotlin compile-beta install-beta ## Format → compile → install bet
 
 .PHONY: lint
 lint: clean fmt-kotlin compile ## Clean → format → compile (full lint cycle)
+
+.PHONY: check-all
+check-all: lint-kotlin compile test hilt-graph-check ## Full local quality gate (lint + compile + tests + Hilt graph)
+
+.PHONY: test-all
+test-all: test ## Backward-compatible alias for full unit test suite
+
+.PHONY: check
+check: check-all ## Backward-compatible alias for check-all

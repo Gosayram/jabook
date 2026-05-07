@@ -380,6 +380,16 @@ public class AudioPlayerController
             // Initialize MediaController for proper Media3 integration
             initMediaController()
 
+            // Keep pitch correction toggle restored from persisted user preferences.
+            scope.launch {
+                userPreferencesRepository.userData.collect { userData ->
+                    val targetEnabled = userData.pitchCorrectionEnabled
+                    if (_pitchCorrectionEnabled.value != targetEnabled) {
+                        _pitchCorrectionEnabled.value = targetEnabled
+                    }
+                }
+            }
+
             // Observe playback speed and pitch correction
             scope.launch {
                 kotlinx.coroutines.flow
@@ -637,7 +647,17 @@ public class AudioPlayerController
         }
 
         public fun setPitchCorrectionEnabled(enabled: Boolean) {
+            if (_pitchCorrectionEnabled.value == enabled) {
+                return
+            }
             _pitchCorrectionEnabled.value = enabled
+            scope.launch {
+                runCatching {
+                    userPreferencesRepository.setPitchCorrectionEnabled(enabled)
+                }.onFailure { error ->
+                    logger.w(error) { "Failed to persist pitch correction preference" }
+                }
+            }
         }
 
         /**

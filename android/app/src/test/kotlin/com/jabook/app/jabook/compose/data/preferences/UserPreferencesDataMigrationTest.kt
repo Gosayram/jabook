@@ -45,6 +45,7 @@ class UserPreferencesDataMigrationTest {
                     .setSchemaVersion(0)
                     .setEqualizerPreset("")
                     .setResumeRewindSeconds(0)
+                    .setResumeRewindAggressiveness(0f)
                     .setSkipSilenceThresholdDb(0f)
                     .setSkipSilenceMinMs(0)
                     .build()
@@ -54,8 +55,11 @@ class UserPreferencesDataMigrationTest {
             assertEquals(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION, migrated.schemaVersion)
             assertEquals("FLAT", migrated.equalizerPreset)
             assertEquals(10, migrated.resumeRewindSeconds)
+            assertEquals(ResumeRewindMode.SMART, migrated.resumeRewindMode)
+            assertEquals(1.0f, migrated.resumeRewindAggressiveness)
             assertEquals(-32.0f, migrated.skipSilenceThresholdDb)
             assertEquals(250, migrated.skipSilenceMinMs)
+            assertEquals(2.5f, migrated.holdToBoostSpeed)
             assertTrue(migrated.autoLoadCoversOnCellular)
         }
 
@@ -75,6 +79,24 @@ class UserPreferencesDataMigrationTest {
 
             assertEquals(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION, parsed.schemaVersion)
             assertEquals("FLAT", parsed.equalizerPreset)
+            assertEquals(ResumeRewindMode.SMART, parsed.resumeRewindMode)
+            assertEquals(2.5f, parsed.holdToBoostSpeed)
             assertTrue(parsed.autoLoadCoversOnCellular)
+        }
+
+    @Test
+    fun `migrate normalizes unsupported hold to boost speed`() =
+        runTest {
+            val legacy =
+                UserPreferences
+                    .newBuilder()
+                    .setSchemaVersion(4)
+                    .setHoldToBoostSpeed(2.2f)
+                    .build()
+
+            val migrated = migration.migrate(legacy)
+
+            assertEquals(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION, migrated.schemaVersion)
+            assertEquals(2.5f, migrated.holdToBoostSpeed)
         }
 }

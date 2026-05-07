@@ -83,6 +83,14 @@ public class ForumIndexer
                 SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("ForumIndexer"),
             )
 
+        private data class ForumBatchResult(
+            val forumId: String,
+            val indexed: Int,
+            val covers: List<String>,
+            val failed: Boolean,
+            val failureMessage: String? = null,
+        )
+
         public companion object {
             private const val TOPICS_PER_PAGE = 50 // Typical RuTracker forum page size
             private const val DELAY_BETWEEN_REQUESTS_MS = 300L // Rate limiting (reduced for faster indexing)
@@ -122,17 +130,15 @@ public class ForumIndexer
                 val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
                 var totalIndexed: Int = 0
+                val coversToPreload = mutableListOf<String>()
 
                 // Log current mirror at start of indexing
                 val initialMirror = mirrorManager.getCurrentMirrorDomain()
                 logger.i { "=== FORUM INDEXING START ===" }
                 logger.i { "Using mirror: $initialMirror" }
                 logger.i { "Indexing version: $currentIndexVersion" }
-
-                // Clear old indexed data
                 val oldCount = getIndexSize()
-                clearIndex()
-                logger.i { "Old indexed data cleared (was $oldCount topics)" }
+                logger.i { "Existing indexed data: $oldCount topics" }
 
                 onProgress?.invoke(
                     IndexingProgress.InProgress(
@@ -148,6 +154,10 @@ public class ForumIndexer
                 val topicsIndexedAtomic =
                     java.util.concurrent.atomic
                         .AtomicInteger(0)
+                val failedForums =
+                    java.util.concurrent.atomic
+                        .AtomicInteger(0)
+                val failedForumMessages = mutableListOf<String>()
 
                 // Process forums in parallel batches
                 forumIdList.chunked(MAX_CONCURRENT_FORUMS).forEachIndexed { batchIndex, batch ->
@@ -156,7 +166,7 @@ public class ForumIndexer
                             async(Dispatchers.IO) {
                                 try {
                                     val forumIndex = batchIndex * MAX_CONCURRENT_FORUMS + indexInBatch
-                                    val (indexed, _) =
+                                    val (indexed, covers) =
                                         indexForum(forumId, currentIndexVersion) { page, topicsInForum ->
                                             if (page == 0 || page % 2 == 0 || topicsInForum < 50) {
                                                 val currentTotal = topicsIndexedAtomic.get()
@@ -171,19 +181,77 @@ public class ForumIndexer
                                                 )
                                             }
                                         }
-                                    topicsIndexedAtomic.addAndGet(indexed)
+                                    ForumBatchResult(
+                                        forumId = forumId,
+                                        indexed = indexed,
+                                        covers = covers,
+                                        failed = false,
+                                    )
                                 } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
                                     logger.e({ "Failed to index forum $forumId" }, e)
+                                    ForumBatchResult(
+                                        forumId = forumId,
+                                        indexed = 0,
+                                        covers = emptyList(),
+                                        failed = true,
+                                        failureMessage = e.message ?: "Unknown indexing failure",
+                                    )
                                 }
                             }
                         }.awaitAll()
+                        .forEach { result ->
+                            if (result.failed) {
+                                failedForums.incrementAndGet()
+                                synchronized(failedForumMessages) {
+                                    failedForumMessages.add("${result.forumId}: ${result.failureMessage}")
+                                }
+                            } else {
+                                topicsIndexedAtomic.addAndGet(result.indexed)
+                                if (result.covers.isNotEmpty()) {
+                                    synchronized(coversToPreload) {
+                                        coversToPreload.addAll(result.covers)
+                                    }
+                                }
+                            }
+                        }
                 }
 
                 totalIndexed = topicsIndexedAtomic.get()
                 val duration = System.currentTimeMillis() - startTime
 
+                if (failedForums.get() == forumIdList.size) {
+                    val message =
+                        "Indexing failed for all forums (${failedForums.get()}/${forumIdList.size}). " +
+                            failedForumMessages.take(3).joinToString("; ")
+                    logger.e { message }
+                    onProgress?.invoke(IndexingProgress.Error(message))
+                    throw IllegalStateException(message)
+                }
+
+                // If index run produced no data, keep existing index and surface explicit failure.
+                if (totalIndexed == 0) {
+                    val message =
+                        "Indexing returned zero topics. Old index preserved ($oldCount topics). " +
+                            "Likely auth/session or parser issue."
+                    logger.e { message }
+                    onProgress?.invoke(IndexingProgress.Error(message))
+                    throw IllegalStateException(message)
+                }
+
+                if (preloadCovers && coversToPreload.isNotEmpty()) {
+                    preloadCovers(coversToPreload)
+                }
+
                 // Verify actual count
                 val actualCountInDb = getIndexSize()
+
+                if (failedForums.get() > 0) {
+                    logger.w {
+                        "Indexing completed with partial forum failures: ${failedForums.get()}/" +
+                            "${forumIdList.size}. Sample: ${failedForumMessages.take(3)}"
+                    }
+                }
 
                 logger.i { "Forum indexing completed. Indexed: $totalIndexed topics, duration: ${duration}ms" }
 
@@ -234,6 +302,7 @@ public class ForumIndexer
                         coversToPreload.addAll(covers)
                         logger.i { "Updated forum $forumId: $updated topics" }
                     } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
                         logger.e({ "Failed to update forum $forumId" }, e)
                     }
                 }
@@ -260,6 +329,8 @@ public class ForumIndexer
             var hasMorePages: Boolean = true
             val coversToPreload = mutableListOf<String>()
             val entitiesBuffer = mutableListOf<CachedTopicEntity>() // Buffer for batched writes
+            var lastPageSignature: String? = null
+            var repeatedSignatureCount: Int = 0
 
             val forumStartTime = System.currentTimeMillis()
             val initialMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()
@@ -293,6 +364,28 @@ public class ForumIndexer
                         }
                         hasMorePages = false
                     } else {
+                        val pageSignature =
+                            buildString {
+                                append(topics.firstOrNull()?.topicId ?: "none")
+                                append('|')
+                                append(topics.lastOrNull()?.topicId ?: "none")
+                                append('|')
+                                append(topics.size)
+                            }
+                        if (pageSignature == lastPageSignature) {
+                            repeatedSignatureCount++
+                            if (repeatedSignatureCount >= 3) {
+                                logger.w {
+                                    "Forum $forumId page $page repeated same signature 3 times; " +
+                                        "stopping to prevent infinite pagination loop"
+                                }
+                                hasMorePages = false
+                            }
+                        } else {
+                            repeatedSignatureCount = 0
+                            lastPageSignature = pageSignature
+                        }
+
                         val validTopics = topics.filter { it.toDomain().isValid() }
                         val invalidCount = topics.size - validTopics.size
                         if (invalidCount > 0) {
@@ -302,6 +395,10 @@ public class ForumIndexer
                         val newEntities = validTopics.map { it.toCachedTopicEntity(indexVersion) }
                         entitiesBuffer.addAll(newEntities)
                         totalTopics += validTopics.size
+                        coversToPreload.addAll(
+                            newEntities
+                                .mapNotNull { it.coverUrl?.takeIf(String::isNotBlank) },
+                        )
 
                         if (entitiesBuffer.size >= BATCH_SIZE_FOR_DB || !hasMorePages) {
                             val dbWriteStartTime = System.currentTimeMillis()
@@ -316,6 +413,7 @@ public class ForumIndexer
                         page++
                     }
                 } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
                     val isNetworkError =
                         e is java.net.UnknownHostException ||
                             e is java.net.ConnectException ||
@@ -430,6 +528,7 @@ public class ForumIndexer
                         page++
                     }
                 } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
                     logger.e({ "Error updating forum $forumId page $page" }, e)
                     hasMorePages = false
                 }
@@ -469,6 +568,7 @@ public class ForumIndexer
                                             .build()
                                     imageLoader.enqueue(request)
                                 } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
                                     // Silently fail - covers will load on demand
                                 }
                             }

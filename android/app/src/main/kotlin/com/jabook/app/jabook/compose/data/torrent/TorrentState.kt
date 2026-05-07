@@ -42,6 +42,10 @@ public enum class TorrentState {
     /** Completed download */
     COMPLETED,
 
+    /** Alias for COMPLETED (deprecated, use COMPLETED) */
+    @Deprecated("Use COMPLETED instead", ReplaceWith("COMPLETED"))
+    FINISHED,
+
     /** Error occurred */
     ERROR,
 

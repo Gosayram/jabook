@@ -49,6 +49,7 @@ public class AudioVisualizerManager(
     private var audioSessionId: Int = 0
     private var lastRequestedAudioSessionId: Int = 0
     private var desiredEnabled: Boolean = true
+    private var suspendedForAudioOffload: Boolean = false
 
     private val _waveformData = MutableStateFlow(FloatArray(CAPTURE_SIZE))
     public val waveformData: StateFlow<FloatArray> = _waveformData.asStateFlow()
@@ -134,8 +135,9 @@ public class AudioVisualizerManager(
                         true, // fft
                     )
 
-                    enabled = desiredEnabled
-                    _isActive.value = desiredEnabled
+                    val shouldEnable = desiredEnabled && !suspendedForAudioOffload
+                    enabled = shouldEnable
+                    _isActive.value = shouldEnable
                 }
             Log.d(TAG, "Visualizer initialized with session $audioSessionId")
         } catch (e: Exception) {
@@ -149,6 +151,15 @@ public class AudioVisualizerManager(
      */
     public fun setEnabled(enabled: Boolean) {
         desiredEnabled = enabled
+
+        if (suspendedForAudioOffload) {
+            if (!enabled) {
+                applyVisualizerEnabledState(enabled = false)
+            } else {
+                _isActive.value = false
+            }
+            return
+        }
 
         if (enabled && !hasRecordAudioPermission()) {
             Log.w(TAG, "Cannot enable visualizer: RECORD_AUDIO permission not granted")
@@ -168,11 +179,30 @@ public class AudioVisualizerManager(
         }
 
         try {
-            activeVisualizer.enabled = enabled
-            _isActive.value = enabled
+            applyVisualizerEnabledState(enabled)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to set visualizer enabled state", e)
             release(clearRequestedSessionId = false)
+        }
+    }
+
+    /**
+     * Temporarily suspends visualization while audio offload is active.
+     *
+     * This keeps the user's desired visualizer setting intact and automatically restores it once
+     * offload mode is disabled.
+     */
+    public fun setSuspendedForAudioOffload(suspended: Boolean) {
+        if (suspendedForAudioOffload == suspended) return
+        suspendedForAudioOffload = suspended
+
+        if (suspended) {
+            applyVisualizerEnabledState(enabled = false)
+            return
+        }
+
+        if (desiredEnabled) {
+            setEnabled(enabled = true)
         }
     }
 
@@ -210,6 +240,14 @@ public class AudioVisualizerManager(
     private fun clearVisualizationData() {
         _waveformData.value = FloatArray(CAPTURE_SIZE)
         _fftData.value = FloatArray(CAPTURE_SIZE / 2)
+    }
+
+    private fun applyVisualizerEnabledState(enabled: Boolean) {
+        val activeVisualizer = visualizer
+        if (activeVisualizer != null) {
+            activeVisualizer.enabled = enabled
+        }
+        _isActive.value = enabled && activeVisualizer != null
     }
 
     private fun hasRecordAudioPermission(): Boolean = permissionChecker(context)

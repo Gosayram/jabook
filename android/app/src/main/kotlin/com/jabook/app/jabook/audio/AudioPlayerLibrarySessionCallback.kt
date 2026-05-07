@@ -555,6 +555,7 @@ public class AudioPlayerLibrarySessionCallback(
                             .Builder()
                             .setTitle(service.getString(com.jabook.app.jabook.R.string.media3_library_root_title))
                             .setIsBrowsable(true)
+                            .setIsPlayable(false)
                             .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
                             .setExtras(rootExtras)
                             .build(),
@@ -586,6 +587,7 @@ public class AudioPlayerLibrarySessionCallback(
                                 .Builder()
                                 .setTitle(service.getString(com.jabook.app.jabook.R.string.media3_library_root_title))
                                 .setIsBrowsable(true)
+                                .setIsPlayable(false)
                                 .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
                                 .build(),
                         ).build()
@@ -602,6 +604,7 @@ public class AudioPlayerLibrarySessionCallback(
                             .Builder()
                             .setTitle(bookTitle)
                             .setIsBrowsable(true)
+                            .setIsPlayable(false)
                             .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
 
                     persistedState.metadata?.get("artist")?.let { metadataBuilder.setArtist(it) }
@@ -665,6 +668,7 @@ public class AudioPlayerLibrarySessionCallback(
                         .Builder()
                         .setTitle(file.nameWithoutExtension)
                         .setIsBrowsable(false)
+                        .setIsPlayable(true)
                         .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
                         .build()
 
@@ -714,6 +718,7 @@ public class AudioPlayerLibrarySessionCallback(
                             .Builder()
                             .setTitle(bookTitle)
                             .setIsBrowsable(true)
+                            .setIsPlayable(false)
                             .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
 
                     persistedState.metadata?.get("artist")?.let { metadataBuilder.setArtist(it) }
@@ -795,6 +800,7 @@ public class AudioPlayerLibrarySessionCallback(
                                 .Builder()
                                 .setTitle(download.name)
                                 .setIsBrowsable(true)
+                                .setIsPlayable(false)
                                 .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
 
                         // Set cover if available (assuming cover path might be in download path or handled elsewhere)
@@ -839,6 +845,7 @@ public class AudioPlayerLibrarySessionCallback(
                                 .Builder()
                                 .setTitle(f.name)
                                 .setIsBrowsable(false)
+                                .setIsPlayable(true)
                                 .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
                                 .build()
 
@@ -861,6 +868,7 @@ public class AudioPlayerLibrarySessionCallback(
                                     .Builder()
                                     .setTitle(file.nameWithoutExtension)
                                     .setIsBrowsable(false)
+                                    .setIsPlayable(true)
                                     .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
                                     .build()
 
@@ -922,6 +930,7 @@ public class AudioPlayerLibrarySessionCallback(
                             .Builder()
                             .setTitle(bookTitle)
                             .setIsBrowsable(true)
+                            .setIsPlayable(false)
                             .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
 
                     persistedState.metadata?.get("artist")?.let { metadataBuilder.setArtist(it) }

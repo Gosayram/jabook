@@ -43,6 +43,7 @@ import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
 import dagger.Lazy
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -356,6 +357,8 @@ public class RutrackerRepository
                             emit(Result.success(emptyList()))
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e(
                         { "❌ Indexed search failed for query '$query'" },
@@ -364,6 +367,7 @@ public class RutrackerRepository
                     emit(Result.success(emptyList()))
                 }
             }.catch { e ->
+                if (e is CancellationException) throw e
                 logger.e(
                     { "Search flow error" },
                     e,
@@ -373,8 +377,10 @@ public class RutrackerRepository
 
         /**
          * Fetch topic details and save cover URL to database.
+         *
+         * @return [Result.success] with the resolved cover URL when found, otherwise null.
          */
-        public suspend fun fetchAndSaveCover(topicId: String): Result<Unit> =
+        public suspend fun fetchAndSaveCover(topicId: String): Result<String?> =
             try {
                 // Re-use existing getTopicDetails which fetches HTML and parses it
                 val result = getTopicDetails(topicId)
@@ -386,10 +392,10 @@ public class RutrackerRepository
                     if (!coverUrl.isNullOrBlank()) {
                         logger.d { "Updating cover for $topicId: $coverUrl" }
                         offlineSearchDao.updateCoverUrl(topicId, coverUrl)
-                        Result.success(Unit)
+                        Result.success(coverUrl)
                     } else {
                         logger.d { "No cover found for $topicId" }
-                        Result.success(Unit)
+                        Result.success(null)
                     }
                 } else {
                     Result.failure(result.exceptionOrNull() ?: Exception("Unknown error"))

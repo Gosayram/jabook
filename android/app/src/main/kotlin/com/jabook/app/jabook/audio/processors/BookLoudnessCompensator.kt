@@ -14,6 +14,14 @@
 
 package com.jabook.app.jabook.audio.processors
 
+import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.crash.CrashDiagnostics
+import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
 /**
  * Manages per-book loudness compensation in the playback pipeline.
  *
@@ -26,16 +34,19 @@ package com.jabook.app.jabook.audio.processors
  * Usage:
  * ```
  * val compensator = BookLoudnessCompensator(policy)
- * val gain = compensator.computeBookGain(bookLufs = -20.0)
- * player.volume = gain.coerceIn(0f, 1f)
+ * compensator.applyCompensation(bookId, booksDao, scope) { getActivePlayer() }
  * ```
  *
- * Thread-safety: this class is stateless and safe to call from any thread.
- * The [previousBookLufs] state is managed externally by the caller.
+ * Thread-safety: [previousBookLufs] is accessed from the main thread only.
+ * The computation methods are stateless and safe to call from any thread.
  */
 public class BookLoudnessCompensator(
     private val policy: LufsLoudnessCompensationPolicy = LufsLoudnessCompensationPolicy(),
 ) {
+    /** Tracks the LUFS value of the previously playing book for transition gain. */
+    public var previousBookLufs: Double? = null
+        private set
+
     /**
      * Computes the absolute linear gain to apply for a book based on its
      * measured LUFS value relative to the configured target LUFS.
@@ -69,6 +80,63 @@ public class BookLoudnessCompensator(
         if (previousBookLufs.isNaN() || newBookLufs.isNaN()) return NO_GAIN
         if (previousBookLufs >= 0.0 || newBookLufs >= 0.0) return NO_GAIN
         return policy.transitionGain(previousBookLufs, newBookLufs)
+    }
+
+    /**
+     * Applies loudness compensation when switching books.
+     *
+     * Reads the new book's measured LUFS value from the database and computes
+     * the gain needed to maintain consistent perceived volume. The gain is
+     * applied to the player volume after the book switch.
+     *
+     * This is a fire-and-forget operation — if the LUFS value is not yet
+     * available, the volume remains unchanged (gain = 1.0).
+     *
+     * @param newBookId the bookId of the book being switched to
+     * @param booksDao DAO for reading LUFS values
+     * @param scope Coroutine scope for async work
+     * @param getActivePlayer Returns the current ExoPlayer instance
+     */
+    public fun applyCompensation(
+        newBookId: String,
+        booksDao: BooksDao,
+        scope: CoroutineScope,
+        getActivePlayer: () -> androidx.media3.exoplayer.ExoPlayer,
+    ) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val bookEntity = booksDao.getBookById(newBookId)
+                val newLufs = bookEntity?.lufsValue
+                val prevLufs = previousBookLufs
+
+                val gain =
+                    if (prevLufs != null && newLufs != null) {
+                        computeTransitionGain(prevLufs, newLufs)
+                    } else {
+                        computeBookGain(newLufs)
+                    }
+
+                previousBookLufs = newLufs
+
+                if (gain != NO_GAIN) {
+                    withContext(Dispatchers.Main) {
+                        val player = getActivePlayer()
+                        player.volume = (player.volume * gain).coerceIn(0f, 1f)
+                        LogUtils.i(
+                            "BookLoudnessCompensator",
+                            "Compensation applied: gain=$gain, lufs=$newLufs, book=$newBookId",
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                LogUtils.w(
+                    "BookLoudnessCompensator",
+                    "Failed to apply compensation for book=$newBookId: ${e.message}",
+                )
+                CrashDiagnostics.reportNonFatal("book_loudness_compensation", e)
+            }
+        }
     }
 
     public companion object {

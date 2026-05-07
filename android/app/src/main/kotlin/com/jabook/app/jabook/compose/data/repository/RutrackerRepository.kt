@@ -229,8 +229,8 @@ public class RutrackerRepositoryImpl
         ) {
             try {
                 offlineSearchDao.saveSearchResults(query, results.map { it.toCachedTopicEntity() })
-            } catch (_: CancellationException) {
-                throw CancellationException()
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
                 // Log.e("RutrackerRepo", "Failed to save results", e)
             }
