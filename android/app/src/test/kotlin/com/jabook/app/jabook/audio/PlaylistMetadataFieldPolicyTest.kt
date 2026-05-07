@@ -51,6 +51,41 @@ class PlaylistMetadataFieldPolicyTest {
     }
 
     @Test
+    fun `resolve falls back to secondary keys when primary values are blank`() {
+        val fields =
+            PlaylistMetadataFieldPolicy.resolve(
+                mapOf(
+                    "title" to "   ",
+                    "trackTitle" to "TT",
+                    "artist" to "",
+                    "author" to "AU",
+                    "album" to "  ",
+                    "bookTitle" to "BT",
+                ),
+            )
+
+        assertThat(fields.title).isEqualTo("TT")
+        assertThat(fields.artist).isEqualTo("AU")
+        assertThat(fields.album).isEqualTo("BT")
+    }
+
+    @Test
+    fun `resolve trims resolved fields`() {
+        val fields =
+            PlaylistMetadataFieldPolicy.resolve(
+                mapOf(
+                    "title" to "  T  ",
+                    "artist" to "  A",
+                    "album" to "B  ",
+                ),
+            )
+
+        assertThat(fields.title).isEqualTo("T")
+        assertThat(fields.artist).isEqualTo("A")
+        assertThat(fields.album).isEqualTo("B")
+    }
+
+    @Test
     fun `resolve handles null metadata`() {
         val fields = PlaylistMetadataFieldPolicy.resolve(null)
 

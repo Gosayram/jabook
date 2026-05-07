@@ -21,10 +21,18 @@ internal data class PlaylistResolvedMetadataFields(
 )
 
 internal object PlaylistMetadataFieldPolicy {
+    private fun String?.normalizedOrNull(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
+
+    private fun pick(
+        metadata: Map<String, String>?,
+        primary: String,
+        fallback: String,
+    ): String? = metadata?.get(primary).normalizedOrNull() ?: metadata?.get(fallback).normalizedOrNull()
+
     internal fun resolve(metadata: Map<String, String>?): PlaylistResolvedMetadataFields =
         PlaylistResolvedMetadataFields(
-            title = metadata?.get("title") ?: metadata?.get("trackTitle"),
-            artist = metadata?.get("artist") ?: metadata?.get("author"),
-            album = metadata?.get("album") ?: metadata?.get("bookTitle"),
+            title = pick(metadata, primary = "title", fallback = "trackTitle"),
+            artist = pick(metadata, primary = "artist", fallback = "author"),
+            album = pick(metadata, primary = "album", fallback = "bookTitle"),
         )
 }

@@ -1353,13 +1353,13 @@ internal class PlaylistManager(
         val fileName = PlaylistTrackTitlePolicy.deriveFileName(path, index)
         val resolvedFields = PlaylistMetadataFieldPolicy.resolve(metadata)
 
-        // Get flavor suffix for title
-        val flavorSuffix = getFlavorSuffix()
-        val flavorText = flavorSuffix.takeIf { it.isNotEmpty() }?.let { " - $it" }.orEmpty()
-
         // Always add flavor suffix to title for quick settings player
         val baseTitle = PlaylistTrackTitlePolicy.resolveBaseTitle(resolvedFields.title, fileName, index)
-        val titleWithFlavor = baseTitle + flavorText
+        val titleWithFlavor =
+            PlaylistTitleFlavorPolicy.appendFlavor(
+                baseTitle = baseTitle,
+                flavorSuffix = getFlavorSuffix(),
+            )
 
         val metadataBuilder =
             androidx.media3.common.MediaMetadata
@@ -1381,13 +1381,14 @@ internal class PlaylistManager(
             metadataBuilder.setAlbumTitle(resolvedFields.album)
         }
 
-        val artworkUriString = metadata?.get("artworkUri")?.takeIf { it.isNotEmpty() }
+        val artworkUriString = PlaylistArtworkUriPolicy.extractArtworkUriString(metadata)
         if (artworkUriString != null) {
-            try {
-                val artworkUri = android.net.Uri.parse(artworkUriString)
-                metadataBuilder.setArtworkUri(artworkUri)
-            } catch (e: Exception) {
-                LogUtils.w("AudioPlayerService", "Failed to parse artwork URI: $artworkUriString", e)
+            if (PlaylistArtworkUriPolicy.shouldAttemptParse(artworkUriString)) {
+                try {
+                    metadataBuilder.setArtworkUri(android.net.Uri.parse(artworkUriString))
+                } catch (e: Exception) {
+                    LogUtils.w("AudioPlayerService", "Failed to parse artwork URI: $artworkUriString", e)
+                }
             }
         }
 
