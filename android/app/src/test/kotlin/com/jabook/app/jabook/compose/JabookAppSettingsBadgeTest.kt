@@ -14,9 +14,8 @@
 
 package com.jabook.app.jabook.compose
 
-import androidx.compose.ui.test.assertDoesNotExist
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -45,8 +44,8 @@ class JabookAppSettingsBadgeTest {
             )
         }
 
-        composeTestRule.onNodeWithContentDescription(settingsLabel).assertExists()
-        composeTestRule.onNodeWithTag(SETTINGS_BADGE_TEST_TAG).assertDoesNotExist()
+        composeTestRule.onNodeWithContentDescription(settingsLabel).assertIsDisplayed()
+        composeTestRule.onNodeWithTag(SETTINGS_BADGE_TEST_TAG).assertIsNotDisplayed()
     }
 
     @Test
@@ -65,7 +64,7 @@ class JabookAppSettingsBadgeTest {
             )
         }
 
-        composeTestRule.onNodeWithContentDescription(settingsLabel).assertExists()
+        composeTestRule.onNodeWithContentDescription(settingsLabel).assertIsDisplayed()
         composeTestRule.onNodeWithTag(SETTINGS_BADGE_TEST_TAG).assertIsDisplayed()
         composeTestRule.onNodeWithText(activeDownloadsCount.toString()).assertIsDisplayed()
     }

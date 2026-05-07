@@ -19,12 +19,16 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -36,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -48,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -386,6 +392,8 @@ public fun AudioSettingsScreen(
                                             EqualizerPreset.FLAT -> stringResource(R.string.equalizer_preset_flat)
                                             EqualizerPreset.VOICE_CLARITY -> stringResource(R.string.equalizer_preset_voice_clarity)
                                             EqualizerPreset.NIGHT -> stringResource(R.string.equalizer_preset_night)
+                                            EqualizerPreset.HEADPHONES -> stringResource(R.string.equalizer_preset_headphones)
+                                            EqualizerPreset.CAR -> stringResource(R.string.equalizer_preset_car)
                                         },
                                 )
                             },
@@ -398,7 +406,84 @@ public fun AudioSettingsScreen(
                 preset = selectedEqPreset,
                 modifier = Modifier.padding(horizontal = contentPadding).padding(bottom = 20.dp),
             )
+
+            EqualizerFiveBandCard(
+                preset = selectedEqPreset,
+                modifier = Modifier.padding(horizontal = contentPadding).padding(bottom = 24.dp),
+            )
         }
+    }
+}
+
+@Composable
+private fun EqualizerFiveBandCard(
+    preset: EqualizerPreset,
+    modifier: Modifier = Modifier,
+) {
+    val bandLabels = listOf("80", "250", "1k", "4k", "8k")
+    val source = preset.bandGainsMb
+    val mapped =
+        listOf(
+            source[1] / 100f,
+            source[3] / 100f,
+            source[5] / 100f,
+            source[7] / 100f,
+            source[8] / 100f,
+        )
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.equalizer_five_band_title),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            mapped.forEachIndexed { index, gain ->
+                EqBandPreview(
+                    label = bandLabels[index],
+                    gainDb = gain,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EqBandPreview(
+    label: String,
+    gainDb: Float,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = stringResource(R.string.equalizer_gain_db, gainDb.toInt()),
+            style = MaterialTheme.typography.labelSmall,
+        )
+        Box(
+            modifier = Modifier.height(130.dp).width(42.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Slider(
+                value = gainDb.coerceIn(-12f, 12f),
+                onValueChange = {},
+                valueRange = -12f..12f,
+                steps = 23,
+                enabled = false,
+                modifier =
+                    Modifier
+                        .width(130.dp)
+                        .graphicsLayer { rotationZ = -90f },
+            )
+        }
+        Spacer(modifier = Modifier.size(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+        )
     }
 }
 

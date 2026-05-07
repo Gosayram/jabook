@@ -73,11 +73,13 @@ import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -260,6 +262,9 @@ public fun PlayerScreen(
     var showChapterSheet by remember { mutableStateOf(false) }
     // Legacy settings sheet (if unused, we might want to consolidate or remove)
     var showSettingsSheet by remember { mutableStateOf(false) }
+    var showRatingDialog by remember { mutableStateOf(false) }
+    var selectedRating by remember { mutableIntStateOf(0) }
+    var ratedBookId by remember { mutableStateOf<String?>(null) }
 
     // Vinyl Mode State
     var isVinylMode by remember { mutableStateOf(false) }
@@ -302,6 +307,14 @@ public fun PlayerScreen(
                 PlayerEffect.NavigateBack -> navigationClickGuard.run(onNavigateBack)
                 is PlayerEffect.NavigateToBook -> navigationClickGuard.run { onNavigateToBook(effect.bookId) }
             }
+        }
+    }
+
+    LaunchedEffect(uiState) {
+        val activeState = uiState as? PlayerState.Active ?: return@LaunchedEffect
+        if (activeState.book.isCompleted && ratedBookId != activeState.book.id && !showRatingDialog) {
+            selectedRating = 0
+            showRatingDialog = true
         }
     }
 
@@ -895,6 +908,60 @@ public fun PlayerScreen(
         },
         modifier = modifier.background(MaterialTheme.colorScheme.background),
     )
+
+    if (showRatingDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showRatingDialog = false },
+            title = { Text(text = stringResource(R.string.rateCompletedBookTitle)) },
+            text = {
+                StarRatingRow(
+                    selected = selectedRating,
+                    onRate = { rating ->
+                        selectedRating = rating
+                        ratedBookId = (uiState as? PlayerState.Active)?.book?.id
+                        showRatingDialog = false
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = context.getString(R.string.rateCompletedBookThanks, rating),
+                            )
+                        }
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showRatingDialog = false }) {
+                    Text(text = stringResource(R.string.laterAction))
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun StarRatingRow(
+    selected: Int,
+    onRate: (Int) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        (1..5).forEach { star ->
+            IconButton(
+                onClick = { onRate(star) },
+                modifier = Modifier.size(44.dp),
+            ) {
+                Icon(
+                    imageVector = if (star <= selected) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                    contentDescription = stringResource(R.string.rateCompletedBookStar, star),
+                    tint =
+                        if (star <= selected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    modifier = Modifier.size(if (star <= selected) 32.dp else 28.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable

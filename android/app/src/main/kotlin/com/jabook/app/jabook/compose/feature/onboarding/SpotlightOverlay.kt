@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +36,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.compose.designsystem.component.AccessibleButton
 
 @Composable
 public fun SpotlightOverlay(
@@ -92,10 +92,10 @@ public fun SpotlightOverlay(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                TextButton(onClick = onSkip) {
+                AccessibleButton(onClick = onSkip) {
                     Text(text = skipText)
                 }
-                TextButton(onClick = onNext) {
+                AccessibleButton(onClick = onNext) {
                     Text(text = nextText)
                 }
             }

@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material3.Card
@@ -51,6 +52,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
@@ -140,6 +142,7 @@ public fun LibraryScreen(
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val selectedBook by viewModel.selectedBookForProperties.collectAsStateWithLifecycle()
     val weeklyRecap by viewModel.weeklyRecapState.collectAsStateWithLifecycle()
+    val yearRecap by viewModel.yearRecapState.collectAsStateWithLifecycle()
     val snackbarHostState = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val navigationClickGuard = remember { NavigationClickGuard() }
@@ -438,6 +441,15 @@ public fun LibraryScreen(
                                                 stats = recap,
                                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                             )
+                                            yearRecap?.let { recapYear ->
+                                                YearRecapPromptCard(
+                                                    yearRecap = recapYear,
+                                                    onShareClick = {
+                                                        shareYearRecap(context, recapYear)
+                                                    },
+                                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                                )
+                                            }
                                             ListeningHeatmap(
                                                 data = buildListeningHeatmapData(books),
                                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -709,12 +721,55 @@ public fun LibraryScreen(
     }
 }
 
+@Composable
+private fun YearRecapPromptCard(
+    yearRecap: YearRecapState,
+    onShareClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = SurfaceElevationTokens.Level1),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.yearRecapTitle, yearRecap.year),
+                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    text = stringResource(R.string.yearRecapShareHint, yearRecap.totalMinutesListened),
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+            OutlinedButton(onClick = onShareClick) {
+                Icon(
+                    imageVector = Icons.Filled.Share,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 6.dp),
+                )
+                Text(text = stringResource(R.string.share))
+            }
+        }
+    }
+}
+
 private fun buildDiscoveryUiState(
     books: List<Book>,
     mood: ListeningMood,
 ): DiscoveryUiState {
     val continueListening = books.filter { !it.isCompleted && (it.isStarted || it.progress > 0f) }.take(12)
-    val trending = books.sortedByDescending { it.addedDate ?: 0L }.take(12)
+    val trending = books.sortedByDescending { it.addedDate }.take(12)
     val personalized =
         books
             .filter { isMoodMatch(it, mood) }

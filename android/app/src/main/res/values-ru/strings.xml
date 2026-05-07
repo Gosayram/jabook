@@ -335,6 +335,10 @@
     <string name="equalizer_preset_flat">Плоский</string>
     <string name="equalizer_preset_voice_clarity">Чёткость речи</string>
     <string name="equalizer_preset_night">Ночной</string>
+    <string name="equalizer_preset_headphones">Наушники</string>
+    <string name="equalizer_preset_car">Авто</string>
+    <string name="equalizer_five_band_title">5-полосный предпросмотр</string>
+    <string name="equalizer_gain_db">%1$d дБ</string>
     <string name="equalizer_point_tooltip">%1$s • %2$s</string>
     <!-- Заголовок настройки нормализации громкости -->
     <string name="normalizeVolumeTitle">Нормализация громкости</string>
@@ -2641,6 +2645,19 @@
     <string name="bookmarkAddedMessage">Закладка добавлена</string>
     <string name="dragToReorder">Перетащите для сортировки</string>
     <string name="weeklyRecapTitle">Ваша неделя</string>
+    <string name="yearRecapTitle">Итоги %1$d года</string>
+    <string name="yearRecapSubtitle">Ваш аудиокнижный год на одной карточке</string>
+    <string name="yearRecapShareHint">Прослушано %1$d минут. Поделитесь годовыми итогами.</string>
+    <string name="yearRecapShareAction">Поделиться итогами года</string>
+    <string name="yearRecapMinutesLabel">Минут прослушано</string>
+    <string name="yearRecapBooksLabel">Книг завершено</string>
+    <string name="yearRecapDaysLabel">Активных дней</string>
+    <string name="yearRecapSessionsLabel">Сессий</string>
+    <string name="yearRecapTopAuthorLabel">Чаще всего слушали автора</string>
+    <string name="rateCompletedBookTitle">Как оцените эту книгу?</string>
+    <string name="rateCompletedBookThanks">Спасибо! Ваша оценка: %1$d/5.</string>
+    <string name="rateCompletedBookStar">%1$d звёзд</string>
+    <string name="laterAction">Позже</string>
     <string name="continueSeriesLabel">Продолжить серию</string>
     <string name="playNowAction">Слушать сейчас</string>
     <string name="dismissAction">Скрыть</string>

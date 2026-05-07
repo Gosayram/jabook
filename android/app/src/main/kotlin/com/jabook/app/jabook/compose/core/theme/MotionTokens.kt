@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.core.theme
 
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Easing
 
 /**
  * Shared motion tokens for Compose animations.
@@ -30,6 +31,18 @@ public object MotionTokens {
     public const val LONG1: Int = 400
     public const val LONG2: Int = 500
 
+    /** M3 Standard easing — used for short and medium transitions (chips, toggles, FAB). */
+    public val Standard: Easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+
+    /** M3 Emphasized easing — primary easing for medium/long transitions. */
     public val Emphasized: CubicBezierEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+
+    /** M3 Emphasized Decelerate — for incoming elements (hero, shared element). */
     public val EmphasizedDecelerate: CubicBezierEasing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+
+    /** M3 Emphasized Accelerate — for outgoing elements. */
+    public val EmphasizedAccelerate: CubicBezierEasing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
+
+    /** Linear easing — used for micro state changes (icon toggles, badges). */
+    public val Linear: Easing = CubicBezierEasing(0f, 0f, 1f, 1f)
 }

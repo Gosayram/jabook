@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -26,7 +27,8 @@ class PlaybackSpeedDialPolicyTest {
         val mined = dialSpeedForDrag(currentSpeed = 0.7f, dragDeltaX = -500f, dialWidthPx = 200f)
 
         assertEquals(1.0f, same, 0.0001f)
-        assertEquals(2.25f, faster, 0.0001f)
+        // speedSpan = MAX-MIN = 1.5f; delta = (100/200)*1.5 = 0.75; result = 1.0+0.75 = 1.75f
+        assertEquals(1.75f, faster, 0.0001f)
         assertEquals(PlaybackSpeedConstants.MAX_SPEED, maxed, 0.0001f)
         assertEquals(PlaybackSpeedConstants.MIN_SPEED, mined, 0.0001f)
     }
@@ -44,13 +46,14 @@ class PlaybackSpeedDialPolicyTest {
     fun dialSweepAngle_mapsSpeedToExpectedArcRange() {
         assertEquals(0f, dialSweepAngle(PlaybackSpeedConstants.MIN_SPEED), 0.0001f)
         assertEquals(270f, dialSweepAngle(PlaybackSpeedConstants.MAX_SPEED), 0.0001f)
-        assertEquals(135f, dialSweepAngle(1.75f), 0.0001f)
+        // speedSpan = 1.5f; (1.75-0.5)/1.5 * 270 = 225f
+        assertEquals(225f, dialSweepAngle(1.75f), 0.0001f)
     }
 
     @Test
     fun dialTickStep_usesQuarterStepBucket() {
-        assertEquals(2, dialTickStep(0.50f))
-        assertEquals(5, dialTickStep(1.25f))
-        assertEquals(12, dialTickStep(3.0f))
+        assertEquals(10, dialTickStep(0.50f))
+        assertEquals(25, dialTickStep(1.25f))
+        assertEquals(40, dialTickStep(2.0f))
     }
 }

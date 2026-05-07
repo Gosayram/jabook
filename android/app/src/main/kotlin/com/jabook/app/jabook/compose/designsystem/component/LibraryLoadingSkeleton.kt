@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.designsystem.component
 
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -25,52 +24,98 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.compose.core.theme.MotionTokens
+
+/** Shimmer sweep duration — intentionally slow for visual sweep effect. */
+private const val SHIMMER_DURATION_MS = 1200
+
+/**
+ * Creates a shimmer [Brush] that sweeps diagonally across the component.
+ *
+ * @param shift animated float 0f..1f driving the sweep position.
+ */
+@Composable
+public fun rememberShimmerBrush(shift: Float): Brush {
+    val base = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+    val highlight = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+    return remember(base, highlight, shift) {
+        Brush.linearGradient(
+            colors = listOf(base, highlight, base),
+            start = Offset(shift * 400f - 400f, 0f),
+            end = Offset(shift * 400f, 400f),
+        )
+    }
+}
+
+/**
+ * Provides the animated shimmer shift value (0f..1f) for use with [rememberShimmerBrush].
+ */
+@Composable
+public fun rememberShimmerShift(): Float {
+    val transition = rememberInfiniteTransition(label = "shimmer_transition")
+    return transition
+        .animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec =
+                infiniteRepeatable(
+                    animation = tween(durationMillis = SHIMMER_DURATION_MS, easing = MotionTokens.Linear),
+                    repeatMode = RepeatMode.Restart,
+                ),
+            label = "shimmer_shift",
+        ).value
+}
+
+/**
+ * Single book card skeleton for use inside LazyGrid items.
+ * Matches the visual structure of a real [BookCard]: cover + title + author lines.
+ */
+@Composable
+public fun ShimmerBookCard(modifier: Modifier = Modifier) {
+    val shift = rememberShimmerShift()
+    val brush = rememberShimmerBrush(shift)
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(0.7f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(brush),
+        )
+        SkeletonLine(widthFraction = 0.85f, brush = brush)
+        SkeletonLine(widthFraction = 0.55f, brush = brush)
+    }
+}
 
 /**
  * Library skeleton placeholders with shimmer effect.
+ * Shows a 2-column grid of placeholder book cards.
  */
 @Composable
 public fun LibraryLoadingSkeleton(
     message: String? = null,
     modifier: Modifier = Modifier,
 ) {
-    val transition = rememberInfiniteTransition(label = "library_skeleton")
-    val shift by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(durationMillis = 1200, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "skeleton_shift",
-    )
-
-    val base = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-    val highlight = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-    val shimmerBrush =
-        Brush.linearGradient(
-            colors = listOf(base, highlight, base),
-            start =
-                androidx.compose.ui.geometry
-                    .Offset(shift * 400f - 400f, 0f),
-            end =
-                androidx.compose.ui.geometry
-                    .Offset(shift * 400f, 400f),
-        )
+    val shift = rememberShimmerShift()
+    val shimmerBrush = rememberShimmerBrush(shift)
 
     Column(
         modifier = modifier.fillMaxSize().padding(16.dp),
@@ -98,7 +143,7 @@ public fun LibraryLoadingSkeleton(
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .size(height = 180.dp, width = 120.dp)
+                                    .aspectRatio(0.7f)
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(shimmerBrush),
                         )
@@ -120,7 +165,7 @@ private fun SkeletonLine(
         modifier =
             Modifier
                 .fillMaxWidth(widthFraction)
-                .size(height = 12.dp, width = 40.dp)
+                .height(12.dp)
                 .clip(RoundedCornerShape(6.dp))
                 .background(brush),
     )

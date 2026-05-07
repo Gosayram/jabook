@@ -354,6 +354,10 @@
     <string name="equalizer_preset_flat">Flat</string>
     <string name="equalizer_preset_voice_clarity">Voice clarity</string>
     <string name="equalizer_preset_night">Night</string>
+    <string name="equalizer_preset_headphones">Headphones</string>
+    <string name="equalizer_preset_car">Car</string>
+    <string name="equalizer_five_band_title">5-band preview</string>
+    <string name="equalizer_gain_db">%1$d dB</string>
     <string name="equalizer_point_tooltip">%1$s • %2$s</string>
     <!-- Title for normalize volume setting -->
     <string name="normalizeVolumeTitle">Normalize Volume</string>
@@ -2644,6 +2648,19 @@
     <string name="playbackStatePlaying">Playing</string>
     <string name="playbackStatePaused">Paused</string>
     <string name="weeklyRecapTitle">Your week</string>
+    <string name="yearRecapTitle">%1$d recap</string>
+    <string name="yearRecapSubtitle">Your audiobook year in one card</string>
+    <string name="yearRecapShareHint">%1$d minutes listened. Share your annual summary.</string>
+    <string name="yearRecapShareAction">Share annual recap</string>
+    <string name="yearRecapMinutesLabel">Minutes listened</string>
+    <string name="yearRecapBooksLabel">Books completed</string>
+    <string name="yearRecapDaysLabel">Active days</string>
+    <string name="yearRecapSessionsLabel">Sessions</string>
+    <string name="yearRecapTopAuthorLabel">Most listened author</string>
+    <string name="rateCompletedBookTitle">How would you rate this book?</string>
+    <string name="rateCompletedBookThanks">Thanks! You rated this book %1$d/5.</string>
+    <string name="rateCompletedBookStar">%1$d stars</string>
+    <string name="laterAction">Later</string>
     <string name="minutesLabel">minutes</string>
     <string name="booksLabel">books</string>
     <string name="streakDaysLabel">streak</string>

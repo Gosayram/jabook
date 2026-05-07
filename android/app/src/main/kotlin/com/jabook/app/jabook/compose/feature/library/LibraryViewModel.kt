@@ -179,6 +179,43 @@ public class LibraryViewModel
                 initialValue = null,
             )
 
+        public val yearRecapState: StateFlow<YearRecapState?> =
+            combine(
+                uiState,
+                listeningStatsUseCase.observeSummary(
+                    fromEpochMs = resolveYearStartEpochMs(),
+                    toEpochMs = System.currentTimeMillis(),
+                ),
+            ) { state, summary ->
+                val books = (state as? LibraryUiState.Success)?.books ?: return@combine null
+                val yearStartEpochMs = resolveYearStartEpochMs()
+                val completedBooks =
+                    books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= yearStartEpochMs }
+                val topAuthor =
+                    books
+                        .groupingBy { it.author.ifBlank { "Unknown author" } }
+                        .eachCount()
+                        .maxByOrNull { it.value }
+                        ?.key
+                        ?: "Unknown author"
+
+                YearRecapState(
+                    year =
+                        java.time.LocalDate
+                            .now()
+                            .year,
+                    totalMinutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt().coerceAtLeast(0),
+                    booksCompleted = completedBooks.coerceAtLeast(0),
+                    activeDays = summary.activeDays.coerceAtLeast(0),
+                    sessions = summary.totalSessions.coerceAtLeast(0),
+                    topAuthor = topAuthor,
+                )
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = null,
+            )
+
         /**
          * Update search query.
          */
@@ -462,6 +499,16 @@ public data class WeeklyRecapState(
     val streakDays: Int,
 )
 
+@Immutable
+public data class YearRecapState(
+    val year: Int,
+    val totalMinutesListened: Int,
+    val booksCompleted: Int,
+    val activeDays: Int,
+    val sessions: Int,
+    val topAuthor: String,
+)
+
 public enum class ProductivePeriod {
     MORNING,
     DAY,
@@ -489,6 +536,14 @@ private fun resolveProductivePeriod(books: ImmutableList<Book>): ProductivePerio
         else -> ProductivePeriod.NIGHT
     }
 }
+
+private fun resolveYearStartEpochMs(): Long =
+    java.time.LocalDate
+        .now()
+        .withDayOfYear(1)
+        .atStartOfDay(java.time.ZoneId.systemDefault())
+        .toInstant()
+        .toEpochMilli()
 
 /**
  * State of library scanning operation.
