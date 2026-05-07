@@ -111,7 +111,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -934,7 +933,7 @@ private fun PlayerContent(
             skipTriggeredHaptic = skipTriggeredHaptic,
         )?.let { decision ->
             if (decision.shouldPerformHaptic) {
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                HapticManager.performGesture(hapticFeedback)
             }
             skipTriggeredHaptic = decision.nextSkipTriggeredHaptic
             lastChapterBoundaryIndex = decision.nextLastChapterBoundaryIndex
@@ -1256,7 +1255,7 @@ private fun PlayerContent(
                                     kotlin.math.abs(constrainedProgress - (lastSliderHapticProgress ?: constrainedProgress)) >=
                                     0.05f
                             if (shouldTriggerHaptic) {
-                                sliderHaptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                HapticManager.performTap(sliderHaptic)
                                 lastSliderHapticProgress = constrainedProgress
                             }
                             dragPosition = constrainedProgress
@@ -1291,7 +1290,7 @@ private fun PlayerContent(
                                     chapters = state.chapters,
                                     progress = pressedProgress.coerceIn(0f, 1f),
                                 )
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            HapticManager.performLongPress(hapticFeedback)
                             onAddBookmarkAtPosition(target.chapterIndex, target.chapterPositionMs) { createdBookmark ->
                                 if (createdBookmark != null) {
                                     pendingBookmarkId = createdBookmark.id
@@ -1309,6 +1308,10 @@ private fun PlayerContent(
                             (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(
                                 alpha = 0.24f,
                             ),
+                        valueFormatter = { progressValue ->
+                            val clamped = progressValue.coerceIn(0f, 1f)
+                            formatDuration((chapterTimeline.totalDurationMs * clamped).toLong())
+                        },
                         modifier =
                             Modifier
                                 .fillMaxWidth()
@@ -1744,7 +1747,7 @@ private fun PlayerContent(
                             if (hasLyrics) {
                                 FilledTonalButton(
                                     onClick = {
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        HapticManager.performTap(hapticFeedback)
                                         showLyrics = !showLyrics
                                     },
                                     modifier = Modifier.weight(1f).height(controlButtonHeight),
@@ -1888,7 +1891,7 @@ private fun PlayerContent(
                         if (hasLyrics) {
                             FilledTonalButton(
                                 onClick = {
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    HapticManager.performTap(hapticFeedback)
                                     showLyrics = !showLyrics
                                 },
                                 modifier = Modifier.weight(1f).height(controlButtonHeight),
