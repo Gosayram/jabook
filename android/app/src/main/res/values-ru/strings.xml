@@ -277,6 +277,8 @@
     <!-- Метка для высокой контрастности -->
     <string name="highContrast">Высокая контрастность</string>
     <string name="themeAmoled">AMOLED / Чистый черный</string>
+    <string name="themePreviewTitle">Живой предпросмотр</string>
+    <string name="themePreviewBookTitle">Превью мини-плеера</string>
     <string name="vinylMode">Режим винила</string>
     <string name="lyrics">Текст песни</string>
     <string name="toggleLyricsView">Переключить отображение текста</string>
@@ -2636,6 +2638,7 @@
     <string name="jumpToChapterNumber">Перейти к главе №...</string>
     <string name="playerChapterNavigationSnackbar">Перешли к главе %1$d</string>
     <string name="undoAction">Отменить</string>
+    <string name="bookmarkAddedMessage">Закладка добавлена</string>
     <!-- Строки панели фильтров поиска -->
     <string name="sizeRange">Диапазон размера</string>
     <string name="sizeRangeWithBounds">Диапазон размера: %1$s - %2$s</string>

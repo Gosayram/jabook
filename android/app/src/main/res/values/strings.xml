@@ -294,6 +294,8 @@
     <!-- Label for dark mode -->
     <string name="darkMode">Dark mode</string>
     <string name="themeAmoled">AMOLED / Pure Black</string>
+    <string name="themePreviewTitle">Live preview</string>
+    <string name="themePreviewBookTitle">Mini player preview</string>
     <string name="vinylMode">Vinyl Mode</string>
     <string name="lyrics">Lyrics</string>
     <string name="toggleLyricsView">Toggle lyrics view</string>
@@ -2633,6 +2635,7 @@
     <string name="jumpToChapterNumber">Jump to chapter #...</string>
     <string name="playerChapterNavigationSnackbar">Moved to chapter %1$d</string>
     <string name="undoAction">Undo</string>
+    <string name="bookmarkAddedMessage">Bookmark added</string>
     <!-- Search filters pane strings -->
     <string name="sizeRange">Size Range</string>
     <string name="sizeRangeWithBounds">Size Range: %1$s - %2$s</string>

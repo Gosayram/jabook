@@ -58,6 +58,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Mic
@@ -733,6 +734,9 @@ public fun PlayerScreen(
                                                     noteAudioPath = noteAudioPath,
                                                 )
                                             },
+                                            onDeleteBookmark = { bookmarkId ->
+                                                viewModel.deleteBookmark(bookmarkId)
+                                            },
                                             hasRecordAudioPermission = hasRecordAudioPermission,
                                             onRequestRecordAudioPermission = requestRecordAudioPermission,
                                             onInitializeVisualizer = {
@@ -741,6 +745,7 @@ public fun PlayerScreen(
                                             onSetVisualizerEnabled = { enabled ->
                                                 viewModel.dispatch(PlayerIntent.SetVisualizerEnabled(enabled))
                                             },
+                                            snackbarHostState = snackbarHostState,
                                             sharedTransitionScope = sharedTransitionScope,
                                             animatedVisibilityScope = animatedVisibilityScope,
                                         )
@@ -820,10 +825,12 @@ private fun PlayerContent(
     onStatsClick: () -> Unit,
     onAddBookmarkAtPosition: (Int, Long, (com.jabook.app.jabook.compose.domain.model.BookmarkItem?) -> Unit) -> Unit,
     onUpdateBookmark: (String, String?, String?) -> Unit,
+    onDeleteBookmark: (String) -> Unit,
     hasRecordAudioPermission: Boolean,
     onRequestRecordAudioPermission: () -> Unit,
     onInitializeVisualizer: () -> Unit,
     onSetVisualizerEnabled: (Boolean) -> Unit,
+    snackbarHostState: androidx.compose.material3.SnackbarHostState,
     modifier: Modifier = Modifier,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
@@ -951,6 +958,7 @@ private fun PlayerContent(
     val seekScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
     var showBookmarkNoteSheet by remember { mutableStateOf(false) }
+    var showBookmarkMomentStamp by remember { mutableStateOf(false) }
     var pendingBookmarkId by remember { mutableStateOf<String?>(null) }
     var pendingBookmarkNote by remember { mutableStateOf("") }
     var pendingBookmarkAudioPath by remember { mutableStateOf<String?>(null) }
@@ -1335,6 +1343,22 @@ private fun PlayerContent(
                             HapticManager.performLongPress(hapticFeedback)
                             onAddBookmarkAtPosition(target.chapterIndex, target.chapterPositionMs) { createdBookmark ->
                                 if (createdBookmark != null) {
+                                    showBookmarkMomentStamp = true
+                                    seekScope.launch {
+                                        delay(700L)
+                                        showBookmarkMomentStamp = false
+                                    }
+                                    seekScope.launch {
+                                        val result =
+                                            snackbarHostState.showSnackbar(
+                                                message = context.getString(R.string.bookmarkAddedMessage),
+                                                actionLabel = context.getString(R.string.undoAction),
+                                                duration = androidx.compose.material3.SnackbarDuration.Short,
+                                            )
+                                        if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                            onDeleteBookmark(createdBookmark.id)
+                                        }
+                                    }
                                     pendingBookmarkId = createdBookmark.id
                                     pendingBookmarkNote = createdBookmark.noteText.orEmpty()
                                     pendingBookmarkAudioPath = createdBookmark.noteAudioPath
@@ -1362,6 +1386,22 @@ private fun PlayerContent(
                                     stateDescription = "$current of $total"
                                 },
                     )
+
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showBookmarkMomentStamp,
+                        enter = fadeIn() + scaleIn(initialScale = 0.6f),
+                        exit = fadeOut() + scaleOut(targetScale = 1.3f),
+                        modifier =
+                            Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(top = 4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Bookmark,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
 
                     if (isDragging) {
                         val previewTitle =

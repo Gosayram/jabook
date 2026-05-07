@@ -865,6 +865,17 @@ public class PlayerViewModel
             }
         }
 
+        public fun deleteBookmark(bookmarkId: String) {
+            viewModelScope.launch {
+                bookmarkRepository
+                    .deleteBookmark(bookmarkId)
+                    .onFailure { error ->
+                        logger.e({ "Failed to delete bookmark" }, error)
+                        dispatch(PlayerIntent.ReportError("Failed to delete bookmark"))
+                    }
+            }
+        }
+
         public fun initializeVisualizer() {
             playerController.initializeVisualizer()
         }

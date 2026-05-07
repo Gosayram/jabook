@@ -44,8 +44,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -150,6 +152,7 @@ private fun GridBookCard(
     onToggleSelection: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val windowSizeClass =
         calculateWindowSizeClass(
             context as? android.app.Activity
@@ -177,7 +180,10 @@ private fun GridBookCard(
                 .fillMaxWidth()
                 .combinedClickable(
                     onClick = { actionsProvider.onBookClick(book.id) },
-                    onLongClick = { actionsProvider.onBookLongPress(book.id) },
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        actionsProvider.onBookLongPress(book.id)
+                    },
                 ).semantics(mergeDescendants = true) {},
     ) {
         Box {
@@ -345,6 +351,7 @@ private fun ListBookCard(
     onToggleSelection: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val windowSizeClass =
         calculateWindowSizeClass(
             context as? android.app.Activity
@@ -382,7 +389,10 @@ private fun ListBookCard(
                     .fillMaxWidth()
                     .combinedClickable(
                         onClick = { actionsProvider.onBookClick(book.id) },
-                        onLongClick = { actionsProvider.onBookLongPress(book.id) },
+                        onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            actionsProvider.onBookLongPress(book.id)
+                        },
                     ).semantics(mergeDescendants = true) {}
                     .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
