@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -65,6 +67,7 @@ import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
+import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
 import kotlin.math.abs
 
 /**
@@ -333,22 +336,31 @@ public fun AnimatedMiniPlayer(
     onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val reduceMotion = rememberReduceMotion()
     AnimatedVisibility(
         visible = visible,
         enter =
-            slideInVertically(
-                initialOffsetY = { it },
-                animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
-            ),
+            if (reduceMotion) {
+                EnterTransition.None
+            } else {
+                slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
+                )
+            },
         exit =
-            slideOutVertically(
-                targetOffsetY = { it },
-                animationSpec =
-                    tween(
-                        durationMillis = MotionTokens.MEDIUM1,
-                        easing = MotionTokens.EmphasizedDecelerate,
-                    ),
-            ),
+            if (reduceMotion) {
+                ExitTransition.None
+            } else {
+                slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec =
+                        tween(
+                            durationMillis = MotionTokens.MEDIUM1,
+                            easing = MotionTokens.EmphasizedDecelerate,
+                        ),
+                )
+            },
         modifier = modifier,
     ) {
         MiniPlayer(

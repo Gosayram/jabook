@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
 
@@ -151,5 +152,20 @@ public fun BookCard(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+    }
+}
+
+@Preview(name = "BookCard Large Font", fontScale = 1.5f, showBackground = true)
+@Preview(name = "BookCard Huge Font", fontScale = 2.0f, showBackground = true)
+@Composable
+private fun BookCardFontScalePreview() {
+    MaterialTheme {
+        BookCard(
+            title = "Очень длинное название книги для проверки поведения карточки при крупном размере шрифта",
+            author = "Очень длинное имя автора",
+            coverUrl = null,
+            onClick = {},
+            onLongClick = {},
+        )
     }
 }

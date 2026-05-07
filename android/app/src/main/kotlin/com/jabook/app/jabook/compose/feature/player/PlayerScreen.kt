@@ -75,7 +75,9 @@ import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -1971,7 +1973,11 @@ private fun PlayerContent(
                                         },
                             ) {
                                 Icon(
-                                    Icons.Filled.Timer,
+                                    if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle) {
+                                        Icons.Outlined.Timer
+                                    } else {
+                                        Icons.Filled.Timer
+                                    },
                                     stringResource(R.string.sleepTimer),
                                     Modifier.size(controlButtonIconSize),
                                 )
@@ -2009,7 +2015,11 @@ private fun PlayerContent(
                                         ),
                                 ) {
                                     Icon(
-                                        androidx.compose.material.icons.Icons.Filled.Description,
+                                        if (showingLyrics) {
+                                            Icons.Filled.Description
+                                        } else {
+                                            Icons.Outlined.Description
+                                        },
                                         stringResource(R.string.lyrics),
                                         Modifier.size(controlButtonIconSize),
                                     )
@@ -2115,7 +2125,11 @@ private fun PlayerContent(
                                     },
                         ) {
                             Icon(
-                                Icons.Filled.Timer,
+                                if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle) {
+                                    Icons.Outlined.Timer
+                                } else {
+                                    Icons.Filled.Timer
+                                },
                                 stringResource(R.string.sleepTimer),
                                 Modifier.size(controlButtonIconSize),
                             )
@@ -2153,7 +2167,11 @@ private fun PlayerContent(
                                     ),
                             ) {
                                 Icon(
-                                    androidx.compose.material.icons.Icons.Filled.Description,
+                                    if (showingLyrics) {
+                                        Icons.Filled.Description
+                                    } else {
+                                        Icons.Outlined.Description
+                                    },
                                     stringResource(R.string.lyrics),
                                     Modifier.size(controlButtonIconSize),
                                 )
