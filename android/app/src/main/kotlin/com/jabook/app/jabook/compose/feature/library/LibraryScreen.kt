@@ -625,6 +625,7 @@ private fun LibraryViewMode.isGrid(): Boolean = this == LibraryViewMode.GRID_COM
  * Sort order bottom sheet.
  */
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun SortOrderBottomSheet(
     currentSortOrder: com.jabook.app.jabook.compose.data.model.BookSortOrder,
     onSortOrderChanged: (com.jabook.app.jabook.compose.data.model.BookSortOrder) -> Unit,
