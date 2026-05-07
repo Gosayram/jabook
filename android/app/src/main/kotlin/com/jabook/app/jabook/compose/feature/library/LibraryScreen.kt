@@ -47,6 +47,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
@@ -116,6 +118,8 @@ public fun LibraryScreen(
     val safeNavigateToDownloads = dropUnlessResumed { navigationClickGuard.run(onNavigateToDownloads) }
     var activeQuickFilter by remember { mutableStateOf(LibraryQuickFilter.ALL) }
     var showSortBottomSheet by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchBarExpanded by remember { mutableStateOf(false) }
 
     val storagePermissionText = stringResource(R.string.storagePermissionRequired)
     val foundBooksMessageTemplate = stringResource(R.string.foundBooksMessage)
@@ -326,7 +330,12 @@ public fun LibraryScreen(
 
                                 is LibraryUiState.Success -> {
                                     val books = (uiState as LibraryUiState.Success).books
-                                    val filteredBooks = remember(books, activeQuickFilter) { books.filterBy(activeQuickFilter) }
+                                    val filteredBooks =
+                                        remember(books, activeQuickFilter, searchQuery) {
+                                            books
+                                                .filterBy(activeQuickFilter)
+                                                .filterByQuery(searchQuery)
+                                        }
                                     val actionsProvider =
                                         viewModel.createBookActionsProvider(
                                             onBookClick = { bookId ->
@@ -342,6 +351,31 @@ public fun LibraryScreen(
                                         )
 
                                     Column(modifier = Modifier.fillMaxSize()) {
+                                        SearchBar(
+                                            inputField = {
+                                                SearchBarDefaults.InputField(
+                                                    query = searchQuery,
+                                                    onQueryChange = { searchQuery = it },
+                                                    onSearch = { searchBarExpanded = false },
+                                                    expanded = searchBarExpanded,
+                                                    onExpandedChange = { searchBarExpanded = it },
+                                                    placeholder = { Text(text = stringResource(R.string.searchBooks)) },
+                                                    leadingIcon = {
+                                                        Icon(
+                                                            imageVector = Icons.Filled.Search,
+                                                            contentDescription = null,
+                                                        )
+                                                    },
+                                                )
+                                            },
+                                            expanded = searchBarExpanded,
+                                            onExpandedChange = { searchBarExpanded = it },
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 12.dp)
+                                                    .padding(bottom = 8.dp),
+                                        ) {}
                                         LibraryQuickFilterChips(
                                             activeFilter = activeQuickFilter,
                                             onFilterChanged = { activeQuickFilter = it },
@@ -653,6 +687,15 @@ private fun List<Book>.filterBy(filter: LibraryQuickFilter): List<Book> =
         LibraryQuickFilter.DOWNLOADED -> filter { it.isDownloaded }
         LibraryQuickFilter.IN_PROGRESS -> filter { it.progress > 0f && !it.isCompleted }
     }
+
+private fun List<Book>.filterByQuery(query: String): List<Book> {
+    val normalizedQuery = query.trim()
+    if (normalizedQuery.isBlank()) return this
+    return filter { book ->
+        book.title.contains(normalizedQuery, ignoreCase = true) ||
+            book.author.contains(normalizedQuery, ignoreCase = true)
+    }
+}
 
 @Composable
 private fun LibraryQuickFilterChips(
