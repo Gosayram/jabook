@@ -153,6 +153,7 @@ import com.jabook.app.jabook.compose.core.theme.GlassmorphismTokens
 import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.ContrastPolicy
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.core.util.HapticManager
 import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
@@ -1101,6 +1102,15 @@ private fun PlayerContent(
     // Dynamic Theme Background with Glassmorphism Effect
     // Background is now handled by PremiumPlayerBackground wrapping this content
     val themeColors = state.themeColors
+    val contrastBackground = themeColors?.surfaceColor ?: MaterialTheme.colorScheme.surface
+    val adaptiveOnSurface =
+        remember(contrastBackground) {
+            ContrastPolicy.preferredOnColor(contrastBackground)
+        }
+    val adaptiveOnSurfaceVariant =
+        remember(adaptiveOnSurface) {
+            adaptiveOnSurface.copy(alpha = 0.82f)
+        }
 
     // Main Content
     // We use a Box to contain the LazyColumn (and potential overlays like visualizer if moved, but visualizer is inside list)
@@ -1124,7 +1134,7 @@ private fun PlayerContent(
                     Text(
                         text = displayAuthor,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = adaptiveOnSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier =
                             Modifier
@@ -1281,6 +1291,7 @@ private fun PlayerContent(
                         text = state.book.title,
                         style = if (isCompact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
                         textAlign = TextAlign.Center,
+                        color = adaptiveOnSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
