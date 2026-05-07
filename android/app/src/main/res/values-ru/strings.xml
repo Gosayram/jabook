@@ -2095,6 +2095,7 @@
     <string name="timerLabel">Таймер</string>
     <!-- Метка скорости воспроизведения -->
     <string name="speedLabel">Скорость</string>
+    <string name="recentSpeedsTitle">Недавние скорости</string>
     <!-- Метка кнопки перемотки назад -->
     <string name="rewindButton">Назад</string>
     <!-- Метка кнопки перемотки вперёд -->

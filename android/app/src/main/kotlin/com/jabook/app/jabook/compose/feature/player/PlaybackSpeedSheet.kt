@@ -32,7 +32,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +69,10 @@ public fun PlaybackSpeedSheet(
 ) {
     // Local state for slider - allows real-time preview
     var sliderSpeed by remember { mutableFloatStateOf(currentSpeed) }
+    val recentSpeeds =
+        rememberSaveable {
+            mutableStateListOf(currentSpeed)
+        }
 
     // Preset speeds for quick selection
     val presetSpeeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
@@ -107,10 +113,12 @@ public fun PlaybackSpeedSheet(
                 value = sliderSpeed,
                 onValueChange = { newSpeed ->
                     // Round to nearest step for cleaner values
-                    sliderSpeed = roundToStep(newSpeed)
+                    val rounded = roundToStep(newSpeed)
+                    sliderSpeed = rounded
+                    onSpeedSelected(rounded)
                 },
                 onValueChangeFinished = {
-                    onSpeedSelected(sliderSpeed)
+                    addRecentSpeed(recentSpeeds, sliderSpeed)
                 },
                 valueRange = PlaybackSpeedConstants.MIN_SPEED..PlaybackSpeedConstants.MAX_SPEED,
                 steps = PlaybackSpeedConstants.SLIDER_STEPS,
@@ -164,6 +172,35 @@ public fun PlaybackSpeedSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Last used quick speeds (max 3)
+            if (recentSpeeds.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.recentSpeedsTitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    recentSpeeds.take(3).forEach { speed ->
+                        FilterChip(
+                            selected = isSpeedSelected(sliderSpeed, speed),
+                            onClick = {
+                                sliderSpeed = speed
+                                onSpeedSelected(speed)
+                                addRecentSpeed(recentSpeeds, speed)
+                            },
+                            label = { Text(formatSpeedChip(speed)) },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             // Preset speed chips
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
@@ -176,6 +213,7 @@ public fun PlaybackSpeedSheet(
                         onClick = {
                             sliderSpeed = speed
                             onSpeedSelected(speed)
+                            addRecentSpeed(recentSpeeds, speed)
                         },
                         label = {
                             Text(formatSpeedChip(speed))
@@ -224,3 +262,14 @@ private fun formatSpeedChip(speed: Float): String =
     } else {
         String.format("%.2fx", speed)
     }
+
+private fun addRecentSpeed(
+    recentSpeeds: MutableList<Float>,
+    speed: Float,
+) {
+    recentSpeeds.removeAll { kotlin.math.abs(it - speed) < 0.01f }
+    recentSpeeds.add(0, speed)
+    while (recentSpeeds.size > 3) {
+        recentSpeeds.removeAt(recentSpeeds.lastIndex)
+    }
+}

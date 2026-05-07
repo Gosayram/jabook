@@ -369,6 +369,7 @@
     <string name="autoVolumeLevelingDescription">Automatically adjust volume to maintain consistent level</string>
     <!-- Label for playback speed -->
     <string name="playbackSpeed">Playback speed</string>
+    <string name="recentSpeedsTitle">Recent speeds</string>
     <!-- Label for skip duration -->
     <string name="skipDuration">Skip duration</string>
     <!-- Title for downloads settings -->
