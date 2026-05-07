@@ -27,10 +27,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -69,6 +69,7 @@ public fun SleepTimerSheet(
     onStartTimerEndOfTrack: () -> Unit,
     onCancelTimer: () -> Unit,
     onDismiss: () -> Unit,
+    presetDurations: List<Int> = DEFAULT_SLEEP_TIMER_PRESET_DURATIONS,
     modifier: Modifier = Modifier,
     sheetState: SheetState =
         androidx.compose.material3.rememberModalBottomSheetState(),
@@ -199,32 +200,13 @@ public fun SleepTimerSheet(
                     )
 
                     // Timer options
-                    val durations = listOf(5, 10, 15, 30, 45, 60)
-
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        durations.forEach { minutes ->
-                            FilterChip(
-                                selected = false,
-                                onClick = {
-                                    onStartTimer(minutes)
-                                    onDismiss()
-                                },
-                                label = {
-                                    Text(
-                                        pluralStringResource(
-                                            R.plurals.durationMinutesFull,
-                                            minutes,
-                                            minutes,
-                                        ),
-                                    )
-                                },
-                            )
-                        }
-                    }
+                    SleepTimerPresetChips(
+                        durations = presetDurations,
+                        onPresetClick = { minutes ->
+                            onStartTimer(minutes)
+                            onDismiss()
+                        },
+                    )
                 }
 
                 is SleepTimerState.Active -> {
@@ -276,6 +258,35 @@ public fun SleepTimerSheet(
                     )
                 }
             }
+        }
+    }
+}
+
+internal val DEFAULT_SLEEP_TIMER_PRESET_DURATIONS: List<Int> = listOf(5, 10, 15, 30, 45, 60)
+
+@Composable
+internal fun SleepTimerPresetChips(
+    durations: List<Int>,
+    onPresetClick: (Int) -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        durations.forEach { minutes ->
+            AssistChip(
+                onClick = { onPresetClick(minutes) },
+                label = {
+                    Text(
+                        pluralStringResource(
+                            R.plurals.durationMinutesFull,
+                            minutes,
+                            minutes,
+                        ),
+                    )
+                },
+            )
         }
     }
 }

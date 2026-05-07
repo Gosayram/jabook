@@ -53,10 +53,14 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.sin
+
+internal const val SQUIGGLY_SLIDER_TAG: String = "squiggly_slider_track"
+internal const val SQUIGGLY_SLIDER_TOOLTIP_TAG: String = "squiggly_slider_tooltip"
 
 /**
  * A Premium "Squiggly" Slider that shows a sine wave animation when active/playing.
@@ -291,7 +295,10 @@ public fun SquigglySlider(
                     normalizedRange.start
                 },
             onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .testTag(SQUIGGLY_SLIDER_TAG),
             enabled = enabled,
             valueRange = normalizedRange,
             onValueChangeFinished = onValueChangeFinished,
@@ -318,6 +325,10 @@ public fun SquigglySlider(
             val fraction = ((safeValue - normalizedRange.start) / range).coerceIn(0f, 1f)
             val xOffset = (fraction * sliderWidthPx).toInt()
             val xOffsetDp = with(density) { xOffset.toDp() }
+            val sliderWidthDp = with(density) { sliderWidthPx.toDp() }
+            val tooltipWidthDp = 56.dp
+            val rawOffset = xOffsetDp - 28.dp
+            val clampedOffset = rawOffset.coerceIn(0.dp, (sliderWidthDp - tooltipWidthDp).coerceAtLeast(0.dp))
 
             Text(
                 text = valueFormatter.invoke(safeValue),
@@ -326,7 +337,8 @@ public fun SquigglySlider(
                 modifier =
                     Modifier
                         .align(Alignment.TopStart)
-                        .offset(x = xOffsetDp - 28.dp, y = (-30).dp)
+                        .offset(x = clampedOffset, y = (-30).dp)
+                        .testTag(SQUIGGLY_SLIDER_TOOLTIP_TAG)
                         .background(
                             color = MaterialTheme.colorScheme.inverseSurface,
                             shape = RoundedCornerShape(6.dp),

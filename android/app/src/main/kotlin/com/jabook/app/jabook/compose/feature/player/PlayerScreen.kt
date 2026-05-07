@@ -654,7 +654,7 @@ public fun PlayerScreen(
                                             visualizerWaveformData = visualizerWaveformData,
                                             seekbarWaveformData = seekbarWaveformData,
                                             onPlayPause = {
-                                                HapticManager.performLongPress(hapticFeedback)
+                                                HapticManager.performTap(hapticFeedback)
                                                 clickDebouncer.debounce {
                                                     viewModel.dispatch(PlayerIntent.TogglePlayPause)
                                                 }
@@ -709,7 +709,7 @@ public fun PlayerScreen(
                                             },
                                             onAudioSettingsClick = { showAudioSettingsSheet = true },
                                             onSleepTimerClick = {
-                                                HapticManager.performLongPress(hapticFeedback)
+                                                HapticManager.performTap(hapticFeedback)
                                                 showSleepTimerSheet = true
                                             },
                                             onChapterRepeatClick = {
@@ -1279,6 +1279,13 @@ private fun PlayerContent(
 
                     val playbackPositionLabel = stringResource(R.string.playbackPositionLabel)
                     val sliderHaptic = LocalHapticFeedback.current
+                    val sliderValueFormatter =
+                        remember(chapterTimeline.totalDurationMs) {
+                            { progressValue: Float ->
+                                val clamped = progressValue.coerceIn(0f, 1f)
+                                formatDuration((chapterTimeline.totalDurationMs * clamped).toLong())
+                            }
+                        }
 
                     SquigglySlider(
                         value = displayedProgress,
@@ -1343,10 +1350,7 @@ private fun PlayerContent(
                             (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(
                                 alpha = 0.24f,
                             ),
-                        valueFormatter = { progressValue ->
-                            val clamped = progressValue.coerceIn(0f, 1f)
-                            formatDuration((chapterTimeline.totalDurationMs * clamped).toLong())
-                        },
+                        valueFormatter = sliderValueFormatter,
                         modifier =
                             Modifier
                                 .fillMaxWidth()
@@ -2093,19 +2097,44 @@ private fun PlayerContent(
                                 return@FilledTonalButton
                             }
                             val player = MediaPlayer()
-                            player.setDataSource(path)
-                            player.setOnCompletionListener {
-                                bookmarkPlayer.value?.runCatching {
+                            try {
+                                player.setDataSource(path)
+                                player.setOnCompletionListener {
+                                    bookmarkPlayer.value?.runCatching {
+                                        reset()
+                                        release()
+                                    }
+                                    bookmarkPlayer.value = null
+                                    isPlayingBookmarkAudio = false
+                                }
+                                player.setOnPreparedListener {
+                                    it.start()
+                                    bookmarkPlayer.value = player
+                                    isPlayingBookmarkAudio = true
+                                }
+                                player.prepareAsync()
+                            } catch (e: java.io.IOException) {
+                                player.runCatching {
+                                    reset()
+                                    release()
+                                }
+                                bookmarkPlayer.value = null
+                                isPlayingBookmarkAudio = false
+                            } catch (e: IllegalStateException) {
+                                player.runCatching {
+                                    reset()
+                                    release()
+                                }
+                                bookmarkPlayer.value = null
+                                isPlayingBookmarkAudio = false
+                            } catch (e: SecurityException) {
+                                player.runCatching {
                                     reset()
                                     release()
                                 }
                                 bookmarkPlayer.value = null
                                 isPlayingBookmarkAudio = false
                             }
-                            player.prepare()
-                            player.start()
-                            bookmarkPlayer.value = player
-                            isPlayingBookmarkAudio = true
                         },
                     ) {
                         Icon(

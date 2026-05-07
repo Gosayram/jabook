@@ -122,14 +122,14 @@ public fun MiniPlayer(
     val dragProgress = (animatedOffsetY.coerceAtLeast(0f) / dismissThreshold).coerceIn(0f, 1f)
     val alpha by animateFloatAsState(
         targetValue = 1f - (dragProgress * 0.5f),
-        animationSpec = tween(durationMillis = MotionTokens.SHORT2, easing = MotionTokens.Emphasized),
+        animationSpec = spring(dampingRatio = 0.82f, stiffness = 340f),
         label = "miniPlayerAlpha",
     )
 
     // Scale animation during drag
     val scale by animateFloatAsState(
         targetValue = 1f - (dragProgress * 0.05f),
-        animationSpec = tween(durationMillis = MotionTokens.SHORT2, easing = MotionTokens.Emphasized),
+        animationSpec = spring(dampingRatio = 0.82f, stiffness = 340f),
         label = "miniPlayerScale",
     )
 
