@@ -710,22 +710,41 @@ private fun SearchResultCard(
                     Spacer(modifier = Modifier.width(16.dp))
 
                     // Seeders/Leechers
-                    Row {
-                        Text(
-                            "↑ ${result.seeders}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.secondary,
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "↓ ${result.leechers}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.tertiary,
-                        )
-                    }
+                    SeedersIndicator(
+                        seeders = result.seeders,
+                        leechers = result.leechers,
+                    )
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SeedersIndicator(
+    seeders: Int,
+    leechers: Int,
+    modifier: Modifier = Modifier,
+) {
+    val seedersColor =
+        when {
+            seeders >= 20 -> MaterialTheme.colorScheme.tertiary
+            seeders >= 5 -> MaterialTheme.colorScheme.primary
+            seeders >= 1 -> MaterialTheme.colorScheme.secondary
+            else -> MaterialTheme.colorScheme.error
+        }
+    Row(modifier = modifier) {
+        Text(
+            text = "↑ $seeders",
+            style = MaterialTheme.typography.bodySmall,
+            color = seedersColor,
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = "↓ $leechers",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

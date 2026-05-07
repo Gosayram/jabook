@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.PowerManager
@@ -631,6 +632,34 @@ public fun PlayerScreen(
                                                 } else {
                                                     PlayerIntent.SeekForward
                                                 },
+                                            )
+                                            true
+                                        }
+                                        Key.DirectionUp -> {
+                                            val audioManager =
+                                                context.getSystemService(android.content.Context.AUDIO_SERVICE) as? AudioManager
+                                            audioManager?.adjustStreamVolume(
+                                                AudioManager.STREAM_MUSIC,
+                                                AudioManager.ADJUST_RAISE,
+                                                AudioManager.FLAG_SHOW_UI,
+                                            )
+                                            true
+                                        }
+                                        Key.DirectionDown -> {
+                                            val audioManager =
+                                                context.getSystemService(android.content.Context.AUDIO_SERVICE) as? AudioManager
+                                            audioManager?.adjustStreamVolume(
+                                                AudioManager.STREAM_MUSIC,
+                                                AudioManager.ADJUST_LOWER,
+                                                AudioManager.FLAG_SHOW_UI,
+                                            )
+                                            true
+                                        }
+                                        Key.B -> {
+                                            val activeState = uiState as? PlayerState.Active ?: return@onPreviewKeyEvent false
+                                            viewModel.addBookmarkAtPosition(
+                                                chapterIndex = activeState.currentChapterIndex,
+                                                positionMs = activeState.currentPosition,
                                             )
                                             true
                                         }

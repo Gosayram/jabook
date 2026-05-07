@@ -180,6 +180,15 @@ public fun TorrentDownloadItem(
                 }
             }
 
+            if (download.totalSize > 0L) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "${formatBytes(download.downloadedSize)} / ${formatBytes(download.totalSize)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             // Peers/Seeds info
             if (download.state in
                 listOf(
@@ -203,6 +212,9 @@ public fun TorrentDownloadItem(
         }
     }
 }
+
+@Composable
+private fun formatBytes(bytes: Long): String = formatSpeed(bytes.coerceAtLeast(0L))
 
 /**
  * State badge component
