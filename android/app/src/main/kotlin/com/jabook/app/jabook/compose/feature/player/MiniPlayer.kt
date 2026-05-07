@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -55,6 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -228,6 +230,7 @@ public fun MiniPlayer(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 64.dp)
                         .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -247,7 +250,7 @@ public fun MiniPlayer(
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     if (author.isNotBlank()) {
@@ -292,6 +295,23 @@ public fun MiniPlayer(
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
             )
         }
+    }
+}
+
+@Preview(name = "MiniPlayer Large Font", fontScale = 1.5f, showBackground = true)
+@Preview(name = "MiniPlayer Huge Font", fontScale = 2.0f, showBackground = true)
+@Composable
+private fun MiniPlayerFontScalePreview() {
+    MaterialTheme {
+        MiniPlayer(
+            coverUrl = null,
+            title = "Очень длинное название аудиокниги для проверки адаптивности в мини-плеере",
+            author = "Очень длинное имя автора",
+            isPlaying = true,
+            progress = 0.42f,
+            onPlayPauseClick = {},
+            onMiniPlayerClick = {},
+        )
     }
 }
 

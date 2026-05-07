@@ -20,6 +20,8 @@ import android.os.PowerManager
 import android.text.format.DateUtils
 import android.view.WindowManager
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -121,11 +123,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -148,6 +153,7 @@ import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.core.util.HapticManager
+import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
@@ -221,6 +227,7 @@ public fun PlayerScreen(
     val seekbarWaveformData by viewModel.seekbarWaveformData.collectAsStateWithLifecycle()
     val nextBookAutoplayState by viewModel.nextBookAutoplayState.collectAsStateWithLifecycle()
     val hapticFeedback = LocalHapticFeedback.current
+    val reduceMotion = rememberReduceMotion()
 
     val navigationClickGuard = remember { NavigationClickGuard() }
 
@@ -595,39 +602,43 @@ public fun PlayerScreen(
                         AnimatedContent(
                             targetState = uiState,
                             transitionSpec = {
-                                (
-                                    fadeIn(
-                                        animationSpec =
-                                            tween(
-                                                durationMillis = MotionTokens.MEDIUM1,
-                                                easing = MotionTokens.Emphasized,
-                                            ),
-                                    ) +
-                                        scaleIn(
-                                            initialScale = 0.98f,
+                                if (reduceMotion) {
+                                    EnterTransition.None togetherWith ExitTransition.None
+                                } else {
+                                    (
+                                        fadeIn(
                                             animationSpec =
                                                 tween(
                                                     durationMillis = MotionTokens.MEDIUM1,
                                                     easing = MotionTokens.Emphasized,
                                                 ),
-                                        )
-                                ).togetherWith(
-                                    fadeOut(
-                                        animationSpec =
-                                            tween(
-                                                durationMillis = MotionTokens.SHORT2,
-                                                easing = MotionTokens.EmphasizedDecelerate,
-                                            ),
-                                    ) +
-                                        scaleOut(
-                                            targetScale = 1.02f,
+                                        ) +
+                                            scaleIn(
+                                                initialScale = 0.98f,
+                                                animationSpec =
+                                                    tween(
+                                                        durationMillis = MotionTokens.MEDIUM1,
+                                                        easing = MotionTokens.Emphasized,
+                                                    ),
+                                            )
+                                    ).togetherWith(
+                                        fadeOut(
                                             animationSpec =
                                                 tween(
                                                     durationMillis = MotionTokens.SHORT2,
                                                     easing = MotionTokens.EmphasizedDecelerate,
                                                 ),
-                                        ),
-                                )
+                                        ) +
+                                            scaleOut(
+                                                targetScale = 1.02f,
+                                                animationSpec =
+                                                    tween(
+                                                        durationMillis = MotionTokens.SHORT2,
+                                                        easing = MotionTokens.EmphasizedDecelerate,
+                                                    ),
+                                            ),
+                                    )
+                                }
                             },
                             contentKey = { state -> playerStateContentKey(state) },
                             label = "player_state_transition",
@@ -862,7 +873,8 @@ private fun NextBookCountdownCard(
                 Text(
                     text = book.title,
                     style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
 
@@ -1490,6 +1502,40 @@ private fun PlayerContent(
                                     val current = formatDuration(currentGlobalPositionMs)
                                     val total = formatDuration(chapterTimeline.totalDurationMs)
                                     stateDescription = "$current of $total"
+                                    progressBarRangeInfo = ProgressBarRangeInfo(displayedProgress, 0f..1f)
+                                    setProgress { targetProgress ->
+                                        if (chapterTimeline.totalDurationMs <= 0) return@setProgress false
+                                        val target =
+                                            ChapterSeekbarPolicy.resolveSeekTarget(
+                                                chapters = state.chapters,
+                                                progress = targetProgress.coerceIn(0f, 1f),
+                                            )
+                                        if (target.chapterIndex != state.currentChapterIndex) {
+                                            onSelectChapter(target.chapterIndex)
+                                            seekScope.launch {
+                                                delay(80L)
+                                                onSeek(target.chapterPositionMs)
+                                            }
+                                        } else {
+                                            onSeek(target.chapterPositionMs)
+                                        }
+                                        true
+                                    }
+                                    customActions =
+                                        listOf(
+                                            CustomAccessibilityAction(
+                                                label = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
+                                            ) {
+                                                onSeekBackward()
+                                                true
+                                            },
+                                            CustomAccessibilityAction(
+                                                label = stringResource(R.string.seekForwardDescription, state.forwardInterval),
+                                            ) {
+                                                onSeekForward()
+                                                true
+                                            },
+                                        )
                                 },
                     )
 
