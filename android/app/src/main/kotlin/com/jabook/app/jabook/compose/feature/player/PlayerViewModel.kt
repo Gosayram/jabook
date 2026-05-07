@@ -42,6 +42,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -492,10 +493,11 @@ public class PlayerViewModel
 
         private suspend fun startAutoplayCountdown(nextBook: Book) {
             for (seconds in AUTOPLAY_COUNTDOWN_SECONDS downTo 0) {
+                if (!currentCoroutineContext().isActive) return
                 _nextBookAutoplayState.value = NextBookAutoplayState(nextBook = nextBook, secondsLeft = seconds)
                 if (seconds > 0) delay(1_000L)
             }
-            if (!viewModelScope.isActive) return
+            if (!currentCoroutineContext().isActive) return
             _nextBookAutoplayState.value = null
             emitEffect(PlayerEffect.NavigateToBook(nextBook.id))
         }

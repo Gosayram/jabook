@@ -120,6 +120,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -600,7 +606,41 @@ public fun PlayerScreen(
                         modifier =
                             Modifier
                                 .padding(padding)
-                                .windowInsetsPadding(WindowInsets.systemBars),
+                                .windowInsetsPadding(WindowInsets.systemBars)
+                                .onPreviewKeyEvent { keyEvent ->
+                                    if (keyEvent.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                                    when (keyEvent.key) {
+                                        Key.Spacebar -> {
+                                            viewModel.dispatch(PlayerIntent.TogglePlayPause)
+                                            true
+                                        }
+                                        Key.DirectionLeft -> {
+                                            viewModel.dispatch(
+                                                if (keyEvent.isShiftPressed) {
+                                                    PlayerIntent.SkipPrevious
+                                                } else {
+                                                    PlayerIntent.SeekBackward
+                                                },
+                                            )
+                                            true
+                                        }
+                                        Key.DirectionRight -> {
+                                            viewModel.dispatch(
+                                                if (keyEvent.isShiftPressed) {
+                                                    PlayerIntent.SkipNext
+                                                } else {
+                                                    PlayerIntent.SeekForward
+                                                },
+                                            )
+                                            true
+                                        }
+                                        Key.Escape -> {
+                                            onNavigateBack()
+                                            true
+                                        }
+                                        else -> false
+                                    }
+                                },
                     ) {
                         AnimatedContent(
                             targetState = uiState,
@@ -1488,6 +1528,10 @@ private fun PlayerContent(
                                             )
                                         if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                                             onDeleteBookmark(createdBookmark.id)
+                                            pendingBookmarkId = null
+                                            pendingBookmarkNote = ""
+                                            pendingBookmarkAudioPath = null
+                                            showBookmarkNoteSheet = false
                                         }
                                     }
                                     pendingBookmarkId = createdBookmark.id
@@ -2342,6 +2386,15 @@ private fun PlayerContent(
                                     it.start()
                                     bookmarkPlayer.value = player
                                     isPlayingBookmarkAudio = true
+                                }
+                                player.setOnErrorListener { _, _, _ ->
+                                    player.runCatching {
+                                        reset()
+                                        release()
+                                    }
+                                    bookmarkPlayer.value = null
+                                    isPlayingBookmarkAudio = false
+                                    true
                                 }
                                 player.prepareAsync()
                             } catch (e: java.io.IOException) {

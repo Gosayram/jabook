@@ -31,12 +31,15 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
@@ -392,32 +395,48 @@ private fun ChapterSelectorItem(
         }
 
         if (isEditing) {
-            Icon(
-                imageVector = Icons.Filled.DragHandle,
-                contentDescription = stringResource(R.string.dragToReorder),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier =
-                    Modifier
-                        .size(32.dp)
-                        .pointerInput(chapter.id) {
-                            detectVerticalDragGestures(
-                                onDragEnd = { dragAccumulated = 0f },
-                            ) { change, dragAmount ->
-                                change.consume()
-                                dragAccumulated += dragAmount
-                                when {
-                                    dragAccumulated >= 24f -> {
-                                        onMoveDown()
-                                        dragAccumulated = 0f
-                                    }
-                                    dragAccumulated <= -24f -> {
-                                        onMoveUp()
-                                        dragAccumulated = 0f
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onMoveUp) {
+                    Icon(
+                        imageVector = Icons.Filled.ArrowUpward,
+                        contentDescription = stringResource(R.string.moveUp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Filled.DragHandle,
+                    contentDescription = stringResource(R.string.dragToReorder),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier =
+                        Modifier
+                            .size(32.dp)
+                            .pointerInput(chapter.id) {
+                                detectVerticalDragGestures(
+                                    onDragEnd = { dragAccumulated = 0f },
+                                ) { change, dragAmount ->
+                                    change.consume()
+                                    dragAccumulated += dragAmount
+                                    when {
+                                        dragAccumulated >= 24f -> {
+                                            onMoveDown()
+                                            dragAccumulated = 0f
+                                        }
+                                        dragAccumulated <= -24f -> {
+                                            onMoveUp()
+                                            dragAccumulated = 0f
+                                        }
                                     }
                                 }
-                            }
-                        },
-            )
+                            },
+                )
+                IconButton(onClick = onMoveDown) {
+                    Icon(
+                        imageVector = Icons.Filled.ArrowDownward,
+                        contentDescription = stringResource(R.string.moveDown),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         } else if (isCurrent) {
             Icon(
                 imageVector = Icons.Filled.PlayArrow,

@@ -160,6 +160,8 @@ internal class PlayerNotificationSetup(
         manager.setUsePlayPauseActions(true)
         manager.setUseRewindAction(true)
         manager.setUseFastForwardAction(true)
+        manager.setUseRewindActionInCompactView(true)
+        manager.setUseFastForwardActionInCompactView(true)
         manager.setUseNextActionInCompactView(false)
         manager.setUsePreviousActionInCompactView(false)
         manager.setUseStopAction(false)

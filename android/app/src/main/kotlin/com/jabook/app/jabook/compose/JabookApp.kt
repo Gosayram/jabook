@@ -42,6 +42,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -272,6 +274,12 @@ public fun JabookApp(
                                         destination.unselectedIcon
                                     }
                                 if (destination == TopLevelDestination.SETTINGS && activeDownloads.isNotEmpty()) {
+                                    val downloadsStateDescription =
+                                        context.resources.getQuantityString(
+                                            com.jabook.app.jabook.R.plurals.downloads_active_plural,
+                                            activeDownloads.size,
+                                            activeDownloads.size,
+                                        )
                                     BadgedBox(
                                         badge = {
                                             Badge {
@@ -282,6 +290,10 @@ public fun JabookApp(
                                         Icon(
                                             imageVector = icon,
                                             contentDescription = stringResource(destination.iconTextId),
+                                            modifier =
+                                                Modifier.semantics {
+                                                    stateDescription = downloadsStateDescription
+                                                },
                                         )
                                     }
                                 } else {

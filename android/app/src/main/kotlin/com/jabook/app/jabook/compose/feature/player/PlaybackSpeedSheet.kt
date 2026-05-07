@@ -41,6 +41,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -129,6 +130,9 @@ public fun PlaybackSpeedSheet(
                 onSpeedChange = { newSpeed ->
                     sliderSpeed = roundToStep(newSpeed)
                     onSpeedSelected(sliderSpeed)
+                },
+                onSpeedChangeFinished = {
+                    addRecentSpeed(recentSpeeds, sliderSpeed)
                 },
                 hapticFeedback = hapticFeedback,
                 modifier = Modifier.fillMaxWidth(),
@@ -291,7 +295,7 @@ private fun formatSpeedChip(speed: Float): String =
         String.format("%.2fx", speed)
     }
 
-private fun addRecentSpeed(
+internal fun addRecentSpeed(
     recentSpeeds: MutableList<Float>,
     speed: Float,
 ) {
@@ -306,10 +310,14 @@ private fun addRecentSpeed(
 private fun SpeedDial(
     speed: Float,
     onSpeedChange: (Float) -> Unit,
+    onSpeedChangeFinished: () -> Unit,
     hapticFeedback: HapticFeedback,
     modifier: Modifier = Modifier,
 ) {
-    var lastHapticTickStep by remember { mutableIntStateOf((speed / 0.25f).toInt()) }
+    val currentSpeed by rememberUpdatedState(speed)
+    var lastHapticTickStep by remember {
+        mutableIntStateOf((speed / PlaybackSpeedConstants.SPEED_STEP).toInt())
+    }
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
     val progressColor = MaterialTheme.colorScheme.primary
 
@@ -321,12 +329,19 @@ private fun SpeedDial(
             modifier =
                 Modifier
                     .size(140.dp)
-                    .pointerInput(speed) {
-                        detectDragGestures { change, dragAmount ->
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragEnd = { onSpeedChangeFinished() },
+                        ) { change, dragAmount ->
                             change.consume()
-                            val delta = (dragAmount.x / size.width) * 2.5f
-                            val newSpeed = (speed + delta).coerceIn(0.5f, 3.0f)
-                            val newTickStep = (newSpeed / 0.25f).toInt()
+                            val speedSpan = PlaybackSpeedConstants.MAX_SPEED - PlaybackSpeedConstants.MIN_SPEED
+                            val delta = (dragAmount.x / size.width) * speedSpan
+                            val newSpeed =
+                                (currentSpeed + delta).coerceIn(
+                                    PlaybackSpeedConstants.MIN_SPEED,
+                                    PlaybackSpeedConstants.MAX_SPEED,
+                                )
+                            val newTickStep = (newSpeed / PlaybackSpeedConstants.SPEED_STEP).toInt()
                             if (newTickStep != lastHapticTickStep) {
                                 lastHapticTickStep = newTickStep
                                 HapticManager.performTap(hapticFeedback)
@@ -339,7 +354,10 @@ private fun SpeedDial(
             val inset = 16.dp.toPx()
             val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
             val arcTopLeft = Offset(inset, inset)
-            val sweep = ((speed - 0.5f) / 2.5f).coerceIn(0f, 1f) * 270f
+            val speedSpan = PlaybackSpeedConstants.MAX_SPEED - PlaybackSpeedConstants.MIN_SPEED
+            val sweep =
+                ((speed - PlaybackSpeedConstants.MIN_SPEED) / speedSpan)
+                    .coerceIn(0f, 1f) * 270f
 
             drawArc(
                 color = trackColor,
