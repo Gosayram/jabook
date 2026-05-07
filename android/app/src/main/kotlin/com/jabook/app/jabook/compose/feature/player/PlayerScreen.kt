@@ -1554,7 +1554,7 @@ private fun PlayerContent(
                     val sliderHaptic = LocalHapticFeedback.current
                     val sliderValueFormatter =
                         remember(chapterTimeline.totalDurationMs) {
-                            { progressValue: Float ->
+                            ValueFormatter { progressValue: Float ->
                                 val clamped = progressValue.coerceIn(0f, 1f)
                                 formatDuration((chapterTimeline.totalDurationMs * clamped).toLong())
                             }

@@ -32,7 +32,7 @@ import com.jabook.app.jabook.compose.domain.model.Result
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -53,7 +53,7 @@ class LibraryScanWorkerTest {
 
     @Test
     fun `doWork returns failure when scanner is cancelled`() =
-        runTest {
+        runBlocking {
             val worker =
                 buildWorker(
                     scanner =

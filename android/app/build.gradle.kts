@@ -362,6 +362,13 @@ android {
             isUniversalApk = true // Also build a universal APK
         }
     }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 java {

@@ -39,6 +39,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,16 +52,25 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import kotlin.math.sin
 
 internal const val SQUIGGLY_SLIDER_TAG: String = "squiggly_slider_track"
 internal const val SQUIGGLY_SLIDER_TOOLTIP_TAG: String = "squiggly_slider_tooltip"
+
+@Stable
+public fun interface ValueFormatter {
+    public fun format(value: Float): String
+}
 
 /**
  * A Premium "Squiggly" Slider that shows a sine wave animation when active/playing.
@@ -77,6 +87,7 @@ internal const val SQUIGGLY_SLIDER_TOOLTIP_TAG: String = "squiggly_slider_toolti
  * @param trackHeight Height of the track area
  * @param thumbRadius Radius of the thumb
  * @param waveformData Cached waveform window for seekbar visualization (0..1 amplitudes)
+ * @param valueFormatter Optional stable formatter for the tooltip label. Prefer `remember { ValueFormatter { ... } }` to avoid unnecessary recompositions.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,7 +109,7 @@ public fun SquigglySlider(
     activeTrackColor: Color = MaterialTheme.colorScheme.primary,
     inactiveTrackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     chapterMarkerColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-    valueFormatter: ((Float) -> String)? = null,
+    valueFormatter: ValueFormatter? = null,
 ) {
     val normalizedRange =
         remember(valueRange) {
@@ -113,6 +124,8 @@ public fun SquigglySlider(
     val isDragged by interactionSource.collectIsDraggedAsState()
     val isInteracting = isPressed || isDragged
     var sliderWidthPx by remember { mutableStateOf(0) }
+    var sliderWindowOffset by remember { mutableStateOf(IntOffset.Zero) }
+    var tooltipWidthDp by remember { mutableStateOf(56.dp) }
     val density = LocalDensity.current
 
     // Animation for the wave phase (movement)
@@ -151,6 +164,10 @@ public fun SquigglySlider(
             modifier
                 .height(thumbRadius * 2)
                 .onSizeChanged { sliderWidthPx = it.width }
+                .onGloballyPositioned { coordinates ->
+                    val topLeft = coordinates.localToWindow(Offset.Zero)
+                    sliderWindowOffset = IntOffset(topLeft.x.toInt(), topLeft.y.toInt())
+                }
                 .pointerInput(onLongPress, enabled, normalizedRange) {
                     if (onLongPress == null || !enabled) return@pointerInput
                     detectTapGestures(
@@ -323,31 +340,41 @@ public fun SquigglySlider(
                 }
             val range = (normalizedRange.endInclusive - normalizedRange.start).takeIf { it > 0f && it.isFinite() } ?: 1f
             val fraction = ((safeValue - normalizedRange.start) / range).coerceIn(0f, 1f)
-            val xOffset = (fraction * sliderWidthPx).toInt()
+            val thumbRadiusPx = with(density) { thumbRadius.toPx() }
+            val xOffset = (thumbRadiusPx + fraction * (sliderWidthPx - 2 * thumbRadiusPx)).toInt()
             val xOffsetDp = with(density) { xOffset.toDp() }
             val sliderWidthDp = with(density) { sliderWidthPx.toDp() }
-            val tooltipWidthDp = 56.dp
             val clampedOffset =
                 clampSliderTooltipOffset(
                     xOffsetDp = xOffsetDp,
                     sliderWidthDp = sliderWidthDp,
                     tooltipWidthDp = tooltipWidthDp,
                 )
+            val popupOffset =
+                IntOffset(
+                    x = sliderWindowOffset.x + with(density) { clampedOffset.roundToPx() },
+                    y = sliderWindowOffset.y + with(density) { (-30).dp.roundToPx() },
+                )
 
-            Text(
-                text = valueFormatter.invoke(safeValue),
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                color = MaterialTheme.colorScheme.inverseOnSurface,
-                modifier =
-                    Modifier
-                        .align(Alignment.TopStart)
-                        .offset(x = clampedOffset, y = (-30).dp)
-                        .testTag(SQUIGGLY_SLIDER_TOOLTIP_TAG)
-                        .background(
-                            color = MaterialTheme.colorScheme.inverseSurface,
-                            shape = RoundedCornerShape(6.dp),
-                        ).padding(horizontal = 8.dp, vertical = 4.dp),
-            )
+            Popup(
+                alignment = Alignment.TopStart,
+                offset = popupOffset,
+                properties = PopupProperties(focusable = false, clippingEnabled = false),
+            ) {
+                Text(
+                    text = valueFormatter.format(safeValue),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = MaterialTheme.colorScheme.inverseOnSurface,
+                    modifier =
+                        Modifier
+                            .testTag(SQUIGGLY_SLIDER_TOOLTIP_TAG)
+                            .background(
+                                color = MaterialTheme.colorScheme.inverseSurface,
+                                shape = RoundedCornerShape(6.dp),
+                            ).padding(horizontal = 8.dp, vertical = 4.dp)
+                            .onSizeChanged { tooltipWidthDp = with(density) { it.width.toDp() } },
+                )
+            }
         }
     }
 }
@@ -385,7 +412,7 @@ internal fun clampSliderTooltipOffset(
     sliderWidthDp: Dp,
     tooltipWidthDp: Dp = 56.dp,
 ): Dp {
-    val rawOffset = xOffsetDp - 28.dp
+    val rawOffset = xOffsetDp - tooltipWidthDp / 2
     val maxOffset = (sliderWidthDp - tooltipWidthDp).coerceAtLeast(0.dp)
     return rawOffset.coerceIn(0.dp, maxOffset)
 }

@@ -61,6 +61,7 @@ class PermissionManagerTest {
     }
 
     @Test
+    @Config(sdk = [Build.VERSION_CODES.R])
     fun `getAppSettingsIntent always opens application details settings`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val manager = PermissionManager(context)

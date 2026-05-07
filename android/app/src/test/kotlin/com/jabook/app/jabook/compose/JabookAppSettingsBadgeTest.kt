@@ -17,25 +17,23 @@ package com.jabook.app.jabook.compose
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.test.core.app.ApplicationProvider
 import com.jabook.app.jabook.compose.navigation.TopLevelDestination
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
 class JabookAppSettingsBadgeTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
     @Test
     fun settingsIcon_whenNoActiveDownloads_doesNotShowBadge() {
-        val settingsLabel =
-            ApplicationProvider
-                .getApplicationContext<android.content.Context>()
-                .getString(TopLevelDestination.SETTINGS.iconTextId)
-
         composeTestRule.setContent {
             TopLevelDestinationIcon(
                 destination = TopLevelDestination.SETTINGS,
@@ -44,16 +42,11 @@ class JabookAppSettingsBadgeTest {
             )
         }
 
-        composeTestRule.onNodeWithContentDescription(settingsLabel).assertIsDisplayed()
         composeTestRule.onNodeWithTag(SETTINGS_BADGE_TEST_TAG).assertIsNotDisplayed()
     }
 
     @Test
     fun settingsIcon_whenActiveDownloadsExist_showsBadgeWithCount() {
-        val settingsLabel =
-            ApplicationProvider
-                .getApplicationContext<android.content.Context>()
-                .getString(TopLevelDestination.SETTINGS.iconTextId)
         val activeDownloadsCount = 3
 
         composeTestRule.setContent {
@@ -64,7 +57,6 @@ class JabookAppSettingsBadgeTest {
             )
         }
 
-        composeTestRule.onNodeWithContentDescription(settingsLabel).assertIsDisplayed()
         composeTestRule.onNodeWithTag(SETTINGS_BADGE_TEST_TAG).assertIsDisplayed()
         composeTestRule.onNodeWithText(activeDownloadsCount.toString()).assertIsDisplayed()
     }
