@@ -2798,7 +2798,6 @@
     <string name="smartEffectsTitle">Smart Effects</string>
     <string name="notificationPermissionPlaybackHint">Notifications help control playback from the notification bar</string>
     <string name="audioVisualizerPermissionHint">Audio visualizer needs microphone permission</string>
-    <string name="loadingPlayer">Loading player...</string>
 
     <plurals name="indexTopicsCount">
         <item quantity="one">%d topic</item>

@@ -2841,7 +2841,6 @@
     <string name="smartEffectsTitle">Умные эффекты</string>
     <string name="notificationPermissionPlaybackHint">Уведомления помогают управлять воспроизведением из панели уведомлений</string>
     <string name="audioVisualizerPermissionHint">Аудиовизуализатору нужно разрешение на микрофон</string>
-    <string name="loadingPlayer">Загрузка плеера...</string>
 
     <plurals name="indexTopicsCount">
         <item quantity="one">%d тема</item>

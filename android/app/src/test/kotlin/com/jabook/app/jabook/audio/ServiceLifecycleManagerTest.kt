@@ -23,7 +23,10 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.mockito.kotlin.doThrow
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
@@ -57,6 +60,30 @@ class ServiceLifecycleManagerTest {
     fun `onTaskRemoved stops service when player is not actively playing`() {
         whenever(player.playWhenReady).thenReturn(false)
         whenever(player.playbackState).thenReturn(Player.STATE_READY)
+
+        manager.onTaskRemoved()
+
+        verify(service, times(1)).saveCurrentPosition()
+        verify(service, times(1)).finishListeningSessionIfActive("task_removed")
+        verify(service, times(1)).stopSelf()
+    }
+
+    @Test
+    fun `onTaskRemoved still stops service when player state lookup fails`() {
+        doThrow(IllegalStateException("player unavailable")).whenever(service).getActivePlayer()
+
+        manager.onTaskRemoved()
+
+        verify(service, times(1)).saveCurrentPosition()
+        verify(service, times(1)).stopSelf()
+        verify(service, never()).finishListeningSessionIfActive("task_removed")
+    }
+
+    @Test
+    fun `onTaskRemoved continues when saveCurrentPosition fails`() {
+        doThrow(RuntimeException("save failed")).whenever(service).saveCurrentPosition()
+        whenever(player.playWhenReady).thenReturn(false)
+        whenever(player.playbackState).thenReturn(Player.STATE_IDLE)
 
         manager.onTaskRemoved()
 

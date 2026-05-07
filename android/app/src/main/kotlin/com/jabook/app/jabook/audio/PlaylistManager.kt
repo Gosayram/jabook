@@ -1329,16 +1329,14 @@ internal class PlaylistManager(
      * Helper method to avoid code duplication.
      */
     private fun createUriForPath(path: String): Uri {
-        val uri = buildPlaybackUri(path)
-        if (
-            PlaylistUriValidationPolicy.shouldWarnMissingLocalPath(
-                scheme = uri.scheme,
-                localPath = uri.path,
-            ) { localPath -> File(localPath).exists() }
-        ) {
+        val resolved =
+            PlaylistUriResolutionPolicy.resolve(path = path) { localPath ->
+                File(localPath).exists()
+            }
+        if (resolved.shouldWarnMissingLocalPath) {
             LogUtils.w("AudioPlayerService", "File does not exist: $path")
         }
-        return uri
+        return resolved.uri
     }
 
     /**
