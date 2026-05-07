@@ -327,8 +327,12 @@ public fun SquigglySlider(
             val xOffsetDp = with(density) { xOffset.toDp() }
             val sliderWidthDp = with(density) { sliderWidthPx.toDp() }
             val tooltipWidthDp = 56.dp
-            val rawOffset = xOffsetDp - 28.dp
-            val clampedOffset = rawOffset.coerceIn(0.dp, (sliderWidthDp - tooltipWidthDp).coerceAtLeast(0.dp))
+            val clampedOffset =
+                clampSliderTooltipOffset(
+                    xOffsetDp = xOffsetDp,
+                    sliderWidthDp = sliderWidthDp,
+                    tooltipWidthDp = tooltipWidthDp,
+                )
 
             Text(
                 text = valueFormatter.invoke(safeValue),
@@ -374,4 +378,14 @@ internal fun normalizeValueRange(valueRange: ClosedFloatingPointRange<Float>): C
     } else {
         0f..1f
     }
+}
+
+internal fun clampSliderTooltipOffset(
+    xOffsetDp: Dp,
+    sliderWidthDp: Dp,
+    tooltipWidthDp: Dp = 56.dp,
+): Dp {
+    val rawOffset = xOffsetDp - 28.dp
+    val maxOffset = (sliderWidthDp - tooltipWidthDp).coerceAtLeast(0.dp)
+    return rawOffset.coerceIn(0.dp, maxOffset)
 }

@@ -202,10 +202,7 @@ public fun SleepTimerSheet(
                     // Timer options
                     SleepTimerPresetChips(
                         durations = presetDurations,
-                        onPresetClick = { minutes ->
-                            onStartTimer(minutes)
-                            onDismiss()
-                        },
+                        onPresetClick = { minutes -> handleSleepTimerPresetSelection(minutes, onStartTimer, onDismiss) },
                     )
                 }
 
@@ -263,6 +260,15 @@ public fun SleepTimerSheet(
 }
 
 internal val DEFAULT_SLEEP_TIMER_PRESET_DURATIONS: List<Int> = listOf(5, 10, 15, 30, 45, 60)
+
+internal fun handleSleepTimerPresetSelection(
+    minutes: Int,
+    onStartTimer: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    onStartTimer(minutes)
+    onDismiss()
+}
 
 @Composable
 internal fun SleepTimerPresetChips(
