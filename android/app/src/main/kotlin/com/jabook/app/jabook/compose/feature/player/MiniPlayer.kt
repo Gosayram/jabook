@@ -34,12 +34,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -63,6 +62,7 @@ import coil3.request.transformations
 import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.theme.MotionTokens
+import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import kotlin.math.abs
 
 /**
@@ -135,7 +135,7 @@ public fun MiniPlayer(
 
     val interactionSource = remember { MutableInteractionSource() }
 
-    Card(
+    Surface(
         modifier =
             modifier
                 .fillMaxWidth()
@@ -208,7 +208,7 @@ public fun MiniPlayer(
                     }
                 },
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        tonalElevation = SurfaceElevationTokens.Level3,
     ) {
         Column {
             // Cover image with rounded corners
