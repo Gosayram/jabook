@@ -19,14 +19,12 @@ import androidx.media3.exoplayer.ExoPlayer
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
-import org.mockito.kotlin.times
-import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import org.mockito.kotlin.doThrow
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
@@ -60,6 +58,18 @@ class ServiceLifecycleManagerTest {
     fun `onTaskRemoved stops service when player is not actively playing`() {
         whenever(player.playWhenReady).thenReturn(false)
         whenever(player.playbackState).thenReturn(Player.STATE_READY)
+
+        manager.onTaskRemoved()
+
+        verify(service, times(1)).saveCurrentPosition()
+        verify(service, times(1)).finishListeningSessionIfActive("task_removed")
+        verify(service, times(1)).stopSelf()
+    }
+
+    @Test
+    fun `onTaskRemoved stops service when playback already ended`() {
+        whenever(player.playWhenReady).thenReturn(true)
+        whenever(player.playbackState).thenReturn(Player.STATE_ENDED)
 
         manager.onTaskRemoved()
 

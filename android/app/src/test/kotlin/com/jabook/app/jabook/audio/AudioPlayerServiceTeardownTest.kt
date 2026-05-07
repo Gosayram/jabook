@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import android.content.Intent
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
@@ -26,5 +27,12 @@ class AudioPlayerServiceTeardownTest {
         val service = Robolectric.buildService(AudioPlayerService::class.java).get()
 
         service.onDestroy()
+    }
+
+    @Test
+    fun `onTaskRemoved does not crash when lifecycle manager is not initialized`() {
+        val service = Robolectric.buildService(AudioPlayerService::class.java).get()
+
+        service.onTaskRemoved(Intent("test"))
     }
 }

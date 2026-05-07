@@ -93,4 +93,17 @@ class PlaylistMetadataFieldPolicyTest {
         assertThat(fields.artist).isNull()
         assertThat(fields.album).isNull()
     }
+
+    @Test
+    fun `resolve returns nulls when both primary and fallback keys are missing`() {
+        val fields =
+            PlaylistMetadataFieldPolicy.resolve(
+                mapOf(
+                    "genre" to "fantasy",
+                    "narrator" to "John",
+                ),
+            )
+
+        assertThat(fields).isEqualTo(PlaylistResolvedMetadataFields(title = null, artist = null, album = null))
+    }
 }
