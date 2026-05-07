@@ -62,6 +62,7 @@ import coil3.request.ImageRequest
 import coil3.request.transformations
 import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import kotlin.math.abs
 
 /**
@@ -121,14 +122,14 @@ public fun MiniPlayer(
     val dragProgress = (animatedOffsetY.coerceAtLeast(0f) / dismissThreshold).coerceIn(0f, 1f)
     val alpha by animateFloatAsState(
         targetValue = 1f - (dragProgress * 0.5f),
-        animationSpec = tween(100),
+        animationSpec = tween(durationMillis = MotionTokens.SHORT2, easing = MotionTokens.Emphasized),
         label = "miniPlayerAlpha",
     )
 
     // Scale animation during drag
     val scale by animateFloatAsState(
         targetValue = 1f - (dragProgress * 0.05f),
-        animationSpec = tween(100),
+        animationSpec = tween(durationMillis = MotionTokens.SHORT2, easing = MotionTokens.Emphasized),
         label = "miniPlayerScale",
     )
 
@@ -322,7 +323,11 @@ public fun AnimatedMiniPlayer(
         exit =
             slideOutVertically(
                 targetOffsetY = { it },
-                animationSpec = tween(200),
+                animationSpec =
+                    tween(
+                        durationMillis = MotionTokens.MEDIUM1,
+                        easing = MotionTokens.EmphasizedDecelerate,
+                    ),
             ),
         modifier = modifier,
     ) {

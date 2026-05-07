@@ -28,6 +28,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
+import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.feature.favorites.FavoritesScreen
 import com.jabook.app.jabook.compose.feature.library.LibraryScreen
 import com.jabook.app.jabook.compose.feature.player.PlayerScreen
@@ -77,12 +78,18 @@ public fun JabookNavHost(
                 androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Left,
                 animationSpec =
                     androidx.compose.animation.core
-                        .tween(300),
+                        .tween(
+                            durationMillis = MotionTokens.MEDIUM2,
+                            easing = MotionTokens.Emphasized,
+                        ),
             ) +
                 androidx.compose.animation.fadeIn(
                     animationSpec =
                         androidx.compose.animation.core
-                            .tween(300),
+                            .tween(
+                                durationMillis = MotionTokens.MEDIUM2,
+                                easing = MotionTokens.Emphasized,
+                            ),
                 )
         },
         exitTransition = {
@@ -90,12 +97,18 @@ public fun JabookNavHost(
                 androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Left,
                 animationSpec =
                     androidx.compose.animation.core
-                        .tween(300),
+                        .tween(
+                            durationMillis = MotionTokens.MEDIUM2,
+                            easing = MotionTokens.Emphasized,
+                        ),
             ) +
                 androidx.compose.animation.fadeOut(
                     animationSpec =
                         androidx.compose.animation.core
-                            .tween(300),
+                            .tween(
+                                durationMillis = MotionTokens.MEDIUM2,
+                                easing = MotionTokens.Emphasized,
+                            ),
                 )
         },
         popEnterTransition = {
@@ -103,12 +116,18 @@ public fun JabookNavHost(
                 androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Right,
                 animationSpec =
                     androidx.compose.animation.core
-                        .tween(300),
+                        .tween(
+                            durationMillis = MotionTokens.MEDIUM2,
+                            easing = MotionTokens.Emphasized,
+                        ),
             ) +
                 androidx.compose.animation.fadeIn(
                     animationSpec =
                         androidx.compose.animation.core
-                            .tween(300),
+                            .tween(
+                                durationMillis = MotionTokens.MEDIUM2,
+                                easing = MotionTokens.Emphasized,
+                            ),
                 )
         },
         popExitTransition = {
@@ -116,12 +135,18 @@ public fun JabookNavHost(
                 androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Right,
                 animationSpec =
                     androidx.compose.animation.core
-                        .tween(300),
+                        .tween(
+                            durationMillis = MotionTokens.MEDIUM2,
+                            easing = MotionTokens.Emphasized,
+                        ),
             ) +
                 androidx.compose.animation.fadeOut(
                     animationSpec =
                         androidx.compose.animation.core
-                            .tween(300),
+                            .tween(
+                                durationMillis = MotionTokens.MEDIUM2,
+                                easing = MotionTokens.Emphasized,
+                            ),
                 )
         },
     ) {

@@ -137,6 +137,7 @@ import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
@@ -552,10 +553,39 @@ public fun PlayerScreen(
                         AnimatedContent(
                             targetState = uiState,
                             transitionSpec = {
-                                (fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.98f, animationSpec = tween(220)))
-                                    .togetherWith(
-                                        fadeOut(animationSpec = tween(180)) + scaleOut(targetScale = 1.02f, animationSpec = tween(180)),
-                                    )
+                                (
+                                    fadeIn(
+                                        animationSpec =
+                                            tween(
+                                                durationMillis = MotionTokens.MEDIUM1,
+                                                easing = MotionTokens.Emphasized,
+                                            ),
+                                    ) +
+                                        scaleIn(
+                                            initialScale = 0.98f,
+                                            animationSpec =
+                                                tween(
+                                                    durationMillis = MotionTokens.MEDIUM1,
+                                                    easing = MotionTokens.Emphasized,
+                                                ),
+                                        )
+                                ).togetherWith(
+                                    fadeOut(
+                                        animationSpec =
+                                            tween(
+                                                durationMillis = MotionTokens.SHORT2,
+                                                easing = MotionTokens.EmphasizedDecelerate,
+                                            ),
+                                    ) +
+                                        scaleOut(
+                                            targetScale = 1.02f,
+                                            animationSpec =
+                                                tween(
+                                                    durationMillis = MotionTokens.SHORT2,
+                                                    easing = MotionTokens.EmphasizedDecelerate,
+                                                ),
+                                        ),
+                                )
                             },
                             contentKey = { state -> playerStateContentKey(state) },
                             label = "player_state_transition",
