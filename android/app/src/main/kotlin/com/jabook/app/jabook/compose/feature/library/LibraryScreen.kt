@@ -16,11 +16,19 @@ package com.jabook.app.jabook.compose.feature.library
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
@@ -34,8 +42,10 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -63,7 +73,9 @@ import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
+import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.LibraryLoadingSkeleton
+import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
 import kotlinx.coroutines.launch
@@ -102,6 +114,8 @@ public fun LibraryScreen(
     val safeNavigateToFavorites = dropUnlessResumed { navigationClickGuard.run(onNavigateToFavorites) }
     val safeNavigateToSearch = dropUnlessResumed { navigationClickGuard.run(onNavigateToSearch) }
     val safeNavigateToDownloads = dropUnlessResumed { navigationClickGuard.run(onNavigateToDownloads) }
+    var activeQuickFilter by remember { mutableStateOf(LibraryQuickFilter.ALL) }
+    var showSortBottomSheet by remember { mutableStateOf(false) }
 
     val storagePermissionText = stringResource(R.string.storagePermissionRequired)
     val foundBooksMessageTemplate = stringResource(R.string.foundBooksMessage)
@@ -238,11 +252,12 @@ public fun LibraryScreen(
                                         scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
                                     ),
                                 actions = {
-                                    // Sort menu
-                                    SortOrderMenu(
-                                        currentSortOrder = sortOrder,
-                                        onSortOrderChanged = { order -> viewModel.onSortOrderChanged(order) },
-                                    )
+                                    IconButton(onClick = { showSortBottomSheet = true }) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.Sort,
+                                            contentDescription = stringResource(R.string.sort_by),
+                                        )
+                                    }
 
                                     // View mode toggle
                                     ViewModeToggle(
@@ -311,6 +326,7 @@ public fun LibraryScreen(
 
                                 is LibraryUiState.Success -> {
                                     val books = (uiState as LibraryUiState.Success).books
+                                    val filteredBooks = remember(books, activeQuickFilter) { books.filterBy(activeQuickFilter) }
                                     val actionsProvider =
                                         viewModel.createBookActionsProvider(
                                             onBookClick = { bookId ->
@@ -325,13 +341,23 @@ public fun LibraryScreen(
                                             },
                                         )
 
-                                    // Use unified view for all display modes
-                                    UnifiedBooksView(
-                                        books = books,
-                                        displayMode = viewMode.toBookDisplayMode(),
-                                        actionsProvider = actionsProvider,
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
+                                    Column(modifier = Modifier.fillMaxSize()) {
+                                        LibraryQuickFilterChips(
+                                            activeFilter = activeQuickFilter,
+                                            onFilterChanged = { activeQuickFilter = it },
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 12.dp)
+                                                    .padding(top = 4.dp, bottom = 8.dp),
+                                        )
+                                        UnifiedBooksView(
+                                            books = filteredBooks,
+                                            displayMode = viewMode.toBookDisplayMode(),
+                                            actionsProvider = actionsProvider,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    }
                                 }
 
                                 is LibraryUiState.Empty -> {
@@ -425,6 +451,17 @@ public fun LibraryScreen(
             },
         )
     }
+
+    if (showSortBottomSheet) {
+        SortOrderBottomSheet(
+            currentSortOrder = sortOrder,
+            onSortOrderChanged = { order ->
+                viewModel.onSortOrderChanged(order)
+                showSortBottomSheet = false
+            },
+            onDismiss = { showSortBottomSheet = false },
+        )
+    }
 }
 
 /**
@@ -465,7 +502,7 @@ private fun LibraryContent(
                     message = stringResource(R.string.noBooksInLibrary),
                     subtitle = stringResource(R.string.noFoldersConfiguredPleaseAddInSettings),
                     ctaText = stringResource(R.string.retry),
-                    onCta = { viewModel.startLibraryScan() },
+                    onCta = {},
                 )
             }
 
@@ -551,80 +588,103 @@ private fun ViewModeToggle(
 private fun LibraryViewMode.isGrid(): Boolean = this == LibraryViewMode.GRID_COMPACT || this == LibraryViewMode.GRID_COMFORTABLE
 
 /**
- * Sort order menu.
+ * Sort order bottom sheet.
  */
 @Composable
-private fun SortOrderMenu(
+private fun SortOrderBottomSheet(
     currentSortOrder: com.jabook.app.jabook.compose.data.model.BookSortOrder,
     onSortOrderChanged: (com.jabook.app.jabook.compose.data.model.BookSortOrder) -> Unit,
-    modifier: Modifier = Modifier,
+    onDismiss: () -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Box(modifier = modifier) {
-        IconButton(onClick = { expanded = true }) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Sort,
-                contentDescription = stringResource(R.string.sort_by),
+    JabookModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(
+            text = stringResource(R.string.sort_by),
+            style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        com.jabook.app.jabook.compose.data.model.BookSortOrder.entries.forEach { order ->
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text =
+                            when (order) {
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY ->
+                                    stringResource(R.string.sort_by_activity)
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_ASC ->
+                                    stringResource(R.string.sort_title_asc)
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_DESC ->
+                                    stringResource(R.string.sort_title_desc)
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_ASC ->
+                                    stringResource(R.string.sort_author_asc)
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_DESC ->
+                                    stringResource(R.string.sort_author_desc)
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.RECENTLY_ADDED ->
+                                    stringResource(R.string.sort_recently_added)
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.OLDEST_FIRST ->
+                                    stringResource(R.string.sort_oldest_first)
+                            },
+                    )
+                },
+                leadingContent = {
+                    if (order == currentSortOrder) {
+                        Icon(imageVector = Icons.Default.Check, contentDescription = null)
+                    } else {
+                        Spacer(modifier = Modifier.size(24.dp))
+                    }
+                },
+                modifier = Modifier.combinedClickable(onClick = { onSortOrderChanged(order) }),
             )
         }
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
 
-        androidx.compose.material3.DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            com.jabook.app.jabook.compose.data.model.BookSortOrder.entries.forEach { order ->
-                androidx.compose.material3.DropdownMenuItem(
-                    text = {
-                        Text(
-                            text =
-                                when (order) {
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY ->
-                                        stringResource(
-                                            R.string.sort_by_activity,
-                                        )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_ASC ->
-                                        stringResource(
-                                            R.string.sort_title_asc,
-                                        )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_DESC ->
-                                        stringResource(
-                                            R.string.sort_title_desc,
-                                        )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_ASC ->
-                                        stringResource(
-                                            R.string.sort_author_asc,
-                                        )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_DESC ->
-                                        stringResource(
-                                            R.string.sort_author_desc,
-                                        )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.RECENTLY_ADDED ->
-                                        stringResource(
-                                            R.string.sort_recently_added,
-                                        )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.OLDEST_FIRST ->
-                                        stringResource(
-                                            R.string.sort_oldest_first,
-                                        )
-                                },
-                        )
-                    },
-                    onClick = {
-                        onSortOrderChanged(order)
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        if (order == currentSortOrder) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                )
-            }
-        }
+private enum class LibraryQuickFilter {
+    ALL,
+    FAVORITES,
+    DOWNLOADED,
+    IN_PROGRESS,
+}
+
+private fun List<Book>.filterBy(filter: LibraryQuickFilter): List<Book> =
+    when (filter) {
+        LibraryQuickFilter.ALL -> this
+        LibraryQuickFilter.FAVORITES -> filter { it.isFavorite }
+        LibraryQuickFilter.DOWNLOADED -> filter { it.isDownloaded }
+        LibraryQuickFilter.IN_PROGRESS -> filter { it.progress > 0f && !it.isCompleted }
+    }
+
+@Composable
+private fun LibraryQuickFilterChips(
+    activeFilter: LibraryQuickFilter,
+    onFilterChanged: (LibraryQuickFilter) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FilterChip(
+            selected = activeFilter == LibraryQuickFilter.ALL,
+            onClick = { onFilterChanged(LibraryQuickFilter.ALL) },
+            label = { Text(stringResource(R.string.allFilter)) },
+        )
+        FilterChip(
+            selected = activeFilter == LibraryQuickFilter.FAVORITES,
+            onClick = { onFilterChanged(LibraryQuickFilter.FAVORITES) },
+            label = { Text(stringResource(R.string.favoritesTooltip)) },
+        )
+        FilterChip(
+            selected = activeFilter == LibraryQuickFilter.DOWNLOADED,
+            onClick = { onFilterChanged(LibraryQuickFilter.DOWNLOADED) },
+            label = { Text(stringResource(R.string.downloadedLabel)) },
+        )
+        FilterChip(
+            selected = activeFilter == LibraryQuickFilter.IN_PROGRESS,
+            onClick = { onFilterChanged(LibraryQuickFilter.IN_PROGRESS) },
+            label = { Text(stringResource(R.string.inProgress)) },
+        )
     }
 }
 

@@ -66,6 +66,8 @@
     <string name="leechers">Leechers</string>
     <string name="registeredLabel">Registered</string>
     <string name="downloadedLabel">Downloaded</string>
+    <string name="streamingLabel">Streaming</string>
+    <string name="downloadFailedLabel">Failed</string>
     <string name="downloadedTimes"> %1$s times</string>
     <string name="pageOfPages">Page %1$d of %2$d</string>
     <string name="loadMoreComments">Load More (%1$d pages remaining)</string>

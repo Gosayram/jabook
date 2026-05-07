@@ -158,6 +158,10 @@ internal class PlayerNotificationSetup(
         manager.setUseNextAction(true)
         manager.setUsePreviousAction(true)
         manager.setUsePlayPauseActions(true)
+        manager.setUseRewindAction(true)
+        manager.setUseFastForwardAction(true)
+        manager.setUseNextActionInCompactView(false)
+        manager.setUsePreviousActionInCompactView(false)
         manager.setUseStopAction(false)
 
         // Force immediate invalidate to ensure startForeground() is called within 5 seconds

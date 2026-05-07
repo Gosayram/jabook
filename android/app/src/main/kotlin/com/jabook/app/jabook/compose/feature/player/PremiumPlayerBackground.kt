@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.blur
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -25,7 +24,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
 import com.jabook.app.jabook.compose.feature.player.components.HypnoticBackground
@@ -76,8 +74,11 @@ public fun PremiumPlayerBackground(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .blur(56.dp)
-                        .graphicsLayer(alpha = 0.28f),
+                        .graphicsLayer(
+                            alpha = 0.28f,
+                            scaleX = 1.1f,
+                            scaleY = 1.1f,
+                        ),
                 contentScale = ContentScale.Crop,
             )
         }

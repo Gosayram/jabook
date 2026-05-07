@@ -43,18 +43,19 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
+import com.jabook.app.jabook.compose.data.model.DownloadStatus
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
@@ -178,127 +179,150 @@ private fun GridBookCard(
                     onLongClick = { actionsProvider.onBookLongPress(book.id) },
                 ).semantics(mergeDescendants = true) {},
     ) {
-        Column {
-            // Cover image with favorite button overlay
-            Box {
-                // Selection checkbox overlay in top-left
-                if (isSelectionMode && onToggleSelection != null) {
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = { onToggleSelection() },
-                        modifier =
-                            Modifier
-                                .align(Alignment.TopStart)
-                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                                .padding(4.dp),
+        Box {
+            // Selection checkbox overlay in top-left
+            if (isSelectionMode && onToggleSelection != null) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onToggleSelection() },
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                            .padding(4.dp),
+                )
+            }
+
+            val context = LocalContext.current
+            val imageRequest =
+                CoverUtils
+                    .createCoverImageRequest(
+                        book = book,
+                        context = context,
+                        placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
+                        errorColor = MaterialTheme.colorScheme.error,
+                        fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        cornerRadius = 8f, // 8dp rounded corners
+                    ).build()
+
+            AsyncImage(
+                model = imageRequest,
+                contentDescription = book.title,
+                modifier =
+                    imageModifier.then(
+                        Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(0.72f),
+                    ),
+                contentScale = ContentScale.Crop,
+            )
+
+            // Favorite button in top-right corner with adaptive icon size
+            if (actionsProvider.showFavoriteButton) {
+                IconButton(
+                    onClick = { actionsProvider.onToggleFavorite(book.id, !isFavorite) },
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .sizeIn(minWidth = 48.dp, minHeight = 48.dp),
+                ) {
+                    Icon(
+                        imageVector =
+                            if (isFavorite) {
+                                Icons.Filled.Favorite
+                            } else {
+                                Icons.Outlined.FavoriteBorder
+                            },
+                        contentDescription =
+                            if (isFavorite) {
+                                stringResource(R.string.removeFromFavorites)
+                            } else {
+                                stringResource(R.string.addToFavorites)
+                            },
+                        tint =
+                            if (isFavorite) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                        modifier = Modifier.size(AdaptiveUtils.getIconSize(windowSizeClass)),
                     )
                 }
+            }
 
-                val context = LocalContext.current
-                val imageRequest =
-                    CoverUtils
-                        .createCoverImageRequest(
-                            book = book,
-                            context = context,
-                            placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                            errorColor = MaterialTheme.colorScheme.error,
-                            fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                            cornerRadius = 8f, // 8dp rounded corners
-                        ).build()
-
-                AsyncImage(
-                    model = imageRequest,
-                    contentDescription = book.title,
+            if (actionsProvider.showDownloadStatus && book.isDownloading) {
+                DownloadProgressBadge(
+                    progress = book.downloadProgress,
                     modifier =
-                        imageModifier.then(
-                            Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(0.7f),
-                        ),
-                    contentScale = ContentScale.Crop,
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp),
                 )
+            } else if (actionsProvider.showDownloadStatus) {
+                DownloadStatusBadge(
+                    status = book.downloadStatus,
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp),
+                )
+            }
 
-                // Favorite button in top-right corner with adaptive icon size
-                if (actionsProvider.showFavoriteButton) {
-                    IconButton(
-                        onClick = { actionsProvider.onToggleFavorite(book.id, !isFavorite) },
-                        modifier =
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp),
-                    ) {
-                        Icon(
-                            imageVector =
-                                if (isFavorite) {
-                                    Icons.Filled.Favorite
-                                } else {
-                                    Icons.Outlined.FavoriteBorder
-                                },
-                            contentDescription =
-                                if (isFavorite) {
-                                    stringResource(R.string.removeFromFavorites)
-                                } else {
-                                    stringResource(R.string.addToFavorites)
-                                },
-                            tint =
-                                if (isFavorite) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                },
-                            modifier = Modifier.size(AdaptiveUtils.getIconSize(windowSizeClass)),
+            Box(
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                colors =
+                                    listOf(
+                                        androidx.compose.ui.graphics.Color.Transparent,
+                                        androidx.compose.ui.graphics.Color.Black
+                                            .copy(alpha = 0.78f),
+                                    ),
+                            ),
+                        ).padding(AdaptiveUtils.getCardPadding(windowSizeClass)),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = book.title,
+                        style =
+                            AdaptiveUtils.getAdaptiveTextStyle(
+                                MaterialTheme.typography.titleSmall,
+                                windowSizeClass,
+                            ),
+                        color = androidx.compose.ui.graphics.Color.White,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = MaterialTheme.typography.titleSmall.lineHeight,
+                    )
+                    if (book.author.isNotBlank()) {
+                        Text(
+                            text = book.author,
+                            style =
+                                AdaptiveUtils.getAdaptiveTextStyle(
+                                    MaterialTheme.typography.bodySmall,
+                                    windowSizeClass,
+                                ),
+                            color =
+                                androidx.compose.ui.graphics.Color.White
+                                    .copy(alpha = 0.85f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
-
-                if (actionsProvider.showDownloadStatus && book.isDownloading) {
-                    DownloadProgressBadge(
-                        progress = book.downloadProgress,
-                        modifier =
-                            Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(8.dp),
-                    )
-                }
             }
 
-            // Progress indicator
             if (actionsProvider.showProgress && book.progress > 0f) {
                 LinearProgressIndicator(
                     progress = { book.progress },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth(),
                 )
-            }
-
-            // Title and author with adaptive text sizes and improved spacing
-            Column(
-                modifier = Modifier.padding(AdaptiveUtils.getCardPadding(windowSizeClass)),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = book.title,
-                    style =
-                        AdaptiveUtils.getAdaptiveTextStyle(
-                            MaterialTheme.typography.titleSmall,
-                            windowSizeClass,
-                        ),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = MaterialTheme.typography.titleSmall.lineHeight,
-                )
-                if (book.author.isNotBlank()) {
-                    Text(
-                        text = book.author,
-                        style =
-                            AdaptiveUtils.getAdaptiveTextStyle(
-                                MaterialTheme.typography.bodyMedium,
-                                windowSizeClass,
-                            ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
             }
         }
     }
@@ -402,6 +426,14 @@ private fun ListBookCard(
                                 .align(Alignment.BottomEnd)
                                 .padding(4.dp),
                     )
+                } else if (actionsProvider.showDownloadStatus) {
+                    DownloadStatusBadge(
+                        status = book.downloadStatus,
+                        modifier =
+                            Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(4.dp),
+                    )
                 }
             }
 
@@ -473,6 +505,50 @@ private fun ListBookCard(
             }
         }
     }
+}
+
+@Composable
+private fun DownloadStatusBadge(
+    status: DownloadStatus,
+    modifier: Modifier = Modifier,
+) {
+    val (labelRes, containerColor, contentColor) =
+        when (status) {
+            DownloadStatus.DOWNLOADED ->
+                Triple(
+                    R.string.downloadedLabel,
+                    MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.92f),
+                    MaterialTheme.colorScheme.onTertiaryContainer,
+                )
+            DownloadStatus.FAILED ->
+                Triple(
+                    R.string.downloadFailedLabel,
+                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.92f),
+                    MaterialTheme.colorScheme.onErrorContainer,
+                )
+            DownloadStatus.NOT_DOWNLOADED ->
+                Triple(
+                    R.string.streamingLabel,
+                    MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.9f),
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            DownloadStatus.DOWNLOADING ->
+                return
+        }
+
+    Text(
+        text = stringResource(labelRes),
+        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+        color = contentColor,
+        modifier =
+            modifier
+                .background(
+                    color = containerColor,
+                    shape =
+                        androidx.compose.foundation.shape
+                            .RoundedCornerShape(999.dp),
+                ).padding(horizontal = 8.dp, vertical = 4.dp),
+    )
 }
 
 @Composable

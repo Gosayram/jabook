@@ -188,7 +188,11 @@ public interface AudioMetadataParserEntryPoint {
  * @param onNavigateBack Callback to navigate back
  * @param viewModel ViewModel provided by Hilt
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3AdaptiveApi::class,
+    ExperimentalMaterial3WindowSizeClassApi::class,
+)
 @Composable
 public fun PlayerScreen(
     onNavigateBack: () -> Unit,

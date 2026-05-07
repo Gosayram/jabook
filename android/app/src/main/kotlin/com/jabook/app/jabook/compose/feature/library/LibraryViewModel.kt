@@ -465,5 +465,6 @@ public fun LibraryViewModel.createBookActionsProvider(
         showProgress = true,
         showFavoriteButton = true,
         showDownloadStatus = true,
+        onDeleteBook = ::deleteBook,
     )
 }

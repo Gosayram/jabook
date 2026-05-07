@@ -15,21 +15,40 @@
 package com.jabook.app.jabook.compose.feature.library
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.background
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.rememberCoverPreloader
@@ -158,7 +177,20 @@ private fun BooksGridLayout(
     selectedIds: Set<String> = emptySet(),
     onToggleSelection: ((String) -> Unit)? = null,
 ) {
-    val gridCells = remember(displayMode, windowSizeClass) { displayMode.getGridCells(windowSizeClass) } ?: return
+    val configuration = LocalConfiguration.current
+    val isVeryNarrow = configuration.screenWidthDp < 360
+    val gridCells =
+        remember(displayMode, windowSizeClass, configuration.screenWidthDp) {
+            if (isVeryNarrow) {
+                GridCells.Fixed(1)
+            } else {
+                when {
+                    configuration.screenWidthDp >= 840 -> GridCells.Fixed(4)
+                    configuration.screenWidthDp >= 600 -> GridCells.Fixed(3)
+                    else -> GridCells.Fixed(2)
+                }
+            }
+        }
     val contentPadding = remember(windowSizeClass) { AdaptiveUtils.getContentPadding(windowSizeClass) }
     val itemSpacing = remember(windowSizeClass) { AdaptiveUtils.getItemSpacing(windowSizeClass) }
     val context = LocalContext.current
@@ -187,7 +219,7 @@ private fun BooksGridLayout(
             key = { it.id },
             contentType = { "book_grid_${displayMode.name}" },
         ) { book ->
-            UnifiedBookCard(
+            SwipeableBookCard(
                 book = book,
                 displayMode = displayMode,
                 actionsProvider = actionsProvider,
@@ -239,7 +271,7 @@ private fun BooksListLayout(
             key = { it.id },
             contentType = { "book_list_${displayMode.name}" },
         ) { book ->
-            UnifiedBookCard(
+            SwipeableBookCard(
                 book = book,
                 displayMode = displayMode,
                 actionsProvider = actionsProvider,
@@ -248,6 +280,108 @@ private fun BooksListLayout(
                 onToggleSelection = { onToggleSelection?.invoke(book.id) },
             )
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableBookCard(
+    book: Book,
+    displayMode: BookDisplayMode,
+    actionsProvider: BookActionsProvider,
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
+    onToggleSelection: (() -> Unit)?,
+) {
+    if (isSelectionMode || actionsProvider.onDeleteBook == null) {
+        UnifiedBookCard(
+            book = book,
+            displayMode = displayMode,
+            actionsProvider = actionsProvider,
+            isSelectionMode = isSelectionMode,
+            isSelected = isSelected,
+            onToggleSelection = onToggleSelection,
+        )
+        return
+    }
+
+    val dismissState =
+        rememberSwipeToDismissBoxState(
+            confirmValueChange = { value ->
+                when (value) {
+                    SwipeToDismissBoxValue.StartToEnd -> {
+                        actionsProvider.onToggleFavorite(book.id, !actionsProvider.isFavorite(book.id))
+                        false
+                    }
+
+                    SwipeToDismissBoxValue.EndToStart -> {
+                        actionsProvider.onDeleteBook?.invoke(book.id)
+                        false
+                    }
+
+                    SwipeToDismissBoxValue.Settled -> false
+                }
+            },
+        )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            val direction = dismissState.dismissDirection
+            val isStartToEnd = direction == SwipeToDismissBoxValue.StartToEnd
+            val isEndToStart = direction == SwipeToDismissBoxValue.EndToStart
+            val backgroundColor =
+                when {
+                    isStartToEnd -> MaterialTheme.colorScheme.primaryContainer
+                    isEndToStart -> MaterialTheme.colorScheme.errorContainer
+                    else -> Color.Transparent
+                }
+            val contentColor =
+                when {
+                    isStartToEnd -> MaterialTheme.colorScheme.onPrimaryContainer
+                    isEndToStart -> MaterialTheme.colorScheme.onErrorContainer
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight()
+                        .background(backgroundColor),
+            ) {
+                if (isStartToEnd) {
+                    Icon(
+                        imageVector = Icons.Filled.Favorite,
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier =
+                            Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(start = 20.dp),
+                    )
+                } else if (isEndToStart) {
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = null,
+                        tint = contentColor,
+                        modifier =
+                            Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 20.dp),
+                    )
+                }
+            }
+        },
+    ) {
+        UnifiedBookCard(
+            book = book,
+            displayMode = displayMode,
+            actionsProvider = actionsProvider,
+            isSelectionMode = isSelectionMode,
+            isSelected = isSelected,
+            onToggleSelection = onToggleSelection,
+        )
     }
 }
 

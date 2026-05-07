@@ -68,6 +68,8 @@
     <string name="leechers">Личеры</string>
     <string name="registeredLabel">Зарегистрирован</string>
     <string name="downloadedLabel">Скачан</string>
+    <string name="streamingLabel">Поток</string>
+    <string name="downloadFailedLabel">Ошибка</string>
     <string name="downloadedTimes"> %1$s раз</string>
     <string name="pageOfPages">Страница %1$d из %2$d</string>
     <string name="loadMoreComments">Загрузить ещё (%1$d стр. осталось)</string>
