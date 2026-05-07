@@ -1577,7 +1577,7 @@ private fun PlayerContent(
                         Text(
                             text = "${previewSeekTarget.chapterIndex + 1}. $previewTitle",
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = adaptiveOnSurfaceVariant,
                             modifier =
                                 Modifier
                                     .align(Alignment.CenterHorizontally)
@@ -1595,13 +1595,13 @@ private fun PlayerContent(
                         Text(
                             text = formatDuration(currentGlobalPositionMs),
                             style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = adaptiveOnSurfaceVariant,
                         )
 
                         Text(
                             text = formatDuration(chapterTimeline.totalDurationMs),
                             style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = adaptiveOnSurfaceVariant,
                         )
                     }
 
@@ -1645,7 +1645,7 @@ private fun PlayerContent(
                         Text(
                             text = "$chapterText • $finishText",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            color = adaptiveOnSurfaceVariant.copy(alpha = 0.86f),
                         )
                     }
                 }

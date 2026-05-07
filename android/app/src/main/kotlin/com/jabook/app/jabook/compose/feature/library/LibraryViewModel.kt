@@ -31,6 +31,7 @@ import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
 import com.jabook.app.jabook.compose.data.worker.WorkConstraintsPolicy
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.Chapter
 import com.jabook.app.jabook.compose.domain.model.toFavoriteItem
 import com.jabook.app.jabook.compose.domain.usecase.library.DeleteBookUseCase
 import com.jabook.app.jabook.compose.domain.usecase.library.GetFavoriteBooksUseCase
@@ -39,6 +40,7 @@ import com.jabook.app.jabook.compose.domain.usecase.library.GetLibraryUseCase
 import com.jabook.app.jabook.compose.domain.usecase.library.GetRecentlyPlayedBooksUseCase
 import com.jabook.app.jabook.compose.domain.usecase.library.SearchBooksUseCase
 import com.jabook.app.jabook.compose.domain.usecase.library.ToggleFavoriteUseCase
+import com.jabook.app.jabook.compose.domain.usecase.player.GetChaptersUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -79,6 +81,7 @@ public class LibraryViewModel
         private val getRecentlyPlayedBooksUseCase: GetRecentlyPlayedBooksUseCase,
         private val getInProgressBooksUseCase: GetInProgressBooksUseCase,
         private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
+        private val getChaptersUseCase: GetChaptersUseCase,
         private val deleteBookUseCase: DeleteBookUseCase,
         private val favoritesRepository: FavoritesRepository,
         private val workManager: WorkManager,
@@ -288,6 +291,11 @@ public class LibraryViewModel
                 // Result handling can be added if needed for user feedback
             }
         }
+
+        /**
+         * Observe chapters for a specific book.
+         */
+        public fun observeBookChapters(bookId: String): kotlinx.coroutines.flow.Flow<List<Chapter>> = getChaptersUseCase(bookId)
 
         /**
          * Show book properties dialog.

@@ -93,6 +93,7 @@ import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
 import com.jabook.app.jabook.compose.feature.onboarding.SpotlightOverlay
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
 /**
@@ -478,9 +479,14 @@ public fun LibraryScreen(
                     if (selectedBookId != null && uiState is LibraryUiState.Success) {
                         val books = (uiState as LibraryUiState.Success).books
                         val selectedBook = books.find { it.id == selectedBookId }
+                        val selectedBookChapters by
+                            remember(selectedBookId) {
+                                selectedBookId?.let { viewModel.observeBookChapters(it) } ?: flowOf(emptyList())
+                            }.collectAsStateWithLifecycle(initialValue = emptyList())
 
                         BookDetailPane(
                             book = selectedBook,
+                            chapters = selectedBookChapters,
                             onPlayClick = {
                                 // Navigate to player when play is clicked
                                 selectedBookId?.let { onBookClick(it) }

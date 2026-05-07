@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.feature.library
 
 import android.text.format.DateUtils
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -41,6 +43,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -48,11 +51,18 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,6 +71,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.Chapter
 
 /**
  * Book detail pane component for displaying book information in list-detail layout.
@@ -78,6 +89,7 @@ import com.jabook.app.jabook.compose.domain.model.Book
 @Composable
 public fun BookDetailPane(
     book: Book?,
+    chapters: List<Chapter>,
     onPlayClick: () -> Unit,
     onClose: () -> Unit,
     onToggleFavorite: () -> Unit = {},
@@ -136,7 +148,20 @@ public fun BookDetailPane(
                         .padding(padding),
                 contentAlignment = Alignment.Center,
             ) {
+                val listState = rememberLazyListState()
+                val parallaxOffset by remember {
+                    derivedStateOf {
+                        val isCoverVisible = listState.firstVisibleItemIndex == 0
+                        val scrollOffset = listState.firstVisibleItemScrollOffset.toFloat()
+                        if (isCoverVisible) {
+                            scrollOffset * 0.35f
+                        } else {
+                            96f
+                        }
+                    }
+                }
                 LazyColumn(
+                    state = listState,
                     modifier =
                         Modifier
                             .fillMaxSize()
@@ -171,8 +196,26 @@ public fun BookDetailPane(
                                 Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(16.dp)),
+                                    .graphicsLayer {
+                                        translationY = parallaxOffset
+                                    }.clip(RoundedCornerShape(16.dp)),
                             contentScale = ContentScale.Crop,
+                        )
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors =
+                                                listOf(
+                                                    Color.Transparent,
+                                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
+                                                ),
+                                        ),
+                                    ),
                         )
                     }
 
@@ -293,9 +336,71 @@ public fun BookDetailPane(
                             }
                         }
                     }
+
+                    // Chapters progress preview
+                    if (chapters.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = stringResource(R.string.chapters),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        items(
+                            count = chapters.size,
+                            key = { index -> chapters[index].id },
+                        ) { index ->
+                            val chapter = chapters[index]
+                            ChapterProgressRow(chapter = chapter)
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ChapterProgressRow(chapter: Chapter) {
+    val remaining = chapter.remainingDuration.inWholeMinutes.coerceAtLeast(0)
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "${chapter.displayNumber}. ${chapter.title}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = "${(chapter.progress * 100).toInt()}%",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        LinearProgressIndicator(
+            progress = { chapter.progress },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            text = pluralStringResource(R.plurals.durationMinutesFull, remaining.toInt(), remaining.toInt()),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
