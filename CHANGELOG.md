@@ -21,24 +21,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add ANR watchdog and LeakCanary for debug builds
 - Add BT disconnect guard, underrun monitoring, and output device tracking (BP-13)
 - Add LUFS loudness analysis worker, speed dial policy, and db migration v19
+- Add PiP mode playback controls
+- Add Picture-in-Picture support for media player
 - Add arch docs sync targets to utils makefile
 - Add audio equalizer manager with audiobook presets; (#96)
+- Add bookmark notes with voice recording and equalizer with visual curve display
+- Add bookmarks table and DAO for timeline bookmarking
 - Add chapter marker, hold-to-boost, and LUFS loudness policies
 - Add debug simulators and network revalidate policies
+- Add injectable AppDispatchers with Hilt DI and audit make targets
+- Add interactive frequency points to equalizer
 - Add loudness compensation for consistent volume across books
 - Add player state snapshot policy and restore flow
 - Add policy and storage hardening modules with unit tests
+- Add reactive cover URL updates via SharedFlow events
+- Add rebuffer/stall tracking and persist pitch correction
 - Add screen capture protection and fix disk cache
+- Add smart chapter auto-scroll policy with snap and animate support
+- Add smart chapter navigation with undo snackbar
+- Add smart resume rewind mode with aggressiveness control
+- Add stop at specific time option to sleep timer
+- Add waveform preview to seekbar
+- Enable audio offload mode and suspend visualizer during offload playback
+- Implement bookmark functionality in audio player
+- Implement hold-to-boost speed in audio player
+- Implement player facade and equalizer enhancements
+- Improve sleep timer UX with last duration memory, resume hint and stop-at display
+- Library source sync script for project dependencies
 - Script to sync open tasks between arch docs
+- Skip resume rewind after sleep timer stop
 
 ### Changed
 
+- Add AnimatedContent transitions between player screen states
 - Add connectivity-aware scheduler and dns prefetch guards
 - Add dependency verification to fmt-kotlin and lint-kotlin make targets
 - Add mirror domain validation policy with sanitization and tests; (#92)
 - Add player intent guard policy for seek and sleep timer
 - Add player reducer predispatch and matrix tests
 - Add reducer no-op guard for seek settings update
+- Add skeleton loading and play/pause button animations
 - Add sleep timer reducer state and idempotent tests
 - Add trust rules for JetBrains IntelliJ coroutines in Gradle verification metadata
 - Align copyright headers with project license template
@@ -64,6 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump coil3 from 3.3.0 to 3.4.0 in /android (#78)
 - Bump com.android.application from 8.13.1 to 9.1.0 in /android (#69)
 - Bump com.android.application from 9.1.0 to 9.1.1 in /android (#105)
+- Bump com.android.application from 9.1.1 to 9.2.0 in /android
 - Bump com.google.crypto.tink:tink-android in /android (#79)
 - Bump com.google.devtools.ksp from 2.3.3 to 2.3.6 in /android (#62)
 - Bump com.google.firebase.crashlytics from 3.0.6 to 3.0.7 in /android (#100)
@@ -71,13 +94,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump com.google.firebase:firebase-bom in /android (#97)
 - Bump com.google.jimfs:jimfs from 1.3.0 to 1.3.1 in /android (#90)
 - Bump com.google.protobuf from 0.9.5 to 0.9.6 in /android (#56)
+- Bump com.google.protobuf from 0.9.6 to 0.10.0 in /android
 - Bump com.google.protobuf:protobuf-javalite in /android (#72)
+- Bump deps and enable JaCoCo coverage for debug build
 - Bump dev.chrisbanes.haze:haze from 1.7.1 to 1.7.2 in /android (#74)
+- Bump github/codeql-action from 4.35.1 to 4.35.2
 - Bump hilt from 2.57.2 to 2.59.2 in /android (#60)
 - Bump hiltExt from 1.2.0 to 1.3.0 in /android (#76)
 - Bump io.kotest:kotest-property-jvm from 5.9.1 to 6.1.11 in /android (#104)
 - Bump kotlin from 2.2.21 to 2.3.20 in /android (#54)
+- Bump kotlin from 2.3.20 to 2.3.21 in /android
 - Bump kotlinTest from 2.2.21 to 2.3.20 in /android (#57)
+- Bump kotlinTest from 2.3.20 to 2.3.21 in /android
 - Bump kotlinxSerialization from 1.10.0 to 1.11.0 in /android (#98)
 - Bump kotlinxSerialization from 1.9.0 to 1.10.0 in /android (#59)
 - Bump libtorrent4j from 2.1.0-38 to 2.1.0-39 in /android (#61)
@@ -85,22 +113,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump media3 from 1.8.0 to 1.9.3 in /android (#55)
 - Bump org.jlleitschuh.gradle.ktlint from 14.0.1 to 14.2.0 in /android (#67)
 - Bump org.jsoup:jsoup from 1.21.2 to 1.22.1 in /android (#82)
+- Bump org.jsoup:jsoup from 1.22.1 to 1.22.2 in /android
 - Bump org.mockito.kotlin:mockito-kotlin from 6.1.0 to 6.3.0 in /android (#84)
 - Bump org.mockito:mockito-core from 5.21.0 to 5.23.0 in /android (#80)
 - Bump org.robolectric:robolectric from 4.16 to 4.16.1 in /android (#89)
+- Bump patch version to 1.2.7+102
+- Bump patch version to 1.2.7+103
+- Bump patch version to 1.2.7+104
+- Bump patch version to 1.2.7+105
+- Bump patch version to 1.2.7+106
 - Bump patch version to 1.2.7+97; (#75)
 - Bump softprops/action-gh-release from 2.5.0 to 2.6.1 (#52)
 - Bump softprops/action-gh-release from 2.6.1 to 3.0.0 (#103)
+- Clean up AudioPlayerService and related components
 - Consolidate intent routing and optimize recompositions
 - Consolidate saved position state into RestoredBootstrapSnapshot
+- Extract MediaSessionLayoutHelper and PlayerNotificationSetup from AudioPlayerService
+- Extract PlaybackContextHelper from AudioPlayerService
+- Extract URI resolution into PlaylistUriResolutionPolicy
+- Extract audio player components into dedicated classes
+- Extract book completion and error handling into separate classes
 - Extract chapter repeat path to reducer and add tests
 - Extract command pattern for player intent dispatch and add position deduplication
+- Extract command router and release handler from AudioPlayerService
 - Extract command routing and executor into dedicated file
+- Extract facades and handlers to reduce PlayerListener size
+- Extract notification intent factory and delegate service methods
+- Extract playback error resolution into PlaybackErrorPolicy
 - Extract player state types and add channel command pipeline
+- Extract playlist loading logic into dedicated policy classes
+- Extract playlist loading logic into policy classes
+- Extract playlist management policies to separate files
+- Extract playlist policies and add baseline profiles
+- Extract playlist policies and add metadata normalization
+- Extract playlist seek and metadata policies
 - Extract sleep timer, settings routing, and position publish policy from ViewModel
 - Extract speed label formatting and wrap derived state in remember
+- Extract torrent download network policy into dedicated class
+- Fix hiltViewModel imports and improve indexer robustness
 - Improve AMOLED theme with surface containers and fix color priority
+- Inject AppDispatchers into PlaylistManager for testable coroutine dispatchers
 - Merge pull request #102 from Gosayram/release/beta_1_2_7_upd_2
+- Merge pull request #107 from Gosayram/dependabot/github_actions/github/codeql-action-4.35.2
+- Merge pull request #108 from Gosayram/dependabot/github_actions/github/codeql-action-4.35.2
+- Merge pull request #109 from Gosayram/dependabot/gradle/android/com.google.protobuf-0.10.0
+- Merge pull request #110 from Gosayram/dependabot/gradle/android/org.jsoup-jsoup-1.22.2
+- Merge pull request #111 from Gosayram/dependabot/gradle/android/com.android.application-9.2.0
+- Merge pull request #122 from Gosayram/dependabot/gradle/android/kotlin-2.3.21
+- Merge pull request #123 from Gosayram/dependabot/gradle/android/kotlinTest-2.3.21
+- Migrate hiltViewModel import to androidx.hilt.navigation.compose
 - Move play and seek decisions into player reducer
 - Move repeat mode decisions into player reducer
 - Move seek reset and defaults to reducer flow
@@ -108,21 +169,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Persist player snapshot and reducer audio rules
 - Read chapter repeat mode from unified player state
 - Refactor audio player service architecture (#47)
+- Refactor playlist manager logic to dedicated classes
+- Reformat code for better readability and consistency
+- Remove indirection in audio player service and simplify notification handling
 - Remove legacy chapter repeat toggle path in vm
+- Remove unnecessary @Suppress("DEPRECATION") annotations from screens
 - Remove unused import and add missing EOF newlines
 - Rename PlayerUiState to sealed PlayerState contract
+- Reorder imports in PlayerViewModel
+- Replace circular download progress with badge on book cards
+- Restore check-all workflow and clean service delegates
+- Rewrite service monitor to reactive loop, optimize cover loading
 - Route chapter selection through player reducer
 - Route player errors through intent dispatcher path
+- Run fmt
 - Skip no-op audio settings intent in player dispatch
 - Update CI scripts to fallback from rg to grep for portability
+- Update Java/Kotlin toolchain from 21 to 25 and broaden gradle verification metadata
+- Update backpressure handling and reformat license headers
 - Update torrent fgs types and add player one-shot effects
+- Use dedicated CancellationException catch block
 
 ### Fixed
 
+- Add initialization check before resetting visualizer state bridge
+- Align wifi-only warning flow with torrent network policy
 - Apply loudness gain multiplicatively and extend tests
+- Correct indexing progress calc, add post-completion index verify, prioritize cover loads
+- Detect cover url and seeder changes in stale-while-revalidate policy
+- Fix CancellationException swallowing and optimize cover loading
+- Fix async timing in PlaylistManager tests with advanceUntilIdle
+- Fix coroutine CancellationException handling in PlaylistManager
 - Fix: apply CodeRabbit auto-fixes
 - Harden storage writes with atomic lock and path validation
+- Preserve player transitions and non-dropping event flow
+- Prevent duplicate pull-to-refresh triggers while scanning
 - Properly rethrow CancellationException and add atomic cover update
+- Replace generic exception catches with specific types in SleepTimerRepository and add tests
+- Rethrow CancellationException and add index size retry
+- Rethrow CancellationException in all catch blocks to preserve coroutine cancellation semantics
+- Rethrow CancellationException in repository and use case catch blocks
 - Unused params
 - Verification metadata file with unexpected comments
 
