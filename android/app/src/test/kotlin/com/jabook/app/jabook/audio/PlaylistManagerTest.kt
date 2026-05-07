@@ -139,13 +139,15 @@ class PlaylistManagerTest {
     }
 
     @Test
-    fun `optimizeMemoryUsage is no-op for small playlist window`() {
-        whenever(exoPlayer.mediaItemCount).thenReturn(8)
+    fun `optimizeMemoryUsage is no-op for small playlist window`() =
+        testScope.runTest {
+            whenever(exoPlayer.mediaItemCount).thenReturn(8)
 
-        playlistManager.optimizeMemoryUsage(currentTrackIndex = 3, keepWindow = 5)
+            playlistManager.optimizeMemoryUsage(currentTrackIndex = 3, keepWindow = 5)
+            advanceUntilIdle()
 
-        verify(exoPlayer, never()).removeMediaItem(any())
-    }
+            verify(exoPlayer, never()).removeMediaItem(any())
+        }
 
     @Test
     fun `optimizeMemoryUsage removes distant tracks in descending index order`() =
@@ -159,6 +161,7 @@ class PlaylistManagerTest {
             advanceUntilIdle()
 
             playlistManager.optimizeMemoryUsage(currentTrackIndex = 10, keepWindow = 2)
+            advanceUntilIdle()
 
             val removedCaptor = argumentCaptor<Int>()
             // Expect removing everything outside [8..12].
