@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.blur
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +23,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
 import com.jabook.app.jabook.compose.feature.player.components.HypnoticBackground
 import dev.chrisbanes.haze.HazeState
@@ -33,6 +38,7 @@ import dev.chrisbanes.haze.hazeSource
 @Composable
 public fun PremiumPlayerBackground(
     themeColors: PlayerThemeColors?,
+    coverImageModel: Any?,
     hazeState: HazeState? = null,
     isPowerSaveMode: Boolean = false,
     modifier: Modifier = Modifier,
@@ -63,6 +69,19 @@ public fun PremiumPlayerBackground(
             .then(if (hazeState != null && !isPowerSaveMode) Modifier.hazeSource(state = hazeState) else Modifier)
 
     Box(modifier = finalModifier) {
+        if (coverImageModel != null) {
+            AsyncImage(
+                model = coverImageModel,
+                contentDescription = null,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .blur(56.dp)
+                        .graphicsLayer(alpha = 0.28f),
+                contentScale = ContentScale.Crop,
+            )
+        }
+
         if (!isPowerSaveMode && backgroundColors.isNotEmpty()) {
             HypnoticBackground(
                 colors = backgroundColors,

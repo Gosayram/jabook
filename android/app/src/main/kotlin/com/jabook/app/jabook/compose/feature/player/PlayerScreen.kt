@@ -226,6 +226,7 @@ public fun PlayerScreen(
     var showSpeedSheet by remember { mutableStateOf(false) }
     var showSleepTimerSheet by remember { mutableStateOf(false) }
     var showAudioSettingsSheet by remember { mutableStateOf(false) }
+    var showChapterSheet by remember { mutableStateOf(false) }
     // Legacy settings sheet (if unused, we might want to consolidate or remove)
     var showSettingsSheet by remember { mutableStateOf(false) }
 
@@ -237,6 +238,15 @@ public fun PlayerScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val activity =
+        context as? android.app.Activity
+            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+    val isCompactScreen =
+        activity?.let {
+            val rawWindowSizeClass = calculateWindowSizeClass(it)
+            val windowSizeClass = AdaptiveUtils.resolveWindowSizeClass(rawWindowSizeClass, context)
+            windowSizeClass.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
+        } ?: true
     val openSettingsLabel = stringResource(R.string.openSettings)
     val notificationPermissionPlaybackHint = stringResource(R.string.notificationPermissionPlaybackHint)
     val audioVisualizerPermissionHint = stringResource(R.string.audioVisualizerPermissionHint)
@@ -474,6 +484,22 @@ public fun PlayerScreen(
     }
 
     // Removed Chapter Selector Sheet - using adaptive pane instead
+    if (showChapterSheet && uiState is PlayerState.Active) {
+        val state = uiState as PlayerState.Active
+        JabookModalBottomSheet(
+            onDismissRequest = { showChapterSheet = false },
+        ) {
+            PlayerChapterPane(
+                chapters = state.chapters,
+                currentChapterIndex = state.currentChapterIndex,
+                normalizeEnabled = normalizeEnabled,
+                onChapterClick = { chapterIndex ->
+                    viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex))
+                    showChapterSheet = false
+                },
+            )
+        }
+    }
 
     // Player Settings Sheet (Book Specific)
     if (showSettingsSheet && uiState is PlayerState.Active) {
@@ -609,6 +635,7 @@ public fun PlayerScreen(
                                     // Removed GestureOverlay as per user request to disable brightness/volume/seek swipes
                                     PremiumPlayerBackground(
                                         themeColors = state.themeColors,
+                                        coverImageModel = CoverUtils.getCoverModel(state.book, context),
                                         hazeState = hazeState,
                                         isPowerSaveMode = isPowerSaveMode,
                                     ) {
@@ -651,15 +678,19 @@ public fun PlayerScreen(
                                                 viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex))
                                             },
                                             onChapterClick = {
-                                                // Toggle chapters pane on medium/expanded screens
+                                                // Phone: bottom sheet, larger screens: supporting pane.
                                                 clickDebouncer.debounce {
-                                                    scope.launch {
-                                                        if (scaffoldNavigator.canNavigateBack()) {
-                                                            scaffoldNavigator.navigateBack()
-                                                        } else {
-                                                            scaffoldNavigator.navigateTo(
-                                                                SupportingPaneScaffoldRole.Supporting,
-                                                            )
+                                                    if (isCompactScreen) {
+                                                        showChapterSheet = true
+                                                    } else {
+                                                        scope.launch {
+                                                            if (scaffoldNavigator.canNavigateBack()) {
+                                                                scaffoldNavigator.navigateBack()
+                                                            } else {
+                                                                scaffoldNavigator.navigateTo(
+                                                                    SupportingPaneScaffoldRole.Supporting,
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 }

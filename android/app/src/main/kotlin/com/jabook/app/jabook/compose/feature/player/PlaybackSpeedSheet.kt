@@ -14,7 +14,10 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -22,6 +25,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -32,17 +38,27 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.input.pointer.consume
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
+import com.jabook.app.jabook.compose.core.util.HapticManager
 import kotlin.math.roundToInt
 
 /**
@@ -69,6 +85,7 @@ public fun PlaybackSpeedSheet(
 ) {
     // Local state for slider - allows real-time preview
     var sliderSpeed by remember { mutableFloatStateOf(currentSpeed) }
+    val hapticFeedback = LocalHapticFeedback.current
     val recentSpeeds =
         rememberSaveable {
             mutableStateListOf(currentSpeed)
@@ -107,6 +124,18 @@ public fun PlaybackSpeedSheet(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+
+            SpeedDial(
+                speed = sliderSpeed,
+                onSpeedChange = { newSpeed ->
+                    sliderSpeed = roundToStep(newSpeed)
+                    onSpeedSelected(sliderSpeed)
+                },
+                hapticFeedback = hapticFeedback,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Speed slider
             Slider(
@@ -271,5 +300,73 @@ private fun addRecentSpeed(
     recentSpeeds.add(0, speed)
     while (recentSpeeds.size > 3) {
         recentSpeeds.removeAt(recentSpeeds.lastIndex)
+    }
+}
+
+@Composable
+private fun SpeedDial(
+    speed: Float,
+    onSpeedChange: (Float) -> Unit,
+    hapticFeedback: HapticFeedback,
+    modifier: Modifier = Modifier,
+) {
+    var lastHapticTickStep by remember { mutableIntStateOf((speed / 0.25f).toInt()) }
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    val progressColor = MaterialTheme.colorScheme.primary
+
+    Box(
+        modifier = modifier.wrapContentHeight(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(
+            modifier =
+                Modifier
+                    .size(140.dp)
+                    .pointerInput(speed) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            val delta = (dragAmount.x / size.width) * 2.5f
+                            val newSpeed = (speed + delta).coerceIn(0.5f, 3.0f)
+                            val newTickStep = (newSpeed / 0.25f).toInt()
+                            if (newTickStep != lastHapticTickStep) {
+                                lastHapticTickStep = newTickStep
+                                HapticManager.performTap(hapticFeedback)
+                            }
+                            onSpeedChange(newSpeed)
+                        }
+                    },
+        ) {
+            val stroke = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
+            val inset = 16.dp.toPx()
+            val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
+            val arcTopLeft = Offset(inset, inset)
+            val sweep = ((speed - 0.5f) / 2.5f).coerceIn(0f, 1f) * 270f
+
+            drawArc(
+                color = trackColor,
+                startAngle = 135f,
+                sweepAngle = 270f,
+                useCenter = false,
+                style = stroke,
+                topLeft = arcTopLeft,
+                size = arcSize,
+            )
+            drawArc(
+                color = progressColor,
+                startAngle = 135f,
+                sweepAngle = sweep,
+                useCenter = false,
+                style = stroke,
+                topLeft = arcTopLeft,
+                size = arcSize,
+            )
+        }
+        Text(
+            text = formatSpeedDisplay(speed),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.width(88.dp),
+        )
     }
 }

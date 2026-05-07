@@ -24,9 +24,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -239,6 +241,7 @@ public fun SleepTimerSheet(
                                 formatSleepTimerStopAt(currentState.remainingSeconds),
                                 formatSleepTimerRemaining(currentState.remainingSeconds),
                             ),
+                        progressFraction = (currentState.remainingSeconds / 3600f).coerceIn(0f, 1f),
                         onCancelTimer = onCancelTimer,
                         onDismiss = onDismiss,
                     )
@@ -281,6 +284,7 @@ public fun SleepTimerSheet(
 private fun ActiveTimerContent(
     timeText: String,
     detailsText: String? = null,
+    progressFraction: Float? = null,
     onCancelTimer: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -292,6 +296,25 @@ private fun ActiveTimerContent(
                 .fillMaxWidth()
                 .padding(16.dp),
     ) {
+        if (progressFraction != null) {
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier.size(96.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(
+                    progress = { progressFraction },
+                    modifier = Modifier.size(96.dp),
+                    strokeWidth = 6.dp,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                )
+                Icon(
+                    imageVector = Icons.Filled.Timer,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+
         Text(
             text = stringResource(R.string.timerActive),
             style = MaterialTheme.typography.titleMedium,
