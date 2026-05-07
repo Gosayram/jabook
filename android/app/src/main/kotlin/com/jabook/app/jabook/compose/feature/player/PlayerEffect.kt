@@ -29,4 +29,8 @@ public sealed interface PlayerEffect {
     ) : PlayerEffect
 
     public data object NavigateBack : PlayerEffect
+
+    public data class NavigateToBook(
+        val bookId: String,
+    ) : PlayerEffect
 }

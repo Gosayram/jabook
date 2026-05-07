@@ -2641,6 +2641,9 @@
     <string name="bookmarkAddedMessage">Закладка добавлена</string>
     <string name="dragToReorder">Перетащите для сортировки</string>
     <string name="weeklyRecapTitle">Ваша неделя</string>
+    <string name="continueSeriesLabel">Продолжить серию</string>
+    <string name="playNowAction">Слушать сейчас</string>
+    <string name="dismissAction">Скрыть</string>
     <string name="minutesLabel">минут</string>
     <string name="booksLabel">книг</string>
     <string name="streakDaysLabel">дней подряд</string>

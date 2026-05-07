@@ -40,7 +40,9 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -56,6 +58,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -150,6 +153,11 @@ public class PlayerViewModel
         private var lastPersistedPlayerSnapshot: PlayerStateSnapshot? = null
         private var restoredBootstrapSnapshot: RestoredBootstrapSnapshot? = null
         private var hasShownSleepTimerResumeHint: Boolean = false
+        private var hasTriggeredSeriesAutoplay: Boolean = false
+        private var seriesAutoplayJob: Job? = null
+
+        private val _nextBookAutoplayState = MutableStateFlow<NextBookAutoplayState?>(null)
+        public val nextBookAutoplayState: StateFlow<NextBookAutoplayState?> = _nextBookAutoplayState.asStateFlow()
 
         // Chapter repeat mode state
         private val chapterRepeatModeState = MutableStateFlow(ChapterRepeatMode.OFF)
@@ -401,11 +409,18 @@ public class PlayerViewModel
 
         init {
             observeChapterLyrics()
+            observeSeriesAutoplayTrigger()
         }
 
         private companion object {
             private const val POSITION_UI_EPSILON_MS: Long = 150L
+            private const val AUTOPLAY_COUNTDOWN_SECONDS: Int = 10
         }
+
+        public data class NextBookAutoplayState(
+            val nextBook: Book,
+            val secondsLeft: Int,
+        )
 
         @OptIn(ExperimentalCoroutinesApi::class)
         private fun observeChapterLyrics() {
@@ -429,6 +444,127 @@ public class PlayerViewModel
                     }
             }
         }
+
+        private fun observeSeriesAutoplayTrigger() {
+            viewModelScope.launch {
+                combine(
+                    uiState,
+                    playerController.isPlaying,
+                    playerController.currentPosition,
+                    playerController.duration,
+                ) { state, isPlaying, positionMs, durationMs ->
+                    TriggerSeriesAutoplaySnapshot(
+                        state = state,
+                        isPlaying = isPlaying,
+                        positionMs = positionMs,
+                        durationMs = durationMs,
+                    )
+                }.collect { snapshot ->
+                    val activeState = snapshot.state as? PlayerState.Active ?: return@collect
+                    val isLastChapter = activeState.currentChapterIndex >= (activeState.chapters.size - 1).coerceAtLeast(0)
+                    val isTrackEnded =
+                        snapshot.durationMs > 0 &&
+                            snapshot.positionMs >= (snapshot.durationMs - 750L)
+                    val shouldTrigger = isLastChapter && !snapshot.isPlaying && isTrackEnded
+
+                    if (shouldTrigger && !hasTriggeredSeriesAutoplay) {
+                        hasTriggeredSeriesAutoplay = true
+                        maybeStartSeriesAutoplay(activeState.book)
+                    } else if (!isLastChapter || snapshot.isPlaying) {
+                        hasTriggeredSeriesAutoplay = false
+                        seriesAutoplayJob?.cancel()
+                        seriesAutoplayJob = null
+                        _nextBookAutoplayState.value = null
+                    }
+                }
+            }
+        }
+
+        private fun maybeStartSeriesAutoplay(currentBook: Book) {
+            seriesAutoplayJob?.cancel()
+            seriesAutoplayJob =
+                viewModelScope.launch {
+                    val allBooks = booksRepository.getAllBooks().first()
+                    val nextBook = findNextBookInSeries(currentBook, allBooks) ?: return@launch
+                    startAutoplayCountdown(nextBook)
+                }
+        }
+
+        private suspend fun startAutoplayCountdown(nextBook: Book) {
+            for (seconds in AUTOPLAY_COUNTDOWN_SECONDS downTo 0) {
+                _nextBookAutoplayState.value = NextBookAutoplayState(nextBook = nextBook, secondsLeft = seconds)
+                if (seconds > 0) delay(1_000L)
+            }
+            if (!viewModelScope.isActive) return
+            _nextBookAutoplayState.value = null
+            emitEffect(PlayerEffect.NavigateToBook(nextBook.id))
+        }
+
+        public fun continueSeriesNow() {
+            val nextBook = _nextBookAutoplayState.value?.nextBook ?: return
+            seriesAutoplayJob?.cancel()
+            seriesAutoplayJob = null
+            _nextBookAutoplayState.value = null
+            emitEffect(PlayerEffect.NavigateToBook(nextBook.id))
+        }
+
+        public fun dismissSeriesAutoplay() {
+            seriesAutoplayJob?.cancel()
+            seriesAutoplayJob = null
+            _nextBookAutoplayState.value = null
+            hasTriggeredSeriesAutoplay = true
+        }
+
+        private fun findNextBookInSeries(
+            currentBook: Book,
+            allBooks: List<Book>,
+        ): Book? {
+            val currentDescriptor = parseSeriesDescriptor(currentBook) ?: return null
+            return allBooks
+                .asSequence()
+                .filter { it.id != currentBook.id }
+                .mapNotNull { candidate ->
+                    val descriptor = parseSeriesDescriptor(candidate) ?: return@mapNotNull null
+                    if (descriptor.seriesKey != currentDescriptor.seriesKey) return@mapNotNull null
+                    if (!candidate.author.equals(currentBook.author, ignoreCase = true)) return@mapNotNull null
+                    if (descriptor.order <= currentDescriptor.order) return@mapNotNull null
+                    descriptor.order to candidate
+                }.minByOrNull { (order, _) -> order }
+                ?.second
+        }
+
+        private data class SeriesDescriptor(
+            val seriesKey: String,
+            val order: Int,
+        )
+
+        private fun parseSeriesDescriptor(book: Book): SeriesDescriptor? {
+            val normalizedTitle = book.title.trim()
+            val patterns =
+                listOf(
+                    Regex("""(?i)^(.*?)[\s\-–—:]*\b(?:book|книга|том|часть)\s*([0-9]{1,2})\b"""),
+                    Regex("""(?i)^(.*?)[\s\-–—:]*[#№]\s*([0-9]{1,2})\b"""),
+                )
+            for (pattern in patterns) {
+                val match = pattern.find(normalizedTitle) ?: continue
+                val rawKey =
+                    match.groupValues
+                        .getOrNull(1)
+                        .orEmpty()
+                        .trim()
+                val order = match.groupValues.getOrNull(2)?.toIntOrNull() ?: continue
+                if (rawKey.isBlank()) continue
+                return SeriesDescriptor(seriesKey = rawKey.lowercase(), order = order)
+            }
+            return null
+        }
+
+        private data class TriggerSeriesAutoplaySnapshot(
+            val state: PlayerState,
+            val isPlaying: Boolean,
+            val positionMs: Long,
+            val durationMs: Long,
+        )
 
         private suspend fun loadLyricsOrNull(
             audioPath: String,

@@ -313,6 +313,9 @@ public fun JabookNavHost(
                 onNavigateBack = {
                     appState.navigateToLibrary()
                 },
+                onNavigateToBook = { bookId ->
+                    navController.navigate(PlayerRoute(bookId = bookId))
+                },
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = this,
             )

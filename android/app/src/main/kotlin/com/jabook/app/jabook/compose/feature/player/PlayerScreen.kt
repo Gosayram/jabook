@@ -75,6 +75,9 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
@@ -88,6 +91,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
@@ -197,6 +201,7 @@ public interface AudioMetadataParserEntryPoint {
 @Composable
 public fun PlayerScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToBook: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlayerViewModel = hiltViewModel(),
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
@@ -211,6 +216,7 @@ public fun PlayerScreen(
     val audioSettings by viewModel.audioSettings.collectAsStateWithLifecycle()
     val visualizerWaveformData by viewModel.visualizerWaveformData.collectAsStateWithLifecycle()
     val seekbarWaveformData by viewModel.seekbarWaveformData.collectAsStateWithLifecycle()
+    val nextBookAutoplayState by viewModel.nextBookAutoplayState.collectAsStateWithLifecycle()
     val hapticFeedback = LocalHapticFeedback.current
 
     val navigationClickGuard = remember { NavigationClickGuard() }
@@ -274,6 +280,7 @@ public fun PlayerScreen(
                     }
                 }
                 PlayerEffect.NavigateBack -> navigationClickGuard.run(onNavigateBack)
+                is PlayerEffect.NavigateToBook -> navigationClickGuard.run { onNavigateToBook(effect.bookId) }
             }
         }
     }
@@ -759,6 +766,16 @@ public fun PlayerScreen(
                                 }
                             }
                         }
+
+                        nextBookAutoplayState?.let { autoplayState ->
+                            NextBookCountdownCard(
+                                book = autoplayState.nextBook,
+                                secondsLeft = autoplayState.secondsLeft,
+                                onContinue = viewModel::continueSeriesNow,
+                                onDismiss = viewModel::dismissSeriesAutoplay,
+                                modifier = Modifier.align(Alignment.BottomCenter),
+                            )
+                        }
                     }
                 }
             }
@@ -790,6 +807,79 @@ public fun PlayerScreen(
         },
         modifier = modifier.background(MaterialTheme.colorScheme.background),
     )
+}
+
+@Composable
+private fun NextBookCountdownCard(
+    book: com.jabook.app.jabook.compose.domain.model.Book,
+    secondsLeft: Int,
+    onContinue: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            ),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            AsyncImage(
+                model = CoverUtils.getCoverModel(book, LocalContext.current),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier =
+                    Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+            )
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.continueSeriesLabel),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    text = book.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                )
+            }
+
+            Box(
+                modifier = Modifier.size(40.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(
+                    progress = { (secondsLeft.coerceIn(0, 10)) / 10f },
+                    modifier = Modifier.fillMaxSize(),
+                    strokeWidth = 3.dp,
+                )
+                Text(text = secondsLeft.toString(), style = MaterialTheme.typography.labelSmall)
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dismissAction))
+            }
+            TextButton(onClick = onContinue) {
+                Text(stringResource(R.string.playNowAction))
+            }
+        }
+    }
 }
 
 @OptIn(

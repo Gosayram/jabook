@@ -37,6 +37,18 @@ import java.io.File
  * Utility object for book cover operations.
  */
 public object CoverUtils {
+    private val placeholderPalette: List<Color> =
+        listOf(
+            Color(0xFFE3F2FD),
+            Color(0xFFE8F5E9),
+            Color(0xFFFFF8E1),
+            Color(0xFFFBE9E7),
+            Color(0xFFF3E5F5),
+            Color(0xFFE0F7FA),
+            Color(0xFFFFF3E0),
+            Color(0xFFEDE7F6),
+        )
+
     /**
      * Gets the cover image file for a book.
      * Returns File pointing to cover.jpg in book's localPath, or null if book has no local path.
@@ -123,14 +135,16 @@ public object CoverUtils {
     public fun createCoverImageRequest(
         book: Book,
         context: Context,
-        placeholderColor: Color = Color(0xFFE0E0E0), // Light gray
+        placeholderColor: Color? = null,
         errorColor: Color = Color(0xFFB00020), // Material error color
-        fallbackColor: Color = Color(0xFFE0E0E0), // Light gray
+        fallbackColor: Color? = null,
         cornerRadius: Float? = 8f, // 8dp default
         circleCrop: Boolean = false,
         allowHardware: Boolean = true,
     ): ImageRequest.Builder {
         val data = getCoverModel(book, context)
+        val resolvedPlaceholderColor = placeholderColor ?: getDeterministicPlaceholderColor(book, context)
+        val resolvedFallbackColor = fallbackColor ?: resolvedPlaceholderColor
         val transformations = mutableListOf<Transformation>()
 
         // Add transformations
@@ -152,9 +166,9 @@ public object CoverUtils {
                 .allowHardware(allowHardware)
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)
-                .placeholder(ColorDrawable(placeholderColor.toArgb()).asImage())
+                .placeholder(ColorDrawable(resolvedPlaceholderColor.toArgb()).asImage())
                 .error(ColorDrawable(errorColor.toArgb()).asImage())
-                .fallback(ColorDrawable(fallbackColor.toArgb()).asImage())
+                .fallback(ColorDrawable(resolvedFallbackColor.toArgb()).asImage())
 
         // Note: size parameter is kept for API compatibility but not used in Coil3
         // Coil3 automatically optimizes image sizes based on display requirements
@@ -164,5 +178,18 @@ public object CoverUtils {
         }
 
         return builder
+    }
+
+    public fun getDeterministicPlaceholderColor(
+        book: Book,
+        context: Context,
+    ): Color {
+        val waterfall = getCoverWaterfallResult(book, context)
+        val placeholderKey = waterfall.data as? String
+        if (waterfall.source != CoverWaterfallPolicy.CoverSource.PLACEHOLDER || placeholderKey.isNullOrBlank()) {
+            return Color(0xFFE0E0E0)
+        }
+        val index = CoverWaterfallPolicy.placeholderColorIndex(placeholderKey)
+        return placeholderPalette[index % placeholderPalette.size]
     }
 }

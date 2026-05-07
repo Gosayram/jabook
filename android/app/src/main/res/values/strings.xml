@@ -2637,6 +2637,9 @@
     <string name="undoAction">Undo</string>
     <string name="bookmarkAddedMessage">Bookmark added</string>
     <string name="dragToReorder">Drag to reorder</string>
+    <string name="continueSeriesLabel">Continue series</string>
+    <string name="playNowAction">Play now</string>
+    <string name="dismissAction">Dismiss</string>
     <string name="weeklyRecapTitle">Your week</string>
     <string name="minutesLabel">minutes</string>
     <string name="booksLabel">books</string>
