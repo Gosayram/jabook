@@ -14,18 +14,19 @@
 
 package com.jabook.app.jabook.compose.core.theme
 
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
  * Shared glassmorphism tokens for Haze-backed overlays.
  */
 public object GlassmorphismTokens {
-    public val MINI_PLAYER_BLUR = 20.dp
+    public val MINI_PLAYER_BLUR: Dp = 20.dp
     public const val MINI_PLAYER_TINT_ALPHA: Float = 0.15f
 
-    public val NAVIGATION_BLUR = 16.dp
+    public val NAVIGATION_BLUR: Dp = 16.dp
     public const val NAVIGATION_TINT_ALPHA: Float = 0.12f
 
-    public val PLAYER_CONTROLS_BLUR = 24.dp
+    public val PLAYER_CONTROLS_BLUR: Dp = 24.dp
     public const val PLAYER_CONTROLS_TINT_ALPHA: Float = 0.20f
 }

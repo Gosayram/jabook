@@ -463,15 +463,19 @@ public class PlayerViewModel
                 }.collect { snapshot ->
                     val activeState = snapshot.state as? PlayerState.Active ?: return@collect
                     val isLastChapter = activeState.currentChapterIndex >= (activeState.chapters.size - 1).coerceAtLeast(0)
-                    val isTrackEnded =
-                        snapshot.durationMs > 0 &&
-                            snapshot.positionMs >= (snapshot.durationMs - 750L)
-                    val shouldTrigger = isLastChapter && !snapshot.isPlaying && isTrackEnded
+                    val autoplayDecision =
+                        evaluateSeriesAutoplayDecision(
+                            isLastChapter = isLastChapter,
+                            isPlaying = snapshot.isPlaying,
+                            positionMs = snapshot.positionMs,
+                            durationMs = snapshot.durationMs,
+                            hasTriggeredSeriesAutoplay = hasTriggeredSeriesAutoplay,
+                        )
 
-                    if (shouldTrigger && !hasTriggeredSeriesAutoplay) {
+                    if (autoplayDecision.shouldTriggerAutoplay) {
                         hasTriggeredSeriesAutoplay = true
                         maybeStartSeriesAutoplay(activeState.book)
-                    } else if (!isLastChapter || snapshot.isPlaying) {
+                    } else if (autoplayDecision.shouldResetAutoplay) {
                         hasTriggeredSeriesAutoplay = false
                         seriesAutoplayJob?.cancel()
                         seriesAutoplayJob = null
@@ -1005,12 +1009,12 @@ public class PlayerViewModel
 
         public fun deleteBookmark(bookmarkId: String) {
             viewModelScope.launch {
-                bookmarkRepository
-                    .deleteBookmark(bookmarkId)
-                    .onFailure { error ->
-                        logger.e({ "Failed to delete bookmark" }, error)
-                        dispatch(PlayerIntent.ReportError("Failed to delete bookmark"))
-                    }
+                val deleteResult = bookmarkRepository.deleteBookmark(bookmarkId)
+                val deleteFailureReason = resolveDeleteBookmarkFailureReason(deleteResult)
+                if (deleteFailureReason != null) {
+                    logger.e({ deleteFailureReason }, deleteResult.exceptionOrNull())
+                    dispatch(PlayerIntent.ReportError(deleteFailureReason))
+                }
             }
         }
 
@@ -1390,3 +1394,29 @@ private data class RestoredBootstrapSnapshot(
     val playbackSpeed: Float,
     val sleepTimerMode: String,
 )
+
+internal data class SeriesAutoplayDecision(
+    val shouldTriggerAutoplay: Boolean,
+    val shouldResetAutoplay: Boolean,
+)
+
+internal fun evaluateSeriesAutoplayDecision(
+    isLastChapter: Boolean,
+    isPlaying: Boolean,
+    positionMs: Long,
+    durationMs: Long,
+    hasTriggeredSeriesAutoplay: Boolean,
+): SeriesAutoplayDecision {
+    val isTrackEnded = durationMs > 0L && positionMs >= (durationMs - 750L)
+    return SeriesAutoplayDecision(
+        shouldTriggerAutoplay = isLastChapter && !isPlaying && isTrackEnded && !hasTriggeredSeriesAutoplay,
+        shouldResetAutoplay = !isLastChapter || isPlaying,
+    )
+}
+
+internal fun resolveDeleteBookmarkFailureReason(deleteResult: Result<Unit>): String? =
+    if (deleteResult.isFailure) {
+        "Failed to delete bookmark"
+    } else {
+        null
+    }

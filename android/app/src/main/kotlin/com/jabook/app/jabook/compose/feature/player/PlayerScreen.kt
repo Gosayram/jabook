@@ -671,6 +671,7 @@ public fun PlayerScreen(
                                     }
                                 },
                     ) {
+                        val overlayHazeState = rememberHazeState()
                         AnimatedContent(
                             targetState = uiState,
                             transitionSpec = {
@@ -727,20 +728,17 @@ public fun PlayerScreen(
                                     // Click debouncer for preventing double clicks (inspired by Easybook)
                                     val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300)
 
-                                    // Haze State for Glassmorphism
-                                    val hazeState = rememberHazeState()
-
                                     // Removed GestureOverlay as per user request to disable brightness/volume/seek swipes
                                     PremiumPlayerBackground(
                                         themeColors = state.themeColors,
                                         coverImageModel = CoverUtils.getCoverModel(state.book, context),
-                                        hazeState = hazeState,
+                                        hazeState = overlayHazeState,
                                         isPowerSaveMode = isPowerSaveMode,
                                     ) {
                                         PlayerContent(
                                             state = state,
                                             playbackSpeed = playbackSpeed,
-                                            hazeState = hazeState,
+                                            hazeState = overlayHazeState,
                                             isVinylMode = isVinylMode,
                                             sleepTimerState = sleepTimerState,
                                             normalizeEnabled = normalizeEnabled,
@@ -839,7 +837,7 @@ public fun PlayerScreen(
                                                 viewModel.dispatch(PlayerIntent.SetVisualizerEnabled(enabled))
                                             },
                                             snackbarHostState = snackbarHostState,
-                                            modifier = Modifier.hazeEffect(state = hazeState),
+                                            modifier = Modifier.hazeEffect(state = overlayHazeState),
                                             sharedTransitionScope = sharedTransitionScope,
                                             animatedVisibilityScope = animatedVisibilityScope,
                                         )
@@ -863,7 +861,7 @@ public fun PlayerScreen(
                                 modifier =
                                     Modifier
                                         .align(Alignment.BottomCenter)
-                                        .hazeEffect(state = hazeState),
+                                        .hazeEffect(state = overlayHazeState),
                             )
                         }
                     }
@@ -1494,6 +1492,10 @@ private fun PlayerContent(
                                 formatDuration((chapterTimeline.totalDurationMs * clamped).toLong())
                             }
                         }
+                    val seekBackwardActionLabel =
+                        stringResource(R.string.seekBackwardDescription, state.rewindInterval)
+                    val seekForwardActionLabel =
+                        stringResource(R.string.seekForwardDescription, state.forwardInterval)
 
                     SquigglySlider(
                         value = displayedProgress,
@@ -1610,13 +1612,13 @@ private fun PlayerContent(
                                     customActions =
                                         listOf(
                                             CustomAccessibilityAction(
-                                                label = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
+                                                label = seekBackwardActionLabel,
                                             ) {
                                                 onSeekBackward()
                                                 true
                                             },
                                             CustomAccessibilityAction(
-                                                label = stringResource(R.string.seekForwardDescription, state.forwardInterval),
+                                                label = seekForwardActionLabel,
                                             ) {
                                                 onSeekForward()
                                                 true
@@ -1859,6 +1861,12 @@ private fun PlayerContent(
                     }
 
                     Spacer(modifier = Modifier.width(16.dp))
+                    val playbackStateDescription =
+                        if (state.isPlaying) {
+                            stringResource(R.string.playbackStatePlaying)
+                        } else {
+                            stringResource(R.string.playbackStatePaused)
+                        }
 
                     // Play/Pause - Larger and more prominent
                     Box(
@@ -1877,12 +1885,7 @@ private fun PlayerContent(
                                 Modifier
                                     .fillMaxSize()
                                     .semantics {
-                                        stateDescription =
-                                            if (state.isPlaying) {
-                                                stringResource(R.string.playbackStatePlaying)
-                                            } else {
-                                                stringResource(R.string.playbackStatePaused)
-                                            }
+                                        stateDescription = playbackStateDescription
                                     },
                             shape = androidx.compose.foundation.shape.CircleShape,
                             colors =

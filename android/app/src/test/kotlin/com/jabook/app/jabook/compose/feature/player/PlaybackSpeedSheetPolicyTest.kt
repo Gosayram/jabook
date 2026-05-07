@@ -44,4 +44,22 @@ class PlaybackSpeedSheetPolicyTest {
 
         assertEquals(listOf(1.0f, 0.75f, 1.25f), recent)
     }
+
+    @Test
+    fun addRecentSpeed_keepsDistinctValuesOutsideTolerance() {
+        val recent = mutableListOf(1.0f, 1.25f, 1.5f)
+
+        addRecentSpeed(recent, 1.261f)
+
+        assertEquals(listOf(1.261f, 1.0f, 1.25f), recent)
+    }
+
+    @Test
+    fun addRecentSpeed_whenListFullDropsOldestAfterInsert() {
+        val recent = mutableListOf(0.8f, 1.0f, 1.2f)
+
+        addRecentSpeed(recent, 1.4f)
+
+        assertEquals(listOf(1.4f, 0.8f, 1.0f), recent)
+    }
 }

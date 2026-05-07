@@ -306,6 +306,32 @@ internal fun addRecentSpeed(
     }
 }
 
+internal fun dialSpeedForDrag(
+    currentSpeed: Float,
+    dragDeltaX: Float,
+    dialWidthPx: Float,
+): Float {
+    if (!dialWidthPx.isFinite() || dialWidthPx <= 0f) {
+        return currentSpeed.coerceIn(
+            PlaybackSpeedConstants.MIN_SPEED,
+            PlaybackSpeedConstants.MAX_SPEED,
+        )
+    }
+    val speedSpan = PlaybackSpeedConstants.MAX_SPEED - PlaybackSpeedConstants.MIN_SPEED
+    val delta = (dragDeltaX / dialWidthPx) * speedSpan
+    return (currentSpeed + delta).coerceIn(
+        PlaybackSpeedConstants.MIN_SPEED,
+        PlaybackSpeedConstants.MAX_SPEED,
+    )
+}
+
+internal fun dialTickStep(speed: Float): Int = (speed / PlaybackSpeedConstants.SPEED_STEP).toInt()
+
+internal fun dialSweepAngle(speed: Float): Float {
+    val speedSpan = PlaybackSpeedConstants.MAX_SPEED - PlaybackSpeedConstants.MIN_SPEED
+    return ((speed - PlaybackSpeedConstants.MIN_SPEED) / speedSpan).coerceIn(0f, 1f) * 270f
+}
+
 @Composable
 private fun SpeedDial(
     speed: Float,
@@ -334,14 +360,8 @@ private fun SpeedDial(
                             onDragEnd = { onSpeedChangeFinished() },
                         ) { change, dragAmount ->
                             change.consume()
-                            val speedSpan = PlaybackSpeedConstants.MAX_SPEED - PlaybackSpeedConstants.MIN_SPEED
-                            val delta = (dragAmount.x / size.width) * speedSpan
-                            val newSpeed =
-                                (currentSpeed + delta).coerceIn(
-                                    PlaybackSpeedConstants.MIN_SPEED,
-                                    PlaybackSpeedConstants.MAX_SPEED,
-                                )
-                            val newTickStep = (newSpeed / PlaybackSpeedConstants.SPEED_STEP).toInt()
+                            val newSpeed = dialSpeedForDrag(currentSpeed, dragAmount.x, size.width.toFloat())
+                            val newTickStep = dialTickStep(newSpeed)
                             if (newTickStep != lastHapticTickStep) {
                                 lastHapticTickStep = newTickStep
                                 HapticManager.performTap(hapticFeedback)
@@ -354,10 +374,7 @@ private fun SpeedDial(
             val inset = 16.dp.toPx()
             val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
             val arcTopLeft = Offset(inset, inset)
-            val speedSpan = PlaybackSpeedConstants.MAX_SPEED - PlaybackSpeedConstants.MIN_SPEED
-            val sweep =
-                ((speed - PlaybackSpeedConstants.MIN_SPEED) / speedSpan)
-                    .coerceIn(0f, 1f) * 270f
+            val sweep = dialSweepAngle(speed)
 
             drawArc(
                 color = trackColor,

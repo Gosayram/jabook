@@ -1,0 +1,72 @@
+// Copyright 2026 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.jabook.app.jabook.compose
+
+import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.test.core.app.ApplicationProvider
+import com.jabook.app.jabook.compose.navigation.TopLevelDestination
+import org.junit.Rule
+import org.junit.Test
+
+class JabookAppSettingsBadgeTest {
+    @get:Rule
+    val composeTestRule = createComposeRule()
+
+    @Test
+    fun settingsIcon_whenNoActiveDownloads_doesNotShowBadge() {
+        val settingsLabel =
+            ApplicationProvider
+                .getApplicationContext<android.content.Context>()
+                .getString(TopLevelDestination.SETTINGS.iconTextId)
+
+        composeTestRule.setContent {
+            TopLevelDestinationIcon(
+                destination = TopLevelDestination.SETTINGS,
+                icon = TopLevelDestination.SETTINGS.unselectedIcon,
+                activeDownloadsCount = 0,
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription(settingsLabel).assertExists()
+        composeTestRule.onNodeWithTag(SETTINGS_BADGE_TEST_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun settingsIcon_whenActiveDownloadsExist_showsBadgeWithCount() {
+        val settingsLabel =
+            ApplicationProvider
+                .getApplicationContext<android.content.Context>()
+                .getString(TopLevelDestination.SETTINGS.iconTextId)
+        val activeDownloadsCount = 3
+
+        composeTestRule.setContent {
+            TopLevelDestinationIcon(
+                destination = TopLevelDestination.SETTINGS,
+                icon = TopLevelDestination.SETTINGS.unselectedIcon,
+                activeDownloadsCount = activeDownloadsCount,
+            )
+        }
+
+        composeTestRule.onNodeWithContentDescription(settingsLabel).assertExists()
+        composeTestRule.onNodeWithTag(SETTINGS_BADGE_TEST_TAG).assertIsDisplayed()
+        composeTestRule.onNodeWithText(activeDownloadsCount.toString()).assertIsDisplayed()
+    }
+}

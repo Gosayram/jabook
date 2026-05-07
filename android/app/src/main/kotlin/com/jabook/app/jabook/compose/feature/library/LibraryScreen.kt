@@ -98,9 +98,18 @@ import com.jabook.app.jabook.compose.designsystem.component.LibraryLoadingSkelet
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
+import com.jabook.app.jabook.compose.feature.achievements.AchievementOverlay
+import com.jabook.app.jabook.compose.feature.achievements.AchievementUiModel
+import com.jabook.app.jabook.compose.feature.discovery.DiscoveryGenre
+import com.jabook.app.jabook.compose.feature.discovery.DiscoveryScreen
+import com.jabook.app.jabook.compose.feature.discovery.DiscoveryUiState
+import com.jabook.app.jabook.compose.feature.discovery.ListeningMood
 import com.jabook.app.jabook.compose.feature.onboarding.SpotlightOverlay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * Library screen - displays the user's audiobook collection.
@@ -143,6 +152,11 @@ public fun LibraryScreen(
     var searchBarExpanded by remember { mutableStateOf(false) }
     var spotlightStep by rememberSaveable { mutableStateOf(0) }
     var selectedBookForActions by remember { mutableStateOf<Book?>(null) }
+    var showDiscovery by rememberSaveable { mutableStateOf(false) }
+    var listeningMood by rememberSaveable { mutableStateOf(ListeningMood.RELAXING) }
+    var activeAchievement by remember { mutableStateOf<AchievementUiModel?>(null) }
+    var hasShownFirstBookAchievement by rememberSaveable { mutableStateOf(false) }
+    var hasShownStreakAchievement by rememberSaveable { mutableStateOf(false) }
 
     val storagePermissionText = stringResource(R.string.storagePermissionRequired)
     val foundBooksMessageTemplate = stringResource(R.string.foundBooksMessage)
@@ -306,6 +320,18 @@ public fun LibraryScreen(
                                         currentMode = viewMode,
                                         onModeChanged = { mode -> viewModel.onViewModeChanged(mode) },
                                     )
+                                    IconButton(onClick = { showDiscovery = !showDiscovery }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Whatshot,
+                                            contentDescription = "Discovery",
+                                            tint =
+                                                if (showDiscovery) {
+                                                    androidx.compose.material3.MaterialTheme.colorScheme.primary
+                                                } else {
+                                                    androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                                                },
+                                        )
+                                    }
 
                                     // Favorites button
                                     IconButton(onClick = safeNavigateToFavorites) {
@@ -385,6 +411,10 @@ public fun LibraryScreen(
                                                 .filterBy(activeQuickFilter)
                                                 .filterByQuery(searchQuery)
                                         }
+                                    val discoveryUiState =
+                                        remember(books, listeningMood) {
+                                            buildDiscoveryUiState(books, listeningMood)
+                                        }
                                     val actionsProvider =
                                         viewModel.createBookActionsProvider(
                                             onBookClick = { bookId ->
@@ -408,47 +438,69 @@ public fun LibraryScreen(
                                                 stats = recap,
                                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                             )
+                                            ListeningHeatmap(
+                                                data = buildListeningHeatmapData(books),
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            )
+                                            SpeedDonutChart(
+                                                distribution = buildSpeedDistribution(books),
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            )
                                         }
-                                        SearchBar(
-                                            inputField = {
-                                                SearchBarDefaults.InputField(
-                                                    query = searchQuery,
-                                                    onQueryChange = { searchQuery = it },
-                                                    onSearch = { searchBarExpanded = false },
-                                                    expanded = searchBarExpanded,
-                                                    onExpandedChange = { searchBarExpanded = it },
-                                                    placeholder = { Text(text = stringResource(R.string.searchBooks)) },
-                                                    leadingIcon = {
-                                                        Icon(
-                                                            imageVector = Icons.Filled.Search,
-                                                            contentDescription = null,
-                                                        )
-                                                    },
-                                                )
-                                            },
-                                            expanded = searchBarExpanded,
-                                            onExpandedChange = { searchBarExpanded = it },
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 12.dp)
-                                                    .padding(bottom = 8.dp),
-                                        ) {}
-                                        LibraryQuickFilterChips(
-                                            activeFilter = activeQuickFilter,
-                                            onFilterChanged = { activeQuickFilter = it },
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 12.dp)
-                                                    .padding(top = 4.dp, bottom = 8.dp),
-                                        )
-                                        UnifiedBooksView(
-                                            books = filteredBooks,
-                                            displayMode = viewMode.toBookDisplayMode(),
-                                            actionsProvider = actionsProvider,
-                                            modifier = Modifier.fillMaxSize(),
-                                        )
+                                        if (showDiscovery) {
+                                            DiscoveryScreen(
+                                                uiState = discoveryUiState,
+                                                selectedMood = listeningMood,
+                                                onMoodChange = { listeningMood = it },
+                                                onBookClick = { onBookClick(it.id) },
+                                                onGenreClick = { genre ->
+                                                    searchQuery = genre.title
+                                                    showDiscovery = false
+                                                },
+                                                modifier = Modifier.fillMaxSize(),
+                                            )
+                                        } else {
+                                            SearchBar(
+                                                inputField = {
+                                                    SearchBarDefaults.InputField(
+                                                        query = searchQuery,
+                                                        onQueryChange = { searchQuery = it },
+                                                        onSearch = { searchBarExpanded = false },
+                                                        expanded = searchBarExpanded,
+                                                        onExpandedChange = { searchBarExpanded = it },
+                                                        placeholder = { Text(text = stringResource(R.string.searchBooks)) },
+                                                        leadingIcon = {
+                                                            Icon(
+                                                                imageVector = Icons.Filled.Search,
+                                                                contentDescription = null,
+                                                            )
+                                                        },
+                                                    )
+                                                },
+                                                expanded = searchBarExpanded,
+                                                onExpandedChange = { searchBarExpanded = it },
+                                                modifier =
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 12.dp)
+                                                        .padding(bottom = 8.dp),
+                                            ) {}
+                                            LibraryQuickFilterChips(
+                                                activeFilter = activeQuickFilter,
+                                                onFilterChanged = { activeQuickFilter = it },
+                                                modifier =
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 12.dp)
+                                                        .padding(top = 4.dp, bottom = 8.dp),
+                                            )
+                                            UnifiedBooksView(
+                                                books = filteredBooks,
+                                                displayMode = viewMode.toBookDisplayMode(),
+                                                actionsProvider = actionsProvider,
+                                                modifier = Modifier.fillMaxSize(),
+                                            )
+                                        }
                                     }
                                 }
 
@@ -606,6 +658,14 @@ public fun LibraryScreen(
                 modifier = Modifier.align(Alignment.Center),
             )
         }
+
+        activeAchievement?.let { achievement ->
+            AchievementOverlay(
+                achievement = achievement,
+                onDismiss = { activeAchievement = null },
+                modifier = Modifier.align(Alignment.Center),
+            )
+        }
     }
 
     if (showSortBottomSheet) {
@@ -623,6 +683,131 @@ public fun LibraryScreen(
         if (uiState is LibraryUiState.Success && spotlightStep == 0) {
             spotlightStep = 1
         }
+    }
+
+    LaunchedEffect(weeklyRecap) {
+        val recap = weeklyRecap ?: return@LaunchedEffect
+        if (recap.booksCompleted >= 1 && !hasShownFirstBookAchievement) {
+            hasShownFirstBookAchievement = true
+            activeAchievement =
+                AchievementUiModel(
+                    id = "first-book",
+                    title = "Первая страница",
+                    description = "Вы завершили первую книгу за неделю.",
+                )
+            return@LaunchedEffect
+        }
+        if (recap.streakDays >= 7 && !hasShownStreakAchievement) {
+            hasShownStreakAchievement = true
+            activeAchievement =
+                AchievementUiModel(
+                    id = "week-streak",
+                    title = "Неделя слова",
+                    description = "Вы слушаете уже 7 дней подряд.",
+                )
+        }
+    }
+}
+
+private fun buildDiscoveryUiState(
+    books: List<Book>,
+    mood: ListeningMood,
+): DiscoveryUiState {
+    val continueListening = books.filter { !it.isCompleted && (it.isStarted || it.progress > 0f) }.take(12)
+    val trending = books.sortedByDescending { it.addedDate ?: 0L }.take(12)
+    val personalized =
+        books
+            .filter { isMoodMatch(it, mood) }
+            .sortedByDescending { if (it.isFavorite) 1 else 0 }
+            .ifEmpty { books }
+            .take(12)
+    val genresByTitle = books.groupBy { inferGenreFromBook(it) }
+    val colorPalette =
+        listOf(
+            androidx.compose.ui.graphics
+                .Color(0xFF0D6EFD),
+            androidx.compose.ui.graphics
+                .Color(0xFF00A884),
+            androidx.compose.ui.graphics
+                .Color(0xFFFF7A00),
+            androidx.compose.ui.graphics
+                .Color(0xFFE91E63),
+            androidx.compose.ui.graphics
+                .Color(0xFF6F42C1),
+            androidx.compose.ui.graphics
+                .Color(0xFF0099CC),
+        )
+    val genres =
+        genresByTitle.entries
+            .sortedByDescending { it.value.size }
+            .take(8)
+            .mapIndexed { index, entry ->
+                DiscoveryGenre(
+                    id = "genre-${entry.key}",
+                    title = entry.key,
+                    color = colorPalette[index % colorPalette.size],
+                    coverHints = entry.value.map { it.title.take(1).ifBlank { "?" } }.take(2),
+                )
+            }
+    return DiscoveryUiState(
+        continueListening = continueListening,
+        trending = trending,
+        personalized = personalized,
+        genres = genres,
+    )
+}
+
+private fun isMoodMatch(
+    book: Book,
+    mood: ListeningMood,
+): Boolean {
+    val source = listOf(book.title, book.author, book.description.orEmpty()).joinToString(" ").lowercase()
+    return when (mood) {
+        ListeningMood.WALKING -> "подкаст" in source || "short" in source || "рассказ" in source
+        ListeningMood.DRIVING -> "детектив" in source || "триллер" in source || "боевик" in source
+        ListeningMood.SLEEPING -> "медитац" in source || "сказк" in source || "класс" in source
+        ListeningMood.WORKOUT -> "мотива" in source || "биограф" in source || "action" in source
+        ListeningMood.RELAXING -> "роман" in source || "повесть" in source || "драма" in source
+        ListeningMood.WORKING -> "бизнес" in source || "история" in source || "science" in source
+    }
+}
+
+private fun buildListeningHeatmapData(books: List<Book>): Map<LocalDate, Int> {
+    val zoneId = ZoneId.systemDefault()
+    return books
+        .mapNotNull { book ->
+            val lastPlayed = book.lastPlayedDate ?: return@mapNotNull null
+            val day = Instant.ofEpochMilli(lastPlayed).atZone(zoneId).toLocalDate()
+            day to ((book.progress * 60f).toInt().coerceAtLeast(1))
+        }.groupBy({ it.first }, { it.second })
+        .mapValues { (_, values) -> values.sum().coerceAtLeast(1) }
+}
+
+private fun buildSpeedDistribution(books: List<Book>): Map<Float, Long> {
+    if (books.isEmpty()) {
+        return emptyMap()
+    }
+    val base = books.size.toLong().coerceAtLeast(1L)
+    val fast = books.count { (it.forwardDuration ?: 0) >= 30 }.toLong()
+    val slow = books.count { (it.rewindDuration ?: 0) >= 20 }.toLong()
+    val normal = (base - fast - slow).coerceAtLeast(1L)
+    return mapOf(
+        1.0f to normal * 60_000L,
+        1.25f to fast.coerceAtLeast(1L) * 40_000L,
+        0.9f to slow.coerceAtLeast(1L) * 35_000L,
+    )
+}
+
+private fun inferGenreFromBook(book: Book): String {
+    val source = listOf(book.title, book.author, book.description.orEmpty(), book.sourceUrl.orEmpty()).joinToString(" ").lowercase()
+    return when {
+        "фантаст" in source || "sci-fi" in source || "fantasy" in source -> "Фантастика"
+        "детектив" in source || "detective" in source -> "Детективы"
+        "истор" in source || "history" in source -> "История"
+        "бизнес" in source || "business" in source -> "Бизнес"
+        "психолог" in source || "self" in source -> "Саморазвитие"
+        "класс" in source || "classic" in source -> "Классика"
+        else -> "Разное"
     }
 }
 

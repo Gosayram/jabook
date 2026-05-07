@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -55,6 +56,8 @@ import com.jabook.app.jabook.compose.navigation.TopLevelDestination
 import com.jabook.app.jabook.compose.navigation.rememberJabookAppState
 import com.jabook.app.jabook.ui.theme.JabookTheme
 import kotlinx.coroutines.launch
+
+internal const val SETTINGS_BADGE_TEST_TAG: String = "settings_badge"
 
 /**
  * Root composable for the Jabook app.
@@ -273,35 +276,11 @@ public fun JabookApp(
                                     } else {
                                         destination.unselectedIcon
                                     }
-                                if (destination == TopLevelDestination.SETTINGS && activeDownloads.isNotEmpty()) {
-                                    val downloadsStateDescription =
-                                        context.resources.getQuantityString(
-                                            com.jabook.app.jabook.R.plurals.downloads_active_plural,
-                                            activeDownloads.size,
-                                            activeDownloads.size,
-                                        )
-                                    BadgedBox(
-                                        badge = {
-                                            Badge {
-                                                Text(activeDownloads.size.toString())
-                                            }
-                                        },
-                                    ) {
-                                        Icon(
-                                            imageVector = icon,
-                                            contentDescription = stringResource(destination.iconTextId),
-                                            modifier =
-                                                Modifier.semantics {
-                                                    stateDescription = downloadsStateDescription
-                                                },
-                                        )
-                                    }
-                                } else {
-                                    Icon(
-                                        imageVector = icon,
-                                        contentDescription = stringResource(destination.iconTextId),
-                                    )
-                                }
+                                TopLevelDestinationIcon(
+                                    destination = destination,
+                                    icon = icon,
+                                    activeDownloadsCount = activeDownloads.size,
+                                )
                             },
                             label = { Text(stringResource(destination.titleTextId)) },
                             selected = selected,
@@ -364,6 +343,44 @@ public fun JabookApp(
                 }
             }
         }
+    }
+}
+
+@Composable
+internal fun TopLevelDestinationIcon(
+    destination: TopLevelDestination,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    activeDownloadsCount: Int,
+) {
+    val context = LocalContext.current
+    if (destination == TopLevelDestination.SETTINGS && activeDownloadsCount > 0) {
+        val downloadsStateDescription =
+            context.resources.getQuantityString(
+                com.jabook.app.jabook.R.plurals.downloads_active_plural,
+                activeDownloadsCount,
+                activeDownloadsCount,
+            )
+        BadgedBox(
+            badge = {
+                Badge(modifier = Modifier.testTag(SETTINGS_BADGE_TEST_TAG)) {
+                    Text(activeDownloadsCount.toString())
+                }
+            },
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = stringResource(destination.iconTextId),
+                modifier =
+                    Modifier.semantics {
+                        stateDescription = downloadsStateDescription
+                    },
+            )
+        }
+    } else {
+        Icon(
+            imageVector = icon,
+            contentDescription = stringResource(destination.iconTextId),
+        )
     }
 }
 
