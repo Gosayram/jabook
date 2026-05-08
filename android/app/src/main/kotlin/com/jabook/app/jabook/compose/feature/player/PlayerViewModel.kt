@@ -415,6 +415,7 @@ public class PlayerViewModel
 
         private companion object {
             private const val POSITION_UI_EPSILON_MS: Long = 150L
+            private const val POSITION_AUTOPLAY_EVAL_BUCKET_MS: Long = 250L
             private const val AUTOPLAY_COUNTDOWN_SECONDS: Int = 10
         }
 
@@ -448,10 +449,17 @@ public class PlayerViewModel
 
         private fun observeSeriesAutoplayTrigger() {
             viewModelScope.launch {
+                val throttledPositionFlow =
+                    playerController.currentPosition
+                        .map { positionMs ->
+                            val bucket = positionMs.coerceAtLeast(0L) / POSITION_AUTOPLAY_EVAL_BUCKET_MS
+                            bucket * POSITION_AUTOPLAY_EVAL_BUCKET_MS
+                        }.distinctUntilChanged()
+
                 combine(
                     uiState,
                     playerController.isPlaying,
-                    playerController.currentPosition,
+                    throttledPositionFlow,
                     playerController.duration,
                 ) { state, isPlaying, positionMs, durationMs ->
                     TriggerSeriesAutoplaySnapshot(
@@ -1410,7 +1418,7 @@ internal fun evaluateSeriesAutoplayDecision(
     val isTrackEnded = durationMs > 0L && positionMs >= (durationMs - 750L)
     return SeriesAutoplayDecision(
         shouldTriggerAutoplay = isLastChapter && !isPlaying && isTrackEnded && !hasTriggeredSeriesAutoplay,
-        shouldResetAutoplay = !isLastChapter || isPlaying,
+        shouldResetAutoplay = !isLastChapter || isPlaying || (hasTriggeredSeriesAutoplay && !isTrackEnded),
     )
 }
 

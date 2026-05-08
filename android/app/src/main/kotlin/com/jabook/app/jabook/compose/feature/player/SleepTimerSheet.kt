@@ -18,6 +18,7 @@ import android.app.TimePickerDialog
 import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
@@ -220,7 +221,11 @@ public fun SleepTimerSheet(
                                 formatSleepTimerStopAt(currentState.remainingSeconds),
                                 formatSleepTimerRemaining(currentState.remainingSeconds),
                             ),
-                        progressFraction = (currentState.remainingSeconds / 3600f).coerceIn(0f, 1f),
+                        progressFraction =
+                            (
+                                currentState.remainingSeconds.toFloat() /
+                                    currentState.initialSeconds.coerceAtLeast(1).toFloat()
+                            ).coerceIn(0f, 1f),
                         onCancelTimer = onCancelTimer,
                         onDismiss = onDismiss,
                     )
@@ -261,6 +266,9 @@ public fun SleepTimerSheet(
 
 internal val DEFAULT_SLEEP_TIMER_PRESET_DURATIONS: List<Int> = listOf(5, 10, 15, 30, 45, 60)
 
+/**
+ * Extracted to keep click behavior deterministic and unit-testable without Compose runtime.
+ */
 internal fun handleSleepTimerPresetSelection(
     minutes: Int,
     onStartTimer: (Int) -> Unit,
@@ -314,7 +322,7 @@ private fun ActiveTimerContent(
                 .padding(16.dp),
     ) {
         if (progressFraction != null) {
-            androidx.compose.foundation.layout.Box(
+            Box(
                 modifier = Modifier.size(96.dp),
                 contentAlignment = Alignment.Center,
             ) {

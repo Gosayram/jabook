@@ -76,6 +76,21 @@ class PlayerViewModelAutoplayPolicyTest {
     }
 
     @Test
+    fun evaluateSeriesAutoplayDecision_resetsWhenUserSeeksBackAfterAutoplayTriggered() {
+        val decision =
+            evaluateSeriesAutoplayDecision(
+                isLastChapter = true,
+                isPlaying = false,
+                positionMs = 4_000L,
+                durationMs = 10_000L,
+                hasTriggeredSeriesAutoplay = true,
+            )
+
+        assertTrue(decision.shouldResetAutoplay)
+        assertFalse(decision.shouldTriggerAutoplay)
+    }
+
+    @Test
     fun resolveDeleteBookmarkFailureReason_mapsFailureToUserFacingMessage() {
         val failed = resolveDeleteBookmarkFailureReason(Result.failure(IllegalStateException("db")))
         val success = resolveDeleteBookmarkFailureReason(Result.success(Unit))

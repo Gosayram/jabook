@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.torrent
 
+import android.content.res.Resources
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -214,7 +216,24 @@ public fun TorrentDownloadItem(
 }
 
 @Composable
-private fun formatBytes(bytes: Long): String = formatSpeed(bytes.coerceAtLeast(0L))
+private fun formatBytes(bytes: Long): String = formatBytes(bytes, LocalContext.current.resources)
+
+internal fun formatBytes(
+    bytes: Long,
+    resources: Resources,
+): String {
+    val safeBytes = bytes.coerceAtLeast(0L)
+    val kb = safeBytes / 1024.0
+    val mb = kb / 1024.0
+    val gb = mb / 1024.0
+
+    return when {
+        gb >= 1.0 -> resources.getString(R.string.size_gb, gb)
+        mb >= 1.0 -> resources.getString(R.string.size_mb, mb)
+        kb >= 1.0 -> resources.getString(R.string.size_kb, kb)
+        else -> resources.getString(R.string.size_bytes, safeBytes)
+    }
+}
 
 /**
  * State badge component
@@ -257,17 +276,8 @@ private fun StateBadge(
  */
 @Composable
 private fun formatSpeed(bytesPerSecond: Long): String {
-    val safeBytes = bytesPerSecond.coerceAtLeast(0L)
-    val kb = safeBytes / 1024.0
-    val mb = kb / 1024.0
-    val gb = mb / 1024.0
-
-    return when {
-        gb >= 1.0 -> stringResource(R.string.size_gb, gb)
-        mb >= 1.0 -> stringResource(R.string.size_mb, mb)
-        kb >= 1.0 -> stringResource(R.string.size_kb, kb)
-        else -> stringResource(R.string.size_bytes, safeBytes)
-    }
+    val resources = LocalContext.current.resources
+    return formatBytes(bytesPerSecond, resources)
 }
 
 /**

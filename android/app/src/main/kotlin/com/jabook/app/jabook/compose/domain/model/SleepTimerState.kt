@@ -29,9 +29,11 @@ public sealed interface SleepTimerState {
      * Timer is counting down.
      *
      * @param remainingSeconds Seconds remaining until auto-pause
+     * @param initialSeconds Original timer duration in seconds, used for progress calculations
      */
     public data class Active(
         val remainingSeconds: Int,
+        val initialSeconds: Int = remainingSeconds,
     ) : SleepTimerState {
         /**
          * Legacy formatted time (MM:SS) for compatibility with existing tests/consumers.

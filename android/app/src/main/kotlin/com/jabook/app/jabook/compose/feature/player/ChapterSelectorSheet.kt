@@ -343,8 +343,7 @@ private fun ChapterSelectorItem(
     onMoveUp: () -> Unit = {},
     onMoveDown: () -> Unit = {},
 ) {
-    var dragAccumulated by remember { mutableStateOf(0f) }
-    val dragThreshold = LocalDensity.current.run { 48.dp.toPx() }
+    val density = LocalDensity.current
     Row(
         modifier =
             Modifier
@@ -413,17 +412,20 @@ private fun ChapterSelectorItem(
                         Modifier
                             .size(32.dp)
                             .pointerInput(chapter.id, onMoveUp, onMoveDown) {
+                                var dragAccumulated = 0f
+                                val threshold = with(density) { 48.dp.toPx() }
                                 detectVerticalDragGestures(
                                     onDragEnd = { dragAccumulated = 0f },
+                                    onDragCancel = { dragAccumulated = 0f },
                                 ) { change, dragAmount ->
                                     change.consume()
                                     dragAccumulated += dragAmount
                                     when {
-                                        dragAccumulated >= dragThreshold -> {
+                                        dragAccumulated >= threshold -> {
                                             onMoveDown()
                                             dragAccumulated = 0f
                                         }
-                                        dragAccumulated <= -dragThreshold -> {
+                                        dragAccumulated <= -threshold -> {
                                             onMoveUp()
                                             dragAccumulated = 0f
                                         }

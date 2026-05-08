@@ -36,7 +36,7 @@ import dev.chrisbanes.haze.hazeSource
 @Composable
 public fun PremiumPlayerBackground(
     themeColors: PlayerThemeColors?,
-    coverImageModel: Any?,
+    coverImageModel: Any? = null,
     hazeState: HazeState? = null,
     isPowerSaveMode: Boolean = false,
     modifier: Modifier = Modifier,
@@ -67,6 +67,20 @@ public fun PremiumPlayerBackground(
             .then(if (hazeState != null && !isPowerSaveMode) Modifier.hazeSource(state = hazeState) else Modifier)
 
     Box(modifier = finalModifier) {
+        if (!isPowerSaveMode && backgroundColors.isNotEmpty()) {
+            HypnoticBackground(
+                colors = backgroundColors,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .then(fallbackBackgroundModifier),
+            )
+        }
+
         if (coverImageModel != null) {
             AsyncImage(
                 model = coverImageModel,
@@ -80,20 +94,6 @@ public fun PremiumPlayerBackground(
                             scaleY = 1.1f,
                         ),
                 contentScale = ContentScale.Crop,
-            )
-        }
-
-        if (!isPowerSaveMode && backgroundColors.isNotEmpty()) {
-            HypnoticBackground(
-                colors = backgroundColors,
-                modifier = Modifier.fillMaxSize(),
-            )
-        } else {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .then(fallbackBackgroundModifier),
             )
         }
 

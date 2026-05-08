@@ -2476,6 +2476,7 @@ private fun PlayerContent(
                                 return@FilledTonalButton
                             }
                             val player = MediaPlayer()
+                            bookmarkPlayer.value = player
                             try {
                                 player.setDataSource(path)
                                 player.setOnCompletionListener {
@@ -2488,7 +2489,6 @@ private fun PlayerContent(
                                 }
                                 player.setOnPreparedListener {
                                     it.start()
-                                    bookmarkPlayer.value = player
                                     isPlayingBookmarkAudio = true
                                 }
                                 player.setOnErrorListener { _, _, _ ->
