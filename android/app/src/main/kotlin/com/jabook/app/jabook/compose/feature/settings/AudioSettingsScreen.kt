@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -57,6 +58,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,6 +68,7 @@ import com.jabook.app.jabook.audio.processors.EqualizerPreset
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import kotlin.math.ln
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -420,15 +423,15 @@ private fun EqualizerFiveBandCard(
     preset: EqualizerPreset,
     modifier: Modifier = Modifier,
 ) {
-    val bandLabels = listOf("80", "250", "1k", "4k", "8k")
+    val bandLabels = listOf("63", "250", "1k", "4k", "8k")
     val source = preset.bandGainsMb
     val mapped =
         listOf(
-            source[1] / 100f,
-            source[3] / 100f,
-            source[5] / 100f,
-            source[7] / 100f,
-            source[8] / 100f,
+            source.getOrNull(1)?.div(100f) ?: 0f,
+            source.getOrNull(3)?.div(100f) ?: 0f,
+            source.getOrNull(5)?.div(100f) ?: 0f,
+            source.getOrNull(7)?.div(100f) ?: 0f,
+            source.getOrNull(8)?.div(100f) ?: 0f,
         )
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -460,7 +463,7 @@ private fun EqBandPreview(
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            text = stringResource(R.string.equalizer_gain_db, gainDb.toInt()),
+            text = stringResource(R.string.equalizer_gain_db, gainDb.roundToInt()),
             style = MaterialTheme.typography.labelSmall,
         )
         Box(
@@ -475,7 +478,8 @@ private fun EqBandPreview(
                 enabled = false,
                 modifier =
                     Modifier
-                        .width(130.dp)
+                        .requiredWidth(130.dp)
+                        .clearAndSetSemantics { }
                         .graphicsLayer { rotationZ = -90f },
             )
         }

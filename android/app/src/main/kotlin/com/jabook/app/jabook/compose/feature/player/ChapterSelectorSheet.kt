@@ -61,6 +61,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -343,6 +344,7 @@ private fun ChapterSelectorItem(
     onMoveDown: () -> Unit = {},
 ) {
     var dragAccumulated by remember { mutableStateOf(0f) }
+    val dragThreshold = LocalDensity.current.run { 48.dp.toPx() }
     Row(
         modifier =
             Modifier
@@ -410,18 +412,18 @@ private fun ChapterSelectorItem(
                     modifier =
                         Modifier
                             .size(32.dp)
-                            .pointerInput(chapter.id) {
+                            .pointerInput(chapter.id, onMoveUp, onMoveDown) {
                                 detectVerticalDragGestures(
                                     onDragEnd = { dragAccumulated = 0f },
                                 ) { change, dragAmount ->
                                     change.consume()
                                     dragAccumulated += dragAmount
                                     when {
-                                        dragAccumulated >= 24f -> {
+                                        dragAccumulated >= dragThreshold -> {
                                             onMoveDown()
                                             dragAccumulated = 0f
                                         }
-                                        dragAccumulated <= -24f -> {
+                                        dragAccumulated <= -dragThreshold -> {
                                             onMoveUp()
                                             dragAccumulated = 0f
                                         }

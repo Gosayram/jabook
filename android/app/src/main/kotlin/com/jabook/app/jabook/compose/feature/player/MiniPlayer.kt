@@ -68,6 +68,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
+import com.jabook.app.jabook.ui.theme.JabookTheme
 import kotlin.math.abs
 
 /**
@@ -125,18 +126,10 @@ public fun MiniPlayer(
 
     // Alpha fades primarily on vertical dismiss
     val dragProgress = (animatedOffsetY.coerceAtLeast(0f) / dismissThreshold).coerceIn(0f, 1f)
-    val alpha by animateFloatAsState(
-        targetValue = 1f - (dragProgress * 0.5f),
-        animationSpec = spring(dampingRatio = 0.82f, stiffness = 340f),
-        label = "miniPlayerAlpha",
-    )
+    val alpha = 1f - (dragProgress * 0.5f)
 
-    // Scale animation during drag
-    val scale by animateFloatAsState(
-        targetValue = 1f - (dragProgress * 0.05f),
-        animationSpec = spring(dampingRatio = 0.82f, stiffness = 340f),
-        label = "miniPlayerScale",
-    )
+    // Scale during drag
+    val scale = 1f - (dragProgress * 0.05f)
 
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -305,7 +298,7 @@ public fun MiniPlayer(
 @Preview(name = "MiniPlayer Huge Font", fontScale = 2.0f, showBackground = true)
 @Composable
 private fun MiniPlayerFontScalePreview() {
-    MaterialTheme {
+    JabookTheme {
         MiniPlayer(
             coverUrl = null,
             title = "Очень длинное название аудиокниги для проверки адаптивности в мини-плеере",
@@ -357,7 +350,7 @@ public fun AnimatedMiniPlayer(
                     animationSpec =
                         tween(
                             durationMillis = MotionTokens.MEDIUM1,
-                            easing = MotionTokens.EmphasizedDecelerate,
+                            easing = MotionTokens.EmphasizedAccelerate,
                         ),
                 )
             },

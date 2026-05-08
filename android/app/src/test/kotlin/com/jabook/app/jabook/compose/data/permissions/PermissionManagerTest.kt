@@ -14,14 +14,12 @@
 
 package com.jabook.app.jabook.compose.data.permissions
 
-import android.Manifest
 import android.content.Context
 import android.os.Build
 import android.provider.Settings
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,18 +44,15 @@ class PermissionManagerTest {
     }
 
     @Test
-    @Config(sdk = [Build.VERSION_CODES.Q])
-    fun `getStorageAccessRequest returns legacy runtime permissions below Android 11`() {
+    @Config(sdk = [Build.VERSION_CODES.R])
+    fun `getStorageAccessRequest remains full file system mode for supported sdk range`() {
         val manager = PermissionManager(ApplicationProvider.getApplicationContext())
 
         val request = manager.getStorageAccessRequest()
 
-        assertEquals(StorageAccessMode.LEGACY_RUNTIME_PERMISSIONS, request.mode)
-        assertEquals(
-            listOf(Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE),
-            request.runtimePermissions,
-        )
-        assertNull(request.intent)
+        assertEquals(StorageAccessMode.FULL_FILE_SYSTEM, request.mode)
+        assertTrue(request.runtimePermissions.isEmpty())
+        assertNotNull(request.intent)
     }
 
     @Test

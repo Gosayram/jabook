@@ -167,8 +167,7 @@ public fun SquigglySlider(
                 .onGloballyPositioned { coordinates ->
                     val topLeft = coordinates.localToWindow(Offset.Zero)
                     sliderWindowOffset = IntOffset(topLeft.x.toInt(), topLeft.y.toInt())
-                }
-                .pointerInput(onLongPress, enabled, normalizedRange) {
+                }.pointerInput(onLongPress, enabled, normalizedRange) {
                     if (onLongPress == null || !enabled) return@pointerInput
                     detectTapGestures(
                         onLongPress = { offset ->

@@ -40,10 +40,14 @@ import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEn
         SavedPlayerStateEntity::class,
         ListeningSessionEntity::class,
     ],
-    version = 3,
+    version = AudioDatabase.SCHEMA_VERSION,
     exportSchema = true,
 )
 public abstract class AudioDatabase : RoomDatabase() {
+    public companion object {
+        public const val SCHEMA_VERSION: Int = 3
+    }
+
     public abstract fun playbackPositionDao(): PlaybackPositionDao
 
     public abstract fun playlistDao(): PlaylistDao

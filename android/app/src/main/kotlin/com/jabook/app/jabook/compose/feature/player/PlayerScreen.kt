@@ -677,7 +677,7 @@ public fun PlayerScreen(
                                             true
                                         }
                                         Key.Escape -> {
-                                            onNavigateBack()
+                                            navigationClickGuard.run { onNavigateBack() }
                                             true
                                         }
                                         else -> false
@@ -929,7 +929,12 @@ public fun PlayerScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = { showRatingDialog = false }) {
+                TextButton(
+                    onClick = {
+                        ratedBookId = (uiState as? PlayerState.Active)?.book?.id
+                        showRatingDialog = false
+                    },
+                ) {
                     Text(text = stringResource(R.string.laterAction))
                 }
             },

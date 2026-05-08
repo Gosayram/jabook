@@ -36,12 +36,14 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -87,7 +89,13 @@ public fun PlaybackSpeedSheet(
     var sliderSpeed by remember { mutableFloatStateOf(currentSpeed) }
     val hapticFeedback = LocalHapticFeedback.current
     val recentSpeeds =
-        rememberSaveable {
+        rememberSaveable(
+            saver =
+                listSaver(
+                    save = { it.toList() },
+                    restore = { it.toTypedArray().let { array -> mutableStateListOf(*array) } },
+                ),
+        ) {
             mutableStateListOf(currentSpeed)
         }
 
@@ -145,11 +153,11 @@ public fun PlaybackSpeedSheet(
                 value = sliderSpeed,
                 onValueChange = { newSpeed ->
                     // Round to nearest step for cleaner values
-                    val rounded = roundToStep(newSpeed)
-                    sliderSpeed = rounded
-                    onSpeedSelected(rounded)
+                    sliderSpeed = roundToStep(newSpeed)
                 },
                 onValueChangeFinished = {
+                    val rounded = roundToStep(sliderSpeed)
+                    onSpeedSelected(rounded)
                     addRecentSpeed(recentSpeeds, sliderSpeed)
                 },
                 valueRange = PlaybackSpeedConstants.MIN_SPEED..PlaybackSpeedConstants.MAX_SPEED,
@@ -343,6 +351,9 @@ private fun SpeedDial(
     val currentSpeed by rememberUpdatedState(speed)
     var lastHapticTickStep by remember {
         mutableIntStateOf((speed / PlaybackSpeedConstants.SPEED_STEP).toInt())
+    }
+    LaunchedEffect(currentSpeed) {
+        lastHapticTickStep = (currentSpeed / PlaybackSpeedConstants.SPEED_STEP).toInt()
     }
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
     val progressColor = MaterialTheme.colorScheme.primary

@@ -29,9 +29,9 @@ public enum class EqualizerPreset(
     public val bandGainsMb: IntArray,
     /**
      * Preamp gain in millibels applied before EQ bands.
-     * Automatically calculated to prevent clipping when [PREAMP_AUTO] is used.
+     * If null, auto-calculation prevents clipping based on positive band peaks.
      */
-    public val preampMillibels: Int = 0,
+    public val preampMillibels: Int? = 0,
 ) {
     /**
      * Flat — no EQ applied. All bands at 0 dB.
@@ -49,7 +49,7 @@ public enum class EqualizerPreset(
     VOICE_CLARITY(
         displayName = "Voice Clarity",
         bandGainsMb = intArrayOf(-200, -100, 0, 200, 300, 400, 300, 200, 0, -100),
-        preampMillibels = Int.MIN_VALUE + 1,
+        preampMillibels = null,
     ),
 
     /**
@@ -61,36 +61,38 @@ public enum class EqualizerPreset(
     NIGHT(
         displayName = "Night",
         bandGainsMb = intArrayOf(-300, -200, -100, 0, 200, 300, 200, 100, 0, -100),
-        preampMillibels = Int.MIN_VALUE + 1,
+        preampMillibels = null,
     ),
 
     /**
-     * Headphones — slight low-end support with detailed upper mids.
-     * Tuned for in-ear/headphones to keep speech natural.
+     * Headphones — low-end gently rolled off with boosted upper-mid presence.
+     * Tuned for in-ear/headphones to keep speech natural and detailed.
+     * Preamp: auto-calculated to compensate for peak gain.
      */
     HEADPHONES(
         displayName = "Headphones",
         bandGainsMb = intArrayOf(-150, -50, 50, 120, 180, 220, 260, 220, 120, 20),
-        preampMillibels = Int.MIN_VALUE + 1,
+        preampMillibels = null,
     ),
 
     /**
      * Car — stronger low-mid support to compensate road noise.
+     * Preamp: auto-calculated to compensate for peak gain.
      */
     CAR(
         displayName = "Car",
         bandGainsMb = intArrayOf(120, 180, 260, 300, 280, 220, 140, 80, 20, -40),
-        preampMillibels = Int.MIN_VALUE + 1,
+        preampMillibels = null,
     ),
     ;
 
     /**
-     * Computes the effective preamp value. If [preampMillibels] is [PREAMP_AUTO],
+     * Computes the effective preamp value. If [preampMillibels] is null,
      * calculates the safe preamp as the negative of the maximum positive band gain,
      * ensuring the output signal never exceeds the input level (preventing clipping).
      */
     public fun effectivePreamp(): Int =
-        if (preampMillibels == PREAMP_AUTO) {
+        if (preampMillibels == null) {
             calculateSafePreamp(bandGainsMb)
         } else {
             preampMillibels
@@ -105,12 +107,6 @@ public enum class EqualizerPreset(
          * Must match the device EQ capability; shorter arrays are padded with 0.
          */
         public const val BAND_COUNT: Int = 10
-
-        /**
-         * Sentinel value indicating preamp should be auto-calculated
-         * from the maximum positive band gain to prevent clipping.
-         */
-        public const val PREAMP_AUTO: Int = Int.MIN_VALUE + 1
 
         /**
          * Calculates a safe preamp value (in millibels) that prevents clipping.
