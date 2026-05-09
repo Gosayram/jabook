@@ -11,10 +11,12 @@ import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.testing.Test
 import org.gradle.process.ExecOperations
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.time.Duration
 import java.util.Properties
 import javax.inject.Inject
 
@@ -392,6 +394,18 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 
 tasks.withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
     dependsOn(generateProtoLite)
+}
+
+tasks.withType<Test>().configureEach {
+    // Hard stop for hung test task in local and CI runs.
+    timeout.set(Duration.ofMinutes(12))
+    failFast = true
+    maxParallelForks = maxOf(1, Runtime.getRuntime().availableProcessors() / 2)
+    forkEvery = 120
+    testLogging {
+        events("failed", "skipped")
+    }
+    systemProperty("kotlinx.coroutines.test.default_timeout", "30s")
 }
 
 tasks
