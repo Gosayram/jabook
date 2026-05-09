@@ -15,7 +15,7 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -93,7 +93,11 @@ public fun PlaybackSpeedSheet(
             saver =
                 listSaver(
                     save = { it.toList() },
-                    restore = { it.toTypedArray().let { array -> mutableStateListOf(*array) } },
+                    restore = {
+                        mutableStateListOf<Float>().apply {
+                            addAll(it)
+                        }
+                    },
                 ),
         ) {
             mutableStateListOf(currentSpeed)
@@ -137,10 +141,12 @@ public fun PlaybackSpeedSheet(
                 speed = sliderSpeed,
                 onSpeedChange = { newSpeed ->
                     sliderSpeed = roundToStep(newSpeed)
-                    onSpeedSelected(sliderSpeed)
                 },
                 onSpeedChangeFinished = {
-                    addRecentSpeed(recentSpeeds, sliderSpeed)
+                    val rounded = roundToStep(sliderSpeed)
+                    sliderSpeed = rounded
+                    onSpeedSelected(rounded)
+                    addRecentSpeed(recentSpeeds, rounded)
                 },
                 hapticFeedback = hapticFeedback,
                 modifier = Modifier.fillMaxWidth(),
@@ -157,8 +163,9 @@ public fun PlaybackSpeedSheet(
                 },
                 onValueChangeFinished = {
                     val rounded = roundToStep(sliderSpeed)
+                    sliderSpeed = rounded
                     onSpeedSelected(rounded)
-                    addRecentSpeed(recentSpeeds, sliderSpeed)
+                    addRecentSpeed(recentSpeeds, rounded)
                 },
                 valueRange = PlaybackSpeedConstants.MIN_SPEED..PlaybackSpeedConstants.MAX_SPEED,
                 steps = PlaybackSpeedConstants.SLIDER_STEPS,
@@ -350,10 +357,10 @@ private fun SpeedDial(
 ) {
     val currentSpeed by rememberUpdatedState(speed)
     var lastHapticTickStep by remember {
-        mutableIntStateOf((speed / PlaybackSpeedConstants.SPEED_STEP).toInt())
+        mutableIntStateOf(dialTickStep(speed))
     }
     LaunchedEffect(currentSpeed) {
-        lastHapticTickStep = (currentSpeed / PlaybackSpeedConstants.SPEED_STEP).toInt()
+        lastHapticTickStep = dialTickStep(currentSpeed)
     }
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
     val progressColor = MaterialTheme.colorScheme.primary
@@ -367,11 +374,11 @@ private fun SpeedDial(
                 Modifier
                     .size(140.dp)
                     .pointerInput(Unit) {
-                        detectDragGestures(
+                        detectHorizontalDragGestures(
                             onDragEnd = { onSpeedChangeFinished() },
-                        ) { change, dragAmount ->
+                        ) { change, dragDelta ->
                             change.consume()
-                            val newSpeed = dialSpeedForDrag(currentSpeed, dragAmount.x, size.width.toFloat())
+                            val newSpeed = dialSpeedForDrag(currentSpeed, dragDelta, size.width.toFloat())
                             val newTickStep = dialTickStep(newSpeed)
                             if (newTickStep != lastHapticTickStep) {
                                 lastHapticTickStep = newTickStep

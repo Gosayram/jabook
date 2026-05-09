@@ -30,7 +30,9 @@ import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEn
 /**
  * Room database for audio player data.
  *
- * Version 2 adds SavedPlayerStateEntity for full player state persistence.
+ * Schema evolution:
+ * - Version 2 added [SavedPlayerStateEntity] for full player state persistence.
+ * - Version 3 adds [ListeningSessionEntity] and related indexes for engagement analytics.
  */
 @Database(
     entities = [

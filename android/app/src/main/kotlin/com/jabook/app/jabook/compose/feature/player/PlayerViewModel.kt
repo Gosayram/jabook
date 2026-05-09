@@ -422,6 +422,7 @@ public class PlayerViewModel
         public data class NextBookAutoplayState(
             val nextBook: Book,
             val secondsLeft: Int,
+            val totalSeconds: Int,
         )
 
         @OptIn(ExperimentalCoroutinesApi::class)
@@ -506,7 +507,12 @@ public class PlayerViewModel
         private suspend fun startAutoplayCountdown(nextBook: Book) {
             for (seconds in AUTOPLAY_COUNTDOWN_SECONDS downTo 0) {
                 if (!currentCoroutineContext().isActive) return
-                _nextBookAutoplayState.value = NextBookAutoplayState(nextBook = nextBook, secondsLeft = seconds)
+                _nextBookAutoplayState.value =
+                    NextBookAutoplayState(
+                        nextBook = nextBook,
+                        secondsLeft = seconds,
+                        totalSeconds = AUTOPLAY_COUNTDOWN_SECONDS,
+                    )
                 if (seconds > 0) delay(1_000L)
             }
             if (!currentCoroutineContext().isActive) return

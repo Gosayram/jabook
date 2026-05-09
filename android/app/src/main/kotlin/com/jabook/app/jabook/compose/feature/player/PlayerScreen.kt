@@ -310,9 +310,9 @@ public fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(uiState) {
-        val activeState = uiState as? PlayerState.Active ?: return@LaunchedEffect
-        if (activeState.book.isCompleted && ratedBookId != activeState.book.id && !showRatingDialog) {
+    val completedBookId = (uiState as? PlayerState.Active)?.book?.takeIf { it.isCompleted }?.id
+    LaunchedEffect(completedBookId) {
+        if (completedBookId != null && ratedBookId != completedBookId && !showRatingDialog) {
             selectedRating = 0
             showRatingDialog = true
         }
@@ -623,31 +623,15 @@ public fun PlayerScreen(
                                 .windowInsetsPadding(WindowInsets.systemBars)
                                 .onPreviewKeyEvent { keyEvent ->
                                     if (keyEvent.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                                    val shouldIgnoreShortcuts =
+                                        showSpeedSheet ||
+                                            showSleepTimerSheet ||
+                                            showAudioSettingsSheet ||
+                                            showChapterSheet ||
+                                            showSettingsSheet ||
+                                            showRatingDialog
+                                    if (shouldIgnoreShortcuts) return@onPreviewKeyEvent false
                                     when (keyEvent.key) {
-                                        Key.Spacebar -> {
-                                            viewModel.dispatch(PlayerIntent.TogglePlayPause)
-                                            true
-                                        }
-                                        Key.DirectionLeft -> {
-                                            viewModel.dispatch(
-                                                if (keyEvent.isShiftPressed) {
-                                                    PlayerIntent.SkipPrevious
-                                                } else {
-                                                    PlayerIntent.SeekBackward
-                                                },
-                                            )
-                                            true
-                                        }
-                                        Key.DirectionRight -> {
-                                            viewModel.dispatch(
-                                                if (keyEvent.isShiftPressed) {
-                                                    PlayerIntent.SkipNext
-                                                } else {
-                                                    PlayerIntent.SeekForward
-                                                },
-                                            )
-                                            true
-                                        }
                                         Key.DirectionUp -> {
                                             val audioManager =
                                                 context.getSystemService(android.content.Context.AUDIO_SERVICE) as? AudioManager
@@ -677,10 +661,18 @@ public fun PlayerScreen(
                                             true
                                         }
                                         Key.Escape -> {
-                                            navigationClickGuard.run { onNavigateBack() }
+                                            if (scaffoldNavigator.canNavigateBack()) {
+                                                scope.launch { scaffoldNavigator.navigateBack() }
+                                            } else {
+                                                navigationClickGuard.run { onNavigateBack() }
+                                            }
                                             true
                                         }
-                                        else -> false
+                                        else -> {
+                                            val intent = mapKeyEventToPlayerIntent(keyEvent) ?: return@onPreviewKeyEvent false
+                                            viewModel.dispatch(intent)
+                                            true
+                                        }
                                     }
                                 },
                     ) {
@@ -869,6 +861,7 @@ public fun PlayerScreen(
                             NextBookCountdownCard(
                                 book = autoplayState.nextBook,
                                 secondsLeft = autoplayState.secondsLeft,
+                                totalSeconds = autoplayState.totalSeconds,
                                 onContinue = viewModel::continueSeriesNow,
                                 onDismiss = viewModel::dismissSeriesAutoplay,
                                 modifier =
@@ -911,7 +904,11 @@ public fun PlayerScreen(
 
     if (showRatingDialog) {
         androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showRatingDialog = false },
+            onDismissRequest = {
+                ratedBookId = (uiState as? PlayerState.Active)?.book?.id
+                selectedRating = 0
+                showRatingDialog = false
+            },
             title = { Text(text = stringResource(R.string.rateCompletedBookTitle)) },
             text = {
                 StarRatingRow(
@@ -932,6 +929,7 @@ public fun PlayerScreen(
                 TextButton(
                     onClick = {
                         ratedBookId = (uiState as? PlayerState.Active)?.book?.id
+                        selectedRating = 0
                         showRatingDialog = false
                     },
                 ) {
@@ -973,6 +971,7 @@ private fun StarRatingRow(
 private fun NextBookCountdownCard(
     book: com.jabook.app.jabook.compose.domain.model.Book,
     secondsLeft: Int,
+    totalSeconds: Int,
     onContinue: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1025,7 +1024,10 @@ private fun NextBookCountdownCard(
                 contentAlignment = Alignment.Center,
             ) {
                 CircularProgressIndicator(
-                    progress = { (secondsLeft.coerceIn(0, 10)) / 10f },
+                    progress = {
+                        val total = totalSeconds.coerceAtLeast(1)
+                        secondsLeft.coerceIn(0, total) / total.toFloat()
+                    },
                     modifier = Modifier.fillMaxSize(),
                     strokeWidth = 3.dp,
                 )
@@ -2491,7 +2493,15 @@ private fun PlayerContent(
                                     it.start()
                                     isPlayingBookmarkAudio = true
                                 }
-                                player.setOnErrorListener { _, _, _ ->
+                                player.setOnErrorListener { _, what, extra ->
+                                    playerScreenLogger.e {
+                                        "Bookmark voice-note playback failed in MediaPlayer listener: what=$what extra=$extra"
+                                    }
+                                    seekScope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            context.getString(R.string.errorPlayingVoiceNote),
+                                        )
+                                    }
                                     player.runCatching {
                                         reset()
                                         release()
@@ -2502,6 +2512,12 @@ private fun PlayerContent(
                                 }
                                 player.prepareAsync()
                             } catch (e: java.io.IOException) {
+                                playerScreenLogger.e(e) { "Failed to prepare bookmark voice-note (I/O)" }
+                                seekScope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(R.string.errorPlayingVoiceNote),
+                                    )
+                                }
                                 player.runCatching {
                                     reset()
                                     release()
@@ -2509,6 +2525,12 @@ private fun PlayerContent(
                                 bookmarkPlayer.value = null
                                 isPlayingBookmarkAudio = false
                             } catch (e: IllegalStateException) {
+                                playerScreenLogger.e(e) { "Failed to prepare bookmark voice-note (illegal state)" }
+                                seekScope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(R.string.errorPlayingVoiceNote),
+                                    )
+                                }
                                 player.runCatching {
                                     reset()
                                     release()
@@ -2516,6 +2538,12 @@ private fun PlayerContent(
                                 bookmarkPlayer.value = null
                                 isPlayingBookmarkAudio = false
                             } catch (e: SecurityException) {
+                                playerScreenLogger.e(e) { "Failed to prepare bookmark voice-note (security)" }
+                                seekScope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(R.string.errorPlayingVoiceNote),
+                                    )
+                                }
                                 player.runCatching {
                                     reset()
                                     release()
@@ -2843,6 +2871,24 @@ internal fun resolveChapterBoundaryHapticDecision(
         )
     }
 }
+
+internal fun mapKeyEventToPlayerIntent(keyEvent: androidx.compose.ui.input.key.KeyEvent): PlayerIntent? =
+    when (keyEvent.key) {
+        Key.Spacebar -> PlayerIntent.TogglePlayPause
+        Key.DirectionLeft ->
+            if (keyEvent.isShiftPressed) {
+                PlayerIntent.SkipPrevious
+            } else {
+                PlayerIntent.SeekBackward
+            }
+        Key.DirectionRight ->
+            if (keyEvent.isShiftPressed) {
+                PlayerIntent.SkipNext
+            } else {
+                PlayerIntent.SeekForward
+            }
+        else -> null
+    }
 
 @Composable
 private fun DebugRecompositionCounter(modifier: Modifier = Modifier) {

@@ -275,16 +275,23 @@ private fun StateBadge(
  * Format speed in human-readable format
  */
 @Composable
-private fun formatSpeed(bytesPerSecond: Long): String {
-    val resources = LocalContext.current.resources
-    return formatBytes(bytesPerSecond, resources)
-}
+private fun formatSpeed(bytesPerSecond: Long): String = formatSpeed(bytesPerSecond, LocalContext.current.resources)
+
+internal fun formatSpeed(
+    bytesPerSecond: Long,
+    resources: Resources,
+): String = formatBytes(bytesPerSecond, resources)
 
 /**
  * Format ETA in human-readable format
  */
 @Composable
-private fun formatEta(seconds: Long): String {
+private fun formatEta(seconds: Long): String = formatEta(seconds, LocalContext.current.resources)
+
+internal fun formatEta(
+    seconds: Long,
+    resources: Resources,
+): String {
     // Handle invalid ETA values
     if (seconds < 0) {
         return "--" // Unknown ETA
@@ -295,8 +302,8 @@ private fun formatEta(seconds: Long): String {
     val minutes = (safeSeconds % 3600) / 60
 
     return when {
-        hours > 0 -> stringResource(R.string.duration_hm, hours, minutes)
-        minutes > 0 -> stringResource(R.string.duration_m, minutes)
-        else -> stringResource(R.string.duration_less_minute)
+        hours > 0 -> resources.getString(R.string.duration_hm, hours, minutes)
+        minutes > 0 -> resources.getString(R.string.duration_m, minutes)
+        else -> resources.getString(R.string.duration_less_minute)
     }
 }

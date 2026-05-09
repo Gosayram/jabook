@@ -31,7 +31,7 @@ public enum class EqualizerPreset(
      * Preamp gain in millibels applied before EQ bands.
      * If null, auto-calculation prevents clipping based on positive band peaks.
      */
-    public val preampMillibels: Int? = 0,
+    public val preampMillibels: Int? = null,
 ) {
     /**
      * Flat — no EQ applied. All bands at 0 dB.
@@ -39,6 +39,7 @@ public enum class EqualizerPreset(
     FLAT(
         displayName = "Flat",
         bandGainsMb = intArrayOf(0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+        preampMillibels = 0,
     ),
 
     /**

@@ -1412,6 +1412,7 @@
     <string name="stopRecording">Остановить запись</string>
     <string name="playVoiceNote">Прослушать заметку</string>
     <string name="stopPlayback">Остановить воспроизведение</string>
+    <string name="errorPlayingVoiceNote">Не удалось воспроизвести голосовую заметку</string>
     <!-- Кнопка подтверждения -->
     <string name="gotIt">Понятно</string>
     <!-- Заголовок баннера совместимости фоновой работы -->

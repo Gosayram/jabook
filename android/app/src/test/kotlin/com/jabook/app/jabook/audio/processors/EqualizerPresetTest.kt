@@ -155,6 +155,12 @@ class EqualizerPresetTest {
     }
 
     @Test
+    fun `HEADPHONES and CAR auto preamp values are stable`() {
+        assertEquals(-260, EqualizerPreset.HEADPHONES.effectivePreamp())
+        assertEquals(-300, EqualizerPreset.CAR.effectivePreamp())
+    }
+
+    @Test
     fun `calculateSafePreamp returns negative of max positive gain`() {
         val gains = intArrayOf(-200, 0, 300, 500, 200)
         assertEquals(-500, EqualizerPreset.calculateSafePreamp(gains))
