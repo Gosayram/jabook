@@ -2885,6 +2885,8 @@
     <string name="off">Выкл</string>
     <string name="volumeBoostPercent">+%1$d%%</string>
     <string name="smartEffectsTitle">Умные эффекты</string>
+    <string name="smartResumeRecapSuggestion">Долгий перерыв (%1$d ч). Повторить последние 2 минуты?</string>
+    <string name="smartResumeRecapAction">Повторить</string>
     <string name="notificationPermissionPlaybackHint">Уведомления помогают управлять воспроизведением из панели уведомлений</string>
     <string name="audioVisualizerPermissionHint">Аудиовизуализатору нужно разрешение на микрофон</string>
 

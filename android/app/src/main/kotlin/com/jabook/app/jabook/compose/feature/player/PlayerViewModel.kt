@@ -154,6 +154,7 @@ public class PlayerViewModel
         private var lastPersistedPlayerSnapshot: PlayerStateSnapshot? = null
         private var restoredBootstrapSnapshot: RestoredBootstrapSnapshot? = null
         private var hasShownSleepTimerResumeHint: Boolean = false
+        private var hasShownSmartResumeRecapHint: Boolean = false
         private var hasTriggeredSeriesAutoplay: Boolean = false
         private var seriesAutoplayJob: Job? = null
 
@@ -178,6 +179,7 @@ public class PlayerViewModel
             restorePlaybackSpeedFromSnapshotIfNeeded()
             restoreSleepTimerModeFromSnapshotIfNeeded()
             observeSleepTimerResumeHint()
+            observeSmartResumeSuggestion()
             observeHoldToBoostSpeedSetting()
             observeSeekbarWaveformCache()
 
@@ -1304,6 +1306,28 @@ public class PlayerViewModel
                         hasShownSleepTimerResumeHint = true
                         emitEffect(PlayerEffect.ShowSnackbar(context.getString(R.string.sleepTimerResumeHint)))
                     }
+                }
+            }
+        }
+
+        private fun observeSmartResumeSuggestion() {
+            viewModelScope.launch {
+                uiState.collect { state ->
+                    val activeState = state as? PlayerState.Active ?: return@collect
+                    if (!activeState.isPlaying || hasShownSmartResumeRecapHint) return@collect
+                    val suggestion = playerController.consumeSmartResumeSuggestion() ?: return@collect
+                    hasShownSmartResumeRecapHint = true
+                    emitEffect(
+                        PlayerEffect.ShowSnackbar(
+                            message =
+                                context.getString(
+                                    R.string.smartResumeRecapSuggestion,
+                                    (suggestion.pauseDurationMs / 3_600_000L).coerceAtLeast(1L),
+                                ),
+                            actionLabel = context.getString(R.string.smartResumeRecapAction),
+                            actionIntent = PlayerIntent.SeekTo(suggestion.recapStartMs),
+                        ),
+                    )
                 }
             }
         }

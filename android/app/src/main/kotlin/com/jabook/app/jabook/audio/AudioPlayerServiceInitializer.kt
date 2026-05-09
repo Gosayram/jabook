@@ -113,6 +113,9 @@ public class AudioPlayerServiceInitializer(
                     }
                 },
                 consumeSleepTimerStopFlag = { service.consumeStoppedBySleepTimerFlag() },
+                onSmartResumeSuggested = { context ->
+                    service.publishSmartResumeSuggestion(context)
+                },
             )
 
         // 3.1 SleepTimerManager

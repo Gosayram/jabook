@@ -199,6 +199,29 @@ public class AudioPlayerService : MediaLibraryService() {
     internal var crossFadePlayer: CrossFadePlayer? = null
     internal var crossfadeHandler: CrossfadeHandler? = null
 
+    internal data class SmartResumeSuggestion(
+        val pauseDurationMs: Long,
+        val recapStartMs: Long,
+    )
+
+    @Volatile
+    private var pendingSmartResumeSuggestion: SmartResumeSuggestion? = null
+
+    internal fun publishSmartResumeSuggestion(context: ContextualResumeManager.ResumeContext) {
+        if (!context.shouldShowRecap) return
+        pendingSmartResumeSuggestion =
+            SmartResumeSuggestion(
+                pauseDurationMs = context.pauseDurationMs,
+                recapStartMs = context.recapStartMs,
+            )
+    }
+
+    internal fun consumeSmartResumeSuggestion(): SmartResumeSuggestion? {
+        val suggestion = pendingSmartResumeSuggestion
+        pendingSmartResumeSuggestion = null
+        return suggestion
+    }
+
     internal val playerServiceScope =
         CoroutineScope(
             Dispatchers.Main + SupervisorJob() + loggingCoroutineExceptionHandler("AudioPlayerService"),

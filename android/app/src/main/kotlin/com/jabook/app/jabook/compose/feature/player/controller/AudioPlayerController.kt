@@ -939,6 +939,12 @@ public class AudioPlayerController
             }
         }
 
+        public suspend fun consumeSmartResumeSuggestion(): MediaControllerExtensions.SmartResumeSuggestion? =
+            withContext(Dispatchers.IO) {
+                val controller = mediaController ?: return@withContext null
+                MediaControllerExtensions.consumeSmartResumeSuggestion(controller)
+            }
+
         private fun ensureControllerReady() {
             startService()
             if (mediaController == null && mediaControllerFuture == null) {

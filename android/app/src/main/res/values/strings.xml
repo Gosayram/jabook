@@ -2842,6 +2842,8 @@
     <string name="off">Off</string>
     <string name="volumeBoostPercent">+%1$d%%</string>
     <string name="smartEffectsTitle">Smart Effects</string>
+    <string name="smartResumeRecapSuggestion">Long pause detected (%1$d h). Replay last 2 minutes?</string>
+    <string name="smartResumeRecapAction">Replay</string>
     <string name="notificationPermissionPlaybackHint">Notifications help control playback from the notification bar</string>
     <string name="audioVisualizerPermissionHint">Audio visualizer needs microphone permission</string>
 
