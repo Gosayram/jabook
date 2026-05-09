@@ -51,6 +51,7 @@ class BookCompletionCoordinatorTest {
     private var lastCompletedTrackIndex = -1
     private var positionSaved = false
     private var markedBookId: String? = null
+    private var repeatAllEnabled = false
 
     private val totalTracks = 10
     private val currentBookId = "book-123"
@@ -67,6 +68,7 @@ class BookCompletionCoordinatorTest {
         lastCompletedTrackIndex = -1
         positionSaved = false
         markedBookId = null
+        repeatAllEnabled = false
 
         coordinator =
             BookCompletionCoordinator(
@@ -79,6 +81,7 @@ class BookCompletionCoordinatorTest {
                 getCurrentBookId = { currentBookId },
                 markBookCompleted = { markedBookId = it },
                 saveCurrentPosition = { positionSaved = true },
+                isRepeatAllEnabled = { repeatAllEnabled },
             )
     }
 
@@ -115,6 +118,26 @@ class BookCompletionCoordinatorTest {
         assertFalse(result)
         assertFalse(isBookCompleted)
         verify(player, never()).pause()
+    }
+
+    @Test
+    fun `notifyCompletion skips when repeat all is enabled`() {
+        repeatAllEnabled = true
+
+        val result =
+            coordinator.notifyCompletion(
+                player = player,
+                currentIndex = totalTracks - 1,
+                source = BookCompletionCoordinator.Source.STATE_ENDED,
+            )
+
+        assertFalse(result)
+        assertFalse(isBookCompleted)
+        assertEquals(-1, lastCompletedTrackIndex)
+        assertEquals(null, markedBookId)
+        assertFalse(positionSaved)
+        verify(player, never()).pause()
+        verify(context, never()).sendBroadcast(any(Intent::class.java))
     }
 
     // ---- Idempotency ----
