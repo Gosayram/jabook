@@ -36,6 +36,8 @@ internal class PlaybackController(
     private val getResumeRewindAggressiveness: () -> Float = { 1.0f },
     private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
     private val consumeSleepTimerStopFlag: () -> Boolean = { false },
+    private val contextualResumeManager: ContextualResumeManager? = null,
+    private val onSmartResumeSuggested: (ContextualResumeManager.ResumeContext) -> Unit = {},
 ) {
     /**
      * Starts or resumes playback.
@@ -104,9 +106,21 @@ internal class PlaybackController(
                 val currentTime = nowMsProvider()
                 val pauseDurationMs = if (lastPauseTime > 0) currentTime - lastPauseTime else Long.MAX_VALUE
                 val shouldSuppressRewind = suppressNextResumeRewind || consumeSleepTimerStopFlag()
+                val smartResumeContext =
+                    if (!shouldSuppressRewind && resumeRewindMode == ResumeRewindMode.SMART && contextualResumeManager != null) {
+                        contextualResumeManager.buildResumeContext(
+                            bookId = player.currentMediaItem?.mediaId.orEmpty(),
+                            currentPositionMs = player.currentPosition.coerceAtLeast(0L),
+                            lastPausedAtMs = lastPauseTime,
+                        )
+                    } else {
+                        null
+                    }
                 val rewindMs =
                     if (shouldSuppressRewind) {
                         0L
+                    } else if (smartResumeContext != null) {
+                        smartResumeContext.rewindMs
                     } else {
                         ResumeRewindPolicy.resolveRewindMs(
                             pauseDurationMs = pauseDurationMs,
@@ -121,6 +135,14 @@ internal class PlaybackController(
                     LogUtils.d(
                         "AudioPlayerService",
                         "Resume rewind: ${rewindMs / 1000}s after pause ${pauseDurationMs / 1000}s",
+                    )
+                }
+                if (smartResumeContext?.shouldShowRecap == true) {
+                    onSmartResumeSuggested(smartResumeContext)
+                    LogUtils.d(
+                        "AudioPlayerService",
+                        "Smart resume recap suggested from ${smartResumeContext.recapStartMs}ms " +
+                            "after pause ${smartResumeContext.pauseDurationMs / 1000}s",
                     )
                 }
                 suppressNextResumeRewind = false

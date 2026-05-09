@@ -217,6 +217,89 @@ class PlaybackControllerTest {
             verify(exoPlayer).seekTo(55_000L)
         }
 
+    @Test
+    fun `play uses contextual resume manager when smart rewind mode is enabled`() =
+        runTest(testDispatcher) {
+            whenever(exoPlayer.mediaItemCount).thenReturn(1)
+            whenever(exoPlayer.playbackState).thenReturn(Player.STATE_READY)
+            whenever(exoPlayer.currentPosition).thenReturn(100_000L)
+            whenever(exoPlayer.currentMediaItem).thenReturn(
+                MediaItem.Builder().setMediaId("book-123").build(),
+            )
+            var nowMs = 200_000L
+
+            val contextualResumeManager =
+                ContextualResumeManager(
+                    speechAnalyzer =
+                        SpeechSegmentAnalyzer { _, _, _ ->
+                            88_000L
+                        },
+                    nowMsProvider = { nowMs },
+                )
+
+            playbackController =
+                PlaybackController(
+                    getActivePlayer = { exoPlayer },
+                    playerServiceScope = testScope,
+                    resetInactivityTimer = { resetTimerCallCount++ },
+                    getResumeRewindSeconds = { 10 },
+                    getResumeRewindMode = { ResumeRewindMode.SMART },
+                    nowMsProvider = { nowMs },
+                    contextualResumeManager = contextualResumeManager,
+                )
+
+            playbackController.pause()
+            advanceUntilIdle()
+            nowMs += 2L * 60L * 60L * 1000L
+            playbackController.play()
+            advanceUntilIdle()
+
+            verify(exoPlayer).seekTo(88_000L)
+        }
+
+    @Test
+    fun `play emits smart resume suggestion callback for long pause recap`() =
+        runTest(testDispatcher) {
+            whenever(exoPlayer.mediaItemCount).thenReturn(1)
+            whenever(exoPlayer.playbackState).thenReturn(Player.STATE_READY)
+            whenever(exoPlayer.currentPosition).thenReturn(180_000L)
+            whenever(exoPlayer.currentMediaItem).thenReturn(
+                MediaItem.Builder().setMediaId("book-777").build(),
+            )
+            var nowMs = 500_000L
+            var suggestedContext: ContextualResumeManager.ResumeContext? = null
+
+            val contextualResumeManager =
+                ContextualResumeManager(
+                    speechAnalyzer =
+                        SpeechSegmentAnalyzer { _, _, _ ->
+                            160_000L
+                        },
+                    nowMsProvider = { nowMs },
+                )
+
+            playbackController =
+                PlaybackController(
+                    getActivePlayer = { exoPlayer },
+                    playerServiceScope = testScope,
+                    resetInactivityTimer = { resetTimerCallCount++ },
+                    getResumeRewindSeconds = { 10 },
+                    getResumeRewindMode = { ResumeRewindMode.SMART },
+                    nowMsProvider = { nowMs },
+                    contextualResumeManager = contextualResumeManager,
+                    onSmartResumeSuggested = { suggestedContext = it },
+                )
+
+            playbackController.pause()
+            advanceUntilIdle()
+            nowMs += 26L * 60L * 60L * 1000L
+            playbackController.play()
+            advanceUntilIdle()
+
+            assertTrue(suggestedContext?.shouldShowRecap == true)
+            assertEquals(60_000L, suggestedContext?.recapStartMs)
+        }
+
     // ============ Pause Tests ============
 
     @Test
