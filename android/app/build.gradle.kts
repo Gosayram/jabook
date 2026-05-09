@@ -12,8 +12,12 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.testing.TestDescriptor
+import org.gradle.api.tasks.testing.TestListener
+import org.gradle.api.tasks.testing.TestResult
 import org.gradle.process.ExecOperations
 import java.io.File
+import java.lang.management.ManagementFactory
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.time.Duration
@@ -406,6 +410,53 @@ tasks.withType<Test>().configureEach {
         events("failed", "skipped")
     }
     systemProperty("kotlinx.coroutines.test.default_timeout", "30s")
+
+    // Emit thread diagnostics when a test likely failed due to timeout/hang.
+    addTestListener(
+        object : TestListener {
+            override fun beforeSuite(suite: TestDescriptor) = Unit
+
+            override fun afterSuite(
+                suite: TestDescriptor,
+                result: TestResult,
+            ) = Unit
+
+            override fun beforeTest(testDescriptor: TestDescriptor) = Unit
+
+            override fun afterTest(
+                testDescriptor: TestDescriptor,
+                result: TestResult,
+            ) {
+                if (result.resultType != TestResult.ResultType.FAILURE) return
+                val failureSummary =
+                    result
+                        .exceptions
+                        .joinToString(separator = "\n") { throwable ->
+                            buildString {
+                                append(throwable::class.java.name)
+                                append(": ")
+                                append(throwable.message.orEmpty())
+                            }
+                        }
+                val looksLikeTimeout =
+                    failureSummary.contains("TestTimedOutException") ||
+                        failureSummary.contains("TimeoutException") ||
+                        failureSummary.contains("timed out", ignoreCase = true)
+                if (!looksLikeTimeout) return
+
+                logger.error(
+                    "⏱️ Timeout-like failure in ${testDescriptor.className}.${testDescriptor.name}. " +
+                        "Printing thread dump for diagnostics.",
+                )
+                val threadDump =
+                    ManagementFactory
+                        .getThreadMXBean()
+                        .dumpAllThreads(true, true)
+                        .joinToString(separator = "\n\n") { threadInfo -> threadInfo.toString() }
+                logger.error(threadDump)
+            }
+        },
+    )
 }
 
 tasks

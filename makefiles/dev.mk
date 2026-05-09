@@ -211,6 +211,19 @@ test: ## Run unit tests (beta + prod)
 	fi; \
 	exit $$EXIT_CODE
 
+.PHONY: test-strict
+test-strict: ## Run unit tests with stricter execution limits (CI-friendly)
+	@echo "Running strict unit tests (single worker, no parallel)..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest \
+		--no-daemon --max-workers=1 --no-parallel); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Strict unit tests passed"; \
+	else \
+		echo "❌ Strict unit tests failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
 .PHONY: test-audio
 test-audio: ## Run audio-focused unit tests (beta + prod)
 	@echo "Running audio-focused unit tests..."
