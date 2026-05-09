@@ -200,14 +200,14 @@ hilt-graph-check: ## Validate Hilt dependency graph for beta/prod debug variants
 	exit $$EXIT_CODE
 
 .PHONY: test
-test: ## Run unit tests (beta + prod)
-	@echo "Running unit tests..."
+test: ## Run unit tests (developer profile: faster local feedback)
+	@echo "Running unit tests (developer profile)..."
 	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest --no-daemon); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
-		echo "✅ Unit tests passed"; \
+		echo "✅ Unit tests passed (developer profile)"; \
 	else \
-		echo "❌ Unit tests failed with exit code $$EXIT_CODE"; \
+		echo "❌ Unit tests failed (developer profile) with exit code $$EXIT_CODE"; \
 	fi; \
 	exit $$EXIT_CODE
 
@@ -223,6 +223,9 @@ test-strict: ## Run unit tests with stricter execution limits (CI-friendly)
 		echo "❌ Strict unit tests failed with exit code $$EXIT_CODE"; \
 	fi; \
 	exit $$EXIT_CODE
+
+.PHONY: test-ci
+test-ci: test-strict ## CI unit test profile (alias of test-strict)
 
 .PHONY: test-audio
 test-audio: ## Run audio-focused unit tests (beta + prod)
