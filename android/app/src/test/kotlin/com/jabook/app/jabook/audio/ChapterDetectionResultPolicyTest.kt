@@ -26,7 +26,11 @@ class ChapterDetectionResultPolicyTest {
                 ChapterDetectionPolicy.CandidateBoundary(80_000L, 0.9f),
             )
 
-        val result = ChapterDetectionResultPolicy.normalizeCandidates(input)
+        val result =
+            ChapterDetectionResultPolicy.normalizeCandidates(
+                input,
+                minChapterDurationMs = 0L,
+            )
 
         assertEquals(1, result.size)
         assertEquals(80_000L, result.first().startMs)
@@ -41,10 +45,33 @@ class ChapterDetectionResultPolicyTest {
                 ChapterDetectionPolicy.CandidateBoundary(210_000L, 0.85f),
             )
 
-        val result = ChapterDetectionResultPolicy.normalizeCandidates(input, minGapMs = 60_000L)
+        val result =
+            ChapterDetectionResultPolicy.normalizeCandidates(
+                input,
+                minGapMs = 60_000L,
+                minChapterDurationMs = 0L,
+            )
 
         assertEquals(2, result.size)
         assertEquals(120_000L, result[0].startMs)
         assertEquals(210_000L, result[1].startMs)
+    }
+
+    @Test
+    fun `normalizeCandidates drops too-early boundary by minimum chapter duration`() {
+        val input =
+            listOf(
+                ChapterDetectionPolicy.CandidateBoundary(40_000L, 0.95f),
+                ChapterDetectionPolicy.CandidateBoundary(130_000L, 0.8f),
+            )
+
+        val result =
+            ChapterDetectionResultPolicy.normalizeCandidates(
+                input,
+                minChapterDurationMs = 90_000L,
+            )
+
+        assertEquals(1, result.size)
+        assertEquals(130_000L, result.first().startMs)
     }
 }

@@ -24,14 +24,18 @@ internal object ChapterDetectionResultPolicy {
         candidates: List<ChapterDetectionPolicy.CandidateBoundary>,
         minConfidence: Float = DEFAULT_MIN_CONFIDENCE,
         minGapMs: Long = DEFAULT_MIN_GAP_MS,
+        minChapterDurationMs: Long = DEFAULT_MIN_CHAPTER_DURATION_MS,
     ): List<ChapterDetectionPolicy.CandidateBoundary> {
         if (candidates.isEmpty()) return emptyList()
+        val effectiveMinGapMs = maxOf(minGapMs, minChapterDurationMs)
 
         val filtered =
             candidates
                 .asSequence()
-                .filter { it.confidence >= minConfidence && it.startMs >= 0L }
-                .sortedBy { it.startMs }
+                .filter {
+                    it.confidence >= minConfidence &&
+                        it.startMs >= minChapterDurationMs
+                }.sortedBy { it.startMs }
                 .toList()
 
         if (filtered.isEmpty()) return emptyList()
@@ -43,7 +47,7 @@ internal object ChapterDetectionResultPolicy {
                 normalized += candidate
                 return@forEach
             }
-            if (candidate.startMs - prev.startMs < minGapMs) {
+            if (candidate.startMs - prev.startMs < effectiveMinGapMs) {
                 if (candidate.confidence > prev.confidence) {
                     normalized[normalized.lastIndex] = candidate
                 }
@@ -55,5 +59,6 @@ internal object ChapterDetectionResultPolicy {
     }
 
     internal const val DEFAULT_MIN_GAP_MS: Long = 60_000L
+    internal const val DEFAULT_MIN_CHAPTER_DURATION_MS: Long = 90_000L
     internal const val DEFAULT_MIN_CONFIDENCE: Float = 0.75f
 }

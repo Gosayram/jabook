@@ -25,7 +25,5 @@ import javax.inject.Singleton
 internal abstract class ChapterDetectionModule {
     @Binds
     @Singleton
-    abstract fun bindChapterSignalExtractor(
-        impl: MediaCodecChapterSignalExtractor,
-    ): ChapterSignalExtractor
+    abstract fun bindChapterSignalExtractor(impl: MediaCodecChapterSignalExtractor): ChapterSignalExtractor
 }

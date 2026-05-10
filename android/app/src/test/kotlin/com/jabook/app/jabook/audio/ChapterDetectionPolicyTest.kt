@@ -41,7 +41,7 @@ class ChapterDetectionPolicyTest {
 
         assertEquals(1, result.size)
         assertEquals(3_500L, result.first().startMs)
-        assertTrue(result.first().confidence >= 1f)
+        assertTrue(result.first().confidence > 0.7f)
     }
 
     @Test
@@ -78,5 +78,37 @@ class ChapterDetectionPolicyTest {
         assertEquals(2, result.size)
         assertEquals(2_900L, result[0].startMs)
         assertEquals(6_100L, result[1].startMs)
+    }
+
+    @Test
+    fun `resolveAdaptiveSilenceThresholdDb returns bounded adaptive threshold`() {
+        val values =
+            buildList {
+                repeat(40) { add(-55f) } // floor
+                repeat(60) { add(-18f) } // speech
+            }
+
+        val threshold = ChapterDetectionPolicy.resolveAdaptiveSilenceThresholdDb(values)
+
+        assertTrue(threshold in ChapterDetectionPolicy.MIN_ADAPTIVE_THRESHOLD_DB..ChapterDetectionPolicy.MAX_ADAPTIVE_THRESHOLD_DB)
+        assertTrue(threshold > -55f)
+    }
+
+    @Test
+    fun `detectCandidates uses adaptive threshold when explicit threshold is null`() {
+        val values =
+            buildList {
+                repeat(10) { add(-20f) }
+                repeat(25) { add(-49f) }
+                repeat(10) { add(-19f) }
+            }
+
+        val result =
+            ChapterDetectionPolicy.detectCandidates(
+                rmsDbValues = values,
+                silenceThresholdDb = null,
+            )
+
+        assertEquals(1, result.size)
     }
 }

@@ -18,13 +18,13 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import java.io.File
 import java.io.IOException
 import java.nio.ByteOrder
-import java.io.File
-import kotlin.math.log10
-import kotlin.math.sqrt
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.log10
+import kotlin.math.sqrt
 
 /**
  * Default ChapterSignalExtractor implementation.
@@ -64,9 +64,14 @@ internal class MediaCodecChapterSignalExtractor
 
                 codec = createAndConfigureDecoder(format) ?: return emptyList()
                 val durationMs = durationUs / 1000L
-                val totalWindows = ((durationMs / windowStepMs).coerceAtLeast(1L)).toInt()
-                val windowsToProcess = totalWindows.coerceAtMost(MAX_WINDOWS)
-                val targetSamplesPerChannel = ((sampleRate * windowStepMs) / 1000L).coerceAtLeast(1L).toInt()
+                val samplingPlan =
+                    ChapterDetectionSamplingPolicy.buildPlan(
+                        durationMs = durationMs,
+                        requestedWindowStepMs = windowStepMs,
+                    )
+                val windowsToProcess = samplingPlan.windowsToProcess
+                val targetSamplesPerChannel =
+                    ((sampleRate * samplingPlan.effectiveWindowStepMs) / 1000L).coerceAtLeast(1L).toInt()
                 val result = ArrayList<Float>(windowsToProcess)
 
                 for (windowIndex in 0 until windowsToProcess) {
@@ -87,7 +92,7 @@ internal class MediaCodecChapterSignalExtractor
 
                 logger.d {
                     "Extracted chapter RMS windows: file=${file.name} windows=$windowsToProcess " +
-                        "windowStepMs=$windowStepMs"
+                        "requestedStepMs=$windowStepMs effectiveStepMs=${samplingPlan.effectiveWindowStepMs}"
                 }
                 result
             } catch (e: IOException) {
@@ -188,7 +193,6 @@ internal class MediaCodecChapterSignalExtractor
         }
 
         private companion object {
-            private const val MAX_WINDOWS: Int = 12_000
             private const val MAX_BUFFERS_PER_WINDOW: Int = 50
             private const val DEQUEUE_TIMEOUT_US: Long = 10_000L
             private const val SILENCE_FLOOR_DB: Float = -96f

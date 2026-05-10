@@ -32,6 +32,7 @@ public object MediaControllerExtensions {
         val pauseDurationMs: Long,
         val recapStartMs: Long,
     )
+
     /**
      * Sets playlist through MediaController custom command.
      * This is more reliable than using getInstance().
@@ -295,10 +296,11 @@ public object MediaControllerExtensions {
                             0L,
                         ),
                     recapStartMs =
-                        result.extras.getLong(
-                            AudioPlayerLibrarySessionCallback.ARG_RESULT_SMART_RESUME_RECAP_START_MS,
-                            0L,
-                        ).coerceAtLeast(0L),
+                        result.extras
+                            .getLong(
+                                AudioPlayerLibrarySessionCallback.ARG_RESULT_SMART_RESUME_RECAP_START_MS,
+                                0L,
+                            ).coerceAtLeast(0L),
                 )
             } catch (e: Exception) {
                 android.util.Log.w("MediaControllerExtensions", "Failed to consume smart resume suggestion", e)
