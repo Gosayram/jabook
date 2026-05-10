@@ -100,7 +100,7 @@ leakcanary = "2.14"
 
 # Code Quality
 ktlint = "14.2.0"
-detekt = "2.0.0-alpha.2"
+detekt = "2.0.0-alpha.3"
 
 [libraries]
 # AndroidX Core
