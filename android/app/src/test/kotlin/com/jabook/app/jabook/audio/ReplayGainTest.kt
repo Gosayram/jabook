@@ -90,4 +90,30 @@ class ReplayGainTest {
         // Then ReplayGain is NOT set
         verify(loudnessNormalizer, org.mockito.kotlin.never()).setReplayGain(any())
     }
+
+    @Test
+    fun `onMetadata falls back to album ReplayGain when track gain is missing`() {
+        val albumGainEntry = mock<Metadata.Entry>()
+        whenever(albumGainEntry.toString()).thenReturn("TXXX: description=REPLAYGAIN_ALBUM_GAIN, value=-7.50 dB")
+
+        val metadata = Metadata(albumGainEntry)
+
+        playerListener.onMetadata(metadata)
+
+        verify(loudnessNormalizer).setReplayGain(-7.50f)
+    }
+
+    @Test
+    fun `onMetadata prefers track ReplayGain over album ReplayGain`() {
+        val albumGainEntry = mock<Metadata.Entry>()
+        whenever(albumGainEntry.toString()).thenReturn("TXXX: description=REPLAYGAIN_ALBUM_GAIN, value=-7.50 dB")
+        val trackGainEntry = mock<Metadata.Entry>()
+        whenever(trackGainEntry.toString()).thenReturn("TXXX: description=REPLAYGAIN_TRACK_GAIN, value=-5.20 dB")
+
+        val metadata = Metadata(albumGainEntry, trackGainEntry)
+
+        playerListener.onMetadata(metadata)
+
+        verify(loudnessNormalizer).setReplayGain(-5.20f)
+    }
 }

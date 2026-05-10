@@ -43,40 +43,58 @@ internal class PlayerMetadataHandler(
      */
     fun onMetadata(metadata: Metadata) {
         val normalizer = loudnessNormalizer ?: return
+        var trackGainDb: Float? = null
+        var albumGainDb: Float? = null
 
         for (i in 0 until metadata.length()) {
             val entry = metadata.get(i)
             try {
                 val entryString = entry.toString()
-                if (entryString.contains("REPLAYGAIN_TRACK_GAIN", ignoreCase = true)) {
-                    parseAndSetReplayGain(entry, normalizer)
+                if (trackGainDb == null) {
+                    trackGainDb = parseReplayGainDb(entryString, REPLAYGAIN_TRACK_GAIN_KEY)
                 }
+                if (albumGainDb == null) {
+                    albumGainDb = parseReplayGainDb(entryString, REPLAYGAIN_ALBUM_GAIN_KEY)
+                }
+                if (trackGainDb != null && albumGainDb != null) break
             } catch (e: Exception) {
                 LogUtils.e("AudioPlayerService", "Error processing metadata entry", e)
             }
         }
+
+        val selectedGainDb = trackGainDb ?: albumGainDb ?: return
+        LogUtils.i("AudioPlayerService", "Found ReplayGain: ${selectedGainDb}dB")
+        normalizer.setReplayGain(selectedGainDb)
     }
 
-    private fun parseAndSetReplayGain(
-        entry: Metadata.Entry,
-        normalizer: LoudnessNormalizer,
-    ) {
-        try {
-            val text = entry.toString()
-            val valueMatch =
-                Regex("value=([\\-\\+\\d\\.]+)\\s*dB?", RegexOption.IGNORE_CASE).find(text)
+    private fun parseReplayGainDb(
+        metadataString: String,
+        key: String,
+    ): Float? {
+        if (!metadataString.contains(key, ignoreCase = true)) return null
 
-            if (valueMatch != null) {
-                val dbString = valueMatch.groupValues[1]
-                val db = dbString.toFloatOrNull()
-                if (db != null) {
-                    LogUtils.i("AudioPlayerService", "Found ReplayGain: ${db}dB")
-                    normalizer.setReplayGain(db)
-                }
-            }
-        } catch (e: Exception) {
-            LogUtils.w("AudioPlayerService", "Failed to parse ReplayGain: ${e.message}")
-        }
+        val descriptionPattern =
+            Regex(
+                pattern = "description\\s*=\\s*$key\\b.*?value\\s*=\\s*([\\-\\+\\d\\.]+)\\s*dB?",
+                options = setOf(RegexOption.IGNORE_CASE),
+            )
+        val inlinePattern =
+            Regex(
+                pattern = "$key\\s*[:=]\\s*([\\-\\+\\d\\.]+)\\s*dB?",
+                options = setOf(RegexOption.IGNORE_CASE),
+            )
+        val genericValuePattern =
+            Regex(
+                pattern = "value\\s*=\\s*([\\-\\+\\d\\.]+)\\s*dB?",
+                options = setOf(RegexOption.IGNORE_CASE),
+            )
+
+        val valueText =
+            descriptionPattern.find(metadataString)?.groupValues?.getOrNull(1)
+                ?: inlinePattern.find(metadataString)?.groupValues?.getOrNull(1)
+                ?: genericValuePattern.find(metadataString)?.groupValues?.getOrNull(1)
+
+        return valueText?.toFloatOrNull()
     }
 
     /**
@@ -126,5 +144,10 @@ internal class PlayerMetadataHandler(
         } else {
             LogUtils.w("AudioPlayerService", "No artwork found in metadata")
         }
+    }
+
+    private companion object {
+        private const val REPLAYGAIN_TRACK_GAIN_KEY: String = "REPLAYGAIN_TRACK_GAIN"
+        private const val REPLAYGAIN_ALBUM_GAIN_KEY: String = "REPLAYGAIN_ALBUM_GAIN"
     }
 }
