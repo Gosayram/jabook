@@ -15,11 +15,16 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
+import androidx.media3.common.Metadata
+import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.never
+import org.mockito.Mockito.verify
+import org.mockito.kotlin.whenever
 
 class PlayerMetadataHandlerTest {
     private val handler =
@@ -75,5 +80,42 @@ class PlayerMetadataHandlerTest {
             )
 
         assertNull(gain)
+    }
+
+    @Test
+    fun `onMetadata applies track gain when both track and album tags exist`() {
+        val normalizer = mock(LoudnessNormalizer::class.java)
+        handler.loudnessNormalizer = normalizer
+        val metadata =
+            mock(Metadata::class.java).also { mocked ->
+                whenever(mocked.length()).thenReturn(2)
+                whenever(mocked.get(0)).thenReturn(mockMetadataEntry("REPLAYGAIN_ALBUM_GAIN: -4.0 dB"))
+                whenever(mocked.get(1)).thenReturn(mockMetadataEntry("REPLAYGAIN_TRACK_GAIN: -6.5 dB"))
+            }
+
+        handler.onMetadata(metadata)
+
+        verify(normalizer).setReplayGain(-6.5f)
+    }
+
+    @Test
+    fun `onMetadata does not call normalizer when replay gain is invalid`() {
+        val normalizer = mock(LoudnessNormalizer::class.java)
+        handler.loudnessNormalizer = normalizer
+        val metadata =
+            mock(Metadata::class.java).also { mocked ->
+                whenever(mocked.length()).thenReturn(1)
+                whenever(mocked.get(0)).thenReturn(mockMetadataEntry("REPLAYGAIN_TRACK_GAIN: not_a_number"))
+            }
+
+        handler.onMetadata(metadata)
+
+        verify(normalizer, never()).setReplayGain(org.mockito.kotlin.any())
+    }
+
+    private fun mockMetadataEntry(value: String): Metadata.Entry {
+        val entry = mock(Metadata.Entry::class.java)
+        whenever(entry.toString()).thenReturn(value)
+        return entry
     }
 }

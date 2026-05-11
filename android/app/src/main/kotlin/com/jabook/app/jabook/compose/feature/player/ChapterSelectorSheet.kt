@@ -414,7 +414,7 @@ private fun ChapterSelectorItem(
                     modifier =
                         Modifier
                             .size(32.dp)
-                            .pointerInput(chapter.id) {
+                            .pointerInput(chapter.id, moveUpCallback, moveDownCallback) {
                                 var dragAccumulated = 0f
                                 val threshold = with(density) { 48.dp.toPx() }
                                 detectVerticalDragGestures(
