@@ -94,99 +94,14 @@ public class InactivityTimer(
         }
     }
 
-    private val playerListener =
-        object : Player.Listener {
-            override fun onIsPlayingChanged(isPlaying: Boolean) {
-                if (isPlaying) {
-                    // Playback started - reset timer
-                    android.util.Log.d(
-                        "InactivityTimer",
-                        "Playback started (isPlaying=true), resetting inactivity timer",
-                    )
-                    resetTimer()
-                } else {
-                    // Playback paused/stopped - start timer if conditions are met
-                    android.util.Log.d(
-                        "InactivityTimer",
-                        "Playback paused/stopped (isPlaying=false), checking if should start timer",
-                    )
-                    checkAndStartTimer()
-                }
-            }
+    private val eventObserver =
+        InactivityPlaybackEventObserver(
+            player = player,
+            checkAndStartTimer = { checkAndStartTimer() },
+            resetTimer = { resetTimer() },
+        )
 
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                // Check if we should start/stop timer based on playback state
-                when (playbackState) {
-                    Player.STATE_READY -> {
-                        if (!player.playWhenReady) {
-                            // Player is ready but paused - start timer
-                            checkAndStartTimer()
-                        } else {
-                            // Player is ready and playing - reset timer
-                            resetTimer()
-                        }
-                    }
-                    Player.STATE_ENDED -> {
-                        // Playback ended - start timer
-                        checkAndStartTimer()
-                    }
-                    Player.STATE_IDLE, Player.STATE_BUFFERING -> {
-                        // Don't start timer in these states
-                        resetTimer()
-                    }
-                }
-            }
-
-            override fun onMediaItemTransition(
-                mediaItem: androidx.media3.common.MediaItem?,
-                reason: Int,
-            ) {
-                // Track changed - reset timer (user action)
-                android.util.Log.d(
-                    "InactivityTimer",
-                    "Media item transition detected (user action), resetting inactivity timer",
-                )
-                resetTimer()
-            }
-
-            override fun onPositionDiscontinuity(
-                oldPosition: Player.PositionInfo,
-                newPosition: Player.PositionInfo,
-                reason: Int,
-            ) {
-                // Position changed (seek) - reset timer (user action)
-                if (reason == Player.DISCONTINUITY_REASON_SEEK ||
-                    reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
-                ) {
-                    android.util.Log.d(
-                        "InactivityTimer",
-                        "Position discontinuity (seek) detected (user action), resetting inactivity timer",
-                    )
-                    resetTimer()
-                }
-            }
-
-            override fun onPlaybackParametersChanged(playbackParameters: androidx.media3.common.PlaybackParameters) {
-                // Playback speed changed - reset timer (user action)
-                android.util.Log.d(
-                    "InactivityTimer",
-                    "Playback parameters changed (speed=${playbackParameters.speed}, user action), resetting inactivity timer",
-                )
-                resetTimer()
-            }
-
-            override fun onRepeatModeChanged(repeatMode: Int) {
-                // Repeat mode changed - reset timer (user action)
-                android.util.Log.d("InactivityTimer", "Repeat mode changed (user action), resetting inactivity timer")
-                resetTimer()
-            }
-
-            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-                // Shuffle mode changed - reset timer (user action)
-                android.util.Log.d("InactivityTimer", "Shuffle mode changed (user action), resetting inactivity timer")
-                resetTimer()
-            }
-        }
+    private val playerListener: Player.Listener = eventObserver.listener
 
     init {
         player.addListener(playerListener)
