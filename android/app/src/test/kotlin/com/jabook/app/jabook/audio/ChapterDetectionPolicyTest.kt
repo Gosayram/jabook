@@ -111,4 +111,84 @@ class ChapterDetectionPolicyTest {
 
         assertEquals(1, result.size)
     }
+
+    @Test
+    fun `detectCandidates treats values equal to threshold as silence`() {
+        val values =
+            buildList {
+                repeat(8) { add(-18f) }
+                repeat(20) { add(ChapterDetectionPolicy.DEFAULT_SILENCE_THRESHOLD_DB) }
+                add(-10f)
+            }
+
+        val result =
+            ChapterDetectionPolicy.detectCandidates(
+                rmsDbValues = values,
+                windowStepMs = ChapterDetectionPolicy.DEFAULT_WINDOW_STEP_MS,
+                silenceThresholdDb = ChapterDetectionPolicy.DEFAULT_SILENCE_THRESHOLD_DB,
+                minSilenceMs = 2_000L,
+            )
+
+        assertEquals(1, result.size)
+        assertEquals(2_800L, result.first().startMs)
+    }
+
+    @Test
+    fun `detectCandidates requires silence duration to be at least minimum`() {
+        val tooShort =
+            buildList {
+                repeat(5) { add(-15f) }
+                repeat(19) { add(-45f) } // 1900ms
+                repeat(5) { add(-15f) }
+            }
+        val exactMin =
+            buildList {
+                repeat(5) { add(-15f) }
+                repeat(20) { add(-45f) } // 2000ms
+                repeat(5) { add(-15f) }
+            }
+
+        val resultTooShort = ChapterDetectionPolicy.detectCandidates(tooShort, minSilenceMs = 2_000L)
+        val resultExactMin = ChapterDetectionPolicy.detectCandidates(exactMin, minSilenceMs = 2_000L)
+
+        assertTrue(resultTooShort.isEmpty())
+        assertEquals(1, resultExactMin.size)
+    }
+
+    @Test
+    fun `detectCandidates handles empty input and invalid timing params`() {
+        assertTrue(ChapterDetectionPolicy.detectCandidates(emptyList()).isEmpty())
+        assertTrue(
+            ChapterDetectionPolicy.detectCandidates(
+                rmsDbValues = listOf(-40f, -20f),
+                windowStepMs = 0L,
+            ).isEmpty(),
+        )
+        assertTrue(
+            ChapterDetectionPolicy.detectCandidates(
+                rmsDbValues = listOf(-40f, -20f),
+                minSilenceMs = 0L,
+            ).isEmpty(),
+        )
+    }
+
+    @Test
+    fun `detectCandidates caps confidence at max confidence`() {
+        val values =
+            buildList {
+                repeat(10) { add(-15f) }
+                repeat(60) { add(-90f) } // very long and very deep silence
+                repeat(10) { add(-12f) }
+            }
+
+        val result =
+            ChapterDetectionPolicy.detectCandidates(
+                rmsDbValues = values,
+                minSilenceMs = 2_000L,
+                silenceThresholdDb = -40f,
+            )
+
+        assertEquals(1, result.size)
+        assertEquals(1f, result.first().confidence)
+    }
 }

@@ -96,13 +96,13 @@ internal class MediaCodecChapterSignalExtractor
                 }
                 result
             } catch (e: IOException) {
-                logger.w(e) { "Chapter signal extraction I/O failure for ${file.absolutePath}" }
+                logger.w(e) { "Chapter signal extraction I/O failure for ${file.name}" }
                 emptyList()
             } catch (e: IllegalArgumentException) {
-                logger.w(e) { "Chapter signal extraction failed with invalid media format for ${file.absolutePath}" }
+                logger.w(e) { "Chapter signal extraction failed with invalid media format for ${file.name}" }
                 emptyList()
             } catch (e: MediaCodec.CodecException) {
-                logger.w(e) { "Chapter signal extraction codec failure for ${file.absolutePath}" }
+                logger.w(e) { "Chapter signal extraction codec failure for ${file.name}" }
                 emptyList()
             } finally {
                 runCatching { codec?.stop() }

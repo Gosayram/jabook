@@ -83,7 +83,7 @@ public fun JabookApp(
     settingsViewModel: com.jabook.app.jabook.compose.feature.settings.SettingsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val activeDownloads by settingsViewModel.activeDownloads.collectAsStateWithLifecycle()
+    val activeDownloadsCount by settingsViewModel.activeDownloadsCount.collectAsStateWithLifecycle()
 
     // Detect if this is a beta/dev/stage flavor by checking package name
     // Beta: com.jabook.app.jabook.beta, Dev: .dev, Stage: .stage, Prod: com.jabook.app.jabook
@@ -279,7 +279,7 @@ public fun JabookApp(
                                 TopLevelDestinationIcon(
                                     destination = destination,
                                     icon = icon,
-                                    activeDownloadsCount = activeDownloads.size,
+                                    activeDownloadsCount = activeDownloadsCount,
                                 )
                             },
                             label = { Text(stringResource(destination.titleTextId)) },

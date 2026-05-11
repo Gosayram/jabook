@@ -37,6 +37,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 
 /** Audio player service using Media3 ExoPlayer with Dagger Hilt DI. */
@@ -204,23 +205,19 @@ public class AudioPlayerService : MediaLibraryService() {
         val recapStartMs: Long,
     )
 
-    @Volatile
-    private var pendingSmartResumeSuggestion: SmartResumeSuggestion? = null
+    private val pendingSmartResumeSuggestion = AtomicReference<SmartResumeSuggestion?>(null)
 
     internal fun publishSmartResumeSuggestion(context: ContextualResumeManager.ResumeContext) {
         if (!context.shouldShowRecap) return
-        pendingSmartResumeSuggestion =
+        pendingSmartResumeSuggestion.set(
             SmartResumeSuggestion(
                 pauseDurationMs = context.pauseDurationMs,
                 recapStartMs = context.recapStartMs,
-            )
+            ),
+        )
     }
 
-    internal fun consumeSmartResumeSuggestion(): SmartResumeSuggestion? {
-        val suggestion = pendingSmartResumeSuggestion
-        pendingSmartResumeSuggestion = null
-        return suggestion
-    }
+    internal fun consumeSmartResumeSuggestion(): SmartResumeSuggestion? = pendingSmartResumeSuggestion.getAndSet(null)
 
     internal val playerServiceScope =
         CoroutineScope(

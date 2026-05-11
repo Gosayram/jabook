@@ -77,4 +77,116 @@ class ContextualResumeManagerTest {
         assertEquals(0L, context.rewindMs)
         assertEquals(0L, context.recapStartMs)
     }
+
+    @Test
+    fun `uninitialized pause timestamp disables smart resume`() {
+        val manager = ContextualResumeManager(speechAnalyzer = noopAnalyzer, nowMsProvider = { nowMs })
+
+        val context =
+            manager.buildResumeContext(
+                bookId = "book-init",
+                currentPositionMs = 120_000L,
+                lastPausedAtMs = 0L,
+            )
+
+        assertEquals(0L, context.pauseDurationMs)
+        assertEquals(0L, context.rewindMs)
+        assertFalse(context.shouldShowRecap)
+        assertEquals(0L, context.recapStartMs)
+    }
+
+    @Test
+    fun `one hour boundary moves from short rewind to sentence boundary path`() {
+        val manager =
+            ContextualResumeManager(
+                speechAnalyzer = SpeechSegmentAnalyzer { _, _, _ -> 275_000L },
+                nowMsProvider = { nowMs },
+            )
+
+        val justBelow =
+            manager.buildResumeContext(
+                bookId = "book-hour-below",
+                currentPositionMs = 300_000L,
+                lastPausedAtMs = nowMs - (60L * 60_000L - 1L),
+            )
+        val exactHour =
+            manager.buildResumeContext(
+                bookId = "book-hour-eq",
+                currentPositionMs = 300_000L,
+                lastPausedAtMs = nowMs - 60L * 60_000L,
+            )
+
+        assertEquals(20_000L, justBelow.rewindMs)
+        assertEquals(25_000L, exactHour.rewindMs)
+        assertFalse(justBelow.shouldShowRecap)
+        assertFalse(exactHour.shouldShowRecap)
+    }
+
+    @Test
+    fun `one day boundary enables recap flow`() {
+        val manager = ContextualResumeManager(speechAnalyzer = noopAnalyzer, nowMsProvider = { nowMs })
+
+        val justBelow =
+            manager.buildResumeContext(
+                bookId = "book-day-below",
+                currentPositionMs = 300_000L,
+                lastPausedAtMs = nowMs - (24L * 60L * 60_000L - 1L),
+            )
+        val exactDay =
+            manager.buildResumeContext(
+                bookId = "book-day-eq",
+                currentPositionMs = 300_000L,
+                lastPausedAtMs = nowMs - 24L * 60L * 60_000L,
+            )
+
+        assertFalse(justBelow.shouldShowRecap)
+        assertTrue(exactDay.shouldShowRecap)
+        assertEquals(180_000L, exactDay.recapStartMs)
+    }
+
+    @Test
+    fun `sentence boundary result is clamped into valid range`() {
+        val managerNegative =
+            ContextualResumeManager(
+                speechAnalyzer = SpeechSegmentAnalyzer { _, _, _ -> -10_000L },
+                nowMsProvider = { nowMs },
+            )
+        val managerTooFar =
+            ContextualResumeManager(
+                speechAnalyzer = SpeechSegmentAnalyzer { _, _, _ -> 999_999L },
+                nowMsProvider = { nowMs },
+            )
+        val pausedAt = nowMs - 3L * 60L * 60_000L
+
+        val clampedToZero =
+            managerNegative.buildResumeContext(
+                bookId = "book-clamp-neg",
+                currentPositionMs = 300_000L,
+                lastPausedAtMs = pausedAt,
+            )
+        val clampedToCurrent =
+            managerTooFar.buildResumeContext(
+                bookId = "book-clamp-max",
+                currentPositionMs = 300_000L,
+                lastPausedAtMs = pausedAt,
+            )
+
+        assertEquals(300_000L, clampedToZero.rewindMs)
+        assertEquals(0L, clampedToCurrent.rewindMs)
+    }
+
+    @Test
+    fun `recap window is clamped to zero near track start`() {
+        val manager = ContextualResumeManager(speechAnalyzer = noopAnalyzer, nowMsProvider = { nowMs })
+
+        val context =
+            manager.buildResumeContext(
+                bookId = "book-short-pos",
+                currentPositionMs = 30_000L,
+                lastPausedAtMs = nowMs - 48L * 60L * 60_000L,
+            )
+
+        assertTrue(context.shouldShowRecap)
+        assertEquals(0L, context.recapStartMs)
+    }
 }

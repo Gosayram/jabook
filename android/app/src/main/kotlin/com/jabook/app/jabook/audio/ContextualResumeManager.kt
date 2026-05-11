@@ -38,6 +38,14 @@ internal class ContextualResumeManager(
         currentPositionMs: Long,
         lastPausedAtMs: Long,
     ): ResumeContext {
+        if (lastPausedAtMs <= 0L) {
+            return ResumeContext(
+                pauseDurationMs = 0L,
+                rewindMs = 0L,
+                shouldShowRecap = false,
+                recapStartMs = 0L,
+            )
+        }
         val nowMs = nowMsProvider()
         val pauseDurationMs = (nowMs - lastPausedAtMs).coerceAtLeast(0L)
 

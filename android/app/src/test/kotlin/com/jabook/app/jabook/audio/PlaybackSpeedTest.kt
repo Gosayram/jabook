@@ -38,7 +38,7 @@ class PlaybackSpeedTest {
 
         // Mock getActivePlayer
         val getActivePlayer = { exoPlayer }
-        val resetTimer = {}
+        val resetTimer: (InactivityCommandSource) -> Unit = {}
 
         playbackController = PlaybackController(getActivePlayer, testScope, resetTimer, { 10 })
     }

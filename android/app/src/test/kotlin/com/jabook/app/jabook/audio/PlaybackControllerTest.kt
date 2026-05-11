@@ -84,7 +84,7 @@ class PlaybackControllerTest {
         whenever(exoPlayer.shuffleModeEnabled).thenReturn(false)
 
         resetTimerCallCount = 0
-        val resetTimer: () -> Unit = { resetTimerCallCount++ }
+        val resetTimer: (InactivityCommandSource) -> Unit = { resetTimerCallCount++ }
 
         val getActivePlayer = { exoPlayer }
         playbackController = PlaybackController(getActivePlayer, testScope, resetTimer, { 10 })
