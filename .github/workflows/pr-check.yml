@@ -9,6 +9,10 @@ on:
 jobs:
   lint-and-compile:
     runs-on: ubuntu-latest
+    env:
+      GRADLE_OPTS: >-
+        -Dorg.gradle.configuration-cache.read-only=true
+        -Dorg.gradle.dependency.verification.console=verbose
     permissions:
       # Read access to repository contents (required for checkout)
       contents: read
@@ -57,7 +61,7 @@ jobs:
         run: make compile
 
       - name: Run unit tests
-        run: make test
+        run: make test-ci
 
       - name: Generate test coverage report
         run: make test-coverage
