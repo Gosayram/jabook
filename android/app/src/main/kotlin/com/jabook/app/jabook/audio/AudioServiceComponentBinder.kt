@@ -15,13 +15,32 @@
 package com.jabook.app.jabook.audio
 
 import com.jabook.app.jabook.util.LogUtils
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 /**
  * Binds core runtime components for [AudioPlayerService] in dependency-safe order.
  */
 internal object AudioServiceComponentBinder {
     fun bind(service: AudioPlayerService) {
+        // PlaylistManager is the single source of truth for current metadata.
+        // setCurrentMetadata callbacks in managers are intentionally no-op.
+        var cachedResumeRewindSeconds = 10
+        var cachedResumeRewindMode = ResumeRewindMode.FIXED
+        var cachedResumeRewindAggressiveness = 1.0f
+        var cachedShakeToExtendEnabled = true
+        service.playerServiceScope.launch {
+            service.settingsRepository.userPreferences.collect { prefs ->
+                cachedResumeRewindSeconds = prefs.resumeRewindSeconds
+                cachedResumeRewindMode =
+                    when (prefs.resumeRewindMode) {
+                        com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART -> ResumeRewindMode.SMART
+                        else -> ResumeRewindMode.FIXED
+                    }
+                cachedResumeRewindAggressiveness = prefs.resumeRewindAggressiveness
+                cachedShakeToExtendEnabled = prefs.sleepTimerShakeExtendEnabled
+            }
+        }
+
         service.metadataManager =
             MetadataManager(
                 context = service,
@@ -37,46 +56,9 @@ internal object AudioServiceComponentBinder {
                 getActivePlayer = { service.getActivePlayer() },
                 playerServiceScope = service.playerServiceScope,
                 resetInactivityTimer = { source -> service.inactivityTimer?.resetIfApplicable(source) },
-                getResumeRewindSeconds = {
-                    try {
-                        kotlinx.coroutines.runBlocking {
-                            service.settingsRepository.userPreferences
-                                .first()
-                                .resumeRewindSeconds
-                        }
-                    } catch (_: Exception) {
-                        10
-                    }
-                },
-                getResumeRewindMode = {
-                    try {
-                        kotlinx.coroutines.runBlocking {
-                            when (
-                                service.settingsRepository.userPreferences
-                                    .first()
-                                    .resumeRewindMode
-                            ) {
-                                com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART ->
-                                    ResumeRewindMode.SMART
-
-                                else -> ResumeRewindMode.FIXED
-                            }
-                        }
-                    } catch (_: Exception) {
-                        ResumeRewindMode.FIXED
-                    }
-                },
-                getResumeRewindAggressiveness = {
-                    try {
-                        kotlinx.coroutines.runBlocking {
-                            service.settingsRepository.userPreferences
-                                .first()
-                                .resumeRewindAggressiveness
-                        }
-                    } catch (_: Exception) {
-                        1.0f
-                    }
-                },
+                getResumeRewindSeconds = { cachedResumeRewindSeconds },
+                getResumeRewindMode = { cachedResumeRewindMode },
+                getResumeRewindAggressiveness = { cachedResumeRewindAggressiveness },
                 consumeSleepTimerStopFlag = { service.consumeStoppedBySleepTimerFlag() },
                 onSmartResumeSuggested = { context -> service.publishSmartResumeSuggestion(context) },
             )
@@ -93,17 +75,7 @@ internal object AudioServiceComponentBinder {
                     service.markStoppedBySleepTimer()
                     service.savePositionToRepository()
                 },
-                isShakeToExtendEnabled = {
-                    try {
-                        kotlinx.coroutines.runBlocking {
-                            service.settingsRepository.userPreferences
-                                .first()
-                                .sleepTimerShakeExtendEnabled
-                        }
-                    } catch (_: Exception) {
-                        true
-                    }
-                },
+                isShakeToExtendEnabled = { cachedShakeToExtendEnabled },
             )
         service.sleepTimerManager?.restoreTimerState()
 
@@ -218,14 +190,14 @@ internal object AudioServiceComponentBinder {
                 onHeadsetConnected = {
                     val handler = service.headsetAutoplayHandler
                     if (handler != null && !handler.lastDisconnectWasBluetooth && !service.isPlaying) {
-                        service.play()
+                        service.play(InactivityCommandSource.HEADSET_BUTTON)
                     }
                 },
                 onHeadsetDisconnected = {
                     service.headsetAutoplayHandler?.recordWasPlaying(service.isPlaying)
                     if (service.isPlaying) {
                         service.saveCurrentPosition()
-                        service.pause()
+                        service.pause(InactivityCommandSource.HEADSET_BUTTON)
                         LogUtils.d(
                             "AudioPlayerService",
                             "BT/headset disconnected — paused playback and saved position",

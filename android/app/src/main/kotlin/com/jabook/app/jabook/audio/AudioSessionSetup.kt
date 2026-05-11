@@ -20,9 +20,10 @@ import androidx.core.content.ContextCompat
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
+import com.google.common.util.concurrent.FutureCallback
+import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.util.LogUtils
-import java.util.concurrent.TimeUnit
 
 /**
  * Creates and wires Media3 session/controller objects for [AudioPlayerService].
@@ -77,6 +78,8 @@ internal class AudioSessionSetup(
             service.mediaSessionManager = MediaSessionManager(service, service.exoPlayer)
         } catch (e: Exception) {
             LogUtils.e("AudioPlayerService", "Failed to create MediaLibrarySession", e)
+            service.isFullyInitializedFlag = true
+            service.stopSelf()
         }
     }
 
@@ -94,28 +97,27 @@ internal class AudioSessionSetup(
                     .Builder(service, session.token)
                     .setApplicationLooper(service.mainLooper)
                     .buildAsync()
-
-            controllerFuture.addListener(
-                {
-                    try {
-                        val controller =
-                            controllerFuture.get(
-                                MediaControllerConstants.SERVICE_INIT_TIMEOUT_SECONDS.toLong(),
-                                TimeUnit.SECONDS,
+            Futures.addCallback(
+                controllerFuture,
+                object : FutureCallback<MediaController> {
+                    override fun onSuccess(result: MediaController?) {
+                        if (result != null) {
+                            service.serviceMediaController = result
+                            LogUtils.i(
+                                "AudioPlayerService",
+                                "Service MediaController initialized successfully, service is now fully ready",
                             )
-                        service.serviceMediaController = controller
+                        } else {
+                            LogUtils.w("AudioPlayerService", "Service MediaController callback returned null controller")
+                        }
                         service.isFullyInitializedFlag = true
                         service.setInitialCustomLayout()
-                        LogUtils.i(
-                            "AudioPlayerService",
-                            "Service MediaController initialized successfully, service is now fully ready",
-                        )
-                    } catch (e: java.util.concurrent.TimeoutException) {
-                        LogUtils.e("AudioPlayerService", "Service MediaController initialization timeout", e)
+                    }
+
+                    override fun onFailure(t: Throwable) {
+                        LogUtils.e("AudioPlayerService", "Error initializing Service MediaController", t)
                         service.isFullyInitializedFlag = true
-                    } catch (e: Exception) {
-                        LogUtils.e("AudioPlayerService", "Error initializing Service MediaController", e)
-                        service.isFullyInitializedFlag = true
+                        service.setInitialCustomLayout()
                     }
                 },
                 ContextCompat.getMainExecutor(service),

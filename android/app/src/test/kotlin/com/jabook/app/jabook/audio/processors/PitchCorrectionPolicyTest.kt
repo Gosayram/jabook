@@ -19,7 +19,7 @@ import org.junit.Test
 
 class PitchCorrectionPolicyTest {
     @Test
-    fun `at 2x speed pitch becomes 0_5 when correction enabled`() {
+    fun `at 2x speed pitch stays 1_0 when correction enabled`() {
         val params =
             PitchCorrectionPolicy.buildPlaybackParameters(
                 speed = 2.0f,
@@ -27,11 +27,11 @@ class PitchCorrectionPolicyTest {
             )
 
         assertEquals(2.0f, params.speed, 0.001f)
-        assertEquals(0.5f, params.pitch, 0.001f)
+        assertEquals(1.0f, params.pitch, 0.001f)
     }
 
     @Test
-    fun `without pitch correction pitch stays 1_0`() {
+    fun `without pitch correction pitch follows inverse speed`() {
         val params =
             PitchCorrectionPolicy.buildPlaybackParameters(
                 speed = 3.0f,
@@ -39,7 +39,7 @@ class PitchCorrectionPolicyTest {
             )
 
         assertEquals(3.0f, params.speed, 0.001f)
-        assertEquals(1.0f, params.pitch, 0.001f)
+        assertEquals(1.0f / 3.0f, params.pitch, 0.001f)
     }
 
     @Test

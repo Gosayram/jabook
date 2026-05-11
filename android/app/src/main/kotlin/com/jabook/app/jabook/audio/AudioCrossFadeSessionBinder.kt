@@ -15,7 +15,11 @@
 package com.jabook.app.jabook.audio
 
 import androidx.annotation.OptIn
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.util.LogUtils
 
 /**
@@ -24,18 +28,21 @@ import com.jabook.app.jabook.util.LogUtils
 internal object AudioCrossFadeSessionBinder {
     @OptIn(UnstableApi::class)
     fun bind(service: AudioPlayerService) {
+        if (service.crossFadePlayer != null) {
+            return
+        }
         service.crossFadePlayer =
             CrossFadePlayer(service) { context ->
-                androidx.media3.exoplayer.ExoPlayer
+                ExoPlayer
                     .Builder(context)
-                    .setRenderersFactory(androidx.media3.exoplayer.DefaultRenderersFactory(context))
-                    .setWakeMode(androidx.media3.common.C.WAKE_MODE_LOCAL)
+                    .setRenderersFactory(DefaultRenderersFactory(context))
+                    .setWakeMode(C.WAKE_MODE_LOCAL)
                     .setHandleAudioBecomingNoisy(true)
                     .setAudioAttributes(
-                        androidx.media3.common.AudioAttributes
+                        AudioAttributes
                             .Builder()
-                            .setUsage(androidx.media3.common.C.USAGE_MEDIA)
-                            .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_SPEECH)
+                            .setUsage(C.USAGE_MEDIA)
+                            .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
                             .build(),
                         true,
                     ).build()

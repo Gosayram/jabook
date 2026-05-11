@@ -25,7 +25,8 @@ internal object PitchCorrectionPolicy {
         isPitchCorrectionEnabled: Boolean,
     ): PlaybackParameters {
         val clampedSpeed = speed.coerceIn(MIN_SPEED, MAX_SPEED)
-        val pitch = if (isPitchCorrectionEnabled) 1.0f / clampedSpeed else 1.0f
+        // Media3 PlaybackParameters: pitch=1.0 keeps natural voice pitch while speed changes.
+        val pitch = if (isPitchCorrectionEnabled) 1.0f else 1.0f / clampedSpeed
         return PlaybackParameters(clampedSpeed, pitch)
     }
 }

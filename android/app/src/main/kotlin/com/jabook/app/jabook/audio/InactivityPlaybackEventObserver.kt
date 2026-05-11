@@ -57,7 +57,8 @@ internal class InactivityPlaybackEventObserver(
                         }
                     }
                     Player.STATE_ENDED -> checkAndStartTimer()
-                    Player.STATE_IDLE, Player.STATE_BUFFERING -> resetTimer(InactivityCommandSource.PLAYBACK_INTERNAL)
+                    Player.STATE_IDLE -> checkAndStartTimer()
+                    Player.STATE_BUFFERING -> resetTimer(InactivityCommandSource.PLAYBACK_INTERNAL)
                 }
             }
 

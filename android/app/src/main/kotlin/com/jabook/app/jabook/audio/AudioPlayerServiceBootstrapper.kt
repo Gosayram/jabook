@@ -44,6 +44,8 @@ internal object AudioPlayerServiceBootstrapper {
                 event = "service_on_create",
             )
         if (foregroundStartResult == ForegroundStartResult.FAILED) {
+            // Intentional: continue bootstrap because MediaSessionServiceListener provides
+            // Android 12+ foreground-start recovery path on subsequent user/system resume.
             LogUtils.e("AudioPlayerService", "Failed to start foreground with both notifications")
         } else {
             LogUtils.d("AudioPlayerService", "startForeground() completed: $foregroundStartResult")

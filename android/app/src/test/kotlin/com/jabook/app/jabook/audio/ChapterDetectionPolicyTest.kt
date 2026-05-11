@@ -158,17 +158,21 @@ class ChapterDetectionPolicyTest {
     @Test
     fun `detectCandidates handles empty input and invalid timing params`() {
         assertTrue(ChapterDetectionPolicy.detectCandidates(emptyList()).isEmpty())
-        assertTrue(
+        val zeroWindowStepResult =
             ChapterDetectionPolicy.detectCandidates(
                 rmsDbValues = listOf(-40f, -20f),
                 windowStepMs = 0L,
-            ).isEmpty(),
-        )
-        assertTrue(
+            )
+        val zeroMinSilenceResult =
             ChapterDetectionPolicy.detectCandidates(
                 rmsDbValues = listOf(-40f, -20f),
                 minSilenceMs = 0L,
-            ).isEmpty(),
+            )
+        assertTrue(
+            zeroWindowStepResult.isEmpty(),
+        )
+        assertTrue(
+            zeroMinSilenceResult.isEmpty(),
         )
     }
 

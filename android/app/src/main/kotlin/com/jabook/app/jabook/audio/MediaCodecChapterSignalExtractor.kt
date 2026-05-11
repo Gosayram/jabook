@@ -140,8 +140,10 @@ internal class MediaCodecChapterSignalExtractor
             val outputBufferInfo = MediaCodec.BufferInfo()
             val pcm = ArrayList<Short>(targetSamplesPerChannel * channels)
             var buffersProcessed = 0
+            var noProgressCounter = 0
 
             while (pcm.size < targetSamplesPerChannel * channels && buffersProcessed < MAX_BUFFERS_PER_WINDOW) {
+                var madeProgress = false
                 val inputIndex = codec.dequeueInputBuffer(DEQUEUE_TIMEOUT_US)
                 if (inputIndex >= 0) {
                     val inputBuffer = codec.getInputBuffer(inputIndex)
@@ -152,8 +154,10 @@ internal class MediaCodecChapterSignalExtractor
                             val presentationTimeUs = extractor.sampleTime
                             codec.queueInputBuffer(inputIndex, 0, sampleSize, presentationTimeUs, 0)
                             extractor.advance()
+                            madeProgress = true
                         } else {
                             codec.queueInputBuffer(inputIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            madeProgress = true
                         }
                     }
                 }
@@ -171,9 +175,16 @@ internal class MediaCodecChapterSignalExtractor
                     }
                     codec.releaseOutputBuffer(outputIndex, false)
                     buffersProcessed++
+                    madeProgress = true
                 }
 
                 if ((outputBufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) break
+                if (madeProgress) {
+                    noProgressCounter = 0
+                } else {
+                    noProgressCounter++
+                    if (noProgressCounter > MAX_NO_PROGRESS_DEQUEUE_ATTEMPTS) break
+                }
             }
 
             return if (pcm.isNotEmpty()) pcm.toShortArray() else null
@@ -194,6 +205,7 @@ internal class MediaCodecChapterSignalExtractor
 
         private companion object {
             private const val MAX_BUFFERS_PER_WINDOW: Int = 50
+            private const val MAX_NO_PROGRESS_DEQUEUE_ATTEMPTS: Int = 10
             private const val DEQUEUE_TIMEOUT_US: Long = 10_000L
             private const val SILENCE_FLOOR_DB: Float = -96f
         }

@@ -91,4 +91,3 @@ class ChapterSelectorReorderPolicyTest {
         assertFalse(canMoveChapterDown(index = 1, totalCount = 2))
     }
 }
-

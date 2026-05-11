@@ -43,28 +43,28 @@ internal class PlayerMetadataHandler(
      */
     fun onMetadata(metadata: Metadata) {
         val normalizer = loudnessNormalizer ?: return
+        val selectedGainDb =
+            extractReplayGainDbFromEntries(
+                entries = List(metadata.length()) { index -> metadata.get(index).toString() },
+            ) ?: return
+        LogUtils.i("AudioPlayerService", "Found ReplayGain: ${selectedGainDb}dB")
+        normalizer.setReplayGain(selectedGainDb)
+    }
+
+    internal fun extractReplayGainDbFromEntries(entries: List<String>): Float? {
         var trackGainDb: Float? = null
         var albumGainDb: Float? = null
 
-        for (i in 0 until metadata.length()) {
-            val entry = metadata.get(i)
-            try {
-                val entryString = entry.toString()
-                if (trackGainDb == null) {
-                    trackGainDb = parseReplayGainDb(entryString, REPLAYGAIN_TRACK_GAIN_KEY)
-                }
-                if (albumGainDb == null) {
-                    albumGainDb = parseReplayGainDb(entryString, REPLAYGAIN_ALBUM_GAIN_KEY)
-                }
-                if (trackGainDb != null && albumGainDb != null) break
-            } catch (e: Exception) {
-                LogUtils.e("AudioPlayerService", "Error processing metadata entry", e)
+        for (entryString in entries) {
+            if (trackGainDb == null) {
+                trackGainDb = parseReplayGainDb(entryString, REPLAYGAIN_TRACK_GAIN_KEY)
             }
+            if (albumGainDb == null) {
+                albumGainDb = parseReplayGainDb(entryString, REPLAYGAIN_ALBUM_GAIN_KEY)
+            }
+            if (trackGainDb != null && albumGainDb != null) break
         }
-
-        val selectedGainDb = trackGainDb ?: albumGainDb ?: return
-        LogUtils.i("AudioPlayerService", "Found ReplayGain: ${selectedGainDb}dB")
-        normalizer.setReplayGain(selectedGainDb)
+        return trackGainDb ?: albumGainDb
     }
 
     private fun parseReplayGainDb(

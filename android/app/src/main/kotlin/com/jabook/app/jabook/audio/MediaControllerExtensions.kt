@@ -19,9 +19,12 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.ListenableFuture
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * Extension functions for MediaController to send custom commands.
@@ -302,7 +305,16 @@ public object MediaControllerExtensions {
                                 0L,
                             ).coerceAtLeast(0L),
                 )
-            } catch (e: Exception) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                android.util.Log.w("MediaControllerExtensions", "Interrupted while consuming smart resume suggestion", e)
+                null
+            } catch (e: TimeoutException) {
+                android.util.Log.w("MediaControllerExtensions", "Timed out consuming smart resume suggestion", e)
+                null
+            } catch (e: ExecutionException) {
                 android.util.Log.w("MediaControllerExtensions", "Failed to consume smart resume suggestion", e)
                 null
             }
