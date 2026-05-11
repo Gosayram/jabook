@@ -15,9 +15,9 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
-import android.content.Intent
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Manages inactivity timer for audio player.
@@ -36,6 +36,7 @@ public class InactivityTimer(
     private val onTimerExpired: () -> Unit,
 ) {
     private var timer: SuspendableCountDownTimer? = null
+    private val unloadOrchestrator = InactivityUnloadOrchestrator(context = context, onTimerExpired = onTimerExpired)
 
     /**
      * Current inactivity timeout in seconds.
@@ -71,7 +72,7 @@ public class InactivityTimer(
     public fun setInactivityTimeoutMinutes(minutes: Int) {
         val seconds = (minutes * 60).toLong()
         if (seconds < MIN_INACTIVITY_TIMEOUT_SECONDS || seconds > MAX_INACTIVITY_TIMEOUT_SECONDS) {
-            android.util.Log.w(
+            LogUtils.w(
                 "InactivityTimer",
                 "Invalid timeout: $minutes minutes (must be between ${MIN_INACTIVITY_TIMEOUT_SECONDS / 60} and ${MAX_INACTIVITY_TIMEOUT_SECONDS / 60} minutes), using default",
             )
@@ -81,14 +82,14 @@ public class InactivityTimer(
 
         val oldTimeout = inactivityTimeoutSeconds
         inactivityTimeoutSeconds = seconds
-        android.util.Log.d(
+        LogUtils.d(
             "InactivityTimer",
             "Inactivity timeout updated: ${oldTimeout / 60} -> ${inactivityTimeoutSeconds / 60} minutes",
         )
 
         // If timer is running, restart it with new timeout
         if (timer != null) {
-            android.util.Log.d("InactivityTimer", "Restarting timer with new timeout")
+            LogUtils.d("InactivityTimer", "Restarting timer with new timeout")
             stopTimer()
             checkAndStartTimer()
         }
@@ -102,10 +103,11 @@ public class InactivityTimer(
         )
 
     private val playerListener: Player.Listener = eventObserver.listener
+    private val listenerBinding = InactivityPlayerListenerBinding(player = player, listener = playerListener)
 
     init {
-        player.addListener(playerListener)
-        android.util.Log.d("InactivityTimer", "InactivityTimer initialized")
+        listenerBinding.attach()
+        LogUtils.d("InactivityTimer", "InactivityTimer initialized")
     }
 
     /**
@@ -125,13 +127,13 @@ public class InactivityTimer(
             )
 
         if (shouldStart && timer == null) {
-            android.util.Log.d(
+            LogUtils.d(
                 "InactivityTimer",
                 "Conditions met for starting timer: playbackState=$playbackState, playWhenReady=${player.playWhenReady}",
             )
             startTimer()
         } else if (!shouldStart) {
-            android.util.Log.d(
+            LogUtils.d(
                 "InactivityTimer",
                 "Conditions not met for starting timer: playbackState=$playbackState, playWhenReady=${player.playWhenReady}",
             )
@@ -144,7 +146,7 @@ public class InactivityTimer(
     private fun startTimer() {
         stopTimer()
 
-        android.util.Log.d(
+        LogUtils.d(
             "InactivityTimer",
             "Starting inactivity timer: ${inactivityTimeoutSeconds}s (${inactivityTimeoutSeconds / 60} minutes)",
         )
@@ -156,20 +158,14 @@ public class InactivityTimer(
                 onTickSeconds = { seconds ->
                     // Log remaining time every 10 minutes for debugging
                     if (seconds % 600 == 0L) {
-                        android.util.Log.d(
+                        LogUtils.d(
                             "InactivityTimer",
                             "Inactivity timer running: ${seconds / 60} minutes remaining",
                         )
                     }
                 },
                 onFinished = {
-                    android.util.Log.i(
-                        "InactivityTimer",
-                        "Inactivity timer expired after ${inactivityTimeoutSeconds}s (${inactivityTimeoutSeconds / 60} minutes), unloading player",
-                    )
-                    android.util.Log.d("InactivityTimer", "Releasing resources: MediaSession, ExoPlayer, Notification")
-                    broadcastTimerExpired()
-                    onTimerExpired()
+                    unloadOrchestrator.handleTimeout(inactivityTimeoutSeconds = inactivityTimeoutSeconds)
                     stopTimer()
                 },
             ).also { it.start() }
@@ -181,7 +177,7 @@ public class InactivityTimer(
      */
     public fun resetTimer() {
         if (timer != null) {
-            android.util.Log.d("InactivityTimer", "Resetting inactivity timer (user action detected)")
+            LogUtils.d("InactivityTimer", "Resetting inactivity timer (user action detected)")
             stopTimer()
         }
         // Timer will be restarted automatically if conditions are met (when playback is paused)
@@ -192,7 +188,7 @@ public class InactivityTimer(
      */
     internal fun resetIfApplicable(source: InactivityCommandSource) {
         if (!InactivityResetPolicy.shouldReset(source)) {
-            android.util.Log.d("InactivityTimer", "Skipping inactivity reset for source=$source")
+            LogUtils.d("InactivityTimer", "Skipping inactivity reset for source=$source")
             return
         }
         resetTimer()
@@ -207,20 +203,11 @@ public class InactivityTimer(
     }
 
     /**
-     * Broadcasts timer expiration event.
-     */
-    private fun broadcastTimerExpired() {
-        val intent = Intent(ACTION_INACTIVITY_TIMER_EXPIRED)
-        context.sendBroadcast(intent)
-        android.util.Log.d("InactivityTimer", "Broadcasted inactivity timer expiration")
-    }
-
-    /**
      * Releases timer resources.
      */
     public fun release() {
         stopTimer()
-        player.removeListener(playerListener)
-        android.util.Log.d("InactivityTimer", "InactivityTimer released")
+        listenerBinding.detach()
+        LogUtils.d("InactivityTimer", "InactivityTimer released")
     }
 }
