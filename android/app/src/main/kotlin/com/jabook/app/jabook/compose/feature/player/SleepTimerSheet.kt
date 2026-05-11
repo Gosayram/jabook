@@ -279,7 +279,7 @@ internal fun handleSleepTimerPresetSelection(
 }
 
 @Composable
-internal fun SleepTimerPresetChips(
+private fun SleepTimerPresetChips(
     durations: List<Int>,
     onPresetClick: (Int) -> Unit,
 ) {

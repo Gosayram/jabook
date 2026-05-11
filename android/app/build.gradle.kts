@@ -412,6 +412,13 @@ tasks.withType<Test>().configureEach {
     systemProperty("kotlinx.coroutines.test.default_timeout", "30s")
 
     // Emit thread diagnostics when a test likely failed due to timeout/hang.
+    val enableThreadDumpOnTimeout =
+        providers
+            .gradleProperty("test.threadDumpOnTimeout")
+            .map(String::toBooleanStrictOrNull)
+            .orElse(false)
+            .get()
+
     addTestListener(
         object : TestListener {
             override fun beforeSuite(suite: TestDescriptor) = Unit
@@ -442,11 +449,11 @@ tasks.withType<Test>().configureEach {
                     failureSummary.contains("TestTimedOutException") ||
                         failureSummary.contains("TimeoutException") ||
                         failureSummary.contains("timed out", ignoreCase = true)
-                if (!looksLikeTimeout) return
+                if (!looksLikeTimeout || !enableThreadDumpOnTimeout) return
 
                 logger.error(
                     "⏱️ Timeout-like failure in ${testDescriptor.className}.${testDescriptor.name}. " +
-                        "Printing thread dump for diagnostics.",
+                        "Thread dump is enabled via -Ptest.threadDumpOnTimeout=true.",
                 )
                 val threadDump =
                     ManagementFactory

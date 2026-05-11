@@ -62,6 +62,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.abs
 import com.jabook.app.jabook.compose.domain.model.Result as TypedResult
@@ -156,6 +157,7 @@ public class PlayerViewModel
         private var hasShownSleepTimerResumeHint: Boolean = false
         private var hasShownSmartResumeRecapHint: Boolean = false
         private var hasTriggeredSeriesAutoplay: Boolean = false
+        private var autoplayDismissedUntilChapterChange: Boolean = false
         private var seriesAutoplayJob: Job? = null
 
         private val _nextBookAutoplayState = MutableStateFlow<NextBookAutoplayState?>(null)
@@ -483,11 +485,18 @@ public class PlayerViewModel
                             hasTriggeredSeriesAutoplay = hasTriggeredSeriesAutoplay,
                         )
 
-                    if (autoplayDecision.shouldTriggerAutoplay) {
+                    if (autoplayDecision.shouldTriggerAutoplay && !autoplayDismissedUntilChapterChange) {
                         hasTriggeredSeriesAutoplay = true
                         maybeStartSeriesAutoplay(activeState.book)
                     } else if (autoplayDecision.shouldResetAutoplay) {
-                        hasTriggeredSeriesAutoplay = false
+                        // Explicit dismiss should survive play/pause and near-end jitter
+                        // until the user leaves the last chapter.
+                        if (!isLastChapter) {
+                            autoplayDismissedUntilChapterChange = false
+                            hasTriggeredSeriesAutoplay = false
+                        } else if (!autoplayDismissedUntilChapterChange) {
+                            hasTriggeredSeriesAutoplay = false
+                        }
                         seriesAutoplayJob?.cancel()
                         seriesAutoplayJob = null
                         _nextBookAutoplayState.value = null
@@ -527,6 +536,7 @@ public class PlayerViewModel
             seriesAutoplayJob?.cancel()
             seriesAutoplayJob = null
             _nextBookAutoplayState.value = null
+            autoplayDismissedUntilChapterChange = false
             emitEffect(PlayerEffect.NavigateToBook(nextBook.id))
         }
 
@@ -535,6 +545,7 @@ public class PlayerViewModel
             seriesAutoplayJob = null
             _nextBookAutoplayState.value = null
             hasTriggeredSeriesAutoplay = true
+            autoplayDismissedUntilChapterChange = true
         }
 
         private fun findNextBookInSeries(
@@ -564,8 +575,8 @@ public class PlayerViewModel
             val normalizedTitle = book.title.trim()
             val patterns =
                 listOf(
-                    Regex("""(?i)^(.*?)[\s\-–—:]*\b(?:book|книга|том|часть)\s*([0-9]{1,2})\b"""),
-                    Regex("""(?i)^(.*?)[\s\-–—:]*[#№]\s*([0-9]{1,2})\b"""),
+                    Regex("""(?i)^(.*?)[\s\-–—:]*\b(?:book|книга|том|часть)\s*([0-9]{1,4})\b"""),
+                    Regex("""(?i)^(.*?)[\s\-–—:]*[#№]\s*([0-9]{1,4})\b"""),
                 )
             for (pattern in patterns) {
                 val match = pattern.find(normalizedTitle) ?: continue
@@ -576,7 +587,7 @@ public class PlayerViewModel
                         .trim()
                 val order = match.groupValues.getOrNull(2)?.toIntOrNull() ?: continue
                 if (rawKey.isBlank()) continue
-                return SeriesDescriptor(seriesKey = rawKey.lowercase(), order = order)
+                return SeriesDescriptor(seriesKey = rawKey.lowercase(Locale.ROOT), order = order)
             }
             return null
         }
@@ -1438,6 +1449,8 @@ internal data class SeriesAutoplayDecision(
     val shouldResetAutoplay: Boolean,
 )
 
+internal const val SERIES_AUTOPLAY_END_TOLERANCE_MS: Long = 750L
+
 internal fun evaluateSeriesAutoplayDecision(
     isLastChapter: Boolean,
     isPlaying: Boolean,
@@ -1445,7 +1458,7 @@ internal fun evaluateSeriesAutoplayDecision(
     durationMs: Long,
     hasTriggeredSeriesAutoplay: Boolean,
 ): SeriesAutoplayDecision {
-    val isTrackEnded = durationMs > 0L && positionMs >= (durationMs - 750L)
+    val isTrackEnded = durationMs > 0L && positionMs >= (durationMs - SERIES_AUTOPLAY_END_TOLERANCE_MS)
     return SeriesAutoplayDecision(
         shouldTriggerAutoplay = isLastChapter && !isPlaying && isTrackEnded && !hasTriggeredSeriesAutoplay,
         shouldResetAutoplay = !isLastChapter || isPlaying || (hasTriggeredSeriesAutoplay && !isTrackEnded),
