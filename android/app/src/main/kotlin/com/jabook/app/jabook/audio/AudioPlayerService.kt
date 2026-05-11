@@ -19,6 +19,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import androidx.annotation.OptIn
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
@@ -145,6 +146,7 @@ public class AudioPlayerService : MediaLibraryService() {
     // Audio visualizer manager
     internal var audioVisualizerManager: AudioVisualizerManager? = null
     internal var visualizerBridgeJob: kotlinx.coroutines.Job? = null
+    internal var audioOutputMonitoringListener: Player.Listener? = null
 
     // Phone call listener for automatic resume after calls
     internal var phoneCallListener: PhoneCallListener? = null

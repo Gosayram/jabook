@@ -18,6 +18,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -49,6 +50,8 @@ internal class AudioPlayerPostInitCoordinator(
                     LogUtils.d("AudioPlayerService", "Restoring playback speed: ${savedSpeed}x")
                     service.exoPlayer.setPlaybackSpeed(savedSpeed)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 LogUtils.e("AudioPlayerService", "Failed to restore playback speed", e)
             }
@@ -77,7 +80,10 @@ internal class AudioPlayerPostInitCoordinator(
             service.audioOutputManager.startMonitoring()
         }
 
-        service.exoPlayer.addListener(
+        service.audioOutputMonitoringListener?.let { previous ->
+            service.exoPlayer.removeListener(previous)
+        }
+        val listener =
             object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     if (isPlaying) {
@@ -86,11 +92,13 @@ internal class AudioPlayerPostInitCoordinator(
                         service.audioOutputManager.stopMonitoring()
                     }
                 }
-            },
-        )
+            }
+        service.audioOutputMonitoringListener = listener
+        service.exoPlayer.addListener(listener)
     }
 
     private fun initializeVisualizer() {
+        service.audioVisualizerManager?.release()
         service.audioVisualizerManager = AudioVisualizerManager(service)
         service.visualizerBridgeJob?.cancel()
         service.visualizerBridgeJob =

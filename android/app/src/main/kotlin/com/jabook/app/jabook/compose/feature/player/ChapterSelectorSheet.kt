@@ -308,14 +308,14 @@ public fun ChapterSelectorSheet(
                             }
                         },
                         onMoveUp = {
-                            if (listIndex > 0) {
+                            if (canMoveChapterUp(listIndex)) {
                                 val newList = editedChapters.toMutableList()
                                 java.util.Collections.swap(newList, listIndex, listIndex - 1)
                                 editedChapters = newList
                             }
                         },
                         onMoveDown = {
-                            if (listIndex < editedChapters.size - 1) {
+                            if (canMoveChapterDown(listIndex, editedChapters.size)) {
                                 val newList = editedChapters.toMutableList()
                                 java.util.Collections.swap(newList, listIndex, listIndex + 1)
                                 editedChapters = newList
@@ -422,16 +422,21 @@ private fun ChapterSelectorItem(
                                     onDragCancel = { dragAccumulated = 0f },
                                 ) { change, dragAmount ->
                                     change.consume()
-                                    dragAccumulated += dragAmount
-                                    when {
-                                        dragAccumulated >= threshold -> {
+                                    val dragDecision =
+                                        accumulateChapterReorderDrag(
+                                            accumulated = dragAccumulated,
+                                            dragAmount = dragAmount,
+                                            threshold = threshold,
+                                        )
+                                    dragAccumulated = dragDecision.remainingAccumulated
+                                    when (dragDecision.action) {
+                                        ChapterReorderDragAction.MoveDown -> {
                                             moveDownCallback()
-                                            dragAccumulated = 0f
                                         }
-                                        dragAccumulated <= -threshold -> {
+                                        ChapterReorderDragAction.MoveUp -> {
                                             moveUpCallback()
-                                            dragAccumulated = 0f
                                         }
+                                        ChapterReorderDragAction.None -> Unit
                                     }
                                 }
                             },
@@ -454,3 +459,57 @@ private fun ChapterSelectorItem(
         }
     }
 }
+
+internal enum class ChapterReorderDragAction {
+    None,
+    MoveUp,
+    MoveDown,
+}
+
+internal data class ChapterReorderDragDecision(
+    val action: ChapterReorderDragAction,
+    val remainingAccumulated: Float,
+)
+
+internal fun accumulateChapterReorderDrag(
+    accumulated: Float,
+    dragAmount: Float,
+    threshold: Float,
+): ChapterReorderDragDecision {
+    if (!threshold.isFinite() || threshold <= 0f) {
+        return ChapterReorderDragDecision(
+            action = ChapterReorderDragAction.None,
+            remainingAccumulated = 0f,
+        )
+    }
+    val nextAccumulated = accumulated + dragAmount
+    return when {
+        nextAccumulated >= threshold -> {
+            ChapterReorderDragDecision(
+                action = ChapterReorderDragAction.MoveDown,
+                remainingAccumulated = 0f,
+            )
+        }
+
+        nextAccumulated <= -threshold -> {
+            ChapterReorderDragDecision(
+                action = ChapterReorderDragAction.MoveUp,
+                remainingAccumulated = 0f,
+            )
+        }
+
+        else -> {
+            ChapterReorderDragDecision(
+                action = ChapterReorderDragAction.None,
+                remainingAccumulated = nextAccumulated,
+            )
+        }
+    }
+}
+
+internal fun canMoveChapterUp(index: Int): Boolean = index > 0
+
+internal fun canMoveChapterDown(
+    index: Int,
+    totalCount: Int,
+): Boolean = index in 0 until (totalCount - 1)

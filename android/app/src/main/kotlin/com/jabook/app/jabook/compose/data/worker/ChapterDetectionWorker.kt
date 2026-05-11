@@ -51,10 +51,10 @@ public class ChapterDetectionWorker
             withContext(Dispatchers.IO) {
                 val bookId = inputData.getString(KEY_BOOK_ID).orEmpty()
                 val filePath = inputData.getString(KEY_FILE_PATH).orEmpty()
-                val fileIndex = inputData.getInt(KEY_FILE_INDEX, 0).coerceAtLeast(0)
+                val fileIndex = inputData.getInt(KEY_FILE_INDEX, 0)
                 val totalDurationMs = inputData.getLong(KEY_DURATION_MS, 0L).coerceAtLeast(0L)
 
-                if (bookId.isBlank() || filePath.isBlank() || totalDurationMs <= 0L) {
+                if (bookId.isBlank() || filePath.isBlank() || totalDurationMs <= 0L || fileIndex < 0) {
                     return@withContext Result.failure(
                         workDataOf(
                             KEY_RESULT_CHAPTERS_COUNT to 0,
@@ -71,10 +71,11 @@ public class ChapterDetectionWorker
                         )
 
                     if (rmsDbValues.isEmpty()) {
-                        return@withContext Result.success(
+                        return@withContext Result.failure(
                             workDataOf(
                                 KEY_RESULT_CHAPTERS_COUNT to 0,
                                 KEY_RESULT_SIGNAL_WINDOWS to 0,
+                                KEY_RESULT_ERROR to "empty_signal",
                             ),
                         )
                     }
