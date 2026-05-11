@@ -47,17 +47,17 @@ internal class AudioServiceCommandRouter(
 ) {
     // --- Core playback commands ---
 
-    fun play() {
+    fun play(source: InactivityCommandSource = InactivityCommandSource.USER_UI) {
         resetBookCompletionIfNeeded("play()")
-        getPlaybackController()?.play() ?: run {
+        getPlaybackController()?.play(source) ?: run {
             LogUtils.e(TAG, "PlaybackController not initialized")
             return
         }
         getPlaybackLifecycleActions().onPlay()
     }
 
-    fun pause() {
-        getPlaybackController()?.pause() ?: run {
+    fun pause(source: InactivityCommandSource = InactivityCommandSource.USER_UI) {
+        getPlaybackController()?.pause(source) ?: run {
             LogUtils.e(TAG, "PlaybackController not initialized")
             return
         }
@@ -74,13 +74,19 @@ internal class AudioServiceCommandRouter(
 
     // --- Seek commands ---
 
-    fun seekTo(positionMs: Long) {
-        getPlaybackController()?.seekTo(positionMs)
+    fun seekTo(
+        positionMs: Long,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ) {
+        getPlaybackController()?.seekTo(positionMs, source)
     }
 
-    fun seekToTrack(index: Int) {
+    fun seekToTrack(
+        index: Int,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ) {
         resetBookCompletionIfNeeded("Manual seekToTrack($index)")
-        getPlaybackController()?.seekToTrack(index) ?: run {
+        getPlaybackController()?.seekToTrack(index, source) ?: run {
             LogUtils.e(TAG, "PlaybackController not initialized")
         }
     }
@@ -88,58 +94,74 @@ internal class AudioServiceCommandRouter(
     fun seekToTrackAndPosition(
         trackIndex: Int,
         positionMs: Long,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
     ) {
         resetBookCompletionIfNeeded("Manual seekToTrackAndPosition($trackIndex, $positionMs)")
-        getPlaybackController()?.seekToTrackAndPosition(trackIndex, positionMs) ?: run {
+        getPlaybackController()?.seekToTrackAndPosition(trackIndex, positionMs, source) ?: run {
             LogUtils.e(TAG, "PlaybackController not initialized")
         }
     }
 
     // --- Speed / Repeat / Shuffle ---
 
-    fun setSpeed(speed: Float) {
-        getPlaybackController()?.setSpeed(speed)
+    fun setSpeed(
+        speed: Float,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ) {
+        getPlaybackController()?.setSpeed(speed, source)
         updateCrashPlaybackContext()
     }
 
     fun getSpeed(): Float = getPlaybackController()?.getSpeed() ?: 1.0f
 
-    fun setRepeatMode(repeatMode: Int) {
-        getPlaybackController()?.setRepeatMode(repeatMode)
+    fun setRepeatMode(
+        repeatMode: Int,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ) {
+        getPlaybackController()?.setRepeatMode(repeatMode, source)
     }
 
     fun getRepeatMode(): Int = getPlaybackController()?.getRepeatMode() ?: Player.REPEAT_MODE_OFF
 
-    fun setShuffleModeEnabled(enabled: Boolean) {
-        getPlaybackController()?.setShuffleModeEnabled(enabled)
+    fun setShuffleModeEnabled(
+        enabled: Boolean,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ) {
+        getPlaybackController()?.setShuffleModeEnabled(enabled, source)
     }
 
     fun getShuffleModeEnabled(): Boolean = getPlaybackController()?.getShuffleModeEnabled() ?: false
 
     // --- Navigation ---
 
-    fun next() {
+    fun next(source: InactivityCommandSource = InactivityCommandSource.USER_UI) {
         resetBookCompletionIfNeeded("Manual next()")
-        getPlaybackController()?.next() ?: run {
+        getPlaybackController()?.next(source) ?: run {
             LogUtils.e(TAG, "PlaybackController not initialized")
         }
     }
 
-    fun previous() {
+    fun previous(source: InactivityCommandSource = InactivityCommandSource.USER_UI) {
         resetBookCompletionIfNeeded("Manual previous()")
-        getPlaybackController()?.previous() ?: run {
+        getPlaybackController()?.previous(source) ?: run {
             LogUtils.e(TAG, "PlaybackController not initialized")
         }
     }
 
-    fun rewind(seconds: Int = 15) {
-        getPlaybackController()?.rewind(seconds) ?: run {
+    fun rewind(
+        seconds: Int = 15,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ) {
+        getPlaybackController()?.rewind(seconds, source) ?: run {
             LogUtils.e(TAG, "PlaybackController not initialized")
         }
     }
 
-    fun forward(seconds: Int = 30) {
-        getPlaybackController()?.forward(seconds) ?: run {
+    fun forward(
+        seconds: Int = 30,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ) {
+        getPlaybackController()?.forward(seconds, source) ?: run {
             LogUtils.e(TAG, "PlaybackController not initialized")
         }
     }

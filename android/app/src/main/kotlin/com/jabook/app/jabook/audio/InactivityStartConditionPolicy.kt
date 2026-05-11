@@ -14,15 +14,24 @@
 
 package com.jabook.app.jabook.audio
 
+import androidx.media3.common.Player
+
 /**
- * Source of an action that may reset inactivity timeout.
+ * Policy that decides whether inactivity timer may start for current player state.
  */
-public enum class InactivityCommandSource {
-    USER_UI,
-    HEADSET_BUTTON,
-    ANDROID_AUTO,
-    WEAR_OS,
-    SLEEP_TIMER,
-    NOTIFICATION,
-    PLAYBACK_INTERNAL,
+internal object InactivityStartConditionPolicy {
+    fun shouldStart(
+        isPlaying: Boolean,
+        mediaItemCount: Int,
+        playbackState: Int,
+        playWhenReady: Boolean,
+    ): Boolean {
+        if (isPlaying) return false
+        if (mediaItemCount == 0) return false
+        return when (playbackState) {
+            Player.STATE_READY -> !playWhenReady
+            Player.STATE_ENDED -> true
+            else -> false
+        }
+    }
 }

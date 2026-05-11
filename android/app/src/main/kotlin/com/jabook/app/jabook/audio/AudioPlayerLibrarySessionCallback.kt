@@ -168,13 +168,13 @@ public class AudioPlayerLibrarySessionCallback(
         when (keyEvent.keyCode) {
             KEYCODE_MEDIA_NEXT -> {
                 val forwardSeconds = service.mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
-                service.forward(forwardSeconds)
+                service.forward(forwardSeconds, InactivityCommandSource.HEADSET_BUTTON)
                 android.util.Log.d("AudioPlayerService", "Media button: forward ${forwardSeconds}s")
                 return true
             }
             KEYCODE_MEDIA_PREVIOUS -> {
                 val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 10
-                service.rewind(rewindSeconds)
+                service.rewind(rewindSeconds, InactivityCommandSource.HEADSET_BUTTON)
                 android.util.Log.d("AudioPlayerService", "Media button: rewind ${rewindSeconds}s")
                 return true
             }
@@ -184,15 +184,19 @@ public class AudioPlayerLibrarySessionCallback(
                 mediaButtonHandler?.onMediaButtonEvent(
                     keyEvent.keyCode,
                     onSingleClick = {
-                        if (service.isPlaying) service.pause() else service.play()
+                        if (service.isPlaying) {
+                            service.pause(InactivityCommandSource.HEADSET_BUTTON)
+                        } else {
+                            service.play(InactivityCommandSource.HEADSET_BUTTON)
+                        }
                         android.util.Log.d("AudioPlayerService", "Media button: Single click (Play/Pause)")
                     },
                     onDoubleClick = {
-                        service.next()
+                        service.next(InactivityCommandSource.HEADSET_BUTTON)
                         android.util.Log.d("AudioPlayerService", "Media button: Double click (Next)")
                     },
                     onTripleClick = {
-                        service.previous()
+                        service.previous(InactivityCommandSource.HEADSET_BUTTON)
                         android.util.Log.d("AudioPlayerService", "Media button: Triple click (Previous)")
                     },
                 )

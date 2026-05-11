@@ -36,7 +36,7 @@ internal object AudioServiceComponentBinder {
             PlaybackController(
                 getActivePlayer = { service.getActivePlayer() },
                 playerServiceScope = service.playerServiceScope,
-                resetInactivityTimer = { service.inactivityTimer?.resetIfApplicable(InactivityCommandSource.USER_UI) },
+                resetInactivityTimer = { source -> service.inactivityTimer?.resetIfApplicable(source) },
                 getResumeRewindSeconds = {
                     try {
                         kotlinx.coroutines.runBlocking {

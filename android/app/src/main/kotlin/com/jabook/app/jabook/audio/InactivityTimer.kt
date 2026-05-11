@@ -115,25 +115,14 @@ public class InactivityTimer(
      * - There are media items loaded
      */
     private fun checkAndStartTimer() {
-        if (player.isPlaying) {
-            // Player is playing - don't start timer
-            android.util.Log.d("InactivityTimer", "Player is playing, not starting inactivity timer")
-            return
-        }
-
-        if (player.mediaItemCount == 0) {
-            // No media items loaded - don't start timer
-            android.util.Log.d("InactivityTimer", "No media items loaded, not starting inactivity timer")
-            return
-        }
-
         val playbackState = player.playbackState
         val shouldStart =
-            when (playbackState) {
-                Player.STATE_READY -> !player.playWhenReady // Paused
-                Player.STATE_ENDED -> true // Ended
-                else -> false // Other states
-            }
+            InactivityStartConditionPolicy.shouldStart(
+                isPlaying = player.isPlaying,
+                mediaItemCount = player.mediaItemCount,
+                playbackState = playbackState,
+                playWhenReady = player.playWhenReady,
+            )
 
         if (shouldStart && timer == null) {
             android.util.Log.d(

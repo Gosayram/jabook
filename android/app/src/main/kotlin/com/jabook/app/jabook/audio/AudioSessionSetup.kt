@@ -21,6 +21,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.util.LogUtils
 import java.util.concurrent.TimeUnit
 
 /**
@@ -46,7 +47,7 @@ internal class AudioSessionSetup(
                 )
 
             val sessionId = "jabook_${android.os.Process.myPid()}_${System.identityHashCode(service)}"
-            android.util.Log.i("AudioPlayerService", "Creating MediaLibrarySession with ID: $sessionId")
+            LogUtils.i("AudioPlayerService", "Creating MediaLibrarySession with ID: $sessionId")
 
             val sessionBuilder =
                 MediaLibrarySession
@@ -56,7 +57,7 @@ internal class AudioSessionSetup(
             if (sessionActivity != null) {
                 sessionBuilder.setSessionActivity(sessionActivity)
             } else {
-                android.util.Log.w("AudioPlayerService", "Session activity intent is null")
+                LogUtils.w("AudioPlayerService", "Session activity intent is null")
             }
 
             service.mediaLibrarySession = sessionBuilder.build()
@@ -67,7 +68,7 @@ internal class AudioSessionSetup(
                 }
             service.mediaSession = service.mediaLibrarySession
 
-            android.util.Log.i(
+            LogUtils.i(
                 "AudioPlayerService",
                 "MediaLibrarySession created successfully: ${service.mediaLibrarySession?.token}",
             )
@@ -75,7 +76,7 @@ internal class AudioSessionSetup(
             createServiceMediaController()
             service.mediaSessionManager = MediaSessionManager(service, service.exoPlayer)
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to create MediaLibrarySession", e)
+            LogUtils.e("AudioPlayerService", "Failed to create MediaLibrarySession", e)
         }
     }
 
@@ -83,7 +84,7 @@ internal class AudioSessionSetup(
     private fun createServiceMediaController() {
         val session = service.mediaLibrarySession
         if (session == null) {
-            android.util.Log.w("AudioPlayerService", "Cannot create MediaController: MediaLibrarySession is null")
+            LogUtils.w("AudioPlayerService", "Cannot create MediaController: MediaLibrarySession is null")
             return
         }
 
@@ -105,22 +106,22 @@ internal class AudioSessionSetup(
                         service.serviceMediaController = controller
                         service.isFullyInitializedFlag = true
                         service.setInitialCustomLayout()
-                        android.util.Log.i(
+                        LogUtils.i(
                             "AudioPlayerService",
                             "Service MediaController initialized successfully, service is now fully ready",
                         )
                     } catch (e: java.util.concurrent.TimeoutException) {
-                        android.util.Log.e("AudioPlayerService", "Service MediaController initialization timeout", e)
+                        LogUtils.e("AudioPlayerService", "Service MediaController initialization timeout", e)
                         service.isFullyInitializedFlag = true
                     } catch (e: Exception) {
-                        android.util.Log.e("AudioPlayerService", "Error initializing Service MediaController", e)
+                        LogUtils.e("AudioPlayerService", "Error initializing Service MediaController", e)
                         service.isFullyInitializedFlag = true
                     }
                 },
                 ContextCompat.getMainExecutor(service),
             )
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to create Service MediaController", e)
+            LogUtils.e("AudioPlayerService", "Failed to create Service MediaController", e)
         }
     }
 }

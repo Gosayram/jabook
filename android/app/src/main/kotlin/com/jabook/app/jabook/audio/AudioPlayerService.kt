@@ -513,16 +513,17 @@ public class AudioPlayerService : MediaLibraryService() {
     public fun seekToTrackAndPosition(
         trackIndex: Int,
         positionMs: Long,
-    ): Unit = commandRouter.seekToTrackAndPosition(trackIndex, positionMs)
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ): Unit = commandRouter.seekToTrackAndPosition(trackIndex, positionMs, source)
 
     public fun updateMetadata(metadata: Map<String, String>): Unit = commandRouter.updateMetadata(metadata)
 
     public val isPlaying: Boolean
         get() = commandRouter.isPlaying
 
-    public fun play(): Unit = commandRouter.play()
+    public fun play(source: InactivityCommandSource = InactivityCommandSource.USER_UI): Unit = commandRouter.play(source)
 
-    public fun pause(): Unit = commandRouter.pause()
+    public fun pause(source: InactivityCommandSource = InactivityCommandSource.USER_UI): Unit = commandRouter.pause(source)
 
     public fun stop(): Unit = commandRouter.stop()
 
@@ -546,17 +547,29 @@ public class AudioPlayerService : MediaLibraryService() {
 
     internal fun saveCurrentPosition(): Unit = commandRouter.saveCurrentPosition()
 
-    public fun seekTo(positionMs: Long): Unit = commandRouter.seekTo(positionMs)
+    public fun seekTo(
+        positionMs: Long,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ): Unit = commandRouter.seekTo(positionMs, source)
 
-    public fun setSpeed(speed: Float): Unit = commandRouter.setSpeed(speed)
+    public fun setSpeed(
+        speed: Float,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ): Unit = commandRouter.setSpeed(speed, source)
 
-    public fun setRepeatMode(repeatMode: Int): Unit = commandRouter.setRepeatMode(repeatMode)
+    public fun setRepeatMode(
+        repeatMode: Int,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ): Unit = commandRouter.setRepeatMode(repeatMode, source)
 
     public fun getRepeatMode(): Int = commandRouter.getRepeatMode()
 
     public fun getPlaybackSpeed(): Float = commandRouter.getSpeed()
 
-    public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean): Unit = commandRouter.setShuffleModeEnabled(shuffleModeEnabled)
+    public fun setShuffleModeEnabled(
+        shuffleModeEnabled: Boolean,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ): Unit = commandRouter.setShuffleModeEnabled(shuffleModeEnabled, source)
 
     public fun getShuffleModeEnabled(): Boolean = commandRouter.getShuffleModeEnabled()
 
@@ -588,20 +601,29 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun setVisualizerEnabled(enabled: Boolean): Unit = visualizerFacade.setEnabled(enabled)
 
-    public fun next(): Unit = commandRouter.next()
+    public fun next(source: InactivityCommandSource = InactivityCommandSource.USER_UI): Unit = commandRouter.next(source)
 
-    public fun previous(): Unit = commandRouter.previous()
+    public fun previous(source: InactivityCommandSource = InactivityCommandSource.USER_UI): Unit = commandRouter.previous(source)
 
-    public fun seekToTrack(index: Int): Unit = commandRouter.seekToTrack(index)
+    public fun seekToTrack(
+        index: Int,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ): Unit = commandRouter.seekToTrack(index, source)
 
     public fun setPlaybackProgress(
         filePaths: List<String>,
         progressSeconds: Double?,
     ): Unit = commandRouter.setPlaybackProgress(filePaths, progressSeconds)
 
-    public fun rewind(seconds: Int = 15): Unit = commandRouter.rewind(seconds)
+    public fun rewind(
+        seconds: Int = 15,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ): Unit = commandRouter.rewind(seconds, source)
 
-    public fun forward(seconds: Int = 30): Unit = commandRouter.forward(seconds)
+    public fun forward(
+        seconds: Int = 30,
+        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
+    ): Unit = commandRouter.forward(seconds, source)
 
     /** Stops playback and releases resources. Delegates to [AudioServiceReleaseHandler]. */
     public fun stopAndRelease() {

@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Observes player events relevant to inactivity tracking.
@@ -32,13 +33,13 @@ internal class InactivityPlaybackEventObserver(
         object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
-                    android.util.Log.d(
+                    LogUtils.d(
                         "InactivityTimer",
                         "Playback started (isPlaying=true), resetting inactivity timer",
                     )
                     resetTimer(InactivityCommandSource.PLAYBACK_INTERNAL)
                 } else {
-                    android.util.Log.d(
+                    LogUtils.d(
                         "InactivityTimer",
                         "Playback paused/stopped (isPlaying=false), checking if should start timer",
                     )
@@ -64,7 +65,7 @@ internal class InactivityPlaybackEventObserver(
                 mediaItem: androidx.media3.common.MediaItem?,
                 reason: Int,
             ) {
-                android.util.Log.d(
+                LogUtils.d(
                     "InactivityTimer",
                     "Media item transition detected (user action), resetting inactivity timer",
                 )
@@ -79,7 +80,7 @@ internal class InactivityPlaybackEventObserver(
                 if (reason == Player.DISCONTINUITY_REASON_SEEK ||
                     reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
                 ) {
-                    android.util.Log.d(
+                    LogUtils.d(
                         "InactivityTimer",
                         "Position discontinuity (seek) detected (user action), resetting inactivity timer",
                     )
@@ -88,7 +89,7 @@ internal class InactivityPlaybackEventObserver(
             }
 
             override fun onPlaybackParametersChanged(playbackParameters: androidx.media3.common.PlaybackParameters) {
-                android.util.Log.d(
+                LogUtils.d(
                     "InactivityTimer",
                     "Playback parameters changed (speed=${playbackParameters.speed}, user action), resetting inactivity timer",
                 )
@@ -96,12 +97,12 @@ internal class InactivityPlaybackEventObserver(
             }
 
             override fun onRepeatModeChanged(repeatMode: Int) {
-                android.util.Log.d("InactivityTimer", "Repeat mode changed (user action), resetting inactivity timer")
+                LogUtils.d("InactivityTimer", "Repeat mode changed (user action), resetting inactivity timer")
                 resetTimer(InactivityCommandSource.PLAYBACK_INTERNAL)
             }
 
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-                android.util.Log.d("InactivityTimer", "Shuffle mode changed (user action), resetting inactivity timer")
+                LogUtils.d("InactivityTimer", "Shuffle mode changed (user action), resetting inactivity timer")
                 resetTimer(InactivityCommandSource.PLAYBACK_INTERNAL)
             }
         }

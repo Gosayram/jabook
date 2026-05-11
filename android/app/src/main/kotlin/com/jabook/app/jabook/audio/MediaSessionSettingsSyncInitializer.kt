@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.audio
 
+import com.jabook.app.jabook.util.LogUtils
+
 /**
  * Initializes settings synchronization between app preferences and MediaSession commands.
  */
@@ -27,9 +29,9 @@ internal object MediaSessionSettingsSyncInitializer {
                     scope = service.playerServiceScope,
                 )
             settingsSync.start()
-            android.util.Log.i("AudioPlayerService", "Settings sync initialized successfully")
+            LogUtils.i("AudioPlayerService", "Settings sync initialized successfully")
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to initialize settings sync", e)
+            LogUtils.e("AudioPlayerService", "Failed to initialize settings sync", e)
         }
     }
 }
