@@ -25,6 +25,10 @@ from typing import Any
 
 
 CODERABBIT_LOGINS = {"coderabbitai[bot]", "coderabbitai"}
+INTERNAL_STATE_BLOCK_RE = re.compile(
+    r"<!--\s*internal state start\s*-->.*?<!--\s*internal state end\s*-->",
+    flags=re.IGNORECASE | re.DOTALL,
+)
 
 
 @dataclass
@@ -201,7 +205,7 @@ def collect_recommendations(owner: str, repo: str, pr_number: int, debug: bool =
                 kind="review",
                 author=str((item.get("user") or {}).get("login") or ""),
                 url=url,
-                body=str(item.get("body") or ""),
+                body=sanitize_comment_body(str(item.get("body") or "")),
                 file_path=item.get("path"),
                 line=item.get("line"),
                 start_line=item.get("start_line"),
@@ -218,7 +222,7 @@ def collect_recommendations(owner: str, repo: str, pr_number: int, debug: bool =
                 kind="issue",
                 author=str((item.get("user") or {}).get("login") or ""),
                 url=str(item.get("html_url") or ""),
-                body=str(item.get("body") or ""),
+                body=sanitize_comment_body(str(item.get("body") or "")),
                 resolved=is_resolved_heuristic(str(item.get("body") or "")),
             )
         )
@@ -238,6 +242,13 @@ def is_resolved_heuristic(body: str) -> bool:
         "already addressed",
     ]
     return any(marker in normalized for marker in markers)
+
+
+def sanitize_comment_body(body: str) -> str:
+    sanitized = INTERNAL_STATE_BLOCK_RE.sub("", body)
+    # Collapse block-removal artifacts while preserving normal paragraph spacing.
+    sanitized = re.sub(r"\n{3,}", "\n\n", sanitized).strip()
+    return sanitized
 
 
 def render_markdown(owner: str, repo: str, pr_number: int, recs: list[Recommendation]) -> str:
