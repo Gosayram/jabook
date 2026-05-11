@@ -60,6 +60,10 @@ internal object AudioServiceComponentBinder {
                 getResumeRewindMode = { cachedResumeRewindMode },
                 getResumeRewindAggressiveness = { cachedResumeRewindAggressiveness },
                 consumeSleepTimerStopFlag = { service.consumeStoppedBySleepTimerFlag() },
+                contextualResumeManager =
+                    ContextualResumeManager(
+                        speechAnalyzer = DefaultSpeechSegmentAnalyzer(),
+                    ),
                 onSmartResumeSuggested = { context -> service.publishSmartResumeSuggestion(context) },
             )
 

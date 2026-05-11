@@ -19,6 +19,7 @@ import androidx.media3.common.Metadata
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
 import com.jabook.app.jabook.util.LogUtils
 import java.io.File
+import java.io.IOException
 
 /**
  * Handles metadata-related player events: ReplayGain extraction and embedded artwork management.
@@ -124,7 +125,7 @@ internal class PlayerMetadataHandler(
                 artworkFile.outputStream().use { it.write(artworkData) }
                 setEmbeddedArtworkPath(artworkFile.absolutePath)
                 LogUtils.i("AudioPlayerService", "Saved embedded artwork to: ${artworkFile.absolutePath}")
-            } catch (e: Exception) {
+            } catch (e: IOException) {
                 LogUtils.e("AudioPlayerService", "Failed to save embedded artwork", e)
                 setEmbeddedArtworkPath(null)
             }

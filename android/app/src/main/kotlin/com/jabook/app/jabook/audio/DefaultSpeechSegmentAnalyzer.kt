@@ -15,21 +15,16 @@
 package com.jabook.app.jabook.audio
 
 /**
- * Source of an action that may reset inactivity timeout.
+ * Conservative sentence-boundary fallback for Smart Resume.
  *
- * NOTE:
- * [ANDROID_AUTO], [WEAR_OS], [SLEEP_TIMER], and [NOTIFICATION] are intentionally
- * kept as explicit command sources for upcoming integration points (AA/Wear
- * transport controls and timer-originated commands). Even when not yet
- * dispatched from all call-sites, they keep policy behavior explicit and avoid
- * hidden defaults when those channels are wired.
+ * Until waveform-backed sentence boundaries are wired, we rewind at most
+ * [lookbackMs] from [positionMs]. This keeps resume contextual without hard
+ * failures and allows [ContextualResumeManager] to be enabled in production.
  */
-public enum class InactivityCommandSource {
-    USER_UI,
-    HEADSET_BUTTON,
-    ANDROID_AUTO,
-    WEAR_OS,
-    SLEEP_TIMER,
-    NOTIFICATION,
-    PLAYBACK_INTERNAL,
+internal class DefaultSpeechSegmentAnalyzer : SpeechSegmentAnalyzer {
+    override fun findLastSentenceStart(
+        bookId: String,
+        positionMs: Long,
+        lookbackMs: Long,
+    ): Long = (positionMs - lookbackMs).coerceAtLeast(0L)
 }
