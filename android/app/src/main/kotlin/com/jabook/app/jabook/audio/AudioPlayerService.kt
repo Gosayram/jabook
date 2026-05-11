@@ -435,39 +435,7 @@ public class AudioPlayerService : MediaLibraryService() {
             instance = this
             PlayerPerformanceLogger.log("Service", "super.onCreate() complete")
 
-            val helper = NotificationHelper(this)
-            notificationHelper = helper
-            val initialNotification =
-                try {
-                    helper.createMinimalNotification()
-                } catch (e: Exception) {
-                    LogUtils.w("AudioPlayerService", "Failed to create minimal notification, using fallback", e)
-                    helper.createFallbackNotification()
-                }
-            val foregroundStartResult =
-                foregroundNotificationCoordinator.startWithFallback(
-                    service = this,
-                    notificationId = NotificationHelper.NOTIFICATION_ID,
-                    primaryNotification = initialNotification,
-                    fallbackNotificationProvider = { helper.createFallbackNotification() },
-                    event = "service_on_create",
-                )
-            if (foregroundStartResult == ForegroundStartResult.FAILED) {
-                LogUtils.e("AudioPlayerService", "Failed to start foreground with both notifications")
-            } else {
-                LogUtils.d("AudioPlayerService", "startForeground() completed: $foregroundStartResult")
-            }
-
-            // Set MediaSessionService.Listener for handling foreground service start exceptions
-            // This is required for Android 12+ when system doesn't allow foreground service start
-            setListener(MediaSessionServiceListener(this))
-            PlayerPerformanceLogger.log("Service", "listener set")
-
-            AudioPlayerServiceInitializer(this).let { initializer ->
-                initializer.initialize()
-                initializer.postInitialize()
-            }
-            PlayerPerformanceLogger.log("Service", "initialization complete")
+            AudioPlayerServiceBootstrapper.initialize(this)
             PlayerPerformanceLogger.summary()
             LogUtils.i("AudioPlayerService", "onCreate() completed successfully")
         } catch (e: Exception) {
@@ -696,6 +664,13 @@ public class AudioPlayerService : MediaLibraryService() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         lifecycleManager?.onTaskRemoved() ?: super.onTaskRemoved(rootIntent)
+    }
+
+    /** Attaches [MediaSessionServiceListener] for foreground-start policy handling. */
+    @OptIn(UnstableApi::class)
+    internal fun attachMediaSessionServiceListener() {
+        // Required on Android 12+ when system may block foreground service start.
+        setListener(MediaSessionServiceListener(this))
     }
 
     /** Public wrapper for protected [setMediaNotificationProvider]. Called by [AudioPlayerServiceInitializer]. */
