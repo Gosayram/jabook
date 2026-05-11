@@ -15,14 +15,15 @@
 package com.jabook.app.jabook.compose.data.local.entity
 
 import androidx.room.Entity
-import androidx.room.Fts4
+import androidx.room.Fts5
 
 /**
- * FTS mirror for books table.
+ * FTS5 mirror for books table.
  *
- * Note: FTS4 is used for Room/KSP compatibility in current stack.
+ * FTS5 provides better Unicode support, bm25() ranking, and prefix search vs FTS4.
+ * Upgraded from FTS4 in DB version 21 (migration MIGRATION_20_21).
  */
-@Fts4(contentEntity = BookEntity::class)
+@Fts5(contentEntity = BookEntity::class)
 @Entity(tableName = "books_fts")
 public data class BookFtsEntity(
     val title: String,

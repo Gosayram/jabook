@@ -64,6 +64,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 18: Added hot-path indices for books/chapters query performance.
  * Database version 19: Added lufs_value and preferred_speed columns for per-book loudness analysis and speed preference.
  * Database version 20: Added bookmarks table for timeline bookmarks and voice-note metadata.
+ * Database version 21: Upgraded books_fts from FTS4 to FTS5 for bm25 ranking and better Unicode support.
  */
 @Database(
     entities = [
@@ -81,7 +82,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         CachedTopicEntity::class,
         SearchQueryEntity::class,
     ],
-    version = 20,
+    version = 21,
     exportSchema = true, // Enable schema export for migration validation and debugging
 )
 public abstract class JabookDatabase : RoomDatabase() {

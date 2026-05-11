@@ -129,6 +129,9 @@ public class NetworkTelemetryEventListenerFactory
             private val call: Call,
             private val logger: com.jabook.app.jabook.compose.core.logger.Logger,
         ) : EventListener() {
+            companion object {
+                private const val SLOW_REQUEST_THRESHOLD_MS = 3_000L
+            }
             private val tracker = NetworkCallMetricsTracker()
 
             override fun callStart(call: Call) {
@@ -189,16 +192,30 @@ public class NetworkTelemetryEventListenerFactory
             override fun callEnd(call: Call) {
                 tracker.onCallEnd()
                 val snapshot = tracker.snapshot()
-                logger.d {
-                    val requestUrl =
-                        this.call
-                            .request()
-                            .url
-                    val host = requestUrl.host
-                    val path = requestUrl.encodedPath
-                    "Network metrics host=$host path=$path total=${snapshot.totalMs}ms " +
+                val requestUrl = this.call.request().url
+                val host = requestUrl.host
+                val path = requestUrl.encodedPath
+                val metricsLine =
+                    "host=$host path=$path total=${snapshot.totalMs}ms " +
                         "dns=${snapshot.dnsMs ?: -1}ms connect=${snapshot.connectMs ?: -1}ms " +
                         "tls=${snapshot.tlsMs ?: -1}ms ttfb=${snapshot.ttfbMs ?: -1}ms"
+                logger.d { "Network metrics $metricsLine" }
+                if (snapshot.totalMs > SLOW_REQUEST_THRESHOLD_MS) {
+                    logger.w { "Slow network request [${snapshot.totalMs}ms] $metricsLine" }
+                    CrashDiagnostics.reportNonFatal(
+                        tag = "network_slow_request",
+                        throwable = RuntimeException("Slow network request: ${snapshot.totalMs}ms"),
+                        attributes =
+                            mapOf(
+                                "host" to host,
+                                "path" to path,
+                                "total_ms" to snapshot.totalMs.toString(),
+                                "dns_ms" to (snapshot.dnsMs?.toString() ?: "n/a"),
+                                "connect_ms" to (snapshot.connectMs?.toString() ?: "n/a"),
+                                "tls_ms" to (snapshot.tlsMs?.toString() ?: "n/a"),
+                                "ttfb_ms" to (snapshot.ttfbMs?.toString() ?: "n/a"),
+                            ),
+                    )
                 }
             }
 

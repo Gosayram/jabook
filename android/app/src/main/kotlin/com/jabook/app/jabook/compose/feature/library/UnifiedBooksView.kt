@@ -29,10 +29,17 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
@@ -42,7 +49,11 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -194,9 +205,13 @@ private fun BooksGridLayout(
     val contentPadding = remember(windowSizeClass) { AdaptiveUtils.getContentPadding(windowSizeClass) }
     val itemSpacing = remember(windowSizeClass) { AdaptiveUtils.getItemSpacing(windowSizeClass) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     // Create grid state for preloading
     val gridState = rememberLazyGridState()
+
+    // derivedStateOf: recalculates only when firstVisibleItemIndex changes, not on every recompose
+    val showScrollToTop by remember { derivedStateOf { gridState.firstVisibleItemIndex > 3 } }
 
     // Preload covers for visible and upcoming books
     rememberCoverPreloaderForGrid(
@@ -206,27 +221,47 @@ private fun BooksGridLayout(
         preloadAhead = 10, // Preload 10 items ahead for grid (more items visible)
     )
 
-    LazyVerticalGrid(
-        state = gridState,
-        columns = gridCells,
-        horizontalArrangement = Arrangement.spacedBy(itemSpacing),
-        verticalArrangement = Arrangement.spacedBy(itemSpacing),
-        contentPadding = PaddingValues(contentPadding),
-        modifier = modifier.fillMaxSize(),
-    ) {
-        items(
-            items = books,
-            key = { it.id },
-            contentType = { "book_grid_${displayMode.name}" },
-        ) { book ->
-            SwipeableBookCard(
-                book = book,
-                displayMode = displayMode,
-                actionsProvider = actionsProvider,
-                isSelectionMode = isSelectionMode,
-                isSelected = selectedIds.contains(book.id),
-                onToggleSelection = { onToggleSelection?.invoke(book.id) },
-            )
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyVerticalGrid(
+            state = gridState,
+            columns = gridCells,
+            horizontalArrangement = Arrangement.spacedBy(itemSpacing),
+            verticalArrangement = Arrangement.spacedBy(itemSpacing),
+            contentPadding = PaddingValues(contentPadding),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            items(
+                items = books,
+                key = { it.id },
+                contentType = { "book_grid_${displayMode.name}" },
+            ) { book ->
+                SwipeableBookCard(
+                    book = book,
+                    displayMode = displayMode,
+                    actionsProvider = actionsProvider,
+                    isSelectionMode = isSelectionMode,
+                    isSelected = selectedIds.contains(book.id),
+                    onToggleSelection = { onToggleSelection?.invoke(book.id) },
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = showScrollToTop,
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut(),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+        ) {
+            FloatingActionButton(
+                onClick = { scope.launch { gridState.animateScrollToItem(0) } },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowUp,
+                    contentDescription = "Scroll to top",
+                )
+            }
         }
     }
 }
@@ -248,9 +283,13 @@ private fun BooksListLayout(
     val contentPadding = remember(windowSizeClass) { AdaptiveUtils.getContentPadding(windowSizeClass) }
     val itemSpacing = remember(windowSizeClass) { AdaptiveUtils.getItemSpacing(windowSizeClass) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     // Create list state for preloading
     val listState = rememberLazyListState()
+
+    // derivedStateOf: recalculates only when firstVisibleItemIndex changes, not on every recompose
+    val showScrollToTop by remember { derivedStateOf { listState.firstVisibleItemIndex > 3 } }
 
     // Preload covers for visible and upcoming books
     rememberCoverPreloader(
@@ -260,25 +299,45 @@ private fun BooksListLayout(
         preloadAhead = 5, // Preload 5 items ahead for list
     )
 
-    LazyColumn(
-        state = listState,
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = contentPadding, vertical = contentPadding * 0.75f),
-        verticalArrangement = Arrangement.spacedBy(itemSpacing * 0.75f),
-    ) {
-        items(
-            items = books,
-            key = { it.id },
-            contentType = { "book_list_${displayMode.name}" },
-        ) { book ->
-            SwipeableBookCard(
-                book = book,
-                displayMode = displayMode,
-                actionsProvider = actionsProvider,
-                isSelectionMode = isSelectionMode,
-                isSelected = selectedIds.contains(book.id),
-                onToggleSelection = { onToggleSelection?.invoke(book.id) },
-            )
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = contentPadding, vertical = contentPadding * 0.75f),
+            verticalArrangement = Arrangement.spacedBy(itemSpacing * 0.75f),
+        ) {
+            items(
+                items = books,
+                key = { it.id },
+                contentType = { "book_list_${displayMode.name}" },
+            ) { book ->
+                SwipeableBookCard(
+                    book = book,
+                    displayMode = displayMode,
+                    actionsProvider = actionsProvider,
+                    isSelectionMode = isSelectionMode,
+                    isSelected = selectedIds.contains(book.id),
+                    onToggleSelection = { onToggleSelection?.invoke(book.id) },
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = showScrollToTop,
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut(),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
+        ) {
+            FloatingActionButton(
+                onClick = { scope.launch { listState.animateScrollToItem(0) } },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowUp,
+                    contentDescription = "Scroll to top",
+                )
+            }
         }
     }
 }

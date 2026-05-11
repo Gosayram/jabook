@@ -118,6 +118,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -235,9 +236,19 @@ public fun PlayerScreen(
     val lastSleepTimerDurationMinutes by viewModel.lastSleepTimerDurationMinutes.collectAsStateWithLifecycle()
     val normalizeEnabled by viewModel.normalizeChapterTitles.collectAsStateWithLifecycle()
     val audioSettings by viewModel.audioSettings.collectAsStateWithLifecycle()
-    val visualizerWaveformData by viewModel.visualizerWaveformData.collectAsStateWithLifecycle()
-    val seekbarWaveformData by viewModel.seekbarWaveformData.collectAsStateWithLifecycle()
+    val visualizerWaveformDataRaw by viewModel.visualizerWaveformData.collectAsStateWithLifecycle()
+    val seekbarWaveformDataRaw by viewModel.seekbarWaveformData.collectAsStateWithLifecycle()
     val nextBookAutoplayState by viewModel.nextBookAutoplayState.collectAsStateWithLifecycle()
+
+    // Phased init (#59): defer heavy waveform data to avoid janky first frame
+    var waveformReady by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        withFrameMillis { } // wait for the first frame to complete
+        waveformReady = true
+    }
+    val emptyWaveform = remember { FloatArray(0) }
+    val visualizerWaveformData = if (waveformReady) visualizerWaveformDataRaw else emptyWaveform
+    val seekbarWaveformData = if (waveformReady) seekbarWaveformDataRaw else emptyWaveform
     val hapticFeedback = LocalHapticFeedback.current
     val reduceMotion = rememberReduceMotion()
 
@@ -1224,6 +1235,19 @@ private fun PlayerContent(
     val bookmarkRecorder = remember { mutableStateOf<MediaRecorder?>(null) }
     val bookmarkPlayer = remember { mutableStateOf<MediaPlayer?>(null) }
     val bookmarkRecordTimeoutJob = remember { mutableStateOf<Job?>(null) }
+
+    // Release MediaRecorder and MediaPlayer when composable leaves composition (#40)
+    DisposableEffect(Unit) {
+        onDispose {
+            bookmarkRecordTimeoutJob.value?.cancel()
+            bookmarkRecordTimeoutJob.value = null
+            bookmarkRecorder.value?.runCatching { stop(); release() }
+            bookmarkRecorder.value = null
+            bookmarkPlayer.value?.runCatching { stop(); release() }
+            bookmarkPlayer.value = null
+        }
+    }
+
     var lastChapterBoundaryIndex by remember(state.book.id) { mutableIntStateOf(state.currentChapterIndex) }
     var skipTriggeredHaptic by remember { mutableStateOf(false) }
     LaunchedEffect(state.currentChapterIndex) {

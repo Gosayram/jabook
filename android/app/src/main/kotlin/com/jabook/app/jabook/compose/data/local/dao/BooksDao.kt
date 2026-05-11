@@ -311,7 +311,7 @@ public interface BooksDao {
         FROM books b
         JOIN books_fts f ON b.rowid = f.rowid
         WHERE books_fts MATCH :ftsQuery
-        ORDER BY b.title ASC
+        ORDER BY bm25(books_fts) ASC
         """,
     )
     public fun searchBooksByFtsFlow(ftsQuery: String): Flow<List<BookEntity>>

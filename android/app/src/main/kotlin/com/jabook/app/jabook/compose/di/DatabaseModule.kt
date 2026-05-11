@@ -33,6 +33,7 @@ import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_16_17
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_17_18
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_18_19
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_19_20
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_20_21
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_6_7
 import dagger.Module
 import dagger.Provides
@@ -329,6 +330,7 @@ public object DatabaseModule {
             MIGRATION_17_18,
             MIGRATION_18_19,
             MIGRATION_19_20,
+            MIGRATION_20_21,
         )
 
     @Provides

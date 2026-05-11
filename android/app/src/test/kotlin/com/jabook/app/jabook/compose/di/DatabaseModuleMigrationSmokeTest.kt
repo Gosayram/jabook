@@ -46,11 +46,11 @@ class DatabaseModuleMigrationSmokeTest {
     }
 
     @Test
-    fun `database initializes at version 20 with required tables`() {
+    fun `database initializes at version 21 with required tables`() {
         database = DatabaseModule.provideJabookDatabase(context)
         val sqlDb = requireNotNull(database).openHelper.writableDatabase
 
-        assertEquals(20, pragmaUserVersion(sqlDb))
+        assertEquals(21, pragmaUserVersion(sqlDb))
         assertTrue(tableExists(sqlDb, "books"))
         assertTrue(tableExists(sqlDb, "chapters"))
         assertTrue(tableExists(sqlDb, "cached_topics"))
@@ -65,7 +65,7 @@ class DatabaseModuleMigrationSmokeTest {
     }
 
     @Test
-    fun `migration contract includes 14 to 20 chain and updates blank category`() {
+    fun `migration contract includes 14 to 21 chain and updates blank category`() {
         val migrationPairs =
             DatabaseModule.configuredMigrations.map { it.startVersion to it.endVersion }
         assertTrue(migrationPairs.contains(14 to 15))
@@ -74,6 +74,7 @@ class DatabaseModuleMigrationSmokeTest {
         assertTrue(migrationPairs.contains(17 to 18))
         assertTrue(migrationPairs.contains(18 to 19))
         assertTrue(migrationPairs.contains(19 to 20))
+        assertTrue(migrationPairs.contains(20 to 21))
 
         database = DatabaseModule.provideJabookDatabase(context)
         val initialSqlDb = requireNotNull(database).openHelper.writableDatabase
@@ -122,7 +123,7 @@ class DatabaseModuleMigrationSmokeTest {
         database = DatabaseModule.provideJabookDatabase(context)
         val migratedSqlDb = requireNotNull(database).openHelper.writableDatabase
 
-        assertEquals(20, pragmaUserVersion(migratedSqlDb))
+        assertEquals(21, pragmaUserVersion(migratedSqlDb))
         assertEquals(
             "Аудиокниги",
             querySingleString(
@@ -145,11 +146,11 @@ class DatabaseModuleMigrationSmokeTest {
     }
 
     @Test
-    fun `migration 18 to 20 keeps lufs_value and preferred_speed columns`() {
+    fun `migration 18 to 21 keeps lufs_value and preferred_speed columns`() {
         // Create database at v18 first
         database = DatabaseModule.provideJabookDatabase(context)
         val initialSqlDb = requireNotNull(database).openHelper.writableDatabase
-        assertEquals(20, pragmaUserVersion(initialSqlDb))
+        assertEquals(21, pragmaUserVersion(initialSqlDb))
 
         // Insert a book
         initialSqlDb.execSQL(
@@ -173,11 +174,11 @@ class DatabaseModuleMigrationSmokeTest {
             rawDb.execSQL("PRAGMA user_version = 18")
         }
 
-        // Re-open to trigger migration 18→19→20 chain
+        // Re-open to trigger migration 18→19→20→21 chain
         database = DatabaseModule.provideJabookDatabase(context)
         val migratedSqlDb = requireNotNull(database).openHelper.writableDatabase
 
-        assertEquals(20, pragmaUserVersion(migratedSqlDb))
+        assertEquals(21, pragmaUserVersion(migratedSqlDb))
 
         // Verify columns exist and default to NULL
         val lufsValue =
@@ -205,10 +206,10 @@ class DatabaseModuleMigrationSmokeTest {
     }
 
     @Test
-    fun `migration 19 to 20 creates bookmarks table with required indices`() {
+    fun `migration 19 to 21 creates bookmarks table with required indices`() {
         database = DatabaseModule.provideJabookDatabase(context)
         val initialSqlDb = requireNotNull(database).openHelper.writableDatabase
-        assertEquals(20, pragmaUserVersion(initialSqlDb))
+        assertEquals(21, pragmaUserVersion(initialSqlDb))
         requireNotNull(database).close()
         database = null
 
@@ -220,10 +221,36 @@ class DatabaseModuleMigrationSmokeTest {
         database = DatabaseModule.provideJabookDatabase(context)
         val migratedSqlDb = requireNotNull(database).openHelper.writableDatabase
 
-        assertEquals(20, pragmaUserVersion(migratedSqlDb))
+        assertEquals(21, pragmaUserVersion(migratedSqlDb))
         assertTrue(tableExists(migratedSqlDb, "bookmarks"))
         assertTrue(indexExists(migratedSqlDb, "index_bookmarks_book_id"))
         assertTrue(indexExists(migratedSqlDb, "index_bookmarks_book_id_position_ms"))
+    }
+
+    @Test
+    fun `migration 20 to 21 upgrades books_fts to FTS5`() {
+        database = DatabaseModule.provideJabookDatabase(context)
+        val initialSqlDb = requireNotNull(database).openHelper.writableDatabase
+        assertEquals(21, pragmaUserVersion(initialSqlDb))
+        requireNotNull(database).close()
+        database = null
+
+        val dbPath = context.getDatabasePath(DatabaseModule.DATABASE_NAME).absolutePath
+        SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READWRITE).use { rawDb ->
+            rawDb.execSQL("PRAGMA user_version = 20")
+        }
+
+        database = DatabaseModule.provideJabookDatabase(context)
+        val migratedSqlDb = requireNotNull(database).openHelper.writableDatabase
+
+        assertEquals(21, pragmaUserVersion(migratedSqlDb))
+        assertTrue("books_fts table must exist after FTS5 upgrade", tableExists(migratedSqlDb, "books_fts"))
+        // Verify FTS5 sync triggers were recreated
+        val triggerCount =
+            migratedSqlDb.query(
+                "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name IN ('books_ai', 'books_ad', 'books_au')",
+            ).use { it.count }
+        assertEquals("All three FTS5 sync triggers must exist", 3, triggerCount)
     }
 
     private fun tableExists(
