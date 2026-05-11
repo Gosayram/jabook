@@ -26,7 +26,7 @@ import androidx.media3.exoplayer.ExoPlayer
 internal class InactivityPlaybackEventObserver(
     private val player: ExoPlayer,
     private val checkAndStartTimer: () -> Unit,
-    private val resetTimer: () -> Unit,
+    private val resetTimer: (InactivityCommandSource) -> Unit,
 ) {
     val listener: Player.Listener =
         object : Player.Listener {
@@ -36,7 +36,7 @@ internal class InactivityPlaybackEventObserver(
                         "InactivityTimer",
                         "Playback started (isPlaying=true), resetting inactivity timer",
                     )
-                    resetTimer()
+                    resetTimer(InactivityCommandSource.PLAYBACK_INTERNAL)
                 } else {
                     android.util.Log.d(
                         "InactivityTimer",
@@ -52,11 +52,11 @@ internal class InactivityPlaybackEventObserver(
                         if (!player.playWhenReady) {
                             checkAndStartTimer()
                         } else {
-                            resetTimer()
+                            resetTimer(InactivityCommandSource.PLAYBACK_INTERNAL)
                         }
                     }
                     Player.STATE_ENDED -> checkAndStartTimer()
-                    Player.STATE_IDLE, Player.STATE_BUFFERING -> resetTimer()
+                    Player.STATE_IDLE, Player.STATE_BUFFERING -> resetTimer(InactivityCommandSource.PLAYBACK_INTERNAL)
                 }
             }
 
@@ -68,7 +68,7 @@ internal class InactivityPlaybackEventObserver(
                     "InactivityTimer",
                     "Media item transition detected (user action), resetting inactivity timer",
                 )
-                resetTimer()
+                resetTimer(InactivityCommandSource.PLAYBACK_INTERNAL)
             }
 
             override fun onPositionDiscontinuity(
@@ -83,7 +83,7 @@ internal class InactivityPlaybackEventObserver(
                         "InactivityTimer",
                         "Position discontinuity (seek) detected (user action), resetting inactivity timer",
                     )
-                    resetTimer()
+                    resetTimer(InactivityCommandSource.PLAYBACK_INTERNAL)
                 }
             }
 
@@ -92,17 +92,17 @@ internal class InactivityPlaybackEventObserver(
                     "InactivityTimer",
                     "Playback parameters changed (speed=${playbackParameters.speed}, user action), resetting inactivity timer",
                 )
-                resetTimer()
+                resetTimer(InactivityCommandSource.PLAYBACK_INTERNAL)
             }
 
             override fun onRepeatModeChanged(repeatMode: Int) {
                 android.util.Log.d("InactivityTimer", "Repeat mode changed (user action), resetting inactivity timer")
-                resetTimer()
+                resetTimer(InactivityCommandSource.PLAYBACK_INTERNAL)
             }
 
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
                 android.util.Log.d("InactivityTimer", "Shuffle mode changed (user action), resetting inactivity timer")
-                resetTimer()
+                resetTimer(InactivityCommandSource.PLAYBACK_INTERNAL)
             }
         }
 }

@@ -98,7 +98,7 @@ public class InactivityTimer(
         InactivityPlaybackEventObserver(
             player = player,
             checkAndStartTimer = { checkAndStartTimer() },
-            resetTimer = { resetTimer() },
+            resetTimer = { source -> resetIfApplicable(source) },
         )
 
     private val playerListener: Player.Listener = eventObserver.listener
@@ -196,6 +196,17 @@ public class InactivityTimer(
             stopTimer()
         }
         // Timer will be restarted automatically if conditions are met (when playback is paused)
+    }
+
+    /**
+     * Resets timer only when source is allowed by [InactivityResetPolicy].
+     */
+    internal fun resetIfApplicable(source: InactivityCommandSource) {
+        if (!InactivityResetPolicy.shouldReset(source)) {
+            android.util.Log.d("InactivityTimer", "Skipping inactivity reset for source=$source")
+            return
+        }
+        resetTimer()
     }
 
     /**
