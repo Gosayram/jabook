@@ -18,7 +18,7 @@ package com.jabook.app.jabook.audio
  * Policy for deciding whether inactivity timer should be reset for a source.
  */
 internal object InactivityResetPolicy {
-    fun shouldReset(source: InactivityCommandSource): Boolean =
+    internal fun shouldResetBySource(source: InactivityCommandSource): Boolean =
         when (source) {
             InactivityCommandSource.USER_UI,
             InactivityCommandSource.NOTIFICATION,
@@ -31,4 +31,6 @@ internal object InactivityResetPolicy {
             InactivityCommandSource.SLEEP_TIMER,
             -> false
         }
+
+    fun shouldReset(source: InactivityCommandSource): Boolean = shouldResetBySource(source)
 }

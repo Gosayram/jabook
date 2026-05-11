@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -32,5 +33,25 @@ class InactivityResetPolicyTest {
         assertFalse(InactivityResetPolicy.shouldReset(InactivityCommandSource.ANDROID_AUTO))
         assertFalse(InactivityResetPolicy.shouldReset(InactivityCommandSource.WEAR_OS))
         assertFalse(InactivityResetPolicy.shouldReset(InactivityCommandSource.SLEEP_TIMER))
+    }
+
+    @Test
+    fun `shouldReset table is stable for all declared command sources`() {
+        val expected =
+            mapOf(
+                InactivityCommandSource.USER_UI to true,
+                InactivityCommandSource.NOTIFICATION to true,
+                InactivityCommandSource.PLAYBACK_INTERNAL to true,
+                InactivityCommandSource.HEADSET_BUTTON to false,
+                InactivityCommandSource.ANDROID_AUTO to false,
+                InactivityCommandSource.WEAR_OS to false,
+                InactivityCommandSource.SLEEP_TIMER to false,
+            )
+
+        InactivityCommandSource.entries.forEach { source ->
+            assertTrue("Missing expectation for $source", expected.containsKey(source))
+            assertEquals(expected.getValue(source), InactivityResetPolicy.shouldReset(source))
+            assertEquals(expected.getValue(source), InactivityResetPolicy.shouldResetBySource(source))
+        }
     }
 }
