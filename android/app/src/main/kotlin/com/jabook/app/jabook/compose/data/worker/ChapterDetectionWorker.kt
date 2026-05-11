@@ -165,6 +165,7 @@ public class ChapterDetectionWorker
             public const val KEY_FILE_PATH: String = "file_path"
             public const val KEY_FILE_INDEX: String = "file_index"
             public const val KEY_DURATION_MS: String = "duration_ms"
+            public const val KEY_FILE_LAST_MODIFIED_MS: String = "file_last_modified_ms"
 
             public const val KEY_RESULT_CHAPTERS_COUNT: String = "chapters_count"
             public const val KEY_RESULT_SIGNAL_WINDOWS: String = "signal_windows"

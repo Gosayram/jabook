@@ -119,15 +119,28 @@ internal class PlayerMetadataHandler(
             setEmbeddedArtworkPath(null)
         } else if (hasArtworkData) {
             LogUtils.d("AudioPlayerService", "Embedded artwork data available: ${artworkData.size} bytes")
-            try {
-                val cacheDir = context.cacheDir
-                val artworkFile = File(cacheDir, "embedded_artwork_${System.currentTimeMillis()}.jpg")
-                artworkFile.outputStream().use { it.write(artworkData) }
-                setEmbeddedArtworkPath(artworkFile.absolutePath)
-                LogUtils.i("AudioPlayerService", "Saved embedded artwork to: ${artworkFile.absolutePath}")
-            } catch (e: IOException) {
-                LogUtils.e("AudioPlayerService", "Failed to save embedded artwork", e)
+            // Guard: skip oversized artwork to avoid OOM on budget devices (#38)
+            val maxArtworkBytes = 8 * 1024 * 1024 // 8 MB — ~2000×2000 JPEG at full quality
+            if (artworkData.size > maxArtworkBytes) {
+                LogUtils.w(
+                    "AudioPlayerService",
+                    "Embedded artwork too large (${artworkData.size} bytes), skipping to prevent OOM",
+                )
                 setEmbeddedArtworkPath(null)
+            } else {
+                try {
+                    val cacheDir = context.cacheDir
+                    val artworkFile = File(cacheDir, "embedded_artwork_${System.currentTimeMillis()}.jpg")
+                    artworkFile.outputStream().use { it.write(artworkData) }
+                    setEmbeddedArtworkPath(artworkFile.absolutePath)
+                    LogUtils.i("AudioPlayerService", "Saved embedded artwork to: ${artworkFile.absolutePath}")
+                } catch (e: IOException) {
+                    LogUtils.e("AudioPlayerService", "Failed to save embedded artwork", e)
+                    setEmbeddedArtworkPath(null)
+                } catch (e: OutOfMemoryError) {
+                    LogUtils.e("AudioPlayerService", "OOM while saving embedded artwork (${artworkData.size} bytes)", e)
+                    setEmbeddedArtworkPath(null)
+                }
             }
         } else {
             LogUtils.d("AudioPlayerService", "No artwork available")

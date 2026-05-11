@@ -51,6 +51,7 @@ import javax.inject.Inject
 public sealed interface TorrentDownloadsUiState {
     public data object Loading : TorrentDownloadsUiState
 
+    @Immutable
     public data class Success(
         val activeDownloads: ImmutableList<TorrentDownload>,
         val pausedDownloads: ImmutableList<TorrentDownload>,

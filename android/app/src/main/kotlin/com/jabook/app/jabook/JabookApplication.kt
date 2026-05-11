@@ -15,6 +15,7 @@
 package com.jabook.app.jabook
 
 import android.app.Application
+import android.os.StrictMode
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
@@ -73,6 +74,27 @@ public class JabookApplication :
 
     public override fun onCreate() {
         super.onCreate()
+
+        if (BuildConfig.DEBUG) {
+            StrictMode.setThreadPolicy(
+                StrictMode.ThreadPolicy
+                    .Builder()
+                    .detectAll()
+                    .penaltyLog()
+                    .penaltyFlashScreen()
+                    .build(),
+            )
+            StrictMode.setVmPolicy(
+                StrictMode.VmPolicy
+                    .Builder()
+                    .detectLeakedSqlLiteObjects()
+                    .detectLeakedClosableObjects()
+                    .detectActivityLeaks()
+                    .detectCleartextNetwork()
+                    .penaltyLog()
+                    .build(),
+            )
+        }
 
         configureDiagnostics()
 

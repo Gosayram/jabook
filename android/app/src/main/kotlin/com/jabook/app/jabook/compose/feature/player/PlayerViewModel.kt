@@ -26,6 +26,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.HoldToBoostPolicy
 import com.jabook.app.jabook.audio.SleepTimerPersistence
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
+import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookmarkItem
@@ -917,18 +918,25 @@ public class PlayerViewModel
         }
 
         public fun setPlaybackSpeed(speed: Float) {
+            val clampedSpeed = speed.coerceIn(0.5f, 3.5f)
             viewModelScope.launch {
-                runCatching { userPreferencesRepository.setPlaybackSpeed(speed) }
+                runCatching { userPreferencesRepository.setPlaybackSpeed(clampedSpeed) }
                     .onFailure { error ->
                         logger.e({ "Failed to persist playback speed" }, error)
                         dispatch(PlayerIntent.ReportError("Failed to save playback speed"))
                     }
             }
             viewModelScope.launch {
-                runCatching { playerController.setPlaybackSpeed(speed) }
+                runCatching { playerController.setPlaybackSpeed(clampedSpeed) }
                     .onFailure { error ->
                         logger.e({ "Failed to set playback speed on player" }, error)
                         dispatch(PlayerIntent.ReportError("Failed to update playback speed"))
+                    }
+            }
+            viewModelScope.launch {
+                runCatching { booksRepository.updatePreferredPlaybackSpeed(bookId = bookId, speed = clampedSpeed) }
+                    .onFailure { error ->
+                        logger.w(error) { "Failed to persist per-book playback speed preference" }
                     }
             }
         }
@@ -1171,6 +1179,26 @@ public class PlayerViewModel
                             ),
                         bookId = bookId,
                     )
+
+                    val shouldSkipHierarchicalSpeedApply =
+                        restoredBootstrapSnapshot?.playbackSpeed?.let { it > 0f } ?: false
+                    if (!shouldSkipHierarchicalSpeedApply) {
+                        viewModelScope.launch {
+                            runCatching {
+                                val globalSpeed = userPreferencesRepository.userData.first().playbackSpeed
+                                val resolvedSpeed =
+                                    booksRepository.resolvePreferredPlaybackSpeed(
+                                        bookId = bookId,
+                                        globalSpeed = globalSpeed,
+                                    )
+                                if (SpeedMemoryHierarchy.hasMeaningfulSpeedDelta(globalSpeed, resolvedSpeed)) {
+                                    setPlaybackSpeed(resolvedSpeed)
+                                }
+                            }.onFailure { error ->
+                                logger.w(error) { "Failed to resolve hierarchical playback speed for book" }
+                            }
+                        }
+                    }
                 }
             }
         }

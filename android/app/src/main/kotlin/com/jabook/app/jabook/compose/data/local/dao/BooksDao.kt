@@ -421,6 +421,26 @@ public interface BooksDao {
     )
 
     /**
+     * Returns the per-book preferred playback speed.
+     */
+    @Query("SELECT preferred_speed FROM books WHERE id = :bookId LIMIT 1")
+    public suspend fun getPreferredSpeed(bookId: String): Float?
+
+    /**
+     * Returns the average preferred speed for books by the same author
+     * as [bookId], when at least one per-book preference exists.
+     */
+    @Query(
+        """
+        SELECT AVG(preferred_speed)
+        FROM books
+        WHERE author = (SELECT author FROM books WHERE id = :bookId LIMIT 1)
+          AND preferred_speed IS NOT NULL
+    """,
+    )
+    public suspend fun getAveragePreferredSpeedForAuthorOfBook(bookId: String): Double?
+
+    /**
      * Returns all book IDs that do not yet have a LUFS analysis value.
      * Used by [LufsAnalysisWorker] to find books that need background analysis.
      */

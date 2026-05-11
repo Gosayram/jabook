@@ -21,6 +21,8 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.audio.ChapterDetectionEligibilityPolicy
+import com.jabook.app.jabook.audio.ChapterDetectionWorkScheduler
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.util.PerfTrace
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
@@ -53,6 +55,7 @@ public class LibraryScanWorker
         private val bookScanner: LocalBookScanner,
         private val booksDao: BooksDao,
         private val chaptersDao: ChaptersDao,
+        private val chapterDetectionWorkScheduler: ChapterDetectionWorkScheduler,
         private val loggerFactory: LoggerFactory,
     ) : CoroutineWorker(appContext, params) {
         private val logger = loggerFactory.get("LibraryScanWorker")
@@ -186,6 +189,7 @@ public class LibraryScanWorker
 
                                 val bookEntities = mutableListOf<BookEntity>()
                                 val chapterEntities = mutableListOf<ChapterEntity>()
+                                val chapterDetectionTargets = mutableListOf<ChapterDetectionTarget>()
 
                                 val coversDir = File(applicationContext.filesDir, "covers")
                                 if (!coversDir.exists()) coversDir.mkdirs()
@@ -267,6 +271,23 @@ public class LibraryScanWorker
                                                 )
                                             },
                                         )
+                                        val firstChapter = book.chapters.firstOrNull()
+                                        if (firstChapter != null &&
+                                            ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
+                                                chapterCount = book.chapters.size,
+                                                filePath = firstChapter.filePath,
+                                                durationMs = book.totalDuration,
+                                            )
+                                        ) {
+                                            chapterDetectionTargets +=
+                                                ChapterDetectionTarget(
+                                                    bookId = bookId,
+                                                    filePath = firstChapter.filePath,
+                                                    fileIndex = firstChapter.index,
+                                                    durationMs = book.totalDuration,
+                                                    fileLastModifiedMs = File(firstChapter.filePath).lastModified(),
+                                                )
+                                        }
                                     } catch (e: Exception) {
                                         logger.e({ "Error processing book ${book.title}" }, e)
                                     }
@@ -276,6 +297,15 @@ public class LibraryScanWorker
                                 if (bookEntities.isNotEmpty()) {
                                     PerfTrace.section(name = "LibraryScanWorker.upsertBatch") {
                                         booksDao.upsertBooksWithChapters(bookEntities, chapterEntities)
+                                    }
+                                    chapterDetectionTargets.forEach { target ->
+                                        chapterDetectionWorkScheduler.enqueue(
+                                            bookId = target.bookId,
+                                            filePath = target.filePath,
+                                            fileIndex = target.fileIndex,
+                                            durationMs = target.durationMs,
+                                            fileLastModifiedMs = target.fileLastModifiedMs,
+                                        )
                                     }
                                     booksSaved += bookEntities.size
 
@@ -357,4 +387,12 @@ public class LibraryScanWorker
             }
 
         // Cover art removed - UI loads from book folder (cover.jpg/cover.jpeg)
+
+        private data class ChapterDetectionTarget(
+            val bookId: String,
+            val filePath: String,
+            val fileIndex: Int,
+            val durationMs: Long,
+            val fileLastModifiedMs: Long,
+        )
     }

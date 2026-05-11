@@ -22,6 +22,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.jabook.app.jabook.compose.data.worker.ChapterDetectionWorker
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,16 +35,38 @@ public class ChapterDetectionWorkScheduler
     @Inject
     constructor(
         private val workManager: WorkManager,
+        private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
     ) {
+        private val enqueueHistory =
+            ConcurrentHashMap<String, ChapterDetectionEnqueueGuardPolicy.EnqueueRecord>()
+
         public fun enqueue(
             bookId: String,
             filePath: String,
             fileIndex: Int,
             durationMs: Long,
+            fileLastModifiedMs: Long,
         ) {
             if (bookId.isBlank() || filePath.isBlank() || durationMs <= 0L) return
 
             val workName = "${ChapterDetectionWorker.WORK_NAME_PREFIX}_${bookId}_$fileIndex"
+            val signature =
+                ChapterDetectionEnqueueGuardPolicy.FileSignature(
+                    filePath = filePath,
+                    fileIndex = fileIndex,
+                    durationMs = durationMs,
+                    lastModifiedMs = fileLastModifiedMs,
+                )
+            val nowMs = nowMsProvider()
+            if (
+                ChapterDetectionEnqueueGuardPolicy.shouldSkipEnqueue(
+                    previous = enqueueHistory[workName],
+                    next = signature,
+                    nowMs = nowMs,
+                )
+            ) {
+                return
+            }
             val request =
                 OneTimeWorkRequestBuilder<ChapterDetectionWorker>()
                     .setConstraints(
@@ -61,9 +84,18 @@ public class ChapterDetectionWorkScheduler
                             ChapterDetectionWorker.KEY_FILE_PATH to filePath,
                             ChapterDetectionWorker.KEY_FILE_INDEX to fileIndex,
                             ChapterDetectionWorker.KEY_DURATION_MS to durationMs,
+                            ChapterDetectionWorker.KEY_FILE_LAST_MODIFIED_MS to fileLastModifiedMs,
                         ),
                     ).build()
 
-            workManager.enqueueUniqueWork(workName, ExistingWorkPolicy.REPLACE, request)
+            // Keep currently running/enqueued work to avoid churn during frequent re-scans.
+            // A new request with the same unique work name will wait until current work
+            // completes instead of replacing it mid-flight.
+            workManager.enqueueUniqueWork(workName, ExistingWorkPolicy.KEEP, request)
+            enqueueHistory[workName] =
+                ChapterDetectionEnqueueGuardPolicy.EnqueueRecord(
+                    signature = signature,
+                    enqueuedAtMs = nowMs,
+                )
         }
     }
