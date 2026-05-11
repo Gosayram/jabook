@@ -63,6 +63,14 @@ import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 import com.jabook.app.jabook.compose.core.util.HapticManager
 import kotlin.math.roundToInt
 
+private object SpeedDialDefaults {
+    val DialSize = 140.dp
+    val StrokeWidth = 10.dp
+    val ArcInset = 16.dp
+    const val StartAngle = 135f
+    const val TotalSweep = 270f
+}
+
 /**
  * Bottom sheet for selecting playback speed.
  *
@@ -344,7 +352,7 @@ internal fun dialTickStep(speed: Float): Int = (speed / PlaybackSpeedConstants.S
 
 internal fun dialSweepAngle(speed: Float): Float {
     val speedSpan = PlaybackSpeedConstants.MAX_SPEED - PlaybackSpeedConstants.MIN_SPEED
-    return ((speed - PlaybackSpeedConstants.MIN_SPEED) / speedSpan).coerceIn(0f, 1f) * 270f
+    return ((speed - PlaybackSpeedConstants.MIN_SPEED) / speedSpan).coerceIn(0f, 1f) * SpeedDialDefaults.TotalSweep
 }
 
 @Composable
@@ -372,7 +380,7 @@ private fun SpeedDial(
         Canvas(
             modifier =
                 Modifier
-                    .size(140.dp)
+                    .size(SpeedDialDefaults.DialSize)
                     .pointerInput(Unit) {
                         detectHorizontalDragGestures(
                             onDragEnd = { onSpeedChangeFinished() },
@@ -388,16 +396,16 @@ private fun SpeedDial(
                         }
                     },
         ) {
-            val stroke = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
-            val inset = 16.dp.toPx()
+            val stroke = Stroke(width = SpeedDialDefaults.StrokeWidth.toPx(), cap = StrokeCap.Round)
+            val inset = SpeedDialDefaults.ArcInset.toPx()
             val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
             val arcTopLeft = Offset(inset, inset)
             val sweep = dialSweepAngle(speed)
 
             drawArc(
                 color = trackColor,
-                startAngle = 135f,
-                sweepAngle = 270f,
+                startAngle = SpeedDialDefaults.StartAngle,
+                sweepAngle = SpeedDialDefaults.TotalSweep,
                 useCenter = false,
                 style = stroke,
                 topLeft = arcTopLeft,
@@ -405,7 +413,7 @@ private fun SpeedDial(
             )
             drawArc(
                 color = progressColor,
-                startAngle = 135f,
+                startAngle = SpeedDialDefaults.StartAngle,
                 sweepAngle = sweep,
                 useCenter = false,
                 style = stroke,

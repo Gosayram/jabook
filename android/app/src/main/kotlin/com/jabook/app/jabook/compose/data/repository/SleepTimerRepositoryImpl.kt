@@ -179,6 +179,9 @@ public class SleepTimerRepositoryImpl
                                     if (previousActive != null && remaining <= previousActive.initialSeconds) {
                                         previousActive.initialSeconds
                                     } else {
+                                        // Reset initialSeconds when the reported remaining grew
+                                        // (e.g. timer extension / fresh longer timer) so
+                                        // progressFraction = remaining / initialSeconds stays within [0, 1].
                                         remaining
                                     }
                                 SleepTimerState.Active(

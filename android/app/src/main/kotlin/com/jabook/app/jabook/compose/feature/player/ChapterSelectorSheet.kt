@@ -53,6 +53,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -396,6 +397,8 @@ private fun ChapterSelectorItem(
         }
 
         if (isEditing) {
+            val moveUpCallback by rememberUpdatedState(newValue = onMoveUp)
+            val moveDownCallback by rememberUpdatedState(newValue = onMoveDown)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onMoveUp) {
                     Icon(
@@ -411,7 +414,7 @@ private fun ChapterSelectorItem(
                     modifier =
                         Modifier
                             .size(32.dp)
-                            .pointerInput(chapter.id, onMoveUp, onMoveDown) {
+                            .pointerInput(chapter.id) {
                                 var dragAccumulated = 0f
                                 val threshold = with(density) { 48.dp.toPx() }
                                 detectVerticalDragGestures(
@@ -422,11 +425,11 @@ private fun ChapterSelectorItem(
                                     dragAccumulated += dragAmount
                                     when {
                                         dragAccumulated >= threshold -> {
-                                            onMoveDown()
+                                            moveDownCallback()
                                             dragAccumulated = 0f
                                         }
                                         dragAccumulated <= -threshold -> {
-                                            onMoveUp()
+                                            moveUpCallback()
                                             dragAccumulated = 0f
                                         }
                                     }
