@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Factory for creating chains of AudioProcessors based on audio settings.
@@ -70,9 +71,9 @@ public object AudioProcessorFactory {
                     val normalizer = LoudnessNormalizer(settings)
                     processors.add(normalizer)
                     loudnessNormalizer = normalizer
-                    android.util.Log.d("AudioProcessorFactory", "Added LoudnessNormalizer to chain")
+                    LogUtils.d(TAG) { "Added LoudnessNormalizer to chain" }
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioProcessorFactory", "Failed to create LoudnessNormalizer", e)
+                    LogUtils.e(TAG) { "Failed to create LoudnessNormalizer: ${e.message}" }
                 }
             }
 
@@ -81,12 +82,9 @@ public object AudioProcessorFactory {
                 try {
                     val boostProcessor = VolumeBoostProcessor(settings.volumeBoostLevel)
                     processors.add(boostProcessor)
-                    android.util.Log.d(
-                        "AudioProcessorFactory",
-                        "Added VolumeBoostProcessor (${settings.volumeBoostLevel}) to chain",
-                    )
+                    LogUtils.d(TAG) { "Added VolumeBoostProcessor (${settings.volumeBoostLevel}) to chain" }
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioProcessorFactory", "Failed to create VolumeBoostProcessor", e)
+                    LogUtils.e(TAG) { "Failed to create VolumeBoostProcessor: ${e.message}" }
                 }
             }
 
@@ -95,12 +93,9 @@ public object AudioProcessorFactory {
                 try {
                     val compressor = DynamicRangeCompressor(settings.drcLevel)
                     processors.add(compressor)
-                    android.util.Log.d(
-                        "AudioProcessorFactory",
-                        "Added DynamicRangeCompressor (${settings.drcLevel}) to chain",
-                    )
+                    LogUtils.d(TAG) { "Added DynamicRangeCompressor (${settings.drcLevel}) to chain" }
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioProcessorFactory", "Failed to create DynamicRangeCompressor", e)
+                    LogUtils.e(TAG) { "Failed to create DynamicRangeCompressor: ${e.message}" }
                 }
             }
 
@@ -109,9 +104,9 @@ public object AudioProcessorFactory {
                 try {
                     val enhancer = SpeechEnhancer()
                     processors.add(enhancer)
-                    android.util.Log.d("AudioProcessorFactory", "Added SpeechEnhancer to chain")
+                    LogUtils.d(TAG) { "Added SpeechEnhancer to chain" }
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioProcessorFactory", "Failed to create SpeechEnhancer", e)
+                    LogUtils.e(TAG) { "Failed to create SpeechEnhancer: ${e.message}" }
                 }
             }
 
@@ -120,9 +115,9 @@ public object AudioProcessorFactory {
                 try {
                     val leveler = AutoVolumeLeveler()
                     processors.add(leveler)
-                    android.util.Log.d("AudioProcessorFactory", "Added AutoVolumeLeveler to chain")
+                    LogUtils.d(TAG) { "Added AutoVolumeLeveler to chain" }
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioProcessorFactory", "Failed to create AutoVolumeLeveler", e)
+                    LogUtils.e(TAG) { "Failed to create AutoVolumeLeveler: ${e.message}" }
                 }
             }
 
@@ -139,22 +134,20 @@ public object AudioProcessorFactory {
                         )
                     processors.add(silenceSkippingProcessor)
 
-                    android.util.Log.d(
-                        "AudioProcessorFactory",
-                        "Added SkipSilenceAudioProcessor to chain (threshold=${settings.skipSilenceThresholdNormalized}, minMs=${settings.skipSilenceMinDurationMs}, retainMs=${settings.retainWindowMs})",
-                    )
+                    LogUtils.d(TAG) {
+                        "Added SkipSilenceAudioProcessor to chain (threshold=${settings.skipSilenceThresholdNormalized}, minMs=${settings.skipSilenceMinDurationMs}, retainMs=${settings.retainWindowMs})"
+                    }
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioProcessorFactory", "Failed to create SkipSilenceAudioProcessor", e)
+                    LogUtils.e(TAG) { "Failed to create SkipSilenceAudioProcessor: ${e.message}" }
                 }
             }
 
-            android.util.Log.i(
-                "AudioProcessorFactory",
+            LogUtils.i(TAG) {
                 "Created processor chain with ${processors.size} processors: " +
-                    processors.joinToString { it.javaClass.simpleName },
-            )
+                    processors.joinToString { it.javaClass.simpleName }
+            }
         } catch (e: Exception) {
-            android.util.Log.e("AudioProcessorFactory", "Error creating processor chain", e)
+            LogUtils.e(TAG) { "Error creating processor chain: ${e.message}" }
         }
 
         return ProcessorChainResult(processors, loudnessNormalizer)
@@ -175,6 +168,8 @@ public object AudioProcessorFactory {
      */
     public fun createProxyChain(settings: AudioProcessingSettings): AudioProcessorChainManager =
         AudioProcessorChainManager().also { it.applySettings(settings) }
+
+    private const val TAG = "AudioProcFactory"
 }
 
 /**
@@ -230,8 +225,14 @@ public data class AudioProcessingSettings(
 }
 
 public enum class SkipSilenceMode {
+    /** Hard-drop silent frames (fastest, may produce clicks). */
     SKIP,
+
+    /** Time-stretch by keeping every Nth silent frame. */
     SPEED_UP,
+
+    /** Smooth fade-out before silence, fade-in after silence (best for speech). */
+    FADE,
 }
 
 /**
