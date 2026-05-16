@@ -314,4 +314,20 @@ public object MediaControllerExtensions {
             )
         return controller.sendCustomCommand(command, Bundle.EMPTY)
     }
+
+    /**
+     * Smart resume suggestion data for contextual resume.
+     */
+    public data class SmartResumeSuggestion(
+        public val pauseDurationMs: Long,
+        public val recapStartMs: Long,
+    )
+
+    /**
+     * Consumes and returns a pending smart resume suggestion, if any.
+     */
+    public suspend fun consumeSmartResumeSuggestion(controller: MediaController): SmartResumeSuggestion? {
+        // TODO: Implement via custom command when service supports it
+        return null
+    }
 }

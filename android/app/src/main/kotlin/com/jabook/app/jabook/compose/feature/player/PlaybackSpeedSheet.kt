@@ -59,7 +59,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
-import com.jabook.app.jabook.audio.processors.SpeedDialPolicy
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 import com.jabook.app.jabook.compose.core.util.HapticManager
 import kotlin.math.roundToInt
@@ -110,7 +109,7 @@ public fun PlaybackSpeedSheet(
             mutableStateListOf(currentSpeed)
         }
 
-    val presetSpeeds = SpeedDialPolicy.DEFAULT_PRESETS
+    val presetSpeeds = listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

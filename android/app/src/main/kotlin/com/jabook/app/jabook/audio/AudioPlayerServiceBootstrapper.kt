@@ -51,7 +51,6 @@ internal object AudioPlayerServiceBootstrapper {
             LogUtils.d("AudioPlayerService", "startForeground() completed: $foregroundStartResult")
         }
 
-        service.attachMediaSessionServiceListener()
         PlayerPerformanceLogger.log("Service", "listener set")
 
         AudioPlayerServiceInitializer(service).let { initializer ->

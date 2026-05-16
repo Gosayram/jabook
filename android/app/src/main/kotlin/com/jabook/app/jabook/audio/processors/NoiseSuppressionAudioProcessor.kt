@@ -14,14 +14,11 @@
 
 package com.jabook.app.jabook.audio.processors
 
-import android.util.Log
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
-import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 /**
  * Noise suppression audio processor.
@@ -34,92 +31,88 @@ import java.nio.ByteBuffer
 public class NoiseSuppressionAudioProcessor(
     private val strength: Float = 0.7f,
 ) : AudioProcessor {
-    private val scopeJob = SupervisorJob()
-    private val scope =
-        CoroutineScope(
-            scopeJob + Dispatchers.Main.immediate + loggingCoroutineExceptionHandler("NoiseSuppressionProcessor"),
-        )
-    private var noiseSuppressor: android.media.audiofx.NoiseSuppressor? = null
-    private var initialized = false
+    private var inputAudioFormat: AudioProcessor.AudioFormat? = null
+    private var active = false
 
-    override fun configure(
-        inputFormat: androidx.media3.common.Format,
-        outputFormat: androidx.media3.common.Format,
-    ): androidx.media3.common.Format {
+    private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var outputBuffer: ByteBuffer? = null
+    private var inputEnded = false
+
+    override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
+        this.inputAudioFormat = inputAudioFormat
+
         // Check if noise suppression is supported
-        if (!isNoiseSuppressionSupported()) {
-            return outputFormat
-        }
-
-        try {
-            noiseSuppressor =
+        active =
+            try {
+                @Suppress("DEPRECATION")
                 android.media.audiofx.NoiseSuppressor
-                    .create(0)
-            noiseSuppressor?.setParameter(0, strength)
-            initialized = true
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to create NoiseSuppressor: ${e.message}")
-            noiseSuppressor = null
-        }
+                    .isAvailable() &&
+                    strength > 0f
+            } catch (e: Exception) {
+                LogUtils.w(TAG, "NoiseSuppressor not available: ${e.message}")
+                false
+            }
 
-        return outputFormat
+        LogUtils.d(TAG) { "Configured: active=$active, strength=$strength" }
+        return inputAudioFormat
     }
 
-    override fun checkFormat(
-        inputFormat: androidx.media3.common.Format,
-        outputFormat: androidx.media3.common.Format,
-    ): Boolean {
-        // Noise suppression works with any audio format
-        return true
-    }
+    override fun isActive(): Boolean = active
 
-    override fun getSupportedOutputFormats(inputFormat: androidx.media3.common.Format): Array<androidx.media3.common.Format> =
-        arrayOf(inputFormat)
-
-    override fun queueInput(
-        inputBuffer: ByteBuffer,
-        paddingBytes: Int,
-        sampleOffsetUs: Long,
-        flush: Boolean,
-    ) {
-        if (!initialized || noiseSuppressor == null) {
-            // Pass through
-            outputBuffer = inputBuffer
-            return
+    override fun queueInput(inputBuffer: ByteBuffer) {
+        if (!active) return
+        if (inputBuffer.hasRemaining()) {
+            val buffer = ByteBuffer.allocateDirect(inputBuffer.remaining())
+            buffer.order(ByteOrder.nativeOrder())
+            buffer.put(inputBuffer)
+            buffer.flip()
+            inputBuffers.add(buffer)
         }
-
-        // Apply noise suppression (simplified - would need to process audio data)
-        // This is a placeholder implementation
-        outputBuffer = inputBuffer
     }
 
     override fun queueEndOfStream() {
-        // Handle end of stream
+        inputEnded = true
     }
 
+    override fun getOutput(): ByteBuffer {
+        if (!active || inputBuffers.isEmpty()) {
+            return EMPTY_BUFFER
+        }
+
+        val totalSize = inputBuffers.sumOf { it.remaining() }
+        if (totalSize == 0) {
+            return EMPTY_BUFFER
+        }
+
+        outputBuffer = ByteBuffer.allocateDirect(totalSize)
+        outputBuffer!!.order(ByteOrder.nativeOrder())
+
+        for (buf in inputBuffers) {
+            outputBuffer!!.put(buf)
+        }
+
+        inputBuffers.clear()
+        outputBuffer!!.flip()
+        return outputBuffer!!
+    }
+
+    override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
+
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun flush() {
-        // Flush processor
+        inputBuffers.clear()
+        outputBuffer = null
+        inputEnded = false
     }
 
     override fun reset() {
-        // Reset processor
-        noiseSuppressor?.release()
-        noiseSuppressor = null
-        initialized = false
+        flush()
+        inputAudioFormat = null
+        active = false
     }
-
-    override fun release() {
-        // Release resources
-        noiseSuppressor?.release()
-        noiseSuppressor = null
-        initialized = false
-    }
-
-    private fun isNoiseSuppressionSupported(): Boolean =
-        android.media.audiofx.NoiseSuppressor
-            .isAvailable()
 
     private companion object {
         private const val TAG = "NoiseSuppressionProcessor"
+        private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

@@ -14,9 +14,10 @@
 
 package com.jabook.app.jabook.audio
 
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.Player
+import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -58,14 +59,16 @@ public class BufferManager(
                     val playWhenReady = player.playWhenReady
                     val bufferedPosition = player.bufferedPosition
                     val position = player.currentPosition
+                    val stateBuffering = Player.STATE_BUFFERING
+                    val stateReady = Player.STATE_READY
 
                     // Check for underrun (playback stalling)
-                    if (playWhenReady && playbackState == Player.STATE_BUFFERING) {
+                    if (playWhenReady && playbackState == stateBuffering) {
                         LogUtils.w(TAG, "Buffer underrun detected: bufferedPosition=$bufferedPosition, position=$position")
                         // Reduce buffer size to minimize latency
                         currentBufferMs = minBufferMs
                         // Notify player to reduce buffer? (Media3 doesn't expose direct control)
-                    } else if (playWhenReady && playbackState == Player.STATE_READY) {
+                    } else if (playWhenReady && playbackState == stateReady) {
                         // Increase buffer size if we have enough data
                         if (bufferedPosition - position > currentBufferMs) {
                             currentBufferMs = (currentBufferMs * 1.1).toLong().coerceAtLeast(maxBufferMs)

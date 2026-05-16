@@ -55,16 +55,11 @@ internal object AudioServiceComponentBinder {
             PlaybackController(
                 getActivePlayer = { service.getActivePlayer() },
                 playerServiceScope = service.playerServiceScope,
-                resetInactivityTimer = { source -> service.inactivityTimer?.resetIfApplicable(source) },
+                resetInactivityTimer = { service.inactivityTimer?.resetTimer() },
                 getResumeRewindSeconds = { cachedResumeRewindSeconds },
                 getResumeRewindMode = { cachedResumeRewindMode },
                 getResumeRewindAggressiveness = { cachedResumeRewindAggressiveness },
                 consumeSleepTimerStopFlag = { service.consumeStoppedBySleepTimerFlag() },
-                contextualResumeManager =
-                    ContextualResumeManager(
-                        speechAnalyzer = DefaultSpeechSegmentAnalyzer(),
-                    ),
-                onSmartResumeSuggested = { context -> service.publishSmartResumeSuggestion(context) },
             )
 
         service.sleepTimerManager =
@@ -194,14 +189,14 @@ internal object AudioServiceComponentBinder {
                 onHeadsetConnected = {
                     val handler = service.headsetAutoplayHandler
                     if (handler != null && !handler.lastDisconnectWasBluetooth && !service.isPlaying) {
-                        service.play(InactivityCommandSource.HEADSET_BUTTON)
+                        service.play()
                     }
                 },
                 onHeadsetDisconnected = {
                     service.headsetAutoplayHandler?.recordWasPlaying(service.isPlaying)
                     if (service.isPlaying) {
                         service.saveCurrentPosition()
-                        service.pause(InactivityCommandSource.HEADSET_BUTTON)
+                        service.pause()
                         LogUtils.d(
                             "AudioPlayerService",
                             "BT/headset disconnected — paused playback and saved position",

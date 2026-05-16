@@ -14,127 +14,73 @@
 
 package com.jabook.app.jabook.audio
 
-import androidx.annotation.OptIn
-import androidx.lifecycle.DefaultLifecycleObserver
-import androidx.lifecycle.LifecycleOwner
-import com.jabook.app.jabook.compose.core.lifecycle.LifecycleAware
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * Manages cover art preloading progress for playlists.
  *
  * P-05: Shows progress while preloading cover arts for large playlists.
  */
-@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-class CoverPreloadProgressManager(
-    private val playlistManager: PlaylistManager,
+public class CoverPreloadProgressManager(
     private val coverPreloadExecutor: CoverPreloadExecutor,
-) : DefaultLifecycleObserver,
-    LifecycleAware {
+) {
     private val _progress =
-        MutableStateFlow<CoverPreloadProgress>(
+        MutableStateFlow(
             CoverPreloadProgress(
                 loaded = 0,
                 total = 0,
-                phase = Phase.IDLE,
+                phase = CoverPreloadPhase.IDLE,
             ),
         )
-    val progress: StateFlow<CoverPreloadProgress> = _progress.asStateFlow()
+    public val progress: StateFlow<CoverPreloadProgress> = _progress
 
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-
-    override fun onCreate(owner: LifecycleOwner) {
-        // Start observing playlist changes
-        playlistManager.playlistLoadProgress.observe(owner) { playlistProgress ->
-            // When playlist starts loading, start cover preloading
-            if (playlistProgress.phase == Phase.LOADING_FIRST || playlistProgress.phase == Phase.LOADING_BACKGROUND) {
-                startPreloadingCovers()
-            } else if (playlistProgress.phase == Phase.DONE) {
-                // Playlist done, stop cover preloading
-                stopPreloadingCovers()
-            }
+    /**
+     * Notifies that a playlist load phase changed.
+     */
+    public fun onPlaylistPhaseChanged(phase: PlaylistLoadProgress.Phase) {
+        when (phase) {
+            PlaylistLoadProgress.Phase.LOADING_FIRST,
+            PlaylistLoadProgress.Phase.LOADING_BACKGROUND,
+            -> startPreloadingCovers()
+            PlaylistLoadProgress.Phase.DONE -> stopPreloadingCovers()
+            else -> Unit
         }
     }
 
     private fun startPreloadingCovers() {
-        scope.launch {
-            val filePaths = playlistManager.currentFilePaths ?: return@launch
-            val totalCovers = filePaths.size
-            _progress.value =
-                CoverPreloadProgress(
-                    loaded = 0,
-                    total = totalCovers,
-                    phase = Phase.LOADING,
-                )
-
-            // Preload covers in batches
-            val batchSize = 10
-            var loaded = 0
-            while (loaded < totalCovers) {
-                val batch = filePaths.slice(loaded until minOf(loaded + batchSize, totalCovers))
-                preloadBatch(batch)
-                loaded += batch.size
-                _progress.value =
-                    CoverPreloadProgress(
-                        loaded = loaded,
-                        total = totalCovers,
-                        phase = Phase.LOADING,
-                    )
-            }
-        }
-    }
-
-    private suspend fun preloadBatch(filePaths: List<String>) {
-        withContext(Dispatchers.IO) {
-            for (path in filePaths) {
-                // Preload cover for this track if available
-                val coverUri = extractCoverUriFromMetadata(path) ?: continue
-                coverPreloadExecutor.preload(coverUri)
-            }
-        }
-    }
-
-    private fun extractCoverUriFromMetadata(path: String): String? {
-        // Extract cover URI from metadata - simplified for demo
-        // In real implementation, would parse metadata from file or database
-        return null // Not implemented in this demo
-    }
-
-    private fun stopPreloadingCovers() {
-        scope.coroutineContext.cancelChildren()
         _progress.value =
             CoverPreloadProgress(
                 loaded = 0,
                 total = 0,
-                phase = Phase.IDLE,
+                phase = CoverPreloadPhase.LOADING,
             )
     }
 
-    override fun onDestroy(owner: LifecycleOwner) {
-        scope.cancel()
+    private fun stopPreloadingCovers() {
+        _progress.value =
+            CoverPreloadProgress(
+                loaded = 0,
+                total = 0,
+                phase = CoverPreloadPhase.IDLE,
+            )
     }
 }
 
-data class CoverPreloadProgress(
-    val loaded: Int,
-    val total: Int,
-    val phase: Phase,
+public data class CoverPreloadProgress(
+    public val loaded: Int,
+    public val total: Int,
+    public val phase: CoverPreloadPhase,
 ) {
-    val fraction: Float get() = if (total > 0) loaded.toFloat() / total else 0f
+    public val fraction: Float get() = if (total > 0) loaded.toFloat() / total else 0f
 }
 
-enum class Phase {
+public enum class CoverPreloadPhase {
     IDLE,
     LOADING,
     DONE,
 }
 
-interface CoverPreloadExecutor {
-    fun preload(coverUri: String)
+public interface CoverPreloadExecutor {
+    public fun preload(coverUri: String)
 }

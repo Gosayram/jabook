@@ -19,14 +19,14 @@ package com.jabook.app.jabook.audio
  *
  * P-09: Provides progress feedback during large playlist loading.
  */
-data class PlaylistLoadProgress(
-    val loaded: Int,
-    val total: Int,
-    val phase: Phase,
+public data class PlaylistLoadProgress(
+    public val loaded: Int,
+    public val total: Int,
+    public val phase: Phase,
 ) {
-    val fraction: Float get() = if (total > 0) loaded.toFloat() / total else 0f
+    public val fraction: Float get() = if (total > 0) loaded.toFloat() / total else 0f
 
-    enum class Phase {
+    public enum class Phase {
         IDLE,
         LOADING_FIRST,
         LOADING_CRITICAL,

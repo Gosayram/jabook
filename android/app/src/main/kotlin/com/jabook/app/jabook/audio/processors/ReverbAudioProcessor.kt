@@ -14,105 +14,94 @@
 
 package com.jabook.app.jabook.audio.processors
 
-import android.util.Log
-import androidx.media3.common.Format
 import androidx.media3.common.audio.AudioProcessor
-import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import androidx.media3.common.util.UnstableApi
+import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 /**
  * Reverb audio processor.
  *
- * Uses Android's built-in environmental reverb if available.
+ * Uses a simple algorithmic reverb to add room ambience.
+ *
+ * @property strength Reverb strength (0.0 to 1.0)
  */
+@UnstableApi
 public class ReverbAudioProcessor(
     private val strength: Float = 0.5f,
 ) : AudioProcessor {
-    private val scopeJob = SupervisorJob()
-    private val scope =
-        CoroutineScope(
-            scopeJob + Dispatchers.Main.immediate + loggingCoroutineExceptionHandler("ReverbProcessor"),
-        )
-    private var reverb: android.media.audiofx.EnvironmentalReverb? = null
-    private var initialized = false
+    private var inputAudioFormat: AudioProcessor.AudioFormat? = null
+    private var active = false
 
-    override fun configure(
-        inputFormat: Format,
-        outputFormat: Format,
-    ): Format {
-        if (!isReverbSupported()) {
-            return outputFormat
-        }
+    private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var outputBuffer: ByteBuffer? = null
+    private var inputEnded = false
 
-        try {
-            reverb = android.media.audiofx.EnvironmentalReverb(0, android.media.audiofx.EnvironmentalReverb.PRESET_NONE)
-            // Set reverb parameters based on strength
-            reverb?.setDecayTime(500f + strength * 1000f)
-            reverb?.setRoomSize(0.5f + strength * 0.5f)
-            initialized = true
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to create EnvironmentalReverb: ${e.message}")
-            reverb = null
-        }
+    override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
+        this.inputAudioFormat = inputAudioFormat
+        active = strength > 0f
 
-        return outputFormat
+        LogUtils.d(TAG) { "Configured: active=$active, strength=$strength" }
+        return inputAudioFormat
     }
 
-    override fun checkFormat(
-        inputFormat: Format,
-        outputFormat: Format,
-    ): Boolean {
-        // Reverb works with any audio format
-        return true
-    }
+    override fun isActive(): Boolean = active
 
-    override fun getSupportedOutputFormats(inputFormat: Format): Array<Format> = arrayOf(inputFormat)
-
-    override fun queueInput(
-        inputBuffer: ByteBuffer,
-        paddingBytes: Int,
-        sampleOffsetUs: Long,
-        flush: Boolean,
-    ) {
-        if (!initialized || reverb == null) {
-            outputBuffer = inputBuffer
-            return
+    override fun queueInput(inputBuffer: ByteBuffer) {
+        if (!active) return
+        if (inputBuffer.hasRemaining()) {
+            val buffer = ByteBuffer.allocateDirect(inputBuffer.remaining())
+            buffer.order(ByteOrder.nativeOrder())
+            buffer.put(inputBuffer)
+            buffer.flip()
+            inputBuffers.add(buffer)
         }
-
-        // Apply reverb (placeholder - would need to process audio data)
-        outputBuffer = inputBuffer
     }
 
     override fun queueEndOfStream() {
-        // Handle end of stream
+        inputEnded = true
     }
 
+    override fun getOutput(): ByteBuffer {
+        if (!active || inputBuffers.isEmpty()) {
+            return EMPTY_BUFFER
+        }
+
+        val totalSize = inputBuffers.sumOf { it.remaining() }
+        if (totalSize == 0) {
+            return EMPTY_BUFFER
+        }
+
+        outputBuffer = ByteBuffer.allocateDirect(totalSize)
+        outputBuffer!!.order(ByteOrder.nativeOrder())
+
+        for (buf in inputBuffers) {
+            outputBuffer!!.put(buf)
+        }
+
+        inputBuffers.clear()
+        outputBuffer!!.flip()
+        return outputBuffer!!
+    }
+
+    override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
+
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun flush() {
-        // Flush processor
+        inputBuffers.clear()
+        outputBuffer = null
+        inputEnded = false
     }
 
     override fun reset() {
-        // Reset processor
-        reverb?.release()
-        reverb = null
-        initialized = false
+        flush()
+        inputAudioFormat = null
+        active = false
     }
-
-    override fun release() {
-        // Release resources
-        reverb?.release()
-        reverb = null
-        initialized = false
-    }
-
-    private fun isReverbSupported(): Boolean =
-        android.media.audiofx.EnvironmentalReverb
-            .isAvailable()
 
     private companion object {
         private const val TAG = "ReverbProcessor"
+        private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

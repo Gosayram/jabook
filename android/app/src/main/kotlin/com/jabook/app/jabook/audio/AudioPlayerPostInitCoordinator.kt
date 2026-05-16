@@ -80,9 +80,6 @@ internal class AudioPlayerPostInitCoordinator(
             service.audioOutputManager.startMonitoring()
         }
 
-        service.audioOutputMonitoringListener?.let { previous ->
-            service.exoPlayer.removeListener(previous)
-        }
         val listener =
             object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -93,7 +90,6 @@ internal class AudioPlayerPostInitCoordinator(
                     }
                 }
             }
-        service.audioOutputMonitoringListener = listener
         service.exoPlayer.addListener(listener)
     }
 

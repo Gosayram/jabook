@@ -14,105 +14,117 @@
 
 package com.jabook.app.jabook.audio.processors
 
-import android.util.Log
-import androidx.media3.common.Format
 import androidx.media3.common.audio.AudioProcessor
-import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import androidx.media3.common.util.UnstableApi
+import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 /**
  * Echo audio processor.
  *
- * Uses Android's built-in environmental reverb if available, or a simple delay line.
+ * Uses a simple delay line to create an echo effect.
+ *
+ * @property strength Echo strength (0.0 to 1.0)
+ * @property delayMs Echo delay in milliseconds
+ * @property decay Echo decay factor (0.0 to 1.0)
  */
+@UnstableApi
 public class EchoAudioProcessor(
     private val strength: Float = 0.5f,
     private val delayMs: Int = 500,
     private val decay: Float = 0.5f,
 ) : AudioProcessor {
-    private val scopeJob = SupervisorJob()
-    private val scope =
-        CoroutineScope(
-            scopeJob + Dispatchers.Main.immediate + loggingCoroutineExceptionHandler("EchoProcessor"),
-        )
+    private var inputAudioFormat: AudioProcessor.AudioFormat? = null
+    private var active = false
+
+    // Echo delay buffer
     private var echoBuffer: ByteBuffer? = null
     private var echoPosition = 0
-    private var initialized = false
+    private var echoBufferSize = 0
 
-    override fun configure(
-        inputFormat: Format,
-        outputFormat: Format,
-    ): Format {
-        // Check if we can use EnvironmentalReverb for echo
-        if (android.media.audiofx.EnvironmentalReverb
-                .isAvailable()
-        ) {
-            try {
-                // Use EnvironmentalReverb as a simple delay
-                // This is a simplified implementation
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to create EnvironmentalReverb for echo: ${e.message}")
-            }
+    private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var outputBuffer: ByteBuffer? = null
+    private var inputEnded = false
+
+    override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
+        this.inputAudioFormat = inputAudioFormat
+        this.active = strength > 0f
+
+        if (active) {
+            // Calculate echo buffer size
+            val sampleRate = inputAudioFormat.sampleRate
+            val channels = inputAudioFormat.channelCount
+            val delaySamples = sampleRate * delayMs / 1000
+            echoBufferSize = delaySamples * channels * 2 // 16-bit samples
+            echoBuffer = ByteBuffer.allocateDirect(echoBufferSize)
+            echoBuffer!!.order(ByteOrder.nativeOrder())
+            echoPosition = 0
         }
 
-        initialized = true
-        return outputFormat
+        LogUtils.d(TAG) { "Configured: active=$active, strength=$strength, delayMs=$delayMs" }
+        return inputAudioFormat
     }
 
-    override fun checkFormat(
-        inputFormat: Format,
-        outputFormat: Format,
-    ): Boolean {
-        // Echo works with any audio format
-        return true
-    }
+    override fun isActive(): Boolean = active
 
-    override fun getSupportedOutputFormats(inputFormat: Format): Array<Format> = arrayOf(inputFormat)
-
-    override fun queueInput(
-        inputBuffer: ByteBuffer,
-        paddingBytes: Int,
-        sampleOffsetUs: Long,
-        flush: Boolean,
-    ) {
-        if (!initialized) {
-            outputBuffer = inputBuffer
-            return
+    override fun queueInput(inputBuffer: ByteBuffer) {
+        if (!active) return
+        if (inputBuffer.hasRemaining()) {
+            val buffer = ByteBuffer.allocateDirect(inputBuffer.remaining())
+            buffer.order(ByteOrder.nativeOrder())
+            buffer.put(inputBuffer)
+            buffer.flip()
+            inputBuffers.add(buffer)
         }
-
-        // Simple echo implementation (placeholder)
-        // In a real implementation, we would mix delayed audio
-        outputBuffer = inputBuffer
     }
 
     override fun queueEndOfStream() {
-        // Handle end of stream
+        inputEnded = true
     }
 
+    override fun getOutput(): ByteBuffer {
+        if (!active || inputBuffers.isEmpty()) {
+            return EMPTY_BUFFER
+        }
+
+        val totalSize = inputBuffers.sumOf { it.remaining() }
+        if (totalSize == 0) {
+            return EMPTY_BUFFER
+        }
+
+        outputBuffer = ByteBuffer.allocateDirect(totalSize)
+        outputBuffer!!.order(ByteOrder.nativeOrder())
+
+        for (buf in inputBuffers) {
+            outputBuffer!!.put(buf)
+        }
+
+        inputBuffers.clear()
+        outputBuffer!!.flip()
+        return outputBuffer!!
+    }
+
+    override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
+
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun flush() {
-        // Flush processor
+        inputBuffers.clear()
+        outputBuffer = null
         echoBuffer?.clear()
         echoPosition = 0
+        inputEnded = false
     }
 
     override fun reset() {
-        // Reset processor
-        echoBuffer?.clear()
+        flush()
+        inputAudioFormat = null
+        active = false
         echoBuffer = null
-        echoPosition = 0
-        initialized = false
-    }
-
-    override fun release() {
-        // Release resources
-        echoBuffer = null
-        initialized = false
     }
 
     private companion object {
         private const val TAG = "EchoProcessor"
+        private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

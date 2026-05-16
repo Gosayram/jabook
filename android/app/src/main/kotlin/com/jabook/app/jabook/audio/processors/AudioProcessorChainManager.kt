@@ -65,6 +65,7 @@ public class AudioProcessorChainManager {
     private val equalizerProxy = ProxyAudioProcessor()
     private val noiseSuppressionProxy = ProxyAudioProcessor()
     private val reverbProxy = ProxyAudioProcessor() // P-29: Reverb
+    private val echoProxy = ProxyAudioProcessor() // P-30: Echo
 
     /**
      * Returns the ordered list of [ProxyAudioProcessor] instances that should
@@ -84,6 +85,7 @@ public class AudioProcessorChainManager {
             equalizerProxy,
             noiseSuppressionProxy,
             reverbProxy, // P-29: Add reverb
+            echoProxy, // P-30: Add echo
         )
 
 /**

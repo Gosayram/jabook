@@ -176,6 +176,13 @@ public data class AudioProcessingSettings(
     val retainWindowMs: Int = DEFAULT_RETAIN_WINDOW_MS,
     val isCrossfadeEnabled: Boolean = false,
     val crossfadeDurationMs: Long = 0L,
+    val equalizerEnabled: Boolean = false,
+    val noiseSuppressionEnabled: Boolean = false,
+    val reverbEnabled: Boolean = false,
+    val echoEnabled: Boolean = false,
+    val echoStrength: Float = 0.5f,
+    val echoDelayMs: Int = 500,
+    val echoDecay: Float = 0.5f,
 ) {
     public companion object {
         /** Default retain window (65 ms) — balance between smoothness and skip efficiency. */
