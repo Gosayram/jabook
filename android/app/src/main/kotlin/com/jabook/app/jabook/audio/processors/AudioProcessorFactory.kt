@@ -23,6 +23,17 @@ import androidx.media3.common.util.UnstableApi
  * This factory manages the order and configuration of audio processors
  * for ExoPlayer. Processors are applied in a specific order to ensure
  * optimal audio quality.
+ *
+ * ## Two modes of operation
+ *
+ * 1. **Direct chain** ([createProcessorChain]) — creates concrete processors.
+ *    Used when constructing a new ExoPlayer instance. Changing settings
+ *    requires full player recreation.
+ *
+ * 2. **Proxy chain** ([createProxyChain]) — creates [ProxyAudioProcessor]
+ *    wrappers whose delegates can be hot-swapped at runtime via
+ *    [AudioProcessorChainManager.applySettings] without restarting the player.
+ *    **Preferred** for P-01 hot-swap support.
  */
 @UnstableApi
 public object AudioProcessorFactory {
@@ -148,6 +159,22 @@ public object AudioProcessorFactory {
 
         return ProcessorChainResult(processors, loudnessNormalizer)
     }
+
+    /**
+     * Creates a proxy-based processor chain that supports hot-swapping.
+     *
+     * Unlike [createProcessorChain] which creates concrete processors,
+     * this method returns a stable list of [ProxyAudioProcessor] wrappers.
+     * The returned [AudioProcessorChainManager] can be used to swap delegates
+     * at runtime via [AudioProcessorChainManager.applySettings] without
+     * recreating the ExoPlayer.
+     *
+     * @param settings Initial audio processing settings.
+     * @return Manager whose [AudioProcessorChainManager.proxies] list should
+     *         be passed to `ExoPlayer.Builder.setAudioProcessors()`.
+     */
+    public fun createProxyChain(settings: AudioProcessingSettings): AudioProcessorChainManager =
+        AudioProcessorChainManager().also { it.applySettings(settings) }
 }
 
 /**
