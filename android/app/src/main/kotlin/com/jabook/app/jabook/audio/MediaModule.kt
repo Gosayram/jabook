@@ -405,7 +405,10 @@ public object AudioDataModule {
             android.util.Log.d("Room", "BuildConfig not available, skipping query callback", e)
         }
 
-        builder.addMigrations(AudioDatabaseMigrations.MIGRATION_2_3)
+        builder.addMigrations(
+            AudioDatabaseMigrations.MIGRATION_2_3,
+            AudioDatabaseMigrations.MIGRATION_3_4,
+        )
 
         return builder.build()
     }
@@ -446,4 +449,18 @@ public object AudioRepositoryModule {
         return com.jabook.app.jabook.audio.data.repository
             .SavedPlayerStateRepository(dao)
     }
+
+    @Provides
+    @Singleton
+    public fun provideLufsCacheDao(
+        database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
+    ): com.jabook.app.jabook.audio.data.local.dao.LufsCacheDao = database.lufsCacheDao()
+
+    @Provides
+    @Singleton
+    public fun provideLufsCacheRepository(
+        lufsCacheDao: com.jabook.app.jabook.audio.data.local.dao.LufsCacheDao,
+    ): com.jabook.app.jabook.audio.data.repository.LufsCacheRepository =
+        com.jabook.app.jabook.audio.data.repository
+            .LufsCacheRepository(lufsCacheDao)
 }
