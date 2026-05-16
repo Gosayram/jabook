@@ -46,7 +46,7 @@ class ChapterDetectionWorkSchedulerTest {
             eq(ExistingWorkPolicy.KEEP),
             requestCaptor.capture(),
         )
-        val input = requestCaptor.firstValue.inputData
+        val input = requestCaptor.firstValue.workSpec.input
         assertEquals("book-1", input.getString(ChapterDetectionWorker.KEY_BOOK_ID))
         assertEquals("/books/book1/chapter.mp3", input.getString(ChapterDetectionWorker.KEY_FILE_PATH))
         assertEquals(2, input.getInt(ChapterDetectionWorker.KEY_FILE_INDEX, -1))

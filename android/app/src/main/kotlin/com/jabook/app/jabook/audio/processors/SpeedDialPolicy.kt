@@ -55,6 +55,23 @@ public object SpeedDialPolicy {
     public const val DEFAULT_SPEED: Float = 1.0f
 
     /**
+     * Default quick presets shown to users before they customize the dial.
+     */
+    public val DEFAULT_PRESETS: List<Float> = listOf(1.0f, 1.25f, 1.5f, 2.0f)
+
+    /**
+     * User-defined speed profile.
+     *
+     * [perBookSpeeds] is intentionally kept in this pure model so DataStore/Room
+     * callers can persist it without coupling UI code to storage details.
+     */
+    public data class UserSpeedPresets(
+        val presets: List<Float> = DEFAULT_PRESETS,
+        val lastUsedSpeed: Float = DEFAULT_SPEED,
+        val perBookSpeeds: Map<String, Float> = emptyMap(),
+    )
+
+    /**
      * Quantizes an arbitrary speed value to the nearest valid step.
      *
      * Handles floating-point imprecision by rounding to the nearest step boundary.
@@ -128,6 +145,45 @@ public object SpeedDialPolicy {
      * Useful for UI components that need the full list of available speeds.
      */
     public fun allSteps(): List<Float> = cachedSteps
+
+    /**
+     * Resolves the best playback speed for a book: per-book override first,
+     * otherwise the user's last used speed.
+     */
+    public fun resolveSpeedForBook(
+        bookId: String,
+        userPresets: UserSpeedPresets,
+    ): Float =
+        snapToStep(
+            userPresets.perBookSpeeds[bookId]
+                ?: userPresets.lastUsedSpeed,
+        )
+
+    /**
+     * Records a selected speed for a specific book and promotes it to the last
+     * used speed so new books inherit the user's latest preference.
+     */
+    public fun recordSpeedForBook(
+        currentPresets: UserSpeedPresets,
+        bookId: String,
+        speed: Float,
+    ): UserSpeedPresets {
+        val snappedSpeed = snapToStep(speed)
+        return currentPresets.copy(
+            presets = normalizePresets(currentPresets.presets),
+            lastUsedSpeed = snappedSpeed,
+            perBookSpeeds = currentPresets.perBookSpeeds + (bookId to snappedSpeed),
+        )
+    }
+
+    /**
+     * Sanitizes custom presets into supported, distinct speed steps.
+     */
+    public fun normalizePresets(presets: List<Float>): List<Float> =
+        presets
+            .map(::snapToStep)
+            .distinct()
+            .ifEmpty { DEFAULT_PRESETS }
 
     /**
      * Formats a speed value for display in the UI.

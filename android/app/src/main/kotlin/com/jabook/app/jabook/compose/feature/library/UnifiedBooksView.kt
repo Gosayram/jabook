@@ -365,7 +365,7 @@ private fun SwipeableBookCard(
         return
     }
 
-    val onDeleteBook = actionsProvider.onDeleteBook
+    val onDeleteBook = requireNotNull(actionsProvider.onDeleteBook)
     val dismissState = rememberSwipeToDismissBoxState()
 
     LaunchedEffect(dismissState.currentValue, book.id) {

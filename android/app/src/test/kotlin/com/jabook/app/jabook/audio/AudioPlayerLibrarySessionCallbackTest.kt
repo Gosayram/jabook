@@ -18,6 +18,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
@@ -83,6 +84,11 @@ class AudioPlayerLibrarySessionCallbackTest {
         // Default durations
         whenever(mediaSessionManager.getRewindDuration()).thenReturn(15L)
         whenever(mediaSessionManager.getForwardDuration()).thenReturn(30L)
+        val player = mock<ExoPlayer>()
+        whenever(player.currentMediaItemIndex).thenReturn(0)
+        whenever(player.mediaItemCount).thenReturn(1)
+        whenever(player.currentPosition).thenReturn(0L)
+        whenever(service.getActivePlayer()).thenReturn(player)
 
         // Mock repository flows to prevent NPE in notifyLibraryRootsChanged
         whenever(torrentRepository.getAllFlow()).thenReturn(flowOf(emptyList()))
@@ -480,7 +486,33 @@ class AudioPlayerLibrarySessionCallbackTest {
         }
 
     @Test
-    fun `onMediaButtonEvent routes NEXT and PREVIOUS to forward and rewind`() {
+    fun `onMediaButtonEvent routes NEXT to next chapter when available`() {
+        val player = mock<ExoPlayer>()
+        whenever(player.currentMediaItemIndex).thenReturn(0)
+        whenever(player.mediaItemCount).thenReturn(2)
+        whenever(service.getActivePlayer()).thenReturn(player)
+        val nextIntent =
+            Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                putExtra(
+                    Intent.EXTRA_KEY_EVENT,
+                    KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_NEXT),
+                )
+            }
+
+        val nextHandled = callback.onMediaButtonEvent(session, controller, nextIntent)
+
+        assertTrue(nextHandled)
+        verify(service).next(InactivityCommandSource.HEADSET_BUTTON)
+        verify(service, never()).forward(any(), any())
+    }
+
+    @Test
+    fun `onMediaButtonEvent routes NEXT to forward on last chapter and PREVIOUS to chapter boundary`() {
+        val player = mock<ExoPlayer>()
+        whenever(player.currentMediaItemIndex).thenReturn(1)
+        whenever(player.mediaItemCount).thenReturn(2)
+        whenever(player.currentPosition).thenReturn(4_000L)
+        whenever(service.getActivePlayer()).thenReturn(player)
         val nextIntent =
             Intent(Intent.ACTION_MEDIA_BUTTON).apply {
                 putExtra(
@@ -501,8 +533,27 @@ class AudioPlayerLibrarySessionCallbackTest {
 
         assertTrue(nextHandled)
         assertTrue(previousHandled)
-        verify(service).forward(30)
-        verify(service).rewind(15)
+        verify(service).forward(30, InactivityCommandSource.HEADSET_BUTTON)
+        verify(service).seekTo(0L, InactivityCommandSource.HEADSET_BUTTON)
+    }
+
+    @Test
+    fun `onMediaButtonEvent routes PREVIOUS to previous chapter near chapter start`() {
+        val player = mock<ExoPlayer>()
+        whenever(player.currentPosition).thenReturn(2_000L)
+        whenever(service.getActivePlayer()).thenReturn(player)
+        val previousIntent =
+            Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                putExtra(
+                    Intent.EXTRA_KEY_EVENT,
+                    KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PREVIOUS),
+                )
+            }
+
+        val previousHandled = callback.onMediaButtonEvent(session, controller, previousIntent)
+
+        assertTrue(previousHandled)
+        verify(service).previous(InactivityCommandSource.HEADSET_BUTTON)
     }
 
     @Test
@@ -536,10 +587,10 @@ class AudioPlayerLibrarySessionCallbackTest {
         doubleClickCaptor.firstValue.invoke()
         tripleClickCaptor.firstValue.invoke()
 
-        verify(service).play()
-        verify(service).pause()
-        verify(service).next()
-        verify(service).previous()
+        verify(service).play(InactivityCommandSource.HEADSET_BUTTON)
+        verify(service).pause(InactivityCommandSource.HEADSET_BUTTON)
+        verify(service).next(InactivityCommandSource.HEADSET_BUTTON)
+        verify(service).previous(InactivityCommandSource.HEADSET_BUTTON)
     }
 
     @Test

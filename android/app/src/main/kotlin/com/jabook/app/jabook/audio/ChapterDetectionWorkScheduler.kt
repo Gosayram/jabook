@@ -35,8 +35,16 @@ public class ChapterDetectionWorkScheduler
     @Inject
     constructor(
         private val workManager: WorkManager,
-        private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
     ) {
+        internal constructor(
+            workManager: WorkManager,
+            nowMsProvider: () -> Long,
+        ) : this(workManager) {
+            this.nowMsProvider = nowMsProvider
+        }
+
+        private var nowMsProvider: () -> Long = { System.currentTimeMillis() }
+
         private val enqueueHistory =
             ConcurrentHashMap<String, ChapterDetectionEnqueueGuardPolicy.EnqueueRecord>()
 

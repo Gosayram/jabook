@@ -20,6 +20,7 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import androidx.work.testing.TestListenableWorkerBuilder
+import com.jabook.app.jabook.audio.ChapterDetectionWorkScheduler
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
@@ -44,6 +45,7 @@ class LibraryScanWorkerTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val booksDao: BooksDao = mock()
     private val chaptersDao: ChaptersDao = mock()
+    private val chapterDetectionWorkScheduler: ChapterDetectionWorkScheduler = mock()
     private val loggerFactory: LoggerFactory =
         object : LoggerFactory {
             override fun get(tag: String): Logger = NoopWorkerLogger
@@ -86,6 +88,7 @@ class LibraryScanWorkerTest {
                         bookScanner = scanner,
                         booksDao = booksDao,
                         chaptersDao = chaptersDao,
+                        chapterDetectionWorkScheduler = chapterDetectionWorkScheduler,
                         loggerFactory = loggerFactory,
                     )
                 }

@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.MediaControllerConstants
 import com.jabook.app.jabook.audio.MediaControllerExtensions
+import com.jabook.app.jabook.audio.processors.PitchCorrectionPolicy
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -180,9 +181,14 @@ public class AudioPlayerController
 
         private data class SetPlaybackSpeedCommand(
             private val speed: Float,
+            private val pitchCorrectionEnabled: Boolean,
         ) : PendingControllerCommand {
             override fun execute(controller: MediaController) {
-                controller.setPlaybackSpeed(speed)
+                controller.playbackParameters =
+                    PitchCorrectionPolicy.buildPlaybackParameters(
+                        speed = speed,
+                        isPitchCorrectionEnabled = pitchCorrectionEnabled,
+                    )
             }
         }
 
@@ -399,10 +405,10 @@ public class AudioPlayerController
                     ) { userData, pitchCorrection ->
                         Pair(userData.playbackSpeed, pitchCorrection)
                     }.collect { (speed, pitchCorrection) ->
-                        val pitch = if (pitchCorrection) 1.0f else speed
-                        // Skip if no change to avoid interruptions (although setPlaybackParameters checks internally)
-                        val params = androidx.media3.common.PlaybackParameters(speed, pitch)
-                        mediaController?.playbackParameters = params
+                        mediaController?.applyPlaybackParameters(
+                            speed = speed,
+                            pitchCorrectionEnabled = pitchCorrection,
+                        )
                     }
             }
         }
@@ -646,11 +652,28 @@ public class AudioPlayerController
             ensureControllerReady()
         }
 
+        private fun MediaController.applyPlaybackParameters(
+            speed: Float,
+            pitchCorrectionEnabled: Boolean,
+        ) {
+            playbackParameters =
+                PitchCorrectionPolicy.buildPlaybackParameters(
+                    speed = speed,
+                    isPitchCorrectionEnabled = pitchCorrectionEnabled,
+                )
+        }
+
         public fun setPitchCorrectionEnabled(enabled: Boolean) {
             if (_pitchCorrectionEnabled.value == enabled) {
                 return
             }
             _pitchCorrectionEnabled.value = enabled
+            mediaController?.let { controller ->
+                controller.applyPlaybackParameters(
+                    speed = controller.playbackParameters.speed,
+                    pitchCorrectionEnabled = enabled,
+                )
+            }
             scope.launch {
                 runCatching {
                     userPreferencesRepository.setPitchCorrectionEnabled(enabled)
@@ -913,11 +936,19 @@ public class AudioPlayerController
         }
 
         public fun setPlaybackSpeed(speed: Float) {
+            val pitchCorrectionEnabled = _pitchCorrectionEnabled.value
             executeOrQueue(
                 commandName = "setPlaybackSpeed",
-                pendingCommand = SetPlaybackSpeedCommand(speed),
+                pendingCommand =
+                    SetPlaybackSpeedCommand(
+                        speed = speed,
+                        pitchCorrectionEnabled = pitchCorrectionEnabled,
+                    ),
             ) { controller ->
-                controller.setPlaybackSpeed(speed)
+                controller.applyPlaybackParameters(
+                    speed = speed,
+                    pitchCorrectionEnabled = pitchCorrectionEnabled,
+                )
             }
         }
 

@@ -167,15 +167,11 @@ public class AudioPlayerLibrarySessionCallback(
 
         when (keyEvent.keyCode) {
             KEYCODE_MEDIA_NEXT -> {
-                val forwardSeconds = service.mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
-                service.forward(forwardSeconds, InactivityCommandSource.HEADSET_BUTTON)
-                android.util.Log.d("AudioPlayerService", "Media button: forward ${forwardSeconds}s")
+                handleSteeringWheelNext()
                 return true
             }
             KEYCODE_MEDIA_PREVIOUS -> {
-                val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 10
-                service.rewind(rewindSeconds, InactivityCommandSource.HEADSET_BUTTON)
-                android.util.Log.d("AudioPlayerService", "Media button: rewind ${rewindSeconds}s")
+                handleSteeringWheelPrevious()
                 return true
             }
             KeyEvent.KEYCODE_HEADSETHOOK, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
@@ -203,6 +199,39 @@ public class AudioPlayerLibrarySessionCallback(
                 return true
             }
             else -> return super.onMediaButtonEvent(session, controller, intent)
+        }
+    }
+
+    private fun handleSteeringWheelNext() {
+        val player = service.getActivePlayer()
+        when (
+            SteeringWheelActionPolicy.resolveNextAction(
+                currentChapterIndex = player.currentMediaItemIndex,
+                totalChapters = player.mediaItemCount,
+            )
+        ) {
+            SteeringWheelActionPolicy.NextAction.NEXT_CHAPTER ->
+                service.next(InactivityCommandSource.HEADSET_BUTTON)
+
+            SteeringWheelActionPolicy.NextAction.FORWARD_SECONDS -> {
+                val forwardSeconds = service.mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
+                service.forward(forwardSeconds, InactivityCommandSource.HEADSET_BUTTON)
+            }
+        }
+    }
+
+    private fun handleSteeringWheelPrevious() {
+        val player = service.getActivePlayer()
+        when (
+            SteeringWheelActionPolicy.resolvePreviousAction(
+                currentPositionMs = player.currentPosition,
+            )
+        ) {
+            SteeringWheelActionPolicy.PreviousAction.PREVIOUS_CHAPTER ->
+                service.previous(InactivityCommandSource.HEADSET_BUTTON)
+
+            SteeringWheelActionPolicy.PreviousAction.RESTART_CHAPTER ->
+                service.seekTo(positionMs = 0L, source = InactivityCommandSource.HEADSET_BUTTON)
         }
     }
 
