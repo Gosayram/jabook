@@ -299,13 +299,17 @@ public class LibraryScanWorker
                                         booksDao.upsertBooksWithChapters(bookEntities, chapterEntities)
                                     }
                                     chapterDetectionTargets.forEach { target ->
-                                        chapterDetectionWorkScheduler.enqueue(
-                                            bookId = target.bookId,
-                                            filePath = target.filePath,
-                                            fileIndex = target.fileIndex,
-                                            durationMs = target.durationMs,
-                                            fileLastModifiedMs = target.fileLastModifiedMs,
-                                        )
+                                        try {
+                                            chapterDetectionWorkScheduler.enqueue(
+                                                bookId = target.bookId,
+                                                filePath = target.filePath,
+                                                fileIndex = target.fileIndex,
+                                                durationMs = target.durationMs,
+                                                fileLastModifiedMs = target.fileLastModifiedMs,
+                                            )
+                                        } catch (e: Exception) {
+                                            logger.e({ "Failed to enqueue chapter detection for ${target.bookId}" }, e)
+                                        }
                                     }
                                     booksSaved += bookEntities.size
 

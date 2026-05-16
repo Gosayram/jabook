@@ -20,7 +20,7 @@ import com.jabook.app.jabook.util.LogUtils
  * Initializes settings synchronization between app preferences and MediaSession commands.
  */
 internal object MediaSessionSettingsSyncInitializer {
-    fun initialize(service: AudioPlayerService) {
+    fun initialize(service: AudioPlayerService): MediaSessionSettingsSync? {
         try {
             val settingsSync =
                 MediaSessionSettingsSync(
@@ -30,8 +30,10 @@ internal object MediaSessionSettingsSyncInitializer {
                 )
             settingsSync.start()
             LogUtils.i("AudioPlayerService", "Settings sync initialized successfully")
+            return settingsSync
         } catch (e: Exception) {
             LogUtils.e("AudioPlayerService", "Failed to initialize settings sync", e)
+            return null
         }
     }
 }

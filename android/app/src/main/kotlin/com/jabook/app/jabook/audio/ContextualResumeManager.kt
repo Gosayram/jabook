@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.audio
 
+import androidx.compose.runtime.Immutable
+
 internal fun interface SpeechSegmentAnalyzer {
     fun findLastSentenceStart(
         bookId: String,
@@ -26,6 +28,7 @@ internal class ContextualResumeManager(
     private val speechAnalyzer: SpeechSegmentAnalyzer,
     private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
 ) {
+    @Immutable
     data class ResumeContext(
         val pauseDurationMs: Long,
         val rewindMs: Long,
@@ -47,6 +50,9 @@ internal class ContextualResumeManager(
             )
         }
         val nowMs = nowMsProvider()
+        // If the system clock adjusted backward (nowMs < lastPausedAtMs), pause
+        // duration coerces to 0L, triggering the short-rewind branch. This is
+        // intentional — a clock-skewed pause of unknown length is treated as brief.
         val pauseDurationMs = (nowMs - lastPausedAtMs).coerceAtLeast(0L)
 
         return when {
@@ -75,7 +81,7 @@ internal class ContextualResumeManager(
                         ).coerceIn(0L, currentPositionMs)
                 ResumeContext(
                     pauseDurationMs = pauseDurationMs,
-                    rewindMs = (currentPositionMs - sentenceBoundary).coerceAtLeast(0L),
+                    rewindMs = currentPositionMs - sentenceBoundary,
                     shouldShowRecap = false,
                     recapStartMs = 0L,
                 )

@@ -37,6 +37,9 @@ import java.util.concurrent.TimeoutException
 public class AudioPlayerServiceInitializer(
     private val service: AudioPlayerService,
 ) {
+    // Held reference so the sync can be cleaned up on service destruction.
+    // The coroutines run in playerServiceScope which is cancelled in onDestroy.
+    private var settingsSync: MediaSessionSettingsSync? = null
     @OptIn(UnstableApi::class)
     public fun initialize() {
         initializeCrossFadePlayer()
@@ -592,13 +595,14 @@ public class AudioPlayerServiceInitializer(
      */
     private fun initializeSettingsSync() {
         try {
-            val settingsSync =
+            val sync =
                 MediaSessionSettingsSync(
                     settingsRepository = service.settingsRepository,
                     service = service,
                     scope = service.playerServiceScope,
                 )
-            settingsSync.start()
+            sync.start()
+            settingsSync = sync
             android.util.Log.i("AudioPlayerService", "Settings sync initialized successfully")
         } catch (e: Exception) {
             android.util.Log.e("AudioPlayerService", "Failed to initialize settings sync", e)

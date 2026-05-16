@@ -189,7 +189,7 @@ public fun AudioSettingsScreen(
                     },
                     valueRange = 0.5f..2.0f,
                     steps = 14,
-                    valueFormatter = { String.format(java.util.Locale.US, "%.2fx", it) },
+                    valueFormatter = { String.format(Locale.getDefault(), "%.2fx", it) },
                     contentPadding = contentPadding,
                     itemSpacing = itemSpacing,
                     smallSpacing = smallSpacing,
@@ -408,16 +408,15 @@ private fun EqualizerFiveBandCard(
     modifier: Modifier = Modifier,
 ) {
     val bandLabels = listOf("63", "250", "1k", "4k", "8k")
+    // Expected band positions within preset.bandGainsMb for the five-band visualizer.
+    // These correspond to the low-end, low-mid, mid, high-mid, and high frequencies.
+    val equalizerBandIndices = listOf(1, 3, 5, 7, 8)
     val source = preset.bandGainsMb
     val effectivePreampDb = preset.effectivePreamp() / 100f
     val mapped =
-        listOf(
-            (source.getOrNull(1)?.div(100f) ?: 0f) + effectivePreampDb,
-            (source.getOrNull(3)?.div(100f) ?: 0f) + effectivePreampDb,
-            (source.getOrNull(5)?.div(100f) ?: 0f) + effectivePreampDb,
-            (source.getOrNull(7)?.div(100f) ?: 0f) + effectivePreampDb,
-            (source.getOrNull(8)?.div(100f) ?: 0f) + effectivePreampDb,
-        )
+        equalizerBandIndices.map { index ->
+            (source.getOrNull(index)?.div(100f) ?: 0f) + effectivePreampDb
+        }
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),

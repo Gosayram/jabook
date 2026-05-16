@@ -25,6 +25,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,6 +58,8 @@ import org.libtorrent4j.alerts.TorrentLogAlert
 import org.libtorrent4j.swig.error_code
 import org.libtorrent4j.swig.libtorrent
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -83,6 +86,9 @@ public class TorrentSessionManager
         public val downloadsFlow: StateFlow<Map<String, TorrentDownload>> = _downloadsFlow.asStateFlow()
 
         private val sessionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+        // Tracks pending SaveResumeDataAlerts so stopSession() can await them before shutting down.
+        private var pendingResumeDataLatch: CountDownLatch? = null
 
         private companion object {
             private const val LIBRARY_SYNC_AFTER_TORRENT_WORK = "library_scan_after_torrent_finish"
@@ -543,19 +549,31 @@ public class TorrentSessionManager
         public fun stopSession() {
             try {
                 // Request resume data for all active handles before stopping.
-                // The SaveResumeDataAlert will fire synchronously before session.stop() returns.
-                torrents.values.forEach { handle ->
-                    try {
-                        if (handle.isValid) {
+                // saveResumeData is async — alerts arrive via the alert queue, so we
+                // use a CountDownLatch to await all SaveResumeDataAlerts before stop().
+                val handles = torrents.values.filter { it.isValid }
+                if (handles.isNotEmpty()) {
+                    val latch = CountDownLatch(handles.size)
+                    pendingResumeDataLatch = latch
+                    handles.forEach { handle ->
+                        try {
                             handle.saveResumeData(TorrentHandle.SAVE_INFO_DICT)
+                        } catch (e: Exception) {
+                            latch.countDown()
+                            logger.w {
+                                "Could not request resume data for ${handle.infoHash().toHex()}: ${e.message}"
+                            }
                         }
-                    } catch (e: Exception) {
-                        logger.w { "Could not request resume data for ${handle.infoHash().toHex()}: ${e.message}" }
+                    }
+                    // Wait up to 5 seconds for all SaveResumeDataAlerts to arrive
+                    if (!latch.await(5, TimeUnit.SECONDS)) {
+                        logger.w { "Timeout waiting for save resume data alerts (${handles.size} handles)" }
                     }
                 }
                 torrents.clear()
                 session?.stop()
                 session = null
+                sessionScope.cancel()
                 logger.i { "Session stopped" }
             } catch (e: Exception) {
                 logger.e({ "Error stopping session" }, e)
@@ -622,6 +640,8 @@ public class TorrentSessionManager
                 }
             } catch (e: Exception) {
                 logger.e({ "Error handling SaveResumeDataAlert" }, e)
+            } finally {
+                pendingResumeDataLatch?.countDown()
             }
         }
 

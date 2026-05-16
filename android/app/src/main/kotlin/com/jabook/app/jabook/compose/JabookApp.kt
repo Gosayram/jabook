@@ -363,7 +363,7 @@ internal fun TopLevelDestinationIcon(
         BadgedBox(
             badge = {
                 Badge(modifier = Modifier.testTag(SETTINGS_BADGE_TEST_TAG)) {
-                    Text(activeDownloadsCount.toString())
+                    Text(if (activeDownloadsCount > 99) "99+" else activeDownloadsCount.toString())
                 }
             },
         ) {

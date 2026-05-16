@@ -413,10 +413,13 @@ tasks.withType<Test>().configureEach {
     systemProperty("kotlinx.coroutines.test.default_timeout", "30s")
 
     // Emit thread diagnostics when a test likely failed due to timeout/hang.
+    // Note: tests run in forked JVMs (forkEvery=120, maxParallelForks>0), so this
+    // dump captures the Gradle daemon's threads, not the test process. Useful as a
+    // coarse signal but not a substitute for jstack on the forked PID.
     val enableThreadDumpOnTimeout =
         providers
             .gradleProperty("test.threadDumpOnTimeout")
-            .map(String::toBooleanStrictOrNull)
+            .map { it.equals("true", ignoreCase = true) }
             .orElse(false)
             .get()
 

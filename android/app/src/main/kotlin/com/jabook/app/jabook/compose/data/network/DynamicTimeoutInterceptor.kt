@@ -20,6 +20,7 @@ import retrofit2.Invocation
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.min
 
 /**
  * OkHttp interceptor that reads @RequestTimeout annotations from Retrofit
@@ -44,10 +45,11 @@ public class DynamicTimeoutInterceptor
                     ?.getAnnotation(RequestTimeout::class.java)
 
             return if (timeout != null) {
+                // Clamp timeout values to Int.MAX_VALUE to prevent overflow
                 chain
-                    .withConnectTimeout(timeout.connectMs.toInt(), TimeUnit.MILLISECONDS)
-                    .withReadTimeout(timeout.readMs.toInt(), TimeUnit.MILLISECONDS)
-                    .withWriteTimeout(timeout.writeMs.toInt(), TimeUnit.MILLISECONDS)
+                    .withConnectTimeout(min(timeout.connectMs, Int.MAX_VALUE.toLong()).toInt(), TimeUnit.MILLISECONDS)
+                    .withReadTimeout(min(timeout.readMs, Int.MAX_VALUE.toLong()).toInt(), TimeUnit.MILLISECONDS)
+                    .withWriteTimeout(min(timeout.writeMs, Int.MAX_VALUE.toLong()).toInt(), TimeUnit.MILLISECONDS)
                     .proceed(chain.request())
             } else {
                 chain.proceed(chain.request())

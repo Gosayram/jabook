@@ -33,20 +33,26 @@ internal object SteeringWheelActionPolicy {
     fun resolveNextAction(
         currentChapterIndex: Int,
         totalChapters: Int,
-    ): NextAction =
-        if (totalChapters > 0 && currentChapterIndex < totalChapters - 1) {
+    ): NextAction {
+        require(currentChapterIndex >= 0) { "currentChapterIndex must be >= 0, got $currentChapterIndex" }
+        require(totalChapters >= 0) { "totalChapters must be >= 0, got $totalChapters" }
+        return if (totalChapters > 0 && currentChapterIndex < totalChapters - 1) {
             NextAction.NEXT_CHAPTER
         } else {
             NextAction.FORWARD_SECONDS
         }
+    }
 
     fun resolvePreviousAction(
         currentPositionMs: Long,
         restartThresholdMs: Long = DEFAULT_RESTART_THRESHOLD_MS,
-    ): PreviousAction =
-        if (currentPositionMs > restartThresholdMs) {
+    ): PreviousAction {
+        require(currentPositionMs >= 0L) { "currentPositionMs must be >= 0, got $currentPositionMs" }
+        require(restartThresholdMs >= 0L) { "restartThresholdMs must be >= 0, got $restartThresholdMs" }
+        return if (currentPositionMs > restartThresholdMs) {
             PreviousAction.RESTART_CHAPTER
         } else {
             PreviousAction.PREVIOUS_CHAPTER
         }
+    }
 }
