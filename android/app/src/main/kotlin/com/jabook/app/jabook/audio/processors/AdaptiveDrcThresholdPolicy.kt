@@ -31,7 +31,6 @@ import com.jabook.app.jabook.util.LogUtils
  * P-04: DynamicRangeCompressor — automatic threshold calibration by LUFS.
  */
 public object AdaptiveDrcThresholdPolicy {
-
     private const val TAG = "AdaptiveDrcPolicy"
 
     /** Target LUFS level for audiobook playback. */
@@ -52,23 +51,27 @@ public object AdaptiveDrcThresholdPolicy {
      *                       if no analysis is available.
      * @return Threshold in dB to apply for compression.
      */
-    public fun resolveThresholdDb(drcLevel: DRCLevel, measuredLufs: Float?): Float {
+    public fun resolveThresholdDb(
+        drcLevel: DRCLevel,
+        measuredLufs: Float?,
+    ): Float {
         if (measuredLufs == null || drcLevel == DRCLevel.Off) {
             return defaultThresholdDb(drcLevel)
         }
 
-        val adaptiveThreshold = when {
-            // Quiet recording: raise threshold above measured LUFS so
-            // the compressor doesn't crush the already-quiet content.
-            measuredLufs < QUIET_LUFS_THRESHOLD -> measuredLufs + 6.0f
+        val adaptiveThreshold =
+            when {
+                // Quiet recording: raise threshold above measured LUFS so
+                // the compressor doesn't crush the already-quiet content.
+                measuredLufs < QUIET_LUFS_THRESHOLD -> measuredLufs + 6.0f
 
-            // Loud recording: lower threshold slightly below the peak
-            // so the compressor catches peaks more aggressively.
-            measuredLufs > LOUD_LUFS_THRESHOLD -> measuredLufs - 3.0f
+                // Loud recording: lower threshold slightly below the peak
+                // so the compressor catches peaks more aggressively.
+                measuredLufs > LOUD_LUFS_THRESHOLD -> measuredLufs - 3.0f
 
-            // Normal recording: use default for the selected level.
-            else -> defaultThresholdDb(drcLevel)
-        }
+                // Normal recording: use default for the selected level.
+                else -> defaultThresholdDb(drcLevel)
+            }
 
         LogUtils.d(TAG) {
             "Adaptive threshold=$adaptiveThreshold dB " +
@@ -81,12 +84,13 @@ public object AdaptiveDrcThresholdPolicy {
     /**
      * Default thresholds per [DRCLevel], used when LUFS data is unavailable.
      */
-    public fun defaultThresholdDb(drcLevel: DRCLevel): Float = when (drcLevel) {
-        DRCLevel.Off -> 0.0f
-        DRCLevel.Gentle -> -32.0f
-        DRCLevel.Medium -> -24.0f
-        DRCLevel.Strong -> -18.0f
-    }
+    public fun defaultThresholdDb(drcLevel: DRCLevel): Float =
+        when (drcLevel) {
+            DRCLevel.Off -> 0.0f
+            DRCLevel.Gentle -> -32.0f
+            DRCLevel.Medium -> -24.0f
+            DRCLevel.Strong -> -18.0f
+        }
 
     /**
      * Resolves the target LUFS level. This is useful for the

@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.util.LogUtils
 import java.io.File
 
 /**
@@ -22,8 +23,12 @@ import java.io.File
  *
  * Inspired by lissen-android PlaybackNotificationService implementation.
  * This checks if the file exists locally or if it's a valid network URL.
+ *
+ * For proactive magic-bytes validation see [MediaSourceValidator].
  */
 public object TrackAvailabilityChecker {
+    private const val TAG = "TrackAvailabilityChecker"
+
     /**
      * Checks if a track at the given index is available.
      *
@@ -48,10 +53,7 @@ public object TrackAvailabilityChecker {
                 val file = File(uri.path ?: return false)
                 val exists = file.exists() && file.isFile && file.canRead()
                 if (!exists) {
-                    android.util.Log.w(
-                        "TrackAvailabilityChecker",
-                        "Track $index not available: file does not exist: ${uri.path}",
-                    )
+                    LogUtils.w(TAG, "Track $index not available: file does not exist: ${uri.path}")
                 }
                 exists
             }
@@ -60,10 +62,7 @@ public object TrackAvailabilityChecker {
                 true
             }
             else -> {
-                android.util.Log.w(
-                    "TrackAvailabilityChecker",
-                    "Track $index not available: unsupported URI scheme: ${uri.scheme}",
-                )
+                LogUtils.w(TAG, "Track $index not available: unsupported URI scheme: ${uri.scheme}")
                 false
             }
         }
@@ -91,7 +90,7 @@ public object TrackAvailabilityChecker {
         }
 
         if (maxIterations <= 0) {
-            android.util.Log.w("TrackAvailabilityChecker", "Max iterations reached while searching for available track")
+            LogUtils.w(TAG, "Max iterations reached while searching for available track")
             return null
         }
 

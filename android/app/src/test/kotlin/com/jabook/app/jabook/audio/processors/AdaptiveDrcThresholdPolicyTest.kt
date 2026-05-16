@@ -23,7 +23,6 @@ import org.junit.Test
  * P-04: Verifies adaptive DRC threshold calibration based on LUFS.
  */
 class AdaptiveDrcThresholdPolicyTest {
-
     // --- resolveThresholdDb: null LUFS → fallback to defaults ---
 
     @Test
