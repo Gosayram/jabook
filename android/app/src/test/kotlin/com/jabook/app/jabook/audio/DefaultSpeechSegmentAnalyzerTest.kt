@@ -43,4 +43,52 @@ class DefaultSpeechSegmentAnalyzerTest {
 
         assertEquals(0L, result)
     }
+
+    @Test
+    fun `findLastSentenceStart with zero position returns zero`() {
+        val result =
+            analyzer.findLastSentenceStart(
+                bookId = "book-zero-pos",
+                positionMs = 0L,
+                lookbackMs = 30_000L,
+            )
+
+        assertEquals(0L, result)
+    }
+
+    @Test
+    fun `findLastSentenceStart with both zero returns zero`() {
+        val result =
+            analyzer.findLastSentenceStart(
+                bookId = "book-both-zero",
+                positionMs = 0L,
+                lookbackMs = 0L,
+            )
+
+        assertEquals(0L, result)
+    }
+
+    @Test
+    fun `findLastSentenceStart with negative positionMs clamps to zero`() {
+        val result =
+            analyzer.findLastSentenceStart(
+                bookId = "book-neg-pos",
+                positionMs = -5_000L,
+                lookbackMs = 10_000L,
+            )
+
+        assertEquals(0L, result)
+    }
+
+    @Test
+    fun `findLastSentenceStart with very large position still computes correctly`() {
+        val result =
+            analyzer.findLastSentenceStart(
+                bookId = "book-large",
+                positionMs = 7_200_000L,
+                lookbackMs = 30_000L,
+            )
+
+        assertEquals(7_170_000L, result)
+    }
 }

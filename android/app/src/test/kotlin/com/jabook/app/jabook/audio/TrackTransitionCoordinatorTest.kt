@@ -14,122 +14,94 @@
 
 package com.jabook.app.jabook.audio
 
-import android.content.Context
-import androidx.media3.common.MediaItem
-import coil.util.TestImageLoader
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Before
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.RuntimeEnvironment
-import org.robolectric.annotation.Config
 
 /**
  * Unit tests for [TrackTransitionCoordinator].
  *
- * P-08: Tests cover art preloading to prevent UI flickering.
+ * Tests cover track transition deduplication, pending deferred completion,
+ * and edge cases (duplicate events within the dedup window, negative indices).
  */
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
 class TrackTransitionCoordinatorTest {
-    private lateinit var context: Context
-    private lateinit var trackTransitionCoordinator: TrackTransitionCoordinator
+    private var lastActualTrackIndex: Int = -1
 
-    @Before
-    fun setUp() {
-        context = RuntimeEnvironment.getApplication()
+    private fun createCoordinator(
+        isPlaylistLoading: (() -> Boolean)? = null,
+    ): TrackTransitionCoordinator =
+        TrackTransitionCoordinator(
+            isPlaylistLoading = isPlaylistLoading,
+            updateActualTrackIndex = { lastActualTrackIndex = it },
+        )
+
+    @Test
+    fun `handleTrackTransitionEvent updates track index`() {
+        val coordinator = createCoordinator()
+        coordinator.handleTrackTransitionEvent(3, "test")
+        assertEquals(3, lastActualTrackIndex)
     }
 
     @Test
-    fun `preloadNextCover enqueues request with correct parameters`() =
-        runTest {
-            val testLoader = TestImageLoader(context)
-            val mediaItem =
-                MediaItem
-                    .Builder()
-                    .setMediaId("test-track")
-                    .setUri("file:///test/track1.mp3")
-                    .setArtworkUri("https://example.com/cover.jpg")
-                    .build()
-
-            trackTransitionCoordinator =
-                TrackTransitionCoordinator(
-                    coilImageLoader = testLoader,
-                    context = context,
-                )
-
-            trackTransitionCoordinator.preloadNextCover(mediaItem)
-
-            // Verify that a request was enqueued
-            val request = testLoader.lastEnqueuedRequest
-            assertNotNull("Request should be enqueued", request)
-
-            // Verify parameters
-            assertEquals("https://example.com/cover.jpg", request.data.toString())
-            assertEquals(CachePolicy.ENABLED, request.memoryCachePolicy)
-            assertEquals(CachePolicy.ENABLED, request.diskCachePolicy)
-            assertEquals(512, request.size?.first)
-            assertEquals(512, request.size?.second)
-
-            trackTransitionCoordinator.release()
-        }
+    fun `handleTrackTransitionEvent skips negative indices`() {
+        val coordinator = createCoordinator()
+        coordinator.handleTrackTransitionEvent(-1, "test")
+        assertEquals(-1, lastActualTrackIndex)
+    }
 
     @Test
-    fun `preloadNextCover does nothing when artworkUri is null`() =
-        runTest {
-            val testLoader = TestImageLoader(context)
-            val mediaItem =
-                MediaItem
-                    .Builder()
-                    .setMediaId("test-track")
-                    .setUri("file:///test/track1.mp3")
-                    // No artworkUri
-                    .build()
-
-            trackTransitionCoordinator =
-                TrackTransitionCoordinator(
-                    coilImageLoader = testLoader,
-                    context = context,
-                )
-
-            trackTransitionCoordinator.preloadNextCover(mediaItem)
-
-            // Verify that no request was enqueued
-            assertNull("Request should not be enqueued", testLoader.lastEnqueuedRequest)
-
-            trackTransitionCoordinator.release()
-        }
+    fun `handleTrackTransitionEvent deduplicates rapid transitions`() {
+        val coordinator = createCoordinator()
+        coordinator.handleTrackTransitionEvent(2, "first")
+        coordinator.handleTrackTransitionEvent(2, "second")
+        assertEquals(2, lastActualTrackIndex)
+    }
 
     @Test
-    fun `preloadNextCover does nothing when dependencies are null`() =
-        runTest {
-            val testLoader = TestImageLoader(context)
-            val mediaItem =
-                MediaItem
-                    .Builder()
-                    .setMediaId("test-track")
-                    .setUri("file:///test/track1.mp3")
-                    .setArtworkUri("https://example.com/cover.jpg")
-                    .build()
+    fun `handleTrackTransitionEvent does not deduplicate different indices`() {
+        val coordinator = createCoordinator()
+        coordinator.handleTrackTransitionEvent(1, "first")
+        coordinator.handleTrackTransitionEvent(2, "second")
+        assertEquals(2, lastActualTrackIndex)
+    }
 
-            // Test with null coilImageLoader
-            trackTransitionCoordinator =
-                TrackTransitionCoordinator(
-                    coilImageLoader = null,
-                    context = context,
-                )
-            trackTransitionCoordinator.preloadNextCover(mediaItem)
+    @Test
+    fun `setPendingTrackSwitchDeferred completes on transition`() = runTest {
+        val coordinator = createCoordinator()
+        val deferred = CompletableDeferred<Int>()
+        coordinator.setPendingTrackSwitchDeferred(deferred)
 
-            // Test with null context
-            trackTransitionCoordinator =
-                TrackTransitionCoordinator(
-                    coilImageLoader = testLoader,
-                    context = null,
-                )
-            trackTransitionCoordinator.preloadNextCover(mediaItem)
+        coordinator.handleTrackTransitionEvent(5, "test")
+        assertEquals(5, deferred.await())
+    }
 
-            trackTransitionCoordinator.release()
-        }
+    @Test
+    fun `clearPendingTrackSwitchDeferred cancels deferred`() {
+        val coordinator = createCoordinator()
+        val deferred = CompletableDeferred<Int>()
+        coordinator.setPendingTrackSwitchDeferred(deferred)
+        coordinator.clearPendingTrackSwitchDeferred()
+        assertTrue(deferred.isCancelled)
+    }
+
+    @Test
+    fun `handleTrackTransitionEvent skips index update during loading at index 0`() {
+        var loading = true
+        val coordinator = createCoordinator(isPlaylistLoading = { loading })
+        coordinator.handleTrackTransitionEvent(0, "loading")
+        assertEquals(-1, lastActualTrackIndex)
+    }
+
+    @Test
+    fun `handleTrackTransitionEvent allows index update during loading at non-zero index`() {
+        var loading = true
+        val coordinator = createCoordinator(isPlaylistLoading = { loading })
+        coordinator.handleTrackTransitionEvent(1, "loading")
+        assertEquals(1, lastActualTrackIndex)
+    }
 }

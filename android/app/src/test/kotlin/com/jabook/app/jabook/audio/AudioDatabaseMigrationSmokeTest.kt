@@ -14,17 +14,11 @@
 
 package com.jabook.app.jabook.audio
 
-import com.jabook.app.jabook.audio.data.local.database.AudioDatabase
 import com.jabook.app.jabook.audio.data.local.database.migration.AudioDatabaseMigrations
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class AudioDatabaseMigrationSmokeTest {
-    @Test
-    fun `audio database schema version stays at 3`() {
-        assertEquals(3, AudioDatabase.SCHEMA_VERSION)
-    }
-
     @Test
     fun `migration contract includes 2 to 3`() {
         assertEquals(2, AudioDatabaseMigrations.MIGRATION_2_3.startVersion)

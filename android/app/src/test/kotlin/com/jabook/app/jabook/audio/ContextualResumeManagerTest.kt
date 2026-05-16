@@ -189,4 +189,59 @@ class ContextualResumeManagerTest {
         assertTrue(context.shouldShowRecap)
         assertEquals(0L, context.recapStartMs)
     }
+
+    @Test
+    fun `clock skew where nowMs is before lastPausedAtMs triggers short rewind`() {
+        val manager =
+            ContextualResumeManager(
+                speechAnalyzer = noopAnalyzer,
+                nowMsProvider = { nowMs - 60_000L }, // clock went backward
+            )
+
+        val context =
+            manager.buildResumeContext(
+                bookId = "book-skew",
+                currentPositionMs = 120_000L,
+                lastPausedAtMs = nowMs,
+            )
+
+        assertEquals(0L, context.pauseDurationMs)
+        assertFalse(context.shouldShowRecap)
+    }
+
+    @Test
+    fun `negative lastPausedAtMs with absolute value less than nowMs falls through`() {
+        val manager = ContextualResumeManager(speechAnalyzer = noopAnalyzer, nowMsProvider = { nowMs })
+
+        val context =
+            manager.buildResumeContext(
+                bookId = "book-neg-pause",
+                currentPositionMs = 60_000L,
+                lastPausedAtMs = -1L,
+            )
+
+        assertEquals(0L, context.pauseDurationMs)
+        assertEquals(0L, context.rewindMs)
+        assertFalse(context.shouldShowRecap)
+    }
+
+    @Test
+    fun `sentence boundary at currentPositionMs yields zero rewind in medium branch`() {
+        val manager =
+            ContextualResumeManager(
+                speechAnalyzer = SpeechSegmentAnalyzer { _, positionMs, _ -> positionMs },
+                nowMsProvider = { nowMs },
+            )
+        val lastPausedAtMs = nowMs - 3L * 60L * 60_000L
+
+        val context =
+            manager.buildResumeContext(
+                bookId = "book-zero-rewind",
+                currentPositionMs = 120_000L,
+                lastPausedAtMs = lastPausedAtMs,
+            )
+
+        assertEquals(0L, context.rewindMs)
+        assertFalse(context.shouldShowRecap)
+    }
 }

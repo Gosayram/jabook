@@ -40,6 +40,7 @@ public class AudioPlayerServiceInitializer(
     // Held reference so the sync can be cleaned up on service destruction.
     // The coroutines run in playerServiceScope which is cancelled in onDestroy.
     private var settingsSync: MediaSessionSettingsSync? = null
+
     @OptIn(UnstableApi::class)
     public fun initialize() {
         initializeCrossFadePlayer()

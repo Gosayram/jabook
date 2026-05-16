@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import com.jabook.app.jabook.audio.PlaylistLoadProgress.Phase
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

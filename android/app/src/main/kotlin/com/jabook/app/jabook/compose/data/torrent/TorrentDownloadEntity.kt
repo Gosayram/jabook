@@ -18,8 +18,6 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
-import java.util.Arrays
-import java.util.Objects
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 

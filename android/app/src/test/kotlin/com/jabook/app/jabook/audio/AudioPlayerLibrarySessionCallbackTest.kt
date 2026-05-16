@@ -502,8 +502,8 @@ class AudioPlayerLibrarySessionCallbackTest {
         val nextHandled = callback.onMediaButtonEvent(session, controller, nextIntent)
 
         assertTrue(nextHandled)
-        verify(service).next(InactivityCommandSource.HEADSET_BUTTON)
-        verify(service, never()).forward(any(), any())
+        verify(service).next()
+        verify(service, never()).forward(any())
     }
 
     @Test
@@ -533,8 +533,8 @@ class AudioPlayerLibrarySessionCallbackTest {
 
         assertTrue(nextHandled)
         assertTrue(previousHandled)
-        verify(service).forward(30, InactivityCommandSource.HEADSET_BUTTON)
-        verify(service).seekTo(0L, InactivityCommandSource.HEADSET_BUTTON)
+        verify(service).forward(30)
+        verify(service).seekTo(0L)
     }
 
     @Test
@@ -553,7 +553,7 @@ class AudioPlayerLibrarySessionCallbackTest {
         val previousHandled = callback.onMediaButtonEvent(session, controller, previousIntent)
 
         assertTrue(previousHandled)
-        verify(service).previous(InactivityCommandSource.HEADSET_BUTTON)
+        verify(service).previous()
     }
 
     @Test
@@ -587,10 +587,10 @@ class AudioPlayerLibrarySessionCallbackTest {
         doubleClickCaptor.firstValue.invoke()
         tripleClickCaptor.firstValue.invoke()
 
-        verify(service).play(InactivityCommandSource.HEADSET_BUTTON)
-        verify(service).pause(InactivityCommandSource.HEADSET_BUTTON)
-        verify(service).next(InactivityCommandSource.HEADSET_BUTTON)
-        verify(service).previous(InactivityCommandSource.HEADSET_BUTTON)
+        verify(service).play()
+        verify(service).pause()
+        verify(service).next()
+        verify(service).previous()
     }
 
     @Test

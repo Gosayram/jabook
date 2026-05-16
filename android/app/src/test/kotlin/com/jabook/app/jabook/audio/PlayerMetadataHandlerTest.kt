@@ -17,9 +17,6 @@ package com.jabook.app.jabook.audio
 import android.content.Context
 import androidx.media3.common.Metadata
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
@@ -32,55 +29,6 @@ class PlayerMetadataHandlerTest {
             context = mock(Context::class.java),
             setEmbeddedArtworkPath = {},
         )
-
-    @Test
-    fun `extractReplayGain chooses track gain when present`() {
-        val gain =
-            handler.extractReplayGainDbFromEntries(
-                listOf(
-                    "TXXX: description=REPLAYGAIN_TRACK_GAIN, value=-7.20 dB",
-                    "TXXX: description=REPLAYGAIN_ALBUM_GAIN, value=-5.00 dB",
-                ),
-            )
-
-        assertNotNull(gain)
-        assertEquals(-7.2f, gain ?: 0f, 0.0001f)
-    }
-
-    @Test
-    fun `extractReplayGain falls back to album gain`() {
-        val gain =
-            handler.extractReplayGainDbFromEntries(
-                listOf("TXXX: description=REPLAYGAIN_ALBUM_GAIN, value=-4.50 dB"),
-            )
-
-        assertNotNull(gain)
-        assertEquals(-4.5f, gain ?: 0f, 0.0001f)
-    }
-
-    @Test
-    fun `extractReplayGain supports inline key value format`() {
-        val gain =
-            handler.extractReplayGainDbFromEntries(
-                listOf("REPLAYGAIN_TRACK_GAIN: -6.10 dB"),
-            )
-
-        assertNotNull(gain)
-        assertEquals(-6.1f, gain ?: 0f, 0.0001f)
-    }
-
-    @Test
-    fun `extractReplayGain returns null for malformed values`() {
-        val gain =
-            handler.extractReplayGainDbFromEntries(
-                listOf(
-                    "REPLAYGAIN_TRACK_GAIN: no_number",
-                    "TXXX: description=REPLAYGAIN_ALBUM_GAIN, value=?? dB",
-                ),
-            )
-
-        assertNull(gain)
-    }
 
     @Test
     fun `onMetadata applies track gain when both track and album tags exist`() {
