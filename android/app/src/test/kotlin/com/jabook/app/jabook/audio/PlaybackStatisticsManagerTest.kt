@@ -24,7 +24,6 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class PlaybackStatisticsManagerTest {
-
     @Test
     fun testPlaybackStatistics_tracksListeningTime() {
         val context = FakeContext()

@@ -17,8 +17,6 @@ package com.jabook.app.jabook.audio
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
-import com.google.common.util.concurrent.MoreExecutors
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -43,7 +41,6 @@ import java.util.concurrent.TimeUnit
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class CrossFadePlayerTest {
-
     private lateinit var context: Context
     private lateinit var audioAttributes: AudioAttributes
     private lateinit var crossFadePlayer: CrossFadePlayer
@@ -52,126 +49,135 @@ class CrossFadePlayerTest {
     fun setUp() {
         ShadowLog.stream = System.out
         context = RuntimeEnvironment.getApplication()
-        audioAttributes = AudioAttributes.Builder()
-            .setUsage(C.USAGE_MEDIA)
-            .setContentType(C.CONTENT_TYPE_MUSIC)
-            .build()
+        audioAttributes =
+            AudioAttributes
+                .Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.CONTENT_TYPE_MUSIC)
+                .build()
     }
 
     @Test
-    fun `two players are created with correct AudioFocus settings`() = runTest {
-        crossFadePlayer = CrossFadePlayer(context, audioAttributes)
+    fun `two players are created with correct AudioFocus settings`() =
+        runTest {
+            crossFadePlayer = CrossFadePlayer(context, audioAttributes)
 
-        val playerA = getFieldValue(crossFadePlayer, "playerA") as ExoPlayer
-        val playerB = getFieldValue(crossFadePlayer, "playerB") as ExoPlayer
+            val playerA = getFieldValue(crossFadePlayer, "playerA") as ExoPlayer
+            val playerB = getFieldValue(crossFadePlayer, "playerB") as ExoPlayer
 
-        // PlayerA should have handleAudioFocus=true
-        val playerAAttrs = playerA.audioAttributes
-        assertTrue(playerAAttrs.handleAudioFocus)
+            // PlayerA should have handleAudioFocus=true
+            val playerAAttrs = playerA.audioAttributes
+            assertTrue(playerAAttrs.handleAudioFocus)
 
-        // PlayerB should have handleAudioFocus=false
-        val playerBAttrs = playerB.audioAttributes
-        assertFalse(playerBAttrs.handleAudioFocus)
+            // PlayerB should have handleAudioFocus=false
+            val playerBAttrs = playerB.audioAttributes
+            assertFalse(playerBAttrs.handleAudioFocus)
 
-        crossFadePlayer.release()
-    }
-
-    @Test
-    fun `crossfade animates volume from 0 to 1 over duration`() = runTest {
-        crossFadePlayer = CrossFadePlayer(context, audioAttributes)
-
-        val playerA = getFieldValue(crossFadePlayer, "playerA") as ExoPlayer
-        val playerB = getFieldValue(crossFadePlayer, "playerB") as ExoPlayer
-
-        // Prepare playerA with a media item
-        playerA.setMediaItem(createMediaItem("Track A"))
-        playerA.prepare()
-        playerA.volume = 1f
-        playerA.playWhenReady = true
-
-        // Create a media item for playerB
-        val nextItem = createMediaItem("Track B")
-
-        val latch = CountDownLatch(1)
-        crossFadePlayer.startCrossFade(
-            nextMediaItem = nextItem,
-            durationMs = 100,
-            crossfadeCallback = object : CrossfadeCallback {
-                override fun onCrossfadeComplete() {
-                    latch.countDown()
-                }
-            },
-        )
-
-        // Wait for crossfade to complete
-        assertTrue(latch.await(2, TimeUnit.SECONDS))
-
-        // Check volumes: playerA should be low, playerB should be high
-        val volumeA = playerA.volume
-        val volumeB = playerB.volume
-
-        LogUtils.d("Test", "Final volumes - A: $volumeA, B: $volumeB")
-
-        // Due to easing, volumes should be at extremes
-        assertTrue("PlayerA volume should be near 0", volumeA < 0.1f)
-        assertTrue("PlayerB volume should be near 1", volumeB > 0.9f)
-
-        crossFadePlayer.release()
-    }
+            crossFadePlayer.release()
+        }
 
     @Test
-    fun `stopCrossFade stops playerB and resets volume`() = runTest {
-        crossFadePlayer = CrossFadePlayer(context, audioAttributes)
+    fun `crossfade animates volume from 0 to 1 over duration`() =
+        runTest {
+            crossFadePlayer = CrossFadePlayer(context, audioAttributes)
 
-        val playerB = getFieldValue(crossFadePlayer, "playerB") as ExoPlayer
+            val playerA = getFieldValue(crossFadePlayer, "playerA") as ExoPlayer
+            val playerB = getFieldValue(crossFadePlayer, "playerB") as ExoPlayer
 
-        // Start crossfade
-        crossFadePlayer.startCrossFade(
-            nextMediaItem = createMediaItem("Track B"),
-            durationMs = 1000,
-        )
+            // Prepare playerA with a media item
+            playerA.setMediaItem(createMediaItem("Track A"))
+            playerA.prepare()
+            playerA.volume = 1f
+            playerA.playWhenReady = true
 
-        // Stop immediately
-        crossFadePlayer.stopCrossFade()
+            // Create a media item for playerB
+            val nextItem = createMediaItem("Track B")
 
-        // PlayerB should be stopped and volume reset
-        assertFalse(playerB.isPlaying)
-        assertEquals(0f, playerB.volume, 0.01f)
+            val latch = CountDownLatch(1)
+            crossFadePlayer.startCrossFade(
+                nextMediaItem = nextItem,
+                durationMs = 100,
+                crossfadeCallback =
+                    object : CrossfadeCallback {
+                        override fun onCrossfadeComplete() {
+                            latch.countDown()
+                        }
+                    },
+            )
 
-        crossFadePlayer.release()
-    }
+            // Wait for crossfade to complete
+            assertTrue(latch.await(2, TimeUnit.SECONDS))
+
+            // Check volumes: playerA should be low, playerB should be high
+            val volumeA = playerA.volume
+            val volumeB = playerB.volume
+
+            LogUtils.d("Test", "Final volumes - A: $volumeA, B: $volumeB")
+
+            // Due to easing, volumes should be at extremes
+            assertTrue("PlayerA volume should be near 0", volumeA < 0.1f)
+            assertTrue("PlayerB volume should be near 1", volumeB > 0.9f)
+
+            crossFadePlayer.release()
+        }
 
     @Test
-    fun `release cleans up both players`() = runTest {
-        crossFadePlayer = CrossFadePlayer(context, audioAttributes)
+    fun `stopCrossFade stops playerB and resets volume`() =
+        runTest {
+            crossFadePlayer = CrossFadePlayer(context, audioAttributes)
 
-        val playerA = getFieldValue(crossFadePlayer, "playerA") as ExoPlayer
-        val playerB = getFieldValue(crossFadePlayer, "playerB") as ExoPlayer
+            val playerB = getFieldValue(crossFadePlayer, "playerB") as ExoPlayer
 
-        crossFadePlayer.release()
+            // Start crossfade
+            crossFadePlayer.startCrossFade(
+                nextMediaItem = createMediaItem("Track B"),
+                durationMs = 1000,
+            )
 
-        // Players should be released
-        assertTrue(playerA.isPlaying) // Actually released players return false for isPlaying
-        assertTrue(playerB.isPlaying)
-    }
+            // Stop immediately
+            crossFadePlayer.stopCrossFade()
+
+            // PlayerB should be stopped and volume reset
+            assertFalse(playerB.isPlaying)
+            assertEquals(0f, playerB.volume, 0.01f)
+
+            crossFadePlayer.release()
+        }
+
+    @Test
+    fun `release cleans up both players`() =
+        runTest {
+            crossFadePlayer = CrossFadePlayer(context, audioAttributes)
+
+            val playerA = getFieldValue(crossFadePlayer, "playerA") as ExoPlayer
+            val playerB = getFieldValue(crossFadePlayer, "playerB") as ExoPlayer
+
+            crossFadePlayer.release()
+
+            // Players should be released
+            assertTrue(playerA.isPlaying) // Actually released players return false for isPlaying
+            assertTrue(playerB.isPlaying)
+        }
 
     // Helper to create a simple MediaItem
-    private fun createMediaItem(mediaId: String): MediaItem {
-        return MediaItem.Builder()
+    private fun createMediaItem(mediaId: String): MediaItem =
+        MediaItem
+            .Builder()
             .setMediaId(mediaId)
             .setUri("file:///test/path/$mediaId.mp3")
             .build()
-    }
 
     // Helper to access private fields via reflection
     @Suppress("unchecked_cast")
-    private fun <T> getFieldValue(instance: Any, fieldName: String): T? {
-        return try {
+    private fun <T> getFieldValue(
+        instance: Any,
+        fieldName: String,
+    ): T? =
+        try {
             val field = instance::class.java.getDeclaredField(fieldName)
             field.isAccessible = true
             field.get(instance) as T?
         } catch (e: Exception) {
             null
         }
-    }
 }

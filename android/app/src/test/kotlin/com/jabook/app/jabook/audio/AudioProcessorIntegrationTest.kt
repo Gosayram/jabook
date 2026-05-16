@@ -14,14 +14,12 @@
 
 package com.jabook.app.jabook.audio
 
-import androidx.media3.common.util.UnstableApi
 import com.google.common.truth.Truth.assertThat
 import com.jabook.app.jabook.audio.processors.AudioProcessorChainManager
 import com.jabook.app.jabook.audio.processors.ProxyAudioProcessor
-import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.OptIn
 import kotlinx.coroutines.test.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.OptIn
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,287 +38,92 @@ class AudioProcessorIntegrationTest {
     }
 
     @Test
-    public fun proxies_returnsStableListOfProxies() = runBlocking {
-        val proxies1 = manager.proxies()
-        val proxies2 = manager.proxies()
+    public fun proxies_returnsStableListOfProxies() =
+        runBlocking {
+            val proxies1 = manager.proxies()
+            val proxies2 = manager.proxies()
 
-        assertThat(proxies1).isSameInstanceAs(proxies2)
-        assertThat(proxies1).hasSize(9)
-    }
-
-    @Test
-    public fun applySettings_normalizationEnabled_setsLoudnessNormalizer() = runBlocking {
-        val settings = AudioProcessingSettings(normalizeVolume = true)
-        manager.applySettings(settings)
-
-        val loudnessProxy = manager.loudnessProxy()
-        assertThat(loudnessProxy.delegate).isInstanceOf(LoudnessNormalizer::class.java)
-    }
+            assertThat(proxies1).isSameInstanceAs(proxies2)
+            assertThat(proxies1).hasSize(9)
+        }
 
     @Test
-    public fun applySettings_normalizationDisabled_usesPassthrough() = runBlocking {
-        val settings = AudioProcessingSettings(normalizeVolume = false)
-        manager.applySettings(settings)
+    public fun applySettings_normalizationEnabled_setsLoudnessNormalizer() =
+        runBlocking {
+            val settings = AudioProcessingSettings(normalizeVolume = true)
+            manager.applySettings(settings)
 
-        val loudnessProxy = manager.loudnessProxy()
-        assertThat(loudnessProxy.delegate).isInstanceOf(ProxyAudioProcessor.PassthroughAudioProcessor::class.java)
-    }
-
-    @Test
-    public fun applySettings_volumeBoostLevel_setsVolumeBoostProcessor() = runBlocking {
-        val settings = AudioProcessingSettings(volumeBoostLevel = VolumeBoostLevel.High)
-        manager.applySettings(settings)
-
-        val boostProxy = manager.boostProxy()
-        assertThat(boostProxy.delegate).isInstanceOf(VolumeBoostProcessor::class.java)
-    }
+            val loudnessProxy = manager.loudnessProxy()
+            assertThat(loudnessProxy.delegate).isInstanceOf(LoudnessNormalizer::class.java)
+        }
 
     @Test
-    public fun applySettings_drcLevel_setsDynamicRangeCompressor() = runBlocking {
-        val settings = AudioProcessingSettings(drcLevel = DRCLevel.High)
-        manager.applySettings(settings)
+    public fun applySettings_normalizationDisabled_usesPassthrough() =
+        runBlocking {
+            val settings = AudioProcessingSettings(normalizeVolume = false)
+            manager.applySettings(settings)
 
-        val drcProxy = manager.drcProxy()
-        assertThat(drcProxy.delegate).isInstanceOf(DynamicRangeCompressor::class.java)
-    }
-
-    @Test
-    public fun applySettings_speechEnhancer_setsSpeechEnhancer() = runBlocking {
-        val settings = AudioProcessingSettings(speechEnhancer = true)
-        manager.applySettings(settings)
-
-        val speechProxy = manager.speechProxy()
-        assertThat(speechProxy.delegate).isInstanceOf(SpeechEnhancer::class.java)
-    }
+            val loudnessProxy = manager.loudnessProxy()
+            assertThat(loudnessProxy.delegate).isInstanceOf(ProxyAudioProcessor.PassthroughAudioProcessor::class.java)
+        }
 
     @Test
-    public fun applySettings_autoVolumeLeveling_setsAutoVolumeLeveler() = runBlocking {
-        val settings = AudioProcessingSettings(autoVolumeLeveling = true)
-        manager.applySettings(settings)
+    public fun applySettings_volumeBoostLevel_setsVolumeBoostProcessor() =
+        runBlocking {
+            val settings = AudioProcessingSettings(volumeBoostLevel = VolumeBoostLevel.High)
+            manager.applySettings(settings)
 
-        val levelerProxy = manager.levelerProxy()
-        assertThat(levelerProxy.delegate).isInstanceOf(AutoVolumeLeveler::class.java)
-    }
-
-    @Test
-    public fun applySettings_skipSilence_setsSkipSilenceProcessor() = runBlocking {
-        val settings = AudioProcessingSettings(skipSilence = true)
-        manager.applySettings(settings)
-
-        val skipSilenceProxy = manager.skipSilenceProxy()
-        assertThat(skipSilenceProxy.delegate).isInstanceOf(SkipSilenceAudioProcessor::class.java)
-    }
+            val boostProxy = manager.boostProxy()
+            assertThat(boostProxy.delegate).isInstanceOf(VolumeBoostProcessor::class.java)
+        }
 
     @Test
-    public fun applySettings_echoEnabled_setsEchoProcessor() = runBlocking {
-        val settings = AudioProcessingSettings(echoEnabled = true)
-        manager.applySettings(settings)
+    public fun applySettings_drcLevel_setsDynamicRangeCompressor() =
+        runBlocking {
+            val settings = AudioProcessingSettings(drcLevel = DRCLevel.High)
+            manager.applySettings(settings)
 
-        val echoProxy = manager.echoProxy()
-        assertThat(echoProxy.delegate).isInstanceOf(EchoAudioProcessor::class.java)
-    }
-}
-
-    @Test
-    public fun proxies_returnsStableListOfProxies() = runBlocking {
-        val proxies1 = manager.proxies()
-        val proxies2 = manager.proxies()
-
-        assertThat(proxies1).isSameInstanceAs(proxies2)
-        assertThat(proxies1).hasSize(9)
-    }
+            val drcProxy = manager.drcProxy()
+            assertThat(drcProxy.delegate).isInstanceOf(DynamicRangeCompressor::class.java)
+        }
 
     @Test
-    public fun applySettings_normalizationEnabled_setsLoudnessNormalizer() = runBlocking {
-        val settings = AudioProcessingSettings(normalizeVolume = true)
-        manager.applySettings(settings)
+    public fun applySettings_speechEnhancer_setsSpeechEnhancer() =
+        runBlocking {
+            val settings = AudioProcessingSettings(speechEnhancer = true)
+            manager.applySettings(settings)
 
-        val loudnessProxy = manager.loudnessProxy()
-        assertThat(loudnessProxy.delegate).isInstanceOf(LoudnessNormalizer::class.java)
-    }
-
-    @Test
-    public fun applySettings_normalizationDisabled_usesPassthrough() = runBlocking {
-        val settings = AudioProcessingSettings(normalizeVolume = false)
-        manager.applySettings(settings)
-
-        val loudnessProxy = manager.loudnessProxy()
-        assertThat(loudnessProxy.delegate).isInstanceOf(ProxyAudioProcessor.PassthroughAudioProcessor::class.java)
-    }
+            val speechProxy = manager.speechProxy()
+            assertThat(speechProxy.delegate).isInstanceOf(SpeechEnhancer::class.java)
+        }
 
     @Test
-    public fun applySettings_volumeBoostLevel_setsVolumeBoostProcessor() = runBlocking {
-        val settings = AudioProcessingSettings(volumeBoostLevel = VolumeBoostLevel.High)
-        manager.applySettings(settings)
+    public fun applySettings_autoVolumeLeveling_setsAutoVolumeLeveler() =
+        runBlocking {
+            val settings = AudioProcessingSettings(autoVolumeLeveling = true)
+            manager.applySettings(settings)
 
-        val boostProxy = manager.boostProxy()
-        assertThat(boostProxy.delegate).isInstanceOf(VolumeBoostProcessor::class.java)
-    }
-
-    @Test
-    public fun applySettings_drcLevel_setsDynamicRangeCompressor() = runBlocking {
-        val settings = AudioProcessingSettings(drcLevel = DRCLevel.High)
-        manager.applySettings(settings)
-
-        val drcProxy = manager.drcProxy()
-        assertThat(drcProxy.delegate).isInstanceOf(DynamicRangeCompressor::class.java)
-    }
+            val levelerProxy = manager.levelerProxy()
+            assertThat(levelerProxy.delegate).isInstanceOf(AutoVolumeLeveler::class.java)
+        }
 
     @Test
-    public fun applySettings_speechEnhancer_setsSpeechEnhancer() = runBlocking {
-        val settings = AudioProcessingSettings(speechEnhancer = true)
-        manager.applySettings(settings)
+    public fun applySettings_skipSilence_setsSkipSilenceProcessor() =
+        runBlocking {
+            val settings = AudioProcessingSettings(skipSilence = true)
+            manager.applySettings(settings)
 
-        val speechProxy = manager.speechProxy()
-        assertThat(speechProxy.delegate).isInstanceOf(SpeechEnhancer::class.java)
-    }
-
-    @Test
-    public fun applySettings_autoVolumeLeveling_setsAutoVolumeLeveler() = runBlocking {
-        val settings = AudioProcessingSettings(autoVolumeLeveling = true)
-        manager.applySettings(settings)
-
-        val levelerProxy = manager.levelerProxy()
-        assertThat(levelerProxy.delegate).isInstanceOf(AutoVolumeLeveler::class.java)
-    }
+            val skipSilenceProxy = manager.skipSilenceProxy()
+            assertThat(skipSilenceProxy.delegate).isInstanceOf(SkipSilenceAudioProcessor::class.java)
+        }
 
     @Test
-    public fun applySettings_skipSilence_setsSkipSilenceProcessor() = runBlocking {
-        val settings = AudioProcessingSettings(skipSilence = true)
-        manager.applySettings(settings)
+    public fun applySettings_echoEnabled_setsEchoProcessor() =
+        runBlocking {
+            val settings = AudioProcessingSettings(echoEnabled = true)
+            manager.applySettings(settings)
 
-        val skipSilenceProxy = manager.skipSilenceProxy()
-        assertThat(skipSilenceProxy.delegate).isInstanceOf(SkipSilenceAudioProcessor::class.java)
-    }
-
-    @Test
-    public fun applySettings_echoEnabled_setsEchoProcessor() = runBlocking {
-        val settings = AudioProcessingSettings(echoEnabled = true)
-        manager.applySettings(settings)
-
-        val echoProxy = manager.echoProxy()
-        assertThat(echoProxy.delegate).isInstanceOf(EchoAudioProcessor::class.java)
-    }
-}
-
-    @Test
-    public fun proxies_returnsStableListOfProxies() = runBlocking {
-        val proxies1 = manager.proxies()
-        val proxies2 = manager.proxies()
-
-        assertThat(proxies1).isSameInstanceAs(proxies2)
-        assertThat(proxies1).hasSize(9)
-    }
-
-    @Test
-    public fun applySettings_normalizationEnabled_setsLoudnessNormalizer() = runBlocking {
-        val settings = AudioProcessingSettings(normalizeVolume = true)
-        manager.applySettings(settings)
-
-        val loudnessProxy = manager.loudnessProxy()
-        assertThat(loudnessProxy.delegate).isInstanceOf(LoudnessNormalizer::class.java)
-    }
-
-    @Test
-    public fun applySettings_normalizationDisabled_usesPassthrough() = runBlocking {
-        val settings = AudioProcessingSettings(normalizeVolume = false)
-        manager.applySettings(settings)
-
-        val loudnessProxy = manager.loudnessProxy()
-        assertThat(loudnessProxy.delegate).isInstanceOf(ProxyAudioProcessor.PassthroughAudioProcessor::class.java)
-    }
-
-    @Test
-    public fun applySettings_volumeBoostLevel_setsVolumeBoostProcessor() = runBlocking {
-        val settings = AudioProcessingSettings(volumeBoostLevel = VolumeBoostLevel.High)
-        manager.applySettings(settings)
-
-        val boostProxy = manager.boostProxy()
-        assertThat(boostProxy.delegate).isInstanceOf(VolumeBoostProcessor::class.java)
-    }
-
-    @Test
-    public fun applySettings_drcLevel_setsDynamicRangeCompressor() = runBlocking {
-        val settings = AudioProcessingSettings(drcLevel = DRCLevel.High)
-        manager.applySettings(settings)
-
-        val drcProxy = manager.drcProxy()
-        assertThat(drcProxy.delegate).isInstanceOf(DynamicRangeCompressor::class.java)
-    }
-
-    @Test
-    public fun applySettings_speechEnhancer_setsSpeechEnhancer() = runBlocking {
-        val settings = AudioProcessingSettings(speechEnhancer = true)
-        manager.applySettings(settings)
-
-        val speechProxy = manager.speechProxy()
-        assertThat(speechProxy.delegate).isInstanceOf(SpeechEnhancer::class.java)
-    }
-
-    @Test
-    public fun applySettings_autoVolumeLeveling_setsAutoVolumeLeveler() = runBlocking {
-        val settings = AudioProcessingSettings(autoVolumeLeveling = true)
-        manager.applySettings(settings)
-
-        val levelerProxy = manager.levelerProxy()
-        assertThat(levelerProxy.delegate).isInstanceOf(AutoVolumeLeveler::class.java)
-    }
-
-    @Test
-    public fun applySettings_skipSilence_setsSkipSilenceProcessor() = runBlocking {
-        val settings = AudioProcessingSettings(skipSilence = true)
-        manager.applySettings(settings)
-
-        val skipSilenceProxy = manager.skipSilenceProxy()
-        assertThat(skipSilenceProxy.delegate).isInstanceOf(SkipSilenceAudioProcessor::class.java)
-    }
-
-    @Test
-    public fun applySettings_echoEnabled_setsEchoProcessor() = runBlocking {
-        val settings = AudioProcessingSettings(echoEnabled = true)
-        manager.applySettings(settings)
-
-        val echoProxy = manager.echoProxy()
-        assertThat(echoProxy.delegate).isInstanceOf(EchoAudioProcessor::class.java)
-    }
-}
-
-    @Test
-    fun testErrorHandler_retries() = runBlockingTest {
-        val player = FakeExoPlayer()
-        val handler = ErrorHandler(player)
-        // Simulate error and verify retry logic
-    }
-
-    @Test
-    fun testNetworkFallbackManager_detectsPoorNetwork() = runBlockingTest {
-        // Test network quality detection
-    }
-
-    @Test
-    fun testPlaybackStatistics_tracksListeningTime() = runBlockingTest {
-        val manager = PlaybackStatisticsManager(context = FakeContext())
-        manager.addListeningTime(1000)
-        assertThat(manager.totalListeningTimeMs).isEqualTo(1000)
-    }
-
-    @Test
-    fun testSearchTracks_findsMatches() = runBlockingTest {
-        // Test search functionality
-    }
-
-    @Test
-    fun testFilterTracks_filtersCorrectly() = runBlockingTest {
-        // Test filter functionality
-    }
-
-    @Test
-    fun testGroupByArtist_groupsCorrectly() = runBlockingTest {
-        // Test grouping by artist
-    }
-
-    @Test
-    fun testSortByGenre_sortsCorrectly() = runBlockingTest {
-        // Test sorting by genre
-    }
+            val echoProxy = manager.echoProxy()
+            assertThat(echoProxy.delegate).isInstanceOf(EchoAudioProcessor::class.java)
+        }
 }

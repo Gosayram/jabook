@@ -20,9 +20,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.kotlin.doReturn
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 /**
  * Tests for ReverbAudioProcessor.
@@ -30,18 +27,22 @@ import org.mockito.kotlin.whenever
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReverbAudioProcessorTest {
+    @Test
+    fun testReverbProcessor_initialization() =
+        runBlockingTest {
+            val processor = ReverbAudioProcessor(strength = 0.5f)
+            assertThat(processor).isNotNull()
+        }
 
     @Test
-    fun testReverbProcessor_initialization() = runBlockingTest {
-        val processor = ReverbAudioProcessor(strength = 0.5f)
-        assertThat(processor).isNotNull()
-    }
-
-    @Test
-    fun testReverbProcessor_configures() = runBlockingTest {
-        val processor = ReverbAudioProcessor(strength = 0.5f)
-        val format = androidx.media3.common.MediaItem.fromUri(android.net.Uri.parse("https://example.com/test.mp3")).playbackProperties
-        val outputFormat = processor.configure(format, format)
-        assertThat(outputFormat).isNotNull()
-    }
+    fun testReverbProcessor_configures() =
+        runBlockingTest {
+            val processor = ReverbAudioProcessor(strength = 0.5f)
+            val format =
+                androidx.media3.common.MediaItem
+                    .fromUri(android.net.Uri.parse("https://example.com/test.mp3"))
+                    .playbackProperties
+            val outputFormat = processor.configure(format, format)
+            assertThat(outputFormat).isNotNull()
+        }
 }

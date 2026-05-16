@@ -14,18 +14,13 @@
 
 package com.jabook.app.jabook.audio
 
-import androidx.test.core.app.ApplicationProvider
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
  * Unit tests for [PlaylistLoadProgress].
  */
 class PlaylistLoadProgressTest {
-
     @Test
     fun `fraction is calculated correctly`() {
         val progress = PlaylistLoadProgress(loaded = 3, total = 10, phase = Phase.LOADING_BACKGROUND)

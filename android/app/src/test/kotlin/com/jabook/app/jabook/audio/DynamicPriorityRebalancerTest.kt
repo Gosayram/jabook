@@ -14,50 +14,49 @@
 
 package com.jabook.app.jabook.audio
 
-import androidx.test.core.app.ApplicationProvider
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 /**
  * Unit tests for [DynamicPriorityRebalancer].
  */
 class DynamicPriorityRebalancerTest {
+    @Test
+    fun `onChapterJump triggers rebalance for large delta`() =
+        runTest {
+            val playlistManager =
+                mock<PlaylistManager> {
+                    on { currentFilePaths } doReturn (1..100).map { "file$it.mp3" }
+                }
+            val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob())
+            val rebalancer = DynamicPriorityRebalancer(playlistManager, scope)
+
+            rebalancer.onChapterJump(10) // delta = 10
+
+            // Rebalance should be triggered
+            // In a real test, we'd verify that rebalancePrioritiesAround was called
+            // This is a basic structural test
+            assertTrue(true) // Placeholder - would need more mocking to verify
+        }
 
     @Test
-    fun `onChapterJump triggers rebalance for large delta`() = runTest {
-        val playlistManager = mock<PlaylistManager> {
-            on { currentFilePaths } doReturn (1..100).map { "file$it.mp3" }
+    fun `onChapterJump ignores small delta`() =
+        runTest {
+            val playlistManager =
+                mock<PlaylistManager> {
+                    on { currentFilePaths } doReturn (1..100).map { "file$it.mp3" }
+                }
+            val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob())
+            val rebalancer = DynamicPriorityRebalancer(playlistManager, scope)
+
+            rebalancer.onChapterJump(2) // delta = 2 (<5)
+
+            // Should not trigger rebalance
+            // Rebalance job should be null
+            // This test would need proper mocking to verify
+            assertTrue(true) // Placeholder
         }
-        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob())
-        val rebalancer = DynamicPriorityRebalancer(playlistManager, scope)
-
-        rebalancer.onChapterJump(10)  // delta = 10
-
-        // Rebalance should be triggered
-        // In a real test, we'd verify that rebalancePrioritiesAround was called
-        // This is a basic structural test
-        assertTrue(true) // Placeholder - would need more mocking to verify
-    }
-
-    @Test
-    fun `onChapterJump ignores small delta`() = runTest {
-        val playlistManager = mock<PlaylistManager> {
-            on { currentFilePaths } doReturn (1..100).map { "file$it.mp3" }
-        }
-        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob())
-        val rebalancer = DynamicPriorityRebalancer(playlistManager, scope)
-
-        rebalancer.onChapterJump(2)  // delta = 2 (<5)
-
-        // Should not trigger rebalance
-        // Rebalance job should be null
-        // This test would need proper mocking to verify
-        assertTrue(true) // Placeholder
-    }
 }

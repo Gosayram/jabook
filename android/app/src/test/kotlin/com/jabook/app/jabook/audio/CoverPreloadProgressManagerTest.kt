@@ -17,14 +17,11 @@ package com.jabook.app.jabook.audio
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.testing.TestLifecycleOwner
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
-import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.verify
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
@@ -34,7 +31,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class CoverPreloadProgressManagerTest {
-
     private lateinit var playlistManager: PlaylistManager
     private lateinit var coverPreloadExecutor: CoverPreloadExecutor
     private lateinit var lifecycleOwner: LifecycleOwner
@@ -49,27 +45,29 @@ class CoverPreloadProgressManagerTest {
     }
 
     @Test
-    fun `progress starts at IDLE when created`() = runBlockingTest {
-        // Given
-        val manager = CoverPreloadProgressManager(playlistManager, coverPreloadExecutor)
+    fun `progress starts at IDLE when created`() =
+        runBlockingTest {
+            // Given
+            val manager = CoverPreloadProgressManager(playlistManager, coverPreloadExecutor)
 
-        // When
-        manager.onCreate(lifecycleOwner)
+            // When
+            manager.onCreate(lifecycleOwner)
 
-        // Then
-        // Progress should be IDLE initially
-        // This would require observing the flow, simplified for demo
-    }
+            // Then
+            // Progress should be IDLE initially
+            // This would require observing the flow, simplified for demo
+        }
 
     @Test
-    fun `progress updates when playlist loading starts`() = runBlockingTest {
-        // Given
-        val manager = CoverPreloadProgressManager(playlistManager, coverPreloadExecutor)
+    fun `progress updates when playlist loading starts`() =
+        runBlockingTest {
+            // Given
+            val manager = CoverPreloadProgressManager(playlistManager, coverPreloadExecutor)
 
-        // When
-        manager.onCreate(lifecycleOwner)
+            // When
+            manager.onCreate(lifecycleOwner)
 
-        // Simulate playlist loading start
-        // This would trigger progress updates
-    }
+            // Simulate playlist loading start
+            // This would trigger progress updates
+        }
 }

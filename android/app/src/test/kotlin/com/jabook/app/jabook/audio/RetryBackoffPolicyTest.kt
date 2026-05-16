@@ -23,7 +23,6 @@ import org.junit.Test
 
 /** Unit tests for [RetryBackoffPolicy] — exponential backoff with jitter. */
 class RetryBackoffPolicyTest {
-
     // --- calculateDelay: basic exponential growth ---
 
     @Test
@@ -101,12 +100,13 @@ class RetryBackoffPolicyTest {
 
     @Test
     fun delayIsCappedByMaxDelayMs() {
-        val policy = RetryBackoffPolicy(
-            baseMs = 10_000L,
-            maxRetries = 5,
-            jitterMs = 0L,
-            maxDelayMs = 15_000L,
-        )
+        val policy =
+            RetryBackoffPolicy(
+                baseMs = 10_000L,
+                maxRetries = 5,
+                jitterMs = 0L,
+                maxDelayMs = 15_000L,
+            )
 
         // attempt 0: 10000 (ok)
         assertEquals(10_000L, policy.calculateDelay(0))

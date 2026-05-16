@@ -15,14 +15,10 @@
 package com.jabook.app.jabook.audio
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.kotlin.doReturn
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 /**
  * Tests for NetworkFallbackManager.
@@ -30,28 +26,29 @@ import org.mockito.kotlin.whenever
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalCoroutinesApi::class)
 class NetworkFallbackManagerTest {
+    @Test
+    fun testNetworkFallbackManager_detectsPoorNetwork() =
+        runBlockingTest {
+            val context = FakeContext()
+            val player = FakeExoPlayer()
+            val manager = NetworkFallbackManager(context, player)
+            manager.startNetworkMonitoring()
+            // Simulate poor network
+            delay(200)
+            manager.release()
+            // Verify fallback logic
+        }
 
     @Test
-    fun testNetworkFallbackManager_detectsPoorNetwork() = runBlockingTest {
-        val context = FakeContext()
-        val player = FakeExoPlayer()
-        val manager = NetworkFallbackManager(context, player)
-        manager.startNetworkMonitoring()
-        // Simulate poor network
-        delay(200)
-        manager.release()
-        // Verify fallback logic
-    }
-
-    @Test
-    fun testNetworkFallbackManager_detectsGoodNetwork() = runBlockingTest {
-        val context = FakeContext()
-        val player = FakeExoPlayer()
-        val manager = NetworkFallbackManager(context, player)
-        manager.startNetworkMonitoring()
-        // Simulate good network
-        delay(200)
-        manager.release()
-        // Verify fallback logic
-    }
+    fun testNetworkFallbackManager_detectsGoodNetwork() =
+        runBlockingTest {
+            val context = FakeContext()
+            val player = FakeExoPlayer()
+            val manager = NetworkFallbackManager(context, player)
+            manager.startNetworkMonitoring()
+            // Simulate good network
+            delay(200)
+            manager.release()
+            // Verify fallback logic
+        }
 }

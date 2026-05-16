@@ -20,9 +20,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.kotlin.doReturn
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 /**
  * Tests for NoiseSuppressionAudioProcessor.
@@ -30,26 +27,34 @@ import org.mockito.kotlin.whenever
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalCoroutinesApi::class)
 class NoiseSuppressionAudioProcessorTest {
+    @Test
+    fun testNoiseSuppressionProcessor_initialization() =
+        runBlockingTest {
+            val processor = NoiseSuppressionAudioProcessor(strength = 0.7f)
+            assertThat(processor).isNotNull()
+        }
 
     @Test
-    fun testNoiseSuppressionProcessor_initialization() = runBlockingTest {
-        val processor = NoiseSuppressionAudioProcessor(strength = 0.7f)
-        assertThat(processor).isNotNull()
-    }
+    fun testNoiseSuppressionProcessor_configures() =
+        runBlockingTest {
+            val processor = NoiseSuppressionAudioProcessor(strength = 0.7f)
+            val format =
+                androidx.media3.common.MediaItem
+                    .fromUri(android.net.Uri.parse("https://example.com/test.mp3"))
+                    .playbackProperties
+            val outputFormat = processor.configure(format, format)
+            assertThat(outputFormat).isNotNull()
+        }
 
     @Test
-    fun testNoiseSuppressionProcessor_configures() = runBlockingTest {
-        val processor = NoiseSuppressionAudioProcessor(strength = 0.7f)
-        val format = androidx.media3.common.MediaItem.fromUri(android.net.Uri.parse("https://example.com/test.mp3")).playbackProperties
-        val outputFormat = processor.configure(format, format)
-        assertThat(outputFormat).isNotNull()
-    }
-
-    @Test
-    fun testNoiseSuppressionProcessor_checkFormat() = runBlockingTest {
-        val processor = NoiseSuppressionAudioProcessor(strength = 0.7f)
-        val format = androidx.media3.common.MediaItem.fromUri(android.net.Uri.parse("https://example.com/test.mp3")).playbackProperties
-        val result = processor.checkFormat(format, format)
-        assertThat(result).isTrue()
-    }
+    fun testNoiseSuppressionProcessor_checkFormat() =
+        runBlockingTest {
+            val processor = NoiseSuppressionAudioProcessor(strength = 0.7f)
+            val format =
+                androidx.media3.common.MediaItem
+                    .fromUri(android.net.Uri.parse("https://example.com/test.mp3"))
+                    .playbackProperties
+            val result = processor.checkFormat(format, format)
+            assertThat(result).isTrue()
+        }
 }

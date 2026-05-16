@@ -27,41 +27,46 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistManagerExtensionsTest {
-
     @Test
-    fun testSearchTracks_findsMatches() = runBlockingTest {
-        val playlistManager = FakePlaylistManager()
-        val indices = playlistManager.searchTracks("test")
-        assertThat(indices).isNotEmpty()
-    }
-
-    @Test
-    fun testFilterTracks_filtersCorrectly() = runBlockingTest {
-        val playlistManager = FakePlaylistManager()
-        val indices = playlistManager.filterTracks { metadata ->
-            metadata["artist"] == "Artist A"
+    fun testSearchTracks_findsMatches() =
+        runBlockingTest {
+            val playlistManager = FakePlaylistManager()
+            val indices = playlistManager.searchTracks("test")
+            assertThat(indices).isNotEmpty()
         }
-        assertThat(indices).isNotEmpty()
-    }
 
     @Test
-    fun testGroupByArtist_groupsCorrectly() = runBlockingTest {
-        val playlistManager = FakePlaylistManager()
-        val groups = playlistManager.groupByArtist()
-        assertThat(groups).isNotEmpty()
-    }
+    fun testFilterTracks_filtersCorrectly() =
+        runBlockingTest {
+            val playlistManager = FakePlaylistManager()
+            val indices =
+                playlistManager.filterTracks { metadata ->
+                    metadata["artist"] == "Artist A"
+                }
+            assertThat(indices).isNotEmpty()
+        }
 
     @Test
-    fun testGroupByAlbum_groupsCorrectly() = runBlockingTest {
-        val playlistManager = FakePlaylistManager()
-        val groups = playlistManager.groupByAlbum()
-        assertThat(groups).isNotEmpty()
-    }
+    fun testGroupByArtist_groupsCorrectly() =
+        runBlockingTest {
+            val playlistManager = FakePlaylistManager()
+            val groups = playlistManager.groupByArtist()
+            assertThat(groups).isNotEmpty()
+        }
 
     @Test
-    fun testSortByGenre_sortsCorrectly() = runBlockingTest {
-        val playlistManager = FakePlaylistManager()
-        val sorted = playlistManager.sortByGenre()
-        assertThat(sorted).isNotEmpty()
-    }
+    fun testGroupByAlbum_groupsCorrectly() =
+        runBlockingTest {
+            val playlistManager = FakePlaylistManager()
+            val groups = playlistManager.groupByAlbum()
+            assertThat(groups).isNotEmpty()
+        }
+
+    @Test
+    fun testSortByGenre_sortsCorrectly() =
+        runBlockingTest {
+            val playlistManager = FakePlaylistManager()
+            val sorted = playlistManager.sortByGenre()
+            assertThat(sorted).isNotEmpty()
+        }
 }

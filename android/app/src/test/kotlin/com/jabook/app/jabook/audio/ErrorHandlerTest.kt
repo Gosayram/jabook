@@ -15,14 +15,10 @@
 package com.jabook.app.jabook.audio
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.kotlin.doReturn
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 /**
  * Tests for ErrorHandler.
@@ -30,33 +26,36 @@ import org.mockito.kotlin.whenever
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalCoroutinesApi::class)
 class ErrorHandlerTest {
+    @Test
+    fun testErrorHandler_retriesOnFailure() =
+        runBlockingTest {
+            val player = FakeExoPlayer()
+            val handler = ErrorHandler(player)
+            var errorCount = 0
+            val error =
+                object : ExoPlayer.PlayerError {
+                    override val message: String? = "Test error"
+                    override val cause: Throwable? = null
+                }
+            handler.handlePlayerError(error)
+            // Verify retry logic
+            handler.release()
+        }
 
     @Test
-    fun testErrorHandler_retriesOnFailure() = runBlockingTest {
-        val player = FakeExoPlayer()
-        val handler = ErrorHandler(player)
-        var errorCount = 0
-        val error = object : ExoPlayer.PlayerError {
-            override val message: String? = "Test error"
-            override val cause: Throwable? = null
+    fun testErrorHandler_reachesMaxRetries() =
+        runBlockingTest {
+            val player = FakeExoPlayer()
+            val handler = ErrorHandler(player, maxRetries = 2)
+            val error =
+                object : ExoPlayer.PlayerError {
+                    override val message: String? = "Test error"
+                    override val cause: Throwable? = null
+                }
+            handler.handlePlayerError(error)
+            handler.handlePlayerError(error)
+            handler.handlePlayerError(error)
+            // Verify max retries reached
+            handler.release()
         }
-        handler.handlePlayerError(error)
-        // Verify retry logic
-        handler.release()
-    }
-
-    @Test
-    fun testErrorHandler_reachesMaxRetries() = runBlockingTest {
-        val player = FakeExoPlayer()
-        val handler = ErrorHandler(player, maxRetries = 2)
-        val error = object : ExoPlayer.PlayerError {
-            override val message: String? = "Test error"
-            override val cause: Throwable? = null
-        }
-        handler.handlePlayerError(error)
-        handler.handlePlayerError(error)
-        handler.handlePlayerError(error)
-        // Verify max retries reached
-        handler.release()
-    }
 }

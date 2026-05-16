@@ -15,15 +15,11 @@
 package com.jabook.app.jabook.audio
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.kotlin.doReturn
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 /**
  * Tests for BufferManager.
@@ -31,54 +27,57 @@ import org.mockito.kotlin.whenever
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalCoroutinesApi::class)
 class BufferManagerTest {
+    @Test
+    fun testBufferManager_startsAndStops() =
+        runBlockingTest {
+            val player = FakeExoPlayer()
+            val manager = BufferManager(player)
+            manager.start()
+            manager.stop()
+            // Verify no exceptions
+            assertThat(player.playbackState).isEqualTo(Player.STATE_IDLE)
+        }
 
     @Test
-    fun testBufferManager_startsAndStops() = runBlockingTest {
-        val player = FakeExoPlayer()
-        val manager = BufferManager(player)
-        manager.start()
-        manager.stop()
-        // Verify no exceptions
-        assertThat(player.playbackState).isEqualTo(Player.STATE_IDLE)
-    }
+    fun testBufferManager_monitorsBufferLevels() =
+        runBlockingTest {
+            val player = FakeExoPlayer()
+            val manager = BufferManager(player)
+            manager.start()
+            player.bufferedPosition = 10000
+            player.currentPosition = 5000
+            delay(100) // Wait for monitoring loop
+            manager.stop()
+            // Verify buffer levels are logged
+        }
 
     @Test
-    fun testBufferManager_monitorsBufferLevels() = runBlockingTest {
-        val player = FakeExoPlayer()
-        val manager = BufferManager(player)
-        manager.start()
-        player.bufferedPosition = 10000
-        player.currentPosition = 5000
-        delay(100) // Wait for monitoring loop
-        manager.stop()
-        // Verify buffer levels are logged
-    }
+    fun testBufferManager_reducesBufferOnUnderrun() =
+        runBlockingTest {
+            val player = FakeExoPlayer()
+            val manager = BufferManager(player)
+            manager.start()
+            player.playWhenReady = true
+            player.playbackState = Player.STATE_BUFFERING
+            player.bufferedPosition = 1000
+            player.currentPosition = 500
+            delay(200)
+            // Verify buffer size reduced to minBufferMs
+            manager.stop()
+        }
 
     @Test
-    fun testBufferManager_reducesBufferOnUnderrun() = runBlockingTest {
-        val player = FakeExoPlayer()
-        val manager = BufferManager(player)
-        manager.start()
-        player.playWhenReady = true
-        player.playbackState = Player.STATE_BUFFERING
-        player.bufferedPosition = 1000
-        player.currentPosition = 500
-        delay(200)
-        // Verify buffer size reduced to minBufferMs
-        manager.stop()
-    }
-
-    @Test
-    fun testBufferManager_increasesBufferOnReady() = runBlockingTest {
-        val player = FakeExoPlayer()
-        val manager = BufferManager(player)
-        manager.start()
-        player.playWhenReady = true
-        player.playbackState = Player.STATE_READY
-        player.bufferedPosition = 20000
-        player.currentPosition = 5000
-        delay(200)
-        // Verify buffer size increased
-        manager.stop()
-    }
+    fun testBufferManager_increasesBufferOnReady() =
+        runBlockingTest {
+            val player = FakeExoPlayer()
+            val manager = BufferManager(player)
+            manager.start()
+            player.playWhenReady = true
+            player.playbackState = Player.STATE_READY
+            player.bufferedPosition = 20000
+            player.currentPosition = 5000
+            delay(200)
+            // Verify buffer size increased
+            manager.stop()
+        }
 }
