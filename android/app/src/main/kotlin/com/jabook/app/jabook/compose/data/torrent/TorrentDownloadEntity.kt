@@ -42,6 +42,8 @@ public data class TorrentDownloadEntity(
     val completedTime: Long,
     val pauseReason: PauseReason?,
     val topicId: String? = null,
+    /** libtorrent resume data BLOB for crash-safe download resumption. Null until first save. */
+    val resumeData: ByteArray? = null,
 ) {
     /**
      * Convert to domain model

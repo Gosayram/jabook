@@ -125,8 +125,8 @@ public interface TorrentDownloadDao {
      */
     @Query(
         """
-        UPDATE torrent_downloads 
-        SET progress = :progress, downloadedSize = :downloadedSize 
+        UPDATE torrent_downloads
+        SET progress = :progress, downloadedSize = :downloadedSize
         WHERE hash = :hash
         """,
     )
@@ -135,4 +135,26 @@ public interface TorrentDownloadDao {
         progress: Float,
         downloadedSize: Long,
     )
+
+    /**
+     * Persist libtorrent resume data so downloads survive process death.
+     * Called whenever libtorrent emits a SaveResumeDataAlert for a torrent.
+     */
+    @Query("UPDATE torrent_downloads SET resumeData = :data WHERE hash = :hash")
+    public suspend fun updateResumeData(
+        hash: String,
+        data: ByteArray,
+    )
+
+    /**
+     * Returns all non-completed downloads that have resume data, for restoration on session init.
+     */
+    @Query("SELECT * FROM torrent_downloads WHERE state NOT IN ('COMPLETED', 'ERROR') AND resumeData IS NOT NULL")
+    public suspend fun getResumableDownloads(): List<TorrentDownloadEntity>
+
+    /**
+     * Returns all non-completed downloads regardless of resume data, for re-adding on session init.
+     */
+    @Query("SELECT * FROM torrent_downloads WHERE state NOT IN ('COMPLETED', 'ERROR')")
+    public suspend fun getActiveDownloads(): List<TorrentDownloadEntity>
 }

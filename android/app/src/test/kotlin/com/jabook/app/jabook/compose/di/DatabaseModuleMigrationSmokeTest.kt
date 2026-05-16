@@ -46,11 +46,11 @@ class DatabaseModuleMigrationSmokeTest {
     }
 
     @Test
-    fun `database initializes at version 21 with required tables`() {
+    fun `database initializes at version 22 with required tables`() {
         database = DatabaseModule.provideJabookDatabase(context)
         val sqlDb = requireNotNull(database).openHelper.writableDatabase
 
-        assertEquals(21, pragmaUserVersion(sqlDb))
+        assertEquals(22, pragmaUserVersion(sqlDb))
         assertTrue(tableExists(sqlDb, "books"))
         assertTrue(tableExists(sqlDb, "chapters"))
         assertTrue(tableExists(sqlDb, "cached_topics"))
@@ -65,7 +65,7 @@ class DatabaseModuleMigrationSmokeTest {
     }
 
     @Test
-    fun `migration contract includes 14 to 21 chain and updates blank category`() {
+    fun `migration contract includes 14 to 22 chain and updates blank category`() {
         val migrationPairs =
             DatabaseModule.configuredMigrations.map { it.startVersion to it.endVersion }
         assertTrue(migrationPairs.contains(14 to 15))
@@ -75,6 +75,7 @@ class DatabaseModuleMigrationSmokeTest {
         assertTrue(migrationPairs.contains(18 to 19))
         assertTrue(migrationPairs.contains(19 to 20))
         assertTrue(migrationPairs.contains(20 to 21))
+        assertTrue(migrationPairs.contains(21 to 22))
 
         database = DatabaseModule.provideJabookDatabase(context)
         val initialSqlDb = requireNotNull(database).openHelper.writableDatabase
@@ -225,6 +226,27 @@ class DatabaseModuleMigrationSmokeTest {
         assertTrue(tableExists(migratedSqlDb, "bookmarks"))
         assertTrue(indexExists(migratedSqlDb, "index_bookmarks_book_id"))
         assertTrue(indexExists(migratedSqlDb, "index_bookmarks_book_id_position_ms"))
+    }
+
+    @Test
+    fun `migration 21 to 22 adds resumeData column to torrent_downloads`() {
+        database = DatabaseModule.provideJabookDatabase(context)
+        val initialSqlDb = requireNotNull(database).openHelper.writableDatabase
+        assertEquals(22, pragmaUserVersion(initialSqlDb))
+        requireNotNull(database).close()
+        database = null
+
+        val dbPath = context.getDatabasePath(DatabaseModule.DATABASE_NAME).absolutePath
+        SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READWRITE).use { rawDb ->
+            rawDb.execSQL("PRAGMA user_version = 21")
+        }
+
+        database = DatabaseModule.provideJabookDatabase(context)
+        val migratedSqlDb = requireNotNull(database).openHelper.writableDatabase
+
+        assertEquals(22, pragmaUserVersion(migratedSqlDb))
+        val torrentColumns = columnNames(migratedSqlDb, "torrent_downloads")
+        assertTrue("torrent_downloads must have resumeData column after migration 21→22", torrentColumns.contains("resumeData"))
     }
 
     @Test
