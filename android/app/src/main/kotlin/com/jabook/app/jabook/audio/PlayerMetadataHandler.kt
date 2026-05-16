@@ -19,7 +19,6 @@ import androidx.media3.common.Metadata
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
 import com.jabook.app.jabook.util.LogUtils
 import java.io.File
-import java.io.IOException
 
 /**
  * Handles metadata-related player events: ReplayGain extraction and embedded artwork management.
@@ -44,58 +43,40 @@ internal class PlayerMetadataHandler(
      */
     fun onMetadata(metadata: Metadata) {
         val normalizer = loudnessNormalizer ?: return
-        val selectedGainDb =
-            extractReplayGainDbFromEntries(
-                entries = List(metadata.length()) { index -> metadata.get(index).toString() },
-            ) ?: return
-        LogUtils.i("AudioPlayerService", "Found ReplayGain: ${selectedGainDb}dB")
-        normalizer.setReplayGain(selectedGainDb)
-    }
 
-    internal fun extractReplayGainDbFromEntries(entries: List<String>): Float? {
-        var trackGainDb: Float? = null
-        var albumGainDb: Float? = null
-
-        for (entryString in entries) {
-            if (trackGainDb == null) {
-                trackGainDb = parseReplayGainDb(entryString, REPLAYGAIN_TRACK_GAIN_KEY)
+        for (i in 0 until metadata.length()) {
+            val entry = metadata.get(i)
+            try {
+                val entryString = entry.toString()
+                if (entryString.contains("REPLAYGAIN_TRACK_GAIN", ignoreCase = true)) {
+                    parseAndSetReplayGain(entry, normalizer)
+                }
+            } catch (e: Exception) {
+                LogUtils.e("AudioPlayerService", "Error processing metadata entry", e)
             }
-            if (albumGainDb == null) {
-                albumGainDb = parseReplayGainDb(entryString, REPLAYGAIN_ALBUM_GAIN_KEY)
-            }
-            if (trackGainDb != null && albumGainDb != null) break
         }
-        return trackGainDb ?: albumGainDb
     }
 
-    private fun parseReplayGainDb(
-        metadataString: String,
-        key: String,
-    ): Float? {
-        if (!metadataString.contains(key, ignoreCase = true)) return null
+    private fun parseAndSetReplayGain(
+        entry: Metadata.Entry,
+        normalizer: LoudnessNormalizer,
+    ) {
+        try {
+            val text = entry.toString()
+            val valueMatch =
+                Regex("value=([\\-\\+\\d\\.]+)\\s*dB?", RegexOption.IGNORE_CASE).find(text)
 
-        val descriptionPattern =
-            Regex(
-                pattern = "description\\s*=\\s*$key\\b.*?value\\s*=\\s*([\\-\\+\\d\\.]+)\\s*dB?",
-                options = setOf(RegexOption.IGNORE_CASE),
-            )
-        val inlinePattern =
-            Regex(
-                pattern = "$key\\s*[:=]\\s*([\\-\\+\\d\\.]+)\\s*dB?",
-                options = setOf(RegexOption.IGNORE_CASE),
-            )
-        val genericValuePattern =
-            Regex(
-                pattern = "value\\s*=\\s*([\\-\\+\\d\\.]+)\\s*dB?",
-                options = setOf(RegexOption.IGNORE_CASE),
-            )
-
-        val valueText =
-            descriptionPattern.find(metadataString)?.groupValues?.getOrNull(1)
-                ?: inlinePattern.find(metadataString)?.groupValues?.getOrNull(1)
-                ?: genericValuePattern.find(metadataString)?.groupValues?.getOrNull(1)
-
-        return valueText?.toFloatOrNull()
+            if (valueMatch != null) {
+                val dbString = valueMatch.groupValues[1]
+                val db = dbString.toFloatOrNull()
+                if (db != null) {
+                    LogUtils.i("AudioPlayerService", "Found ReplayGain: ${db}dB")
+                    normalizer.setReplayGain(db)
+                }
+            }
+        } catch (e: Exception) {
+            LogUtils.w("AudioPlayerService", "Failed to parse ReplayGain: ${e.message}")
+        }
     }
 
     /**
@@ -119,28 +100,15 @@ internal class PlayerMetadataHandler(
             setEmbeddedArtworkPath(null)
         } else if (hasArtworkData) {
             LogUtils.d("AudioPlayerService", "Embedded artwork data available: ${artworkData.size} bytes")
-            // Guard: skip oversized artwork to avoid OOM on budget devices (#38)
-            val maxArtworkBytes = 8 * 1024 * 1024 // 8 MB — ~2000×2000 JPEG at full quality
-            if (artworkData.size > maxArtworkBytes) {
-                LogUtils.w(
-                    "AudioPlayerService",
-                    "Embedded artwork too large (${artworkData.size} bytes), skipping to prevent OOM",
-                )
+            try {
+                val cacheDir = context.cacheDir
+                val artworkFile = File(cacheDir, "embedded_artwork_${System.currentTimeMillis()}.jpg")
+                artworkFile.outputStream().use { it.write(artworkData) }
+                setEmbeddedArtworkPath(artworkFile.absolutePath)
+                LogUtils.i("AudioPlayerService", "Saved embedded artwork to: ${artworkFile.absolutePath}")
+            } catch (e: Exception) {
+                LogUtils.e("AudioPlayerService", "Failed to save embedded artwork", e)
                 setEmbeddedArtworkPath(null)
-            } else {
-                try {
-                    val cacheDir = context.cacheDir
-                    val artworkFile = File(cacheDir, "embedded_artwork_${System.currentTimeMillis()}.jpg")
-                    artworkFile.outputStream().use { it.write(artworkData) }
-                    setEmbeddedArtworkPath(artworkFile.absolutePath)
-                    LogUtils.i("AudioPlayerService", "Saved embedded artwork to: ${artworkFile.absolutePath}")
-                } catch (e: IOException) {
-                    LogUtils.e("AudioPlayerService", "Failed to save embedded artwork", e)
-                    setEmbeddedArtworkPath(null)
-                } catch (e: OutOfMemoryError) {
-                    LogUtils.e("AudioPlayerService", "OOM while saving embedded artwork (${artworkData.size} bytes)", e)
-                    setEmbeddedArtworkPath(null)
-                }
             }
         } else {
             LogUtils.d("AudioPlayerService", "No artwork available")
@@ -158,10 +126,5 @@ internal class PlayerMetadataHandler(
         } else {
             LogUtils.w("AudioPlayerService", "No artwork found in metadata")
         }
-    }
-
-    private companion object {
-        private const val REPLAYGAIN_TRACK_GAIN_KEY: String = "REPLAYGAIN_TRACK_GAIN"
-        private const val REPLAYGAIN_ALBUM_GAIN_KEY: String = "REPLAYGAIN_ALBUM_GAIN"
     }
 }

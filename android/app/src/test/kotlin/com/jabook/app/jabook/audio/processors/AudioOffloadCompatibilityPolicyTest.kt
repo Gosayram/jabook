@@ -73,8 +73,8 @@ class AudioOffloadCompatibilityPolicyTest {
     }
 
     @Test
-    fun `volume boost Plus6dB disables offload`() {
-        val settings = AudioProcessingSettings.defaults().copy(volumeBoostLevel = VolumeBoostLevel.Plus6dB)
+    fun `volume boost Boost100 disables offload`() {
+        val settings = AudioProcessingSettings.defaults().copy(volumeBoostLevel = VolumeBoostLevel.Boost100)
         assertFalse(AudioOffloadCompatibilityPolicy.isOffloadCompatible(settings))
     }
 

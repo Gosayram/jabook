@@ -47,29 +47,4 @@ public object AudioDatabaseMigrations {
                 )
             }
         }
-
-    /**
-     * P-02: Adds `lufs_cache` table for LUFS analysis results with
-     * file-metadata-based invalidation.
-     */
-    public val MIGRATION_3_4: Migration =
-        object : Migration(3, 4) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS lufs_cache (
-                        filePath TEXT NOT NULL PRIMARY KEY,
-                        bookId TEXT NOT NULL,
-                        lufsValue REAL NOT NULL,
-                        fileSize INTEGER NOT NULL,
-                        fileLastModified INTEGER NOT NULL,
-                        analyzedAt INTEGER NOT NULL
-                    )
-                    """.trimIndent(),
-                )
-                db.execSQL(
-                    "CREATE INDEX IF NOT EXISTS index_lufs_cache_book_id ON lufs_cache(bookId)",
-                )
-            }
-        }
 }

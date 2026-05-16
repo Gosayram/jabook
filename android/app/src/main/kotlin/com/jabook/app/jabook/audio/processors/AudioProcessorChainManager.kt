@@ -55,13 +55,16 @@ import com.jabook.app.jabook.util.LogUtils
  */
 @UnstableApi
 public class AudioProcessorChainManager {
-    /** The six proxy slots, each wrapping a single processing concern. */
+    /** The nine proxy slots, each wrapping a single processing concern. */
     private val loudnessProxy = ProxyAudioProcessor()
     private val boostProxy = ProxyAudioProcessor()
     private val drcProxy = ProxyAudioProcessor()
     private val speechProxy = ProxyAudioProcessor()
     private val levelerProxy = ProxyAudioProcessor()
     private val skipSilenceProxy = ProxyAudioProcessor()
+    private val equalizerProxy = ProxyAudioProcessor()
+    private val noiseSuppressionProxy = ProxyAudioProcessor()
+    private val reverbProxy = ProxyAudioProcessor() // P-29: Reverb
 
     /**
      * Returns the ordered list of [ProxyAudioProcessor] instances that should
@@ -78,9 +81,12 @@ public class AudioProcessorChainManager {
             speechProxy,
             levelerProxy,
             skipSilenceProxy,
+            equalizerProxy,
+            noiseSuppressionProxy,
+            reverbProxy, // P-29: Add reverb
         )
 
-    /**
+/**
      * Applies [AudioProcessingSettings] by swapping the delegate inside each
      * proxy slot.
      *
@@ -120,7 +126,7 @@ public class AudioProcessorChainManager {
             },
         )
 
-        // 4. Speech Enhancer
+        // 4. Speech Enhancement
         speechProxy.swapDelegate(
             if (settings.speechEnhancer) {
                 SpeechEnhancer()
@@ -129,7 +135,7 @@ public class AudioProcessorChainManager {
             },
         )
 
-        // 5. Auto Volume Leveler
+        // 5. Auto Volume Leveling
         levelerProxy.swapDelegate(
             if (settings.autoVolumeLeveling) {
                 AutoVolumeLeveler()
@@ -153,6 +159,19 @@ public class AudioProcessorChainManager {
             },
         )
 
+        // 10. Echo (P-30)
+        echoProxy.swapDelegate(
+            if (settings.echoEnabled) {
+                EchoAudioProcessor(
+                    strength = settings.echoStrength,
+                    delayMs = settings.echoDelayMs,
+                    decay = settings.echoDecay,
+                )
+            } else {
+                PassthroughAudioProcessor()
+            },
+        )
+
         LogUtils.i(
             TAG,
             "Applied settings via proxy chain: " +
@@ -161,7 +180,11 @@ public class AudioProcessorChainManager {
                 "drc=${settings.drcLevel}, " +
                 "speech=${settings.speechEnhancer}, " +
                 "leveler=${settings.autoVolumeLeveling}, " +
-                "skipSilence=${settings.skipSilence}",
+                "skipSilence=${settings.skipSilence}, " +
+                "equalizer=${settings.equalizerEnabled}, " +
+                "noiseSuppression=${settings.noiseSuppressionEnabled}, " +
+                "reverb=${settings.reverbEnabled}, " +
+                "echo=${settings.echoEnabled}",
         )
 
         return loudnessNormalizer

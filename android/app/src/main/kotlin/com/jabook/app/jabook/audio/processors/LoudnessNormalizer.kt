@@ -16,7 +16,6 @@ package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
-import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.pow
@@ -98,12 +97,13 @@ public class LoudnessNormalizer(
             inputAudioFormat.encoding == android.media.AudioFormat.ENCODING_PCM_16BIT &&
             inputAudioFormat.channelCount > 0
 
-        LogUtils.d(TAG) {
+        android.util.Log.d(
+            "LoudnessNormalizer",
             "Configured: sampleRate=${inputAudioFormat.sampleRate}, " +
                 "channels=${inputAudioFormat.channelCount}, " +
                 "encoding=${inputAudioFormat.encoding}, " +
-                "isActive=$isActive"
-        }
+                "isActive=$isActive",
+        )
 
         return outputAudioFormat!!
     }
@@ -142,8 +142,13 @@ public class LoudnessNormalizer(
             return EMPTY_BUFFER
         }
 
-        // Performance profiling — always compute start time; logging is gated internally
-        val startTime = System.nanoTime()
+        // Performance profiling (only in debug builds)
+        val startTime =
+            if (android.util.Log.isLoggable("LoudnessNormalizer", android.util.Log.DEBUG)) {
+                System.nanoTime()
+            } else {
+                0L
+            }
 
         // Reuse output buffer when possible to avoid frequent allocations
         val preparedOutputBuffer =
@@ -165,13 +170,17 @@ public class LoudnessNormalizer(
         queuedInputBytes = 0
         preparedOutputBuffer.flip()
 
-        // Log processing time if > 10 ms (LogUtils gates on debug builds)
-        val processingTimeMs = (System.nanoTime() - startTime) / 1_000_000.0
-        if (processingTimeMs > 10.0) {
-            val samplesProcessed = totalSize / 2
-            val throughput = samplesProcessed / processingTimeMs
-            LogUtils.d(TAG) {
-                "Processed $samplesProcessed samples in ${processingTimeMs}ms ($throughput samples/ms)"
+        // Log processing time if profiling enabled
+        if (startTime > 0) {
+            val processingTimeMs = (System.nanoTime() - startTime) / 1_000_000.0
+            val samplesProcessed = totalSize / 2 // 16-bit samples
+            val throughput = samplesProcessed / processingTimeMs // samples per ms
+            if (processingTimeMs > 10.0) { // Only log if processing takes > 10ms
+                android.util.Log.d(
+                    "LoudnessNormalizer",
+                    "Processed $samplesProcessed samples in ${processingTimeMs}ms " +
+                        "($throughput samples/ms)",
+                )
             }
         }
 
@@ -339,11 +348,10 @@ public class LoudnessNormalizer(
         gainMultiplier = 10.0.pow((replayGainDb.toDouble() / 20.0)).toFloat()
         // Limit gain to reasonable range
         gainMultiplier = gainMultiplier.coerceIn(0.1f, 10.0f)
-        LogUtils.d(TAG) { "ReplayGain set: ${replayGainDb}dB -> ${gainMultiplier}x" }
+        android.util.Log.d("LoudnessNormalizer", "ReplayGain set: ${replayGainDb}dB -> ${gainMultiplier}x")
     }
 
-    private companion object {
-        private const val TAG = "LoudnessNorm"
+    public companion object {
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

@@ -167,11 +167,15 @@ public class AudioPlayerLibrarySessionCallback(
 
         when (keyEvent.keyCode) {
             KEYCODE_MEDIA_NEXT -> {
-                handleSteeringWheelNext()
+                val forwardSeconds = service.mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
+                service.forward(forwardSeconds)
+                android.util.Log.d("AudioPlayerService", "Media button: forward ${forwardSeconds}s")
                 return true
             }
             KEYCODE_MEDIA_PREVIOUS -> {
-                handleSteeringWheelPrevious()
+                val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 10
+                service.rewind(rewindSeconds)
+                android.util.Log.d("AudioPlayerService", "Media button: rewind ${rewindSeconds}s")
                 return true
             }
             KeyEvent.KEYCODE_HEADSETHOOK, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
@@ -180,58 +184,21 @@ public class AudioPlayerLibrarySessionCallback(
                 mediaButtonHandler?.onMediaButtonEvent(
                     keyEvent.keyCode,
                     onSingleClick = {
-                        if (service.isPlaying) {
-                            service.pause(InactivityCommandSource.HEADSET_BUTTON)
-                        } else {
-                            service.play(InactivityCommandSource.HEADSET_BUTTON)
-                        }
+                        if (service.isPlaying) service.pause() else service.play()
                         android.util.Log.d("AudioPlayerService", "Media button: Single click (Play/Pause)")
                     },
                     onDoubleClick = {
-                        service.next(InactivityCommandSource.HEADSET_BUTTON)
+                        service.next()
                         android.util.Log.d("AudioPlayerService", "Media button: Double click (Next)")
                     },
                     onTripleClick = {
-                        service.previous(InactivityCommandSource.HEADSET_BUTTON)
+                        service.previous()
                         android.util.Log.d("AudioPlayerService", "Media button: Triple click (Previous)")
                     },
                 )
                 return true
             }
             else -> return super.onMediaButtonEvent(session, controller, intent)
-        }
-    }
-
-    private fun handleSteeringWheelNext() {
-        val player = service.getActivePlayer()
-        when (
-            SteeringWheelActionPolicy.resolveNextAction(
-                currentChapterIndex = player.currentMediaItemIndex,
-                totalChapters = player.mediaItemCount,
-            )
-        ) {
-            SteeringWheelActionPolicy.NextAction.NEXT_CHAPTER ->
-                service.next(InactivityCommandSource.HEADSET_BUTTON)
-
-            SteeringWheelActionPolicy.NextAction.FORWARD_SECONDS -> {
-                val forwardSeconds = service.mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
-                service.forward(forwardSeconds, InactivityCommandSource.HEADSET_BUTTON)
-            }
-        }
-    }
-
-    private fun handleSteeringWheelPrevious() {
-        val player = service.getActivePlayer()
-        when (
-            SteeringWheelActionPolicy.resolvePreviousAction(
-                currentPositionMs = player.currentPosition,
-            )
-        ) {
-            SteeringWheelActionPolicy.PreviousAction.PREVIOUS_CHAPTER ->
-                service.previous(InactivityCommandSource.HEADSET_BUTTON)
-
-            SteeringWheelActionPolicy.PreviousAction.RESTART_CHAPTER ->
-                service.seekTo(positionMs = 0L, source = InactivityCommandSource.HEADSET_BUTTON)
         }
     }
 
@@ -351,17 +318,6 @@ public class AudioPlayerLibrarySessionCallback(
                 service.setVisualizerEnabled(enabled)
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
-            CUSTOM_COMMAND_CONSUME_SMART_RESUME_SUGGESTION -> {
-                val suggestion = service.consumeSmartResumeSuggestion()
-                val resultBundle =
-                    Bundle().apply {
-                        if (suggestion != null) {
-                            putLong(ARG_RESULT_SMART_RESUME_PAUSE_DURATION_MS, suggestion.pauseDurationMs)
-                            putLong(ARG_RESULT_SMART_RESUME_RECAP_START_MS, suggestion.recapStartMs)
-                        }
-                    }
-                Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS, resultBundle))
-            }
             else -> Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
         }
     }
@@ -446,7 +402,6 @@ public class AudioPlayerLibrarySessionCallback(
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_INITIALIZE_VISUALIZER, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_SET_VISUALIZER_ENABLED, Bundle.EMPTY))
-                .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_CONSUME_SMART_RESUME_SUGGESTION, Bundle.EMPTY))
         }
 
         if (includeSleepTimerCommands) {
@@ -479,8 +434,7 @@ public class AudioPlayerLibrarySessionCallback(
             action == CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH ||
             action == CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS ||
             action == CUSTOM_COMMAND_INITIALIZE_VISUALIZER ||
-            action == CUSTOM_COMMAND_SET_VISUALIZER_ENABLED ||
-            action == CUSTOM_COMMAND_CONSUME_SMART_RESUME_SUGGESTION
+            action == CUSTOM_COMMAND_SET_VISUALIZER_ENABLED
 
     private fun isAutomotiveSleepTimerCommand(
         session: MediaSession,
@@ -543,8 +497,6 @@ public class AudioPlayerLibrarySessionCallback(
         public const val CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS: String = "com.jabook.app.jabook.getCurrentFilePaths"
         public const val CUSTOM_COMMAND_INITIALIZE_VISUALIZER: String = "com.jabook.app.jabook.initializeVisualizer"
         public const val CUSTOM_COMMAND_SET_VISUALIZER_ENABLED: String = "com.jabook.app.jabook.setVisualizerEnabled"
-        public const val CUSTOM_COMMAND_CONSUME_SMART_RESUME_SUGGESTION: String =
-            "com.jabook.app.jabook.consumeSmartResumeSuggestion"
 
         // Bundle keys for command arguments
         public const val ARG_FILE_PATHS: String = "filePaths"
@@ -561,8 +513,6 @@ public class AudioPlayerLibrarySessionCallback(
         public const val ARG_RESULT_FALLBACK_TO_TRACK_END: String = "fallbackToTrackEnd"
         public const val ARG_RESULT_GROUP_PATH: String = "groupPath"
         public const val ARG_RESULT_FILE_PATHS: String = "filePaths"
-        public const val ARG_RESULT_SMART_RESUME_PAUSE_DURATION_MS: String = "smartResumePauseDurationMs"
-        public const val ARG_RESULT_SMART_RESUME_RECAP_START_MS: String = "smartResumeRecapStartMs"
 
         public const val ROOT_ID: String = "root"
         public const val ROOT_ID_RECENT: String = "root_recent"

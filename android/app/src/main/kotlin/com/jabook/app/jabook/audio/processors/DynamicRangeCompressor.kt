@@ -16,7 +16,6 @@ package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
-import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.exp
@@ -33,10 +32,6 @@ import kotlin.math.sqrt
  * - Gentle: threshold -32 dB, ratio 2:1, attack 10 ms, release 80 ms
  * - Medium: threshold -24 dB, ratio 3:1, attack 5 ms, release 60 ms
  * - Strong: threshold -18 dB, ratio 4:1, attack 3 ms, release 40 ms
- *
- * Supports adaptive threshold calibration via [calibrateForLufs] (P-04):
- * when LUFS data is available for the current audiobook, the threshold
- * is adjusted automatically based on the measured loudness.
  */
 @UnstableApi
 public class DynamicRangeCompressor(
@@ -46,8 +41,8 @@ public class DynamicRangeCompressor(
     private var outputAudioFormat: AudioProcessor.AudioFormat? = null
     private var isActive = false
 
-    // Compression parameters — threshold may be overridden by calibrateForLufs()
-    private var thresholdDb: Float = AdaptiveDrcThresholdPolicy.defaultThresholdDb(drcLevel)
+    // Compression parameters
+    private var thresholdDb = -32.0f
     private var ratio = 2.0f
     private var attackMs = 10.0f
     private var releaseMs = 80.0f
@@ -78,48 +73,31 @@ public class DynamicRangeCompressor(
                 isActive = false
             }
             DRCLevel.Gentle -> {
+                thresholdDb = -32.0f
                 ratio = 2.0f
                 attackMs = 10.0f
                 releaseMs = 80.0f
             }
             DRCLevel.Medium -> {
+                thresholdDb = -24.0f
                 ratio = 3.0f
                 attackMs = 5.0f
                 releaseMs = 60.0f
             }
             DRCLevel.Strong -> {
+                thresholdDb = -18.0f
                 ratio = 4.0f
                 attackMs = 3.0f
                 releaseMs = 40.0f
             }
         }
 
-        LogUtils.d(TAG) {
+        android.util.Log.d(
+            "DynamicRangeCompressor",
             "Initialized with DRC level: $drcLevel " +
                 "(threshold=${thresholdDb}dB, ratio=$ratio:1, " +
-                "attack=${attackMs}ms, release=${releaseMs}ms)"
-        }
-    }
-
-    /**
-     * Calibrates the compressor threshold based on measured LUFS.
-     *
-     * Uses [AdaptiveDrcThresholdPolicy] to adjust the threshold so that
-     * quiet audiobooks are not over-compressed and loud ones get proper
-     * peak control.
-     *
-     * **Important:** Must be called **before** [configure] for the new
-     * threshold to take effect. If the compressor is already configured,
-     * you must re-configure it after calling this method.
-     *
-     * @param measuredLufs The measured integrated loudness in LUFS, or
-     *                     `null` to revert to the default threshold.
-     */
-    public fun calibrateForLufs(measuredLufs: Float?) {
-        thresholdDb = AdaptiveDrcThresholdPolicy.resolveThresholdDb(drcLevel, measuredLufs)
-        LogUtils.d(TAG) {
-            "Calibrated for LUFS=$measuredLufs → threshold=$thresholdDb dB"
-        }
+                "attack=${attackMs}ms, release=${releaseMs}ms)",
+        )
     }
 
     override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
@@ -137,12 +115,12 @@ public class DynamicRangeCompressor(
 
             // Calculate attack and release coefficients
             // Using exponential smoothing: coeff = 1 - exp(-1 / (time * sampleRate))
-            attackCoeff = 1.0f - exp(-1.0f / (attackMs * sampleRate / 1000.0f))
-            releaseCoeff = 1.0f - exp(-1.0f / (releaseMs * sampleRate / 1000.0f))
+            attackCoeff = 1.0f - kotlin.math.exp(-1.0f / (attackMs * sampleRate / 1000.0f))
+            releaseCoeff = 1.0f - kotlin.math.exp(-1.0f / (releaseMs * sampleRate / 1000.0f))
 
             // Calculate makeup gain (compensate for average level reduction)
             // Approximate: makeup = sqrt(ratio) for gentle compensation
-            makeupGain = sqrt(ratio.toDouble()).toFloat()
+            makeupGain = kotlin.math.sqrt(ratio.toDouble()).toFloat()
 
             // Reset envelope follower
             envelopeLevel = 0.0f
@@ -153,14 +131,15 @@ public class DynamicRangeCompressor(
         outputBuffer = null
         inputEnded = false
 
-        LogUtils.d(TAG) {
+        android.util.Log.d(
+            "DynamicRangeCompressor",
             "Configured: sampleRate=${inputAudioFormat.sampleRate}, " +
                 "channels=${inputAudioFormat.channelCount}, " +
                 "isActive=$isActive, " +
                 "threshold=$thresholdLinear, " +
                 "attackCoeff=$attackCoeff, " +
-                "releaseCoeff=$releaseCoeff"
-        }
+                "releaseCoeff=$releaseCoeff",
+        )
 
         return outputAudioFormat!!
     }
@@ -233,7 +212,6 @@ public class DynamicRangeCompressor(
      * Applies dynamic range compression with envelope follower.
      * Optimized: single pass through samples, pre-compute constants.
      */
-    @Suppress("UNUSED_VARIABLE")
     private fun applyCompression(
         input: ByteBuffer,
         output: ByteBuffer,
@@ -248,6 +226,7 @@ public class DynamicRangeCompressor(
         for (i in 0 until samples) {
             // Calculate RMS across all channels for this sample (single pass)
             var sumSquares = 0.0f
+            val sampleStartPos = input.position()
             val channelSamples = ShortArray(channels)
 
             // Read all channel samples first
@@ -258,7 +237,7 @@ public class DynamicRangeCompressor(
                 sumSquares += normalized * normalized
             }
 
-            val rms = sqrt(sumSquares * invChannels)
+            val rms = kotlin.math.sqrt(sumSquares * invChannels)
 
             // Update envelope follower
             if (rms > envelopeLevel) {
@@ -293,9 +272,6 @@ public class DynamicRangeCompressor(
 
     override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
 
-    /** Current threshold in dB (useful for testing / diagnostics). */
-    public fun currentThresholdDb(): Float = thresholdDb
-
     @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun flush() {
         envelopeLevel = 0.0f
@@ -313,7 +289,6 @@ public class DynamicRangeCompressor(
     }
 
     public companion object {
-        private const val TAG = "DynamicRangeCompressor"
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

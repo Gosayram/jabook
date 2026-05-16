@@ -81,10 +81,6 @@ internal class AudioServiceReleaseHandler(
         if (service.isAudioOutputManagerInitialized()) {
             service.audioOutputManager.stopMonitoring()
         }
-        service.audioOutputMonitoringListener?.let { listener ->
-            service.exoPlayer.removeListener(listener)
-        }
-        service.audioOutputMonitoringListener = null
         if (service.isPlaybackEnhancerServiceInitialized()) {
             service.playbackEnhancerService.release()
         }

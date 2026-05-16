@@ -30,14 +30,12 @@ import kotlinx.coroutines.launch
 internal class PlaybackController(
     private val getActivePlayer: () -> ExoPlayer,
     private val playerServiceScope: CoroutineScope,
-    private val resetInactivityTimer: (InactivityCommandSource) -> Unit,
+    private val resetInactivityTimer: () -> Unit,
     private val getResumeRewindSeconds: () -> Int,
     private val getResumeRewindMode: () -> ResumeRewindMode = { ResumeRewindMode.FIXED },
     private val getResumeRewindAggressiveness: () -> Float = { 1.0f },
     private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
     private val consumeSleepTimerStopFlag: () -> Boolean = { false },
-    private val contextualResumeManager: ContextualResumeManager? = null,
-    private val onSmartResumeSuggested: (ContextualResumeManager.ResumeContext) -> Unit = {},
 ) {
     /**
      * Starts or resumes playback.
@@ -63,7 +61,7 @@ internal class PlaybackController(
      *
      * Simplified implementation matching lissen-android approach.
      */
-    public fun play(source: InactivityCommandSource = InactivityCommandSource.USER_UI) {
+    public fun play() {
         LogUtils.i("AudioPlayerService", "play() called")
 
         val player = getActivePlayer()
@@ -106,21 +104,9 @@ internal class PlaybackController(
                 val currentTime = nowMsProvider()
                 val pauseDurationMs = if (lastPauseTime > 0) currentTime - lastPauseTime else Long.MAX_VALUE
                 val shouldSuppressRewind = suppressNextResumeRewind || consumeSleepTimerStopFlag()
-                val smartResumeContext =
-                    if (!shouldSuppressRewind && resumeRewindMode == ResumeRewindMode.SMART && contextualResumeManager != null) {
-                        contextualResumeManager.buildResumeContext(
-                            bookId = player.currentMediaItem?.mediaId.orEmpty(),
-                            currentPositionMs = player.currentPosition.coerceAtLeast(0L),
-                            lastPausedAtMs = lastPauseTime,
-                        )
-                    } else {
-                        null
-                    }
                 val rewindMs =
                     if (shouldSuppressRewind) {
                         0L
-                    } else if (smartResumeContext != null) {
-                        smartResumeContext.rewindMs
                     } else {
                         ResumeRewindPolicy.resolveRewindMs(
                             pauseDurationMs = pauseDurationMs,
@@ -137,14 +123,6 @@ internal class PlaybackController(
                         "Resume rewind: ${rewindMs / 1000}s after pause ${pauseDurationMs / 1000}s",
                     )
                 }
-                if (smartResumeContext?.shouldShowRecap == true) {
-                    onSmartResumeSuggested(smartResumeContext)
-                    LogUtils.d(
-                        "AudioPlayerService",
-                        "Smart resume recap suggested from ${smartResumeContext.recapStartMs}ms " +
-                            "after pause ${smartResumeContext.pauseDurationMs / 1000}s",
-                    )
-                }
                 suppressNextResumeRewind = false
 
                 // Match lissen-android: simply set playWhenReady=true
@@ -156,7 +134,7 @@ internal class PlaybackController(
                 )
 
                 // Reset inactivity timer (user action)
-                resetInactivityTimer(source)
+                resetInactivityTimer()
             } catch (e: Exception) {
                 LogUtils.e("AudioPlayerService", "Failed to start playback", e)
                 e.printStackTrace()
@@ -168,7 +146,7 @@ internal class PlaybackController(
     /**
      * Pauses playback.
      */
-    public fun pause(source: InactivityCommandSource = InactivityCommandSource.USER_UI) {
+    public fun pause() {
         playerServiceScope.launch {
             try {
                 val player = getActivePlayer()
@@ -188,7 +166,7 @@ internal class PlaybackController(
                 // AudioFocus will be abandoned when service is stopped
 
                 // Reset inactivity timer (user action - pause is also an interaction)
-                resetInactivityTimer(source)
+                resetInactivityTimer()
             } catch (e: Exception) {
                 ErrorHandler.handleGeneralError("AudioPlayerService", e, "Pause method execution")
             }
@@ -217,10 +195,7 @@ internal class PlaybackController(
      *
      * @param positionMs Position in milliseconds
      */
-    public fun seekTo(
-        positionMs: Long,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ) {
+    public fun seekTo(positionMs: Long) {
         val player = getActivePlayer()
 
         try {
@@ -246,7 +221,7 @@ internal class PlaybackController(
             player.seekTo(seekPosition)
 
             // Reset inactivity timer (user action)
-            resetInactivityTimer(source)
+            resetInactivityTimer()
 
             if (playWhenReadyBeforeSeek) {
                 playerServiceScope.launch {
@@ -268,12 +243,10 @@ internal class PlaybackController(
      *
      * @param speed Playback speed (0.5x to 2.0x)
      */
-    public fun setSpeed(
-        speed: Float,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ) {
+    public fun setSpeed(speed: Float) {
         getActivePlayer().setPlaybackSpeed(speed)
-        resetInactivityTimer(source)
+        // Reset inactivity timer (user action)
+        resetInactivityTimer()
     }
 
     /**
@@ -289,13 +262,11 @@ internal class PlaybackController(
      *   - REPEAT_MODE_ONE: Repeat current track
      *   - REPEAT_MODE_ALL: Repeat all tracks
      */
-    public fun setRepeatMode(
-        repeatMode: Int,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ) {
+    public fun setRepeatMode(repeatMode: Int) {
         getActivePlayer().repeatMode = repeatMode
         LogUtils.d("AudioPlayerService", "Repeat mode set to: $repeatMode")
-        resetInactivityTimer(source)
+        // Reset inactivity timer (user action)
+        resetInactivityTimer()
     }
 
     /**
@@ -310,13 +281,11 @@ internal class PlaybackController(
      *
      * @param shuffleModeEnabled true to enable shuffle, false to disable
      */
-    public fun setShuffleModeEnabled(
-        shuffleModeEnabled: Boolean,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ) {
+    public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean) {
         getActivePlayer().shuffleModeEnabled = shuffleModeEnabled
         LogUtils.d("AudioPlayerService", "Shuffle mode set to: $shuffleModeEnabled")
-        resetInactivityTimer(source)
+        // Reset inactivity timer (user action)
+        resetInactivityTimer()
     }
 
     /**
@@ -331,7 +300,7 @@ internal class PlaybackController(
      *
      * Inspired by lissen-android: checks track availability before switching.
      */
-    public fun next(source: InactivityCommandSource = InactivityCommandSource.USER_UI) {
+    public fun next() {
         val player = getActivePlayer()
         val currentIndex = player.currentMediaItemIndex
 
@@ -366,7 +335,7 @@ internal class PlaybackController(
         }
 
         // Reset inactivity timer (user action)
-        resetInactivityTimer(source)
+        resetInactivityTimer()
     }
 
     /**
@@ -374,7 +343,7 @@ internal class PlaybackController(
      *
      * Inspired by lissen-android: checks track availability before switching.
      */
-    public fun previous(source: InactivityCommandSource = InactivityCommandSource.USER_UI) {
+    public fun previous() {
         val player = getActivePlayer()
         val currentIndex = player.currentMediaItemIndex
 
@@ -409,7 +378,7 @@ internal class PlaybackController(
         }
 
         // Reset inactivity timer (user action)
-        resetInactivityTimer(source)
+        resetInactivityTimer()
     }
 
     /**
@@ -417,17 +386,14 @@ internal class PlaybackController(
      *
      * @param index Track index in playlist
      */
-    public fun seekToTrack(
-        index: Int,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ) {
+    public fun seekToTrack(index: Int) {
         val player = getActivePlayer()
         if (index >= 0 && index < player.mediaItemCount) {
             val playWhenReadyBeforeSeek = player.playWhenReady
             player.seekTo(index, 0L)
 
             // Reset inactivity timer (user action)
-            resetInactivityTimer(source)
+            resetInactivityTimer()
 
             if (playWhenReadyBeforeSeek) {
                 playerServiceScope.launch {
@@ -451,7 +417,6 @@ internal class PlaybackController(
     public fun seekToTrackAndPosition(
         trackIndex: Int,
         positionMs: Long,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
     ) {
         val player = getActivePlayer()
 
@@ -474,7 +439,7 @@ internal class PlaybackController(
             player.seekTo(trackIndex, adjustedPositionMs)
 
             // Reset inactivity timer (user action)
-            resetInactivityTimer(source)
+            resetInactivityTimer()
 
             if (playWhenReadyBeforeSeek) {
                 playerServiceScope.launch {
@@ -500,17 +465,14 @@ internal class PlaybackController(
      *
      * @param seconds Number of seconds to rewind (default: 15)
      */
-    public fun rewind(
-        seconds: Int = 15,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ) {
+    public fun rewind(seconds: Int = 15) {
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
         val newPosition = (currentPosition - seconds * 1000L).coerceAtLeast(0L)
         player.seekTo(newPosition)
         LogUtils.d("AudioPlayerService", "Rewind: ${seconds}s (from ${currentPosition}ms to ${newPosition}ms)")
         // Reset inactivity timer (user action)
-        resetInactivityTimer(source)
+        resetInactivityTimer()
     }
 
     /**
@@ -518,10 +480,7 @@ internal class PlaybackController(
      *
      * @param seconds Number of seconds to forward (default: 30)
      */
-    public fun forward(
-        seconds: Int = 30,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ) {
+    public fun forward(seconds: Int = 30) {
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
         val duration = player.duration
@@ -533,7 +492,7 @@ internal class PlaybackController(
                 "Forward: ${seconds}s (from ${currentPosition}ms to ${newPosition}ms)",
             )
             // Reset inactivity timer (user action)
-            resetInactivityTimer(source)
+            resetInactivityTimer()
         }
     }
 

@@ -19,7 +19,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import androidx.annotation.OptIn
-import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
@@ -38,7 +37,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
-import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 
 /** Audio player service using Media3 ExoPlayer with Dagger Hilt DI. */
@@ -146,7 +144,6 @@ public class AudioPlayerService : MediaLibraryService() {
     // Audio visualizer manager
     internal var audioVisualizerManager: AudioVisualizerManager? = null
     internal var visualizerBridgeJob: kotlinx.coroutines.Job? = null
-    internal var audioOutputMonitoringListener: Player.Listener? = null
 
     // Phone call listener for automatic resume after calls
     internal var phoneCallListener: PhoneCallListener? = null
@@ -201,25 +198,6 @@ public class AudioPlayerService : MediaLibraryService() {
     // Crossfade components
     internal var crossFadePlayer: CrossFadePlayer? = null
     internal var crossfadeHandler: CrossfadeHandler? = null
-
-    internal data class SmartResumeSuggestion(
-        val pauseDurationMs: Long,
-        val recapStartMs: Long,
-    )
-
-    private val pendingSmartResumeSuggestion = AtomicReference<SmartResumeSuggestion?>(null)
-
-    internal fun publishSmartResumeSuggestion(context: ContextualResumeManager.ResumeContext) {
-        if (!context.shouldShowRecap) return
-        pendingSmartResumeSuggestion.set(
-            SmartResumeSuggestion(
-                pauseDurationMs = context.pauseDurationMs,
-                recapStartMs = context.recapStartMs,
-            ),
-        )
-    }
-
-    internal fun consumeSmartResumeSuggestion(): SmartResumeSuggestion? = pendingSmartResumeSuggestion.getAndSet(null)
 
     internal val playerServiceScope =
         CoroutineScope(
@@ -434,7 +412,39 @@ public class AudioPlayerService : MediaLibraryService() {
             instance = this
             PlayerPerformanceLogger.log("Service", "super.onCreate() complete")
 
-            AudioPlayerServiceBootstrapper.initialize(this)
+            val helper = NotificationHelper(this)
+            notificationHelper = helper
+            val initialNotification =
+                try {
+                    helper.createMinimalNotification()
+                } catch (e: Exception) {
+                    LogUtils.w("AudioPlayerService", "Failed to create minimal notification, using fallback", e)
+                    helper.createFallbackNotification()
+                }
+            val foregroundStartResult =
+                foregroundNotificationCoordinator.startWithFallback(
+                    service = this,
+                    notificationId = NotificationHelper.NOTIFICATION_ID,
+                    primaryNotification = initialNotification,
+                    fallbackNotificationProvider = { helper.createFallbackNotification() },
+                    event = "service_on_create",
+                )
+            if (foregroundStartResult == ForegroundStartResult.FAILED) {
+                LogUtils.e("AudioPlayerService", "Failed to start foreground with both notifications")
+            } else {
+                LogUtils.d("AudioPlayerService", "startForeground() completed: $foregroundStartResult")
+            }
+
+            // Set MediaSessionService.Listener for handling foreground service start exceptions
+            // This is required for Android 12+ when system doesn't allow foreground service start
+            setListener(MediaSessionServiceListener(this))
+            PlayerPerformanceLogger.log("Service", "listener set")
+
+            AudioPlayerServiceInitializer(this).let { initializer ->
+                initializer.initialize()
+                initializer.postInitialize()
+            }
+            PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
             LogUtils.i("AudioPlayerService", "onCreate() completed successfully")
         } catch (e: Exception) {
@@ -512,17 +522,16 @@ public class AudioPlayerService : MediaLibraryService() {
     public fun seekToTrackAndPosition(
         trackIndex: Int,
         positionMs: Long,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ): Unit = commandRouter.seekToTrackAndPosition(trackIndex, positionMs, source)
+    ): Unit = commandRouter.seekToTrackAndPosition(trackIndex, positionMs)
 
     public fun updateMetadata(metadata: Map<String, String>): Unit = commandRouter.updateMetadata(metadata)
 
     public val isPlaying: Boolean
         get() = commandRouter.isPlaying
 
-    public fun play(source: InactivityCommandSource = InactivityCommandSource.USER_UI): Unit = commandRouter.play(source)
+    public fun play(): Unit = commandRouter.play()
 
-    public fun pause(source: InactivityCommandSource = InactivityCommandSource.USER_UI): Unit = commandRouter.pause(source)
+    public fun pause(): Unit = commandRouter.pause()
 
     public fun stop(): Unit = commandRouter.stop()
 
@@ -546,29 +555,17 @@ public class AudioPlayerService : MediaLibraryService() {
 
     internal fun saveCurrentPosition(): Unit = commandRouter.saveCurrentPosition()
 
-    public fun seekTo(
-        positionMs: Long,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ): Unit = commandRouter.seekTo(positionMs, source)
+    public fun seekTo(positionMs: Long): Unit = commandRouter.seekTo(positionMs)
 
-    public fun setSpeed(
-        speed: Float,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ): Unit = commandRouter.setSpeed(speed, source)
+    public fun setSpeed(speed: Float): Unit = commandRouter.setSpeed(speed)
 
-    public fun setRepeatMode(
-        repeatMode: Int,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ): Unit = commandRouter.setRepeatMode(repeatMode, source)
+    public fun setRepeatMode(repeatMode: Int): Unit = commandRouter.setRepeatMode(repeatMode)
 
     public fun getRepeatMode(): Int = commandRouter.getRepeatMode()
 
     public fun getPlaybackSpeed(): Float = commandRouter.getSpeed()
 
-    public fun setShuffleModeEnabled(
-        shuffleModeEnabled: Boolean,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ): Unit = commandRouter.setShuffleModeEnabled(shuffleModeEnabled, source)
+    public fun setShuffleModeEnabled(shuffleModeEnabled: Boolean): Unit = commandRouter.setShuffleModeEnabled(shuffleModeEnabled)
 
     public fun getShuffleModeEnabled(): Boolean = commandRouter.getShuffleModeEnabled()
 
@@ -600,29 +597,20 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun setVisualizerEnabled(enabled: Boolean): Unit = visualizerFacade.setEnabled(enabled)
 
-    public fun next(source: InactivityCommandSource = InactivityCommandSource.USER_UI): Unit = commandRouter.next(source)
+    public fun next(): Unit = commandRouter.next()
 
-    public fun previous(source: InactivityCommandSource = InactivityCommandSource.USER_UI): Unit = commandRouter.previous(source)
+    public fun previous(): Unit = commandRouter.previous()
 
-    public fun seekToTrack(
-        index: Int,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ): Unit = commandRouter.seekToTrack(index, source)
+    public fun seekToTrack(index: Int): Unit = commandRouter.seekToTrack(index)
 
     public fun setPlaybackProgress(
         filePaths: List<String>,
         progressSeconds: Double?,
     ): Unit = commandRouter.setPlaybackProgress(filePaths, progressSeconds)
 
-    public fun rewind(
-        seconds: Int = 15,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ): Unit = commandRouter.rewind(seconds, source)
+    public fun rewind(seconds: Int = 15): Unit = commandRouter.rewind(seconds)
 
-    public fun forward(
-        seconds: Int = 30,
-        source: InactivityCommandSource = InactivityCommandSource.USER_UI,
-    ): Unit = commandRouter.forward(seconds, source)
+    public fun forward(seconds: Int = 30): Unit = commandRouter.forward(seconds)
 
     /** Stops playback and releases resources. Delegates to [AudioServiceReleaseHandler]. */
     public fun stopAndRelease() {
@@ -685,13 +673,6 @@ public class AudioPlayerService : MediaLibraryService() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         lifecycleManager?.onTaskRemoved() ?: super.onTaskRemoved(rootIntent)
-    }
-
-    /** Attaches [MediaSessionServiceListener] for foreground-start policy handling. */
-    @OptIn(UnstableApi::class)
-    internal fun attachMediaSessionServiceListener() {
-        // Required on Android 12+ when system may block foreground service start.
-        setListener(MediaSessionServiceListener(this))
     }
 
     /** Public wrapper for protected [setMediaNotificationProvider]. Called by [AudioPlayerServiceInitializer]. */

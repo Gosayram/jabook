@@ -16,7 +16,6 @@ package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
-import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Factory for creating chains of AudioProcessors based on audio settings.
@@ -24,17 +23,6 @@ import com.jabook.app.jabook.util.LogUtils
  * This factory manages the order and configuration of audio processors
  * for ExoPlayer. Processors are applied in a specific order to ensure
  * optimal audio quality.
- *
- * ## Two modes of operation
- *
- * 1. **Direct chain** ([createProcessorChain]) — creates concrete processors.
- *    Used when constructing a new ExoPlayer instance. Changing settings
- *    requires full player recreation.
- *
- * 2. **Proxy chain** ([createProxyChain]) — creates [ProxyAudioProcessor]
- *    wrappers whose delegates can be hot-swapped at runtime via
- *    [AudioProcessorChainManager.applySettings] without restarting the player.
- *    **Preferred** for P-01 hot-swap support.
  */
 @UnstableApi
 public object AudioProcessorFactory {
@@ -71,9 +59,9 @@ public object AudioProcessorFactory {
                     val normalizer = LoudnessNormalizer(settings)
                     processors.add(normalizer)
                     loudnessNormalizer = normalizer
-                    LogUtils.d(TAG) { "Added LoudnessNormalizer to chain" }
+                    android.util.Log.d("AudioProcessorFactory", "Added LoudnessNormalizer to chain")
                 } catch (e: Exception) {
-                    LogUtils.e(TAG) { "Failed to create LoudnessNormalizer: ${e.message}" }
+                    android.util.Log.e("AudioProcessorFactory", "Failed to create LoudnessNormalizer", e)
                 }
             }
 
@@ -82,9 +70,12 @@ public object AudioProcessorFactory {
                 try {
                     val boostProcessor = VolumeBoostProcessor(settings.volumeBoostLevel)
                     processors.add(boostProcessor)
-                    LogUtils.d(TAG) { "Added VolumeBoostProcessor (${settings.volumeBoostLevel}) to chain" }
+                    android.util.Log.d(
+                        "AudioProcessorFactory",
+                        "Added VolumeBoostProcessor (${settings.volumeBoostLevel}) to chain",
+                    )
                 } catch (e: Exception) {
-                    LogUtils.e(TAG) { "Failed to create VolumeBoostProcessor: ${e.message}" }
+                    android.util.Log.e("AudioProcessorFactory", "Failed to create VolumeBoostProcessor", e)
                 }
             }
 
@@ -93,9 +84,12 @@ public object AudioProcessorFactory {
                 try {
                     val compressor = DynamicRangeCompressor(settings.drcLevel)
                     processors.add(compressor)
-                    LogUtils.d(TAG) { "Added DynamicRangeCompressor (${settings.drcLevel}) to chain" }
+                    android.util.Log.d(
+                        "AudioProcessorFactory",
+                        "Added DynamicRangeCompressor (${settings.drcLevel}) to chain",
+                    )
                 } catch (e: Exception) {
-                    LogUtils.e(TAG) { "Failed to create DynamicRangeCompressor: ${e.message}" }
+                    android.util.Log.e("AudioProcessorFactory", "Failed to create DynamicRangeCompressor", e)
                 }
             }
 
@@ -104,9 +98,9 @@ public object AudioProcessorFactory {
                 try {
                     val enhancer = SpeechEnhancer()
                     processors.add(enhancer)
-                    LogUtils.d(TAG) { "Added SpeechEnhancer to chain" }
+                    android.util.Log.d("AudioProcessorFactory", "Added SpeechEnhancer to chain")
                 } catch (e: Exception) {
-                    LogUtils.e(TAG) { "Failed to create SpeechEnhancer: ${e.message}" }
+                    android.util.Log.e("AudioProcessorFactory", "Failed to create SpeechEnhancer", e)
                 }
             }
 
@@ -115,9 +109,9 @@ public object AudioProcessorFactory {
                 try {
                     val leveler = AutoVolumeLeveler()
                     processors.add(leveler)
-                    LogUtils.d(TAG) { "Added AutoVolumeLeveler to chain" }
+                    android.util.Log.d("AudioProcessorFactory", "Added AutoVolumeLeveler to chain")
                 } catch (e: Exception) {
-                    LogUtils.e(TAG) { "Failed to create AutoVolumeLeveler: ${e.message}" }
+                    android.util.Log.e("AudioProcessorFactory", "Failed to create AutoVolumeLeveler", e)
                 }
             }
 
@@ -134,42 +128,26 @@ public object AudioProcessorFactory {
                         )
                     processors.add(silenceSkippingProcessor)
 
-                    LogUtils.d(TAG) {
-                        "Added SkipSilenceAudioProcessor to chain (threshold=${settings.skipSilenceThresholdNormalized}, minMs=${settings.skipSilenceMinDurationMs}, retainMs=${settings.retainWindowMs})"
-                    }
+                    android.util.Log.d(
+                        "AudioProcessorFactory",
+                        "Added SkipSilenceAudioProcessor to chain (threshold=${settings.skipSilenceThresholdNormalized}, minMs=${settings.skipSilenceMinDurationMs}, retainMs=${settings.retainWindowMs})",
+                    )
                 } catch (e: Exception) {
-                    LogUtils.e(TAG) { "Failed to create SkipSilenceAudioProcessor: ${e.message}" }
+                    android.util.Log.e("AudioProcessorFactory", "Failed to create SkipSilenceAudioProcessor", e)
                 }
             }
 
-            LogUtils.i(TAG) {
+            android.util.Log.i(
+                "AudioProcessorFactory",
                 "Created processor chain with ${processors.size} processors: " +
-                    processors.joinToString { it.javaClass.simpleName }
-            }
+                    processors.joinToString { it.javaClass.simpleName },
+            )
         } catch (e: Exception) {
-            LogUtils.e(TAG) { "Error creating processor chain: ${e.message}" }
+            android.util.Log.e("AudioProcessorFactory", "Error creating processor chain", e)
         }
 
         return ProcessorChainResult(processors, loudnessNormalizer)
     }
-
-    /**
-     * Creates a proxy-based processor chain that supports hot-swapping.
-     *
-     * Unlike [createProcessorChain] which creates concrete processors,
-     * this method returns a stable list of [ProxyAudioProcessor] wrappers.
-     * The returned [AudioProcessorChainManager] can be used to swap delegates
-     * at runtime via [AudioProcessorChainManager.applySettings] without
-     * recreating the ExoPlayer.
-     *
-     * @param settings Initial audio processing settings.
-     * @return Manager whose [AudioProcessorChainManager.proxies] list should
-     *         be passed to `ExoPlayer.Builder.setAudioProcessors()`.
-     */
-    public fun createProxyChain(settings: AudioProcessingSettings): AudioProcessorChainManager =
-        AudioProcessorChainManager().also { it.applySettings(settings) }
-
-    private const val TAG = "AudioProcFactory"
 }
 
 /**
@@ -225,14 +203,8 @@ public data class AudioProcessingSettings(
 }
 
 public enum class SkipSilenceMode {
-    /** Hard-drop silent frames (fastest, may produce clicks). */
     SKIP,
-
-    /** Time-stretch by keeping every Nth silent frame. */
     SPEED_UP,
-
-    /** Smooth fade-out before silence, fade-in after silence (best for speech). */
-    FADE,
 }
 
 /**

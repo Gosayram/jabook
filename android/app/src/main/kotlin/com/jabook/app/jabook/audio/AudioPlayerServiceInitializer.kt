@@ -14,8 +14,21 @@
 
 package com.jabook.app.jabook.audio
 
+import android.os.Bundle
 import androidx.annotation.OptIn
+import androidx.core.content.ContextCompat
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaController
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
+import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * Handles initialization logic for AudioPlayerService.
@@ -26,7 +39,7 @@ public class AudioPlayerServiceInitializer(
 ) {
     @OptIn(UnstableApi::class)
     public fun initialize() {
-        AudioCrossFadeSessionBinder.bind(service)
+        initializeCrossFadePlayer()
         android.util.Log.i("AudioPlayerService", "Initializing service components...")
 
         // NOTE: NotificationHelper is already initialized in onCreate() for immediate startForeground()
@@ -35,17 +48,268 @@ public class AudioPlayerServiceInitializer(
             service.notificationHelper = NotificationHelper(service)
         }
 
-        AudioServiceComponentBinder.bind(service)
+        // Note: Order matters due to dependencies
+
+        // 1. DurationManager (already initialized as val in Service)
+        // service.durationManager is available
+
+        // 2. MetadataManager
+        service.metadataManager =
+            MetadataManager(
+                context = service,
+                getActivePlayer = { service.getActivePlayer() },
+                // getNotificationManager callback removed - MediaSession handles updates automatically
+                getEmbeddedArtworkPath = { service.embeddedArtworkPath },
+                setEmbeddedArtworkPath = { service.embeddedArtworkPath = it },
+                getCurrentMetadata = { service.currentMetadata },
+                setCurrentMetadata = { /* Read-only in Service, no-op here */ },
+            )
+
+        // 3. PlaybackController
+        service.playbackController =
+            PlaybackController(
+                getActivePlayer = { service.getActivePlayer() },
+                playerServiceScope = service.playerServiceScope,
+                resetInactivityTimer = { service.inactivityTimer?.resetTimer() },
+                getResumeRewindSeconds = {
+                    // Long-pause resume rewind setting (0/5/10/30 sec).
+                    try {
+                        kotlinx.coroutines.runBlocking {
+                            service.settingsRepository.userPreferences
+                                .first()
+                                .resumeRewindSeconds
+                        }
+                    } catch (e: Exception) {
+                        10
+                    }
+                },
+                getResumeRewindMode = {
+                    try {
+                        kotlinx.coroutines.runBlocking {
+                            when (
+                                service.settingsRepository.userPreferences
+                                    .first()
+                                    .resumeRewindMode
+                            ) {
+                                com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART ->
+                                    ResumeRewindMode.SMART
+
+                                else -> ResumeRewindMode.FIXED
+                            }
+                        }
+                    } catch (e: Exception) {
+                        ResumeRewindMode.FIXED
+                    }
+                },
+                getResumeRewindAggressiveness = {
+                    try {
+                        kotlinx.coroutines.runBlocking {
+                            service.settingsRepository.userPreferences
+                                .first()
+                                .resumeRewindAggressiveness
+                        }
+                    } catch (e: Exception) {
+                        1.0f
+                    }
+                },
+                consumeSleepTimerStopFlag = { service.consumeStoppedBySleepTimerFlag() },
+            )
+
+        // 3.1 SleepTimerManager
+        service.sleepTimerManager =
+            SleepTimerManager(
+                context = service,
+                packageName = service.packageName,
+                playerServiceScope = service.playerServiceScope,
+                getActivePlayer = { service.getActivePlayer() },
+                sendBroadcast = { service.sendBroadcast(it) },
+                saveCurrentPositionOnExpiry = {
+                    service.playbackController?.markSleepTimerPause()
+                    service.markStoppedBySleepTimer()
+                    service.savePositionToRepository()
+                },
+                isShakeToExtendEnabled = {
+                    try {
+                        kotlinx.coroutines.runBlocking {
+                            service.settingsRepository.userPreferences
+                                .first()
+                                .sleepTimerShakeExtendEnabled
+                        }
+                    } catch (e: Exception) {
+                        true
+                    }
+                },
+            )
+        service.sleepTimerManager?.restoreTimerState()
+
+        // 4. PlaylistManager (Complex dependencies)
+        service.playlistManager =
+            PlaylistManager(
+                context = service,
+                mediaCache = service.media3Cache,
+                getActivePlayer = { service.getActivePlayer() },
+                // getNotificationManager callback removed - MediaSession handles updates automatically
+                playerServiceScope = service.playerServiceScope,
+                mediaItemDispatcher = service.mediaItemDispatcher,
+                dispatchers = service.dispatchers,
+                getFlavorSuffix = { AudioPlayerService.getFlavorSuffix(service) },
+                setPendingTrackSwitchDeferred = { deferred ->
+                    service.playerListener?.setPendingTrackSwitchDeferred(deferred)
+                },
+                durationManager = service.durationManager,
+                playerPersistenceManager = service.playerPersistenceManager,
+                playbackController =
+                    service.playbackController
+                        ?: throw IllegalStateException("PlaybackController must be initialized before PlaylistManager"),
+                getCurrentTrackIndex = { service.actualTrackIndex },
+            )
+
+        // 5. PositionManager
+        service.positionManager =
+            PositionManager(
+                context = service,
+                getActivePlayer = { service.getActivePlayer() },
+                packageName = service.packageName,
+                sendBroadcast = { service.sendBroadcast(it) },
+            )
+
+        // 6. CrossfadeHandler
+        // Initialize crossfade handler (requires playlistManager)
+        service.crossfadeHandler =
+            CrossfadeHandler(
+                service = service,
+                crossFadePlayer =
+                    service.crossFadePlayer
+                        ?: throw IllegalStateException("CrossFadePlayer must be initialized before CrossfadeHandler"),
+                playlistManager =
+                    service.playlistManager
+                        ?: throw IllegalStateException("PlaylistManager must be initialized before CrossfadeHandler"),
+            )
+
+        // 7. UnloadManager
+        service.unloadManager =
+            UnloadManager(
+                context = service,
+                getActivePlayer = { service.getActivePlayer() },
+                getCustomExoPlayer = { service.customExoPlayer },
+                releaseCustomExoPlayer = {
+                    service.customExoPlayer?.release()
+                    service.customExoPlayer = null
+                },
+                getMediaSession = { service.mediaSession },
+                releaseMediaSession = {
+                    service.mediaSession?.release()
+                    service.mediaSession = null
+                },
+                getMediaSessionManager = { service.mediaSessionManager },
+                releaseMediaSessionManager = {
+                    service.mediaSessionManager?.release()
+                    service.mediaSessionManager = null
+                },
+                getInactivityTimer = { service.inactivityTimer },
+                releaseInactivityTimer = {
+                    service.inactivityTimer?.release()
+                    service.inactivityTimer = null
+                },
+                getPlaybackTimer = { service.playbackTimer },
+                releasePlaybackTimer = {
+                    service.playbackTimer?.release()
+                    service.playbackTimer = null
+                },
+                getCurrentMetadata = { service.currentMetadata },
+                setCurrentMetadata = { /* No-op */ },
+                getEmbeddedArtworkPath = { service.embeddedArtworkPath },
+                setEmbeddedArtworkPath = { service.embeddedArtworkPath = it },
+                saveCurrentPosition = { service.saveCurrentPosition() },
+                stopForeground = { removeNotification ->
+                    @Suppress("DEPRECATION")
+                    service.stopForeground(removeNotification)
+                },
+                stopSelf = { service.stopSelf() },
+            )
+
+        // Initialize helper for player state
+        service.playerStateHelper =
+            PlayerStateHelper(
+                getActivePlayer = { service.getActivePlayer() },
+                getCachedDuration = { service.durationManager.getCachedDuration(it) },
+                saveDurationToCache = { path, duration -> service.durationManager.saveDurationToCache(path, duration) },
+                getDurationForFile = { service.durationManager.getDurationForFile(it) },
+                getLastCompletedTrackIndex = { service.lastCompletedTrackIndex },
+                getActualPlaylistSize = { service.currentFilePaths?.size ?: service.exoPlayer.mediaItemCount },
+                getActualTrackIndex = { service.actualTrackIndex },
+                getCurrentFilePaths = { service.currentFilePaths },
+                coroutineScope = service.playerServiceScope,
+            )
+
+        // Initialize Intent Handler
+        service.intentHandler = ServiceIntentHandler(service)
+
+        // Initialize Player Configurator - takes only service
+        service.playerConfigurator = PlayerConfigurator(service)
+
+        // Initialize Phone Call Listener for automatic resume after calls
+        service.phoneCallListener =
+            PhoneCallListener(
+                context = service,
+                getActivePlayer = { service.getActivePlayer() },
+                wasPlayingBeforeCall = { service.wasPlayingBeforeCall },
+                setWasPlayingBeforeCall = { value -> service.wasPlayingBeforeCall = value },
+            )
+
+        // Initialize MediaButtonHandler for multi-click headset support
+        service.mediaButtonHandler = MediaButtonHandler()
+
+        // Initialize HeadsetAutoplayHandler (BP-13.2: BT disconnect guard)
+        service.headsetAutoplayHandler =
+            HeadsetAutoplayHandler(
+                context = service,
+                onHeadsetConnected = {
+                    // Wired headset: auto-resume playback
+                    // BT reconnect: HeadsetAutoplayHandler only triggers this when
+                    // wasPlayingBeforeBtDisconnect is true — but per BP-13.2 spec,
+                    // we don't auto-play. Instead, user manually resumes via UI.
+                    // For wired headset (lastDisconnectWasBluetooth=false), auto-play.
+                    val handler = service.headsetAutoplayHandler
+                    if (handler != null && !handler.lastDisconnectWasBluetooth) {
+                        if (!service.isPlaying) {
+                            service.play()
+                        }
+                    }
+                    // BT reconnect: no auto-play, user resumes manually via notification/mini-player
+                },
+                onHeadsetDisconnected = {
+                    // BP-13.2: On BT disconnect — save position and pause
+                    service.headsetAutoplayHandler?.recordWasPlaying(service.isPlaying)
+                    if (service.isPlaying) {
+                        service.saveCurrentPosition()
+                        service.pause()
+                        LogUtils.d(
+                            "AudioPlayerService",
+                            "BT/headset disconnected — paused playback and saved position",
+                        )
+                    }
+                },
+            )
+        service.headsetAutoplayHandler?.startListening()
+
+        // BP-13.3: Initialize audio output device routing monitor
+        service.audioOutputDeviceMonitor = AudioOutputDeviceMonitor(service).also { it.register() }
+
+        // Ensure ExoPlayer is initialized
+        // Note: Hilt initialization check removed to avoid backing field access error
+        // We assume Hilt has initialized exoPlayer before onCreate calls initialize()
+        service.configurePlayer()
 
         // Initialize MediaSession (Media3)
-        AudioSessionSetup(service).initializeMediaSession()
+        initializeMediaSession()
 
         // Note: isFullyInitializedFlag will be set after MediaController is created
         // This ensures service is truly ready before components try to use it
 
         // Start settings synchronization to MediaSession
         // This ensures system media controls always reflect current app settings
-        MediaSessionSettingsSyncInitializer.initialize(service)
+        initializeSettingsSync()
 
         android.util.Log.i("AudioPlayerService", "Service components initialized successfully")
     }
@@ -55,6 +319,289 @@ public class AudioPlayerServiceInitializer(
      * Handles: playback speed restore, notification provider, audio output, visualizer, enhancer.
      */
     public fun postInitialize() {
-        AudioPlayerPostInitCoordinator(service).run()
+        restorePlaybackSpeed()
+        setupNotificationProvider()
+        setupPlayerNotificationManagerFallback()
+        setupAudioOutputManager()
+        service.playbackEnhancerService.initialize()
+        initializeVisualizer()
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun initializeCrossFadePlayer() {
+        service.crossFadePlayer =
+            CrossFadePlayer(service) { context ->
+                androidx.media3.exoplayer.ExoPlayer
+                    .Builder(context)
+                    .setRenderersFactory(androidx.media3.exoplayer.DefaultRenderersFactory(context))
+                    .setWakeMode(androidx.media3.common.C.WAKE_MODE_LOCAL)
+                    .setHandleAudioBecomingNoisy(true)
+                    .setAudioAttributes(
+                        androidx.media3.common.AudioAttributes
+                            .Builder()
+                            .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+                            .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_SPEECH)
+                            .build(),
+                        true,
+                    ).build()
+            }
+        service.crossFadePlayer?.onPlayerChanged = { newPlayer ->
+            try {
+                service.mediaLibrarySession?.let { session ->
+                    session.player = newPlayer
+                    LogUtils.d(
+                        "AudioPlayerService",
+                        "MediaSession player updated after crossfade: ${newPlayer.javaClass.simpleName}",
+                    )
+                } ?: LogUtils.w(
+                    "AudioPlayerService",
+                    "MediaLibrarySession is null, cannot update player after crossfade",
+                )
+            } catch (e: Exception) {
+                LogUtils.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
+            }
+        }
+    }
+
+    private fun restorePlaybackSpeed() {
+        service.playerServiceScope.launch {
+            try {
+                val savedSpeed = service.audioPreferences.playbackSpeed.first()
+                withContext(Dispatchers.Main) {
+                    LogUtils.d("AudioPlayerService", "Restoring playback speed: ${savedSpeed}x")
+                    service.exoPlayer.setPlaybackSpeed(savedSpeed)
+                }
+            } catch (e: Exception) {
+                LogUtils.e("AudioPlayerService", "Failed to restore playback speed", e)
+            }
+        }
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun setupNotificationProvider() {
+        if (service.mediaLibrarySession != null) {
+            service.setNotificationProvider(AudioPlayerNotificationProvider(service))
+            LogUtils.i("AudioPlayerService", "MediaNotificationProvider set for MediaLibrarySession")
+        } else {
+            LogUtils.w("AudioPlayerService", "MediaLibrarySession is null, cannot set MediaNotificationProvider")
+        }
+    }
+
+    private fun setupPlayerNotificationManagerFallback() {
+        if (service.mediaLibrarySession == null) {
+            LogUtils.w("AudioPlayerService", "MediaLibrarySession not available, using PlayerNotificationManager as fallback")
+            service.setupPlayerNotificationManager()
+        }
+    }
+
+    private fun setupAudioOutputManager() {
+        if (service.exoPlayer.isPlaying) {
+            service.audioOutputManager.startMonitoring()
+        }
+
+        service.exoPlayer.addListener(
+            object : Player.Listener {
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    if (isPlaying) {
+                        service.audioOutputManager.startMonitoring()
+                    } else {
+                        service.audioOutputManager.stopMonitoring()
+                    }
+                }
+            },
+        )
+    }
+
+    private fun initializeVisualizer() {
+        service.audioVisualizerManager = AudioVisualizerManager(service)
+        service.visualizerBridgeJob?.cancel()
+        service.visualizerBridgeJob =
+            service.playerServiceScope.launch {
+                service.audioVisualizerManager
+                    ?.waveformData
+                    ?.collect { waveform ->
+                        service.audioVisualizerStateBridge.updateWaveform(waveform)
+                    }
+            }
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun initializeMediaSession() {
+        if (service.mediaLibrarySession != null) return
+
+        try {
+            // Create intent for clicking the notification
+            val sessionActivity = service.getBackStackedActivity() ?: service.getSingleTopActivity()
+
+            // Create callback instance
+            val callback =
+                AudioPlayerLibrarySessionCallback(
+                    service,
+                    service.playerPersistenceManager,
+                    service.torrentDownloadRepository,
+                    service.mediaButtonHandler,
+                    { filePath -> service.durationManager.getDurationForFile(filePath) },
+                )
+
+            // Build MediaLibrarySession - Media3 handles notifications automatically
+            // DO NOT set custom notification provider or media button preferences in Builder
+            // These must be handled in the Callback's onConnect method
+            // CRITICAL FIX: Add BOTH PID AND instance hash to session ID
+            // Android can call onCreate() MULTIPLE TIMES with the SAME PID without calling onDestroy()
+            // Evidence from logs: PID 8921 had onCreate() called twice (Instance 50442924, then 115225231)
+            val sessionId = "jabook_${android.os.Process.myPid()}_${System.identityHashCode(service)}"
+            android.util.Log.i("AudioPlayerService", "Creating MediaLibrarySession with ID: $sessionId")
+
+            val sessionBuilder =
+                MediaLibrarySession
+                    .Builder(
+                        service,
+                        service.exoPlayer,
+                        callback,
+                    ).setId(sessionId) // Truly unique session ID: PID + instance hash
+
+            // Set session activity (PendingIntent)
+            // This is CRITICAL for Android 12+ media controls to work properly
+            if (sessionActivity != null) {
+                sessionBuilder.setSessionActivity(sessionActivity)
+            } else {
+                android.util.Log.w("AudioPlayerService", "Session activity intent is null")
+            }
+
+            service.mediaLibrarySession = sessionBuilder.build()
+
+            // Reserve space for skip buttons in notification (prevents jumping when buttons change)
+            // Following Media3 official pattern from DemoPlaybackService
+            service.mediaLibrarySession?.sessionExtras =
+                Bundle().apply {
+                    putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV, true)
+                    putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_NEXT, true)
+                }
+
+            // Assign to legacy field for compatibility
+            service.mediaSession = service.mediaLibrarySession
+
+            android.util.Log.i(
+                "AudioPlayerService",
+                "MediaLibrarySession created successfully: ${service.mediaLibrarySession?.token}",
+            )
+
+            // Create MediaController inside Service (as in Rhythm pattern)
+            // This replaces getInstance() pattern and provides proper Media3 integration
+            createServiceMediaController()
+
+            // Create MediaSessionManager (wraps MediaSequencer)
+            service.mediaSessionManager =
+                MediaSessionManager(
+                    service,
+                    service.exoPlayer,
+                )
+
+            // Legacy NotificationManager is NO LONGER NEEDED for Media3 system notifications
+            // Migration Phase 1: DISABLED to prevent conflicts with MediaNotification.Provider
+            /*
+            service.notificationManager =
+                NotificationManager(
+                    context = service,
+                    player = service.exoPlayer,
+                    mediaSession = service.mediaLibrarySession, // Use available session
+                    metadata = service.currentMetadata,
+                    embeddedArtworkPath = service.embeddedArtworkPath,
+                    rewindSeconds = 15, // Default
+                    forwardSeconds = 30, // Default
+                )
+            // Inject scope for async bitmap loading
+            service.notificationManager?.setCoroutineScope(service.playerServiceScope)
+             */
+
+            // Allow updating player reference if crossfade happens
+            // service.crossFadePlayer?.onPlayerChanged will handle this via updatePlayer()
+
+            // Note: setMediaNotificationProvider must be called from AudioPlayerService.onCreate()
+            // as it's a protected method in MediaSessionService
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Failed to create MediaLibrarySession", e)
+        }
+    }
+
+    /**
+     * Creates MediaController inside Service for internal use (as in Rhythm pattern).
+     * This replaces getInstance() pattern and provides proper Media3 integration.
+     */
+    @OptIn(UnstableApi::class)
+    private fun createServiceMediaController() {
+        val session = service.mediaLibrarySession
+        if (session == null) {
+            android.util.Log.w("AudioPlayerService", "Cannot create MediaController: MediaLibrarySession is null")
+            return
+        }
+
+        try {
+            // Build the controller asynchronously to avoid blocking the main thread
+            val controllerFuture: ListenableFuture<MediaController> =
+                MediaController
+                    .Builder(service, session.token)
+                    .setApplicationLooper(service.mainLooper)
+                    .buildAsync()
+
+            controllerFuture.addListener(
+                {
+                    try {
+                        // Wait for controller with reasonable timeout for service initialization
+                        val controller =
+                            controllerFuture.get(
+                                com.jabook.app.jabook.audio.MediaControllerConstants.SERVICE_INIT_TIMEOUT_SECONDS
+                                    .toLong(),
+                                java.util.concurrent.TimeUnit.SECONDS,
+                            )
+                        service.serviceMediaController = controller
+
+                        // CRITICAL: Set initialization flag only after MediaController is ready
+                        // This ensures components don't try to use service before it's fully ready
+                        service.isFullyInitializedFlag = true
+
+                        // Set initial CustomLayout after MediaController is ready (following Rhythm pattern)
+                        // This avoids MediaSessionLegacyStub conversion issues during onConnect
+                        service.setInitialCustomLayout()
+
+                        android.util.Log.i(
+                            "AudioPlayerService",
+                            "Service MediaController initialized successfully, service is now fully ready",
+                        )
+                    } catch (e: java.util.concurrent.TimeoutException) {
+                        android.util.Log.e("AudioPlayerService", "Service MediaController initialization timeout", e)
+                        // Set flag anyway - MediaSession is ready, external controllers can connect
+                        // Service can function without internal MediaController
+                        service.isFullyInitializedFlag = true
+                    } catch (e: Exception) {
+                        android.util.Log.e("AudioPlayerService", "Error initializing Service MediaController", e)
+                        // Set flag anyway - MediaSession is ready, external controllers can connect
+                        service.isFullyInitializedFlag = true
+                    }
+                },
+                ContextCompat.getMainExecutor(service),
+            )
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Failed to create Service MediaController", e)
+        }
+    }
+
+    /**
+     * Initializes settings synchronization for MediaSession custom commands.
+     * Observes user preferences and updates skip durations dynamically.
+     */
+    private fun initializeSettingsSync() {
+        try {
+            val settingsSync =
+                MediaSessionSettingsSync(
+                    settingsRepository = service.settingsRepository,
+                    service = service,
+                    scope = service.playerServiceScope,
+                )
+            settingsSync.start()
+            android.util.Log.i("AudioPlayerService", "Settings sync initialized successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("AudioPlayerService", "Failed to initialize settings sync", e)
+        }
     }
 }

@@ -47,7 +47,6 @@ internal class BookCompletionCoordinator(
     private val getCurrentBookId: () -> String?,
     private val markBookCompleted: (String) -> Unit,
     private val saveCurrentPosition: () -> Unit,
-    private val isRepeatAllEnabled: () -> Boolean = { false },
 ) {
     /**
      * Origin of the completion event, used for logging and diagnostics.
@@ -81,10 +80,6 @@ internal class BookCompletionCoordinator(
         currentIndex: Int,
         source: Source,
     ): Boolean {
-        if (isRepeatAllEnabled()) {
-            LogUtils.d(TAG, "Skipping completion from ${source.label}: repeat-all is enabled")
-            return false
-        }
         if (getIsBookCompleted()) {
             LogUtils.v(
                 TAG,

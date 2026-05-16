@@ -19,7 +19,6 @@ import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
-import kotlin.math.min
 
 /**
  * Lightweight silence skipper for 16-bit PCM streams.
@@ -76,20 +75,6 @@ public class SkipSilenceAudioProcessor(
     // ---- Skipped-time metric (cumulative, reset via [resetSkippedMetric]) ----
     private var totalSkippedFrames = 0L
 
-    // ---- FADE mode state machine ----
-    private var fadeState: FadeState = FadeState.PLAYING
-    private var fadeFrames = 0
-    private var fadeProgress = 0
-    private var fadeGainCurrent = 1.0f
-
-    /** FADE mode state machine. PLAYING ↔ FADING_OUT ↔ SILENT ↔ FADING_IN ↔ PLAYING. */
-    private enum class FadeState {
-        PLAYING,
-        FADING_OUT,
-        SILENT,
-        FADING_IN,
-    }
-
     override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         this.inputAudioFormat = inputAudioFormat
         outputAudioFormat = inputAudioFormat
@@ -113,17 +98,6 @@ public class SkipSilenceAudioProcessor(
 
         // Pre-allocate temp buffer for zero-allocation frame copying
         tempFrameBuf = ByteArray(bytesPerFrame)
-
-        // Pre-compute fade ramp length (25 ms default)
-        fadeFrames =
-            if (mode == SkipSilenceMode.FADE) {
-                (inputAudioFormat.sampleRate * FADE_DURATION_MS / 1000).coerceAtLeast(1)
-            } else {
-                0
-            }
-        fadeState = FadeState.PLAYING
-        fadeProgress = 0
-        fadeGainCurrent = 1.0f
 
         isActive =
             enabled &&
@@ -233,27 +207,20 @@ public class SkipSilenceAudioProcessor(
                 } else if (mode == SkipSilenceMode.SPEED_UP && shouldKeepFrameInSpeedUpMode()) {
                     // Speed-up mode: keep every Nth frame for time-compression effect
                     copyFrameZeroAlloc(input, output, frameStart, frameEnd)
-                } else if (mode == SkipSilenceMode.FADE) {
-                    processFadeSilentFrame(input, output, frameStart, frameEnd)
                 } else {
-                    // SKIP mode: frame is being dropped — buffer into retain ring
+                    // Frame is being dropped — buffer into retain ring for smooth transition
                     writeToRetainRing(input, frameStart, frameEnd)
                     wasDroppingSilence = true
                     totalSkippedFrames++
                 }
             } else {
-                // Speech detected
-                if (mode == SkipSilenceMode.FADE) {
-                    processFadeSpeechFrame(input, output, frameStart, frameEnd)
-                } else {
-                    // SKIP / SPEED_UP: flush retain window before the speech frame
-                    if (wasDroppingSilence) {
-                        flushRetainRing(output)
-                        wasDroppingSilence = false
-                    }
-                    consecutiveSilentFrames = 0
-                    copyFrameZeroAlloc(input, output, frameStart, frameEnd)
+                // Speech detected — flush retain window before the speech frame
+                if (wasDroppingSilence) {
+                    flushRetainRing(output)
+                    wasDroppingSilence = false
                 }
+                consecutiveSilentFrames = 0
+                copyFrameZeroAlloc(input, output, frameStart, frameEnd)
             }
         }
     }
@@ -265,140 +232,6 @@ public class SkipSilenceAudioProcessor(
     private fun shouldKeepFrameInSpeedUpMode(): Boolean {
         val silentFramesPastMinimum = (consecutiveSilentFrames - minSilenceFrames).coerceAtLeast(0)
         return silentFramesPastMinimum % SPEED_UP_KEEP_EVERY_NTH_FRAME == 0
-    }
-
-    /**
-     * Handles a silent frame in FADE mode using the state machine.
-     *
-     * State transitions:
-     * - PLAYING → start FADING_OUT (retain frames with decreasing gain)
-     * - FADING_OUT → continue fading; once complete, transition to SILENT (drop)
-     * - SILENT → drop frame silently (no retain ring needed — fade covers transition)
-     * - FADING_IN → shouldn't happen (speech interrupted); reset to FADING_OUT
-     */
-    private fun processFadeSilentFrame(
-        input: ByteBuffer,
-        output: ByteBuffer,
-        frameStart: Int,
-        frameEnd: Int,
-    ) {
-        when (fadeState) {
-            FadeState.PLAYING -> {
-                // Begin fade-out: keep the frame but start ramping down
-                fadeState = FadeState.FADING_OUT
-                fadeProgress = 0
-                fadeGainCurrent = computeFadeGain(fadeProgress)
-                copyFrameWithGain(input, output, frameStart, frameEnd, fadeGainCurrent)
-                fadeProgress++
-            }
-            FadeState.FADING_OUT -> {
-                if (fadeProgress < fadeFrames) {
-                    fadeGainCurrent = computeFadeGain(fadeProgress)
-                    copyFrameWithGain(input, output, frameStart, frameEnd, fadeGainCurrent)
-                    fadeProgress++
-                } else {
-                    // Fade-out complete — now truly silent, drop frames
-                    fadeState = FadeState.SILENT
-                    fadeGainCurrent = 0.0f
-                    totalSkippedFrames++
-                }
-            }
-            FadeState.SILENT -> {
-                totalSkippedFrames++
-            }
-            FadeState.FADING_IN -> {
-                // Speech resumed before fade-in finished — back to fading out
-                fadeState = FadeState.FADING_OUT
-                fadeProgress = 0
-                fadeGainCurrent = computeFadeGain(fadeProgress)
-                copyFrameWithGain(input, output, frameStart, frameEnd, fadeGainCurrent)
-                fadeProgress++
-            }
-        }
-    }
-
-    /**
-     * Handles a speech (non-silent) frame in FADE mode using the state machine.
-     *
-     * State transitions:
-     * - PLAYING → keep frame at full volume
-     * - FADING_OUT / SILENT → start FADING_IN (resume with increasing gain)
-     * - FADING_IN → continue fading in; once complete, back to PLAYING
-     */
-    private fun processFadeSpeechFrame(
-        input: ByteBuffer,
-        output: ByteBuffer,
-        frameStart: Int,
-        frameEnd: Int,
-    ) {
-        consecutiveSilentFrames = 0
-
-        when (fadeState) {
-            FadeState.PLAYING -> {
-                copyFrameZeroAlloc(input, output, frameStart, frameEnd)
-            }
-            FadeState.FADING_OUT,
-            FadeState.SILENT,
-            -> {
-                // Speech resumed — begin fade-in from current gain
-                fadeState = FadeState.FADING_IN
-                fadeProgress = 0
-                fadeGainCurrent = computeFadeInGain(fadeProgress)
-                copyFrameWithGain(input, output, frameStart, frameEnd, fadeGainCurrent)
-                fadeProgress++
-            }
-            FadeState.FADING_IN -> {
-                if (fadeProgress < fadeFrames) {
-                    fadeGainCurrent = computeFadeInGain(fadeProgress)
-                    copyFrameWithGain(input, output, frameStart, frameEnd, fadeGainCurrent)
-                    fadeProgress++
-                } else {
-                    // Fade-in complete
-                    fadeState = FadeState.PLAYING
-                    fadeGainCurrent = 1.0f
-                    copyFrameZeroAlloc(input, output, frameStart, frameEnd)
-                }
-            }
-        }
-    }
-
-    /**
-     * Computes linear fade-out gain: 1.0 → 0.0 over [fadeFrames] steps.
-     */
-    private fun computeFadeGain(step: Int): Float = 1.0f - min(step.toFloat() / fadeFrames.toFloat(), 1.0f)
-
-    /**
-     * Computes linear fade-in gain: 0.0 → 1.0 over [fadeFrames] steps.
-     */
-    private fun computeFadeInGain(step: Int): Float = min(step.toFloat() / fadeFrames.toFloat(), 1.0f)
-
-    /**
-     * Copies a single PCM frame from [input] at [start]..[end] into [output],
-     * applying a multiplicative [gain] to each 16-bit sample.
-     * Uses the pre-allocated [tempFrameBuf] — zero GC allocations.
-     */
-    private fun copyFrameWithGain(
-        input: ByteBuffer,
-        output: ByteBuffer,
-        start: Int,
-        end: Int,
-        gain: Float,
-    ) {
-        val frameSize = end - start
-        if (frameSize <= 0) return
-
-        val savedPosition = input.position()
-        input.position(start)
-
-        // Process 16-bit samples directly (no temp buf needed for gain)
-        val samples = frameSize / PCM_16_BIT_BYTES
-        repeat(samples) {
-            val sample = input.short
-            val amplified = (sample * gain).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
-            output.putShort(amplified.toShort())
-        }
-
-        input.position(savedPosition)
     }
 
     /**
@@ -519,9 +352,6 @@ public class SkipSilenceAudioProcessor(
         retainHead = 0
         retainBytesAvailable = 0
         totalSkippedFrames = 0L
-        fadeState = FadeState.PLAYING
-        fadeProgress = 0
-        fadeGainCurrent = 1.0f
     }
 
     override fun reset() {
@@ -538,7 +368,6 @@ public class SkipSilenceAudioProcessor(
     }
 
     private companion object {
-        private const val TAG = "SkipSilence"
         private const val PCM_16_BIT_BYTES = 2
         private const val SPEED_UP_KEEP_EVERY_NTH_FRAME = 2
 
@@ -550,9 +379,6 @@ public class SkipSilenceAudioProcessor(
 
         /** Maximum retain window (larger values reduce the effectiveness of skip-silence). */
         private const val MAX_RETAIN_WINDOW_MS = 80
-
-        /** FADE mode: duration of fade-in / fade-out ramp (25 ms, imperceptible to ear). */
-        private const val FADE_DURATION_MS = 25
 
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
