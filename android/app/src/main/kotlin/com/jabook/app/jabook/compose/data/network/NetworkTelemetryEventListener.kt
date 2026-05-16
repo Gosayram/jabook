@@ -132,6 +132,7 @@ public class NetworkTelemetryEventListenerFactory
             companion object {
                 private const val SLOW_REQUEST_THRESHOLD_MS = 3_000L
             }
+
             private val tracker = NetworkCallMetricsTracker()
 
             override fun callStart(call: Call) {

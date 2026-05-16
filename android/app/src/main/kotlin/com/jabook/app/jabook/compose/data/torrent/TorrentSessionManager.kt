@@ -25,14 +25,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import org.libtorrent4j.AddTorrentParams
 import org.libtorrent4j.AlertListener
-import org.libtorrent4j.Vectors
-import org.libtorrent4j.alerts.SaveResumeDataAlert
-import org.libtorrent4j.alerts.SaveResumeDataFailedAlert
 import org.libtorrent4j.LibTorrent
 import org.libtorrent4j.SessionManager
 import org.libtorrent4j.SessionParams
@@ -40,6 +38,7 @@ import org.libtorrent4j.SettingsPack
 import org.libtorrent4j.TorrentHandle
 import org.libtorrent4j.TorrentInfo
 import org.libtorrent4j.TorrentStatus
+import org.libtorrent4j.Vectors
 import org.libtorrent4j.alerts.AddTorrentAlert
 import org.libtorrent4j.alerts.Alert
 import org.libtorrent4j.alerts.AlertType
@@ -48,11 +47,15 @@ import org.libtorrent4j.alerts.DhtErrorAlert
 import org.libtorrent4j.alerts.MetadataReceivedAlert
 import org.libtorrent4j.alerts.PeerLogAlert
 import org.libtorrent4j.alerts.PieceFinishedAlert
+import org.libtorrent4j.alerts.SaveResumeDataAlert
+import org.libtorrent4j.alerts.SaveResumeDataFailedAlert
 import org.libtorrent4j.alerts.StateChangedAlert
 import org.libtorrent4j.alerts.StateUpdateAlert
 import org.libtorrent4j.alerts.TorrentErrorAlert
 import org.libtorrent4j.alerts.TorrentFinishedAlert
 import org.libtorrent4j.alerts.TorrentLogAlert
+import org.libtorrent4j.swig.error_code
+import org.libtorrent4j.swig.libtorrent
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -124,9 +127,10 @@ public class TorrentSessionManager
                             is DhtErrorAlert -> handleDhtError(alert)
                             is StateUpdateAlert -> handleStateUpdate(alert)
                             is SaveResumeDataAlert -> handleSaveResumeData(alert)
-                            is SaveResumeDataFailedAlert -> logger.w {
-                                "Save resume data failed for ${alert.handle().infoHash().toHex()}"
-                            }
+                            is SaveResumeDataFailedAlert ->
+                                logger.w {
+                                    "Save resume data failed for ${alert.handle().infoHash().toHex()}"
+                                }
                             is PeerLogAlert -> {
                                 // Log peer-level debugging (can be verbose, so use debug level)
                                 logger.d { "PEER_LOG: ${alert.logMessage()}" }
@@ -576,10 +580,16 @@ public class TorrentSessionManager
                             if (torrents.containsKey(entity.hash)) return@forEach
                             val resumeBytes = entity.resumeData ?: return@forEach
                             val byteVector = Vectors.bytes2byte_vector(resumeBytes)
-                            val params = org.libtorrent4j.AddTorrentParams().apply {
-                                swig().setResumeData(byteVector)
-                                swig().setSavePath(entity.savePath)
+                            val errorCode = error_code()
+                            val swigParams = libtorrent.read_resume_data_ex(byteVector, errorCode)
+                            if (errorCode.failed()) {
+                                logger.w { "Resume data rejected for ${entity.hash}: ${errorCode.message()}" }
+                                return@forEach
                             }
+                            val params =
+                                AddTorrentParams(swigParams).apply {
+                                    setSavePath(entity.savePath)
+                                }
                             // SessionManager doesn't expose asyncAddTorrent directly;
                             // go via the swig session_handle which does.
                             session?.swig()?.async_add_torrent(params.swig())
@@ -601,7 +611,7 @@ public class TorrentSessionManager
                 val handle = alert.handle()
                 if (!handle.isValid) return
                 val hash = handle.infoHash().toHex()
-                val resumeBytes = Vectors.byte_vector2bytes(alert.params().resumeData())
+                val resumeBytes = AddTorrentParams.writeResumeDataBuf(alert.params())
                 sessionScope.launch {
                     try {
                         torrentDownloadDao.updateResumeData(hash, resumeBytes)

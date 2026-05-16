@@ -14,6 +14,11 @@
 
 package com.jabook.app.jabook.compose.feature.library
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,11 +34,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
@@ -49,11 +49,11 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -68,6 +68,7 @@ import com.jabook.app.jabook.compose.designsystem.component.UnifiedBookCard
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
+import kotlinx.coroutines.launch
 
 /**
  * Logger for UnifiedBooksView Composable functions.
@@ -364,24 +365,24 @@ private fun SwipeableBookCard(
         return
     }
 
-    val dismissState =
-        rememberSwipeToDismissBoxState(
-            confirmValueChange = { value ->
-                when (value) {
-                    SwipeToDismissBoxValue.StartToEnd -> {
-                        actionsProvider.onToggleFavorite(book.id, !actionsProvider.isFavorite(book.id))
-                        false
-                    }
+    val onDeleteBook = actionsProvider.onDeleteBook
+    val dismissState = rememberSwipeToDismissBoxState()
 
-                    SwipeToDismissBoxValue.EndToStart -> {
-                        actionsProvider.onDeleteBook?.invoke(book.id)
-                        false
-                    }
+    LaunchedEffect(dismissState.currentValue, book.id) {
+        when (dismissState.currentValue) {
+            SwipeToDismissBoxValue.StartToEnd -> {
+                actionsProvider.onToggleFavorite(book.id, !actionsProvider.isFavorite(book.id))
+                dismissState.reset()
+            }
 
-                    SwipeToDismissBoxValue.Settled -> false
-                }
-            },
-        )
+            SwipeToDismissBoxValue.EndToStart -> {
+                onDeleteBook(book.id)
+                dismissState.reset()
+            }
+
+            SwipeToDismissBoxValue.Settled -> Unit
+        }
+    }
 
     SwipeToDismissBox(
         state = dismissState,

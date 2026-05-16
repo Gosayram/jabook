@@ -918,6 +918,13 @@ public class PlayerViewModel
         }
 
         public fun setPlaybackSpeed(speed: Float) {
+            applyPlaybackSpeed(speed = speed, rememberForBook = true)
+        }
+
+        private fun applyPlaybackSpeed(
+            speed: Float,
+            rememberForBook: Boolean,
+        ) {
             val clampedSpeed = speed.coerceIn(0.5f, 3.5f)
             viewModelScope.launch {
                 runCatching { userPreferencesRepository.setPlaybackSpeed(clampedSpeed) }
@@ -933,11 +940,23 @@ public class PlayerViewModel
                         dispatch(PlayerIntent.ReportError("Failed to update playback speed"))
                     }
             }
+            if (!rememberForBook) return
             viewModelScope.launch {
-                runCatching { booksRepository.updatePreferredPlaybackSpeed(bookId = bookId, speed = clampedSpeed) }
-                    .onFailure { error ->
-                        logger.w(error) { "Failed to persist per-book playback speed preference" }
+                runCatching {
+                    val activeState = uiState.value as? PlayerState.Active
+                    val listenedMs = activeState?.currentPosition ?: playerController.currentPosition.value
+                    if (
+                        SpeedMemoryHierarchy.shouldRecordBookSpeed(
+                            listenedMs = listenedMs,
+                            previousSpeed = null,
+                            newSpeed = clampedSpeed,
+                        )
+                    ) {
+                        booksRepository.updatePreferredPlaybackSpeed(bookId = bookId, speed = clampedSpeed)
                     }
+                }.onFailure { error ->
+                    logger.w(error) { "Failed to persist per-book playback speed preference" }
+                }
             }
         }
 
@@ -1192,7 +1211,10 @@ public class PlayerViewModel
                                         globalSpeed = globalSpeed,
                                     )
                                 if (SpeedMemoryHierarchy.hasMeaningfulSpeedDelta(globalSpeed, resolvedSpeed)) {
-                                    setPlaybackSpeed(resolvedSpeed)
+                                    applyPlaybackSpeed(
+                                        speed = resolvedSpeed,
+                                        rememberForBook = false,
+                                    )
                                 }
                             }.onFailure { error ->
                                 logger.w(error) { "Failed to resolve hierarchical playback speed for book" }

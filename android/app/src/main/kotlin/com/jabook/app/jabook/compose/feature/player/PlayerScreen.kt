@@ -1241,9 +1241,15 @@ private fun PlayerContent(
         onDispose {
             bookmarkRecordTimeoutJob.value?.cancel()
             bookmarkRecordTimeoutJob.value = null
-            bookmarkRecorder.value?.runCatching { stop(); release() }
+            bookmarkRecorder.value?.runCatching {
+                stop()
+                release()
+            }
             bookmarkRecorder.value = null
-            bookmarkPlayer.value?.runCatching { stop(); release() }
+            bookmarkPlayer.value?.runCatching {
+                stop()
+                release()
+            }
             bookmarkPlayer.value = null
         }
     }

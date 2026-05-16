@@ -159,24 +159,26 @@ private fun ShimmerLoadingBox(modifier: Modifier = Modifier) {
     val progress by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 1000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
         label = "shimmer",
     )
     val baseColor = MaterialTheme.colorScheme.surfaceVariant
     val highlightColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
     Box(
-        modifier = modifier.drawBehind {
-            drawRect(
-                Brush.linearGradient(
-                    colors = listOf(baseColor, highlightColor, baseColor),
-                    start = Offset(x = (progress - 0.5f) * 2f * size.width, y = 0f),
-                    end = Offset(x = (progress + 0.5f) * 2f * size.width, y = size.height),
-                ),
-            )
-        },
+        modifier =
+            modifier.drawBehind {
+                drawRect(
+                    Brush.linearGradient(
+                        colors = listOf(baseColor, highlightColor, baseColor),
+                        start = Offset(x = (progress - 0.5f) * 2f * size.width, y = 0f),
+                        end = Offset(x = (progress + 0.5f) * 2f * size.width, y = size.height),
+                    ),
+                )
+            },
     )
 }
 

@@ -83,4 +83,33 @@ class SpeedMemoryHierarchyTest {
             ),
         )
     }
+
+    @Test
+    fun `shouldRecordBookSpeed waits for trusted listening window`() {
+        assertFalse(
+            SpeedMemoryHierarchy.shouldRecordBookSpeed(
+                listenedMs = SpeedMemoryHierarchy.MIN_TRUSTED_LISTENING_MS - 1L,
+                previousSpeed = null,
+                newSpeed = 1.25f,
+            ),
+        )
+        assertTrue(
+            SpeedMemoryHierarchy.shouldRecordBookSpeed(
+                listenedMs = SpeedMemoryHierarchy.MIN_TRUSTED_LISTENING_MS,
+                previousSpeed = null,
+                newSpeed = 1.25f,
+            ),
+        )
+    }
+
+    @Test
+    fun `shouldRecordBookSpeed ignores repeated speed inside tolerance`() {
+        assertFalse(
+            SpeedMemoryHierarchy.shouldRecordBookSpeed(
+                listenedMs = SpeedMemoryHierarchy.MIN_TRUSTED_LISTENING_MS,
+                previousSpeed = 1.25f,
+                newSpeed = 1.255f,
+            ),
+        )
+    }
 }

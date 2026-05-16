@@ -27,7 +27,6 @@ import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.dao.ScanPathDao
 import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
-import com.jabook.app.jabook.compose.data.local.entity.BookFtsEntity
 import com.jabook.app.jabook.compose.data.local.entity.BookmarkEntity
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
@@ -70,7 +69,6 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
 @Database(
     entities = [
         BookEntity::class,
-        BookFtsEntity::class,
         BookmarkEntity::class,
         ChapterEntity::class,
         SearchHistoryEntity::class,

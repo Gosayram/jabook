@@ -269,9 +269,10 @@ class DatabaseModuleMigrationSmokeTest {
         assertTrue("books_fts table must exist after FTS5 upgrade", tableExists(migratedSqlDb, "books_fts"))
         // Verify FTS5 sync triggers were recreated
         val triggerCount =
-            migratedSqlDb.query(
-                "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name IN ('books_ai', 'books_ad', 'books_au')",
-            ).use { it.count }
+            migratedSqlDb
+                .query(
+                    "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name IN ('books_ai', 'books_ad', 'books_au')",
+                ).use { it.count }
         assertEquals("All three FTS5 sync triggers must exist", 3, triggerCount)
     }
 

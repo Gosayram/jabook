@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
+import androidx.sqlite.db.SimpleSQLiteQuery
 import com.jabook.app.jabook.audio.CompletionStatusHelper
 import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
@@ -214,8 +215,18 @@ public class OfflineFirstBooksRepository
             }
 
             return booksDao
-                .searchBooksByFtsFlow(ftsMatchQuery)
-                .map {
+                .searchBooksByFtsFlow(
+                    SimpleSQLiteQuery(
+                        """
+                        SELECT b.*
+                        FROM books b
+                        JOIN books_fts f ON b.rowid = f.rowid
+                        WHERE books_fts MATCH ?
+                        ORDER BY bm25(books_fts) ASC
+                        """.trimIndent(),
+                        arrayOf(ftsMatchQuery),
+                    ),
+                ).map {
                     warnOnLargeResult(path = "searchBooksByFtsFlow", rowCount = it.size)
                     it.toBooks()
                 }
@@ -404,7 +415,14 @@ public class OfflineFirstBooksRepository
             speed: Float,
         ) {
             val previous = booksDao.getPreferredSpeed(bookId)
-            if (!SpeedMemoryHierarchy.hasMeaningfulSpeedDelta(previous, speed)) return
+            if (
+                !SpeedMemoryHierarchy.hasMeaningfulSpeedDelta(
+                    previousSpeed = previous,
+                    newSpeed = speed,
+                )
+            ) {
+                return
+            }
             booksDao.updatePreferredSpeed(bookId, speed)
         }
 

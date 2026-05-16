@@ -43,61 +43,62 @@ public val MIGRATION_20_21: Migration =
             // Drop old FTS4 virtual table (also drops shadow tables: _content, _segdir, _segments, _stat)
             db.execSQL("DROP TABLE IF EXISTS books_fts")
 
-            // Create FTS5 virtual table with content table pointing to books
-            db.execSQL(
-                """
-                CREATE VIRTUAL TABLE IF NOT EXISTS books_fts
-                USING fts5(
-                    title,
-                    author,
-                    description,
-                    content='books',
-                    content_rowid='rowid',
-                    tokenize='unicode61'
-                )
-                """.trimIndent(),
-            )
-
-            // Populate FTS5 table from existing books data
-            db.execSQL(
-                """
-                INSERT INTO books_fts(rowid, title, author, description)
-                SELECT rowid, title, author, COALESCE(description, '') FROM books
-                """.trimIndent(),
-            )
-
-            // Recreate auto-sync triggers for FTS5
-            // FTS5 content tables use same trigger pattern as FTS4
-            db.execSQL(
-                """
-                CREATE TRIGGER IF NOT EXISTS books_ai
-                AFTER INSERT ON books BEGIN
-                    INSERT INTO books_fts(rowid, title, author, description)
-                    VALUES (new.rowid, new.title, new.author, COALESCE(new.description, ''));
-                END
-                """.trimIndent(),
-            )
-
-            db.execSQL(
-                """
-                CREATE TRIGGER IF NOT EXISTS books_ad
-                AFTER DELETE ON books BEGIN
-                    INSERT INTO books_fts(books_fts, rowid, title, author, description)
-                    VALUES ('delete', old.rowid, old.title, old.author, COALESCE(old.description, ''));
-                END
-                """.trimIndent(),
-            )
-
-            db.execSQL(
-                """
-                CREATE TRIGGER IF NOT EXISTS books_au
-                AFTER UPDATE ON books BEGIN
-                    INSERT INTO books_fts(books_fts, rowid, title, author, description)
-                    VALUES ('delete', old.rowid, old.title, old.author, COALESCE(old.description, ''));
-                    INSERT INTO books_fts(rowid, title, author, description)
-                    VALUES (new.rowid, new.title, new.author, COALESCE(new.description, ''));
-                END
-                """.trimIndent(),
-            )
+            createBooksFts5Index(db)
         }
     }
+
+public fun createBooksFts5Index(db: SupportSQLiteDatabase) {
+    db.execSQL(
+        """
+        CREATE VIRTUAL TABLE IF NOT EXISTS books_fts
+        USING fts5(
+            title,
+            author,
+            description,
+            content='books',
+            content_rowid='rowid',
+            tokenize='unicode61'
+        )
+        """.trimIndent(),
+    )
+
+    db.execSQL(
+        """
+        INSERT INTO books_fts(rowid, title, author, description)
+        SELECT rowid, title, author, COALESCE(description, '') FROM books
+        WHERE NOT EXISTS (SELECT 1 FROM books_fts LIMIT 1)
+        """.trimIndent(),
+    )
+
+    db.execSQL(
+        """
+        CREATE TRIGGER IF NOT EXISTS books_ai
+        AFTER INSERT ON books BEGIN
+            INSERT INTO books_fts(rowid, title, author, description)
+            VALUES (new.rowid, new.title, new.author, COALESCE(new.description, ''));
+        END
+        """.trimIndent(),
+    )
+
+    db.execSQL(
+        """
+        CREATE TRIGGER IF NOT EXISTS books_ad
+        AFTER DELETE ON books BEGIN
+            INSERT INTO books_fts(books_fts, rowid, title, author, description)
+            VALUES ('delete', old.rowid, old.title, old.author, COALESCE(old.description, ''));
+        END
+        """.trimIndent(),
+    )
+
+    db.execSQL(
+        """
+        CREATE TRIGGER IF NOT EXISTS books_au
+        AFTER UPDATE ON books BEGIN
+            INSERT INTO books_fts(books_fts, rowid, title, author, description)
+            VALUES ('delete', old.rowid, old.title, old.author, COALESCE(old.description, ''));
+            INSERT INTO books_fts(rowid, title, author, description)
+            VALUES (new.rowid, new.title, new.author, COALESCE(new.description, ''));
+        END
+        """.trimIndent(),
+    )
+}

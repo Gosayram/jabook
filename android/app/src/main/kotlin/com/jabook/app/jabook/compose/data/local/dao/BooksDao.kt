@@ -18,9 +18,11 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.Transaction
 import androidx.room.Update
 import androidx.room.Upsert
+import androidx.sqlite.db.SupportSQLiteQuery
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import kotlinx.coroutines.flow.Flow
@@ -305,16 +307,8 @@ public interface BooksDao {
      *
      * @param ftsQuery Query in SQLite FTS5 MATCH format
      */
-    @Query(
-        """
-        SELECT b.*
-        FROM books b
-        JOIN books_fts f ON b.rowid = f.rowid
-        WHERE books_fts MATCH :ftsQuery
-        ORDER BY bm25(books_fts) ASC
-        """,
-    )
-    public fun searchBooksByFtsFlow(ftsQuery: String): Flow<List<BookEntity>>
+    @RawQuery(observedEntities = [BookEntity::class])
+    public fun searchBooksByFtsFlow(query: SupportSQLiteQuery): Flow<List<BookEntity>>
 
     /**
      * Updates per-book playback settings.

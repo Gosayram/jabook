@@ -26,6 +26,8 @@ import kotlin.math.abs
  * 4) global last-used speed
  */
 public object SpeedMemoryHierarchy {
+    public const val MIN_TRUSTED_LISTENING_MS: Long = 5 * 60 * 1000L
+
     public fun resolveSpeed(
         perBookSpeed: Float?,
         perAuthorSpeed: Float?,
@@ -45,4 +47,15 @@ public object SpeedMemoryHierarchy {
         if (previousSpeed == null) return true
         return abs(previousSpeed - newSpeed) > epsilon
     }
+
+    public fun shouldRecordBookSpeed(
+        listenedMs: Long,
+        previousSpeed: Float?,
+        newSpeed: Float,
+    ): Boolean =
+        listenedMs >= MIN_TRUSTED_LISTENING_MS &&
+            hasMeaningfulSpeedDelta(
+                previousSpeed = previousSpeed,
+                newSpeed = newSpeed,
+            )
 }
