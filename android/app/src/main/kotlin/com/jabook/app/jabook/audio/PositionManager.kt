@@ -18,6 +18,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Constants for position saving broadcasts.
@@ -65,13 +66,13 @@ internal class PositionManager(
                         setPackage(packageName) // Set package for explicit broadcast
                     }
                 sendBroadcast(saveIntent)
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Position save broadcast sent: track=$currentIndex, position=${currentPosition}ms",
                 )
             }
         } catch (e: Exception) {
-            android.util.Log.w("AudioPlayerService", "Failed to send save position broadcast", e)
+            LogUtils.w("AudioPlayerService", "Failed to send save position broadcast", e)
             // Not critical - position is already saved periodically
         }
     }
@@ -92,7 +93,7 @@ internal class PositionManager(
         val player = getActivePlayer()
 
         if (filePaths.isEmpty() || player.mediaItemCount == 0) {
-            android.util.Log.w("AudioPlayerService", "Cannot set playback progress: empty file list or no media items")
+            LogUtils.w("AudioPlayerService", "Cannot set playback progress: empty file list or no media items")
             return
         }
 
@@ -100,7 +101,7 @@ internal class PositionManager(
             null, 0.0 -> {
                 // No saved progress, start from beginning
                 player.seekTo(0, 0L)
-                android.util.Log.d("AudioPlayerService", "No saved progress, starting from beginning")
+                LogUtils.d("AudioPlayerService", "No saved progress, starting from beginning")
             }
             else -> {
                 // Calculate which track and position to seek to
@@ -119,7 +120,7 @@ internal class PositionManager(
                     // We have duration for current track
                     if (positionMs <= currentTrackDuration) {
                         // Position is within current track - seek to it
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "Restoring playback position within current track: position=${positionMs}ms (from ${progressSeconds}s)",
                         )
@@ -129,7 +130,7 @@ internal class PositionManager(
                         // Without knowing durations of other tracks, we can't accurately determine target track
                         // According to best practices: don't use unreliable estimates
                         // Seek to beginning of current track as safe fallback
-                        android.util.Log.w(
+                        LogUtils.w(
                             "AudioPlayerService",
                             "Cannot accurately restore position across tracks without knowing all durations. Seeking to beginning of current track.",
                         )
@@ -139,7 +140,7 @@ internal class PositionManager(
                     // No duration available - can't determine position accurately
                     // According to best practices: don't use unreliable estimates
                     // Just seek to beginning as fallback
-                    android.util.Log.w(
+                    LogUtils.w(
                         "AudioPlayerService",
                         "Cannot restore playback position: duration not available. Seeking to beginning.",
                     )

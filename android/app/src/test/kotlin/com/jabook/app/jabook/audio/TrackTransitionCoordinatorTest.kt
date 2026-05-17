@@ -17,9 +17,6 @@ package com.jabook.app.jabook.audio
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -32,9 +29,7 @@ import org.junit.Test
 class TrackTransitionCoordinatorTest {
     private var lastActualTrackIndex: Int = -1
 
-    private fun createCoordinator(
-        isPlaylistLoading: (() -> Boolean)? = null,
-    ): TrackTransitionCoordinator =
+    private fun createCoordinator(isPlaylistLoading: (() -> Boolean)? = null): TrackTransitionCoordinator =
         TrackTransitionCoordinator(
             isPlaylistLoading = isPlaylistLoading,
             updateActualTrackIndex = { lastActualTrackIndex = it },
@@ -71,14 +66,15 @@ class TrackTransitionCoordinatorTest {
     }
 
     @Test
-    fun `setPendingTrackSwitchDeferred completes on transition`() = runTest {
-        val coordinator = createCoordinator()
-        val deferred = CompletableDeferred<Int>()
-        coordinator.setPendingTrackSwitchDeferred(deferred)
+    fun `setPendingTrackSwitchDeferred completes on transition`() =
+        runTest {
+            val coordinator = createCoordinator()
+            val deferred = CompletableDeferred<Int>()
+            coordinator.setPendingTrackSwitchDeferred(deferred)
 
-        coordinator.handleTrackTransitionEvent(5, "test")
-        assertEquals(5, deferred.await())
-    }
+            coordinator.handleTrackTransitionEvent(5, "test")
+            assertEquals(5, deferred.await())
+        }
 
     @Test
     fun `clearPendingTrackSwitchDeferred cancels deferred`() {

@@ -30,6 +30,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.room.RoomDatabase
 import com.jabook.app.jabook.audio.data.local.database.migration.AudioDatabaseMigrations
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
+import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.PerformanceClass
 import com.jabook.app.jabook.utils.PerformanceUtils
 import dagger.Module
@@ -75,7 +76,7 @@ public object MediaModule {
         // If StatFs is needed for network streams, it should be done asynchronously later.
         val cacheLimit = DEFAULT_CACHE_BYTES
 
-        android.util.Log.d(
+        LogUtils.d(
             "MediaModule",
             "Providing Media Cache: ${cacheDir.absolutePath}, limit: ${cacheLimit / (1024 * 1024)} MB (using default to avoid slow StatFs)",
         )
@@ -102,18 +103,18 @@ public object MediaModule {
                     databaseProvider,
                 )
             } catch (e: Exception) {
-                android.util.Log.e("MediaModule", "Error creating SimpleCache: ${e.message}", e)
+                LogUtils.e("MediaModule", "Error creating SimpleCache: ${e.message}", e)
                 // If cache creation fails, we can still work without cache (for local files)
                 // But we need to throw to prevent using broken cache
                 throw e
             }
 
         val initDuration = System.currentTimeMillis() - initStart
-        android.util.Log.d("MediaModule", "Media Cache provided (${initDuration}ms)")
+        LogUtils.d("MediaModule", "Media Cache provided (${initDuration}ms)")
 
         // Log warning if cache initialization took too long
         if (initDuration > 500) {
-            android.util.Log.w(
+            LogUtils.w(
                 "MediaModule",
                 "Cache initialization took ${initDuration}ms (slow). Consider cleaning cache if this persists.",
             )
@@ -130,7 +131,7 @@ public object MediaModule {
     ): okhttp3.Cache {
         val cacheDir = File(context.cacheDir, "okhttp_cache")
         val cacheSize = 50L * 1024 * 1024 // 50 MB
-        android.util.Log.d(
+        LogUtils.d(
             "MediaModule",
             "Providing OkHttp Cache: ${cacheDir.absolutePath}, size: ${cacheSize / (1024 * 1024)} MB",
         )
@@ -145,7 +146,7 @@ public object MediaModule {
     ): ExoPlayer {
         val initStart = System.currentTimeMillis()
 
-        android.util.Log.d("MediaModule", "Creating ExoPlayer singleton...")
+        LogUtils.d("MediaModule", "Creating ExoPlayer singleton...")
 
         // Match lissen-android configuration exactly
         // Note: AudioProcessors are configured dynamically in AudioPlayerService
@@ -172,12 +173,12 @@ public object MediaModule {
                         setTrackSelectionParameters(createAudioOffloadTrackSelectionParameters())
                     }
             } catch (e: Exception) {
-                android.util.Log.e("MediaModule", "Error creating ExoPlayer: ${e.message}", e)
+                LogUtils.e("MediaModule", "Error creating ExoPlayer: ${e.message}", e)
                 throw e
             }
 
         val initDuration = System.currentTimeMillis() - initStart
-        android.util.Log.d("MediaModule", "ExoPlayer singleton provided (${initDuration}ms)")
+        LogUtils.d("MediaModule", "ExoPlayer singleton provided (${initDuration}ms)")
 
         return player
     }
@@ -200,7 +201,7 @@ public object MediaModule {
     ): ExoPlayer {
         val initStart = System.currentTimeMillis()
 
-        android.util.Log.d("MediaModule", "Creating ExoPlayer with AudioProcessors...")
+        LogUtils.d("MediaModule", "Creating ExoPlayer with AudioProcessors...")
 
         // Create processor chain
         val chainResult =
@@ -242,7 +243,7 @@ public object MediaModule {
                         )
 
                 if (processors.isNotEmpty()) {
-                    android.util.Log.d(
+                    LogUtils.d(
                         "MediaModule",
                         "Attach ${processors.size} AudioProcessors to ExoPlayer via custom RenderersFactory",
                     )
@@ -254,12 +255,12 @@ public object MediaModule {
                         setTrackSelectionParameters(createAudioOffloadTrackSelectionParameters())
                     }
             } catch (e: Exception) {
-                android.util.Log.e("MediaModule", "Error creating ExoPlayer with processors: ${e.message}", e)
+                LogUtils.e("MediaModule", "Error creating ExoPlayer with processors: ${e.message}", e)
                 throw e
             }
 
         val initDuration = System.currentTimeMillis() - initStart
-        android.util.Log.d("MediaModule", "ExoPlayer with processors provided (${initDuration}ms)")
+        LogUtils.d("MediaModule", "ExoPlayer with processors provided (${initDuration}ms)")
 
         return player
     }
@@ -367,7 +368,7 @@ public object AudioDataModule {
             object : RoomDatabase.Callback() {
                 override fun onCreate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                     super.onCreate(db)
-                    android.util.Log.i("Room", "AudioDatabase created")
+                    LogUtils.i("Room", "AudioDatabase created")
                     // Enable foreign key constraints for referential integrity
                     db.execSQL("PRAGMA foreign_keys = ON")
                 }
@@ -393,7 +394,7 @@ public object AudioDataModule {
                 builder.setQueryCallback(
                     kotlinx.coroutines.Dispatchers.Unconfined,
                     RoomDatabase.QueryCallback { sqlQuery: String, bindArgs: List<Any?> ->
-                        android.util.Log.d(
+                        LogUtils.d(
                             "Room",
                             "AudioDB Query: $sqlQuery | Args: ${bindArgs.joinToString(", ")}",
                         )
@@ -402,7 +403,7 @@ public object AudioDataModule {
             }
         } catch (e: Exception) {
             // BuildConfig not available, skip query callback
-            android.util.Log.d("Room", "BuildConfig not available, skipping query callback", e)
+            LogUtils.d("Room", "BuildConfig not available, skipping query callback", e)
         }
 
         builder.addMigrations(AudioDatabaseMigrations.MIGRATION_2_3)

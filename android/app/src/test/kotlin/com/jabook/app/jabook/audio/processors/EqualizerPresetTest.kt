@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.audio.processors
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -142,14 +141,14 @@ class EqualizerPresetTest {
 
     @Test
     fun `VOICE_CLARITY uses auto preamp`() {
-        assertNull(EqualizerPreset.VOICE_CLARITY.preampMillibels)
+        assertEquals(EqualizerPreset.PREAMP_AUTO, EqualizerPreset.VOICE_CLARITY.preampMillibels)
         // Max positive gain is 400mB, so effective preamp should be -400mB
         assertEquals(-400, EqualizerPreset.VOICE_CLARITY.effectivePreamp())
     }
 
     @Test
     fun `NIGHT uses auto preamp`() {
-        assertNull(EqualizerPreset.NIGHT.preampMillibels)
+        assertEquals(EqualizerPreset.PREAMP_AUTO, EqualizerPreset.NIGHT.preampMillibels)
         // Max positive gain is 300mB, so effective preamp should be -300mB
         assertEquals(-300, EqualizerPreset.NIGHT.effectivePreamp())
     }

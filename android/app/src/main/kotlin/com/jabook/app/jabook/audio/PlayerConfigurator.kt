@@ -20,6 +20,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.audio.processors.AudioProcessorFactory
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -36,7 +37,7 @@ internal class PlayerConfigurator(
     private val audioOffloadListener =
         object : ExoPlayer.AudioOffloadListener {
             override fun onSleepingForOffloadChanged(isSleepingForOffload: Boolean) {
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Audio offload scheduling changed: sleepingForOffload=$isSleepingForOffload",
                 )
@@ -44,7 +45,7 @@ internal class PlayerConfigurator(
 
             override fun onOffloadedPlayback(isOffloadedPlayback: Boolean) {
                 service.audioVisualizerManager?.setSuspendedForAudioOffload(isOffloadedPlayback)
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Audio offload playback changed: isOffloadedPlayback=$isOffloadedPlayback",
                 )
@@ -172,9 +173,9 @@ internal class PlayerConfigurator(
             activePlayer.repeatMode = Player.REPEAT_MODE_OFF
             activePlayer.shuffleModeEnabled = false
 
-            android.util.Log.d("AudioPlayerService", "ExoPlayer configured (provided via Hilt)")
+            LogUtils.d("AudioPlayerService", "ExoPlayer configured (provided via Hilt)")
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to configure ExoPlayer", e)
+            LogUtils.e("AudioPlayerService", "Failed to configure ExoPlayer", e)
             throw e
         }
     }
@@ -199,7 +200,7 @@ internal class PlayerConfigurator(
             val processors = chainResult.processors
             loudnessNormalizer = chainResult.loudnessNormalizer
 
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Audio processing settings updated: " +
                     "normalizeVolume=${settings.normalizeVolume}, " +
@@ -220,7 +221,7 @@ internal class PlayerConfigurator(
             val hasPlaylist = activePlayer.mediaItemCount > 0
             val playlistManager =
                 service.playlistManager ?: run {
-                    android.util.Log.w(
+                    LogUtils.w(
                         "AudioPlayerService",
                         "PlaylistManager is null, skipping playback state save/restore during player reconfiguration",
                     )
@@ -239,12 +240,12 @@ internal class PlayerConfigurator(
                         currentPosition = currentPosition,
                         isPlaying = wasPlaying,
                     )
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Saved playback state before player recreation: index=$currentIndex, position=$currentPosition, isPlaying=$wasPlaying",
                 )
             } else if (isPlaylistLoading) {
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Skipping state save: playlist is currently loading (index=$currentIndex would be stale)",
                 )
@@ -267,7 +268,7 @@ internal class PlayerConfigurator(
                     customExoPlayer?.addListener(it)
                 }
 
-                android.util.Log.i(
+                LogUtils.i(
                     "AudioPlayerService",
                     "Created custom ExoPlayer with ${processors.size} AudioProcessors",
                 )
@@ -277,12 +278,12 @@ internal class PlayerConfigurator(
                 customExoPlayer?.release()
                 customExoPlayer = null
                 registerAudioOffloadListener(service.exoPlayer)
-                android.util.Log.d("AudioPlayerService", "No processors needed, using singleton ExoPlayer")
+                LogUtils.d("AudioPlayerService", "No processors needed, using singleton ExoPlayer")
             }
 
             // NotificationManager removed - MediaSession handles notification updates automatically
             // service.notificationManager?.updatePlayer(service.getActivePlayer())
-            android.util.Log.d("AudioPlayerService", "Player recreation complete (MediaSession handles notifications)")
+            LogUtils.d("AudioPlayerService", "Player recreation complete (MediaSession handles notifications)")
 
             // Restore playlist and position if we had a playlist before
             // BUT only if we're not already loading a playlist (prevent conflicts)
@@ -300,7 +301,7 @@ internal class PlayerConfigurator(
                 filePathsForRestore.isNotEmpty() &&
                 !isPlaylistLoading
             ) {
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Restoring playlist and position: ${filePathsForRestore.size} items, index=${savedStateForRestore.currentIndex}, position=${savedStateForRestore.currentPosition}",
                 )
@@ -309,7 +310,7 @@ internal class PlayerConfigurator(
                 // We access playlistManager.actualTrackIndex directly or via service method if needed, but safer via manager
                 playlistManager.actualTrackIndex =
                     savedStateForRestore.currentIndex.coerceIn(0, filePathsForRestore.size - 1)
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Initialized actualTrackIndex to ${playlistManager.actualTrackIndex} (from savedState.currentIndex=${savedStateForRestore.currentIndex})",
                 )
@@ -353,12 +354,12 @@ internal class PlayerConfigurator(
                             newPlayer.mediaItemCount > savedStateForRestore.currentIndex
                         ) {
                             newPlayer.seekTo(savedStateForRestore.currentIndex, savedStateForRestore.currentPosition)
-                            android.util.Log.d(
+                            LogUtils.d(
                                 "AudioPlayerService",
                                 "Restored position (target differs from first track): index=${savedStateForRestore.currentIndex}, position=${savedStateForRestore.currentPosition}",
                             )
                         } else {
-                            android.util.Log.d(
+                            LogUtils.d(
                                 "AudioPlayerService",
                                 "Position already applied in preparePlaybackOptimized: index=${savedStateForRestore.currentIndex}, position=${savedStateForRestore.currentPosition}",
                             )
@@ -367,7 +368,7 @@ internal class PlayerConfigurator(
                         // Restore playback state
                         if (savedStateForRestore.isPlaying) {
                             newPlayer.playWhenReady = true
-                            android.util.Log.d("AudioPlayerService", "Restored playback: playing")
+                            LogUtils.d("AudioPlayerService", "Restored playback: playing")
                         }
 
                         // Clear saved state
@@ -375,7 +376,7 @@ internal class PlayerConfigurator(
 
                         // MediaLibraryService automatically updates notification when Player state changes
                     } catch (e: Exception) {
-                        android.util.Log.e(
+                        LogUtils.e(
                             "AudioPlayerService",
                             "Failed to restore playlist after player recreation",
                             e,
@@ -390,13 +391,13 @@ internal class PlayerConfigurator(
             } else if (wasRecentlyLoaded) {
                 // Only log if we have state but chose not to restore it (which shouldn't happen now as we restore if state exists)
                 // But if savedStateForRestore is null, we might still log this context
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "No saved state to restore (playlist loaded ${timeSinceLastLoad}ms ago), using Flutter-provided position",
                 )
             }
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to configure ExoPlayer with processors", e)
+            LogUtils.e("AudioPlayerService", "Failed to configure ExoPlayer with processors", e)
         }
     }
 

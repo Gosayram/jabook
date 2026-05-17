@@ -31,7 +31,7 @@ class PitchCorrectionPolicyTest {
     }
 
     @Test
-    fun `without pitch correction pitch follows inverse speed`() {
+    fun `without pitch correction pitch follows speed`() {
         val params =
             PitchCorrectionPolicy.buildPlaybackParameters(
                 speed = 3.0f,
@@ -39,7 +39,7 @@ class PitchCorrectionPolicyTest {
             )
 
         assertEquals(3.0f, params.speed, 0.001f)
-        assertEquals(1.0f / 3.0f, params.pitch, 0.001f)
+        assertEquals(3.0f, params.pitch, 0.001f)
     }
 
     @Test
@@ -48,6 +48,8 @@ class PitchCorrectionPolicyTest {
         val tooFast = PitchCorrectionPolicy.buildPlaybackParameters(10.0f, isPitchCorrectionEnabled = false)
 
         assertEquals(0.5f, tooSlow.speed, 0.001f)
+        assertEquals(0.5f, tooSlow.pitch, 0.001f)
         assertEquals(4.0f, tooFast.speed, 0.001f)
+        assertEquals(4.0f, tooFast.pitch, 0.001f)
     }
 }

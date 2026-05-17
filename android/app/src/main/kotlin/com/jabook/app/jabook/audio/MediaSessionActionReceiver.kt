@@ -21,6 +21,7 @@ import android.content.Intent
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.util.LogUtils
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -50,22 +51,22 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
         intent: Intent,
     ) {
         val action = intent.action
-        android.util.Log.i(
+        LogUtils.i(
             TAG,
             "onReceive called! action: $action, intent: $intent, component: ${intent.component}",
         )
 
         when (action) {
             ACTION_PLAY -> {
-                android.util.Log.i(TAG, "Processing PLAY command through MediaController")
+                LogUtils.i(TAG, "Processing PLAY command through MediaController")
                 handlePlayCommand(context)
             }
             ACTION_PAUSE -> {
-                android.util.Log.i(TAG, "Processing PAUSE command through MediaController")
+                LogUtils.i(TAG, "Processing PAUSE command through MediaController")
                 handlePauseCommand(context)
             }
             else -> {
-                android.util.Log.w(TAG, "Unknown action: $action, available actions: $ACTION_PLAY, $ACTION_PAUSE")
+                LogUtils.w(TAG, "Unknown action: $action, available actions: $ACTION_PLAY, $ACTION_PAUSE")
             }
         }
     }
@@ -100,7 +101,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
                     TimeUnit.MILLISECONDS,
                 )
 
-            android.util.Log.d(
+            LogUtils.d(
                 TAG,
                 "MediaController created successfully. Current state: playWhenReady=${controller.playWhenReady}, playbackState=${controller.playbackState}, mediaItemCount=${controller.mediaItemCount}",
             )
@@ -108,7 +109,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
             // Send play command through MediaController
             // MediaController implements Player interface, use play() method (as in Media3 examples)
             controller.play()
-            android.util.Log.i(
+            LogUtils.i(
                 TAG,
                 "Play command sent successfully through MediaController. New state: playWhenReady=${controller.playWhenReady}, playbackState=${controller.playbackState}",
             )
@@ -116,17 +117,17 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
             // Release controller after use
             MediaController.releaseFuture(controllerFuture)
         } catch (e: TimeoutException) {
-            android.util.Log.w(TAG, "MediaController creation timeout, using service intent fallback", e)
+            LogUtils.w(TAG, "MediaController creation timeout, using service intent fallback", e)
             // Fallback to service intent (faster and more reliable)
             fallbackToServiceIntent(context, AudioPlayerService.ACTION_PLAY)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: ExecutionException) {
-            android.util.Log.w(TAG, "Failed to create MediaController, using service intent fallback", e)
+            LogUtils.w(TAG, "Failed to create MediaController, using service intent fallback", e)
             // Fallback to service intent
             fallbackToServiceIntent(context, AudioPlayerService.ACTION_PLAY)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: Exception) {
-            android.util.Log.w(
+            LogUtils.w(
                 TAG,
                 "Failed to handle PLAY command through MediaController, using service intent fallback",
                 e,
@@ -167,7 +168,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
                     TimeUnit.MILLISECONDS,
                 )
 
-            android.util.Log.d(
+            LogUtils.d(
                 TAG,
                 "MediaController created successfully. Current state: playWhenReady=${controller.playWhenReady}, playbackState=${controller.playbackState}",
             )
@@ -175,7 +176,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
             // Send pause command through MediaController
             // MediaController implements Player interface, use pause() method (as in Media3 examples)
             controller.pause()
-            android.util.Log.i(
+            LogUtils.i(
                 TAG,
                 "Pause command sent successfully through MediaController. New state: playWhenReady=${controller.playWhenReady}, playbackState=${controller.playbackState}",
             )
@@ -183,17 +184,17 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
             // Release controller after use
             MediaController.releaseFuture(controllerFuture)
         } catch (e: TimeoutException) {
-            android.util.Log.w(TAG, "MediaController creation timeout, using service intent fallback", e)
+            LogUtils.w(TAG, "MediaController creation timeout, using service intent fallback", e)
             // Fallback to service intent (faster and more reliable)
             fallbackToServiceIntent(context, AudioPlayerService.ACTION_PAUSE)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: ExecutionException) {
-            android.util.Log.w(TAG, "Failed to create MediaController, using service intent fallback", e)
+            LogUtils.w(TAG, "Failed to create MediaController, using service intent fallback", e)
             // Fallback to service intent
             fallbackToServiceIntent(context, AudioPlayerService.ACTION_PAUSE)
             controllerFuture?.let { MediaController.releaseFuture(it) }
         } catch (e: Exception) {
-            android.util.Log.w(
+            LogUtils.w(
                 TAG,
                 "Failed to handle PAUSE command through MediaController, using service intent fallback",
                 e,
@@ -213,7 +214,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
         action: String,
     ) {
         try {
-            android.util.Log.w(TAG, "Falling back to service intent for action: $action")
+            LogUtils.w(TAG, "Falling back to service intent for action: $action")
             val serviceIntent =
                 Intent(context, AudioPlayerService::class.java).apply {
                     this.action = action
@@ -221,7 +222,7 @@ public class MediaSessionActionReceiver : BroadcastReceiver() {
                 }
             context.startForegroundService(serviceIntent)
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "Failed to send fallback service intent", e)
+            LogUtils.e(TAG, "Failed to send fallback service intent", e)
         }
     }
 }

@@ -136,6 +136,11 @@ public object LogUtils {
         }
     }
 
+    public fun isLoggable(
+        tag: String,
+        priority: Int,
+    ): Boolean = isDebugLoggingEnabled || (priority >= Log.WARN)
+
     /**
      * Log an ERROR message (Always logged)
      */

@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import android.app.Service
 import android.content.Intent
+import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.widget.PlayerWidgetProvider
 import com.jabook.app.jabook.widget.WidgetObservabilityPolicy
 
@@ -41,7 +42,7 @@ internal class ServiceIntentHandler(
                 WidgetObservabilityPolicy.UNKNOWN_WIDGET_ID,
             ) ?: WidgetObservabilityPolicy.UNKNOWN_WIDGET_ID
         if (action == null || !WidgetActionDeduplicator.isWidgetAction(action)) {
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "handleStartCommand called with action: $action, intent: $intent, flags: $flags, startId: $startId",
             )
@@ -58,7 +59,7 @@ internal class ServiceIntentHandler(
                     nowMs = nowMsProvider(),
                 )
             ) {
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     WidgetObservabilityPolicy.serviceMessage(
                         event = "action_ignored_stale",
@@ -67,7 +68,7 @@ internal class ServiceIntentHandler(
                         deduplicated = false,
                     ),
                 )
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     WidgetObservabilityPolicy.serviceMessage(
                         event = "action_retry_requested",
@@ -82,7 +83,7 @@ internal class ServiceIntentHandler(
 
             val shouldHandle = widgetActionDeduplicator.shouldHandle(action, widgetId)
             if (!shouldHandle) {
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     WidgetObservabilityPolicy.serviceMessage(
                         event = "action_ignored_deduplicated",
@@ -93,7 +94,7 @@ internal class ServiceIntentHandler(
                 )
                 return true
             }
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 WidgetObservabilityPolicy.serviceMessage(
                     event = "action_accepted",
@@ -106,7 +107,7 @@ internal class ServiceIntentHandler(
 
         val notifyWidgetUpdated: (String) -> Unit = { widgetAction ->
             PlayerWidgetProvider.requestUpdate(service)
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 WidgetObservabilityPolicy.serviceMessage(
                     event = "request_update_sent",
@@ -121,26 +122,26 @@ internal class ServiceIntentHandler(
                 // Handle timer actions
                 PlaybackTimer.ACTION_TIMER_EXPIRED -> {
                     // Timer expired - playback should already be paused by PlaybackTimer
-                    android.util.Log.d("AudioPlayerService", "Timer expired, playback paused")
+                    LogUtils.d("AudioPlayerService", "Timer expired, playback paused")
                     true
                 }
                 InactivityTimer.ACTION_INACTIVITY_TIMER_EXPIRED -> {
                     // Inactivity timer expired - unload player
-                    android.util.Log.i("AudioPlayerService", "Inactivity timer expired, unloading player")
+                    LogUtils.i("AudioPlayerService", "Inactivity timer expired, unloading player")
                     service.unloadPlayerDueToInactivity()
                     true
                 }
                 AudioPlayerService.ACTION_EXIT_APP -> {
                     // Sleep timer expired - stop service and exit app
                     // Only process if service is fully initialized to avoid stopping during initialization
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioPlayerService",
                         "ACTION_EXIT_APP received: isFullyInitialized=${service.isFullyInitializedFlag}, mediaSession=${service.mediaSession != null}",
                     )
                     if (service.isFullyInitializedFlag &&
                         (service.mediaSession != null || service.mediaLibrarySession != null)
                     ) {
-                        android.util.Log.i(
+                        LogUtils.i(
                             "AudioPlayerService",
                             "Exit app requested by sleep timer, service is initialized, proceeding",
                         )
@@ -160,20 +161,20 @@ internal class ServiceIntentHandler(
                                 Intent("com.jabook.app.jabook.EXIT_APP").apply {
                                     setPackage(service.packageName) // Set package for explicit broadcast
                                 }
-                            android.util.Log.d("AudioPlayerService", "Sending EXIT_APP broadcast")
+                            LogUtils.d("AudioPlayerService", "Sending EXIT_APP broadcast")
                             service.sendBroadcast(exitIntent)
-                            android.util.Log.i("AudioPlayerService", "EXIT_APP broadcast sent successfully")
+                            LogUtils.i("AudioPlayerService", "EXIT_APP broadcast sent successfully")
                         } catch (e: Exception) {
-                            android.util.Log.e("AudioPlayerService", "Error during exit app cleanup", e)
+                            LogUtils.e("AudioPlayerService", "Error during exit app cleanup", e)
                             // Try to stop service anyway
                             try {
                                 service.stopSelf()
                             } catch (e2: Exception) {
-                                android.util.Log.e("AudioPlayerService", "Failed to stop service", e2)
+                                LogUtils.e("AudioPlayerService", "Failed to stop service", e2)
                             }
                         }
                     } else {
-                        android.util.Log.w(
+                        LogUtils.w(
                             "AudioPlayerService",
                             "Exit app requested but service not initialized yet (isFullyInitialized=${service.isFullyInitializedFlag}), ignoring to prevent white screen",
                         )
@@ -219,7 +220,7 @@ internal class ServiceIntentHandler(
                 }
                 // Widget actions
                 "com.jabook.app.jabook.WIDGET_PLAY_PAUSE" -> {
-                    android.util.Log.d("AudioPlayerService", "Widget play/pause action")
+                    LogUtils.d("AudioPlayerService", "Widget play/pause action")
                     val player = service.getActivePlayer()
                     if (player.isPlaying) {
                         service.pause()
@@ -230,19 +231,19 @@ internal class ServiceIntentHandler(
                     true
                 }
                 "com.jabook.app.jabook.WIDGET_NEXT" -> {
-                    android.util.Log.d("AudioPlayerService", "Widget next action")
+                    LogUtils.d("AudioPlayerService", "Widget next action")
                     service.next()
                     notifyWidgetUpdated(action)
                     true
                 }
                 "com.jabook.app.jabook.WIDGET_PREVIOUS" -> {
-                    android.util.Log.d("AudioPlayerService", "Widget previous action")
+                    LogUtils.d("AudioPlayerService", "Widget previous action")
                     service.previous()
                     notifyWidgetUpdated(action)
                     true
                 }
                 "com.jabook.app.jabook.WIDGET_REPEAT" -> {
-                    android.util.Log.d("AudioPlayerService", "Widget repeat action")
+                    LogUtils.d("AudioPlayerService", "Widget repeat action")
                     val player = service.getActivePlayer()
                     val currentRepeatMode = player.repeatMode
                     val newRepeatMode =
@@ -257,7 +258,7 @@ internal class ServiceIntentHandler(
                     true
                 }
                 "com.jabook.app.jabook.WIDGET_SPEED" -> {
-                    android.util.Log.d("AudioPlayerService", "Widget speed action")
+                    LogUtils.d("AudioPlayerService", "Widget speed action")
                     // Cycle through speeds: 0.5x -> 0.75x -> 1.0x -> 1.25x -> 1.5x -> 2.0x -> 0.5x
                     val player = service.getActivePlayer()
                     val currentSpeed = player.playbackParameters.speed
@@ -270,7 +271,7 @@ internal class ServiceIntentHandler(
                     true
                 }
                 "com.jabook.app.jabook.WIDGET_TIMER" -> {
-                    android.util.Log.d("AudioPlayerService", "Widget timer action")
+                    LogUtils.d("AudioPlayerService", "Widget timer action")
                     // Cycle through timer options: off -> 15min -> 30min -> 45min -> 60min -> off
                     val remainingSeconds = service.getSleepTimerRemainingSeconds()
                     val currentTimerMinutes = if (remainingSeconds != null) remainingSeconds / 60 else 0

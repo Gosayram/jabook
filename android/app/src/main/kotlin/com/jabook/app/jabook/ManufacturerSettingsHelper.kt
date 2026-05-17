@@ -20,6 +20,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Helper class for opening manufacturer-specific settings on Android devices.
@@ -73,7 +74,7 @@ public object ManufacturerSettingsHelper {
                         info.activityInfo.packageName.startsWith("com.samsung")
                 }
         } catch (e: Exception) {
-            android.util.Log.w(TAG, "Error checking Intent availability: ${e.message}")
+            LogUtils.w(TAG, "Error checking Intent availability: ${e.message}")
             false
         }
 

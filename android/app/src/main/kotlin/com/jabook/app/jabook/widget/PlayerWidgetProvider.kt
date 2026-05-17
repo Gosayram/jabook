@@ -34,6 +34,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -86,7 +87,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             intent.action == "com.jabook.app.jabook.PLAYBACK_STATE_CHANGED" ||
             intent.action == "com.jabook.app.jabook.MEDIA_ITEM_CHANGED"
         ) {
-            android.util.Log.d(
+            LogUtils.d(
                 "PlayerWidget",
                 WidgetObservabilityPolicy.providerMessage(
                     event = "update_broadcast_received",
@@ -145,7 +146,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         appWidgetId: Int,
     ) {
         scope.launch(Dispatchers.IO) {
-            android.util.Log.d(
+            LogUtils.d(
                 "PlayerWidget",
                 WidgetObservabilityPolicy.providerMessage(
                     event = "update_start",
@@ -191,7 +192,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                             appWidgetId,
                         )
                     } else {
-                        android.util.Log.w(
+                        LogUtils.w(
                             "PlayerWidget",
                             WidgetObservabilityPolicy.providerMessage(
                                 event = "controller_fallback",
@@ -204,7 +205,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                         updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId)
                     }
                 } catch (e: Exception) {
-                    android.util.Log.w(
+                    LogUtils.w(
                         "PlayerWidget",
                         WidgetObservabilityPolicy.providerMessage(
                             event = "controller_fallback",
@@ -229,7 +230,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
                 // Note: Coil will update cover asynchronously and re-post the widget
             } catch (e: Exception) {
-                android.util.Log.e(
+                LogUtils.e(
                     "PlayerWidget",
                     WidgetObservabilityPolicy.providerMessage(
                         event = "update_failed",
@@ -248,7 +249,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                     setDefaultWidgetState(context, views, appWidgetId)
                     appWidgetManager.updateAppWidget(appWidgetId, views)
                 } catch (e2: Exception) {
-                    android.util.Log.e(
+                    LogUtils.e(
                         "PlayerWidget",
                         WidgetObservabilityPolicy.providerMessage(
                             event = "default_state_failed",
@@ -320,7 +321,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 isPlaying = isPlaying,
             )
         if (shouldFallbackToService) {
-            android.util.Log.w(
+            LogUtils.w(
                 "PlayerWidget",
                 WidgetObservabilityPolicy.providerMessage(
                     event = "controller_fallback",
@@ -408,7 +409,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         // Set up click intents
         setupClickIntents(context, views, finalBookId, appWidgetId)
 
-        android.util.Log.d(
+        LogUtils.d(
             "PlayerWidget",
             WidgetObservabilityPolicy.providerMessage(
                 event = "update_success",
@@ -463,7 +464,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                         coverUri = artworkUri
                     }
                 } catch (e: Exception) {
-                    android.util.Log.w("PlayerWidget", "Failed to get book info from service", e)
+                    LogUtils.w("PlayerWidget", "Failed to get book info from service", e)
                 }
             }
 
@@ -515,7 +516,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             // Note: Coil will update cover asynchronously
             // No need for second update - Coil handles it automatically
 
-            android.util.Log.d(
+            LogUtils.d(
                 "PlayerWidget",
                 WidgetObservabilityPolicy.providerMessage(
                     event = "update_success",
@@ -526,7 +527,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             )
         } else {
             // Service not available - show default state
-            android.util.Log.w(
+            LogUtils.w(
                 "PlayerWidget",
                 WidgetObservabilityPolicy.providerMessage(
                     event = "default_state_applied",
@@ -592,7 +593,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             update()
         } catch (e: Exception) {
             // View doesn't exist in this layout, ignore
-            android.util.Log.d("PlayerWidget", "View $viewId not found in layout, skipping")
+            LogUtils.d("PlayerWidget", "View $viewId not found in layout, skipping")
         }
     }
 
@@ -874,7 +875,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                     applyCoverFallback(context, views, appWidgetId, artworkUri)
                 }
             } catch (e: Exception) {
-                android.util.Log.w("PlayerWidget", "Failed to load cover via Coil, trying fallback", e)
+                LogUtils.w("PlayerWidget", "Failed to load cover via Coil, trying fallback", e)
                 applyCoverFallback(context, views, appWidgetId, artworkUri)
             }
         }
@@ -895,7 +896,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 views.setImageViewUri(R.id.widget_cover, artworkUri)
                 AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, views)
             } catch (e2: Exception) {
-                android.util.Log.w("PlayerWidget", "Failed to set cover URI fallback", e2)
+                LogUtils.w("PlayerWidget", "Failed to set cover URI fallback", e2)
                 views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
             }
         } else {

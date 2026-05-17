@@ -14,8 +14,10 @@
 
 package com.jabook.app.jabook.audio.processors
 
+import android.util.Log
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
+import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.pow
@@ -97,7 +99,7 @@ public class LoudnessNormalizer(
             inputAudioFormat.encoding == android.media.AudioFormat.ENCODING_PCM_16BIT &&
             inputAudioFormat.channelCount > 0
 
-        android.util.Log.d(
+        LogUtils.d(
             "LoudnessNormalizer",
             "Configured: sampleRate=${inputAudioFormat.sampleRate}, " +
                 "channels=${inputAudioFormat.channelCount}, " +
@@ -144,7 +146,7 @@ public class LoudnessNormalizer(
 
         // Performance profiling (only in debug builds)
         val startTime =
-            if (android.util.Log.isLoggable("LoudnessNormalizer", android.util.Log.DEBUG)) {
+            if (LogUtils.isLoggable("LoudnessNormalizer", Log.DEBUG)) {
                 System.nanoTime()
             } else {
                 0L
@@ -176,7 +178,7 @@ public class LoudnessNormalizer(
             val samplesProcessed = totalSize / 2 // 16-bit samples
             val throughput = samplesProcessed / processingTimeMs // samples per ms
             if (processingTimeMs > 10.0) { // Only log if processing takes > 10ms
-                android.util.Log.d(
+                LogUtils.d(
                     "LoudnessNormalizer",
                     "Processed $samplesProcessed samples in ${processingTimeMs}ms " +
                         "($throughput samples/ms)",
@@ -348,7 +350,7 @@ public class LoudnessNormalizer(
         gainMultiplier = 10.0.pow((replayGainDb.toDouble() / 20.0)).toFloat()
         // Limit gain to reasonable range
         gainMultiplier = gainMultiplier.coerceIn(0.1f, 10.0f)
-        android.util.Log.d("LoudnessNormalizer", "ReplayGain set: ${replayGainDb}dB -> ${gainMultiplier}x")
+        LogUtils.d("LoudnessNormalizer", "ReplayGain set: ${replayGainDb}dB -> ${gainMultiplier}x")
     }
 
     public companion object {

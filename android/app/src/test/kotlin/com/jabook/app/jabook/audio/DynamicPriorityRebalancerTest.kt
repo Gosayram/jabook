@@ -14,9 +14,9 @@
 
 package com.jabook.app.jabook.audio
 
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlinx.coroutines.test.runTest
 
 /**
  * Unit tests for [DynamicPriorityRebalancer].

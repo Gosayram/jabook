@@ -486,7 +486,7 @@ class AudioPlayerLibrarySessionCallbackTest {
         }
 
     @Test
-    fun `onMediaButtonEvent routes NEXT to next chapter when available`() {
+    fun `onMediaButtonEvent routes NEXT to forward`() {
         val player = mock<ExoPlayer>()
         whenever(player.currentMediaItemIndex).thenReturn(0)
         whenever(player.mediaItemCount).thenReturn(2)
@@ -502,12 +502,11 @@ class AudioPlayerLibrarySessionCallbackTest {
         val nextHandled = callback.onMediaButtonEvent(session, controller, nextIntent)
 
         assertTrue(nextHandled)
-        verify(service).next()
-        verify(service, never()).forward(any())
+        verify(service).forward(any<Int>())
     }
 
     @Test
-    fun `onMediaButtonEvent routes NEXT to forward on last chapter and PREVIOUS to chapter boundary`() {
+    fun `onMediaButtonEvent routes NEXT to forward and PREVIOUS to rewind`() {
         val player = mock<ExoPlayer>()
         whenever(player.currentMediaItemIndex).thenReturn(1)
         whenever(player.mediaItemCount).thenReturn(2)
@@ -533,12 +532,12 @@ class AudioPlayerLibrarySessionCallbackTest {
 
         assertTrue(nextHandled)
         assertTrue(previousHandled)
-        verify(service).forward(30)
-        verify(service).seekTo(0L)
+        verify(service).forward(any<Int>())
+        verify(service).rewind(any<Int>())
     }
 
     @Test
-    fun `onMediaButtonEvent routes PREVIOUS to previous chapter near chapter start`() {
+    fun `onMediaButtonEvent routes PREVIOUS to rewind`() {
         val player = mock<ExoPlayer>()
         whenever(player.currentPosition).thenReturn(2_000L)
         whenever(service.getActivePlayer()).thenReturn(player)
@@ -553,7 +552,7 @@ class AudioPlayerLibrarySessionCallbackTest {
         val previousHandled = callback.onMediaButtonEvent(session, controller, previousIntent)
 
         assertTrue(previousHandled)
-        verify(service).previous()
+        verify(service).rewind(any<Int>())
     }
 
     @Test

@@ -63,7 +63,7 @@ class ChapterDetectionWorkerTest {
         }
 
     @Test
-    fun `doWork returns success and skips persistence when signal is empty`() =
+    fun `doWork returns failure when signal is empty`() =
         runBlocking {
             val inputData = validInputData()
             val worker =
@@ -74,7 +74,7 @@ class ChapterDetectionWorkerTest {
 
             val result = worker.doWork()
 
-            assertTrue(result is ListenableWorker.Result.Success)
+            assertTrue(result is ListenableWorker.Result.Failure)
             verify(chaptersDao, never()).deleteByBookId(any())
             verify(chaptersDao, never()).insertAll(any())
         }

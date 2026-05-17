@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Factory for creating chains of AudioProcessors based on audio settings.
@@ -59,9 +60,9 @@ public object AudioProcessorFactory {
                     val normalizer = LoudnessNormalizer(settings)
                     processors.add(normalizer)
                     loudnessNormalizer = normalizer
-                    android.util.Log.d("AudioProcessorFactory", "Added LoudnessNormalizer to chain")
+                    LogUtils.d("AudioProcessorFactory", "Added LoudnessNormalizer to chain")
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioProcessorFactory", "Failed to create LoudnessNormalizer", e)
+                    LogUtils.e("AudioProcessorFactory", "Failed to create LoudnessNormalizer", e)
                 }
             }
 
@@ -70,12 +71,12 @@ public object AudioProcessorFactory {
                 try {
                     val boostProcessor = VolumeBoostProcessor(settings.volumeBoostLevel)
                     processors.add(boostProcessor)
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioProcessorFactory",
                         "Added VolumeBoostProcessor (${settings.volumeBoostLevel}) to chain",
                     )
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioProcessorFactory", "Failed to create VolumeBoostProcessor", e)
+                    LogUtils.e("AudioProcessorFactory", "Failed to create VolumeBoostProcessor", e)
                 }
             }
 
@@ -84,12 +85,12 @@ public object AudioProcessorFactory {
                 try {
                     val compressor = DynamicRangeCompressor(settings.drcLevel)
                     processors.add(compressor)
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioProcessorFactory",
                         "Added DynamicRangeCompressor (${settings.drcLevel}) to chain",
                     )
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioProcessorFactory", "Failed to create DynamicRangeCompressor", e)
+                    LogUtils.e("AudioProcessorFactory", "Failed to create DynamicRangeCompressor", e)
                 }
             }
 
@@ -98,9 +99,9 @@ public object AudioProcessorFactory {
                 try {
                     val enhancer = SpeechEnhancer()
                     processors.add(enhancer)
-                    android.util.Log.d("AudioProcessorFactory", "Added SpeechEnhancer to chain")
+                    LogUtils.d("AudioProcessorFactory", "Added SpeechEnhancer to chain")
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioProcessorFactory", "Failed to create SpeechEnhancer", e)
+                    LogUtils.e("AudioProcessorFactory", "Failed to create SpeechEnhancer", e)
                 }
             }
 
@@ -109,9 +110,9 @@ public object AudioProcessorFactory {
                 try {
                     val leveler = AutoVolumeLeveler()
                     processors.add(leveler)
-                    android.util.Log.d("AudioProcessorFactory", "Added AutoVolumeLeveler to chain")
+                    LogUtils.d("AudioProcessorFactory", "Added AutoVolumeLeveler to chain")
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioProcessorFactory", "Failed to create AutoVolumeLeveler", e)
+                    LogUtils.e("AudioProcessorFactory", "Failed to create AutoVolumeLeveler", e)
                 }
             }
 
@@ -128,22 +129,22 @@ public object AudioProcessorFactory {
                         )
                     processors.add(silenceSkippingProcessor)
 
-                    android.util.Log.d(
+                    LogUtils.d(
                         "AudioProcessorFactory",
                         "Added SkipSilenceAudioProcessor to chain (threshold=${settings.skipSilenceThresholdNormalized}, minMs=${settings.skipSilenceMinDurationMs}, retainMs=${settings.retainWindowMs})",
                     )
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioProcessorFactory", "Failed to create SkipSilenceAudioProcessor", e)
+                    LogUtils.e("AudioProcessorFactory", "Failed to create SkipSilenceAudioProcessor", e)
                 }
             }
 
-            android.util.Log.i(
+            LogUtils.i(
                 "AudioProcessorFactory",
                 "Created processor chain with ${processors.size} processors: " +
                     processors.joinToString { it.javaClass.simpleName },
             )
         } catch (e: Exception) {
-            android.util.Log.e("AudioProcessorFactory", "Error creating processor chain", e)
+            LogUtils.e("AudioProcessorFactory", "Error creating processor chain", e)
         }
 
         return ProcessorChainResult(processors, loudnessNormalizer)

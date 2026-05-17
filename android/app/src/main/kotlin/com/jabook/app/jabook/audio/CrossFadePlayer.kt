@@ -21,6 +21,7 @@ import android.content.Context
 import android.view.animation.LinearInterpolator
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MediaSource
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Manages crossfade transitions between two ExoPlayer instances.
@@ -135,7 +136,7 @@ public class CrossFadePlayer(
         // Usually, we switch metadata halfway or at start.
         // For now, we switch "Active Player" reference at END of fade.
 
-        android.util.Log.d("CrossFadePlayer", "Starting crossfade: Out=$fadingOutPlayer, In=$fadingInPlayer")
+        LogUtils.d("CrossFadePlayer", "Starting crossfade: Out=$fadingOutPlayer, In=$fadingInPlayer")
 
         currentAnimator =
             ValueAnimator.ofFloat(0f, 1f).apply {
@@ -166,7 +167,7 @@ public class CrossFadePlayer(
                             applyPendingPreloadIfNeeded()
                             crossFadeOutPlayer = null
                             onComplete()
-                            android.util.Log.d("CrossFadePlayer", "Crossfade complete. Current is now $currentPlayer")
+                            LogUtils.d("CrossFadePlayer", "Crossfade complete. Current is now $currentPlayer")
                         }
                     },
                 )
@@ -188,7 +189,7 @@ public class CrossFadePlayer(
         if (isCrossFading) {
             // Keep only the latest preload request while transition is active.
             pendingPreloadRequest = request
-            android.util.Log.d("CrossFadePlayer", "Queued preload during active crossfade")
+            LogUtils.d("CrossFadePlayer", "Queued preload during active crossfade")
             return
         }
         val targetPlayer = resolvePreloadTargetPlayer()
@@ -211,7 +212,7 @@ public class CrossFadePlayer(
             is PendingPreloadRequest.MediaSourceRequest -> targetPlayer.setMediaSource(request.mediaSource)
         }
         targetPlayer.prepare()
-        android.util.Log.d("CrossFadePlayer", "Preload request applied on $targetPlayer")
+        LogUtils.d("CrossFadePlayer", "Preload request applied on $targetPlayer")
     }
 
     private fun swapPlayers() {

@@ -25,9 +25,9 @@ import org.junit.Test
  */
 class AudioOffloadCompatibilityPolicyTest {
     @Test
-    fun `default settings are offload compatible`() {
+    fun `default settings disable offload due to normalizeVolume`() {
         val settings = AudioProcessingSettings.defaults()
-        assertTrue(AudioOffloadCompatibilityPolicy.isOffloadCompatible(settings))
+        assertFalse(AudioOffloadCompatibilityPolicy.isOffloadCompatible(settings))
     }
 
     @Test
@@ -67,9 +67,9 @@ class AudioOffloadCompatibilityPolicyTest {
     }
 
     @Test
-    fun `DRC Off keeps offload enabled`() {
+    fun `DRC Off still disables offload due to default normalizeVolume`() {
         val settings = AudioProcessingSettings.defaults().copy(drcLevel = DRCLevel.Off)
-        assertTrue(AudioOffloadCompatibilityPolicy.isOffloadCompatible(settings))
+        assertFalse(AudioOffloadCompatibilityPolicy.isOffloadCompatible(settings))
     }
 
     @Test

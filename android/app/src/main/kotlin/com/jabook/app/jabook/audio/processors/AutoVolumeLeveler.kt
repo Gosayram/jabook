@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
+import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.pow
@@ -72,7 +73,7 @@ public class AutoVolumeLeveler : AudioProcessor {
 
         isActive = true
 
-        android.util.Log.d(
+        LogUtils.d(
             "AutoVolumeLeveler",
             "Configured: sampleRate=${inputAudioFormat.sampleRate}, " +
                 "channels=${inputAudioFormat.channelCount}, " +

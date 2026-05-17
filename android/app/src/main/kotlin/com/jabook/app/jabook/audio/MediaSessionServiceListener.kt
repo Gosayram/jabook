@@ -20,6 +20,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSessionService
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * MediaSessionService.Listener implementation.
@@ -42,7 +43,7 @@ public class MediaSessionServiceListener(
      * - Notification permission is not granted (Android 13+)
      */
     override fun onForegroundServiceStartNotAllowedException() {
-        android.util.Log.w(
+        LogUtils.w(
             "AudioPlayerService",
             "onForegroundServiceStartNotAllowedException: System doesn't allow foreground service start",
         )
@@ -52,7 +53,7 @@ public class MediaSessionServiceListener(
             if (service.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
                 android.content.pm.PackageManager.PERMISSION_GRANTED
             ) {
-                android.util.Log.w(
+                LogUtils.w(
                     "AudioPlayerService",
                     "Notification permission not granted - cannot show notification",
                 )
@@ -119,7 +120,7 @@ public class MediaSessionServiceListener(
             // Use a specific ID for this error notification
             notificationManagerCompat.notify(1002, builder.build())
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to show error notification", e)
+            LogUtils.e("AudioPlayerService", "Failed to show error notification", e)
         }
     }
 }

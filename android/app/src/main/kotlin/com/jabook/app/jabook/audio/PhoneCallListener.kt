@@ -21,6 +21,7 @@ import android.telephony.TelephonyManager
 import androidx.core.content.ContextCompat
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -91,12 +92,12 @@ public class PhoneCallListener(
      */
     public fun startListening() {
         if (isRegistered) {
-            android.util.Log.w("PhoneCallListener", "Already listening for phone calls")
+            LogUtils.w("PhoneCallListener", "Already listening for phone calls")
             return
         }
 
         if (telephonyManager == null) {
-            android.util.Log.w("PhoneCallListener", "TelephonyManager not available, cannot listen for phone calls")
+            LogUtils.w("PhoneCallListener", "TelephonyManager not available, cannot listen for phone calls")
             return
         }
 
@@ -115,7 +116,7 @@ public class PhoneCallListener(
                     ContextCompat.getMainExecutor(context),
                     telephonyCallback!!,
                 )
-                android.util.Log.i("PhoneCallListener", "Started listening for phone calls (TelephonyCallback API 31+)")
+                LogUtils.i("PhoneCallListener", "Started listening for phone calls (TelephonyCallback API 31+)")
             } else {
                 // Fallback to PhoneStateListener for API 30
                 // Legacy API is isolated in LegacyPhoneStateListener object
@@ -130,13 +131,13 @@ public class PhoneCallListener(
                     phoneStateListener as android.telephony.PhoneStateListener,
                     android.telephony.PhoneStateListener.LISTEN_CALL_STATE,
                 )
-                android.util.Log.i("PhoneCallListener", "Started listening for phone calls (PhoneStateListener API 30)")
+                LogUtils.i("PhoneCallListener", "Started listening for phone calls (PhoneStateListener API 30)")
             }
             isRegistered = true
         } catch (e: SecurityException) {
-            android.util.Log.e("PhoneCallListener", "Permission denied: READ_PHONE_STATE", e)
+            LogUtils.e("PhoneCallListener", "Permission denied: READ_PHONE_STATE", e)
         } catch (e: Exception) {
-            android.util.Log.e("PhoneCallListener", "Failed to start listening for phone calls", e)
+            LogUtils.e("PhoneCallListener", "Failed to start listening for phone calls", e)
         }
     }
 
@@ -168,9 +169,9 @@ public class PhoneCallListener(
             isRegistered = false
             wasInCall = false
 
-            android.util.Log.i("PhoneCallListener", "Stopped listening for phone call state changes")
+            LogUtils.i("PhoneCallListener", "Stopped listening for phone call state changes")
         } catch (e: Exception) {
-            android.util.Log.e("PhoneCallListener", "Failed to stop listening for phone calls", e)
+            LogUtils.e("PhoneCallListener", "Failed to stop listening for phone calls", e)
         }
     }
 
@@ -194,7 +195,7 @@ public class PhoneCallListener(
                 else -> "UNKNOWN($state)"
             }
 
-        android.util.Log.d(
+        LogUtils.d(
             "PhoneCallListener",
             "Call state changed: $stateName (phoneNumber=${phoneNumber?.take(4)}...)",
         )
@@ -205,7 +206,7 @@ public class PhoneCallListener(
                 val player = getActivePlayer()
                 if (player.isPlaying) {
                     setWasPlayingBeforeCall(true)
-                    android.util.Log.i("PhoneCallListener", "Incoming call detected, saving playback state")
+                    LogUtils.i("PhoneCallListener", "Incoming call detected, saving playback state")
                 }
             }
             TelephonyManager.CALL_STATE_OFFHOOK -> {
@@ -214,14 +215,14 @@ public class PhoneCallListener(
                 val player = getActivePlayer()
                 if (player.isPlaying) {
                     setWasPlayingBeforeCall(true)
-                    android.util.Log.i("PhoneCallListener", "Call active, saving playback state")
+                    LogUtils.i("PhoneCallListener", "Call active, saving playback state")
                 }
             }
             TelephonyManager.CALL_STATE_IDLE -> {
                 // Call ended - resume playback if we were playing before
                 if (wasInCall && wasPlayingBeforeCall()) {
                     wasInCall = false
-                    android.util.Log.i("PhoneCallListener", "Call ended, attempting to resume playback")
+                    LogUtils.i("PhoneCallListener", "Call ended, attempting to resume playback")
 
                     // Delay resume slightly to ensure audio focus is regained
                     scope.launch {
@@ -238,19 +239,19 @@ public class PhoneCallListener(
                                 player.playWhenReady = true
                                 setWasPlayingBeforeCall(false)
 
-                                android.util.Log.i(
+                                LogUtils.i(
                                     "PhoneCallListener",
                                     "Playback resumed after call ended",
                                 )
                             } else {
-                                android.util.Log.w(
+                                LogUtils.w(
                                     "PhoneCallListener",
                                     "Cannot resume playback: player state=${player.playbackState}",
                                 )
                                 setWasPlayingBeforeCall(false)
                             }
                         } catch (e: Exception) {
-                            android.util.Log.e("PhoneCallListener", "Failed to resume playback after call", e)
+                            LogUtils.e("PhoneCallListener", "Failed to resume playback after call", e)
                             setWasPlayingBeforeCall(false)
                         }
                     }
@@ -258,7 +259,7 @@ public class PhoneCallListener(
                     // Call ended but we weren't playing before, or call wasn't active
                     wasInCall = false
                     if (!wasPlayingBeforeCall()) {
-                        android.util.Log.d("PhoneCallListener", "Call ended, but playback was not active before call")
+                        LogUtils.d("PhoneCallListener", "Call ended, but playback was not active before call")
                     }
                 }
             }
