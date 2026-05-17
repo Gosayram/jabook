@@ -132,6 +132,7 @@ public class AudioPlayerServiceInitializer(
                     service.markStoppedBySleepTimer()
                     service.savePositionToRepository()
                 },
+                audioFader = service.audioFader,
                 isShakeToExtendEnabled = {
                     try {
                         kotlinx.coroutines.runBlocking {

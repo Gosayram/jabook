@@ -44,6 +44,7 @@ internal class SleepTimerManager(
     private val getActivePlayer: () -> ExoPlayer,
     private val sendBroadcast: (Intent) -> Unit,
     private val saveCurrentPositionOnExpiry: () -> Unit = {},
+    private val audioFader: AudioFader? = null,
     private val isShakeToExtendEnabled: () -> Boolean = { true },
     private val isPowerSaveModeEnabled: () -> Boolean = {
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -143,9 +144,17 @@ internal class SleepTimerManager(
                     LogUtils.d("AudioPlayerService", "Sleep timer expired, pausing playback")
                     saveCurrentPositionOnExpiry()
                     val player = getActivePlayer()
-                    player.playWhenReady = false
-                    cancelSleepTimer()
-                    sendTimerExpiredEvent()
+                    if (audioFader != null) {
+                        audioFader.fadeOut(player) {
+                            player.playWhenReady = false
+                            cancelSleepTimer()
+                            sendTimerExpiredEvent()
+                        }
+                    } else {
+                        player.playWhenReady = false
+                        cancelSleepTimer()
+                        sendTimerExpiredEvent()
+                    }
                 },
             )
 
@@ -548,9 +557,17 @@ internal class SleepTimerManager(
                     LogUtils.d("AudioPlayerService", "Restored sleep timer expired, pausing playback")
                     saveCurrentPositionOnExpiry()
                     val player = getActivePlayer()
-                    player.playWhenReady = false
-                    cancelSleepTimer()
-                    sendTimerExpiredEvent()
+                    if (audioFader != null) {
+                        audioFader.fadeOut(player) {
+                            player.playWhenReady = false
+                            cancelSleepTimer()
+                            sendTimerExpiredEvent()
+                        }
+                    } else {
+                        player.playWhenReady = false
+                        cancelSleepTimer()
+                        sendTimerExpiredEvent()
+                    }
                 },
             )
 
