@@ -334,7 +334,7 @@ public class AudioPlayerServiceInitializer(
     @OptIn(UnstableApi::class)
     private fun initializeCrossFadePlayer() {
         service.crossFadePlayer =
-            CrossFadePlayer(service) { context, handleAudioFocus ->
+            CrossFadePlayer(service, { context, handleAudioFocus ->
                 androidx.media3.exoplayer.ExoPlayer
                     .Builder(context)
                     .setRenderersFactory(androidx.media3.exoplayer.DefaultRenderersFactory(context))
@@ -348,7 +348,7 @@ public class AudioPlayerServiceInitializer(
                             .build(),
                         handleAudioFocus,
                     ).build()
-            }
+            }, service.playerServiceScope)
         service.crossFadePlayer?.onPlayerChanged = { newPlayer ->
             try {
                 service.mediaLibrarySession?.let { session ->

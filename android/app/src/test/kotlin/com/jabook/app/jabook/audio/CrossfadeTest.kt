@@ -51,7 +51,11 @@ class CrossfadeTest {
             if (callCount == 1) playerA else playerB
         }
 
-        crossFadePlayer = CrossFadePlayer(context, factory)
+        val scope =
+            kotlinx.coroutines.CoroutineScope(
+                kotlinx.coroutines.Dispatchers.Main + kotlinx.coroutines.SupervisorJob(),
+            )
+        crossFadePlayer = CrossFadePlayer(context, factory, scope)
         // Set short duration for testing
         crossFadePlayer.crossFadeDurationMs = 100L
     }

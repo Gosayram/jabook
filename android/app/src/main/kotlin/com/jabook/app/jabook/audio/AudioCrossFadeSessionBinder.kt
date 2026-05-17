@@ -32,7 +32,7 @@ internal object AudioCrossFadeSessionBinder {
             return
         }
         service.crossFadePlayer =
-            CrossFadePlayer(service) { context, handleAudioFocus ->
+            CrossFadePlayer(service, { context, handleAudioFocus ->
                 ExoPlayer
                     .Builder(context)
                     .setRenderersFactory(DefaultRenderersFactory(context))
@@ -46,7 +46,7 @@ internal object AudioCrossFadeSessionBinder {
                             .build(),
                         handleAudioFocus,
                     ).build()
-            }
+            }, service.playerServiceScope)
         service.crossFadePlayer?.onPlayerChanged = { newPlayer ->
             try {
                 service.mediaLibrarySession?.let { session ->
