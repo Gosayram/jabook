@@ -308,10 +308,50 @@ public object MediaModule {
                     .Builder()
                     .setAudioOffloadMode(
                         TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED,
-                    ).setIsGaplessSupportRequired(false)
-                    .setIsSpeedChangeSupportRequired(false)
+                    ).setIsGaplessSupportRequired(false) // Disabled with offload for battery efficiency
+                    .setIsSpeedChangeSupportRequired(true) // Required for pitch correction
                     .build(),
             ).build()
+
+    /**
+     * Creates TrackSelectionParameters based on audio processing settings.
+     * Gapless is enabled only when offload is disabled AND crossfade is disabled.
+     */
+    @OptIn(UnstableApi::class)
+    public fun createTrackSelectionParameters(settings: AudioProcessingSettings): TrackSelectionParameters {
+        val hasProcessors =
+            com.jabook.app.jabook.audio.processors.AudioProcessorFactory
+                .createProcessorChain(settings)
+                .processors
+                .isNotEmpty()
+        val isCrossfadeEnabled = settings.isCrossfadeEnabled
+
+        // Gapless requires: offload disabled OR no custom processors, AND no crossfade
+        val gaplessSupported = !hasProcessors && !isCrossfadeEnabled
+
+        LogUtils.d(
+            "MediaModule",
+            "Creating TrackSelectionParameters: gapless=$gaplessSupported " +
+                "(processors=$hasProcessors, crossfade=$isCrossfadeEnabled)",
+        )
+
+        return TrackSelectionParameters
+            .Builder()
+            .setAudioOffloadPreferences(
+                TrackSelectionParameters
+                    .AudioOffloadPreferences
+                    .Builder()
+                    .setAudioOffloadMode(
+                        if (hasProcessors) {
+                            TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_DISABLED
+                        } else {
+                            TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED
+                        },
+                    ).setIsGaplessSupportRequired(gaplessSupported)
+                    .setIsSpeedChangeSupportRequired(true) // Required for pitch correction
+                    .build(),
+            ).build()
+    }
 
     /**
      * Calculates optimal cache size limit based on available storage.
