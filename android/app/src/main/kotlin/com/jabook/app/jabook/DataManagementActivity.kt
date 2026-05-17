@@ -26,6 +26,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.util.LogUtils
 import java.io.File
 
 /**
@@ -90,7 +91,7 @@ public class DataManagementActivity : AppCompatActivity() {
                     progressBar.visibility = View.GONE
                 }
             } catch (e: Exception) {
-                android.util.Log.e("DataManagementActivity", "Error loading storage info", e)
+                LogUtils.e("DataManagementActivity", "Error loading storage info", e)
                 runOnUiThread {
                     cacheSizeText.text = getString(R.string.cacheError)
                     dataSizeText.text = getString(R.string.dataError)
@@ -118,7 +119,7 @@ public class DataManagementActivity : AppCompatActivity() {
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("DataManagementActivity", "Error calculating cache size", e)
+            LogUtils.e("DataManagementActivity", "Error calculating cache size", e)
         }
         return totalSize
     }
@@ -142,7 +143,7 @@ public class DataManagementActivity : AppCompatActivity() {
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("DataManagementActivity", "Error calculating data size", e)
+            LogUtils.e("DataManagementActivity", "Error calculating data size", e)
         }
         return totalSize
     }
@@ -167,7 +168,7 @@ public class DataManagementActivity : AppCompatActivity() {
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.w("DataManagementActivity", "Error calculating size for ${directory.path}", e)
+            LogUtils.w("DataManagementActivity", "Error calculating size for ${directory.path}", e)
         }
         return size
     }
@@ -237,7 +238,7 @@ public class DataManagementActivity : AppCompatActivity() {
                     loadStorageInfo()
                 }
             } catch (e: Exception) {
-                android.util.Log.e("DataManagementActivity", "Error clearing cache", e)
+                LogUtils.e("DataManagementActivity", "Error clearing cache", e)
                 runOnUiThread {
                     progressBar.visibility = View.GONE
                     clearCacheButton.isEnabled = true
@@ -275,7 +276,7 @@ public class DataManagementActivity : AppCompatActivity() {
                 // (Android system manages cache directories)
             }
         } catch (e: Exception) {
-            android.util.Log.w("DataManagementActivity", "Error deleting ${directory.path}", e)
+            LogUtils.w("DataManagementActivity", "Error deleting ${directory.path}", e)
         }
     }
 }

@@ -14,9 +14,9 @@
 
 package com.jabook.app.jabook.audio
 
-import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Helper for transferring playback state between players.
@@ -46,7 +46,7 @@ public object PlayerStateTransfer {
      * @return SavedPlayerState containing all necessary state info
      */
     public fun savePlayerState(player: Player): SavedPlayerState {
-        Log.d(TAG, "Saving player state")
+        LogUtils.d(TAG, "Saving player state")
 
         val mediaItems = mutableListOf<MediaItem>()
         for (i in 0 until player.mediaItemCount) {
@@ -73,7 +73,7 @@ public object PlayerStateTransfer {
         player: Player,
         savedState: SavedPlayerState,
     ) {
-        Log.d(TAG, "Restoring player state")
+        LogUtils.d(TAG, "Restoring player state")
 
         // Set media items
         player.setMediaItems(savedState.mediaItems, savedState.currentMediaItemIndex, savedState.currentPosition)
@@ -98,7 +98,7 @@ public object PlayerStateTransfer {
         fromPlayer: Player,
         toPlayer: Player,
     ) {
-        Log.d(TAG, "Transferring playback from ${fromPlayer.javaClass.simpleName} to ${toPlayer.javaClass.simpleName}")
+        LogUtils.d(TAG, "Transferring playback from ${fromPlayer.javaClass.simpleName} to ${toPlayer.javaClass.simpleName}")
 
         try {
             // Save state from source player
@@ -110,9 +110,9 @@ public object PlayerStateTransfer {
             // Restore state to destination player
             restorePlayerState(toPlayer, savedState)
 
-            Log.d(TAG, "Playback transfer completed successfully")
+            LogUtils.d(TAG, "Playback transfer completed successfully")
         } catch (e: Exception) {
-            Log.e(TAG, "Error transferring playback", e)
+            LogUtils.e(TAG, "Error transferring playback", e)
         }
     }
 }

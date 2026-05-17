@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.model.UserData
@@ -33,6 +34,7 @@ import javax.inject.Inject
 public sealed interface MainActivityUiState {
     public data object Loading : MainActivityUiState
 
+    @Immutable
     public data class Success(
         val userData: UserData,
         val useDynamicColors: Boolean,

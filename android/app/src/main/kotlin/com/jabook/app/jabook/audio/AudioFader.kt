@@ -15,9 +15,9 @@
 package com.jabook.app.jabook.audio
 
 import android.animation.ValueAnimator
-import android.util.Log
 import androidx.core.animation.doOnEnd
 import androidx.media3.common.Player
+import com.jabook.app.jabook.util.LogUtils
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -83,7 +83,7 @@ public class AudioFader
             if (fadeDurationMs == 0L) {
                 player.volume = 1f
                 onComplete?.invoke()
-                Log.v(TAG, "Fade-in skipped (duration=0)")
+                LogUtils.v(TAG, "Fade-in skipped (duration=0)")
                 return
             }
 
@@ -99,12 +99,12 @@ public class AudioFader
                     doOnEnd {
                         currentAnimator = null
                         onComplete?.invoke()
-                        Log.d(TAG, "Fade-in completed")
+                        LogUtils.d(TAG, "Fade-in completed")
                     }
                     start()
                 }
 
-            Log.d(TAG, "Fade-in started (duration=${fadeDurationMs}ms)")
+            LogUtils.d(TAG, "Fade-in started (duration=${fadeDurationMs}ms)")
         }
 
         /**
@@ -126,7 +126,7 @@ public class AudioFader
                 player.volume = 0f
                 onComplete?.invoke()
                 player.volume = 1f // Reset for next play
-                Log.v(TAG, "Fade-out skipped (duration=0)")
+                LogUtils.v(TAG, "Fade-out skipped (duration=0)")
                 return
             }
 
@@ -143,12 +143,12 @@ public class AudioFader
                         currentAnimator = null
                         onComplete?.invoke()
                         player.volume = 1f // Reset volume for next play
-                        Log.d(TAG, "Fade-out completed")
+                        LogUtils.d(TAG, "Fade-out completed")
                     }
                     start()
                 }
 
-            Log.d(TAG, "Fade-out started from volume=$startVolume (duration=${fadeDurationMs}ms)")
+            LogUtils.d(TAG, "Fade-out started from volume=$startVolume (duration=${fadeDurationMs}ms)")
         }
 
         /**
@@ -160,7 +160,7 @@ public class AudioFader
             currentAnimator?.let { animator ->
                 animator.cancel()
                 currentAnimator = null
-                Log.v(TAG, "Animation cancelled")
+                LogUtils.v(TAG, "Animation cancelled")
             }
         }
 
@@ -174,6 +174,6 @@ public class AudioFader
          */
         public fun release() {
             cancelCurrentAnimation()
-            Log.d(TAG, "AudioFader released")
+            LogUtils.d(TAG, "AudioFader released")
         }
     }

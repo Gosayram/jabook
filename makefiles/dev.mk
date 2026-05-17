@@ -71,6 +71,24 @@ fmt-kotlin: ## Format Kotlin code (ktlint + detekt auto-correct) + regenerate ve
 		echo "⚠️  Dependency verification metadata regeneration failed (non-fatal)"; \
 	fi
 
+.PHONY: refresh-verification-metadata
+refresh-verification-metadata: ## Regenerate Gradle dependency verification metadata (sha256)
+	@echo "Regenerating dependency verification metadata (sha256)..."
+	@VERIFICATION_FILE="android/gradle/verification-metadata.xml"; \
+	BEFORE_HASH=$$(shasum -a 256 "$$VERIFICATION_FILE" 2>/dev/null | cut -d' ' -f1 || echo ""); \
+	(cd android && ./gradlew --write-verification-metadata sha256 help --no-daemon); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -ne 0 ]; then \
+		echo "❌ Failed to regenerate verification metadata (exit $$EXIT_CODE)"; \
+		exit $$EXIT_CODE; \
+	fi; \
+	AFTER_HASH=$$(shasum -a 256 "$$VERIFICATION_FILE" 2>/dev/null | cut -d' ' -f1 || echo ""); \
+	if [ "$$BEFORE_HASH" = "$$AFTER_HASH" ] && [ -n "$$BEFORE_HASH" ]; then \
+		echo "⏭️  verification-metadata.xml unchanged"; \
+	else \
+		echo "✅ verification-metadata.xml regenerated"; \
+	fi
+
 .PHONY: lint-kotlin
 lint-kotlin: ## Lint Kotlin code (ktlint + detekt check + dependency verification)
 	@echo "Linting Kotlin code with ktlint + detekt..."
@@ -92,8 +110,20 @@ lint-kotlin: ## Lint Kotlin code (ktlint + detekt check + dependency verificatio
 	@(cd android && ./gradlew --dependency-verification=strict help --no-daemon 2>&1); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -ne 0 ]; then \
-		echo "❌ Dependency verification failed — run 'make fmt-kotlin' to regenerate verification-metadata.xml"; \
-		exit $$EXIT_CODE; \
+		echo "⚠️  Dependency verification failed. Trying auto-regeneration..."; \
+		$(MAKE) refresh-verification-metadata; \
+		REFRESH_EXIT_CODE=$$?; \
+		if [ $$REFRESH_EXIT_CODE -ne 0 ]; then \
+			echo "❌ Auto-regeneration failed (exit $$REFRESH_EXIT_CODE). Run 'make refresh-verification-metadata' manually."; \
+			exit $$REFRESH_EXIT_CODE; \
+		fi; \
+		(cd android && ./gradlew --dependency-verification=strict help --no-daemon 2>&1); \
+		EXIT_CODE=$$?; \
+		if [ $$EXIT_CODE -ne 0 ]; then \
+			echo "❌ Dependency verification is still failing after auto-regeneration."; \
+			echo "Run 'make refresh-verification-metadata' and inspect android/build/reports/dependency-verification/*"; \
+			exit $$EXIT_CODE; \
+		fi; \
 	fi; \
 	echo "✅ Dependency verification passed"
 	@(cd android && ./gradlew :app:ktlintCheck :app:detekt --no-daemon); \
@@ -200,16 +230,32 @@ hilt-graph-check: ## Validate Hilt dependency graph for beta/prod debug variants
 	exit $$EXIT_CODE
 
 .PHONY: test
-test: ## Run unit tests (beta + prod)
-	@echo "Running unit tests..."
+test: ## Run unit tests (developer profile: faster local feedback)
+	@echo "Running unit tests (developer profile)..."
 	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest --no-daemon); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
-		echo "✅ Unit tests passed"; \
+		echo "✅ Unit tests passed (developer profile)"; \
 	else \
-		echo "❌ Unit tests failed with exit code $$EXIT_CODE"; \
+		echo "❌ Unit tests failed (developer profile) with exit code $$EXIT_CODE"; \
 	fi; \
 	exit $$EXIT_CODE
+
+.PHONY: test-strict
+test-strict: ## Run unit tests with stricter execution limits (CI-friendly)
+	@echo "Running strict unit tests (single worker, no parallel)..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest \
+		--no-daemon --max-workers=1 --no-parallel); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Strict unit tests passed"; \
+	else \
+		echo "❌ Strict unit tests failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
+.PHONY: test-ci
+test-ci: test-strict ## CI unit test profile (alias of test-strict)
 
 .PHONY: test-audio
 test-audio: ## Run audio-focused unit tests (beta + prod)

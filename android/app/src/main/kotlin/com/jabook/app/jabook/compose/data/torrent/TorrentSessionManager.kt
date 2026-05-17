@@ -22,9 +22,15 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
 import com.jabook.app.jabook.compose.data.worker.WorkConstraintsPolicy
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import org.libtorrent4j.AddTorrentParams
 import org.libtorrent4j.AlertListener
 import org.libtorrent4j.LibTorrent
 import org.libtorrent4j.SessionManager
@@ -33,6 +39,7 @@ import org.libtorrent4j.SettingsPack
 import org.libtorrent4j.TorrentHandle
 import org.libtorrent4j.TorrentInfo
 import org.libtorrent4j.TorrentStatus
+import org.libtorrent4j.Vectors
 import org.libtorrent4j.alerts.AddTorrentAlert
 import org.libtorrent4j.alerts.Alert
 import org.libtorrent4j.alerts.AlertType
@@ -41,12 +48,18 @@ import org.libtorrent4j.alerts.DhtErrorAlert
 import org.libtorrent4j.alerts.MetadataReceivedAlert
 import org.libtorrent4j.alerts.PeerLogAlert
 import org.libtorrent4j.alerts.PieceFinishedAlert
+import org.libtorrent4j.alerts.SaveResumeDataAlert
+import org.libtorrent4j.alerts.SaveResumeDataFailedAlert
 import org.libtorrent4j.alerts.StateChangedAlert
 import org.libtorrent4j.alerts.StateUpdateAlert
 import org.libtorrent4j.alerts.TorrentErrorAlert
 import org.libtorrent4j.alerts.TorrentFinishedAlert
 import org.libtorrent4j.alerts.TorrentLogAlert
+import org.libtorrent4j.swig.error_code
+import org.libtorrent4j.swig.libtorrent
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -59,6 +72,7 @@ public class TorrentSessionManager
     constructor(
         @param:ApplicationContext private val context: Context,
         private val loggerFactory: LoggerFactory,
+        private val torrentDownloadDao: TorrentDownloadDao,
     ) {
         private val logger = loggerFactory.get("TorrentSessionManager")
 
@@ -70,6 +84,11 @@ public class TorrentSessionManager
 
         private val _downloadsFlow = MutableStateFlow<Map<String, TorrentDownload>>(emptyMap())
         public val downloadsFlow: StateFlow<Map<String, TorrentDownload>> = _downloadsFlow.asStateFlow()
+
+        private val sessionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+        // Tracks pending SaveResumeDataAlerts so stopSession() can await them before shutting down.
+        private var pendingResumeDataLatch: CountDownLatch? = null
 
         private companion object {
             private const val LIBRARY_SYNC_AFTER_TORRENT_WORK = "library_scan_after_torrent_finish"
@@ -93,6 +112,8 @@ public class TorrentSessionManager
                         AlertType.STATE_UPDATE.swig(),
                         AlertType.PEER_LOG.swig(),
                         AlertType.TORRENT_LOG.swig(),
+                        AlertType.SAVE_RESUME_DATA.swig(),
+                        AlertType.SAVE_RESUME_DATA_FAILED.swig(),
                     )
                 }
 
@@ -111,6 +132,11 @@ public class TorrentSessionManager
                             is PieceFinishedAlert -> handlePieceFinished(alert)
                             is DhtErrorAlert -> handleDhtError(alert)
                             is StateUpdateAlert -> handleStateUpdate(alert)
+                            is SaveResumeDataAlert -> handleSaveResumeData(alert)
+                            is SaveResumeDataFailedAlert ->
+                                logger.w {
+                                    "Save resume data failed for ${alert.handle().infoHash().toHex()}"
+                                }
                             is PeerLogAlert -> {
                                 // Log peer-level debugging (can be verbose, so use debug level)
                                 logger.d { "PEER_LOG: ${alert.logMessage()}" }
@@ -514,20 +540,110 @@ public class TorrentSessionManager
         public fun getDownload(hash: String): TorrentDownload? = _downloadsFlow.value[hash]
 
         /**
-         * Stop session and cleanup
+         * Stop session and cleanup.
+         *
+         * Requests resume data for all active torrents before stopping so that
+         * downloads can be resumed on next session start without re-downloading
+         * already-completed pieces.
          */
         public fun stopSession() {
             try {
+                // Request resume data for all active handles before stopping.
+                // saveResumeData is async — alerts arrive via the alert queue, so we
+                // use a CountDownLatch to await all SaveResumeDataAlerts before stop().
+                val handles = torrents.values.filter { it.isValid }
+                if (handles.isNotEmpty()) {
+                    val latch = CountDownLatch(handles.size)
+                    pendingResumeDataLatch = latch
+                    handles.forEach { handle ->
+                        try {
+                            handle.saveResumeData(TorrentHandle.SAVE_INFO_DICT)
+                        } catch (e: Exception) {
+                            latch.countDown()
+                            logger.w {
+                                "Could not request resume data for ${handle.infoHash().toHex()}: ${e.message}"
+                            }
+                        }
+                    }
+                    // Wait up to 5 seconds for all SaveResumeDataAlerts to arrive
+                    if (!latch.await(5, TimeUnit.SECONDS)) {
+                        logger.w { "Timeout waiting for save resume data alerts (${handles.size} handles)" }
+                    }
+                }
                 torrents.clear()
                 session?.stop()
                 session = null
+                sessionScope.cancel()
                 logger.i { "Session stopped" }
             } catch (e: Exception) {
                 logger.e({ "Error stopping session" }, e)
             }
         }
 
+        /**
+         * Restores non-completed downloads from the database after a fresh session init.
+         *
+         * Downloads with persisted resume data are re-added using that data so libtorrent
+         * can skip already-downloaded pieces. Downloads without resume data fall back to
+         * re-adding via their magnet URI (they restart from scratch).
+         */
+        public fun restoreActiveDownloads() {
+            sessionScope.launch {
+                try {
+                    val active = torrentDownloadDao.getResumableDownloads()
+                    if (active.isEmpty()) return@launch
+                    logger.i { "Restoring ${active.size} torrent downloads with resume data" }
+                    active.forEach { entity ->
+                        try {
+                            if (torrents.containsKey(entity.hash)) return@forEach
+                            val resumeBytes = entity.resumeData ?: return@forEach
+                            val byteVector = Vectors.bytes2byte_vector(resumeBytes)
+                            val errorCode = error_code()
+                            val swigParams = libtorrent.read_resume_data_ex(byteVector, errorCode)
+                            if (errorCode.failed()) {
+                                logger.w { "Resume data rejected for ${entity.hash}: ${errorCode.message()}" }
+                                return@forEach
+                            }
+                            val params =
+                                AddTorrentParams(swigParams).apply {
+                                    setSavePath(entity.savePath)
+                                }
+                            // SessionManager doesn't expose asyncAddTorrent directly;
+                            // go via the swig session_handle which does.
+                            session?.swig()?.async_add_torrent(params.swig())
+                            logger.d { "Restored torrent with resume data: ${entity.hash}" }
+                        } catch (e: Exception) {
+                            logger.e({ "Failed to restore torrent ${entity.hash}" }, e)
+                        }
+                    }
+                } catch (e: Exception) {
+                    logger.e({ "Failed to restore active downloads" }, e)
+                }
+            }
+        }
+
         // Alert handlers
+
+        private fun handleSaveResumeData(alert: SaveResumeDataAlert) {
+            try {
+                val handle = alert.handle()
+                if (!handle.isValid) return
+                val hash = handle.infoHash().toHex()
+                val resumeBytes = AddTorrentParams.writeResumeDataBuf(alert.params())
+                sessionScope.launch {
+                    try {
+                        torrentDownloadDao.updateResumeData(hash, resumeBytes)
+                        logger.d { "Resume data saved for $hash (${resumeBytes.size} bytes)" }
+                    } catch (e: Exception) {
+                        logger.e({ "Failed to persist resume data for $hash" }, e)
+                    }
+                }
+            } catch (e: Exception) {
+                logger.e({ "Error handling SaveResumeDataAlert" }, e)
+            } finally {
+                pendingResumeDataLatch?.countDown()
+            }
+        }
 
         private fun handleAddTorrent(alert: AddTorrentAlert) {
             try {

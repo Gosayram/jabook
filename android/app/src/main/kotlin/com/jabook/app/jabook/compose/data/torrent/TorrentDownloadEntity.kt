@@ -26,22 +26,24 @@ import com.google.gson.reflect.TypeToken
  */
 @Entity(tableName = "torrent_downloads")
 @TypeConverters(TorrentDownloadConverters::class)
-public data class TorrentDownloadEntity(
+public class TorrentDownloadEntity(
     @PrimaryKey
-    val hash: String,
-    val name: String,
-    val state: TorrentState,
-    val progress: Float,
-    val totalSize: Long,
-    val downloadedSize: Long,
-    val uploadedSize: Long,
-    val savePath: String,
-    val files: List<TorrentFile>,
-    val errorMessage: String?,
-    val addedTime: Long,
-    val completedTime: Long,
-    val pauseReason: PauseReason?,
-    val topicId: String? = null,
+    public val hash: String,
+    public val name: String,
+    public val state: TorrentState,
+    public val progress: Float,
+    public val totalSize: Long,
+    public val downloadedSize: Long,
+    public val uploadedSize: Long,
+    public val savePath: String,
+    public val files: List<TorrentFile>,
+    public val errorMessage: String?,
+    public val addedTime: Long,
+    public val completedTime: Long,
+    public val pauseReason: PauseReason?,
+    public val topicId: String? = null,
+    /** libtorrent resume data BLOB for crash-safe download resumption. Null until first save. */
+    public val resumeData: ByteArray? = null,
 ) {
     /**
      * Convert to domain model
@@ -63,6 +65,45 @@ public data class TorrentDownloadEntity(
             pauseReason = pauseReason,
             topicId = topicId,
         )
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is TorrentDownloadEntity) return false
+        return hash == other.hash &&
+            name == other.name &&
+            state == other.state &&
+            progress == other.progress &&
+            totalSize == other.totalSize &&
+            downloadedSize == other.downloadedSize &&
+            uploadedSize == other.uploadedSize &&
+            savePath == other.savePath &&
+            files == other.files &&
+            errorMessage == other.errorMessage &&
+            addedTime == other.addedTime &&
+            completedTime == other.completedTime &&
+            pauseReason == other.pauseReason &&
+            topicId == other.topicId &&
+            resumeData.contentEquals(other.resumeData)
+    }
+
+    override fun hashCode(): Int {
+        var result = hash.hashCode()
+        result = 31 * result + name.hashCode()
+        result = 31 * result + state.hashCode()
+        result = 31 * result + progress.hashCode()
+        result = 31 * result + totalSize.hashCode()
+        result = 31 * result + downloadedSize.hashCode()
+        result = 31 * result + uploadedSize.hashCode()
+        result = 31 * result + savePath.hashCode()
+        result = 31 * result + files.hashCode()
+        result = 31 * result + (errorMessage?.hashCode() ?: 0)
+        result = 31 * result + addedTime.hashCode()
+        result = 31 * result + completedTime.hashCode()
+        result = 31 * result + (pauseReason?.hashCode() ?: 0)
+        result = 31 * result + (topicId?.hashCode() ?: 0)
+        result = 31 * result + (resumeData?.contentHashCode() ?: 0)
+        return result
+    }
 
     public companion object {
         /**

@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio.player.exoplayer
 
 import androidx.media3.common.Player
 import com.jabook.app.jabook.audio.core.model.PlaybackState
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,7 +43,7 @@ public class PlaybackListener : Player.Listener {
     ) {
         super.onMediaItemTransition(mediaItem, reason)
         // Track index will be updated by the player manager
-        android.util.Log.d("PlaybackListener", "Media item transition: ${mediaItem?.mediaId}, reason: $reason")
+        LogUtils.d("PlaybackListener", "Media item transition: ${mediaItem?.mediaId}, reason: $reason")
     }
 
     /**
@@ -50,7 +51,7 @@ public class PlaybackListener : Player.Listener {
      */
     override fun onPlaybackStateChanged(playbackState: Int) {
         super.onPlaybackStateChanged(playbackState)
-        android.util.Log.d("PlaybackListener", "Playback state changed: $playbackState")
+        LogUtils.d("PlaybackListener", "Playback state changed: $playbackState")
     }
 
     /**
@@ -58,7 +59,7 @@ public class PlaybackListener : Player.Listener {
      */
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
         super.onPlayerError(error)
-        android.util.Log.e("PlaybackListener", "Player error: ${error.message}", error)
+        LogUtils.e("PlaybackListener", "Player error: ${error.message}", error)
     }
 
     /**
@@ -83,6 +84,6 @@ public class PlaybackListener : Player.Listener {
      */
     public fun updateActualTrackIndex(index: Int) {
         _actualTrackIndex.value = index
-        android.util.Log.d("PlaybackListener", "Actual track index updated: $index")
+        LogUtils.d("PlaybackListener", "Actual track index updated: $index")
     }
 }

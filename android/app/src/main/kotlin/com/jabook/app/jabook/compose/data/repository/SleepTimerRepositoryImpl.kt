@@ -174,7 +174,20 @@ public class SleepTimerRepositoryImpl
                         } else {
                             val remaining = MediaControllerExtensions.getSleepTimerRemainingSeconds(controller)
                             if (remaining != null && remaining > 0) {
-                                SleepTimerState.Active(remaining)
+                                val previousActive = _timerState.value as? SleepTimerState.Active
+                                val initialSeconds =
+                                    if (previousActive != null && remaining <= previousActive.initialSeconds) {
+                                        previousActive.initialSeconds
+                                    } else {
+                                        // Reset initialSeconds when the reported remaining grew
+                                        // (e.g. timer extension / fresh longer timer) so
+                                        // progressFraction = remaining / initialSeconds stays within [0, 1].
+                                        remaining
+                                    }
+                                SleepTimerState.Active(
+                                    remainingSeconds = remaining,
+                                    initialSeconds = initialSeconds,
+                                )
                             } else {
                                 SleepTimerState.Idle
                             }
@@ -210,7 +223,11 @@ public class SleepTimerRepositoryImpl
                             )
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
                             // State will be updated by polling, but eagerly update for responsiveness
-                            _timerState.value = SleepTimerState.Active(durationMinutes * 60)
+                            _timerState.value =
+                                SleepTimerState.Active(
+                                    remainingSeconds = durationMinutes * 60,
+                                    initialSeconds = durationMinutes * 60,
+                                )
                             persistLastFixedDurationMinutes(durationMinutes)
                         }
                     } catch (e: InterruptedException) {

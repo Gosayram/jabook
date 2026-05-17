@@ -18,6 +18,7 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.os.Process
+import com.jabook.app.jabook.util.LogUtils
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.system.exitProcess
@@ -47,7 +48,7 @@ public class GlobalExceptionHandler(
     ) {
         try {
             // Log the exception
-            android.util.Log.e("GlobalExceptionHandler", "Uncaught exception", throwable)
+            LogUtils.e("GlobalExceptionHandler", "Uncaught exception", throwable)
             CrashDiagnostics.reportUncaughtException(
                 threadName = thread.name,
                 throwable = throwable,
@@ -60,7 +61,7 @@ public class GlobalExceptionHandler(
             val crashCount = prefs.getInt("crash_count", 0)
 
             if (now - lastCrashTime < CRASH_LOOP_THRESHOLD_MS && crashCount >= MAX_CONSECUTIVE_CRASHES) {
-                android.util.Log.e(
+                LogUtils.e(
                     "GlobalExceptionHandler",
                     "Crash loop detected ($crashCount crashes in ${CRASH_LOOP_THRESHOLD_MS}ms), " +
                         "clearing state to break the loop",

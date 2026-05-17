@@ -14,12 +14,15 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.PowerManager
 import android.text.format.DateUtils
 import android.view.WindowManager
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -45,19 +48,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Mic
@@ -69,11 +70,18 @@ import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Repeat
+import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
@@ -87,6 +95,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
@@ -106,26 +115,36 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.getSystemService
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -137,8 +156,14 @@ import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.theme.GlassmorphismTokens
+import com.jabook.app.jabook.compose.core.theme.MotionTokens
+import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.ContrastPolicy
 import com.jabook.app.jabook.compose.core.util.CoverUtils
+import com.jabook.app.jabook.compose.core.util.HapticManager
+import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
@@ -150,6 +175,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -186,10 +212,15 @@ public interface AudioMetadataParserEntryPoint {
  * @param onNavigateBack Callback to navigate back
  * @param viewModel ViewModel provided by Hilt
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3AdaptiveApi::class,
+    ExperimentalMaterial3WindowSizeClassApi::class,
+)
 @Composable
 public fun PlayerScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToBook: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlayerViewModel = hiltViewModel(),
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
@@ -202,9 +233,21 @@ public fun PlayerScreen(
     val lastSleepTimerDurationMinutes by viewModel.lastSleepTimerDurationMinutes.collectAsStateWithLifecycle()
     val normalizeEnabled by viewModel.normalizeChapterTitles.collectAsStateWithLifecycle()
     val audioSettings by viewModel.audioSettings.collectAsStateWithLifecycle()
-    val visualizerWaveformData by viewModel.visualizerWaveformData.collectAsStateWithLifecycle()
-    val seekbarWaveformData by viewModel.seekbarWaveformData.collectAsStateWithLifecycle()
+    val visualizerWaveformDataRaw by viewModel.visualizerWaveformData.collectAsStateWithLifecycle()
+    val seekbarWaveformDataRaw by viewModel.seekbarWaveformData.collectAsStateWithLifecycle()
+    val nextBookAutoplayState by viewModel.nextBookAutoplayState.collectAsStateWithLifecycle()
+
+    // Phased init (#59): defer heavy waveform data to avoid janky first frame
+    var waveformReady by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        withFrameMillis { } // wait for the first frame to complete
+        waveformReady = true
+    }
+    val emptyWaveform = remember { FloatArray(0) }
+    val visualizerWaveformData = if (waveformReady) visualizerWaveformDataRaw else emptyWaveform
+    val seekbarWaveformData = if (waveformReady) seekbarWaveformDataRaw else emptyWaveform
     val hapticFeedback = LocalHapticFeedback.current
+    val reduceMotion = rememberReduceMotion()
 
     val navigationClickGuard = remember { NavigationClickGuard() }
 
@@ -224,8 +267,12 @@ public fun PlayerScreen(
     var showSpeedSheet by remember { mutableStateOf(false) }
     var showSleepTimerSheet by remember { mutableStateOf(false) }
     var showAudioSettingsSheet by remember { mutableStateOf(false) }
+    var showChapterSheet by remember { mutableStateOf(false) }
     // Legacy settings sheet (if unused, we might want to consolidate or remove)
     var showSettingsSheet by remember { mutableStateOf(false) }
+    var showRatingDialog by remember { mutableStateOf(false) }
+    var selectedRating by remember { mutableIntStateOf(0) }
+    var ratedBookId by remember { mutableStateOf<String?>(null) }
 
     // Vinyl Mode State
     var isVinylMode by remember { mutableStateOf(false) }
@@ -235,6 +282,15 @@ public fun PlayerScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val activity =
+        context as? android.app.Activity
+            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+    val isCompactScreen =
+        activity?.let {
+            val rawWindowSizeClass = calculateWindowSizeClass(it)
+            val windowSizeClass = AdaptiveUtils.resolveWindowSizeClass(rawWindowSizeClass, context)
+            windowSizeClass.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
+        } ?: true
     val openSettingsLabel = stringResource(R.string.openSettings)
     val notificationPermissionPlaybackHint = stringResource(R.string.notificationPermissionPlaybackHint)
     val audioVisualizerPermissionHint = stringResource(R.string.audioVisualizerPermissionHint)
@@ -257,7 +313,16 @@ public fun PlayerScreen(
                     }
                 }
                 PlayerEffect.NavigateBack -> navigationClickGuard.run(onNavigateBack)
+                is PlayerEffect.NavigateToBook -> navigationClickGuard.run { onNavigateToBook(effect.bookId) }
             }
+        }
+    }
+
+    val completedBookId = (uiState as? PlayerState.Active)?.book?.takeIf { it.isCompleted }?.id
+    LaunchedEffect(completedBookId) {
+        if (completedBookId != null && ratedBookId != completedBookId && !showRatingDialog) {
+            selectedRating = 0
+            showRatingDialog = true
         }
     }
 
@@ -472,6 +537,22 @@ public fun PlayerScreen(
     }
 
     // Removed Chapter Selector Sheet - using adaptive pane instead
+    if (showChapterSheet && uiState is PlayerState.Active) {
+        val state = uiState as PlayerState.Active
+        JabookModalBottomSheet(
+            onDismissRequest = { showChapterSheet = false },
+        ) {
+            PlayerChapterPane(
+                chapters = state.chapters,
+                currentChapterIndex = state.currentChapterIndex,
+                normalizeEnabled = normalizeEnabled,
+                onChapterClick = { chapterIndex ->
+                    viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex))
+                    showChapterSheet = false
+                },
+            )
+        }
+    }
 
     // Player Settings Sheet (Book Specific)
     if (showSettingsSheet && uiState is PlayerState.Active) {
@@ -547,15 +628,102 @@ public fun PlayerScreen(
                         modifier =
                             Modifier
                                 .padding(padding)
-                                .windowInsetsPadding(WindowInsets.systemBars),
+                                .onPreviewKeyEvent { keyEvent ->
+                                    if (keyEvent.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                                    val shouldIgnoreShortcuts =
+                                        showSpeedSheet ||
+                                            showSleepTimerSheet ||
+                                            showAudioSettingsSheet ||
+                                            showChapterSheet ||
+                                            showSettingsSheet ||
+                                            showRatingDialog
+                                    if (shouldIgnoreShortcuts) return@onPreviewKeyEvent false
+                                    when (keyEvent.key) {
+                                        Key.DirectionUp -> {
+                                            val audioManager =
+                                                context.getSystemService(android.content.Context.AUDIO_SERVICE) as? AudioManager
+                                            audioManager?.adjustStreamVolume(
+                                                AudioManager.STREAM_MUSIC,
+                                                AudioManager.ADJUST_RAISE,
+                                                AudioManager.FLAG_SHOW_UI,
+                                            )
+                                            true
+                                        }
+                                        Key.DirectionDown -> {
+                                            val audioManager =
+                                                context.getSystemService(android.content.Context.AUDIO_SERVICE) as? AudioManager
+                                            audioManager?.adjustStreamVolume(
+                                                AudioManager.STREAM_MUSIC,
+                                                AudioManager.ADJUST_LOWER,
+                                                AudioManager.FLAG_SHOW_UI,
+                                            )
+                                            true
+                                        }
+                                        Key.B -> {
+                                            val activeState = uiState as? PlayerState.Active ?: return@onPreviewKeyEvent false
+                                            viewModel.addBookmarkAtPosition(
+                                                chapterIndex = activeState.currentChapterIndex,
+                                                positionMs = activeState.currentPosition,
+                                            )
+                                            true
+                                        }
+                                        Key.Escape -> {
+                                            if (scaffoldNavigator.canNavigateBack()) {
+                                                scope.launch { scaffoldNavigator.navigateBack() }
+                                            } else {
+                                                navigationClickGuard.run { onNavigateBack() }
+                                            }
+                                            true
+                                        }
+                                        else -> {
+                                            val intent = mapKeyEventToPlayerIntent(keyEvent) ?: return@onPreviewKeyEvent false
+                                            viewModel.dispatch(intent)
+                                            true
+                                        }
+                                    }
+                                },
                     ) {
+                        val overlayHazeState = rememberHazeState()
                         AnimatedContent(
                             targetState = uiState,
                             transitionSpec = {
-                                (fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.98f, animationSpec = tween(220)))
-                                    .togetherWith(
-                                        fadeOut(animationSpec = tween(180)) + scaleOut(targetScale = 1.02f, animationSpec = tween(180)),
+                                if (reduceMotion) {
+                                    EnterTransition.None togetherWith ExitTransition.None
+                                } else {
+                                    (
+                                        fadeIn(
+                                            animationSpec =
+                                                tween(
+                                                    durationMillis = MotionTokens.MEDIUM1,
+                                                    easing = MotionTokens.Emphasized,
+                                                ),
+                                        ) +
+                                            scaleIn(
+                                                initialScale = 0.98f,
+                                                animationSpec =
+                                                    tween(
+                                                        durationMillis = MotionTokens.MEDIUM1,
+                                                        easing = MotionTokens.Emphasized,
+                                                    ),
+                                            )
+                                    ).togetherWith(
+                                        fadeOut(
+                                            animationSpec =
+                                                tween(
+                                                    durationMillis = MotionTokens.SHORT2,
+                                                    easing = MotionTokens.EmphasizedDecelerate,
+                                                ),
+                                        ) +
+                                            scaleOut(
+                                                targetScale = 1.02f,
+                                                animationSpec =
+                                                    tween(
+                                                        durationMillis = MotionTokens.SHORT2,
+                                                        easing = MotionTokens.EmphasizedDecelerate,
+                                                    ),
+                                            ),
                                     )
+                                }
                             },
                             contentKey = { state -> playerStateContentKey(state) },
                             label = "player_state_transition",
@@ -572,19 +740,17 @@ public fun PlayerScreen(
                                     // Click debouncer for preventing double clicks (inspired by Easybook)
                                     val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300)
 
-                                    // Haze State for Glassmorphism
-                                    val hazeState = rememberHazeState()
-
                                     // Removed GestureOverlay as per user request to disable brightness/volume/seek swipes
                                     PremiumPlayerBackground(
                                         themeColors = state.themeColors,
-                                        hazeState = hazeState,
+                                        coverImageModel = CoverUtils.getCoverModel(state.book, context),
+                                        hazeState = overlayHazeState,
                                         isPowerSaveMode = isPowerSaveMode,
                                     ) {
                                         PlayerContent(
                                             state = state,
                                             playbackSpeed = playbackSpeed,
-                                            hazeState = hazeState,
+                                            hazeState = overlayHazeState,
                                             isVinylMode = isVinylMode,
                                             sleepTimerState = sleepTimerState,
                                             normalizeEnabled = normalizeEnabled,
@@ -592,50 +758,54 @@ public fun PlayerScreen(
                                             visualizerWaveformData = visualizerWaveformData,
                                             seekbarWaveformData = seekbarWaveformData,
                                             onPlayPause = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                HapticManager.performTap(hapticFeedback)
                                                 clickDebouncer.debounce {
                                                     viewModel.dispatch(PlayerIntent.TogglePlayPause)
                                                 }
                                             },
                                             onSkipNext = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                                HapticManager.performGesture(hapticFeedback)
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipNext) }
                                             },
                                             onSkipPrevious = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                                HapticManager.performGesture(hapticFeedback)
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipPrevious) }
                                             },
                                             onSeek = { positionMs ->
                                                 viewModel.dispatch(PlayerIntent.SeekTo(positionMs))
                                             },
                                             onSeekForward = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                HapticManager.performTap(hapticFeedback)
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekForward) }
                                             },
                                             onSeekBackward = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                HapticManager.performTap(hapticFeedback)
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekBackward) }
                                             },
                                             onSelectChapter = { chapterIndex ->
                                                 viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex))
                                             },
                                             onChapterClick = {
-                                                // Toggle chapters pane on medium/expanded screens
+                                                // Phone: bottom sheet, larger screens: supporting pane.
                                                 clickDebouncer.debounce {
-                                                    scope.launch {
-                                                        if (scaffoldNavigator.canNavigateBack()) {
-                                                            scaffoldNavigator.navigateBack()
-                                                        } else {
-                                                            scaffoldNavigator.navigateTo(
-                                                                SupportingPaneScaffoldRole.Supporting,
-                                                            )
+                                                    if (isCompactScreen) {
+                                                        showChapterSheet = true
+                                                    } else {
+                                                        scope.launch {
+                                                            if (scaffoldNavigator.canNavigateBack()) {
+                                                                scaffoldNavigator.navigateBack()
+                                                            } else {
+                                                                scaffoldNavigator.navigateTo(
+                                                                    SupportingPaneScaffoldRole.Supporting,
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 }
                                             },
                                             onSpeedClick = { showSpeedSheet = true },
                                             onHoldToBoostStart = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                HapticManager.performLongPress(hapticFeedback)
                                                 viewModel.startHoldToBoost(playbackSpeed)
                                             },
                                             onHoldToBoostEnd = {
@@ -643,11 +813,11 @@ public fun PlayerScreen(
                                             },
                                             onAudioSettingsClick = { showAudioSettingsSheet = true },
                                             onSleepTimerClick = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                HapticManager.performTap(hapticFeedback)
                                                 showSleepTimerSheet = true
                                             },
                                             onChapterRepeatClick = {
-                                                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                HapticManager.performTap(hapticFeedback)
                                                 clickDebouncer.debounce {
                                                     viewModel.dispatch(PlayerIntent.ToggleChapterRepeat)
                                                 }
@@ -667,6 +837,9 @@ public fun PlayerScreen(
                                                     noteAudioPath = noteAudioPath,
                                                 )
                                             },
+                                            onDeleteBookmark = { bookmarkId ->
+                                                viewModel.deleteBookmark(bookmarkId)
+                                            },
                                             hasRecordAudioPermission = hasRecordAudioPermission,
                                             onRequestRecordAudioPermission = requestRecordAudioPermission,
                                             onInitializeVisualizer = {
@@ -675,6 +848,8 @@ public fun PlayerScreen(
                                             onSetVisualizerEnabled = { enabled ->
                                                 viewModel.dispatch(PlayerIntent.SetVisualizerEnabled(enabled))
                                             },
+                                            snackbarHostState = snackbarHostState,
+                                            modifier = Modifier.hazeEffect(state = overlayHazeState),
                                             sharedTransitionScope = sharedTransitionScope,
                                             animatedVisibilityScope = animatedVisibilityScope,
                                         )
@@ -687,6 +862,20 @@ public fun PlayerScreen(
                                     )
                                 }
                             }
+                        }
+
+                        nextBookAutoplayState?.let { autoplayState ->
+                            NextBookCountdownCard(
+                                book = autoplayState.nextBook,
+                                secondsLeft = autoplayState.secondsLeft,
+                                totalSeconds = autoplayState.totalSeconds,
+                                onContinue = viewModel::continueSeriesNow,
+                                onDismiss = viewModel::dismissSeriesAutoplay,
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .hazeEffect(state = overlayHazeState),
+                            )
                         }
                     }
                 }
@@ -719,6 +908,152 @@ public fun PlayerScreen(
         },
         modifier = modifier.background(MaterialTheme.colorScheme.background),
     )
+
+    if (showRatingDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {
+                ratedBookId = (uiState as? PlayerState.Active)?.book?.id
+                selectedRating = 0
+                showRatingDialog = false
+            },
+            title = { Text(text = stringResource(R.string.rateCompletedBookTitle)) },
+            text = {
+                StarRatingRow(
+                    selected = selectedRating,
+                    onRate = { rating ->
+                        selectedRating = rating
+                        ratedBookId = (uiState as? PlayerState.Active)?.book?.id
+                        showRatingDialog = false
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = context.getString(R.string.rateCompletedBookThanks, rating),
+                            )
+                        }
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        ratedBookId = (uiState as? PlayerState.Active)?.book?.id
+                        selectedRating = 0
+                        showRatingDialog = false
+                    },
+                ) {
+                    Text(text = stringResource(R.string.laterAction))
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun StarRatingRow(
+    selected: Int,
+    onRate: (Int) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        (1..5).forEach { star ->
+            IconButton(
+                onClick = { onRate(star) },
+                modifier = Modifier.size(44.dp),
+            ) {
+                Icon(
+                    imageVector = if (star <= selected) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                    contentDescription = stringResource(R.string.rateCompletedBookStar, star),
+                    tint =
+                        if (star <= selected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    modifier = Modifier.size(if (star <= selected) 32.dp else 28.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NextBookCountdownCard(
+    book: com.jabook.app.jabook.compose.domain.model.Book,
+    secondsLeft: Int,
+    totalSeconds: Int,
+    onContinue: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+        colors =
+            CardDefaults.cardColors(
+                containerColor =
+                    MaterialTheme.colorScheme.surface.copy(
+                        alpha = GlassmorphismTokens.PLAYER_CONTROLS_TINT_ALPHA,
+                    ),
+            ),
+        elevation = CardDefaults.cardElevation(defaultElevation = SurfaceElevationTokens.Level2),
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            AsyncImage(
+                model = CoverUtils.getCoverModel(book, LocalContext.current),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier =
+                    Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+            )
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.continueSeriesLabel),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    text = book.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Box(
+                modifier = Modifier.size(40.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(
+                    progress = {
+                        val total = totalSeconds.coerceAtLeast(1)
+                        secondsLeft.coerceIn(0, total) / total.toFloat()
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    strokeWidth = 3.dp,
+                )
+                Text(text = secondsLeft.toString(), style = MaterialTheme.typography.labelSmall)
+            }
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dismissAction))
+            }
+            TextButton(onClick = onContinue) {
+                Text(stringResource(R.string.playNowAction))
+            }
+        }
+    }
 }
 
 @OptIn(
@@ -754,10 +1089,12 @@ private fun PlayerContent(
     onStatsClick: () -> Unit,
     onAddBookmarkAtPosition: (Int, Long, (com.jabook.app.jabook.compose.domain.model.BookmarkItem?) -> Unit) -> Unit,
     onUpdateBookmark: (String, String?, String?) -> Unit,
+    onDeleteBookmark: (String) -> Unit,
     hasRecordAudioPermission: Boolean,
     onRequestRecordAudioPermission: () -> Unit,
     onInitializeVisualizer: () -> Unit,
     onSetVisualizerEnabled: (Boolean) -> Unit,
+    snackbarHostState: androidx.compose.material3.SnackbarHostState,
     modifier: Modifier = Modifier,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
@@ -802,15 +1139,7 @@ private fun PlayerContent(
     val controlButtonHeight = if (isCompact) 48.dp else 56.dp
     val controlButtonIconSize = if (isCompact) 22.dp else 24.dp
     val controlButtonTextSize =
-        if (isCompact) {
-            androidx.compose.ui.unit.TextUnit(
-                14f,
-                androidx.compose.ui.unit.TextUnitType.Sp,
-            )
-        } else {
-            androidx.compose.ui.unit
-                .TextUnit(16f, androidx.compose.ui.unit.TextUnitType.Sp)
-        }
+        if (isCompact) 14.sp else 16.sp
     val controlButtonSpacing = if (isCompact) 8.dp else 12.dp
     // Optimized cover size: 70% for compact (phone optimization), 88% for larger screens
     val coverWidth = if (isCompact) 0.70f else 0.88f
@@ -893,6 +1222,7 @@ private fun PlayerContent(
     val seekScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
     var showBookmarkNoteSheet by remember { mutableStateOf(false) }
+    var showBookmarkMomentStamp by remember { mutableStateOf(false) }
     var pendingBookmarkId by remember { mutableStateOf<String?>(null) }
     var pendingBookmarkNote by remember { mutableStateOf("") }
     var pendingBookmarkAudioPath by remember { mutableStateOf<String?>(null) }
@@ -901,6 +1231,25 @@ private fun PlayerContent(
     val bookmarkRecorder = remember { mutableStateOf<MediaRecorder?>(null) }
     val bookmarkPlayer = remember { mutableStateOf<MediaPlayer?>(null) }
     val bookmarkRecordTimeoutJob = remember { mutableStateOf<Job?>(null) }
+
+    // Release MediaRecorder and MediaPlayer when composable leaves composition (#40)
+    DisposableEffect(Unit) {
+        onDispose {
+            bookmarkRecordTimeoutJob.value?.cancel()
+            bookmarkRecordTimeoutJob.value = null
+            bookmarkRecorder.value?.runCatching {
+                stop()
+                release()
+            }
+            bookmarkRecorder.value = null
+            bookmarkPlayer.value?.runCatching {
+                stop()
+                release()
+            }
+            bookmarkPlayer.value = null
+        }
+    }
+
     var lastChapterBoundaryIndex by remember(state.book.id) { mutableIntStateOf(state.currentChapterIndex) }
     var skipTriggeredHaptic by remember { mutableStateOf(false) }
     LaunchedEffect(state.currentChapterIndex) {
@@ -910,7 +1259,7 @@ private fun PlayerContent(
             skipTriggeredHaptic = skipTriggeredHaptic,
         )?.let { decision ->
             if (decision.shouldPerformHaptic) {
-                hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                HapticManager.performGesture(hapticFeedback)
             }
             skipTriggeredHaptic = decision.nextSkipTriggeredHaptic
             lastChapterBoundaryIndex = decision.nextLastChapterBoundaryIndex
@@ -920,6 +1269,15 @@ private fun PlayerContent(
     // Dynamic Theme Background with Glassmorphism Effect
     // Background is now handled by PremiumPlayerBackground wrapping this content
     val themeColors = state.themeColors
+    val contrastBackground = themeColors?.surfaceColor ?: MaterialTheme.colorScheme.surface
+    val adaptiveOnSurface =
+        remember(contrastBackground) {
+            ContrastPolicy.preferredOnColor(contrastBackground)
+        }
+    val adaptiveOnSurfaceVariant =
+        remember(adaptiveOnSurface) {
+            adaptiveOnSurface.copy(alpha = 0.82f)
+        }
 
     // Main Content
     // We use a Box to contain the LazyColumn (and potential overlays like visualizer if moved, but visualizer is inside list)
@@ -943,7 +1301,7 @@ private fun PlayerContent(
                     Text(
                         text = displayAuthor,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = adaptiveOnSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier =
                             Modifier
@@ -1049,7 +1407,12 @@ private fun PlayerContent(
                 } else {
                     AsyncImage(
                         model = imageRequest,
-                        contentDescription = state.book.title,
+                        contentDescription =
+                            stringResource(
+                                R.string.playerCoverAccessibilityDescription,
+                                state.book.title,
+                                state.book.author,
+                            ),
                         modifier =
                             imageModifier
                                 .fillMaxWidth(coverWidth)
@@ -1095,6 +1458,7 @@ private fun PlayerContent(
                         text = state.book.title,
                         style = if (isCompact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
                         textAlign = TextAlign.Center,
+                        color = adaptiveOnSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -1221,6 +1585,17 @@ private fun PlayerContent(
 
                     val playbackPositionLabel = stringResource(R.string.playbackPositionLabel)
                     val sliderHaptic = LocalHapticFeedback.current
+                    val sliderValueFormatter =
+                        remember(chapterTimeline.totalDurationMs) {
+                            ValueFormatter { progressValue: Float ->
+                                val clamped = progressValue.coerceIn(0f, 1f)
+                                formatDuration((chapterTimeline.totalDurationMs * clamped).toLong())
+                            }
+                        }
+                    val seekBackwardActionLabel =
+                        stringResource(R.string.seekBackwardDescription, state.rewindInterval)
+                    val seekForwardActionLabel =
+                        stringResource(R.string.seekForwardDescription, state.forwardInterval)
 
                     SquigglySlider(
                         value = displayedProgress,
@@ -1232,7 +1607,7 @@ private fun PlayerContent(
                                     kotlin.math.abs(constrainedProgress - (lastSliderHapticProgress ?: constrainedProgress)) >=
                                     0.05f
                             if (shouldTriggerHaptic) {
-                                sliderHaptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                HapticManager.performTap(sliderHaptic)
                                 lastSliderHapticProgress = constrainedProgress
                             }
                             dragPosition = constrainedProgress
@@ -1267,9 +1642,29 @@ private fun PlayerContent(
                                     chapters = state.chapters,
                                     progress = pressedProgress.coerceIn(0f, 1f),
                                 )
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                            HapticManager.performLongPress(hapticFeedback)
                             onAddBookmarkAtPosition(target.chapterIndex, target.chapterPositionMs) { createdBookmark ->
                                 if (createdBookmark != null) {
+                                    showBookmarkMomentStamp = true
+                                    seekScope.launch {
+                                        delay(700L)
+                                        showBookmarkMomentStamp = false
+                                    }
+                                    seekScope.launch {
+                                        val result =
+                                            snackbarHostState.showSnackbar(
+                                                message = context.getString(R.string.bookmarkAddedMessage),
+                                                actionLabel = context.getString(R.string.undoAction),
+                                                duration = androidx.compose.material3.SnackbarDuration.Short,
+                                            )
+                                        if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                            onDeleteBookmark(createdBookmark.id)
+                                            pendingBookmarkId = null
+                                            pendingBookmarkNote = ""
+                                            pendingBookmarkAudioPath = null
+                                            showBookmarkNoteSheet = false
+                                        }
+                                    }
                                     pendingBookmarkId = createdBookmark.id
                                     pendingBookmarkNote = createdBookmark.noteText.orEmpty()
                                     pendingBookmarkAudioPath = createdBookmark.noteAudioPath
@@ -1285,6 +1680,7 @@ private fun PlayerContent(
                             (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(
                                 alpha = 0.24f,
                             ),
+                        valueFormatter = sliderValueFormatter,
                         modifier =
                             Modifier
                                 .fillMaxWidth()
@@ -1294,8 +1690,58 @@ private fun PlayerContent(
                                     val current = formatDuration(currentGlobalPositionMs)
                                     val total = formatDuration(chapterTimeline.totalDurationMs)
                                     stateDescription = "$current of $total"
+                                    progressBarRangeInfo = ProgressBarRangeInfo(displayedProgress, 0f..1f)
+                                    setProgress { targetProgress ->
+                                        if (chapterTimeline.totalDurationMs <= 0) return@setProgress false
+                                        val target =
+                                            ChapterSeekbarPolicy.resolveSeekTarget(
+                                                chapters = state.chapters,
+                                                progress = targetProgress.coerceIn(0f, 1f),
+                                            )
+                                        if (target.chapterIndex != state.currentChapterIndex) {
+                                            onSelectChapter(target.chapterIndex)
+                                            seekScope.launch {
+                                                delay(80L)
+                                                onSeek(target.chapterPositionMs)
+                                            }
+                                        } else {
+                                            onSeek(target.chapterPositionMs)
+                                        }
+                                        true
+                                    }
+                                    customActions =
+                                        listOf(
+                                            CustomAccessibilityAction(
+                                                label = seekBackwardActionLabel,
+                                            ) {
+                                                onSeekBackward()
+                                                true
+                                            },
+                                            CustomAccessibilityAction(
+                                                label = seekForwardActionLabel,
+                                            ) {
+                                                onSeekForward()
+                                                true
+                                            },
+                                        )
                                 },
                     )
+
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showBookmarkMomentStamp,
+                        enter = fadeIn() + scaleIn(initialScale = 0.6f),
+                        exit = fadeOut() + scaleOut(targetScale = 1.3f),
+                        modifier =
+                            Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .padding(top = 4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Bookmark,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
 
                     if (isDragging) {
                         val previewTitle =
@@ -1306,7 +1752,7 @@ private fun PlayerContent(
                         Text(
                             text = "${previewSeekTarget.chapterIndex + 1}. $previewTitle",
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = adaptiveOnSurfaceVariant,
                             modifier =
                                 Modifier
                                     .align(Alignment.CenterHorizontally)
@@ -1324,13 +1770,13 @@ private fun PlayerContent(
                         Text(
                             text = formatDuration(currentGlobalPositionMs),
                             style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = adaptiveOnSurfaceVariant,
                         )
 
                         Text(
                             text = formatDuration(chapterTimeline.totalDurationMs),
                             style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = adaptiveOnSurfaceVariant,
                         )
                     }
 
@@ -1374,7 +1820,7 @@ private fun PlayerContent(
                         Text(
                             text = "$chapterText • $finishText",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            color = adaptiveOnSurfaceVariant.copy(alpha = 0.86f),
                         )
                     }
                 }
@@ -1468,16 +1914,7 @@ private fun PlayerContent(
                                 ),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            fontSize =
-                                if (isCompact) {
-                                    androidx.compose.ui.unit.TextUnit(
-                                        13f,
-                                        androidx.compose.ui.unit.TextUnitType.Sp,
-                                    )
-                                } else {
-                                    androidx.compose.ui.unit
-                                        .TextUnit(14f, androidx.compose.ui.unit.TextUnitType.Sp)
-                                },
+                            fontSize = if (isCompact) 13.sp else 14.sp,
                         )
                     }
                 }
@@ -1524,6 +1961,12 @@ private fun PlayerContent(
                     }
 
                     Spacer(modifier = Modifier.width(16.dp))
+                    val playbackStateDescription =
+                        if (state.isPlaying) {
+                            stringResource(R.string.playbackStatePlaying)
+                        } else {
+                            stringResource(R.string.playbackStatePaused)
+                        }
 
                     // Play/Pause - Larger and more prominent
                     Box(
@@ -1538,7 +1981,12 @@ private fun PlayerContent(
                     ) {
                         FilledIconButton(
                             onClick = onPlayPause,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier =
+                                Modifier
+                                    .fillMaxSize()
+                                    .semantics {
+                                        stateDescription = playbackStateDescription
+                                    },
                             shape = androidx.compose.foundation.shape.CircleShape,
                             colors =
                                 IconButtonDefaults.filledIconButtonColors(
@@ -1712,7 +2160,11 @@ private fun PlayerContent(
                                         },
                             ) {
                                 Icon(
-                                    Icons.Filled.Timer,
+                                    if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle) {
+                                        Icons.Outlined.Timer
+                                    } else {
+                                        Icons.Filled.Timer
+                                    },
                                     stringResource(R.string.sleepTimer),
                                     Modifier.size(controlButtonIconSize),
                                 )
@@ -1729,7 +2181,7 @@ private fun PlayerContent(
                             if (hasLyrics) {
                                 FilledTonalButton(
                                     onClick = {
-                                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        HapticManager.performTap(hapticFeedback)
                                         showLyrics = !showLyrics
                                     },
                                     modifier = Modifier.weight(1f).height(controlButtonHeight),
@@ -1750,7 +2202,11 @@ private fun PlayerContent(
                                         ),
                                 ) {
                                     Icon(
-                                        androidx.compose.material.icons.Icons.Filled.Description,
+                                        if (showingLyrics) {
+                                            Icons.Filled.Description
+                                        } else {
+                                            Icons.Outlined.Description
+                                        },
                                         stringResource(R.string.lyrics),
                                         Modifier.size(controlButtonIconSize),
                                     )
@@ -1856,7 +2312,11 @@ private fun PlayerContent(
                                     },
                         ) {
                             Icon(
-                                Icons.Filled.Timer,
+                                if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle) {
+                                    Icons.Outlined.Timer
+                                } else {
+                                    Icons.Filled.Timer
+                                },
                                 stringResource(R.string.sleepTimer),
                                 Modifier.size(controlButtonIconSize),
                             )
@@ -1873,7 +2333,7 @@ private fun PlayerContent(
                         if (hasLyrics) {
                             FilledTonalButton(
                                 onClick = {
-                                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    HapticManager.performTap(hapticFeedback)
                                     showLyrics = !showLyrics
                                 },
                                 modifier = Modifier.weight(1f).height(controlButtonHeight),
@@ -1894,7 +2354,11 @@ private fun PlayerContent(
                                     ),
                             ) {
                                 Icon(
-                                    androidx.compose.material.icons.Icons.Filled.Description,
+                                    if (showingLyrics) {
+                                        Icons.Filled.Description
+                                    } else {
+                                        Icons.Outlined.Description
+                                    },
                                     stringResource(R.string.lyrics),
                                     Modifier.size(controlButtonIconSize),
                                 )
@@ -2029,7 +2493,7 @@ private fun PlayerContent(
                         enabled = !pendingBookmarkAudioPath.isNullOrBlank(),
                         onClick = {
                             val path = pendingBookmarkAudioPath ?: return@FilledTonalButton
-                            if (isPlayingBookmarkAudio) {
+                            if (bookmarkPlayer.value != null) {
                                 bookmarkPlayer.value?.runCatching {
                                     stop()
                                     reset()
@@ -2040,24 +2504,90 @@ private fun PlayerContent(
                                 return@FilledTonalButton
                             }
                             val player = MediaPlayer()
-                            player.setDataSource(path)
-                            player.setOnCompletionListener {
-                                bookmarkPlayer.value?.runCatching {
+                            bookmarkPlayer.value = player
+                            try {
+                                player.setDataSource(path)
+                                player.setOnCompletionListener {
+                                    bookmarkPlayer.value?.runCatching {
+                                        reset()
+                                        release()
+                                    }
+                                    bookmarkPlayer.value = null
+                                    isPlayingBookmarkAudio = false
+                                }
+                                player.setOnPreparedListener {
+                                    if (bookmarkPlayer.value !== it) return@setOnPreparedListener
+                                    it.start()
+                                    isPlayingBookmarkAudio = true
+                                }
+                                player.setOnErrorListener { _, what, extra ->
+                                    playerScreenLogger.e {
+                                        "Bookmark voice-note playback failed in MediaPlayer listener: what=$what extra=$extra"
+                                    }
+                                    bookmarkPlayer.value = null
+                                    isPlayingBookmarkAudio = false
+                                    seekScope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            context.getString(R.string.errorPlayingVoiceNote),
+                                        )
+                                    }
+                                    player.runCatching {
+                                        reset()
+                                        release()
+                                    }
+                                    true
+                                }
+                                player.prepareAsync()
+                            } catch (e: java.io.IOException) {
+                                playerScreenLogger.e(e) { "Failed to prepare bookmark voice-note (I/O)" }
+                                seekScope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(R.string.errorPlayingVoiceNote),
+                                    )
+                                }
+                                player.runCatching {
+                                    reset()
+                                    release()
+                                }
+                                bookmarkPlayer.value = null
+                                isPlayingBookmarkAudio = false
+                            } catch (e: IllegalStateException) {
+                                playerScreenLogger.e(e) { "Failed to prepare bookmark voice-note (illegal state)" }
+                                seekScope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(R.string.errorPlayingVoiceNote),
+                                    )
+                                }
+                                player.runCatching {
+                                    reset()
+                                    release()
+                                }
+                                bookmarkPlayer.value = null
+                                isPlayingBookmarkAudio = false
+                            } catch (e: SecurityException) {
+                                playerScreenLogger.e(e) { "Failed to prepare bookmark voice-note (security)" }
+                                seekScope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        context.getString(R.string.errorPlayingVoiceNote),
+                                    )
+                                }
+                                player.runCatching {
                                     reset()
                                     release()
                                 }
                                 bookmarkPlayer.value = null
                                 isPlayingBookmarkAudio = false
                             }
-                            player.prepare()
-                            player.start()
-                            bookmarkPlayer.value = player
-                            isPlayingBookmarkAudio = true
                         },
                     ) {
                         Icon(
                             imageVector = if (isPlayingBookmarkAudio) Icons.Filled.Stop else Icons.Filled.PlayArrow,
-                            contentDescription = null,
+                            contentDescription =
+                                if (isPlayingBookmarkAudio) {
+                                    stringResource(R.string.stopPlayback)
+                                } else {
+                                    stringResource(R.string.playVoiceNote)
+                                },
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
@@ -2368,6 +2898,24 @@ internal fun resolveChapterBoundaryHapticDecision(
         )
     }
 }
+
+internal fun mapKeyEventToPlayerIntent(keyEvent: androidx.compose.ui.input.key.KeyEvent): PlayerIntent? =
+    when (keyEvent.key) {
+        Key.Spacebar -> PlayerIntent.TogglePlayPause
+        Key.DirectionLeft ->
+            if (keyEvent.isShiftPressed) {
+                PlayerIntent.SkipPrevious
+            } else {
+                PlayerIntent.SeekBackward
+            }
+        Key.DirectionRight ->
+            if (keyEvent.isShiftPressed) {
+                PlayerIntent.SkipNext
+            } else {
+                PlayerIntent.SeekForward
+            }
+        else -> null
+    }
 
 @Composable
 private fun DebugRecompositionCounter(modifier: Modifier = Modifier) {

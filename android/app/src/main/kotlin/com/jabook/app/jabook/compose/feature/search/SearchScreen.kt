@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -156,6 +157,24 @@ public fun SearchScreen(
     }
 
     // Removed filter sheet - using adaptive pane instead
+    val imagePickerLauncher =
+        androidx.activity.compose.rememberLauncherForActivityResult(
+            contract =
+                androidx.activity.result.contract.ActivityResultContracts
+                    .PickVisualMedia(),
+        ) { uri ->
+            val candidate =
+                uri
+                    ?.lastPathSegment
+                    ?.substringAfterLast('/')
+                    ?.substringBeforeLast('.')
+                    ?.replace(Regex("[_\\-]+"), " ")
+                    ?.trim()
+                    .orEmpty()
+            if (candidate.isNotBlank()) {
+                viewModel.onSearchQueryChanged(candidate)
+            }
+        }
 
     // Premium Background Gradient
     val backgroundGradient =
@@ -218,6 +237,23 @@ public fun SearchScreen(
                                     }
                                 },
                                 actions = {
+                                    IconButton(
+                                        onClick = {
+                                            imagePickerLauncher.launch(
+                                                androidx.activity.result.PickVisualMediaRequest(
+                                                    mediaType =
+                                                        androidx.activity.result.contract
+                                                            .ActivityResultContracts.PickVisualMedia.ImageOnly,
+                                                ),
+                                            )
+                                        },
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.PhotoCamera,
+                                            contentDescription = stringResource(R.string.cameraCapability),
+                                        )
+                                    }
+
                                     // Sort Button
                                     Box {
                                         IconButton(onClick = { showSortMenu = true }) {

@@ -120,20 +120,6 @@
         <!-- App uses app-specific directory which doesn't require this attribute -->
         <!-- App-specific directory path: /storage/emulated/0/Android/data/com.jabook.app.jabook/files/JabookAudio -->
 
-        <activity
-            android:name=".MainActivity"
-            android:exported="false"
-            android:launchMode="singleTop"
-            android:taskAffinity=""
-            android:theme="@style/LaunchTheme"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-            android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize"
-            android:autofillHints="username,password">
-
-            <!-- LAUNCHER intent-filter moved to ComposeMainActivity -->
-        </activity>
-
         <!-- Compose UI Activity - NOW THE MAIN LAUNCHER -->
         <activity
             android:name=".compose.ComposeMainActivity"

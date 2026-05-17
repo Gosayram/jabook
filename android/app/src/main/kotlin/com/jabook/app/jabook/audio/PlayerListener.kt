@@ -106,6 +106,7 @@ internal class PlayerListener(
 
     private val trackTransitionCoordinator: TrackTransitionCoordinator =
         TrackTransitionCoordinator(
+            context = context,
             isPlaylistLoading = isPlaylistLoading,
             updateActualTrackIndex = updateActualTrackIndex,
         )

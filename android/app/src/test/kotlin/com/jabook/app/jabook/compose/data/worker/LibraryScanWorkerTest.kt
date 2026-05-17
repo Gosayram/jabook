@@ -20,6 +20,7 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import androidx.work.testing.TestListenableWorkerBuilder
+import com.jabook.app.jabook.audio.ChapterDetectionWorkScheduler
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
@@ -32,7 +33,7 @@ import com.jabook.app.jabook.compose.domain.model.Result
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -44,6 +45,7 @@ class LibraryScanWorkerTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val booksDao: BooksDao = mock()
     private val chaptersDao: ChaptersDao = mock()
+    private val chapterDetectionWorkScheduler: ChapterDetectionWorkScheduler = mock()
     private val loggerFactory: LoggerFactory =
         object : LoggerFactory {
             override fun get(tag: String): Logger = NoopWorkerLogger
@@ -53,7 +55,7 @@ class LibraryScanWorkerTest {
 
     @Test
     fun `doWork returns failure when scanner is cancelled`() =
-        runTest {
+        runBlocking {
             val worker =
                 buildWorker(
                     scanner =
@@ -86,6 +88,7 @@ class LibraryScanWorkerTest {
                         bookScanner = scanner,
                         booksDao = booksDao,
                         chaptersDao = chaptersDao,
+                        chapterDetectionWorkScheduler = chapterDetectionWorkScheduler,
                         loggerFactory = loggerFactory,
                     )
                 }

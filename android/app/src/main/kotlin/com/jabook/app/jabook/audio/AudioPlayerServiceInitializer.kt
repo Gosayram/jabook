@@ -37,10 +37,14 @@ import java.util.concurrent.TimeoutException
 public class AudioPlayerServiceInitializer(
     private val service: AudioPlayerService,
 ) {
+    // Held reference so the sync can be cleaned up on service destruction.
+    // The coroutines run in playerServiceScope which is cancelled in onDestroy.
+    private var settingsSync: MediaSessionSettingsSync? = null
+
     @OptIn(UnstableApi::class)
     public fun initialize() {
         initializeCrossFadePlayer()
-        android.util.Log.i("AudioPlayerService", "Initializing service components...")
+        LogUtils.i("AudioPlayerService", "Initializing service components...")
 
         // NOTE: NotificationHelper is already initialized in onCreate() for immediate startForeground()
         // Only initialize if not already set (for safety)
@@ -128,19 +132,21 @@ public class AudioPlayerServiceInitializer(
                     service.markStoppedBySleepTimer()
                     service.savePositionToRepository()
                 },
-                isShakeToExtendEnabled = {
+                audioFader = service.audioFader,
+                settingsRepository = service.settingsRepository,
+                saveSleepTimerStateToDataStore = { state ->
                     try {
                         kotlinx.coroutines.runBlocking {
-                            service.settingsRepository.userPreferences
-                                .first()
-                                .sleepTimerShakeExtendEnabled
+                            service.settingsRepository.updateSleepTimerState(state)
                         }
                     } catch (e: Exception) {
-                        true
+                        LogUtils.w("AudioPlayerService", "Failed to save sleep timer state to DataStore", e)
                     }
                 },
             )
-        service.sleepTimerManager?.restoreTimerState()
+        kotlinx.coroutines.runBlocking {
+            service.sleepTimerManager?.restoreTimerState()
+        }
 
         // 4. PlaylistManager (Complex dependencies)
         service.playlistManager =
@@ -311,7 +317,7 @@ public class AudioPlayerServiceInitializer(
         // This ensures system media controls always reflect current app settings
         initializeSettingsSync()
 
-        android.util.Log.i("AudioPlayerService", "Service components initialized successfully")
+        LogUtils.i("AudioPlayerService", "Service components initialized successfully")
     }
 
     /**
@@ -330,7 +336,7 @@ public class AudioPlayerServiceInitializer(
     @OptIn(UnstableApi::class)
     private fun initializeCrossFadePlayer() {
         service.crossFadePlayer =
-            CrossFadePlayer(service) { context ->
+            CrossFadePlayer(service, { context, handleAudioFocus ->
                 androidx.media3.exoplayer.ExoPlayer
                     .Builder(context)
                     .setRenderersFactory(androidx.media3.exoplayer.DefaultRenderersFactory(context))
@@ -342,9 +348,9 @@ public class AudioPlayerServiceInitializer(
                             .setUsage(androidx.media3.common.C.USAGE_MEDIA)
                             .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_SPEECH)
                             .build(),
-                        true,
+                        handleAudioFocus,
                     ).build()
-            }
+            }, service.playerServiceScope)
         service.crossFadePlayer?.onPlayerChanged = { newPlayer ->
             try {
                 service.mediaLibrarySession?.let { session ->
@@ -450,7 +456,7 @@ public class AudioPlayerServiceInitializer(
             // Android can call onCreate() MULTIPLE TIMES with the SAME PID without calling onDestroy()
             // Evidence from logs: PID 8921 had onCreate() called twice (Instance 50442924, then 115225231)
             val sessionId = "jabook_${android.os.Process.myPid()}_${System.identityHashCode(service)}"
-            android.util.Log.i("AudioPlayerService", "Creating MediaLibrarySession with ID: $sessionId")
+            LogUtils.i("AudioPlayerService", "Creating MediaLibrarySession with ID: $sessionId")
 
             val sessionBuilder =
                 MediaLibrarySession
@@ -465,7 +471,7 @@ public class AudioPlayerServiceInitializer(
             if (sessionActivity != null) {
                 sessionBuilder.setSessionActivity(sessionActivity)
             } else {
-                android.util.Log.w("AudioPlayerService", "Session activity intent is null")
+                LogUtils.w("AudioPlayerService", "Session activity intent is null")
             }
 
             service.mediaLibrarySession = sessionBuilder.build()
@@ -481,7 +487,7 @@ public class AudioPlayerServiceInitializer(
             // Assign to legacy field for compatibility
             service.mediaSession = service.mediaLibrarySession
 
-            android.util.Log.i(
+            LogUtils.i(
                 "AudioPlayerService",
                 "MediaLibrarySession created successfully: ${service.mediaLibrarySession?.token}",
             )
@@ -520,7 +526,7 @@ public class AudioPlayerServiceInitializer(
             // Note: setMediaNotificationProvider must be called from AudioPlayerService.onCreate()
             // as it's a protected method in MediaSessionService
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to create MediaLibrarySession", e)
+            LogUtils.e("AudioPlayerService", "Failed to create MediaLibrarySession", e)
         }
     }
 
@@ -532,7 +538,7 @@ public class AudioPlayerServiceInitializer(
     private fun createServiceMediaController() {
         val session = service.mediaLibrarySession
         if (session == null) {
-            android.util.Log.w("AudioPlayerService", "Cannot create MediaController: MediaLibrarySession is null")
+            LogUtils.w("AudioPlayerService", "Cannot create MediaController: MediaLibrarySession is null")
             return
         }
 
@@ -564,17 +570,17 @@ public class AudioPlayerServiceInitializer(
                         // This avoids MediaSessionLegacyStub conversion issues during onConnect
                         service.setInitialCustomLayout()
 
-                        android.util.Log.i(
+                        LogUtils.i(
                             "AudioPlayerService",
                             "Service MediaController initialized successfully, service is now fully ready",
                         )
                     } catch (e: java.util.concurrent.TimeoutException) {
-                        android.util.Log.e("AudioPlayerService", "Service MediaController initialization timeout", e)
+                        LogUtils.e("AudioPlayerService", "Service MediaController initialization timeout", e)
                         // Set flag anyway - MediaSession is ready, external controllers can connect
                         // Service can function without internal MediaController
                         service.isFullyInitializedFlag = true
                     } catch (e: Exception) {
-                        android.util.Log.e("AudioPlayerService", "Error initializing Service MediaController", e)
+                        LogUtils.e("AudioPlayerService", "Error initializing Service MediaController", e)
                         // Set flag anyway - MediaSession is ready, external controllers can connect
                         service.isFullyInitializedFlag = true
                     }
@@ -582,7 +588,7 @@ public class AudioPlayerServiceInitializer(
                 ContextCompat.getMainExecutor(service),
             )
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to create Service MediaController", e)
+            LogUtils.e("AudioPlayerService", "Failed to create Service MediaController", e)
         }
     }
 
@@ -592,16 +598,17 @@ public class AudioPlayerServiceInitializer(
      */
     private fun initializeSettingsSync() {
         try {
-            val settingsSync =
+            val sync =
                 MediaSessionSettingsSync(
                     settingsRepository = service.settingsRepository,
                     service = service,
                     scope = service.playerServiceScope,
                 )
-            settingsSync.start()
-            android.util.Log.i("AudioPlayerService", "Settings sync initialized successfully")
+            sync.start()
+            settingsSync = sync
+            LogUtils.i("AudioPlayerService", "Settings sync initialized successfully")
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to initialize settings sync", e)
+            LogUtils.e("AudioPlayerService", "Failed to initialize settings sync", e)
         }
     }
 }

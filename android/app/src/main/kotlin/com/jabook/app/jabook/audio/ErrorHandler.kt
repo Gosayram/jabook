@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio
 import android.content.Context
 import android.os.Build
 import androidx.media3.common.PlaybackException
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineExceptionHandler
 
 /**
@@ -42,7 +43,7 @@ public object ErrorHandler {
         // Use 0 as default error code (unknown error) if error is null
         val errorCode = error?.errorCode ?: 0
 
-        android.util.Log.e(tag, "Playback error: $errorMessage (code: $errorCode)", error)
+        LogUtils.e(tag, "Playback error: $errorMessage (code: $errorCode)", error)
 
         // Android 14+ specific error handling
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -51,7 +52,7 @@ public object ErrorHandler {
 
         // Log additional context if provided
         context?.let {
-            android.util.Log.e(tag, "Error context: $it")
+            LogUtils.e(tag, "Error context: $it")
         }
     }
 
@@ -73,18 +74,18 @@ public object ErrorHandler {
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
             PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
             -> {
-                android.util.Log.w(tag, "Android 14+ network error: $errorMessage")
+                LogUtils.w(tag, "Android 14+ network error: $errorMessage")
                 // Android 14+ has stricter network requirements
                 logAndroid14NetworkIssues(tag)
             }
             PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS -> {
-                android.util.Log.w(tag, "Android 14+ HTTP error: $errorMessage")
+                LogUtils.w(tag, "Android 14+ HTTP error: $errorMessage")
                 // Android 14+ may have additional HTTP restrictions
             }
             PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
             PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED,
             -> {
-                android.util.Log.w(tag, "Android 14+ audio track error: $errorMessage")
+                LogUtils.w(tag, "Android 14+ audio track error: $errorMessage")
                 // Android 14+ has stricter audio focus management
             }
         }
@@ -96,10 +97,10 @@ public object ErrorHandler {
      * @param tag Log tag
      */
     private fun logAndroid14NetworkIssues(tag: String) {
-        android.util.Log.w(tag, "Android 14+ network considerations:")
-        android.util.Log.w(tag, "- Check network permissions")
-        android.util.Log.w(tag, "- Verify cleartext traffic policy")
-        android.util.Log.w(tag, "- Check foreground service restrictions")
+        LogUtils.w(tag, "Android 14+ network considerations:")
+        LogUtils.w(tag, "- Check network permissions")
+        LogUtils.w(tag, "- Verify cleartext traffic policy")
+        LogUtils.w(tag, "- Check foreground service restrictions")
     }
 
     /**
@@ -115,7 +116,7 @@ public object ErrorHandler {
         context: String? = null,
     ) {
         val errorMessage = exception.message ?: "Unknown exception"
-        android.util.Log.e(tag, "General error: $errorMessage", exception)
+        LogUtils.e(tag, "General error: $errorMessage", exception)
 
         // Android 14+ specific error handling
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -124,7 +125,7 @@ public object ErrorHandler {
 
         // Log additional context if provided
         context?.let {
-            android.util.Log.e(tag, "Error context: $it")
+            LogUtils.e(tag, "Error context: $it")
         }
     }
 
@@ -142,12 +143,12 @@ public object ErrorHandler {
     ) {
         when (exception) {
             is SecurityException -> {
-                android.util.Log.w(tag, "Android 14+ security exception: ${exception.message}")
+                LogUtils.w(tag, "Android 14+ security exception: ${exception.message}")
                 // Android 14+ has stricter security policies
                 logAndroid14SecurityIssues(tag)
             }
             is IllegalStateException -> {
-                android.util.Log.w(tag, "Android 14+ illegal state: ${exception.message}")
+                LogUtils.w(tag, "Android 14+ illegal state: ${exception.message}")
                 // Android 14+ may have stricter state requirements
             }
             // Note: OutOfMemoryError is an Error, not Exception, so it won't reach here
@@ -161,10 +162,10 @@ public object ErrorHandler {
      * @param tag Log tag
      */
     private fun logAndroid14SecurityIssues(tag: String) {
-        android.util.Log.w(tag, "Android 14+ security considerations:")
-        android.util.Log.w(tag, "- Check foreground service permissions")
-        android.util.Log.w(tag, "- Verify notification permissions")
-        android.util.Log.w(tag, "- Check media session permissions")
+        LogUtils.w(tag, "Android 14+ security considerations:")
+        LogUtils.w(tag, "- Check foreground service permissions")
+        LogUtils.w(tag, "- Verify notification permissions")
+        LogUtils.w(tag, "- Check media session permissions")
     }
 
     /**
@@ -193,7 +194,7 @@ public object ErrorHandler {
             return true // Not Android 14+, no special requirements
         }
 
-        android.util.Log.d("ErrorHandler", "Validating Android 14+ requirements")
+        LogUtils.d("ErrorHandler", "Validating Android 14+ requirements")
 
         // Check notification permission
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -202,7 +203,7 @@ public object ErrorHandler {
                     android.content.Context.NOTIFICATION_SERVICE,
                 ) as android.app.NotificationManager
             if (!notificationManager.areNotificationsEnabled()) {
-                android.util.Log.e("ErrorHandler", "Android 14+: Notifications are disabled")
+                LogUtils.e("ErrorHandler", "Android 14+: Notifications are disabled")
                 return false
             }
         }
@@ -211,11 +212,11 @@ public object ErrorHandler {
         // Note: FOREGROUND_SERVICE_MEDIA_PLAYBACK doesn't exist in Android 14
         // Use basic FOREGROUND_SERVICE permission check instead
         if (!hasPermission(context, android.Manifest.permission.FOREGROUND_SERVICE)) {
-            android.util.Log.e("ErrorHandler", "Android 14+: Missing FOREGROUND_SERVICE permission")
+            LogUtils.e("ErrorHandler", "Android 14+: Missing FOREGROUND_SERVICE permission")
             return false
         }
 
-        android.util.Log.d("ErrorHandler", "Android 14+ requirements validated successfully")
+        LogUtils.d("ErrorHandler", "Android 14+ requirements validated successfully")
         return true
     }
 
@@ -264,7 +265,7 @@ public object ErrorHandler {
             return true // Not Color OS, no special requirements
         }
 
-        android.util.Log.d("ErrorHandler", "Validating Color OS specific requirements")
+        LogUtils.d("ErrorHandler", "Validating Color OS specific requirements")
 
         // Color OS requires explicit notification permission
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -273,26 +274,26 @@ public object ErrorHandler {
                     android.content.Context.NOTIFICATION_SERVICE,
                 ) as android.app.NotificationManager
             if (!notificationManager.areNotificationsEnabled()) {
-                android.util.Log.e("ErrorHandler", "Color OS: Notifications are disabled")
+                LogUtils.e("ErrorHandler", "Color OS: Notifications are disabled")
                 return false
             }
         }
 
         // Color OS requires foreground service permission
         if (!hasPermission(context, android.Manifest.permission.FOREGROUND_SERVICE)) {
-            android.util.Log.e("ErrorHandler", "Color OS: Missing FOREGROUND_SERVICE permission")
+            LogUtils.e("ErrorHandler", "Color OS: Missing FOREGROUND_SERVICE permission")
             return false
         }
 
         // Color OS 13+ requires media playback foreground service permission
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             if (!hasPermission(context, android.Manifest.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK)) {
-                android.util.Log.e("ErrorHandler", "Color OS: Missing FOREGROUND_SERVICE_MEDIA_PLAYBACK permission")
+                LogUtils.e("ErrorHandler", "Color OS: Missing FOREGROUND_SERVICE_MEDIA_PLAYBACK permission")
                 return false
             }
         }
 
-        android.util.Log.d("ErrorHandler", "Color OS requirements validated successfully")
+        LogUtils.d("ErrorHandler", "Color OS requirements validated successfully")
         return true
     }
 }

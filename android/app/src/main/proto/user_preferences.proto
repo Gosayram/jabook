@@ -93,6 +93,17 @@ message UserPreferences {
 
   // Automatically enter PiP when user leaves app from Player screen.
   bool auto_pip_enabled = 47;
+
+  // Sleep Timer state (migrated from SharedPreferences)
+  SleepTimerState sleep_timer_state = 48;
+}
+
+message SleepTimerState {
+  // "NONE", "CHAPTER_END", "FIXED_DURATION"
+  string mode = 1;
+  int64 end_time_epoch_ms = 2;
+  bool is_paused = 3;
+  int64 paused_remaining_ms = 4;
 }
 
 // Theme mode enum

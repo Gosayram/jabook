@@ -9,6 +9,10 @@ on:
 jobs:
   lint-and-compile:
     runs-on: ubuntu-latest
+    env:
+      GRADLE_OPTS: >-
+        -Dorg.gradle.configuration-cache.read-only=true
+        -Dorg.gradle.dependency.verification.console=verbose
     permissions:
       # Read access to repository contents (required for checkout)
       contents: read
@@ -21,10 +25,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
-      - name: Set up JDK 21
+      - name: Set up JDK 25
         uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
         with:
-          java-version: '21'
+          java-version: '25'
           distribution: 'temurin'
           cache: 'gradle'
 
@@ -57,7 +61,7 @@ jobs:
         run: make compile
 
       - name: Run unit tests
-        run: make test
+        run: make test-ci
 
       - name: Generate test coverage report
         run: make test-coverage

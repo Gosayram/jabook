@@ -18,6 +18,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Manages sleep timer for playback.
@@ -77,13 +78,13 @@ public class PlaybackTimer(
 
         val totalMillis = (delayInSeconds * 1000).toLong()
         if (totalMillis <= 0L) {
-            android.util.Log.w("PlaybackTimer", "Invalid timer duration: $delayInSeconds seconds")
+            LogUtils.w("PlaybackTimer", "Invalid timer duration: $delayInSeconds seconds")
             return
         }
 
         timerOption = option
 
-        android.util.Log.d("PlaybackTimer", "Starting timer: ${delayInSeconds}s, option=$option")
+        LogUtils.d("PlaybackTimer", "Starting timer: ${delayInSeconds}s, option=$option")
 
         // Broadcast initial remaining time
         broadcastRemaining(delayInSeconds.toLong())
@@ -94,7 +95,7 @@ public class PlaybackTimer(
                 intervalMillis = 500L,
                 onTickSeconds = { seconds -> broadcastRemaining(seconds) },
                 onFinished = {
-                    android.util.Log.d("PlaybackTimer", "Timer expired")
+                    LogUtils.d("PlaybackTimer", "Timer expired")
                     broadcastTimerExpired()
                     stopTimer()
                 },
@@ -112,7 +113,7 @@ public class PlaybackTimer(
     public fun stopTimer() {
         timer?.cancel()
         timer = null
-        android.util.Log.d("PlaybackTimer", "Timer stopped")
+        LogUtils.d("PlaybackTimer", "Timer stopped")
     }
 
     /**
@@ -136,7 +137,7 @@ public class PlaybackTimer(
         // Auto-pause playback when timer expires (inspired by lissen-android)
         if (player.isPlaying) {
             player.playWhenReady = false
-            android.util.Log.d("PlaybackTimer", "Auto-paused playback due to timer expiration")
+            LogUtils.d("PlaybackTimer", "Auto-paused playback due to timer expiration")
         }
     }
 

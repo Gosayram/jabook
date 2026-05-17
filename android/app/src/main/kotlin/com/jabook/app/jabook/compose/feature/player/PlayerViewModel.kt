@@ -26,6 +26,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.HoldToBoostPolicy
 import com.jabook.app.jabook.audio.SleepTimerPersistence
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
+import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookmarkItem
@@ -40,7 +41,10 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -56,8 +60,10 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.abs
 import com.jabook.app.jabook.compose.domain.model.Result as TypedResult
@@ -150,6 +156,13 @@ public class PlayerViewModel
         private var lastPersistedPlayerSnapshot: PlayerStateSnapshot? = null
         private var restoredBootstrapSnapshot: RestoredBootstrapSnapshot? = null
         private var hasShownSleepTimerResumeHint: Boolean = false
+        private var hasShownSmartResumeRecapHint: Boolean = false
+        private var hasTriggeredSeriesAutoplay: Boolean = false
+        private var autoplayDismissedUntilChapterChange: Boolean = false
+        private var seriesAutoplayJob: Job? = null
+
+        private val _nextBookAutoplayState = MutableStateFlow<NextBookAutoplayState?>(null)
+        public val nextBookAutoplayState: StateFlow<NextBookAutoplayState?> = _nextBookAutoplayState.asStateFlow()
 
         // Chapter repeat mode state
         private val chapterRepeatModeState = MutableStateFlow(ChapterRepeatMode.OFF)
@@ -169,6 +182,7 @@ public class PlayerViewModel
             restorePlaybackSpeedFromSnapshotIfNeeded()
             restoreSleepTimerModeFromSnapshotIfNeeded()
             observeSleepTimerResumeHint()
+            observeSmartResumeSuggestion()
             observeHoldToBoostSpeedSetting()
             observeSeekbarWaveformCache()
 
@@ -401,11 +415,20 @@ public class PlayerViewModel
 
         init {
             observeChapterLyrics()
+            observeSeriesAutoplayTrigger()
         }
 
         private companion object {
             private const val POSITION_UI_EPSILON_MS: Long = 150L
+            private const val POSITION_AUTOPLAY_EVAL_BUCKET_MS: Long = 250L
+            private const val AUTOPLAY_COUNTDOWN_SECONDS: Int = 10
         }
+
+        public data class NextBookAutoplayState(
+            val nextBook: Book,
+            val secondsLeft: Int,
+            val totalSeconds: Int,
+        )
 
         @OptIn(ExperimentalCoroutinesApi::class)
         private fun observeChapterLyrics() {
@@ -429,6 +452,153 @@ public class PlayerViewModel
                     }
             }
         }
+
+        private fun observeSeriesAutoplayTrigger() {
+            viewModelScope.launch {
+                val throttledPositionFlow =
+                    playerController.currentPosition
+                        .map { positionMs ->
+                            val bucket = positionMs.coerceAtLeast(0L) / POSITION_AUTOPLAY_EVAL_BUCKET_MS
+                            bucket * POSITION_AUTOPLAY_EVAL_BUCKET_MS
+                        }.distinctUntilChanged()
+
+                combine(
+                    uiState,
+                    playerController.isPlaying,
+                    throttledPositionFlow,
+                    playerController.duration,
+                ) { state, isPlaying, positionMs, durationMs ->
+                    TriggerSeriesAutoplaySnapshot(
+                        state = state,
+                        isPlaying = isPlaying,
+                        positionMs = positionMs,
+                        durationMs = durationMs,
+                    )
+                }.collect { snapshot ->
+                    val activeState = snapshot.state as? PlayerState.Active ?: return@collect
+                    val isLastChapter = activeState.currentChapterIndex >= (activeState.chapters.size - 1).coerceAtLeast(0)
+                    val autoplayDecision =
+                        evaluateSeriesAutoplayDecision(
+                            isLastChapter = isLastChapter,
+                            isPlaying = snapshot.isPlaying,
+                            positionMs = snapshot.positionMs,
+                            durationMs = snapshot.durationMs,
+                            hasTriggeredSeriesAutoplay = hasTriggeredSeriesAutoplay,
+                        )
+
+                    if (autoplayDecision.shouldTriggerAutoplay && !autoplayDismissedUntilChapterChange) {
+                        hasTriggeredSeriesAutoplay = true
+                        maybeStartSeriesAutoplay(activeState.book)
+                    } else if (autoplayDecision.shouldResetAutoplay) {
+                        // Explicit dismiss should survive play/pause and near-end jitter
+                        // until the user leaves the last chapter.
+                        if (!isLastChapter) {
+                            autoplayDismissedUntilChapterChange = false
+                            hasTriggeredSeriesAutoplay = false
+                        } else if (!autoplayDismissedUntilChapterChange) {
+                            hasTriggeredSeriesAutoplay = false
+                        }
+                        seriesAutoplayJob?.cancel()
+                        seriesAutoplayJob = null
+                        _nextBookAutoplayState.value = null
+                    }
+                }
+            }
+        }
+
+        private fun maybeStartSeriesAutoplay(currentBook: Book) {
+            seriesAutoplayJob?.cancel()
+            seriesAutoplayJob =
+                viewModelScope.launch {
+                    val allBooks = booksRepository.getAllBooks().first()
+                    val nextBook = findNextBookInSeries(currentBook, allBooks) ?: return@launch
+                    startAutoplayCountdown(nextBook)
+                }
+        }
+
+        private suspend fun startAutoplayCountdown(nextBook: Book) {
+            for (seconds in AUTOPLAY_COUNTDOWN_SECONDS downTo 0) {
+                if (!currentCoroutineContext().isActive) return
+                _nextBookAutoplayState.value =
+                    NextBookAutoplayState(
+                        nextBook = nextBook,
+                        secondsLeft = seconds,
+                        totalSeconds = AUTOPLAY_COUNTDOWN_SECONDS,
+                    )
+                if (seconds > 0) delay(1_000L)
+            }
+            if (!currentCoroutineContext().isActive) return
+            _nextBookAutoplayState.value = null
+            emitEffect(PlayerEffect.NavigateToBook(nextBook.id))
+        }
+
+        public fun continueSeriesNow() {
+            val nextBook = _nextBookAutoplayState.value?.nextBook ?: return
+            seriesAutoplayJob?.cancel()
+            seriesAutoplayJob = null
+            _nextBookAutoplayState.value = null
+            autoplayDismissedUntilChapterChange = false
+            emitEffect(PlayerEffect.NavigateToBook(nextBook.id))
+        }
+
+        public fun dismissSeriesAutoplay() {
+            seriesAutoplayJob?.cancel()
+            seriesAutoplayJob = null
+            _nextBookAutoplayState.value = null
+            hasTriggeredSeriesAutoplay = true
+            autoplayDismissedUntilChapterChange = true
+        }
+
+        private fun findNextBookInSeries(
+            currentBook: Book,
+            allBooks: List<Book>,
+        ): Book? {
+            val currentDescriptor = parseSeriesDescriptor(currentBook) ?: return null
+            return allBooks
+                .asSequence()
+                .filter { it.id != currentBook.id }
+                .mapNotNull { candidate ->
+                    val descriptor = parseSeriesDescriptor(candidate) ?: return@mapNotNull null
+                    if (descriptor.seriesKey != currentDescriptor.seriesKey) return@mapNotNull null
+                    if (!candidate.author.equals(currentBook.author, ignoreCase = true)) return@mapNotNull null
+                    if (descriptor.order <= currentDescriptor.order) return@mapNotNull null
+                    descriptor.order to candidate
+                }.minByOrNull { (order, _) -> order }
+                ?.second
+        }
+
+        private data class SeriesDescriptor(
+            val seriesKey: String,
+            val order: Int,
+        )
+
+        private fun parseSeriesDescriptor(book: Book): SeriesDescriptor? {
+            val normalizedTitle = book.title.trim()
+            val patterns =
+                listOf(
+                    Regex("""(?i)^(.*?)[\s\-–—:]*\b(?:book|книга|том|часть)\s*([0-9]{1,4})\b"""),
+                    Regex("""(?i)^(.*?)[\s\-–—:]*[#№]\s*([0-9]{1,4})\b"""),
+                )
+            for (pattern in patterns) {
+                val match = pattern.find(normalizedTitle) ?: continue
+                val rawKey =
+                    match.groupValues
+                        .getOrNull(1)
+                        .orEmpty()
+                        .trim()
+                val order = match.groupValues.getOrNull(2)?.toIntOrNull() ?: continue
+                if (rawKey.isBlank()) continue
+                return SeriesDescriptor(seriesKey = rawKey.lowercase(Locale.ROOT), order = order)
+            }
+            return null
+        }
+
+        private data class TriggerSeriesAutoplaySnapshot(
+            val state: PlayerState,
+            val isPlaying: Boolean,
+            val positionMs: Long,
+            val durationMs: Long,
+        )
 
         private suspend fun loadLyricsOrNull(
             audioPath: String,
@@ -748,19 +918,45 @@ public class PlayerViewModel
         }
 
         public fun setPlaybackSpeed(speed: Float) {
+            applyPlaybackSpeed(speed = speed, rememberForBook = true)
+        }
+
+        private fun applyPlaybackSpeed(
+            speed: Float,
+            rememberForBook: Boolean,
+        ) {
+            val clampedSpeed = speed.coerceIn(0.5f, 3.5f)
             viewModelScope.launch {
-                runCatching { userPreferencesRepository.setPlaybackSpeed(speed) }
+                runCatching { userPreferencesRepository.setPlaybackSpeed(clampedSpeed) }
                     .onFailure { error ->
                         logger.e({ "Failed to persist playback speed" }, error)
                         dispatch(PlayerIntent.ReportError("Failed to save playback speed"))
                     }
             }
             viewModelScope.launch {
-                runCatching { playerController.setPlaybackSpeed(speed) }
+                runCatching { playerController.setPlaybackSpeed(clampedSpeed) }
                     .onFailure { error ->
                         logger.e({ "Failed to set playback speed on player" }, error)
                         dispatch(PlayerIntent.ReportError("Failed to update playback speed"))
                     }
+            }
+            if (!rememberForBook) return
+            viewModelScope.launch {
+                runCatching {
+                    val activeState = uiState.value as? PlayerState.Active
+                    val listenedMs = activeState?.currentPosition ?: playerController.currentPosition.value
+                    if (
+                        SpeedMemoryHierarchy.shouldRecordBookSpeed(
+                            listenedMs = listenedMs,
+                            previousSpeed = null,
+                            newSpeed = clampedSpeed,
+                        )
+                    ) {
+                        booksRepository.updatePreferredPlaybackSpeed(bookId = bookId, speed = clampedSpeed)
+                    }
+                }.onFailure { error ->
+                    logger.w(error) { "Failed to persist per-book playback speed preference" }
+                }
             }
         }
 
@@ -862,6 +1058,17 @@ public class PlayerViewModel
                         logger.e({ "Failed to update bookmark note" }, error)
                         dispatch(PlayerIntent.ReportError("Failed to update bookmark"))
                     }
+            }
+        }
+
+        public fun deleteBookmark(bookmarkId: String) {
+            viewModelScope.launch {
+                val deleteResult = bookmarkRepository.deleteBookmark(bookmarkId)
+                val deleteFailureReason = resolveDeleteBookmarkFailureReason(deleteResult)
+                if (deleteFailureReason != null) {
+                    logger.e({ deleteFailureReason }, deleteResult.exceptionOrNull())
+                    dispatch(PlayerIntent.ReportError(deleteFailureReason))
+                }
             }
         }
 
@@ -991,6 +1198,29 @@ public class PlayerViewModel
                             ),
                         bookId = bookId,
                     )
+
+                    val shouldSkipHierarchicalSpeedApply =
+                        restoredBootstrapSnapshot?.playbackSpeed?.let { it > 0f } ?: false
+                    if (!shouldSkipHierarchicalSpeedApply) {
+                        viewModelScope.launch {
+                            runCatching {
+                                val globalSpeed = userPreferencesRepository.userData.first().playbackSpeed
+                                val resolvedSpeed =
+                                    booksRepository.resolvePreferredPlaybackSpeed(
+                                        bookId = bookId,
+                                        globalSpeed = globalSpeed,
+                                    )
+                                if (SpeedMemoryHierarchy.hasMeaningfulSpeedDelta(globalSpeed, resolvedSpeed)) {
+                                    applyPlaybackSpeed(
+                                        speed = resolvedSpeed,
+                                        rememberForBook = false,
+                                    )
+                                }
+                            }.onFailure { error ->
+                                logger.w(error) { "Failed to resolve hierarchical playback speed for book" }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1141,6 +1371,28 @@ public class PlayerViewModel
             }
         }
 
+        private fun observeSmartResumeSuggestion() {
+            viewModelScope.launch {
+                uiState.collect { state ->
+                    val activeState = state as? PlayerState.Active ?: return@collect
+                    if (!activeState.isPlaying || hasShownSmartResumeRecapHint) return@collect
+                    val suggestion = playerController.consumeSmartResumeSuggestion() ?: return@collect
+                    hasShownSmartResumeRecapHint = true
+                    emitEffect(
+                        PlayerEffect.ShowSnackbar(
+                            message =
+                                context.getString(
+                                    R.string.smartResumeRecapSuggestion,
+                                    suggestion.pauseDurationMs / 3_600_000L,
+                                ),
+                            actionLabel = context.getString(R.string.smartResumeRecapAction),
+                            actionIntent = PlayerIntent.SeekTo(suggestion.recapStartMs),
+                        ),
+                    )
+                }
+            }
+        }
+
         private fun wasLastStoppedBySleepTimerFlagSet(): Boolean {
             val prefs = context.getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
             return prefs.getBoolean(SleepTimerPersistence.KEY_LAST_STOPPED_BY_SLEEP_TIMER, false)
@@ -1241,3 +1493,31 @@ private data class RestoredBootstrapSnapshot(
     val playbackSpeed: Float,
     val sleepTimerMode: String,
 )
+
+internal data class SeriesAutoplayDecision(
+    val shouldTriggerAutoplay: Boolean,
+    val shouldResetAutoplay: Boolean,
+)
+
+internal const val SERIES_AUTOPLAY_END_TOLERANCE_MS: Long = 750L
+
+internal fun evaluateSeriesAutoplayDecision(
+    isLastChapter: Boolean,
+    isPlaying: Boolean,
+    positionMs: Long,
+    durationMs: Long,
+    hasTriggeredSeriesAutoplay: Boolean,
+): SeriesAutoplayDecision {
+    val isTrackEnded = durationMs > 0L && positionMs >= (durationMs - SERIES_AUTOPLAY_END_TOLERANCE_MS)
+    return SeriesAutoplayDecision(
+        shouldTriggerAutoplay = isLastChapter && !isPlaying && isTrackEnded && !hasTriggeredSeriesAutoplay,
+        shouldResetAutoplay = !isLastChapter || isPlaying || (hasTriggeredSeriesAutoplay && !isTrackEnded),
+    )
+}
+
+internal fun resolveDeleteBookmarkFailureReason(deleteResult: Result<Unit>): String? =
+    if (deleteResult.isFailure) {
+        "Failed to delete bookmark"
+    } else {
+        null
+    }

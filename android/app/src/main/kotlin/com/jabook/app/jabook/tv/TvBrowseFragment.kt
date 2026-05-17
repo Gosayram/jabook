@@ -29,6 +29,7 @@ import androidx.lifecycle.lifecycleScope
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -116,7 +117,7 @@ public class TvBrowseFragment : BrowseSupportFragment() {
                     rowsAdapter.add(ListRow(header, listRowAdapter))
                 }
             } catch (e: Exception) {
-                android.util.Log.e("TvBrowseFragment", "Error loading books", e)
+                LogUtils.e("TvBrowseFragment", "Error loading books", e)
                 showEmptyState()
             }
         }

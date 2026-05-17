@@ -28,6 +28,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
+import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.feature.favorites.FavoritesScreen
 import com.jabook.app.jabook.compose.feature.library.LibraryScreen
 import com.jabook.app.jabook.compose.feature.player.PlayerScreen
@@ -73,56 +74,180 @@ public fun JabookNavHost(
         startDestination = LibraryRoute,
         modifier = modifier,
         enterTransition = {
-            slideIntoContainer(
-                androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Left,
-                animationSpec =
-                    androidx.compose.animation.core
-                        .tween(300),
-            ) +
-                androidx.compose.animation.fadeIn(
-                    animationSpec =
-                        androidx.compose.animation.core
-                            .tween(300),
-                )
+            when {
+                initialState.destination.route.isTopLevelRoute() && targetState.destination.route.isTopLevelRoute() ->
+                    androidx.compose.animation.fadeIn(
+                        animationSpec =
+                            androidx.compose.animation.core.tween(
+                                durationMillis = MotionTokens.SHORT2,
+                                easing = MotionTokens.Emphasized,
+                            ),
+                    )
+                targetState.destination.route.isPlayerRoute() ->
+                    slideIntoContainer(
+                        androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Up,
+                        animationSpec =
+                            androidx.compose.animation.core.tween(
+                                durationMillis = MotionTokens.MEDIUM2,
+                                easing = MotionTokens.Emphasized,
+                            ),
+                    ) +
+                        androidx.compose.animation.fadeIn(
+                            animationSpec =
+                                androidx.compose.animation.core.tween(
+                                    durationMillis = MotionTokens.MEDIUM2,
+                                    easing = MotionTokens.Emphasized,
+                                ),
+                        )
+                else ->
+                    slideIntoContainer(
+                        androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Left,
+                        animationSpec =
+                            androidx.compose.animation.core.tween(
+                                durationMillis = MotionTokens.MEDIUM2,
+                                easing = MotionTokens.Emphasized,
+                            ),
+                    ) +
+                        androidx.compose.animation.fadeIn(
+                            animationSpec =
+                                androidx.compose.animation.core.tween(
+                                    durationMillis = MotionTokens.MEDIUM2,
+                                    easing = MotionTokens.Emphasized,
+                                ),
+                        )
+            }
         },
         exitTransition = {
-            slideOutOfContainer(
-                androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Left,
-                animationSpec =
-                    androidx.compose.animation.core
-                        .tween(300),
-            ) +
-                androidx.compose.animation.fadeOut(
-                    animationSpec =
-                        androidx.compose.animation.core
-                            .tween(300),
-                )
+            when {
+                initialState.destination.route.isTopLevelRoute() && targetState.destination.route.isTopLevelRoute() ->
+                    androidx.compose.animation.fadeOut(
+                        animationSpec =
+                            androidx.compose.animation.core.tween(
+                                durationMillis = MotionTokens.SHORT2,
+                                easing = MotionTokens.Emphasized,
+                            ),
+                    )
+                targetState.destination.route.isPlayerRoute() ->
+                    slideOutOfContainer(
+                        androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Up,
+                        animationSpec =
+                            androidx.compose.animation.core.tween(
+                                durationMillis = MotionTokens.MEDIUM2,
+                                easing = MotionTokens.Emphasized,
+                            ),
+                    ) +
+                        androidx.compose.animation.fadeOut(
+                            animationSpec =
+                                androidx.compose.animation.core.tween(
+                                    durationMillis = MotionTokens.MEDIUM2,
+                                    easing = MotionTokens.Emphasized,
+                                ),
+                        )
+                else ->
+                    slideOutOfContainer(
+                        androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Left,
+                        animationSpec =
+                            androidx.compose.animation.core.tween(
+                                durationMillis = MotionTokens.MEDIUM2,
+                                easing = MotionTokens.Emphasized,
+                            ),
+                    ) +
+                        androidx.compose.animation.fadeOut(
+                            animationSpec =
+                                androidx.compose.animation.core.tween(
+                                    durationMillis = MotionTokens.MEDIUM2,
+                                    easing = MotionTokens.Emphasized,
+                                ),
+                        )
+            }
         },
         popEnterTransition = {
-            slideIntoContainer(
-                androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Right,
-                animationSpec =
-                    androidx.compose.animation.core
-                        .tween(300),
-            ) +
-                androidx.compose.animation.fadeIn(
-                    animationSpec =
-                        androidx.compose.animation.core
-                            .tween(300),
-                )
+            when {
+                initialState.destination.route.isTopLevelRoute() && targetState.destination.route.isTopLevelRoute() ->
+                    androidx.compose.animation.fadeIn(
+                        animationSpec =
+                            androidx.compose.animation.core.tween(
+                                durationMillis = MotionTokens.SHORT2,
+                                easing = MotionTokens.Emphasized,
+                            ),
+                    )
+                initialState.destination.route.isPlayerRoute() ->
+                    slideIntoContainer(
+                        androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Down,
+                        animationSpec =
+                            androidx.compose.animation.core.tween(
+                                durationMillis = MotionTokens.MEDIUM2,
+                                easing = MotionTokens.Emphasized,
+                            ),
+                    ) +
+                        androidx.compose.animation.fadeIn(
+                            animationSpec =
+                                androidx.compose.animation.core.tween(
+                                    durationMillis = MotionTokens.MEDIUM2,
+                                    easing = MotionTokens.Emphasized,
+                                ),
+                        )
+                else ->
+                    slideIntoContainer(
+                        androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Right,
+                        animationSpec =
+                            androidx.compose.animation.core.tween(
+                                durationMillis = MotionTokens.MEDIUM2,
+                                easing = MotionTokens.Emphasized,
+                            ),
+                    ) +
+                        androidx.compose.animation.fadeIn(
+                            animationSpec =
+                                androidx.compose.animation.core.tween(
+                                    durationMillis = MotionTokens.MEDIUM2,
+                                    easing = MotionTokens.Emphasized,
+                                ),
+                        )
+            }
         },
         popExitTransition = {
-            slideOutOfContainer(
-                androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Right,
-                animationSpec =
-                    androidx.compose.animation.core
-                        .tween(300),
-            ) +
-                androidx.compose.animation.fadeOut(
-                    animationSpec =
-                        androidx.compose.animation.core
-                            .tween(300),
-                )
+            when {
+                initialState.destination.route.isTopLevelRoute() && targetState.destination.route.isTopLevelRoute() ->
+                    androidx.compose.animation.fadeOut(
+                        animationSpec =
+                            androidx.compose.animation.core.tween(
+                                durationMillis = MotionTokens.SHORT2,
+                                easing = MotionTokens.Emphasized,
+                            ),
+                    )
+                initialState.destination.route.isPlayerRoute() ->
+                    slideOutOfContainer(
+                        androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Down,
+                        animationSpec =
+                            androidx.compose.animation.core.tween(
+                                durationMillis = MotionTokens.MEDIUM2,
+                                easing = MotionTokens.Emphasized,
+                            ),
+                    ) +
+                        androidx.compose.animation.fadeOut(
+                            animationSpec =
+                                androidx.compose.animation.core.tween(
+                                    durationMillis = MotionTokens.MEDIUM2,
+                                    easing = MotionTokens.Emphasized,
+                                ),
+                        )
+                else ->
+                    slideOutOfContainer(
+                        androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Right,
+                        animationSpec =
+                            androidx.compose.animation.core.tween(
+                                durationMillis = MotionTokens.MEDIUM2,
+                                easing = MotionTokens.Emphasized,
+                            ),
+                    ) +
+                        androidx.compose.animation.fadeOut(
+                            animationSpec =
+                                androidx.compose.animation.core.tween(
+                                    durationMillis = MotionTokens.MEDIUM2,
+                                    easing = MotionTokens.Emphasized,
+                                ),
+                        )
+            }
         },
     ) {
         // Library screen - shows list of audiobooks
@@ -187,6 +312,9 @@ public fun JabookNavHost(
             PlayerScreen(
                 onNavigateBack = {
                     appState.navigateToLibrary()
+                },
+                onNavigateToBook = { bookId ->
+                    navController.navigate(PlayerRoute(bookId = bookId))
                 },
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = this,
@@ -396,6 +524,13 @@ public fun JabookNavHost(
         }
     }
 }
+
+private fun String?.isTopLevelRoute(): Boolean =
+    this?.contains("LibraryRoute", ignoreCase = true) == true ||
+        this?.contains("SearchRoute", ignoreCase = true) == true ||
+        this?.contains("SettingsRoute", ignoreCase = true) == true
+
+private fun String?.isPlayerRoute(): Boolean = this?.contains("PlayerRoute", ignoreCase = true) == true
 
 /**
  * Temporary placeholder screen for navigation testing.

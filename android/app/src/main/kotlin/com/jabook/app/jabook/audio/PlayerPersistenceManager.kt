@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
+import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -95,12 +96,12 @@ public class PlayerPersistenceManager
                         .putString(KEY_RESUMPTION_ARTIST, artist)
                         .putString(KEY_RESUMPTION_GROUP_PATH, groupPath)
                         .apply()
-                    android.util.Log.v(
+                    LogUtils.v(
                         "PlayerPersistence",
                         "Stored current media item for resumption: $mediaId, position=${positionMs}ms",
                     )
                 } catch (e: Exception) {
-                    android.util.Log.w("PlayerPersistence", "Failed to store current media item for resumption", e)
+                    LogUtils.w("PlayerPersistence", "Failed to store current media item for resumption", e)
                 }
             }
 
@@ -126,7 +127,7 @@ public class PlayerPersistenceManager
                         "groupPath" to groupPath,
                     )
                 } catch (e: Exception) {
-                    android.util.Log.w("PlayerPersistence", "Failed to retrieve last stored media item", e)
+                    LogUtils.w("PlayerPersistence", "Failed to retrieve last stored media item", e)
                     null
                 }
             }
@@ -160,7 +161,7 @@ public class PlayerPersistenceManager
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                     saveVersionedSnapshot(prefs = prefs, state = state)
                 } catch (e: Exception) {
-                    android.util.Log.w("PlayerPersistence", "Failed to save persisted player snapshot", e)
+                    LogUtils.w("PlayerPersistence", "Failed to save persisted player snapshot", e)
                 }
             }
 
@@ -169,9 +170,9 @@ public class PlayerPersistenceManager
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 val sanitizedPath = this.sanitizeGroupPath(groupPath)
                 prefs.edit().putString("current_group_path", sanitizedPath).apply()
-                android.util.Log.d("PlayerPersistence", "Saved groupPath to SharedPreferences: $sanitizedPath")
+                LogUtils.d("PlayerPersistence", "Saved groupPath to SharedPreferences: $sanitizedPath")
             } catch (e: Exception) {
-                android.util.Log.w("PlayerPersistence", "Failed to save groupPath to SharedPreferences", e)
+                LogUtils.w("PlayerPersistence", "Failed to save groupPath to SharedPreferences", e)
             }
         }
 
@@ -192,7 +193,7 @@ public class PlayerPersistenceManager
                         }
                     prefs.edit().putString("book_state_${state.bookId}", json.toString()).apply()
                 } catch (e: Exception) {
-                    android.util.Log.e("PlayerPersistence", "Failed to save player state for ${state.bookId}", e)
+                    LogUtils.e("PlayerPersistence", "Failed to save player state for ${state.bookId}", e)
                 }
             }
 
@@ -213,7 +214,7 @@ public class PlayerPersistenceManager
                         playCount = json.optLong("playCount", 0),
                     )
                 } catch (e: Exception) {
-                    android.util.Log.e("PlayerPersistence", "Failed to get player state for $bookId", e)
+                    LogUtils.e("PlayerPersistence", "Failed to get player state for $bookId", e)
                     null
                 }
             }
@@ -277,7 +278,7 @@ public class PlayerPersistenceManager
                     )
                 }
             savePlayerState(newState)
-            android.util.Log.d("PlayerPersistence", "Play count for $bookId incremented to ${newState.playCount}")
+            LogUtils.d("PlayerPersistence", "Play count for $bookId incremented to ${newState.playCount}")
         }
 
         /**
@@ -431,7 +432,7 @@ public class PlayerPersistenceManager
                 .putString(KEY_PLAYBACK_SNAPSHOT_LAST_CORRUPTION_REASON, reason)
                 .putLong(KEY_PLAYBACK_SNAPSHOT_LAST_CORRUPTION_AT, System.currentTimeMillis())
                 .apply()
-            android.util.Log.w("PlayerPersistence", "Playback snapshot corruption detected: $reason", error)
+            LogUtils.w("PlayerPersistence", "Playback snapshot corruption detected: $reason", error)
         }
     }
 

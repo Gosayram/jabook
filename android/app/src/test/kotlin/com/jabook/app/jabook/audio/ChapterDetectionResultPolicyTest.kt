@@ -1,0 +1,77 @@
+// Copyright 2026 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.jabook.app.jabook.audio
+
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class ChapterDetectionResultPolicyTest {
+    @Test
+    fun `normalizeCandidates drops low confidence candidates`() {
+        val input =
+            listOf(
+                ChapterDetectionPolicy.CandidateBoundary(10_000L, 0.6f),
+                ChapterDetectionPolicy.CandidateBoundary(80_000L, 0.9f),
+            )
+
+        val result =
+            ChapterDetectionResultPolicy.normalizeCandidates(
+                input,
+                minChapterDurationMs = 0L,
+            )
+
+        assertEquals(1, result.size)
+        assertEquals(80_000L, result.first().startMs)
+    }
+
+    @Test
+    fun `normalizeCandidates keeps stronger candidate when boundaries are too close`() {
+        val input =
+            listOf(
+                ChapterDetectionPolicy.CandidateBoundary(100_000L, 0.8f),
+                ChapterDetectionPolicy.CandidateBoundary(120_000L, 0.95f),
+                ChapterDetectionPolicy.CandidateBoundary(210_000L, 0.85f),
+            )
+
+        val result =
+            ChapterDetectionResultPolicy.normalizeCandidates(
+                input,
+                minGapMs = 60_000L,
+                minChapterDurationMs = 0L,
+            )
+
+        assertEquals(2, result.size)
+        assertEquals(120_000L, result[0].startMs)
+        assertEquals(210_000L, result[1].startMs)
+    }
+
+    @Test
+    fun `normalizeCandidates drops too-early boundary by minimum chapter duration`() {
+        val input =
+            listOf(
+                ChapterDetectionPolicy.CandidateBoundary(40_000L, 0.95f),
+                ChapterDetectionPolicy.CandidateBoundary(130_000L, 0.8f),
+            )
+
+        val result =
+            ChapterDetectionResultPolicy.normalizeCandidates(
+                input,
+                minChapterDurationMs = 90_000L,
+            )
+
+        assertEquals(1, result.size)
+        assertEquals(130_000L, result.first().startMs)
+    }
+}

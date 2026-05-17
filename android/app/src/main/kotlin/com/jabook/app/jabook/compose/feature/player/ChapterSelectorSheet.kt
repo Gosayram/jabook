@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -31,11 +33,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
@@ -49,6 +53,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +61,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -301,14 +308,14 @@ public fun ChapterSelectorSheet(
                             }
                         },
                         onMoveUp = {
-                            if (listIndex > 0) {
+                            if (canMoveChapterUp(listIndex)) {
                                 val newList = editedChapters.toMutableList()
                                 java.util.Collections.swap(newList, listIndex, listIndex - 1)
                                 editedChapters = newList
                             }
                         },
                         onMoveDown = {
-                            if (listIndex < editedChapters.size - 1) {
+                            if (canMoveChapterDown(listIndex, editedChapters.size)) {
                                 val newList = editedChapters.toMutableList()
                                 java.util.Collections.swap(newList, listIndex, listIndex + 1)
                                 editedChapters = newList
@@ -337,6 +344,7 @@ private fun ChapterSelectorItem(
     onMoveUp: () -> Unit = {},
     onMoveDown: () -> Unit = {},
 ) {
+    val density = LocalDensity.current
     Row(
         modifier =
             Modifier
@@ -389,17 +397,55 @@ private fun ChapterSelectorItem(
         }
 
         if (isEditing) {
-            Row {
-                androidx.compose.material3.IconButton(onClick = onMoveUp) {
+            val moveUpCallback by rememberUpdatedState(newValue = onMoveUp)
+            val moveDownCallback by rememberUpdatedState(newValue = onMoveDown)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onMoveUp) {
                     Icon(
-                        androidx.compose.material.icons.Icons.Default.ArrowUpward,
+                        imageVector = Icons.Filled.ArrowUpward,
                         contentDescription = stringResource(R.string.moveUp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                androidx.compose.material3.IconButton(onClick = onMoveDown) {
+                Icon(
+                    imageVector = Icons.Filled.DragHandle,
+                    contentDescription = stringResource(R.string.dragToReorder),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier =
+                        Modifier
+                            .size(32.dp)
+                            .pointerInput(chapter.id, moveUpCallback, moveDownCallback) {
+                                var dragAccumulated = 0f
+                                val threshold = with(density) { 48.dp.toPx() }
+                                detectVerticalDragGestures(
+                                    onDragEnd = { dragAccumulated = 0f },
+                                    onDragCancel = { dragAccumulated = 0f },
+                                ) { change, dragAmount ->
+                                    change.consume()
+                                    val dragDecision =
+                                        accumulateChapterReorderDrag(
+                                            accumulated = dragAccumulated,
+                                            dragAmount = dragAmount,
+                                            threshold = threshold,
+                                        )
+                                    dragAccumulated = dragDecision.remainingAccumulated
+                                    when (dragDecision.action) {
+                                        ChapterReorderDragAction.MoveDown -> {
+                                            moveDownCallback()
+                                        }
+                                        ChapterReorderDragAction.MoveUp -> {
+                                            moveUpCallback()
+                                        }
+                                        ChapterReorderDragAction.None -> Unit
+                                    }
+                                }
+                            },
+                )
+                IconButton(onClick = onMoveDown) {
                     Icon(
-                        androidx.compose.material.icons.Icons.Default.ArrowDownward,
+                        imageVector = Icons.Filled.ArrowDownward,
                         contentDescription = stringResource(R.string.moveDown),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -413,3 +459,57 @@ private fun ChapterSelectorItem(
         }
     }
 }
+
+internal enum class ChapterReorderDragAction {
+    None,
+    MoveUp,
+    MoveDown,
+}
+
+internal data class ChapterReorderDragDecision(
+    val action: ChapterReorderDragAction,
+    val remainingAccumulated: Float,
+)
+
+internal fun accumulateChapterReorderDrag(
+    accumulated: Float,
+    dragAmount: Float,
+    threshold: Float,
+): ChapterReorderDragDecision {
+    if (!threshold.isFinite() || threshold <= 0f) {
+        return ChapterReorderDragDecision(
+            action = ChapterReorderDragAction.None,
+            remainingAccumulated = 0f,
+        )
+    }
+    val nextAccumulated = accumulated + dragAmount
+    return when {
+        nextAccumulated >= threshold -> {
+            ChapterReorderDragDecision(
+                action = ChapterReorderDragAction.MoveDown,
+                remainingAccumulated = 0f,
+            )
+        }
+
+        nextAccumulated <= -threshold -> {
+            ChapterReorderDragDecision(
+                action = ChapterReorderDragAction.MoveUp,
+                remainingAccumulated = 0f,
+            )
+        }
+
+        else -> {
+            ChapterReorderDragDecision(
+                action = ChapterReorderDragAction.None,
+                remainingAccumulated = nextAccumulated,
+            )
+        }
+    }
+}
+
+internal fun canMoveChapterUp(index: Int): Boolean = index > 0
+
+internal fun canMoveChapterDown(
+    index: Int,
+    totalCount: Int,
+): Boolean = index in 0 until (totalCount - 1)

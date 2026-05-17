@@ -1,0 +1,53 @@
+// Copyright 2026 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.jabook.app.jabook.audio
+
+/**
+ * Defines cost/quality trade-offs for chapter-detection audio sampling.
+ */
+internal object ChapterDetectionSamplingPolicy {
+    internal data class Plan(
+        val windowsToProcess: Int,
+        val effectiveWindowStepMs: Long,
+    )
+
+    internal fun buildPlan(
+        durationMs: Long,
+        requestedWindowStepMs: Long,
+    ): Plan {
+        if (durationMs <= 0L || requestedWindowStepMs <= 0L) {
+            return Plan(
+                windowsToProcess = MIN_WINDOWS,
+                effectiveWindowStepMs = DEFAULT_WINDOW_STEP_MS,
+            )
+        }
+
+        val normalizedStep = requestedWindowStepMs.coerceIn(MIN_WINDOW_STEP_MS, MAX_WINDOW_STEP_MS)
+        val rawWindows = (durationMs / normalizedStep).coerceAtLeast(1L).toInt()
+        val windows = rawWindows.coerceIn(MIN_WINDOWS, MAX_WINDOWS)
+        val effectiveStep = (durationMs / windows.toLong()).coerceAtLeast(MIN_WINDOW_STEP_MS)
+
+        return Plan(
+            windowsToProcess = windows,
+            effectiveWindowStepMs = effectiveStep,
+        )
+    }
+
+    internal const val DEFAULT_WINDOW_STEP_MS: Long = 100L
+    internal const val MIN_WINDOW_STEP_MS: Long = 100L
+    internal const val MAX_WINDOW_STEP_MS: Long = 2_000L
+    internal const val MIN_WINDOWS: Int = 32
+    internal const val MAX_WINDOWS: Int = 3_000
+}

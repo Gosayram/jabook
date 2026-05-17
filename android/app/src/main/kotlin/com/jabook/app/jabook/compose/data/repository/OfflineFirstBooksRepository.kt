@@ -14,7 +14,9 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
+import androidx.sqlite.db.SimpleSQLiteQuery
 import com.jabook.app.jabook.audio.CompletionStatusHelper
+import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.QueryResultSizeGuardPolicy
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
@@ -27,6 +29,7 @@ import com.jabook.app.jabook.compose.domain.model.toBooks
 import com.jabook.app.jabook.compose.domain.model.toChapters
 import com.jabook.app.jabook.compose.domain.model.toEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -179,13 +182,20 @@ public class OfflineFirstBooksRepository
                     },
                 ).map { it.book }
 
-        override fun getBook(bookId: String): Flow<Book?> = booksDao.getBookFlow(bookId).map { it?.toBook() }
+        override fun getBook(bookId: String): Flow<Book?> =
+            booksDao
+                .getBookFlow(bookId)
+                .distinctUntilChanged()
+                .map { it?.toBook() }
 
         override fun getChapters(bookId: String): Flow<List<Chapter>> =
-            booksDao.getChaptersForBookFlow(bookId).map {
-                warnOnLargeResult(path = "getChaptersForBookFlow", rowCount = it.size)
-                it.toChapters()
-            }
+            booksDao
+                .getChaptersForBookFlow(bookId)
+                .distinctUntilChanged()
+                .map {
+                    warnOnLargeResult(path = "getChaptersForBookFlow", rowCount = it.size)
+                    it.toChapters()
+                }
 
         override fun searchBooks(query: String): Flow<List<Book>> {
             val variants = TransliterationSearchPolicy.buildVariants(query)
@@ -205,8 +215,18 @@ public class OfflineFirstBooksRepository
             }
 
             return booksDao
-                .searchBooksByFtsFlow(ftsMatchQuery)
-                .map {
+                .searchBooksByFtsFlow(
+                    SimpleSQLiteQuery(
+                        """
+                        SELECT b.*
+                        FROM books b
+                        JOIN books_fts f ON b.rowid = f.rowid
+                        WHERE books_fts MATCH ?
+                        ORDER BY bm25(books_fts) ASC
+                        """.trimIndent(),
+                        arrayOf(ftsMatchQuery),
+                    ),
+                ).map {
                     warnOnLargeResult(path = "searchBooksByFtsFlow", rowCount = it.size)
                     it.toBooks()
                 }
@@ -376,6 +396,35 @@ public class OfflineFirstBooksRepository
             bookId: String,
             newOrderedIds: List<String>,
         ): Unit = chaptersDao.reorderChaptersByIds(bookId = bookId, newOrderedIds = newOrderedIds)
+
+        override suspend fun resolvePreferredPlaybackSpeed(
+            bookId: String,
+            globalSpeed: Float,
+        ): Float {
+            val perBookSpeed = booksDao.getPreferredSpeed(bookId)
+            val perAuthorSpeed = booksDao.getAveragePreferredSpeedForAuthorOfBook(bookId)?.toFloat()
+            return SpeedMemoryHierarchy.resolveSpeed(
+                perBookSpeed = perBookSpeed,
+                perAuthorSpeed = perAuthorSpeed,
+                globalSpeed = globalSpeed,
+            )
+        }
+
+        override suspend fun updatePreferredPlaybackSpeed(
+            bookId: String,
+            speed: Float,
+        ) {
+            val previous = booksDao.getPreferredSpeed(bookId)
+            if (
+                !SpeedMemoryHierarchy.hasMeaningfulSpeedDelta(
+                    previousSpeed = previous,
+                    newSpeed = speed,
+                )
+            ) {
+                return
+            }
+            booksDao.updatePreferredSpeed(bookId, speed)
+        }
 
         override fun getBookBySourceUrlFlow(sourceUrl: String): Flow<Book?> =
             booksDao.getBookBySourceUrlFlow(sourceUrl).map { it?.toBook() }

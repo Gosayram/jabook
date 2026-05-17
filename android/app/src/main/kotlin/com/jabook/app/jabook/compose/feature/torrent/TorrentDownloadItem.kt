@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.torrent
 
+import android.content.res.Resources
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -180,6 +182,15 @@ public fun TorrentDownloadItem(
                 }
             }
 
+            if (download.totalSize > 0L) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "${formatBytes(download.downloadedSize)} / ${formatBytes(download.totalSize)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             // Peers/Seeds info
             if (download.state in
                 listOf(
@@ -201,6 +212,26 @@ public fun TorrentDownloadItem(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun formatBytes(bytes: Long): String = formatBytes(bytes, LocalContext.current.resources)
+
+internal fun formatBytes(
+    bytes: Long,
+    resources: Resources,
+): String {
+    val safeBytes = bytes.coerceAtLeast(0L)
+    val kb = safeBytes / 1024.0
+    val mb = kb / 1024.0
+    val gb = mb / 1024.0
+
+    return when {
+        gb >= 1.0 -> resources.getString(R.string.size_gb, gb)
+        mb >= 1.0 -> resources.getString(R.string.size_mb, mb)
+        kb >= 1.0 -> resources.getString(R.string.size_kb, kb)
+        else -> resources.getString(R.string.size_bytes, safeBytes)
     }
 }
 
@@ -244,25 +275,23 @@ private fun StateBadge(
  * Format speed in human-readable format
  */
 @Composable
-private fun formatSpeed(bytesPerSecond: Long): String {
-    val safeBytes = bytesPerSecond.coerceAtLeast(0L)
-    val kb = safeBytes / 1024.0
-    val mb = kb / 1024.0
-    val gb = mb / 1024.0
+private fun formatSpeed(bytesPerSecond: Long): String = formatSpeed(bytesPerSecond, LocalContext.current.resources)
 
-    return when {
-        gb >= 1.0 -> stringResource(R.string.size_gb, gb)
-        mb >= 1.0 -> stringResource(R.string.size_mb, mb)
-        kb >= 1.0 -> stringResource(R.string.size_kb, kb)
-        else -> stringResource(R.string.size_bytes, safeBytes)
-    }
-}
+internal fun formatSpeed(
+    bytesPerSecond: Long,
+    resources: Resources,
+): String = formatBytes(bytesPerSecond, resources)
 
 /**
  * Format ETA in human-readable format
  */
 @Composable
-private fun formatEta(seconds: Long): String {
+private fun formatEta(seconds: Long): String = formatEta(seconds, LocalContext.current.resources)
+
+internal fun formatEta(
+    seconds: Long,
+    resources: Resources,
+): String {
     // Handle invalid ETA values
     if (seconds < 0) {
         return "--" // Unknown ETA
@@ -273,8 +302,8 @@ private fun formatEta(seconds: Long): String {
     val minutes = (safeSeconds % 3600) / 60
 
     return when {
-        hours > 0 -> stringResource(R.string.duration_hm, hours, minutes)
-        minutes > 0 -> stringResource(R.string.duration_m, minutes)
-        else -> stringResource(R.string.duration_less_minute)
+        hours > 0 -> resources.getString(R.string.duration_hm, hours, minutes)
+        minutes > 0 -> resources.getString(R.string.duration_m, minutes)
+        else -> resources.getString(R.string.duration_less_minute)
     }
 }

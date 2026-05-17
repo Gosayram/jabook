@@ -34,6 +34,7 @@ import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.firstOrNull
@@ -148,7 +149,7 @@ public class AudioPlayerLibrarySessionCallback(
         controller: MediaSession.ControllerInfo,
         intent: Intent,
     ): Boolean {
-        android.util.Log.d("AudioPlayerService", "Media button event from: $controller")
+        LogUtils.d("AudioPlayerService", "Media button event from: $controller")
 
         val keyEvent =
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -158,7 +159,7 @@ public class AudioPlayerLibrarySessionCallback(
                 intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
             } ?: return super.onMediaButtonEvent(session, controller, intent)
 
-        android.util.Log.d("AudioPlayerService", "Got media key event: $keyEvent")
+        LogUtils.d("AudioPlayerService", "Got media key event: $keyEvent")
 
         // Only handle ACTION_DOWN events to avoid duplicate handling
         if (keyEvent.action != KeyEvent.ACTION_DOWN) {
@@ -169,13 +170,13 @@ public class AudioPlayerLibrarySessionCallback(
             KEYCODE_MEDIA_NEXT -> {
                 val forwardSeconds = service.mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
                 service.forward(forwardSeconds)
-                android.util.Log.d("AudioPlayerService", "Media button: forward ${forwardSeconds}s")
+                LogUtils.d("AudioPlayerService", "Media button: forward ${forwardSeconds}s")
                 return true
             }
             KEYCODE_MEDIA_PREVIOUS -> {
                 val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 10
                 service.rewind(rewindSeconds)
-                android.util.Log.d("AudioPlayerService", "Media button: rewind ${rewindSeconds}s")
+                LogUtils.d("AudioPlayerService", "Media button: rewind ${rewindSeconds}s")
                 return true
             }
             KeyEvent.KEYCODE_HEADSETHOOK, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
@@ -185,15 +186,15 @@ public class AudioPlayerLibrarySessionCallback(
                     keyEvent.keyCode,
                     onSingleClick = {
                         if (service.isPlaying) service.pause() else service.play()
-                        android.util.Log.d("AudioPlayerService", "Media button: Single click (Play/Pause)")
+                        LogUtils.d("AudioPlayerService", "Media button: Single click (Play/Pause)")
                     },
                     onDoubleClick = {
                         service.next()
-                        android.util.Log.d("AudioPlayerService", "Media button: Double click (Next)")
+                        LogUtils.d("AudioPlayerService", "Media button: Double click (Next)")
                     },
                     onTripleClick = {
                         service.previous()
-                        android.util.Log.d("AudioPlayerService", "Media button: Triple click (Previous)")
+                        LogUtils.d("AudioPlayerService", "Media button: Triple click (Previous)")
                     },
                 )
                 return true
@@ -348,7 +349,7 @@ public class AudioPlayerLibrarySessionCallback(
                     groupPath = parsedArgs.groupPath,
                     callback = { success, exception ->
                         if (exception != null) {
-                            android.util.Log.e("AudioPlayerService", "setPlaylist failed", exception)
+                            LogUtils.e("AudioPlayerService", "setPlaylist failed", exception)
                         }
                         if (!deferred.isCompleted) {
                             deferred.complete(success)
@@ -370,7 +371,7 @@ public class AudioPlayerLibrarySessionCallback(
                             SetPlaylistCommandResultPolicy.callbackFailed()
                         }
                     } catch (e: TimeoutCancellationException) {
-                        android.util.Log.e("AudioPlayerService", "setPlaylist timeout", e)
+                        LogUtils.e("AudioPlayerService", "setPlaylist timeout", e)
                         SetPlaylistCommandResultPolicy.timeout()
                     }
 
@@ -380,7 +381,7 @@ public class AudioPlayerLibrarySessionCallback(
                 }
                 result
             } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerService", "Error in handleSetPlaylistCommand", e)
+                LogUtils.e("AudioPlayerService", "Error in handleSetPlaylistCommand", e)
                 SetPlaylistCommandResultPolicy.exception(e)
             }
         }
@@ -533,7 +534,7 @@ public class AudioPlayerLibrarySessionCallback(
 
             // Log recommended media art size for optimization (Android Auto provides size hints)
             val recommendedArtSize = MediaMetadataExtrasHelper.getRecommendedArtSize(params)
-            android.util.Log.d(
+            LogUtils.d(
                 "LibrarySession",
                 "Recommended media art size: ${recommendedArtSize}px (from Android Auto/browser)",
             )
@@ -831,7 +832,7 @@ public class AudioPlayerLibrarySessionCallback(
                         )
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("LibrarySession", "Failed to load downloads", e)
+                    LogUtils.e("LibrarySession", "Failed to load downloads", e)
                 }
             } else if (!isRootId(parentId)) {
                 // 3. Browse specific book (by Hash)
@@ -990,7 +991,7 @@ public class AudioPlayerLibrarySessionCallback(
         service.playerServiceScope.future(Dispatchers.IO) {
             // Check if book is completed - don't resume completed books
             if (service.isBookCompleted) {
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Book is completed, skipping playback resumption",
                 )
@@ -1005,7 +1006,7 @@ public class AudioPlayerLibrarySessionCallback(
             val persistedState = playerPersistenceManager.retrievePersistedPlayerState()
 
             if (persistedState != null && persistedState.filePaths.isNotEmpty()) {
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Resuming playback from persisted full state: group=${persistedState.groupPath}, " +
                         "tracks=${persistedState.filePaths.size}, index=${persistedState.currentIndex}",
@@ -1045,7 +1046,7 @@ public class AudioPlayerLibrarySessionCallback(
                                 )
                                 metadataBuilder.setExtras(extras)
 
-                                android.util.Log.d(
+                                LogUtils.d(
                                     "AudioPlayerService",
                                     "Added completion extras: ${completionPercentage * 100}%",
                                 )
@@ -1086,7 +1087,7 @@ public class AudioPlayerLibrarySessionCallback(
                                 .build(),
                         )
                     } else {
-                        android.util.Log.w(
+                        LogUtils.w(
                             "AudioPlayerService",
                             "Skipping missing file in restored playlist: $filePath",
                         )
@@ -1109,7 +1110,7 @@ public class AudioPlayerLibrarySessionCallback(
 
                     correctedIndex = correctedIndex.coerceIn(0, playlist.size - 1)
 
-                    android.util.Log.i(
+                    LogUtils.i(
                         "AudioPlayerService",
                         "Restoring full playlist: ${playlist.size} items, index=$correctedIndex",
                     )
@@ -1124,7 +1125,7 @@ public class AudioPlayerLibrarySessionCallback(
 
             val storedData = playerPersistenceManager.retrieveLastStoredMediaItem()
             if (storedData == null) {
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "No stored media item found for playback resumption, returning empty list",
                 )
@@ -1145,7 +1146,7 @@ public class AudioPlayerLibrarySessionCallback(
             val artist = storedData["artist"] as? String ?: ""
             val groupPath = storedData["groupPath"] as? String ?: ""
 
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Resuming playback (fallback): filePath=$filePath, position=${positionMs}ms, duration=${durationMs}ms",
             )
@@ -1190,7 +1191,7 @@ public class AudioPlayerLibrarySessionCallback(
                         }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.w("AudioPlayerService", "Failed to parse artwork path: $artworkPath", e)
+                    LogUtils.w("AudioPlayerService", "Failed to parse artwork path: $artworkPath", e)
                 }
             }
 
@@ -1201,7 +1202,7 @@ public class AudioPlayerLibrarySessionCallback(
             // Create MediaItem from file path
             val file = File(filePath)
             if (!file.exists()) {
-                android.util.Log.w("AudioPlayerService", "Stored file does not exist: $filePath")
+                LogUtils.w("AudioPlayerService", "Stored file does not exist: $filePath")
                 throw IllegalStateException("stored file does not exist")
             }
 

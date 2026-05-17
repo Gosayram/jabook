@@ -14,13 +14,15 @@
 
 package com.jabook.app.jabook.audio
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.ValueAnimator
 import android.content.Context
-import android.view.animation.LinearInterpolator
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MediaSource
+import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 /**
  * Manages crossfade transitions between two ExoPlayer instances.
@@ -38,7 +40,8 @@ import androidx.media3.exoplayer.source.MediaSource
  */
 public class CrossFadePlayer(
     private val context: Context,
-    private val playerFactory: (Context) -> ExoPlayer,
+    private val playerFactory: (Context, handleAudioFocus: Boolean) -> ExoPlayer,
+    private val coroutineScope: CoroutineScope,
 ) {
     private sealed interface PendingPreloadRequest {
         data class MediaItemRequest(
@@ -50,14 +53,14 @@ public class CrossFadePlayer(
         ) : PendingPreloadRequest
     }
 
-    private var playerA: ExoPlayer = playerFactory(context)
-    private var playerB: ExoPlayer = playerFactory(context)
+    private var playerA: ExoPlayer = playerFactory(context, true)
+    private var playerB: ExoPlayer = playerFactory(context, false)
 
     private var currentPlayer: ExoPlayer = playerA
     private var nextPlayer: ExoPlayer = playerB
 
     public var crossFadeDurationMs: Long = 0L
-    private var currentAnimator: ValueAnimator? = null
+    private var crossfadeJob: Job? = null
     private var isCrossFading = false
     private var crossFadeOutPlayer: ExoPlayer? = null
     private var pendingPreloadRequest: PendingPreloadRequest? = null
@@ -87,21 +90,21 @@ public class CrossFadePlayer(
         }
     }
 
-    /**
+/**
      * Pauses playback on all players.
      */
     public fun pause() {
         currentPlayer.pause()
         nextPlayer.pause()
-        currentAnimator?.pause()
+        crossfadeJob?.cancel()
     }
 
     /**
      * Stops playback and releases resources.
      */
     public fun release() {
-        currentAnimator?.cancel()
-        currentAnimator = null
+        crossfadeJob?.cancel()
+        crossfadeJob = null
         isCrossFading = false
         crossFadeOutPlayer = null
         pendingPreloadRequest = null
@@ -109,7 +112,7 @@ public class CrossFadePlayer(
         playerB.release()
     }
 
-    /**
+/**
      * Starts the crossfade transition.
      *
      * @param onComplete Callback when crossfade is finished.
@@ -129,48 +132,37 @@ public class CrossFadePlayer(
         // Start the next player
         fadingInPlayer.play()
 
-        // Notify listener that active player (logically) might need considering,
-        // but typically we switch the "Active" pointer after fade.
-        // However, for UI, we might want to show next track metadata immediately?
-        // Usually, we switch metadata halfway or at start.
-        // For now, we switch "Active Player" reference at END of fade.
+        LogUtils.d("CrossFadePlayer", "Starting crossfade: Out=$fadingOutPlayer, In=$fadingInPlayer")
 
-        android.util.Log.d("CrossFadePlayer", "Starting crossfade: Out=$fadingOutPlayer, In=$fadingInPlayer")
-
-        currentAnimator =
-            ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = crossFadeDurationMs
-                interpolator = LinearInterpolator()
-
-                addUpdateListener { animation ->
-                    val progress = animation.animatedValue as Float
-                    try {
-                        fadingOutPlayer.volume = 1f - progress
-                        fadingInPlayer.volume = progress
-                    } catch (e: Exception) {
-                        // Handle potential player release during animation
-                    }
+        val durationMs = crossFadeDurationMs
+        crossfadeJob =
+            coroutineScope.launch {
+                val steps = 50
+                val stepDelay = durationMs / steps
+                for (i in 1..steps) {
+                    if (!isActive) return@launch
+                    val progress = i.toFloat() / steps
+                    fadingOutPlayer.volume = 1f - progress
+                    fadingInPlayer.volume = progress
+                    delay(stepDelay)
                 }
 
-                addListener(
-                    object : AnimatorListenerAdapter() {
-                        override fun onAnimationEnd(animation: Animator) {
-                            isCrossFading = false
-                            fadingOutPlayer.pause()
-                            fadingOutPlayer.volume = 1f
-                            fadingOutPlayer.seekTo(0) // Reset position
-                            fadingOutPlayer.clearMediaItems() // Clear for reuse
+                // Ensure final state
+                if (isActive) {
+                    isCrossFading = false
+                    fadingOutPlayer.pause()
+                    fadingOutPlayer.volume = 1f
+                    fadingOutPlayer.seekTo(0) // Reset position
+                    fadingOutPlayer.clearMediaItems() // Clear for reuse
 
-                            // Swap players
-                            swapPlayers()
-                            applyPendingPreloadIfNeeded()
-                            crossFadeOutPlayer = null
-                            onComplete()
-                            android.util.Log.d("CrossFadePlayer", "Crossfade complete. Current is now $currentPlayer")
-                        }
-                    },
-                )
-                start()
+                    // Swap players
+                    swapPlayers()
+                    applyPendingPreloadIfNeeded()
+                    crossFadeOutPlayer = null
+                    crossfadeJob = null
+                    onComplete()
+                    LogUtils.d("CrossFadePlayer", "Crossfade complete. Current is now $currentPlayer")
+                }
             }
     }
 
@@ -188,7 +180,7 @@ public class CrossFadePlayer(
         if (isCrossFading) {
             // Keep only the latest preload request while transition is active.
             pendingPreloadRequest = request
-            android.util.Log.d("CrossFadePlayer", "Queued preload during active crossfade")
+            LogUtils.d("CrossFadePlayer", "Queued preload during active crossfade")
             return
         }
         val targetPlayer = resolvePreloadTargetPlayer()
@@ -211,7 +203,7 @@ public class CrossFadePlayer(
             is PendingPreloadRequest.MediaSourceRequest -> targetPlayer.setMediaSource(request.mediaSource)
         }
         targetPlayer.prepare()
-        android.util.Log.d("CrossFadePlayer", "Preload request applied on $targetPlayer")
+        LogUtils.d("CrossFadePlayer", "Preload request applied on $targetPlayer")
     }
 
     private fun swapPlayers() {

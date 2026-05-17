@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import kotlin.math.abs
 
 /**
@@ -71,7 +72,7 @@ public fun AudioVisualizer(
     // Animate visibility based on playback state
     val alpha by animateFloatAsState(
         targetValue = if (isPlaying) 1f else 0.3f,
-        animationSpec = tween(300),
+        animationSpec = tween(durationMillis = MotionTokens.MEDIUM2, easing = MotionTokens.Emphasized),
         label = "visualizerAlpha",
     )
 

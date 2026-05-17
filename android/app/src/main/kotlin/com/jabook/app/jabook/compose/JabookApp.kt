@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalNavigationDrawer
@@ -39,7 +41,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -51,6 +56,8 @@ import com.jabook.app.jabook.compose.navigation.TopLevelDestination
 import com.jabook.app.jabook.compose.navigation.rememberJabookAppState
 import com.jabook.app.jabook.ui.theme.JabookTheme
 import kotlinx.coroutines.launch
+
+internal const val SETTINGS_BADGE_TEST_TAG: String = "settings_badge"
 
 /**
  * Root composable for the Jabook app.
@@ -73,8 +80,10 @@ public fun JabookApp(
     appState: JabookAppState = rememberJabookAppState(),
     viewModel: MainViewModel = hiltViewModel(),
     permissionViewModel: com.jabook.app.jabook.compose.feature.permissions.PermissionViewModel = hiltViewModel(),
+    settingsViewModel: com.jabook.app.jabook.compose.feature.settings.SettingsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val activeDownloadsCount by settingsViewModel.activeDownloadsCount.collectAsStateWithLifecycle()
 
     // Detect if this is a beta/dev/stage flavor by checking package name
     // Beta: com.jabook.app.jabook.beta, Dev: .dev, Stage: .stage, Prod: com.jabook.app.jabook
@@ -261,14 +270,16 @@ public fun JabookApp(
 
                         item(
                             icon = {
-                                Icon(
-                                    imageVector =
-                                        if (selected) {
-                                            destination.selectedIcon
-                                        } else {
-                                            destination.unselectedIcon
-                                        },
-                                    contentDescription = stringResource(destination.iconTextId),
+                                val icon =
+                                    if (selected) {
+                                        destination.selectedIcon
+                                    } else {
+                                        destination.unselectedIcon
+                                    }
+                                TopLevelDestinationIcon(
+                                    destination = destination,
+                                    icon = icon,
+                                    activeDownloadsCount = activeDownloadsCount,
                                 )
                             },
                             label = { Text(stringResource(destination.titleTextId)) },
@@ -332,6 +343,44 @@ public fun JabookApp(
                 }
             }
         }
+    }
+}
+
+@Composable
+internal fun TopLevelDestinationIcon(
+    destination: TopLevelDestination,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    activeDownloadsCount: Int,
+) {
+    val context = LocalContext.current
+    if (destination == TopLevelDestination.SETTINGS && activeDownloadsCount > 0) {
+        val downloadsStateDescription =
+            context.resources.getQuantityString(
+                com.jabook.app.jabook.R.plurals.downloads_active_plural,
+                activeDownloadsCount,
+                activeDownloadsCount,
+            )
+        BadgedBox(
+            badge = {
+                Badge(modifier = Modifier.testTag(SETTINGS_BADGE_TEST_TAG)) {
+                    Text(if (activeDownloadsCount > 99) "99+" else activeDownloadsCount.toString())
+                }
+            },
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = stringResource(destination.iconTextId),
+                modifier =
+                    Modifier.semantics {
+                        stateDescription = downloadsStateDescription
+                    },
+            )
+        }
+    } else {
+        Icon(
+            imageVector = icon,
+            contentDescription = stringResource(destination.iconTextId),
+        )
     }
 }
 

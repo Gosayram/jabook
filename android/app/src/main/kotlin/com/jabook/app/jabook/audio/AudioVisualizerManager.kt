@@ -18,8 +18,8 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.media.audiofx.Visualizer
-import android.util.Log
 import androidx.core.content.ContextCompat
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -65,7 +65,7 @@ public class AudioVisualizerManager(
      */
     public fun initialize(audioSessionId: Int) {
         if (audioSessionId <= 0) {
-            Log.w(TAG, "Invalid audio session id: $audioSessionId, visualizer disabled")
+            LogUtils.w(TAG, "Invalid audio session id: $audioSessionId, visualizer disabled")
             lastRequestedAudioSessionId = 0
             release()
             return
@@ -74,7 +74,7 @@ public class AudioVisualizerManager(
         lastRequestedAudioSessionId = audioSessionId
 
         if (this.audioSessionId == audioSessionId && visualizer != null) {
-            Log.d(TAG, "Visualizer already initialized with same session")
+            LogUtils.d(TAG, "Visualizer already initialized with same session")
             if (desiredEnabled && !_isActive.value) {
                 setEnabled(enabled = true)
             }
@@ -83,7 +83,7 @@ public class AudioVisualizerManager(
 
         // Check permission
         if (!hasRecordAudioPermission()) {
-            Log.w(TAG, "RECORD_AUDIO permission not granted, visualizer disabled")
+            LogUtils.w(TAG, "RECORD_AUDIO permission not granted, visualizer disabled")
             release(clearRequestedSessionId = false)
             return
         }
@@ -139,9 +139,9 @@ public class AudioVisualizerManager(
                     enabled = shouldEnable
                     _isActive.value = shouldEnable
                 }
-            Log.d(TAG, "Visualizer initialized with session $audioSessionId")
+            LogUtils.d(TAG, "Visualizer initialized with session $audioSessionId")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize visualizer", e)
+            LogUtils.e(TAG, "Failed to initialize visualizer", e)
             release(clearRequestedSessionId = false)
         }
     }
@@ -162,7 +162,7 @@ public class AudioVisualizerManager(
         }
 
         if (enabled && !hasRecordAudioPermission()) {
-            Log.w(TAG, "Cannot enable visualizer: RECORD_AUDIO permission not granted")
+            LogUtils.w(TAG, "Cannot enable visualizer: RECORD_AUDIO permission not granted")
             release(clearRequestedSessionId = false)
             return
         }
@@ -181,7 +181,7 @@ public class AudioVisualizerManager(
         try {
             applyVisualizerEnabledState(enabled)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to set visualizer enabled state", e)
+            LogUtils.e(TAG, "Failed to set visualizer enabled state", e)
             release(clearRequestedSessionId = false)
         }
     }
@@ -224,9 +224,9 @@ public class AudioVisualizerManager(
             }
             _isActive.value = false
             clearVisualizationData()
-            Log.d(TAG, "Visualizer released")
+            LogUtils.d(TAG, "Visualizer released")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to release visualizer", e)
+            LogUtils.e(TAG, "Failed to release visualizer", e)
             visualizer = null
             audioSessionId = 0
             if (clearRequestedSessionId) {

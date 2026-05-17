@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -89,7 +90,7 @@ internal class MetadataManager(
                 try {
                     val file = File(filePath)
                     if (!file.exists()) {
-                        android.util.Log.w("AudioPlayerService", "File does not exist: $filePath")
+                        LogUtils.w("AudioPlayerService", "File does not exist: $filePath")
                         return@withContext null
                     }
 
@@ -108,7 +109,7 @@ internal class MetadataManager(
                                 val cacheDir = context.cacheDir
                                 val artworkFile = File(cacheDir, "embedded_artwork_${filePath.hashCode()}.jpg")
                                 artworkFile.outputStream().use { it.write(picture) }
-                                android.util.Log.i(
+                                LogUtils.i(
                                     "AudioPlayerService",
                                     "Extracted and saved embedded artwork from ID3 tags: $filePath (${picture.size} bytes) -> ${artworkFile.absolutePath}",
                                 )
@@ -116,20 +117,20 @@ internal class MetadataManager(
                                 setEmbeddedArtworkPath(artworkPath)
                                 return@withContext artworkPath
                             } else {
-                                android.util.Log.d(
+                                LogUtils.d(
                                     "AudioPlayerService",
                                     "Skipped small/invalid embedded artwork from $filePath (${picture.size} bytes)",
                                 )
                             }
                         }
 
-                        android.util.Log.d("AudioPlayerService", "No embedded artwork found in $filePath")
+                        LogUtils.d("AudioPlayerService", "No embedded artwork found in $filePath")
                         null
                     } finally {
                         retriever.release()
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("AudioPlayerService", "Failed to extract artwork from $filePath", e)
+                    LogUtils.e("AudioPlayerService", "Failed to extract artwork from $filePath", e)
                     null
                 }
             }

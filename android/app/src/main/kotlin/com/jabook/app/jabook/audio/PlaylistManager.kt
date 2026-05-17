@@ -41,6 +41,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -97,6 +100,26 @@ internal class PlaylistManager(
     var lastCompletedTrackIndex: Int = -1
     var isBookCompleted = false
     var actualTrackIndex: Int = 0
+
+    // Progress tracking for playlist loading
+    data class PlaylistLoadProgress(
+        val loaded: Int,
+        val total: Int,
+        val phase: Phase,
+    ) {
+        enum class Phase {
+            IDLE,
+            LOADING_FIRST,
+            LOADING_CRITICAL,
+            LOADING_BACKGROUND,
+            DONE,
+        }
+
+        val fraction: Float get() = if (total > 0) loaded.toFloat() / total else 0f
+    }
+
+    private val _loadProgress = MutableStateFlow(PlaylistLoadProgress(0, 0, PlaylistLoadProgress.Phase.IDLE))
+    val loadProgress: StateFlow<PlaylistLoadProgress> = _loadProgress
 
     // Saved state for restoration
     var savedPlaybackState: SavedPlaybackState? = null
@@ -519,6 +542,9 @@ internal class PlaylistManager(
                 "targetPosition=${initialPosition}ms, strategy=$strategy",
         )
 
+        // Initialize progress
+        _loadProgress.update { PlaylistLoadProgress(0, playlistSize, PlaylistLoadProgress.Phase.LOADING_FIRST) }
+
         try {
             when (strategy) {
                 PlaylistLoadStrategy.SYNC -> {
@@ -603,6 +629,9 @@ internal class PlaylistManager(
                 "✅ Synchronous playlist loaded: ${mediaItems.size} tracks in ${loadDuration}ms " +
                     "(startIndex=$startIndex, startPosition=${startPosition}ms)",
             )
+
+            // Mark loading as complete for synchronous loading
+            _loadProgress.update { PlaylistLoadProgress(mediaItems.size, mediaItems.size, PlaylistLoadProgress.Phase.DONE) }
         }
     }
 
@@ -656,6 +685,9 @@ internal class PlaylistManager(
                 // This prevents ExoPlayer from switching to a different track when other tracks load
                 activePlayer.addMediaSource(firstTrackIndex, firstMediaSource)
                 activePlayer.prepare()
+
+                // Report initial progress after first track loaded
+                _loadProgress.update { PlaylistLoadProgress(1, filePaths.size, PlaylistLoadProgress.Phase.LOADING_FIRST) }
 
                 // CRITICAL: Position will be applied after all tracks are loaded
                 // This prevents ExoPlayer from switching to another track when MediaItems are added
@@ -818,7 +850,7 @@ internal class PlaylistManager(
                                             return@withContext
                                         }
 
-                                        // All checks passed, add the MediaItem
+// All checks passed, add the MediaItem
                                         activePlayer.addMediaSource(index, mediaSource)
                                         addedIndices.add(index)
                                         val loadDuration = System.currentTimeMillis() - loadStartTime
@@ -826,6 +858,14 @@ internal class PlaylistManager(
                                             "AudioPlayerService",
                                             "✅ Loaded track $index: $fileName (${loadDuration}ms, priority: $priority, playlist size: ${activePlayer.mediaItemCount})",
                                         )
+                                        // Update progress
+                                        _loadProgress.update {
+                                            PlaylistLoadProgress(
+                                                addedIndices.size,
+                                                filePaths.size,
+                                                PlaylistLoadProgress.Phase.LOADING_CRITICAL,
+                                            )
+                                        }
                                     }
                                 }
                             } catch (e: Exception) {
@@ -903,10 +943,12 @@ internal class PlaylistManager(
                             )
                         }
 
-                        // Clear job reference when done
+// Clear job reference when done
                         if (activeLoadingJob === kotlinx.coroutines.currentCoroutineContext()[Job]) {
                             activeLoadingJob = null
                         }
+                        // Mark loading as complete
+                        _loadProgress.update { PlaylistLoadProgress(filePaths.size, filePaths.size, PlaylistLoadProgress.Phase.DONE) }
                     }
                 }
 

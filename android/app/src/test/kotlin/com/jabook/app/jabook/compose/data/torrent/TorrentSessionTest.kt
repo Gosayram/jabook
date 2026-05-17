@@ -402,6 +402,10 @@ public class FakeTorrentSession : TorrentSession {
 
     override fun getDownload(hash: String): TorrentDownload? = _downloadsFlow.value[hash]
 
+    override fun restoreActiveDownloads() {
+        // No-op in fake — tests that need restore can override
+    }
+
     override fun stopSession() {
         isInitialized = false
         _downloadsFlow.value = emptyMap()

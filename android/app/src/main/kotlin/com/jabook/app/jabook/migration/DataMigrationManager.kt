@@ -15,10 +15,10 @@
 package com.jabook.app.jabook.migration
 
 import android.content.Context
-import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
+import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -56,19 +56,19 @@ public class DataMigrationManager
 
                 // Check if already migrated
                 if (prefs.getBoolean(KEY_MIGRATION_COMPLETED, false)) {
-                    Log.d(TAG, "Migration already completed")
+                    LogUtils.d(TAG, "Migration already completed")
                     return@withContext false
                 }
 
                 // Check if legacy state exists
                 val hasLegacyState = prefs.contains(KEY_PLAYER_STATE)
-                Log.d(TAG, "needsMigration: $hasLegacyState")
+                LogUtils.d(TAG, "needsMigration: $hasLegacyState")
                 hasLegacyState
             }
 
         public suspend fun migrateFromFlutter(): MigrationResult =
             withContext(Dispatchers.IO) {
-                Log.d(TAG, "Starting migration from Flutter...")
+                LogUtils.d(TAG, "Starting migration from Flutter...")
                 var insertedBookId: String? = null
                 try {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -107,7 +107,7 @@ public class DataMigrationManager
                             artist = artist,
                         )
 
-                    Log.i(TAG, "Migrating book: $title (ID: $bookId) from $groupPath")
+                    LogUtils.i(TAG, "Migrating book: $title (ID: $bookId) from $groupPath")
 
                     // Create BookEntity
                     // We treat it as "Partial" because we haven't scanned it fully yet
@@ -135,7 +135,7 @@ public class DataMigrationManager
                     // Mark as migrated
                     prefs.edit().putBoolean(KEY_MIGRATION_COMPLETED, true).apply()
 
-                    Log.i(TAG, "Migration successful for 1 book")
+                    LogUtils.i(TAG, "Migration successful for 1 book")
                     MigrationResult.Success(
                         booksCount = 1,
                         chaptersCount = 0,
@@ -144,7 +144,7 @@ public class DataMigrationManager
                     )
                 } catch (e: Exception) {
                     val rollbackReport = rollbackAfterFailure(insertedBookId)
-                    Log.e(TAG, "Migration failed", e)
+                    LogUtils.e(TAG, "Migration failed", e)
                     MigrationResult.Failure(
                         error = e,
                         rollbackReport = rollbackReport,
@@ -200,7 +200,7 @@ public class DataMigrationManager
                     steps = listOf("deleted_migrated_book:$insertedBookId"),
                 )
             } catch (rollbackError: Exception) {
-                Log.e(TAG, "Rollback failed for migrated book $insertedBookId", rollbackError)
+                LogUtils.e(TAG, "Rollback failed for migrated book $insertedBookId", rollbackError)
                 MigrationRollbackReport(
                     attempted = true,
                     succeeded = false,

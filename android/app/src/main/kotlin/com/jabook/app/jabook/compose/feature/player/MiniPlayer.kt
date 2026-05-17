@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -27,6 +29,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,12 +37,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -56,12 +58,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.transformations
 import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.theme.MotionTokens
+import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
+import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
+import com.jabook.app.jabook.ui.theme.JabookTheme
 import kotlin.math.abs
 
 /**
@@ -119,22 +126,14 @@ public fun MiniPlayer(
 
     // Alpha fades primarily on vertical dismiss
     val dragProgress = (animatedOffsetY.coerceAtLeast(0f) / dismissThreshold).coerceIn(0f, 1f)
-    val alpha by animateFloatAsState(
-        targetValue = 1f - (dragProgress * 0.5f),
-        animationSpec = tween(100),
-        label = "miniPlayerAlpha",
-    )
+    val alpha = 1f - (dragProgress * 0.5f)
 
-    // Scale animation during drag
-    val scale by animateFloatAsState(
-        targetValue = 1f - (dragProgress * 0.05f),
-        animationSpec = tween(100),
-        label = "miniPlayerScale",
-    )
+    // Scale during drag
+    val scale = 1f - (dragProgress * 0.05f)
 
     val interactionSource = remember { MutableInteractionSource() }
 
-    Card(
+    Surface(
         modifier =
             modifier
                 .fillMaxWidth()
@@ -207,7 +206,7 @@ public fun MiniPlayer(
                     }
                 },
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        tonalElevation = SurfaceElevationTokens.Level3,
     ) {
         Column {
             // Cover image with rounded corners
@@ -227,6 +226,7 @@ public fun MiniPlayer(
                 modifier =
                     Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 64.dp)
                         .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -246,7 +246,7 @@ public fun MiniPlayer(
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
                     if (author.isNotBlank()) {
@@ -294,6 +294,23 @@ public fun MiniPlayer(
     }
 }
 
+@Preview(name = "MiniPlayer Large Font", fontScale = 1.5f, showBackground = true)
+@Preview(name = "MiniPlayer Huge Font", fontScale = 2.0f, showBackground = true)
+@Composable
+private fun MiniPlayerFontScalePreview() {
+    JabookTheme {
+        MiniPlayer(
+            coverUrl = null,
+            title = "Очень длинное название аудиокниги для проверки адаптивности в мини-плеере",
+            author = "Очень длинное имя автора",
+            isPlaying = true,
+            progress = 0.42f,
+            onPlayPauseClick = {},
+            onMiniPlayerClick = {},
+        )
+    }
+}
+
 /**
  * Animated container for MiniPlayer with slide-in/out animations.
  */
@@ -312,18 +329,31 @@ public fun AnimatedMiniPlayer(
     onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val reduceMotion = rememberReduceMotion()
     AnimatedVisibility(
         visible = visible,
         enter =
-            slideInVertically(
-                initialOffsetY = { it },
-                animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
-            ),
+            if (reduceMotion) {
+                EnterTransition.None
+            } else {
+                slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f),
+                )
+            },
         exit =
-            slideOutVertically(
-                targetOffsetY = { it },
-                animationSpec = tween(200),
-            ),
+            if (reduceMotion) {
+                ExitTransition.None
+            } else {
+                slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec =
+                        tween(
+                            durationMillis = MotionTokens.MEDIUM1,
+                            easing = MotionTokens.EmphasizedAccelerate,
+                        ),
+                )
+            },
         modifier = modifier,
     ) {
         MiniPlayer(

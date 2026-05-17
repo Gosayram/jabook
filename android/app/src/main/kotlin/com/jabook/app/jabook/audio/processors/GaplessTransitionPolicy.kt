@@ -12,20 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.jabook.app.jabook.compose.data.local.entity
+package com.jabook.app.jabook.audio.processors
 
-import androidx.room.Entity
-import androidx.room.Fts4
-
-/**
- * FTS mirror for books table.
- *
- * Note: FTS4 is used for Room/KSP compatibility in current stack.
- */
-@Fts4(contentEntity = BookEntity::class)
-@Entity(tableName = "books_fts")
-public data class BookFtsEntity(
-    val title: String,
-    val author: String,
-    val description: String?,
-)
+internal object GaplessTransitionPolicy {
+    fun isGaplessPossible(settings: AudioProcessingSettings): Boolean = !settings.isCrossfadeEnabled
+}

@@ -27,7 +27,6 @@ import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.dao.ScanPathDao
 import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
-import com.jabook.app.jabook.compose.data.local.entity.BookFtsEntity
 import com.jabook.app.jabook.compose.data.local.entity.BookmarkEntity
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
@@ -64,11 +63,12 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 18: Added hot-path indices for books/chapters query performance.
  * Database version 19: Added lufs_value and preferred_speed columns for per-book loudness analysis and speed preference.
  * Database version 20: Added bookmarks table for timeline bookmarks and voice-note metadata.
+ * Database version 21: Upgraded books_fts from FTS4 to FTS5 for bm25 ranking and better Unicode support.
+ * Database version 22: Added resumeData BLOB column to torrent_downloads for crash-safe download resumption.
  */
 @Database(
     entities = [
         BookEntity::class,
-        BookFtsEntity::class,
         BookmarkEntity::class,
         ChapterEntity::class,
         SearchHistoryEntity::class,
@@ -81,7 +81,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         CachedTopicEntity::class,
         SearchQueryEntity::class,
     ],
-    version = 20,
+    version = 22,
     exportSchema = true, // Enable schema export for migration validation and debugging
 )
 public abstract class JabookDatabase : RoomDatabase() {

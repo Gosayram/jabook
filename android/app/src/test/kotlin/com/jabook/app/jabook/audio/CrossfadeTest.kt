@@ -19,6 +19,14 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Before
@@ -26,34 +34,42 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
-import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLooper
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class CrossfadeTest {
     private lateinit var context: Context
     private lateinit var crossFadePlayer: CrossFadePlayer
     private lateinit var playerA: ExoPlayer
     private lateinit var playerB: ExoPlayer
+    private val testDispatcher = StandardTestDispatcher()
+    private val testScope = TestScope(testDispatcher)
 
     @Before
     fun setup() {
+        Dispatchers.setMain(testDispatcher)
         context = ApplicationProvider.getApplicationContext()
         playerA = mock()
         playerB = mock()
 
         // Mock factory to return our mocks
         var callCount = 0
-        val factory = { _: Context ->
+        val factory = { _: Context, handleAudioFocus: Boolean ->
             callCount++
             if (callCount == 1) playerA else playerB
         }
 
-        crossFadePlayer = CrossFadePlayer(context, factory)
+        crossFadePlayer = CrossFadePlayer(context, factory, testScope)
         // Set short duration for testing
         crossFadePlayer.crossFadeDurationMs = 100L
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
     }
 
     @Test
@@ -64,7 +80,8 @@ class CrossfadeTest {
         // When
         crossFadePlayer.startCrossFade()
 
-        // Advance time to complete animation
+        // Advance coroutine time to complete crossfade
+        testScope.advanceUntilIdle()
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
 
         // Then
@@ -80,7 +97,10 @@ class CrossfadeTest {
         // When
         crossFadePlayer.setNextTrack(mediaItem)
 
-        // Then (assuming playerA is active, playerB is next)
+        // Then (playerA is active, playerB is next)
+        testScope.advanceUntilIdle()
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
         verify(playerB).clearMediaItems()
         verify(playerB).setMediaItem(mediaItem)
         verify(playerB).prepare()
@@ -92,6 +112,7 @@ class CrossfadeTest {
         crossFadePlayer.onPlayerChanged = { callbackPlayer = it }
 
         crossFadePlayer.startCrossFade()
+        testScope.advanceUntilIdle()
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
 
         assertNotNull(callbackPlayer)
@@ -102,6 +123,9 @@ class CrossfadeTest {
     fun `Prepare next MediaSource sets source on idle player`() {
         val mediaSource = mock<MediaSource>()
         crossFadePlayer.setNextMediaSource(mediaSource)
+        testScope.advanceUntilIdle()
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
         verify(playerB).clearMediaItems()
         verify(playerB).setMediaSource(mediaSource)
         verify(playerB).prepare()
@@ -117,11 +141,12 @@ class CrossfadeTest {
         // While crossfade is active request is queued, not applied immediately.
         verify(playerA, never()).setMediaItem(queuedAfterCrossfade)
 
+        // Advance coroutine time and Robolectric looper to complete crossfade
+        testScope.advanceUntilIdle()
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
 
-        // After swap, outgoing player becomes standby and receives queued preload.
-        // Once from crossfade cleanup + once from applying the queued preload.
-        verify(playerA, times(2)).clearMediaItems()
+        // After swap, nextPlayer (playerA) receives queued preload.
+        // After swap: currentPlayer=playerB, nextPlayer=playerA
         verify(playerA).setMediaItem(queuedAfterCrossfade)
         verify(playerA).prepare()
     }
@@ -134,6 +159,9 @@ class CrossfadeTest {
         crossFadePlayer.startCrossFade()
         crossFadePlayer.setNextTrack(first)
         crossFadePlayer.setNextTrack(second)
+
+        // Advance to complete crossfade
+        testScope.advanceUntilIdle()
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
 
         verify(playerA, never()).setMediaItem(first)

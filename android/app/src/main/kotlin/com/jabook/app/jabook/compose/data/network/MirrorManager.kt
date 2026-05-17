@@ -30,6 +30,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -70,6 +72,11 @@ public class MirrorManager
             CoroutineScope(
                 SupervisorJob() + NetworkRuntimePolicy.ioDispatcher + loggingCoroutineExceptionHandler("MirrorManager"),
             )
+
+        private val circuitFailureCounts = ConcurrentHashMap<String, AtomicInteger>()
+        private val circuitOpenSince = ConcurrentHashMap<String, Long>()
+        private val circuitResetTimeoutMs = 60_000L
+        private val circuitFailureThreshold = 3
 
         private val _currentMirror = MutableStateFlow(DEFAULT_MIRROR)
 
@@ -131,13 +138,18 @@ public class MirrorManager
         }
 
         /**
-         * Check if a mirror is accessible.
+         * Check if a mirror is accessible, respecting Circuit Breaker state.
          *
          * @param domain Mirror domain to check
          * @return true if mirror responds within timeout, false otherwise
          */
         public suspend fun checkMirrorHealth(domain: String): Boolean =
             withContext(NetworkRuntimePolicy.ioDispatcher) {
+                if (isCircuitOpen(domain)) {
+                    logger.d { "Circuit open for $domain, skipping health check" }
+                    return@withContext false
+                }
+
                 try {
                     logger.d { "Checking health of mirror: $domain" }
 
@@ -153,6 +165,7 @@ public class MirrorManager
                     logger.d { "Mirror $domain health: ${if (isHealthy) "OK" else "FAILED"} (${response.code})" }
                     response.close()
 
+                    if (isHealthy) recordCircuitSuccess(domain) else recordCircuitFailure(domain)
                     isHealthy
                 } catch (e: CancellationException) {
                     throw e
@@ -164,9 +177,34 @@ public class MirrorManager
                         throwable = e,
                         attributes = mapOf("mirror_domain" to domain),
                     )
+                    recordCircuitFailure(domain)
                     false
                 }
             }
+
+        private fun isCircuitOpen(domain: String): Boolean {
+            val openSince = circuitOpenSince[domain] ?: return false
+            return if (System.currentTimeMillis() - openSince < circuitResetTimeoutMs) {
+                true
+            } else {
+                circuitOpenSince.remove(domain) // half-open: allow one probe
+                false
+            }
+        }
+
+        private fun recordCircuitFailure(domain: String) {
+            val count = circuitFailureCounts.getOrPut(domain) { AtomicInteger(0) }.incrementAndGet()
+            if (count >= circuitFailureThreshold) {
+                circuitOpenSince[domain] = System.currentTimeMillis()
+                circuitFailureCounts.remove(domain)
+                logger.w { "Circuit opened for $domain after $count failures" }
+            }
+        }
+
+        private fun recordCircuitSuccess(domain: String) {
+            circuitFailureCounts.remove(domain)
+            circuitOpenSince.remove(domain)
+        }
 
         /**
          * Switch to the next available working mirror.

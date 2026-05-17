@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
-import android.util.Log
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Performance logger for tracking player initialization timing.
@@ -54,7 +54,7 @@ public object PlayerPerformanceLogger {
         sessionName = name
         sessionStartTime = System.currentTimeMillis()
         events.clear()
-        Log.d(TAG, "========== Performance Session: $name ==========")
+        LogUtils.d(TAG, "========== Performance Session: $name ==========")
     }
 
     /**
@@ -82,7 +82,7 @@ public object PlayerPerformanceLogger {
 
         events.add(timingEvent)
 
-        Log.d(TAG, "[$component +${elapsed}ms] $event")
+        LogUtils.d(TAG, "[$component +${elapsed}ms] $event")
     }
 
     /**
@@ -108,23 +108,23 @@ public object PlayerPerformanceLogger {
      */
     public fun summary() {
         if (events.isEmpty()) {
-            Log.w(TAG, "No events logged")
+            LogUtils.w(TAG, "No events logged")
             return
         }
 
         val totalTime = events.lastOrNull()?.elapsed ?: 0L
 
-        Log.d(TAG, "")
-        Log.d(TAG, "========== Performance Summary: $sessionName ==========")
-        Log.d(TAG, "Total time: ${totalTime}ms")
-        Log.d(TAG, "")
+        LogUtils.d(TAG, "")
+        LogUtils.d(TAG, "========== Performance Summary: $sessionName ==========")
+        LogUtils.d(TAG, "Total time: ${totalTime}ms")
+        LogUtils.d(TAG, "")
 
         // Group by component
         val byComponent = events.groupBy { it.component }
         byComponent.forEach { (component, componentEvents) ->
-            Log.d(TAG, "[$component]")
+            LogUtils.d(TAG, "[$component]")
             componentEvents.forEach { event ->
-                Log.d(TAG, "  +${event.elapsed}ms: ${event.event}")
+                LogUtils.d(TAG, "  +${event.elapsed}ms: ${event.event}")
             }
 
             // Component timing
@@ -132,25 +132,25 @@ public object PlayerPerformanceLogger {
             val componentEnd = componentEvents.lastOrNull()?.elapsed ?: 0L
             val componentDuration = componentEnd - componentStart
             if (componentDuration > 0) {
-                Log.d(TAG, "  Duration: ${componentDuration}ms")
+                LogUtils.d(TAG, "  Duration: ${componentDuration}ms")
             }
-            Log.d(TAG, "")
+            LogUtils.d(TAG, "")
         }
 
         // Find bottlenecks (gaps > 100ms)
-        Log.d(TAG, "⚠️ Bottlenecks (gaps > 100ms):")
+        LogUtils.d(TAG, "⚠️ Bottlenecks (gaps > 100ms):")
         for (i in 1 until events.size) {
             val prev = events[i - 1]
             val curr = events[i]
             val gap = curr.timestamp - prev.timestamp
             if (gap > 100) {
-                Log.d(TAG, "  ${gap}ms gap between:")
-                Log.d(TAG, "    [${prev.component}] ${prev.event}")
-                Log.d(TAG, "    [${curr.component}] ${curr.event}")
+                LogUtils.d(TAG, "  ${gap}ms gap between:")
+                LogUtils.d(TAG, "    [${prev.component}] ${prev.event}")
+                LogUtils.d(TAG, "    [${curr.component}] ${curr.event}")
             }
         }
 
-        Log.d(TAG, "===================================================")
+        LogUtils.d(TAG, "===================================================")
     }
 
     /**

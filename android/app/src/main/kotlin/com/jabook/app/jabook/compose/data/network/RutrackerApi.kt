@@ -33,6 +33,7 @@ public interface RutrackerApi {
      * @return List of search results
      */
     @GET("forum/tracker.php")
+    @RequestTimeout(connectMs = 5_000, readMs = 10_000, writeMs = 5_000)
     public suspend fun searchTopics(
         @Query("nm") query: String,
         @Query("f") category: String? = null,
@@ -45,6 +46,7 @@ public interface RutrackerApi {
      * @return Topic details including torrent link
      */
     @GET("forum/viewtopic.php")
+    @RequestTimeout(connectMs = 5_000, readMs = 30_000, writeMs = 5_000)
     public suspend fun getTopicDetails(
         @Query("t") topicId: String,
     ): String // Returns HTML, will need parsing
