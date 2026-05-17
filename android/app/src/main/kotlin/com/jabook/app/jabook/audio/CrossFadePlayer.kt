@@ -39,7 +39,7 @@ import com.jabook.app.jabook.util.LogUtils
  */
 public class CrossFadePlayer(
     private val context: Context,
-    private val playerFactory: (Context) -> ExoPlayer,
+    private val playerFactory: (Context, handleAudioFocus: Boolean) -> ExoPlayer,
 ) {
     private sealed interface PendingPreloadRequest {
         data class MediaItemRequest(
@@ -51,8 +51,8 @@ public class CrossFadePlayer(
         ) : PendingPreloadRequest
     }
 
-    private var playerA: ExoPlayer = playerFactory(context)
-    private var playerB: ExoPlayer = playerFactory(context)
+    private var playerA: ExoPlayer = playerFactory(context, true)
+    private var playerB: ExoPlayer = playerFactory(context, false)
 
     private var currentPlayer: ExoPlayer = playerA
     private var nextPlayer: ExoPlayer = playerB

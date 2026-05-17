@@ -46,7 +46,7 @@ class CrossfadeTest {
 
         // Mock factory to return our mocks
         var callCount = 0
-        val factory = { _: Context ->
+        val factory = { _: Context, handleAudioFocus: Boolean ->
             callCount++
             if (callCount == 1) playerA else playerB
         }
