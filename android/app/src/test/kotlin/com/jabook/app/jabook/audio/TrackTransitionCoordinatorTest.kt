@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -31,6 +32,7 @@ class TrackTransitionCoordinatorTest {
 
     private fun createCoordinator(isPlaylistLoading: (() -> Boolean)? = null): TrackTransitionCoordinator =
         TrackTransitionCoordinator(
+            context = ApplicationProvider.getApplicationContext(),
             isPlaylistLoading = isPlaylistLoading,
             updateActualTrackIndex = { lastActualTrackIndex = it },
         )
