@@ -1383,7 +1383,7 @@ public class PlayerViewModel
                             message =
                                 context.getString(
                                     R.string.smartResumeRecapSuggestion,
-                                    (suggestion.pauseDurationMs / 3_600_000L).coerceAtLeast(1L),
+                                    suggestion.pauseDurationMs / 3_600_000L,
                                 ),
                             actionLabel = context.getString(R.string.smartResumeRecapAction),
                             actionIntent = PlayerIntent.SeekTo(suggestion.recapStartMs),

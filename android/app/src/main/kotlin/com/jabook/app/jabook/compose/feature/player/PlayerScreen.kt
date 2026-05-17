@@ -2493,7 +2493,7 @@ private fun PlayerContent(
                         enabled = !pendingBookmarkAudioPath.isNullOrBlank(),
                         onClick = {
                             val path = pendingBookmarkAudioPath ?: return@FilledTonalButton
-                            if (isPlayingBookmarkAudio) {
+                            if (bookmarkPlayer.value != null) {
                                 bookmarkPlayer.value?.runCatching {
                                     stop()
                                     reset()
@@ -2516,6 +2516,7 @@ private fun PlayerContent(
                                     isPlayingBookmarkAudio = false
                                 }
                                 player.setOnPreparedListener {
+                                    if (bookmarkPlayer.value !== it) return@setOnPreparedListener
                                     it.start()
                                     isPlayingBookmarkAudio = true
                                 }
@@ -2523,6 +2524,8 @@ private fun PlayerContent(
                                     playerScreenLogger.e {
                                         "Bookmark voice-note playback failed in MediaPlayer listener: what=$what extra=$extra"
                                     }
+                                    bookmarkPlayer.value = null
+                                    isPlayingBookmarkAudio = false
                                     seekScope.launch {
                                         snackbarHostState.showSnackbar(
                                             context.getString(R.string.errorPlayingVoiceNote),
@@ -2532,8 +2535,6 @@ private fun PlayerContent(
                                         reset()
                                         release()
                                     }
-                                    bookmarkPlayer.value = null
-                                    isPlayingBookmarkAudio = false
                                     true
                                 }
                                 player.prepareAsync()
