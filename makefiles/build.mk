@@ -33,3 +33,15 @@ build-signed-apk: use-existing-android-cert patch-gradle-signing ## Build signed
 build-signed-apk-beta: use-existing-android-cert patch-gradle-signing ## Build signed beta APKs (split + universal)
 	@cd android && ./gradlew :app:assembleBetaRelease
 	@echo "✅ Signed beta APKs built at: build/app/outputs/apk/beta/release"
+
+## Dependency Verification
+
+.PHONY: update-gradle-verification
+update-gradle-verification: ## Update gradle/verification-metadata.xml with new dependency checksums
+	@echo "Updating gradle verification metadata..."
+	@cd android && ./gradlew :app:generateProtoLite -M sha256,pgp --export-keys
+	@echo "✅ Verification metadata updated. Review changes before committing."
+
+.PHONY: disable-gradle-verification
+disable-gradle-verification: ## Temporarily disable dependency verification (for CI debugging)
+	@cd android && ./gradlew :app:assembleDevDebug -F off

@@ -14,7 +14,12 @@
 
 package com.jabook.app.jabook.audio
 
+import android.content.Context
 import android.os.SystemClock
+import coil3.SingletonImageLoader
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.size.Size
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CompletableDeferred
 
@@ -26,8 +31,10 @@ import kotlinx.coroutines.CompletableDeferred
  * - Managing pending track switch deferreds for async playlist operations
  * - Deduplicating rapid track transition events
  * - Updating actual track index from transition events
+ * - Preloading next track artwork to avoid UI flicker
  */
 internal class TrackTransitionCoordinator(
+    private val context: Context,
     private val isPlaylistLoading: (() -> Boolean)? = null,
     private val updateActualTrackIndex: ((Int) -> Unit)? = null,
 ) {
@@ -135,5 +142,26 @@ internal class TrackTransitionCoordinator(
         } finally {
             pendingTrackSwitchDeferred = null
         }
+    }
+
+    /**
+     * Preloads the next track's artwork into Coil's memory cache.
+     * Call this before transitioning to avoid UI flicker when artwork changes.
+     */
+    fun preloadNextCover(mediaItem: androidx.media3.common.MediaItem) {
+        val artworkUri = mediaItem.mediaMetadata.artworkUri ?: return
+
+        val request =
+            ImageRequest
+                .Builder(context)
+                .data(artworkUri)
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .size(Size(512, 512))
+                .build()
+
+        val loader = SingletonImageLoader.get(context)
+        loader.enqueue(request)
+        LogUtils.d("AudioPlayerService", "Preloaded artwork for URI: $artworkUri")
     }
 }
