@@ -97,7 +97,31 @@ public class EchoAudioProcessor(
         outputBuffer!!.order(ByteOrder.nativeOrder())
 
         for (buf in inputBuffers) {
-            outputBuffer!!.put(buf)
+            buf.flip()
+            if (echoBuffer != null) {
+                // Apply echo effect using the delay line
+                val shortBuffer = buf.asShortBuffer()
+                val outputShorts = outputBuffer!!.asShortBuffer()
+                while (shortBuffer.hasRemaining()) {
+                    val inputSample = shortBuffer.get()
+                    // Read delayed sample
+                    echoBuffer!!.position(echoPosition * 2)
+                    val delayedSample = echoBuffer!!.short
+                    // Write to output and back to delay line
+                    val echoSample =
+                        (
+                            (inputSample + (delayedSample * decay)).toInt().coerceIn(
+                                Short.MIN_VALUE.toInt(),
+                                Short.MAX_VALUE.toInt(),
+                            )
+                        ).toShort()
+                    outputShorts.put(echoSample)
+                    echoBuffer!!.putShort(echoPosition * 2, echoSample)
+                    echoPosition = (echoPosition + 1) % (echoBufferSize / 2)
+                }
+            } else {
+                outputBuffer!!.put(buf)
+            }
         }
 
         inputBuffers.clear()

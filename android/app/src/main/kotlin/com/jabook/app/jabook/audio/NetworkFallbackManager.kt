@@ -45,6 +45,7 @@ public class NetworkFallbackManager(
 
     private var currentQualityIndex = 0
     private var retryCount = 0
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
 
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -55,7 +56,7 @@ public class NetworkFallbackManager(
 
     private fun startNetworkMonitoring() {
         // Register network callback to monitor changes
-        val networkCallback =
+        networkCallback =
             object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
                     checkNetworkQuality()
@@ -73,7 +74,7 @@ public class NetworkFallbackManager(
                 }
             }
 
-        connectivityManager.registerDefaultNetworkCallback(networkCallback)
+        connectivityManager.registerDefaultNetworkCallback(networkCallback!!)
     }
 
     private fun checkNetworkQuality() {
@@ -120,10 +121,18 @@ public class NetworkFallbackManager(
         }
     }
 
-    /**
+/**
      * Releases the network fallback manager and unregisters callbacks.
      */
     public fun release() {
+        networkCallback?.let { callback ->
+            try {
+                connectivityManager.unregisterNetworkCallback(callback)
+            } catch (e: IllegalArgumentException) {
+                LogUtils.w(TAG, "Callback already unregistered", e)
+            }
+        }
+        networkCallback = null
         scope.cancel()
     }
 

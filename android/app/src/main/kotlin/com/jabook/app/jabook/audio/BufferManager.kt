@@ -71,7 +71,7 @@ public class BufferManager(
                     } else if (playWhenReady && playbackState == stateReady) {
                         // Increase buffer size if we have enough data
                         if (bufferedPosition - position > currentBufferMs) {
-                            currentBufferMs = (currentBufferMs * 1.1).toLong().coerceAtLeast(maxBufferMs)
+                            currentBufferMs = (currentBufferMs * 1.1).toLong().coerceAtMost(maxBufferMs)
                         }
                     }
 

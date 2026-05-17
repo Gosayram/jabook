@@ -42,7 +42,6 @@ public class ProxyAudioProcessor(
 ) : AudioProcessor {
     private var inputAudioFormat: AudioProcessor.AudioFormat? = null
     private var outputAudioFormat: AudioProcessor.AudioFormat? = null
-    private var active: Boolean = false
 
     /**
      * Hot-swaps the delegate processor.
@@ -74,9 +73,6 @@ public class ProxyAudioProcessor(
         this.inputAudioFormat = inputAudioFormat
         val result = delegate.configure(inputAudioFormat)
         this.outputAudioFormat = result
-
-        active = delegate.isActive
-
         return result
     }
 

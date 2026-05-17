@@ -143,19 +143,10 @@ public class AudioPlayerServiceInitializer(
                         LogUtils.w("AudioPlayerService", "Failed to save sleep timer state to DataStore", e)
                     }
                 },
-                isShakeToExtendEnabled = {
-                    try {
-                        kotlinx.coroutines.runBlocking {
-                            service.settingsRepository.userPreferences
-                                .first()
-                                .sleepTimerShakeExtendEnabled
-                        }
-                    } catch (e: Exception) {
-                        true
-                    }
-                },
             )
-        service.sleepTimerManager?.restoreTimerState()
+        kotlinx.coroutines.runBlocking {
+            service.sleepTimerManager?.restoreTimerState()
+        }
 
         // 4. PlaylistManager (Complex dependencies)
         service.playlistManager =

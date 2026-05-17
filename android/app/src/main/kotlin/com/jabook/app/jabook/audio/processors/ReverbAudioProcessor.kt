@@ -21,11 +21,12 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * Reverb audio processor.
+ * Audio processor placeholder for future reverb implementation.
  *
- * Uses a simple algorithmic reverb to add room ambience.
+ * Currently passes audio through unchanged. The strength parameter is reserved
+ * for future use when the actual reverb algorithm is implemented.
  *
- * @property strength Reverb strength (0.0 to 1.0)
+ * @property strength Reverb strength (0.0 to 1.0) - currently unused
  */
 @UnstableApi
 public class ReverbAudioProcessor(

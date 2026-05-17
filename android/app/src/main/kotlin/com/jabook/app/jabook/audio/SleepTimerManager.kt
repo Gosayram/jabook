@@ -474,19 +474,17 @@ internal class SleepTimerManager(
      *
      * Should be called in onCreate or onStartCommand to restore timer after app restart.
      */
-    public fun restoreTimerState() {
+    public suspend fun restoreTimerState() {
         try {
             // Try DataStore first if settingsRepository is available
             if (settingsRepository != null) {
                 try {
                     val dataStoreState =
-                        kotlinx.coroutines.runBlocking {
-                            (settingsRepository as? com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository)
-                                ?.sleepTimerState
-                                ?.first()
-                                ?: com.jabook.app.jabook.compose.data.preferences.SleepTimerState
-                                    .getDefaultInstance()
-                        }
+                        (settingsRepository as? com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository)
+                            ?.sleepTimerState
+                            ?.first()
+                            ?: com.jabook.app.jabook.compose.data.preferences.SleepTimerState
+                                .getDefaultInstance()
                     if (dataStoreState.mode.isNotBlank() || dataStoreState.endTimeEpochMs > 0L) {
                         restoreFromDataStoreState(dataStoreState)
                         LogUtils.d("AudioPlayerService", "Sleep timer restored from DataStore")
