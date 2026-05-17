@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
-import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -29,7 +28,6 @@ import org.junit.Test
  * - dialSweepAngle: calculates dial visual sweep angle
  */
 class PlaybackSpeedSheetTest {
-
     // --- addRecentSpeed ---
 
     @Test
@@ -77,7 +75,7 @@ class PlaybackSpeedSheetTest {
         assertEquals(1.5f, result, 0.01f)
     }
 
-@Test
+    @Test
     fun `dialSpeedForDrag increases speed for positive drag`() {
         val result = dialSpeedForDrag(1.5f, 500f, 1000f)
         // delta = 500/1000 * (2.0 - 0.5) = 0.75, result = 1.5 + 0.75 = 2.25

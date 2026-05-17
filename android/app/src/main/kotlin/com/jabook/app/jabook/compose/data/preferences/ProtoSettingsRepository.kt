@@ -60,6 +60,11 @@ public interface SettingsRepository {
     public val playerStateSnapshot: Flow<PlayerStateSnapshotPreference?>
 
     /**
+     * Sleep timer state from DataStore (P-12 migration from SharedPreferences).
+     */
+    public val sleepTimerState: Flow<SleepTimerState>
+
+    /**
      * Update theme mode.
      */
     public suspend fun updateThemeMode(themeMode: ThemeMode)
@@ -178,7 +183,7 @@ public interface SettingsRepository {
      */
     public suspend fun updateOnboardingCompleted(completed: Boolean)
 
-    /**
+/**
      * Persist player state snapshot for process death restore fallback.
      */
     public suspend fun updatePlayerStateSnapshot(snapshot: PlayerStateSnapshotPreference)
@@ -187,6 +192,16 @@ public interface SettingsRepository {
      * Clear persisted player state snapshot.
      */
     public suspend fun clearPlayerStateSnapshot()
+
+    /**
+     * Update sleep timer state.
+     */
+    public suspend fun updateSleepTimerState(state: SleepTimerState)
+
+    /**
+     * Clear sleep timer state.
+     */
+    public suspend fun clearSleepTimerState()
 
     /**
      * Reset all settings to defaults.
@@ -229,6 +244,14 @@ public class ProtoSettingsRepository
                         sleepTimerMode = preferences.playerSnapshotSleepMode,
                     )
                 }
+            }
+
+/**
+         * Sleep timer state from DataStore (P-12 migration from SharedPreferences).
+         */
+        override val sleepTimerState: Flow<SleepTimerState> =
+            userPreferences.map { preferences ->
+                preferences.sleepTimerState
             }
 
         override suspend fun updateThemeMode(themeMode: ThemeMode) {
@@ -429,6 +452,24 @@ public class ProtoSettingsRepository
                     .setPlayerSnapshotChapterIndex(0)
                     .setPlayerSnapshotPlaybackSpeed(1.0f)
                     .clearPlayerSnapshotSleepMode()
+                    .build()
+            }
+        }
+
+        override suspend fun updateSleepTimerState(state: SleepTimerState) {
+            dataStore.updateData { preferences ->
+                preferences
+                    .toBuilder()
+                    .setSleepTimerState(state)
+                    .build()
+            }
+        }
+
+        override suspend fun clearSleepTimerState() {
+            dataStore.updateData { preferences ->
+                preferences
+                    .toBuilder()
+                    .clearSleepTimerState()
                     .build()
             }
         }

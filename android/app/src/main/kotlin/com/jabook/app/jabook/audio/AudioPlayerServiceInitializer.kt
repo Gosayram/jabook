@@ -133,6 +133,16 @@ public class AudioPlayerServiceInitializer(
                     service.savePositionToRepository()
                 },
                 audioFader = service.audioFader,
+                settingsRepository = service.settingsRepository,
+                saveSleepTimerStateToDataStore = { state ->
+                    try {
+                        kotlinx.coroutines.runBlocking {
+                            service.settingsRepository.updateSleepTimerState(state)
+                        }
+                    } catch (e: Exception) {
+                        LogUtils.w("AudioPlayerService", "Failed to save sleep timer state to DataStore", e)
+                    }
+                },
                 isShakeToExtendEnabled = {
                     try {
                         kotlinx.coroutines.runBlocking {
