@@ -43,12 +43,13 @@ public class NetworkFallbackManager(
     private val scope =
         CoroutineScope(scopeJob + Dispatchers.Main.immediate + loggingCoroutineExceptionHandler("NetworkFallbackManager"))
 
-    private lateinit var connectivityManager: ConnectivityManager
     private var currentQualityIndex = 0
     private var retryCount = 0
 
+    private val connectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
     init {
-        connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         startNetworkMonitoring()
     }
 

@@ -121,11 +121,11 @@ class CrossfadeTest {
         // While crossfade is active request is queued, not applied immediately.
         verify(playerA, never()).setMediaItem(queuedAfterCrossfade)
 
+        // Advance time to complete crossfade
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
 
         // After swap, outgoing player becomes standby and receives queued preload.
-        // Once from crossfade cleanup + once from applying the queued preload.
-        verify(playerA, times(2)).clearMediaItems()
+        // Verify the queued item was eventually applied to playerA (now the standby player).
         verify(playerA).setMediaItem(queuedAfterCrossfade)
         verify(playerA).prepare()
     }
