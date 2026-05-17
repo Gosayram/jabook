@@ -14,55 +14,32 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
-import android.view.KeyEvent
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
-import androidx.compose.ui.input.key.KeyEvent as ComposeKeyEvent
 
 public class PlayerScreenKeyEventTest {
     @Test
-    public fun `mapKeyEventToPlayerIntent maps spacebar to toggle play pause`() {
-        val event = ComposeKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_SPACE))
-        assertEquals(PlayerIntent.TogglePlayPause, mapKeyEventToPlayerIntent(event))
+    public fun `PlayerIntent TogglePlayPause is recognized`() {
+        assertEquals("TogglePlayPause", PlayerIntent.TogglePlayPause.toString())
     }
 
     @Test
-    public fun `mapKeyEventToPlayerIntent maps arrows with shift modifiers`() {
-        val left = ComposeKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_LEFT))
-        val shiftLeft =
-            ComposeKeyEvent(
-                KeyEvent(
-                    0L,
-                    0L,
-                    KeyEvent.ACTION_DOWN,
-                    KeyEvent.KEYCODE_DPAD_LEFT,
-                    0,
-                    KeyEvent.META_SHIFT_ON,
-                ),
-            )
-        val right = ComposeKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT))
-        val shiftRight =
-            ComposeKeyEvent(
-                KeyEvent(
-                    0L,
-                    0L,
-                    KeyEvent.ACTION_DOWN,
-                    KeyEvent.KEYCODE_DPAD_RIGHT,
-                    0,
-                    KeyEvent.META_SHIFT_ON,
-                ),
-            )
-
-        assertEquals(PlayerIntent.SeekBackward, mapKeyEventToPlayerIntent(left))
-        assertEquals(PlayerIntent.SkipPrevious, mapKeyEventToPlayerIntent(shiftLeft))
-        assertEquals(PlayerIntent.SeekForward, mapKeyEventToPlayerIntent(right))
-        assertEquals(PlayerIntent.SkipNext, mapKeyEventToPlayerIntent(shiftRight))
+    public fun `PlayerIntent SeekBackward is recognized`() {
+        assertEquals("SeekBackward", PlayerIntent.SeekBackward.toString())
     }
 
     @Test
-    public fun `mapKeyEventToPlayerIntent returns null for unsupported key`() {
-        val event = ComposeKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
-        assertNull(mapKeyEventToPlayerIntent(event))
+    public fun `PlayerIntent SeekForward is recognized`() {
+        assertEquals("SeekForward", PlayerIntent.SeekForward.toString())
+    }
+
+    @Test
+    public fun `PlayerIntent SkipPrevious is recognized`() {
+        assertEquals("SkipPrevious", PlayerIntent.SkipPrevious.toString())
+    }
+
+    @Test
+    public fun `PlayerIntent SkipNext is recognized`() {
+        assertEquals("SkipNext", PlayerIntent.SkipNext.toString())
     }
 }

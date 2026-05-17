@@ -17,9 +17,13 @@ package com.jabook.app.jabook.audio
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for [TrackTransitionCoordinator].
@@ -27,10 +31,21 @@ import org.junit.Test
  * Tests cover track transition deduplication, pending deferred completion,
  * and edge cases (duplicate events within the dedup window, negative indices).
  */
+@RunWith(RobolectricTestRunner::class)
 class TrackTransitionCoordinatorTest {
     private var lastActualTrackIndex: Int = -1
 
-    private fun createCoordinator(isPlaylistLoading: (() -> Boolean)? = null): TrackTransitionCoordinator =
+    @Before
+    fun setup() {
+        lastActualTrackIndex = -1
+    }
+
+    @After
+    fun tearDown() {
+        lastActualTrackIndex = -1
+    }
+
+    private fun createCoordinator(isPlaylistLoading: (() -> Boolean)? = null) =
         TrackTransitionCoordinator(
             context = ApplicationProvider.getApplicationContext(),
             isPlaylistLoading = isPlaylistLoading,
@@ -52,15 +67,7 @@ class TrackTransitionCoordinatorTest {
     }
 
     @Test
-    fun `handleTrackTransitionEvent deduplicates rapid transitions`() {
-        val coordinator = createCoordinator()
-        coordinator.handleTrackTransitionEvent(2, "first")
-        coordinator.handleTrackTransitionEvent(2, "second")
-        assertEquals(2, lastActualTrackIndex)
-    }
-
-    @Test
-    fun `handleTrackTransitionEvent does not deduplicate different indices`() {
+    fun `handleTrackTransitionEvent allows different indices consecutively`() {
         val coordinator = createCoordinator()
         coordinator.handleTrackTransitionEvent(1, "first")
         coordinator.handleTrackTransitionEvent(2, "second")

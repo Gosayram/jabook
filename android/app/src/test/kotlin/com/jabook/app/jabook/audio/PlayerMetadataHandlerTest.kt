@@ -14,56 +14,70 @@
 
 package com.jabook.app.jabook.audio
 
-import android.content.Context
 import androidx.media3.common.Metadata
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
 import org.junit.Test
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.never
-import org.mockito.Mockito.verify
-import org.mockito.kotlin.whenever
+import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
 
 class PlayerMetadataHandlerTest {
     private val handler =
         PlayerMetadataHandler(
-            context = mock(Context::class.java),
+            context = mock(),
             setEmbeddedArtworkPath = {},
         )
 
     @Test
     fun `onMetadata applies track gain when both track and album tags exist`() {
-        val normalizer = mock(LoudnessNormalizer::class.java)
+        val normalizer = mock<LoudnessNormalizer>()
         handler.loudnessNormalizer = normalizer
-        val metadata =
-            mock(Metadata::class.java).also { mocked ->
-                whenever(mocked.length()).thenReturn(2)
-                whenever(mocked.get(0)).thenReturn(mockMetadataEntry("REPLAYGAIN_ALBUM_GAIN: -4.0 dB"))
-                whenever(mocked.get(1)).thenReturn(mockMetadataEntry("REPLAYGAIN_TRACK_GAIN: -6.5 dB"))
+
+        // Use a real metadata with actual entry instead of mocking toString()
+        val trackGainEntry =
+            object : Metadata.Entry {
+                override fun toString() = "TXXX: description=REPLAYGAIN_TRACK_GAIN, value=-6.5 dB"
+
+                override fun equals(other: Any?) = false
+
+                override fun hashCode() = 0
             }
+
+        val albumGainEntry =
+            object : Metadata.Entry {
+                override fun toString() = "TXXX: description=REPLAYGAIN_ALBUM_GAIN, value=-4.0 dB"
+
+                override fun equals(other: Any?) = false
+
+                override fun hashCode() = 0
+            }
+        val metadata = Metadata(albumGainEntry, trackGainEntry)
 
         handler.onMetadata(metadata)
 
-        verify(normalizer).setReplayGain(-6.5f)
+        verify(normalizer).setReplayGain(eq(-6.5f))
     }
 
     @Test
     fun `onMetadata does not call normalizer when replay gain is invalid`() {
-        val normalizer = mock(LoudnessNormalizer::class.java)
+        val normalizer = mock<LoudnessNormalizer>()
         handler.loudnessNormalizer = normalizer
-        val metadata =
-            mock(Metadata::class.java).also { mocked ->
-                whenever(mocked.length()).thenReturn(1)
-                whenever(mocked.get(0)).thenReturn(mockMetadataEntry("REPLAYGAIN_TRACK_GAIN: not_a_number"))
+
+        // Use a real metadata with actual entry that has invalid gain value
+        val invalidEntry =
+            object : Metadata.Entry {
+                override fun toString() = "TXXX: description=REPLAYGAIN_TRACK_GAIN, value=not_a_number dB"
+
+                override fun equals(other: Any?) = false
+
+                override fun hashCode() = 0
             }
+        val metadata = Metadata(invalidEntry)
 
         handler.onMetadata(metadata)
 
-        verify(normalizer, never()).setReplayGain(org.mockito.kotlin.any())
-    }
-
-    private fun mockMetadataEntry(value: String): Metadata.Entry {
-        val entry = mock(Metadata.Entry::class.java)
-        whenever(entry.toString()).thenReturn(value)
-        return entry
+        verify(normalizer, never()).setReplayGain(any())
     }
 }
