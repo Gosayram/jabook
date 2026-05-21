@@ -197,7 +197,7 @@ public class PhoneCallListener(
 
         LogUtils.d(
             "PhoneCallListener",
-            "Call state changed: $stateName (phoneNumber=${phoneNumber?.take(4)}...)",
+            "Call state changed: $stateName",
         )
 
         when (state) {

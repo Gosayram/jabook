@@ -62,6 +62,12 @@ public class CoverPreloadProgressManager(
             CoverPreloadProgress(
                 loaded = 0,
                 total = 0,
+                phase = CoverPreloadPhase.DONE,
+            )
+        _progress.value =
+            CoverPreloadProgress(
+                loaded = 0,
+                total = 0,
                 phase = CoverPreloadPhase.IDLE,
             )
     }

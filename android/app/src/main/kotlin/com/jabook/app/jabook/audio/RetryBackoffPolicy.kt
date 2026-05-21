@@ -36,6 +36,13 @@ internal class RetryBackoffPolicy(
     private val jitterMs: Long = DEFAULT_JITTER_MS,
     private val maxDelayMs: Long = DEFAULT_MAX_DELAY_MS,
 ) {
+    init {
+        require(baseMs > 0) { "baseMs must be positive: $baseMs" }
+        require(maxRetries >= 0) { "maxRetries must be non-negative: $maxRetries" }
+        require(jitterMs >= 0) { "jitterMs must be non-negative: $jitterMs" }
+        require(maxDelayMs > 0) { "maxDelayMs must be positive: $maxDelayMs" }
+    }
+
     /**
      * Calculates the backoff delay for the given [attempt] (0-indexed).
      *
@@ -49,7 +56,8 @@ internal class RetryBackoffPolicy(
     fun calculateDelay(attempt: Int): Long? {
         if (attempt < 0 || attempt >= maxRetries) return null
 
-        val exponentialDelay = baseMs * (1L shl attempt) // base * 2^attempt
+        val shift = attempt.coerceAtMost(Long.SIZE_BITS - 1)
+        val exponentialDelay = baseMs * (1L shl shift)
         val jitter = if (jitterMs > 0) Random.nextLong(0, jitterMs + 1) else 0L
         return (exponentialDelay + jitter).coerceAtMost(maxDelayMs)
     }

@@ -101,6 +101,7 @@ public class NetworkFallbackManager(
     }
 
     private fun switchToFallbackQuality() {
+        if (retryCount >= maxRetries) return
         if (currentQualityIndex < fallbackQualities.size - 1) {
             currentQualityIndex++
             val newQuality = fallbackQualities[currentQualityIndex]

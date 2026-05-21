@@ -28,7 +28,7 @@ import androidx.room.PrimaryKey
  * [fileSize] and [fileLastModified] against the current file on disk. If either
  * differs, the entry is considered stale and a re-analysis is triggered.
  *
- * P-02: LUFS cache with content-hash-based invalidation.
+ * P-02: LUFS cache with file-metadata-based invalidation.
  */
 @Entity(
     tableName = "lufs_cache",

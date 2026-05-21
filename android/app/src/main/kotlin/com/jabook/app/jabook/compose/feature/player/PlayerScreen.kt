@@ -623,6 +623,7 @@ public fun PlayerScreen(
             AnimatedPane(modifier = Modifier) {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
+                    snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
                 ) { padding ->
                     Box(
                         modifier =

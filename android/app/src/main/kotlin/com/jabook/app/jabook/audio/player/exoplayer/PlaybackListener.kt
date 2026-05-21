@@ -43,7 +43,7 @@ public class PlaybackListener : Player.Listener {
     ) {
         super.onMediaItemTransition(mediaItem, reason)
         // Track index will be updated by the player manager
-        LogUtils.d("PlaybackListener", "Media item transition: ${mediaItem?.mediaId}, reason: $reason")
+        LogUtils.d("PlaybackListener", "Media item transition: reason=$reason")
     }
 
     /**

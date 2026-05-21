@@ -70,7 +70,7 @@ public class CoilBitmapLoader(
 
         scope.launch {
             try {
-                LogUtils.d("CoilBitmapLoader", "Loading bitmap from URI: $uri")
+                LogUtils.d("CoilBitmapLoader", "Loading bitmap from URI: ${uri.scheme}:<redacted>")
 
                 val loader = SingletonImageLoader.get(context)
                 val request =
@@ -90,11 +90,11 @@ public class CoilBitmapLoader(
                     )
                     future.set(bitmap)
                 } else {
-                    LogUtils.w("CoilBitmapLoader", "Coil failed to load bitmap for URI: $uri")
+                    LogUtils.w("CoilBitmapLoader", "Coil failed to load bitmap for URI: ${uri.scheme}:<redacted>")
                     future.setException(Exception("Failed to load bitmap from URI: $uri"))
                 }
             } catch (e: Exception) {
-                LogUtils.e("CoilBitmapLoader", "Error loading bitmap from URI: $uri", e)
+                LogUtils.e("CoilBitmapLoader", "Error loading bitmap from URI: ${uri.scheme}:<redacted>", e)
                 future.setException(e)
             }
         }
@@ -133,7 +133,7 @@ public class CoilBitmapLoader(
                 val request =
                     ImageRequest
                         .Builder(context)
-                        .data(data)
+                        .data(safeData)
                         .size(maxArtworkWidth, maxArtworkHeight)
                         .build()
 

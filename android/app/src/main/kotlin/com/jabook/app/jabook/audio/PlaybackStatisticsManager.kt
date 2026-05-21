@@ -70,6 +70,7 @@ public class PlaybackStatisticsManager(
      * Adds listening time.
      */
     public fun addListeningTime(millis: Long) {
+        require(millis >= 0) { "millis must be non-negative" }
         totalListeningTimeMs += millis
         lastPlaybackDate = System.currentTimeMillis()
     }

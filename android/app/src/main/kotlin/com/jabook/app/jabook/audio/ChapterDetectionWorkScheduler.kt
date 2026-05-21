@@ -19,12 +19,13 @@ import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.Operation
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import com.jabook.app.jabook.compose.data.worker.ChapterDetectionWorker
-import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.FutureCallback
+import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.MoreExecutors
+import com.jabook.app.jabook.compose.data.worker.ChapterDetectionWorker
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -105,8 +106,8 @@ public class ChapterDetectionWorkScheduler
             val operation = workManager.enqueueUniqueWork(workName, ExistingWorkPolicy.KEEP, request)
             Futures.addCallback(
                 operation.result,
-                object : FutureCallback<Void?> {
-                    override fun onSuccess(result: Void?) {
+                object : FutureCallback<Operation.State.SUCCESS> {
+                    override fun onSuccess(result: Operation.State.SUCCESS) {
                         enqueueHistory[workName] =
                             ChapterDetectionEnqueueGuardPolicy.EnqueueRecord(
                                 signature = signature,

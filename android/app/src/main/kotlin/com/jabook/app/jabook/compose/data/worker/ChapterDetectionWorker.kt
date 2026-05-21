@@ -137,6 +137,7 @@ public class ChapterDetectionWorker
             val starts =
                 (listOf(0L) + boundariesMs)
                     .map { it.coerceIn(0L, totalDurationMs) }
+                    .filter { it < totalDurationMs || it == 0L }
                     .distinct()
                     .sorted()
             if (starts.isEmpty()) return emptyList()

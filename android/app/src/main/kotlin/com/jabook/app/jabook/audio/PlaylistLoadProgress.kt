@@ -24,7 +24,7 @@ public data class PlaylistLoadProgress(
     public val total: Int,
     public val phase: Phase,
 ) {
-    public val fraction: Float get() = if (total > 0) loaded.toFloat() / total else 0f
+    public val fraction: Float get() = if (total > 0) (loaded.toFloat() / total).coerceIn(0f, 1f) else 0f
 
     public enum class Phase {
         IDLE,

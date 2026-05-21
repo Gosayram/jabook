@@ -56,7 +56,7 @@ public class LufsCacheRepository
             // File no longer exists — clean up stale entry
             if (!file.exists()) {
                 lufsCacheDao.delete(filePath)
-                LogUtils.d(TAG) { "Cache miss (file deleted): $filePath" }
+                LogUtils.d(TAG) { "Cache miss (file deleted): ${File(filePath).name}" }
                 return null
             }
 
@@ -65,7 +65,7 @@ public class LufsCacheRepository
                 file.lastModified() != cached.fileLastModified
             ) {
                 lufsCacheDao.delete(filePath)
-                LogUtils.d(TAG) { "Cache invalidated (file changed): $filePath" }
+                LogUtils.d(TAG) { "Cache invalidated (file changed): ${File(filePath).name}" }
                 return null
             }
 
@@ -93,6 +93,7 @@ public class LufsCacheRepository
             lufsValue: Float,
         ) {
             val file = File(filePath)
+            if (!file.isFile) return
             val entity =
                 LufsCacheEntity(
                     filePath = filePath,
@@ -102,7 +103,7 @@ public class LufsCacheRepository
                     fileLastModified = file.lastModified(),
                 )
             lufsCacheDao.upsert(entity)
-            LogUtils.d(TAG) { "Cached LUFS=$lufsValue for $filePath" }
+            LogUtils.d(TAG) { "Cached LUFS=$lufsValue for ${File(filePath).name}" }
         }
 
         /**

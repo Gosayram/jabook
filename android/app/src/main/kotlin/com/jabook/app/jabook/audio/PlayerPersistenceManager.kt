@@ -98,7 +98,7 @@ public class PlayerPersistenceManager
                         .apply()
                     LogUtils.v(
                         "PlayerPersistence",
-                        "Stored current media item for resumption: $mediaId, position=${positionMs}ms",
+                        "Stored current media item for resumption: position=${positionMs}ms",
                     )
                 } catch (e: Exception) {
                     LogUtils.w("PlayerPersistence", "Failed to store current media item for resumption", e)
@@ -170,7 +170,7 @@ public class PlayerPersistenceManager
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 val sanitizedPath = this.sanitizeGroupPath(groupPath)
                 prefs.edit().putString("current_group_path", sanitizedPath).apply()
-                LogUtils.d("PlayerPersistence", "Saved groupPath to SharedPreferences: $sanitizedPath")
+                LogUtils.d("PlayerPersistence", "Saved groupPath to SharedPreferences")
             } catch (e: Exception) {
                 LogUtils.w("PlayerPersistence", "Failed to save groupPath to SharedPreferences", e)
             }
@@ -193,7 +193,7 @@ public class PlayerPersistenceManager
                         }
                     prefs.edit().putString("book_state_${state.bookId}", json.toString()).apply()
                 } catch (e: Exception) {
-                    LogUtils.e("PlayerPersistence", "Failed to save player state for ${state.bookId}", e)
+                    LogUtils.e("PlayerPersistence", "Failed to save player state", e)
                 }
             }
 
@@ -214,7 +214,7 @@ public class PlayerPersistenceManager
                         playCount = json.optLong("playCount", 0),
                     )
                 } catch (e: Exception) {
-                    LogUtils.e("PlayerPersistence", "Failed to get player state for $bookId", e)
+                    LogUtils.e("PlayerPersistence", "Failed to get player state", e)
                     null
                 }
             }
@@ -278,7 +278,7 @@ public class PlayerPersistenceManager
                     )
                 }
             savePlayerState(newState)
-            LogUtils.d("PlayerPersistence", "Play count for $bookId incremented to ${newState.playCount}")
+            LogUtils.d("PlayerPersistence", "Play count incremented to ${newState.playCount}")
         }
 
         /**

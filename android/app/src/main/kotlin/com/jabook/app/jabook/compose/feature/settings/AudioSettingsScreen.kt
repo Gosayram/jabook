@@ -383,7 +383,7 @@ public fun AudioSettingsScreen(
                                 Text(
                                     text =
                                         when (preset) {
-                                            EqualizerPreset.FLAT -> preset.displayName
+                                            EqualizerPreset.FLAT -> stringResource(R.string.equalizer_preset_flat)
                                             EqualizerPreset.VOICE_CLARITY -> stringResource(R.string.equalizer_preset_voice_clarity)
                                             EqualizerPreset.NIGHT -> stringResource(R.string.equalizer_preset_night)
                                             EqualizerPreset.HEADPHONES -> stringResource(R.string.equalizer_preset_headphones)

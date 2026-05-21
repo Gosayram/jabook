@@ -185,6 +185,12 @@ public data class AudioProcessingSettings(
     val echoDelayMs: Int = 500,
     val echoDecay: Float = 0.5f,
 ) {
+    init {
+        require(echoStrength in 0f..1f) { "echoStrength must be in [0, 1]" }
+        require(echoDelayMs > 0) { "echoDelayMs must be positive" }
+        require(echoDecay in 0f..1f) { "echoDecay must be in [0, 1]" }
+    }
+
     public companion object {
         /** Default retain window (65 ms) — balance between smoothness and skip efficiency. */
         public const val DEFAULT_RETAIN_WINDOW_MS: Int = 65

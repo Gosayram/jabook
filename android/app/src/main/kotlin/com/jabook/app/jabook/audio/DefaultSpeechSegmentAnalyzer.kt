@@ -26,5 +26,5 @@ internal class DefaultSpeechSegmentAnalyzer : SpeechSegmentAnalyzer {
         bookId: String,
         positionMs: Long,
         lookbackMs: Long,
-    ): Long = (positionMs - lookbackMs).coerceAtLeast(0L)
+    ): Long = (positionMs - lookbackMs.coerceAtLeast(0L)).coerceAtLeast(0L)
 }

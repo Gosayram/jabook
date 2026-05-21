@@ -169,11 +169,16 @@ public object MediaSourceValidator {
             return true
         }
 
-        // WAV: "RIFF"
-        if (header[0] == 'R'.code.toByte() &&
+        // WAV: "RIFF" at 0-3 and "WAVE" at 8-11
+        if (header.size >= 12 &&
+            header[0] == 'R'.code.toByte() &&
             header[1] == 'I'.code.toByte() &&
             header[2] == 'F'.code.toByte() &&
-            header[3] == 'F'.code.toByte()
+            header[3] == 'F'.code.toByte() &&
+            header[8] == 'W'.code.toByte() &&
+            header[9] == 'A'.code.toByte() &&
+            header[10] == 'V'.code.toByte() &&
+            header[11] == 'E'.code.toByte()
         ) {
             return true
         }
