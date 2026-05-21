@@ -21,6 +21,7 @@ import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -45,6 +46,7 @@ public class BufferManager(
 
     private var active = false
     private var currentBufferMs = minBufferMs
+    private var monitoringJob: Job? = null
 
     /**
      * Starts monitoring buffer levels and adjusting buffer size.
@@ -52,7 +54,7 @@ public class BufferManager(
     public fun start() {
         if (active) return
         active = true
-        scope.launch {
+        monitoringJob = scope.launch {
             while (active) {
                 try {
                     val playbackState = player.playbackState
@@ -92,7 +94,8 @@ public class BufferManager(
      */
     public fun stop() {
         active = false
-        scope.cancel()
+        monitoringJob?.cancel()
+        monitoringJob = null
     }
 
     private companion object {

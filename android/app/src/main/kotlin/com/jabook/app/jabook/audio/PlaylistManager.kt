@@ -572,6 +572,7 @@ internal class PlaylistManager(
             }
         } catch (e: Exception) {
             LogUtils.e("AudioPlayerService", "Failed to prepare playback", e)
+            _loadProgress.update { PlaylistLoadProgress(0, 0, PlaylistLoadProgress.Phase.IDLE) }
             throw e
         }
     }
@@ -947,8 +948,10 @@ internal class PlaylistManager(
                         if (activeLoadingJob === kotlinx.coroutines.currentCoroutineContext()[Job]) {
                             activeLoadingJob = null
                         }
-                        // Mark loading as complete
-                        _loadProgress.update { PlaylistLoadProgress(filePaths.size, filePaths.size, PlaylistLoadProgress.Phase.DONE) }
+                        // Mark loading as complete (only if still current generation)
+                        if (isLoadGenerationActive(loadGeneration)) {
+                            _loadProgress.update { PlaylistLoadProgress(filePaths.size, filePaths.size, PlaylistLoadProgress.Phase.DONE) }
+                        }
                     }
                 }
 

@@ -433,10 +433,10 @@ public object AudioDataModule {
             if (isDebug) {
                 builder.setQueryCallback(
                     kotlinx.coroutines.Dispatchers.Unconfined,
-                    RoomDatabase.QueryCallback { sqlQuery: String, bindArgs: List<Any?> ->
+                    RoomDatabase.QueryCallback { sqlQuery: String, _ ->
                         LogUtils.d(
                             "Room",
-                            "AudioDB Query: $sqlQuery | Args: ${bindArgs.joinToString(", ")}",
+                            "AudioDB Query: $sqlQuery",
                         )
                     },
                 )

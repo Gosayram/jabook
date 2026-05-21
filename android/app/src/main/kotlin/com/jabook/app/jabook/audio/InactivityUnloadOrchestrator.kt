@@ -36,7 +36,7 @@ internal class InactivityUnloadOrchestrator(
     }
 
     private fun broadcastTimerExpired() {
-        val intent = Intent(InactivityTimer.ACTION_INACTIVITY_TIMER_EXPIRED)
+        val intent = Intent(InactivityTimer.ACTION_INACTIVITY_TIMER_EXPIRED).setPackage(context.packageName)
         context.sendBroadcast(intent)
         LogUtils.d("InactivityTimer", "Broadcasted inactivity timer expiration")
     }

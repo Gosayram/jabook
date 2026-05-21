@@ -20,6 +20,7 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
@@ -160,6 +161,7 @@ public object MediaControllerExtensions {
                     null
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 LogUtils.w("MediaControllerExtensions", "Failed to get sleep timer remaining", e)
                 null
             }
@@ -184,6 +186,7 @@ public object MediaControllerExtensions {
                     false
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 LogUtils.w("MediaControllerExtensions", "Failed to check sleep timer active", e)
                 false
             }
@@ -208,6 +211,7 @@ public object MediaControllerExtensions {
                     false
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 LogUtils.w("MediaControllerExtensions", "Failed to check sleep timer end of chapter", e)
                 false
             }
@@ -232,6 +236,7 @@ public object MediaControllerExtensions {
                     false
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 LogUtils.w("MediaControllerExtensions", "Failed to check sleep timer end of track", e)
                 false
             }
@@ -256,6 +261,7 @@ public object MediaControllerExtensions {
                     null
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 LogUtils.w("MediaControllerExtensions", "Failed to get current group path", e)
                 null
             }
@@ -280,6 +286,7 @@ public object MediaControllerExtensions {
                     null
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 LogUtils.w("MediaControllerExtensions", "Failed to get current file paths", e)
                 null
             }

@@ -109,7 +109,7 @@ public class TorrentDownloadEntity(
         /**
          * Create from domain model
          */
-        public fun fromDomain(download: TorrentDownload): TorrentDownloadEntity =
+        public fun fromDomain(download: TorrentDownload, resumeData: ByteArray? = null): TorrentDownloadEntity =
             TorrentDownloadEntity(
                 hash = download.hash,
                 name = download.name,
@@ -125,6 +125,7 @@ public class TorrentDownloadEntity(
                 completedTime = download.completedTime,
                 pauseReason = download.pauseReason,
                 topicId = download.topicId,
+                resumeData = resumeData,
             )
     }
 }

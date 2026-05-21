@@ -97,6 +97,9 @@ public class CrossFadePlayer(
         currentPlayer.pause()
         nextPlayer.pause()
         crossfadeJob?.cancel()
+        crossfadeJob = null
+        isCrossFading = false
+        crossFadeOutPlayer = null
     }
 
     /**
@@ -137,31 +140,34 @@ public class CrossFadePlayer(
         val durationMs = crossFadeDurationMs
         crossfadeJob =
             coroutineScope.launch {
-                val steps = 50
-                val stepDelay = durationMs / steps
-                for (i in 1..steps) {
-                    if (!isActive) return@launch
-                    val progress = i.toFloat() / steps
-                    fadingOutPlayer.volume = 1f - progress
-                    fadingInPlayer.volume = progress
-                    delay(stepDelay)
-                }
+                try {
+                    val steps = 50
+                    val stepDelay = durationMs / steps
+                    for (i in 1..steps) {
+                        if (!isActive) return@launch
+                        val progress = i.toFloat() / steps
+                        fadingOutPlayer.volume = 1f - progress
+                        fadingInPlayer.volume = progress
+                        delay(stepDelay)
+                    }
 
-                // Ensure final state
-                if (isActive) {
+                    // Ensure final state
+                    if (isActive) {
+                        fadingOutPlayer.pause()
+                        fadingOutPlayer.volume = 1f
+                        fadingOutPlayer.seekTo(0)
+                        fadingOutPlayer.clearMediaItems()
+
+                        // Swap players
+                        swapPlayers()
+                        applyPendingPreloadIfNeeded()
+                        onComplete()
+                        LogUtils.d("CrossFadePlayer", "Crossfade complete. Current is now $currentPlayer")
+                    }
+                } finally {
                     isCrossFading = false
-                    fadingOutPlayer.pause()
-                    fadingOutPlayer.volume = 1f
-                    fadingOutPlayer.seekTo(0) // Reset position
-                    fadingOutPlayer.clearMediaItems() // Clear for reuse
-
-                    // Swap players
-                    swapPlayers()
-                    applyPendingPreloadIfNeeded()
                     crossFadeOutPlayer = null
                     crossfadeJob = null
-                    onComplete()
-                    LogUtils.d("CrossFadePlayer", "Crossfade complete. Current is now $currentPlayer")
                 }
             }
     }

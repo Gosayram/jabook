@@ -414,6 +414,7 @@ public class OfflineFirstBooksRepository
             bookId: String,
             speed: Float,
         ) {
+            if (!speed.isFinite() || speed <= 0f) return
             val previous = booksDao.getPreferredSpeed(bookId)
             if (
                 !SpeedMemoryHierarchy.hasMeaningfulSpeedDelta(

@@ -53,7 +53,11 @@ public class ProxyAudioProcessor(
      * @param newDelegate The new AudioProcessor to delegate to.
      */
     public fun swapDelegate(newDelegate: AudioProcessor) {
-        val oldName = delegate.javaClass.simpleName
+        val old = delegate
+        val oldName = old.javaClass.simpleName
+        @Suppress("DEPRECATION")
+        old.flush()
+        old.reset()
         delegate = newDelegate
         val newName = newDelegate.javaClass.simpleName
         LogUtils.d(TAG) { "Delegate swapped: $oldName → $newName" }
@@ -90,8 +94,9 @@ public class ProxyAudioProcessor(
 
     override fun isEnded(): Boolean = delegate.isEnded
 
-    @Suppress("OVERRIDE_DEPRECATION")
+    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun flush() {
+        @Suppress("DEPRECATION")
         delegate.flush()
     }
 

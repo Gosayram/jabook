@@ -25,6 +25,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.log10
 import kotlin.math.sqrt
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /**
  * Default ChapterSignalExtractor implementation.
@@ -75,6 +77,7 @@ internal class MediaCodecChapterSignalExtractor
                 val result = ArrayList<Float>(windowsToProcess)
 
                 for (windowIndex in 0 until windowsToProcess) {
+                    currentCoroutineContext().ensureActive()
                     val positionUs = ((windowIndex.toLong() * durationUs) / windowsToProcess.toLong()).coerceAtLeast(0L)
                     extractor.seekTo(positionUs, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
 

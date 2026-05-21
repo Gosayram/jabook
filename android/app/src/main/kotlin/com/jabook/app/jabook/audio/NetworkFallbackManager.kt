@@ -18,6 +18,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.os.Handler
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.util.LogUtils
@@ -97,7 +98,7 @@ public class NetworkFallbackManager(
 
     private fun handleNetworkLost() {
         LogUtils.w(TAG, "Network lost, pausing playback")
-        player.playWhenReady = false
+        Handler(player.applicationLooper).post { player.playWhenReady = false }
     }
 
     private fun switchToFallbackQuality() {
