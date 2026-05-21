@@ -19,80 +19,92 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class InactivityStartConditionPolicyTest {
+public class InactivityStartConditionPolicyTest {
     @Test
-    fun `isPlaying true always prevents timer start`() {
-        val result =
-            InactivityStartConditionPolicy.shouldStart(
-                isPlaying = true,
-                mediaItemCount = 10,
-                playbackState = Player.STATE_ENDED,
-                playWhenReady = false,
-            )
+    public fun `shouldStart returns false when isPlaying is true`() {
+        val result = InactivityStartConditionPolicy.shouldStart(
+            isPlaying = true,
+            mediaItemCount = 1,
+            playbackState = Player.STATE_READY,
+            playWhenReady = false,
+        )
         assertFalse(result)
     }
 
     @Test
-    fun `empty media list prevents timer start`() {
-        val result =
-            InactivityStartConditionPolicy.shouldStart(
-                isPlaying = false,
-                mediaItemCount = 0,
-                playbackState = Player.STATE_READY,
-                playWhenReady = false,
-            )
+    public fun `shouldStart returns false when mediaItemCount is zero`() {
+        val result = InactivityStartConditionPolicy.shouldStart(
+            isPlaying = false,
+            mediaItemCount = 0,
+            playbackState = Player.STATE_ENDED,
+            playWhenReady = false,
+        )
         assertFalse(result)
     }
 
     @Test
-    fun `ready state starts only when playWhenReady is false`() {
-        val readyPaused =
-            InactivityStartConditionPolicy.shouldStart(
-                isPlaying = false,
-                mediaItemCount = 1,
-                playbackState = Player.STATE_READY,
-                playWhenReady = false,
-            )
-        val readyPlaying =
-            InactivityStartConditionPolicy.shouldStart(
-                isPlaying = false,
-                mediaItemCount = 1,
-                playbackState = Player.STATE_READY,
-                playWhenReady = true,
-            )
-        assertTrue(readyPaused)
-        assertFalse(readyPlaying)
-    }
-
-    @Test
-    fun `ended state starts timer`() {
-        val result =
-            InactivityStartConditionPolicy.shouldStart(
-                isPlaying = false,
-                mediaItemCount = 1,
-                playbackState = Player.STATE_ENDED,
-                playWhenReady = false,
-            )
+    public fun `shouldStart returns true when state is ENDED`() {
+        val result = InactivityStartConditionPolicy.shouldStart(
+            isPlaying = false,
+            mediaItemCount = 1,
+            playbackState = Player.STATE_ENDED,
+            playWhenReady = false,
+        )
         assertTrue(result)
     }
 
     @Test
-    fun `buffering and idle states do not start timer`() {
-        val buffering =
-            InactivityStartConditionPolicy.shouldStart(
-                isPlaying = false,
-                mediaItemCount = 1,
-                playbackState = Player.STATE_BUFFERING,
-                playWhenReady = false,
-            )
-        val idle =
-            InactivityStartConditionPolicy.shouldStart(
-                isPlaying = false,
-                mediaItemCount = 1,
-                playbackState = Player.STATE_IDLE,
-                playWhenReady = false,
-            )
-        assertFalse(buffering)
-        assertFalse(idle)
+    public fun `shouldStart returns false when state is READY with playWhenReady true`() {
+        val result = InactivityStartConditionPolicy.shouldStart(
+            isPlaying = false,
+            mediaItemCount = 1,
+            playbackState = Player.STATE_READY,
+            playWhenReady = true,
+        )
+        assertFalse(result)
+    }
+
+    @Test
+    public fun `shouldStart returns true when state is READY with playWhenReady false`() {
+        val result = InactivityStartConditionPolicy.shouldStart(
+            isPlaying = false,
+            mediaItemCount = 1,
+            playbackState = Player.STATE_READY,
+            playWhenReady = false,
+        )
+        assertTrue(result)
+    }
+
+    @Test
+    public fun `shouldStart returns false when state is BUFFERING`() {
+        val result = InactivityStartConditionPolicy.shouldStart(
+            isPlaying = false,
+            mediaItemCount = 1,
+            playbackState = Player.STATE_BUFFERING,
+            playWhenReady = false,
+        )
+        assertFalse(result)
+    }
+
+    @Test
+    public fun `shouldStart returns false when state is IDLE`() {
+        val result = InactivityStartConditionPolicy.shouldStart(
+            isPlaying = false,
+            mediaItemCount = 1,
+            playbackState = Player.STATE_IDLE,
+            playWhenReady = false,
+        )
+        assertFalse(result)
+    }
+
+    @Test
+    public fun `shouldStart combined isPlaying and zero mediaItemCount returns false`() {
+        val result = InactivityStartConditionPolicy.shouldStart(
+            isPlaying = true,
+            mediaItemCount = 0,
+            playbackState = Player.STATE_ENDED,
+            playWhenReady = false,
+        )
+        assertFalse(result)
     }
 }

@@ -18,47 +18,76 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class ChapterDetectionEligibilityPolicyTest {
-    @Test
-    fun `shouldEnqueueSingleFileDetection returns true for long single-file books`() {
-        val result =
-            ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
-                chapterCount = 1,
-                filePath = "/books/one-file-book.mp3",
-                durationMs = 45L * 60L * 1000L,
-            )
+public class ChapterDetectionEligibilityPolicyTest {
+    private val MIN_DURATION = ChapterDetectionEligibilityPolicy.MIN_ELIGIBLE_DURATION_MS
 
+    @Test
+    public fun `shouldEnqueueSingleFileDetection returns true for valid input`(): Unit {
+        val result = ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
+            chapterCount = 1,
+            filePath = "/path/to/book.mp3",
+            durationMs = MIN_DURATION,
+        )
         assertTrue(result)
     }
 
     @Test
-    fun `shouldEnqueueSingleFileDetection returns false for multi-file books`() {
-        val result =
-            ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
-                chapterCount = 8,
-                filePath = "/books/chapter-01.mp3",
-                durationMs = 45L * 60L * 1000L,
-            )
-
+    public fun `shouldEnqueueSingleFileDetection returns false when duration below threshold`(): Unit {
+        val result = ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
+            chapterCount = 1,
+            filePath = "/path/to/book.mp3",
+            durationMs = MIN_DURATION - 1,
+        )
         assertFalse(result)
     }
 
     @Test
-    fun `shouldEnqueueSingleFileDetection returns false for blank path or short duration`() {
-        val blankPath =
-            ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
-                chapterCount = 1,
-                filePath = "  ",
-                durationMs = 45L * 60L * 1000L,
-            )
-        val shortDuration =
-            ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
-                chapterCount = 1,
-                filePath = "/books/short.mp3",
-                durationMs = 5L * 60L * 1000L,
-            )
+    public fun `shouldEnqueueSingleFileDetection returns false for blank filePath`(): Unit {
+        val result = ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
+            chapterCount = 1,
+            filePath = "",
+            durationMs = MIN_DURATION,
+        )
+        assertFalse(result)
+    }
 
-        assertFalse(blankPath)
-        assertFalse(shortDuration)
+    @Test
+    public fun `shouldEnqueueSingleFileDetection returns false for whitespace filePath`(): Unit {
+        val result = ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
+            chapterCount = 1,
+            filePath = "   ",
+            durationMs = MIN_DURATION,
+        )
+        assertFalse(result)
+    }
+
+    @Test
+    public fun `shouldEnqueueSingleFileDetection returns false when chapterCount not 1`(): Unit {
+        val result = ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
+            chapterCount = 0,
+            filePath = "/path/to/book.mp3",
+            durationMs = MIN_DURATION,
+        )
+        assertFalse(result)
+    }
+
+    @Test
+    public fun `shouldEnqueueSingleFileDetection returns false when chapterCount greater than 1`(): Unit {
+        val result = ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
+            chapterCount = 5,
+            filePath = "/path/to/book.mp3",
+            durationMs = MIN_DURATION,
+        )
+        assertFalse(result)
+    }
+
+    @Test
+    public fun `shouldEnqueueSingleFileDetection returns false for all invalid conditions`(): Unit {
+        val result = ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
+            chapterCount = 0,
+            filePath = "",
+            durationMs = 0L,
+        )
+        assertFalse(result)
     }
 }

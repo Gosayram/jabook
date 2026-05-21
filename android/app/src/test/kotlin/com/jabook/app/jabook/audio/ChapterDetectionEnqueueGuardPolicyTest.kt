@@ -18,69 +18,89 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class ChapterDetectionEnqueueGuardPolicyTest {
-    private val signature =
+public class ChapterDetectionEnqueueGuardPolicyTest {
+    private val DEBOUNCE_MS = ChapterDetectionEnqueueGuardPolicy.SAME_SIGNATURE_DEBOUNCE_MS
+
+    private fun makeSignature(path: String = "/path/to/file.mp3", index: Int = 0, duration: Long = 60_000L, modified: Long = 1_000L) =
         ChapterDetectionEnqueueGuardPolicy.FileSignature(
-            filePath = "/books/a.mp3",
-            fileIndex = 0,
-            durationMs = 3_600_000L,
-            lastModifiedMs = 1_000L,
+            filePath = path,
+            fileIndex = index,
+            durationMs = duration,
+            lastModifiedMs = modified,
+        )
+
+    private fun makeRecord(signature: ChapterDetectionEnqueueGuardPolicy.FileSignature = makeSignature(), enqueuedAt: Long = 0L) =
+        ChapterDetectionEnqueueGuardPolicy.EnqueueRecord(
+            signature = signature,
+            enqueuedAtMs = enqueuedAt,
         )
 
     @Test
-    fun `shouldSkipEnqueue is false when there is no previous record`() {
-        val shouldSkip =
-            ChapterDetectionEnqueueGuardPolicy.shouldSkipEnqueue(
-                previous = null,
-                next = signature,
-                nowMs = 10_000L,
-            )
-
-        assertFalse(shouldSkip)
+    public fun `shouldSkipEnqueue returns false when previous is null`() {
+        val result = ChapterDetectionEnqueueGuardPolicy.shouldSkipEnqueue(
+            previous = null,
+            next = makeSignature(),
+            nowMs = 1000L,
+        )
+        assertFalse(result)
     }
 
     @Test
-    fun `shouldSkipEnqueue is true for same signature within debounce window`() {
-        val previous =
-            ChapterDetectionEnqueueGuardPolicy.EnqueueRecord(
-                signature = signature,
-                enqueuedAtMs = 100_000L,
-            )
-
-        val shouldSkip =
-            ChapterDetectionEnqueueGuardPolicy.shouldSkipEnqueue(
-                previous = previous,
-                next = signature,
-                nowMs = 100_000L + ChapterDetectionEnqueueGuardPolicy.SAME_SIGNATURE_DEBOUNCE_MS - 1L,
-            )
-
-        assertTrue(shouldSkip)
+    public fun `shouldSkipEnqueue returns false when signatures differ`() {
+        val prevRecord = makeRecord(makeSignature("/path/file1.mp3"))
+        val result = ChapterDetectionEnqueueGuardPolicy.shouldSkipEnqueue(
+            previous = prevRecord,
+            next = makeSignature("/path/file2.mp3"),
+            nowMs = 1000L,
+        )
+        assertFalse(result)
     }
 
     @Test
-    fun `shouldSkipEnqueue is false when signature changed or debounce elapsed`() {
-        val previous =
-            ChapterDetectionEnqueueGuardPolicy.EnqueueRecord(
-                signature = signature,
-                enqueuedAtMs = 100_000L,
-            )
-        val changedSignature =
-            signature.copy(lastModifiedMs = signature.lastModifiedMs + 500L)
+    public fun `shouldSkipEnqueue returns true when elapsed is just under debounce`() {
+        val prevRecord = makeRecord(enqueuedAt = 0L)
+        val justUnder = DEBOUNCE_MS - 1
+        val result = ChapterDetectionEnqueueGuardPolicy.shouldSkipEnqueue(
+            previous = prevRecord,
+            next = prevRecord.signature,
+            nowMs = justUnder,
+        )
+        assertTrue(result)
+    }
 
-        val bySignature =
-            ChapterDetectionEnqueueGuardPolicy.shouldSkipEnqueue(
-                previous = previous,
-                next = changedSignature,
-                nowMs = 100_001L,
-            )
-        val byElapsed =
-            ChapterDetectionEnqueueGuardPolicy.shouldSkipEnqueue(
-                previous = previous,
-                next = signature,
-                nowMs = 100_000L + ChapterDetectionEnqueueGuardPolicy.SAME_SIGNATURE_DEBOUNCE_MS,
-            )
+    @Test
+    public fun `shouldSkipEnqueue returns false when elapsed equals debounce`() {
+        val prevRecord = makeRecord(enqueuedAt = 0L)
+        val result = ChapterDetectionEnqueueGuardPolicy.shouldSkipEnqueue(
+            previous = prevRecord,
+            next = prevRecord.signature,
+            nowMs = DEBOUNCE_MS,
+        )
+        assertFalse(result)
+    }
 
-        assertFalse(bySignature)
-        assertFalse(byElapsed)
+    @Test
+    public fun `shouldSkipEnqueue returns false when elapsed is over debounce`() {
+        val prevRecord = makeRecord(enqueuedAt = 0L)
+        val overDebounce = DEBOUNCE_MS + 1
+        val result = ChapterDetectionEnqueueGuardPolicy.shouldSkipEnqueue(
+            previous = prevRecord,
+            next = prevRecord.signature,
+            nowMs = overDebounce,
+        )
+        assertFalse(result)
+    }
+
+    @Test
+    public fun `shouldSkipEnqueue handles negative elapsed by coercing to zero`() {
+        val prevRecord = makeRecord(enqueuedAt = 1000L)
+        // nowMs < enqueuedAtMs would give negative elapsed
+        val result = ChapterDetectionEnqueueGuardPolicy.shouldSkipEnqueue(
+            previous = prevRecord,
+            next = prevRecord.signature,
+            nowMs = 0L,
+        )
+        // elapsed = 0, which is < DEBOUNCE_MS, so should skip
+        assertTrue(result)
     }
 }

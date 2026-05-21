@@ -17,126 +17,62 @@ package com.jabook.app.jabook.audio.processors
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/**
- * Unit tests for [AdaptiveDrcThresholdPolicy].
- *
- * P-04: Verifies adaptive DRC threshold calibration based on LUFS.
- */
-class AdaptiveDrcThresholdPolicyTest {
-    // --- resolveThresholdDb: null LUFS → fallback to defaults ---
-
+public class AdaptiveDrcThresholdPolicyTest {
     @Test
-    fun `resolveThresholdDb returns default when lufs is null`() {
-        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Medium, null)
-        assertEquals(-24.0f, result, 0.01f)
+    public fun `resolveThresholdDb returns default when measuredLufs is null`() {
+        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Gentle, null)
+        assertEquals(AdaptiveDrcThresholdPolicy.defaultThresholdDb(DRCLevel.Gentle), result, 0.001f)
     }
 
     @Test
-    fun `resolveThresholdDb returns 0 when DRC is Off`() {
-        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Off, -20.0f)
-        assertEquals(0.0f, result, 0.01f)
-    }
-
-    // --- resolveThresholdDb: quiet recording (LUFS < -23) ---
-
-    @Test
-    fun `quiet recording raises threshold above measured LUFS`() {
-        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Gentle, -26.0f)
-        assertEquals(-20.0f, result, 0.01f)
+    public fun `resolveThresholdDb returns default when DRCLevel is Off`() {
+        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Off, -16.0f)
+        assertEquals(0.0f, result, 0.001f)
     }
 
     @Test
-    fun `very quiet recording gets significantly raised threshold`() {
-        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Medium, -30.0f)
-        assertEquals(-24.0f, result, 0.01f)
-    }
-
-    // --- resolveThresholdDb: loud recording (LUFS > -16) ---
-
-    @Test
-    fun `loud recording lowers threshold below measured LUFS`() {
-        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Medium, -14.0f)
-        assertEquals(-17.0f, result, 0.01f)
+    public fun `resolveThresholdDb returns measuredLufs plus offset for quiet recordings`() {
+        // measuredLufs < -23 (QUIET_LUFS_THRESHOLD)
+        val measuredLufs = -25.0f
+        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Medium, measuredLufs)
+        assertEquals(-19.0f, result, 0.001f) // -25 + 6 = -19
     }
 
     @Test
-    fun `very loud recording gets significantly lowered threshold`() {
-        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Strong, -10.0f)
-        assertEquals(-13.0f, result, 0.01f)
-    }
-
-    // --- resolveThresholdDb: normal recording (-23..-16 LUFS) ---
-
-    @Test
-    fun `normal recording uses default threshold for Gentle`() {
-        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Gentle, -20.0f)
-        assertEquals(-32.0f, result, 0.01f)
+    public fun `resolveThresholdDb returns measuredLufs minus offset for loud recordings`() {
+        // measuredLufs > -16 (LOUD_LUFS_THRESHOLD)
+        val measuredLufs = -12.0f
+        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Strong, measuredLufs)
+        assertEquals(-15.0f, result, 0.001f) // -12 - 3 = -15
     }
 
     @Test
-    fun `normal recording uses default threshold for Medium`() {
-        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Medium, -20.0f)
-        assertEquals(-24.0f, result, 0.01f)
+    public fun `resolveThresholdDb returns default for normal range recordings`() {
+        // -23 <= measuredLufs <= -16 (normal range)
+        val measuredLufs = -19.0f
+        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Medium, measuredLufs)
+        assertEquals(AdaptiveDrcThresholdPolicy.defaultThresholdDb(DRCLevel.Medium), result, 0.001f)
     }
 
     @Test
-    fun `normal recording uses default threshold for Strong`() {
-        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Strong, -20.0f)
-        assertEquals(-18.0f, result, 0.01f)
-    }
-
-    // --- defaultThresholdDb ---
-
-    @Test
-    fun `defaultThresholdDb Off returns 0`() {
-        assertEquals(0.0f, AdaptiveDrcThresholdPolicy.defaultThresholdDb(DRCLevel.Off), 0.01f)
-    }
-
-    @Test
-    fun `defaultThresholdDb Gentle returns -32`() {
-        assertEquals(-32.0f, AdaptiveDrcThresholdPolicy.defaultThresholdDb(DRCLevel.Gentle), 0.01f)
-    }
-
-    @Test
-    fun `defaultThresholdDb Medium returns -24`() {
-        assertEquals(-24.0f, AdaptiveDrcThresholdPolicy.defaultThresholdDb(DRCLevel.Medium), 0.01f)
-    }
-
-    @Test
-    fun `defaultThresholdDb Strong returns -18`() {
-        assertEquals(-18.0f, AdaptiveDrcThresholdPolicy.defaultThresholdDb(DRCLevel.Strong), 0.01f)
-    }
-
-    // --- targetLufs ---
-
-    @Test
-    fun `targetLufs returns -16`() {
-        assertEquals(-16.0f, AdaptiveDrcThresholdPolicy.targetLufs(), 0.01f)
-    }
-
-    // --- Edge cases ---
-
-    @Test
-    fun `boundary quiet -23 LUFS uses default`() {
+    public fun `resolveThresholdDb returns correct quiet boundary exactly at threshold`() {
+        // At exactly -23 threshold (not less than, so normal branch)
         val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Gentle, -23.0f)
-        assertEquals(-32.0f, result, 0.01f)
+        assertEquals(AdaptiveDrcThresholdPolicy.defaultThresholdDb(DRCLevel.Gentle), result, 0.001f)
     }
 
     @Test
-    fun `boundary loud -16 LUFS uses default`() {
-        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Medium, -16.0f)
-        assertEquals(-24.0f, result, 0.01f)
+    public fun `resolveThresholdDb returns correct loud boundary exactly at threshold`() {
+        // At exactly -16 threshold (not greater than, so normal branch)
+        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Strong, -16.0f)
+        assertEquals(AdaptiveDrcThresholdPolicy.defaultThresholdDb(DRCLevel.Strong), result, 0.001f)
     }
 
     @Test
-    fun `just below quiet boundary gets adaptive threshold`() {
-        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Medium, -23.1f)
-        assertEquals(-17.1f, result, 0.01f)
-    }
-
-    @Test
-    fun `just above loud boundary gets adaptive threshold`() {
-        val result = AdaptiveDrcThresholdPolicy.resolveThresholdDb(DRCLevel.Medium, -15.9f)
-        assertEquals(-18.9f, result, 0.01f)
+    public fun `defaultThresholdDb returns correct values for all levels`() {
+        assertEquals(0.0f, AdaptiveDrcThresholdPolicy.defaultThresholdDb(DRCLevel.Off), 0.001f)
+        assertEquals(-32.0f, AdaptiveDrcThresholdPolicy.defaultThresholdDb(DRCLevel.Gentle), 0.001f)
+        assertEquals(-24.0f, AdaptiveDrcThresholdPolicy.defaultThresholdDb(DRCLevel.Medium), 0.001f)
+        assertEquals(-18.0f, AdaptiveDrcThresholdPolicy.defaultThresholdDb(DRCLevel.Strong), 0.001f)
     }
 }

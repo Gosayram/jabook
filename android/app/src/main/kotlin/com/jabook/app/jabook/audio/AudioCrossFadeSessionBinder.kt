@@ -59,8 +59,10 @@ internal object AudioCrossFadeSessionBinder {
                     "AudioPlayerService",
                     "MediaLibrarySession is null, cannot update player after crossfade",
                 )
-            } catch (e: Exception) {
+            } catch (e: IllegalStateException) {
                 LogUtils.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
+            } catch (e: IllegalArgumentException) {
+                LogUtils.e("AudioPlayerService", "Invalid player argument for crossfade", e)
             }
         }
     }
