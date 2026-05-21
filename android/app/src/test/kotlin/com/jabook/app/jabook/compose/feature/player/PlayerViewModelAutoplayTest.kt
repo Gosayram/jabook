@@ -14,89 +14,91 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
-import com.jabook.app.jabook.compose.domain.model.Book
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 public class PlayerViewModelAutoplayTest {
-    // --- evaluateSeriesAutoplayDecision Tests ---
-
     @Test
     public fun `evaluateSeriesAutoplayDecision returns shouldTrigger true when at end with 95 percent played`() {
-        val decision = evaluateSeriesAutoplayDecision(
-            isLastChapter = true,
-            isPlaying = true,
-            positionMs = 95_000L,
-            durationMs = 100_000L,
-            hasTriggeredSeriesAutoplay = false,
-        )
+        val decision =
+            evaluateSeriesAutoplayDecision(
+                isLastChapter = true,
+                isPlaying = true,
+                positionMs = 95_000L,
+                durationMs = 100_000L,
+                hasTriggeredSeriesAutoplay = false,
+            )
         assertTrue(decision.shouldTriggerAutoplay)
         assertFalse(decision.shouldResetAutoplay)
     }
 
     @Test
     public fun `evaluateSeriesAutoplayDecision returns false when not at last chapter`() {
-        val decision = evaluateSeriesAutoplayDecision(
-            isLastChapter = false,
-            isPlaying = true,
-            positionMs = 95_000L,
-            durationMs = 100_000L,
-            hasTriggeredSeriesAutoplay = false,
-        )
+        val decision =
+            evaluateSeriesAutoplayDecision(
+                isLastChapter = false,
+                isPlaying = true,
+                positionMs = 95_000L,
+                durationMs = 100_000L,
+                hasTriggeredSeriesAutoplay = false,
+            )
         assertFalse(decision.shouldTriggerAutoplay)
         assertFalse(decision.shouldResetAutoplay)
     }
 
     @Test
     public fun `evaluateSeriesAutoplayDecision returns shouldReset true when not playing near end`() {
-        val decision = evaluateSeriesAutoplayDecision(
-            isLastChapter = true,
-            isPlaying = false,
-            positionMs = 50_000L,
-            durationMs = 100_000L,
-            hasTriggeredSeriesAutoplay = false,
-        )
+        val decision =
+            evaluateSeriesAutoplayDecision(
+                isLastChapter = true,
+                isPlaying = false,
+                positionMs = 50_000L,
+                durationMs = 100_000L,
+                hasTriggeredSeriesAutoplay = false,
+            )
         assertFalse(decision.shouldTriggerAutoplay)
         assertTrue(decision.shouldResetAutoplay)
     }
 
     @Test
     public fun `evaluateSeriesAutoplayDecision returns shouldReset when already triggered`() {
-        val decision = evaluateSeriesAutoplayDecision(
-            isLastChapter = true,
-            isPlaying = true,
-            positionMs = 95_000L,
-            durationMs = 100_000L,
-            hasTriggeredSeriesAutoplay = true,
-        )
+        val decision =
+            evaluateSeriesAutoplayDecision(
+                isLastChapter = true,
+                isPlaying = true,
+                positionMs = 95_000L,
+                durationMs = 100_000L,
+                hasTriggeredSeriesAutoplay = true,
+            )
         assertFalse(decision.shouldTriggerAutoplay)
         assertTrue(decision.shouldResetAutoplay)
     }
 
     @Test
     public fun `evaluateSeriesAutoplayDecision returns shouldReset when not at 95 percent threshold`() {
-        val decision = evaluateSeriesAutoplayDecision(
-            isLastChapter = true,
-            isPlaying = true,
-            positionMs = 80_000L,
-            durationMs = 100_000L,
-            hasTriggeredSeriesAutoplay = false,
-        )
+        val decision =
+            evaluateSeriesAutoplayDecision(
+                isLastChapter = true,
+                isPlaying = true,
+                positionMs = 80_000L,
+                durationMs = 100_000L,
+                hasTriggeredSeriesAutoplay = false,
+            )
         assertFalse(decision.shouldTriggerAutoplay)
         assertTrue(decision.shouldResetAutoplay)
     }
 
     @Test
     public fun `evaluateSeriesAutoplayDecision handles zero duration`() {
-        val decision = evaluateSeriesAutoplayDecision(
-            isLastChapter = true,
-            isPlaying = true,
-            positionMs = 0L,
-            durationMs = 0L,
-            hasTriggeredSeriesAutoplay = false,
-        )
+        val decision =
+            evaluateSeriesAutoplayDecision(
+                isLastChapter = true,
+                isPlaying = true,
+                positionMs = 0L,
+                durationMs = 0L,
+                hasTriggeredSeriesAutoplay = false,
+            )
         assertFalse(decision.shouldTriggerAutoplay)
         assertTrue(decision.shouldResetAutoplay)
     }
@@ -114,11 +116,12 @@ private fun evaluateSeriesAutoplayDecision(
     durationMs: Long,
     hasTriggeredSeriesAutoplay: Boolean,
 ): AutoplayDecision {
-    val isNearEnd = if (durationMs > 0) {
-        positionMs.toDouble() / durationMs >= 0.95
-    } else {
-        positionMs > 0
-    }
+    val isNearEnd =
+        if (durationMs > 0) {
+            positionMs.toDouble() / durationMs >= 0.95
+        } else {
+            positionMs > 0
+        }
 
     return when {
         !isLastChapter -> AutoplayDecision(false, false)

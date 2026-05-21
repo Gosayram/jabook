@@ -22,6 +22,9 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.jabook.app.jabook.compose.data.worker.ChapterDetectionWorker
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.FutureCallback
+import com.google.common.util.concurrent.MoreExecutors
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -99,11 +102,23 @@ public class ChapterDetectionWorkScheduler
             // Keep currently running/enqueued work to avoid churn during frequent re-scans.
             // A new request with the same unique work name will wait until current work
             // completes instead of replacing it mid-flight.
-            workManager.enqueueUniqueWork(workName, ExistingWorkPolicy.KEEP, request)
-            enqueueHistory[workName] =
-                ChapterDetectionEnqueueGuardPolicy.EnqueueRecord(
-                    signature = signature,
-                    enqueuedAtMs = nowMs,
-                )
+            val operation = workManager.enqueueUniqueWork(workName, ExistingWorkPolicy.KEEP, request)
+            Futures.addCallback(
+                operation.result,
+                object : FutureCallback<Void?> {
+                    override fun onSuccess(result: Void?) {
+                        enqueueHistory[workName] =
+                            ChapterDetectionEnqueueGuardPolicy.EnqueueRecord(
+                                signature = signature,
+                                enqueuedAtMs = nowMs,
+                            )
+                    }
+
+                    override fun onFailure(t: Throwable) {
+                        // WorkManager rejected the request (KEEP policy) - do not update history
+                    }
+                },
+                MoreExecutors.directExecutor(),
+            )
         }
     }

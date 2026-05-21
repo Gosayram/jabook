@@ -143,7 +143,8 @@ internal class MediaCodecChapterSignalExtractor
             var noProgressCounter = 0
 
             while (pcm.size < targetSamplesPerChannel * channels && buffersProcessed < MAX_BUFFERS_PER_WINDOW) {
-                val madeProgress = feedInput(extractor, codec) || drainOutput(codec, outputBufferInfo, pcm, targetSamplesPerChannel * channels)
+                val madeProgress =
+                    feedInput(extractor, codec) || drainOutput(codec, outputBufferInfo, pcm, targetSamplesPerChannel * channels)
                 buffersProcessed++
 
                 if ((outputBufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) break
