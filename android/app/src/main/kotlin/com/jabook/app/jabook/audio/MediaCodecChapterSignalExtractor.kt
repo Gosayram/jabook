@@ -143,51 +143,57 @@ internal class MediaCodecChapterSignalExtractor
             var noProgressCounter = 0
 
             while (pcm.size < targetSamplesPerChannel * channels && buffersProcessed < MAX_BUFFERS_PER_WINDOW) {
-                var madeProgress = false
-                val inputIndex = codec.dequeueInputBuffer(DEQUEUE_TIMEOUT_US)
-                if (inputIndex >= 0) {
-                    val inputBuffer = codec.getInputBuffer(inputIndex)
-                    if (inputBuffer != null) {
-                        inputBuffer.clear()
-                        val sampleSize = extractor.readSampleData(inputBuffer, 0)
-                        if (sampleSize >= 0) {
-                            val presentationTimeUs = extractor.sampleTime
-                            codec.queueInputBuffer(inputIndex, 0, sampleSize, presentationTimeUs, 0)
-                            extractor.advance()
-                            madeProgress = true
-                        } else {
-                            codec.queueInputBuffer(inputIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
-                            madeProgress = true
-                        }
-                    }
-                }
-
-                val outputIndex = codec.dequeueOutputBuffer(outputBufferInfo, DEQUEUE_TIMEOUT_US)
-                if (outputIndex >= 0) {
-                    val outputBuffer = codec.getOutputBuffer(outputIndex)
-                    if (outputBuffer != null && outputBufferInfo.size > 0) {
-                        outputBuffer.position(outputBufferInfo.offset)
-                        outputBuffer.limit(outputBufferInfo.offset + outputBufferInfo.size)
-                        outputBuffer.order(ByteOrder.LITTLE_ENDIAN)
-                        while (outputBuffer.hasRemaining() && pcm.size < targetSamplesPerChannel * channels) {
-                            pcm.add(outputBuffer.short)
-                        }
-                    }
-                    codec.releaseOutputBuffer(outputIndex, false)
-                    buffersProcessed++
-                    madeProgress = true
-                }
+                val madeProgress = feedInput(extractor, codec) || drainOutput(codec, outputBufferInfo, pcm, targetSamplesPerChannel * channels)
+                buffersProcessed++
 
                 if ((outputBufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) break
-                if (madeProgress) {
-                    noProgressCounter = 0
-                } else {
-                    noProgressCounter++
-                    if (noProgressCounter > MAX_NO_PROGRESS_DEQUEUE_ATTEMPTS) break
-                }
+                noProgressCounter = if (madeProgress) 0 else noProgressCounter + 1
+                if (noProgressCounter > MAX_NO_PROGRESS_DEQUEUE_ATTEMPTS) break
             }
 
             return if (pcm.isNotEmpty()) pcm.toShortArray() else null
+        }
+
+        private fun feedInput(
+            extractor: MediaExtractor,
+            codec: MediaCodec,
+        ): Boolean {
+            val inputIndex = codec.dequeueInputBuffer(DEQUEUE_TIMEOUT_US)
+            if (inputIndex < 0) return false
+
+            val inputBuffer = codec.getInputBuffer(inputIndex) ?: return false
+            inputBuffer.clear()
+            val sampleSize = extractor.readSampleData(inputBuffer, 0)
+            if (sampleSize >= 0) {
+                val presentationTimeUs = extractor.sampleTime
+                codec.queueInputBuffer(inputIndex, 0, sampleSize, presentationTimeUs, 0)
+                extractor.advance()
+            } else {
+                codec.queueInputBuffer(inputIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+            }
+            return true
+        }
+
+        private fun drainOutput(
+            codec: MediaCodec,
+            outputBufferInfo: MediaCodec.BufferInfo,
+            pcm: ArrayList<Short>,
+            targetSize: Int,
+        ): Boolean {
+            val outputIndex = codec.dequeueOutputBuffer(outputBufferInfo, DEQUEUE_TIMEOUT_US)
+            if (outputIndex < 0) return false
+
+            val outputBuffer = codec.getOutputBuffer(outputIndex)
+            if (outputBuffer != null && outputBufferInfo.size > 0) {
+                outputBuffer.position(outputBufferInfo.offset)
+                outputBuffer.limit(outputBufferInfo.offset + outputBufferInfo.size)
+                outputBuffer.order(ByteOrder.LITTLE_ENDIAN)
+                while (outputBuffer.hasRemaining() && pcm.size < targetSize) {
+                    pcm.add(outputBuffer.short)
+                }
+            }
+            codec.releaseOutputBuffer(outputIndex, false)
+            return true
         }
 
         private fun rmsDb(samples: ShortArray): Float {

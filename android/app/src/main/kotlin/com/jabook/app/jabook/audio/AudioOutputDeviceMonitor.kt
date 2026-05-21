@@ -119,7 +119,7 @@ internal class AudioOutputDeviceMonitor(
                     it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
                     it.type == AudioDeviceInfo.TYPE_HEARING_AID ||
                     (
-                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
                             it.type == AudioDeviceInfo.TYPE_BLE_HEADSET
                     ) ||
                     (
