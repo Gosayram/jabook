@@ -20,7 +20,7 @@ import org.junit.Test
 
 public class PlayerViewModelAutoplayTest {
     @Test
-    public fun `evaluateSeriesAutoplayDecision returns shouldTrigger true when at end with 95 percent played`() {
+    fun `evaluateSeriesAutoplayDecision returns shouldTrigger true when at end with 95 percent played`() {
         val decision =
             evaluateSeriesAutoplayDecision(
                 isLastChapter = true,
@@ -34,7 +34,7 @@ public class PlayerViewModelAutoplayTest {
     }
 
     @Test
-    public fun `evaluateSeriesAutoplayDecision returns false when not at last chapter`() {
+    fun `evaluateSeriesAutoplayDecision returns false when not at last chapter`() {
         val decision =
             evaluateSeriesAutoplayDecision(
                 isLastChapter = false,
@@ -48,7 +48,7 @@ public class PlayerViewModelAutoplayTest {
     }
 
     @Test
-    public fun `evaluateSeriesAutoplayDecision returns shouldReset true when not playing near end`() {
+    fun `evaluateSeriesAutoplayDecision returns shouldReset true when not playing near end`() {
         val decision =
             evaluateSeriesAutoplayDecision(
                 isLastChapter = true,
@@ -62,7 +62,7 @@ public class PlayerViewModelAutoplayTest {
     }
 
     @Test
-    public fun `evaluateSeriesAutoplayDecision returns shouldReset when already triggered`() {
+    fun `evaluateSeriesAutoplayDecision returns shouldReset when already triggered`() {
         val decision =
             evaluateSeriesAutoplayDecision(
                 isLastChapter = true,
@@ -76,7 +76,7 @@ public class PlayerViewModelAutoplayTest {
     }
 
     @Test
-    public fun `evaluateSeriesAutoplayDecision returns shouldReset when not at 95 percent threshold`() {
+    fun `evaluateSeriesAutoplayDecision returns shouldReset when not at 95 percent threshold`() {
         val decision =
             evaluateSeriesAutoplayDecision(
                 isLastChapter = true,
@@ -90,7 +90,7 @@ public class PlayerViewModelAutoplayTest {
     }
 
     @Test
-    public fun `evaluateSeriesAutoplayDecision handles zero duration`() {
+    fun `evaluateSeriesAutoplayDecision handles zero duration`() {
         val decision =
             evaluateSeriesAutoplayDecision(
                 isLastChapter = true,
