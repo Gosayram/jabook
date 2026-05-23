@@ -24,7 +24,6 @@ import com.jabook.app.jabook.compose.data.local.dao.ScanPathDao
 import com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
-import org.mockito.ArgumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify

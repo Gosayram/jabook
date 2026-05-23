@@ -16,23 +16,34 @@ package com.jabook.app.jabook.audio
 
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequest
+import androidx.work.Operation
 import androidx.work.WorkManager
 import com.jabook.app.jabook.compose.data.worker.ChapterDetectionWorker
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 
 class ChapterDetectionWorkSchedulerTest {
+    private lateinit var workManager: WorkManager
+    private lateinit var scheduler: ChapterDetectionWorkScheduler
+    private val requestCaptor = argumentCaptor<OneTimeWorkRequest>()
+
+    @Before
+    fun setup() {
+        workManager = mock<WorkManager>()
+        whenever(workManager.enqueueUniqueWork(any(), any(), any<OneTimeWorkRequest>())).thenReturn(mock<Operation>())
+        scheduler = ChapterDetectionWorkScheduler(workManager = workManager, nowMsProvider = { 1000L })
+    }
+
     @Test
     fun `enqueue schedules unique work with keep policy and expected payload`() {
-        val workManager = mock<WorkManager>()
-        val scheduler = ChapterDetectionWorkScheduler(workManager = workManager, nowMsProvider = { 1000L })
-        val requestCaptor = argumentCaptor<OneTimeWorkRequest>()
-
         scheduler.enqueue(
             bookId = "book-1",
             filePath = "/books/book1/chapter.mp3",
@@ -56,9 +67,6 @@ class ChapterDetectionWorkSchedulerTest {
 
     @Test
     fun `enqueue ignores invalid request`() {
-        val workManager = mock<WorkManager>()
-        val scheduler = ChapterDetectionWorkScheduler(workManager = workManager)
-
         scheduler.enqueue(
             bookId = "",
             filePath = "/books/book1/chapter.mp3",
@@ -90,11 +98,10 @@ class ChapterDetectionWorkSchedulerTest {
 
     @Test
     fun `enqueue skips duplicate signature within debounce window`() {
-        val workManager = mock<WorkManager>()
         var nowMs = 1_000L
-        val scheduler = ChapterDetectionWorkScheduler(workManager = workManager, nowMsProvider = { nowMs })
+        val debounceScheduler = ChapterDetectionWorkScheduler(workManager = workManager, nowMsProvider = { nowMs })
 
-        scheduler.enqueue(
+        debounceScheduler.enqueue(
             bookId = "book-1",
             filePath = "/books/book1/chapter.mp3",
             fileIndex = 1,
@@ -102,7 +109,7 @@ class ChapterDetectionWorkSchedulerTest {
             fileLastModifiedMs = 5L,
         )
         nowMs += ChapterDetectionEnqueueGuardPolicy.SAME_SIGNATURE_DEBOUNCE_MS - 1L
-        scheduler.enqueue(
+        debounceScheduler.enqueue(
             bookId = "book-1",
             filePath = "/books/book1/chapter.mp3",
             fileIndex = 1,
@@ -110,7 +117,6 @@ class ChapterDetectionWorkSchedulerTest {
             fileLastModifiedMs = 5L,
         )
 
-        val requestCaptor = argumentCaptor<OneTimeWorkRequest>()
         verify(workManager).enqueueUniqueWork(
             eq("${ChapterDetectionWorker.WORK_NAME_PREFIX}_book-1_1"),
             eq(ExistingWorkPolicy.KEEP),

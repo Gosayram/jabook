@@ -607,6 +607,7 @@ public fun PlayerScreen(
 
     // Stats for Nerds Overlay
     var showStatsOverlay by remember { mutableStateOf(false) }
+    var isBookmarkNoteSheetVisible by remember { mutableStateOf(false) }
     if (showStatsOverlay) {
         val stats by viewModel.playerStats.collectAsStateWithLifecycle()
         StatsOverlay(
@@ -637,7 +638,8 @@ public fun PlayerScreen(
                                             showAudioSettingsSheet ||
                                             showChapterSheet ||
                                             showSettingsSheet ||
-                                            showRatingDialog
+                                            showRatingDialog ||
+                                            isBookmarkNoteSheetVisible
                                     if (shouldIgnoreShortcuts) return@onPreviewKeyEvent false
                                     when (keyEvent.key) {
                                         Key.DirectionUp -> {
@@ -849,6 +851,7 @@ public fun PlayerScreen(
                                             onSetVisualizerEnabled = { enabled ->
                                                 viewModel.dispatch(PlayerIntent.SetVisualizerEnabled(enabled))
                                             },
+                                            onBookmarkNoteSheetVisibilityChanged = { isBookmarkNoteSheetVisible = it },
                                             snackbarHostState = snackbarHostState,
                                             modifier = Modifier.hazeEffect(state = overlayHazeState),
                                             sharedTransitionScope = sharedTransitionScope,
@@ -1095,6 +1098,7 @@ private fun PlayerContent(
     onRequestRecordAudioPermission: () -> Unit,
     onInitializeVisualizer: () -> Unit,
     onSetVisualizerEnabled: (Boolean) -> Unit,
+    onBookmarkNoteSheetVisibilityChanged: (Boolean) -> Unit = {},
     snackbarHostState: androidx.compose.material3.SnackbarHostState,
     modifier: Modifier = Modifier,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
@@ -1250,6 +1254,8 @@ private fun PlayerContent(
             bookmarkPlayer.value = null
         }
     }
+
+    SideEffect { onBookmarkNoteSheetVisibilityChanged(showBookmarkNoteSheet) }
 
     var lastChapterBoundaryIndex by remember(state.book.id) { mutableIntStateOf(state.currentChapterIndex) }
     var skipTriggeredHaptic by remember { mutableStateOf(false) }

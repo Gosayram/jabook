@@ -53,7 +53,8 @@ class DynamicTimeoutInterceptorTest {
     }
 
     private fun buildResponse(request: Request): Response =
-        Response.Builder()
+        Response
+            .Builder()
             .request(request)
             .protocol(Protocol.HTTP_1_1)
             .code(200)
@@ -62,9 +63,11 @@ class DynamicTimeoutInterceptorTest {
 
     @Test
     fun `request without Invocation tag proceeds without timeout modifications`() {
-        val request = Request.Builder()
-            .url("https://example.com/api")
-            .build()
+        val request =
+            Request
+                .Builder()
+                .url("https://example.com/api")
+                .build()
         val chain = buildChain(request)
 
         val result = interceptor.intercept(chain)
@@ -80,10 +83,12 @@ class DynamicTimeoutInterceptorTest {
     fun `request with RequestTimeout annotation applies specified timeouts`() {
         val method = StubApi::class.java.getDeclaredMethod("annotatedEndpoint", String::class.java)
         val invocation = Invocation.of(method, listOf("test"))
-        val request = Request.Builder()
-            .url("https://example.com/api")
-            .tag(Invocation::class.java, invocation)
-            .build()
+        val request =
+            Request
+                .Builder()
+                .url("https://example.com/api")
+                .tag(Invocation::class.java, invocation)
+                .build()
         val chain = buildChain(request)
 
         interceptor.intercept(chain)
@@ -98,10 +103,12 @@ class DynamicTimeoutInterceptorTest {
     fun `negative and zero timeout values do not crash and overflow is clamped`() {
         val method = StubApi::class.java.getDeclaredMethod("edgeCaseTimeouts")
         val invocation = Invocation.of(method, emptyList<Any>())
-        val request = Request.Builder()
-            .url("https://example.com/api")
-            .tag(Invocation::class.java, invocation)
-            .build()
+        val request =
+            Request
+                .Builder()
+                .url("https://example.com/api")
+                .tag(Invocation::class.java, invocation)
+                .build()
         val chain = buildChain(request)
 
         val result = interceptor.intercept(chain)

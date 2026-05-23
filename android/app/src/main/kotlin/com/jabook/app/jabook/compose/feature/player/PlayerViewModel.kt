@@ -211,6 +211,7 @@ public class PlayerViewModel
                                         chapterIndex = entity.trackIndex.coerceAtLeast(0),
                                         playbackSpeed = currentSnapshot?.playbackSpeed ?: 1.0f,
                                         sleepTimerMode = currentSnapshot?.sleepTimerMode ?: PlayerStateSnapshotPolicy.MODE_IDLE,
+                                        hasRestoredSpeed = currentSnapshot?.hasRestoredSpeed ?: false,
                                     )
                                 logger.d {
                                     "Restored position from database: chapter=${entity.trackIndex}, position=${entity.position}ms"
@@ -927,20 +928,12 @@ public class PlayerViewModel
         ) {
             val clampedSpeed = speed.coerceIn(0.5f, 3.5f)
             viewModelScope.launch {
-                runCatching { userPreferencesRepository.setPlaybackSpeed(clampedSpeed) }
-                    .onFailure { error ->
-                        logger.e({ "Failed to persist playback speed" }, error)
-                        dispatch(PlayerIntent.ReportError("Failed to save playback speed"))
-                    }
-            }
-            viewModelScope.launch {
                 runCatching { playerController.setPlaybackSpeed(clampedSpeed) }
                     .onFailure { error ->
                         logger.e({ "Failed to set playback speed on player" }, error)
                         dispatch(PlayerIntent.ReportError("Failed to update playback speed"))
                     }
             }
-            if (!rememberForBook) return
             viewModelScope.launch {
                 runCatching {
                     val activeState = uiState.value as? PlayerState.Active
@@ -957,6 +950,14 @@ public class PlayerViewModel
                 }.onFailure { error ->
                     logger.w(error) { "Failed to persist per-book playback speed preference" }
                 }
+            }
+            if (rememberForBook) return
+            viewModelScope.launch {
+                runCatching { userPreferencesRepository.setPlaybackSpeed(clampedSpeed) }
+                    .onFailure { error ->
+                        logger.e({ "Failed to persist playback speed" }, error)
+                        dispatch(PlayerIntent.ReportError("Failed to save playback speed"))
+                    }
             }
         }
 
@@ -1199,8 +1200,7 @@ public class PlayerViewModel
                         bookId = bookId,
                     )
 
-                    val shouldSkipHierarchicalSpeedApply =
-                        restoredBootstrapSnapshot?.playbackSpeed?.let { it > 0f } ?: false
+                    val shouldSkipHierarchicalSpeedApply = restoredBootstrapSnapshot?.hasRestoredSpeed ?: false
                     if (!shouldSkipHierarchicalSpeedApply) {
                         viewModelScope.launch {
                             runCatching {
@@ -1281,6 +1281,7 @@ public class PlayerViewModel
                     chapterIndex = restoredChapterIndex,
                     playbackSpeed = restoredSpeed,
                     sleepTimerMode = restoredSleepMode,
+                    hasRestoredSpeed = restoredSpeed > 0f,
                 )
 
             logger.d {
@@ -1305,6 +1306,7 @@ public class PlayerViewModel
                         chapterIndex = restoredChapterIndex,
                         playbackSpeed = restoredSpeed,
                         sleepTimerMode = restoredSleepMode,
+                        hasRestoredSpeed = restoredSpeed > 0f,
                     )
                 logger.d {
                     "Restored player snapshot from DataStore: chapter=$restoredChapterIndex, " +
@@ -1492,6 +1494,7 @@ private data class RestoredBootstrapSnapshot(
     val chapterIndex: Int,
     val playbackSpeed: Float,
     val sleepTimerMode: String,
+    val hasRestoredSpeed: Boolean = false,
 )
 
 internal data class SeriesAutoplayDecision(

@@ -29,6 +29,7 @@ public class PlaybackStatisticsManager(
     private val prefs: SharedPreferences = context.getSharedPreferences("playback_stats", Context.MODE_PRIVATE),
 ) {
     private val statsKey = "playback_stats_v1"
+    private val lock = Any()
 
     /**
      * Tracks total listening time in milliseconds.
@@ -71,24 +72,30 @@ public class PlaybackStatisticsManager(
      */
     public fun addListeningTime(millis: Long) {
         require(millis >= 0) { "millis must be non-negative" }
-        totalListeningTimeMs += millis
-        lastPlaybackDate = System.currentTimeMillis()
+        synchronized(lock) {
+            totalListeningTimeMs += millis
+            lastPlaybackDate = System.currentTimeMillis()
+        }
     }
 
     /**
      * Increments track completed count.
      */
     public fun incrementTracksCompleted() {
-        tracksCompleted++
-        lastPlaybackDate = System.currentTimeMillis()
+        synchronized(lock) {
+            tracksCompleted++
+            lastPlaybackDate = System.currentTimeMillis()
+        }
     }
 
     /**
      * Increments skip count.
      */
     public fun incrementSkips() {
-        skips++
-        lastPlaybackDate = System.currentTimeMillis()
+        synchronized(lock) {
+            skips++
+            lastPlaybackDate = System.currentTimeMillis()
+        }
     }
 
     /**

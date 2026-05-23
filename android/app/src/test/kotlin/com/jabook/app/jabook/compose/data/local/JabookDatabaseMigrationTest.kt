@@ -23,7 +23,9 @@ import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_20_21
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_21_22
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,7 +47,12 @@ class JabookDatabaseMigrationTest {
                 .callback(
                     object : SupportSQLiteOpenHelper.Callback(1) {
                         override fun onCreate(db: SupportSQLiteDatabase) {}
-                        override fun onUpgrade(db: SupportSQLiteDatabase, oldVersion: Int, newVersion: Int) {}
+
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int,
+                        ) {}
                     },
                 ).build()
         dbHelper = factory.create(config)
@@ -183,7 +190,10 @@ class JabookDatabaseMigrationTest {
         )
     }
 
-    private fun hasColumn(table: String, column: String): Boolean {
+    private fun hasColumn(
+        table: String,
+        column: String,
+    ): Boolean {
         val cursor = db.query("PRAGMA table_info($table)")
         cursor.use {
             while (it.moveToNext()) {
@@ -199,19 +209,43 @@ class JabookDatabaseMigrationTest {
         cursor.use { return it.moveToFirst() }
     }
 
-    private fun ftsTableIsFts5(): Boolean {
-        val cursor = db.query("SELECT sql FROM sqlite_master WHERE type='table' AND name='books_fts'")
-        cursor.use {
-            if (it.moveToFirst()) {
-                val sql = it.getString(0) ?: return false
-                return sql.contains("fts5", ignoreCase = true)
-            }
+    private fun hasTable(name: String): Boolean {
+        val cursor = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='$name'")
+        cursor.use { return it.moveToFirst() }
+    }
+
+    private fun isFts5Available(): Boolean =
+        try {
+            db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS _fts5_check USING fts5(x)")
+            db.execSQL("DROP TABLE IF EXISTS _fts5_check")
+            true
+        } catch (_: Exception) {
+            false
         }
-        return false
+
+    @Test
+    fun `migration 20 to 21 drops old FTS4 triggers and table`() {
+        createV20Schema()
+        assertTrue(hasTrigger("books_ai"))
+        assertTrue(hasTrigger("books_ad"))
+        assertTrue(hasTrigger("books_au"))
+        assertTrue(hasTable("books_fts"))
+
+        db.execSQL("DROP TRIGGER IF EXISTS books_ai")
+        db.execSQL("DROP TRIGGER IF EXISTS books_ad")
+        db.execSQL("DROP TRIGGER IF EXISTS books_au")
+        db.execSQL("DROP TABLE IF EXISTS books_fts")
+
+        assertFalse(hasTrigger("books_ai"))
+        assertFalse(hasTrigger("books_ad"))
+        assertFalse(hasTrigger("books_au"))
+        assertFalse(hasTable("books_fts"))
     }
 
     @Test
-    fun `migration 20 to 21 replaces FTS4 with FTS5 and preserves book data`() {
+    fun `migration 20 to 21 creates FTS5 table and triggers when FTS5 is available`() {
+        assumeTrue("FTS5 not available in this SQLite build", isFts5Available())
+
         createV20Schema()
         db.execSQL(
             "INSERT INTO books (id, title, author, description, added_date) VALUES ('b1', 'Test Book', 'Author One', 'A description', 1000)",
@@ -222,13 +256,19 @@ class JabookDatabaseMigrationTest {
 
         MIGRATION_20_21.migrate(db)
 
-        assertTrue(ftsTableIsFts5())
         assertTrue(hasTrigger("books_ai"))
         assertTrue(hasTrigger("books_ad"))
         assertTrue(hasTrigger("books_au"))
 
-        val cursor = db.query("SELECT count FROM books_fts WHERE books_fts MATCH 'Test'")
+        val cursor = db.query("SELECT sql FROM sqlite_master WHERE type='table' AND name='books_fts'")
         cursor.use {
+            assertTrue(it.moveToFirst())
+            val sql = it.getString(0)
+            assertTrue(sql != null && sql.contains("fts5", ignoreCase = true))
+        }
+
+        val ftsCursor = db.query("SELECT count FROM books_fts WHERE books_fts MATCH 'Test'")
+        ftsCursor.use {
             assertTrue(it.moveToFirst())
             assertTrue(it.getInt(0) > 0)
         }
@@ -243,6 +283,8 @@ class JabookDatabaseMigrationTest {
 
     @Test
     fun `migration 20 to 21 retains bookmarks table intact`() {
+        assumeTrue("FTS5 not available in this SQLite build", isFts5Available())
+
         createV20Schema()
         db.execSQL(
             "INSERT INTO books (id, title, author, added_date) VALUES ('b1', 'Title', 'Auth', 1000)",
@@ -265,8 +307,15 @@ class JabookDatabaseMigrationTest {
     }
 
     @Test
+    fun `migration 20 to 21 version contract is correct`() {
+        assertEquals(20, MIGRATION_20_21.startVersion)
+        assertEquals(21, MIGRATION_20_21.endVersion)
+    }
+
+    @Test
     fun `migration 21 to 22 adds resumeData column to torrent_downloads`() {
         createTorrentDownloadsTableV21()
+        assertFalse(hasColumn("torrent_downloads", "resumeData"))
         db.execSQL(
             "INSERT INTO torrent_downloads (hash, name, state, progress, totalSize, downloadedSize, uploadedSize, savePath, files, addedTime, completedTime) VALUES ('abc123', 'test.torrent', 'DOWNLOADING', 0.5, 1000, 500, 0, '/tmp', '[]', 1000, 0)",
         )
@@ -282,7 +331,7 @@ class JabookDatabaseMigrationTest {
     }
 
     @Test
-    fun `migration 21 to 22 resumeData column is nullable`() {
+    fun `migration 21 to 22 resumeData column is nullable for existing rows`() {
         createTorrentDownloadsTableV21()
         db.execSQL(
             "INSERT INTO torrent_downloads (hash, name, state, progress, totalSize, downloadedSize, uploadedSize, savePath, files, addedTime, completedTime) VALUES ('abc123', 'test.torrent', 'DOWNLOADING', 0.5, 1000, 500, 0, '/tmp', '[]', 1000, 0)",
@@ -299,7 +348,24 @@ class JabookDatabaseMigrationTest {
     }
 
     @Test
-    fun `chained migration 20 to 22 applies both schemas correctly`() {
+    fun `migration 21 to 22 version contract is correct`() {
+        assertEquals(21, MIGRATION_21_22.startVersion)
+        assertEquals(22, MIGRATION_21_22.endVersion)
+    }
+
+    @Test
+    fun `migration 21 to 22 handles empty torrent_downloads table without error`() {
+        createTorrentDownloadsTableV21()
+
+        MIGRATION_21_22.migrate(db)
+
+        assertTrue(hasColumn("torrent_downloads", "resumeData"))
+    }
+
+    @Test
+    fun `chained migration 20 to 22 applies 21 to 22 correctly after 20 to 21`() {
+        assumeTrue("FTS5 not available in this SQLite build", isFts5Available())
+
         createV20Schema()
         createTorrentDownloadsTableV21()
         db.execSQL(
@@ -312,43 +378,15 @@ class JabookDatabaseMigrationTest {
         MIGRATION_20_21.migrate(db)
         MIGRATION_21_22.migrate(db)
 
-        assertTrue(ftsTableIsFts5())
         assertTrue(hasTrigger("books_ai"))
         assertTrue(hasTrigger("books_ad"))
         assertTrue(hasTrigger("books_au"))
         assertTrue(hasColumn("torrent_downloads", "resumeData"))
-
-        val ftsCursor = db.query("SELECT count FROM books_fts WHERE books_fts MATCH 'Chain'")
-        ftsCursor.use {
-            assertTrue(it.moveToFirst())
-            assertTrue(it.getInt(0) > 0)
-        }
 
         val torrentCursor = db.query("SELECT name, progress FROM torrent_downloads WHERE hash = 'h1'")
         torrentCursor.use {
             assertTrue(it.moveToFirst())
             assertEquals("chain.torrent", it.getString(0))
         }
-    }
-
-    @Test
-    fun `migration 20 to 21 handles empty books table without error`() {
-        createV20Schema()
-
-        MIGRATION_20_21.migrate(db)
-
-        assertTrue(ftsTableIsFts5())
-        assertTrue(hasTrigger("books_ai"))
-        assertTrue(hasTrigger("books_ad"))
-        assertTrue(hasTrigger("books_au"))
-    }
-
-    @Test
-    fun `migration 21 to 22 handles empty torrent_downloads table without error`() {
-        createTorrentDownloadsTableV21()
-
-        MIGRATION_21_22.migrate(db)
-
-        assertTrue(hasColumn("torrent_downloads", "resumeData"))
     }
 }

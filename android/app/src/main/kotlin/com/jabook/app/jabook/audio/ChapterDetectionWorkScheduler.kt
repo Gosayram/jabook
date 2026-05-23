@@ -19,12 +19,8 @@ import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.Operation
 import androidx.work.WorkManager
 import androidx.work.workDataOf
-import com.google.common.util.concurrent.FutureCallback
-import com.google.common.util.concurrent.Futures
-import com.google.common.util.concurrent.MoreExecutors
 import com.jabook.app.jabook.compose.data.worker.ChapterDetectionWorker
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -44,10 +40,12 @@ public class ChapterDetectionWorkScheduler
             workManager: WorkManager,
             nowMsProvider: () -> Long,
         ) : this(workManager) {
-            this.nowMsProvider = nowMsProvider
+            this.nowMsProviderForTest = nowMsProvider
         }
 
-        private var nowMsProvider: () -> Long = { System.currentTimeMillis() }
+        private var nowMsProviderForTest: (() -> Long)? = null
+        private val nowMsProvider: () -> Long
+            get() = nowMsProviderForTest ?: { System.currentTimeMillis() }
 
         private val enqueueHistory =
             ConcurrentHashMap<String, ChapterDetectionEnqueueGuardPolicy.EnqueueRecord>()
@@ -103,23 +101,11 @@ public class ChapterDetectionWorkScheduler
             // Keep currently running/enqueued work to avoid churn during frequent re-scans.
             // A new request with the same unique work name will wait until current work
             // completes instead of replacing it mid-flight.
-            val operation = workManager.enqueueUniqueWork(workName, ExistingWorkPolicy.KEEP, request)
-            Futures.addCallback(
-                operation.result,
-                object : FutureCallback<Operation.State.SUCCESS> {
-                    override fun onSuccess(result: Operation.State.SUCCESS) {
-                        enqueueHistory[workName] =
-                            ChapterDetectionEnqueueGuardPolicy.EnqueueRecord(
-                                signature = signature,
-                                enqueuedAtMs = nowMs,
-                            )
-                    }
-
-                    override fun onFailure(t: Throwable) {
-                        // WorkManager rejected the request (KEEP policy) - do not update history
-                    }
-                },
-                MoreExecutors.directExecutor(),
-            )
+            workManager.enqueueUniqueWork(workName, ExistingWorkPolicy.KEEP, request)
+            enqueueHistory[workName] =
+                ChapterDetectionEnqueueGuardPolicy.EnqueueRecord(
+                    signature = signature,
+                    enqueuedAtMs = nowMs,
+                )
         }
     }
