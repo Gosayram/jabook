@@ -116,6 +116,7 @@ class MediaSourceValidatorTest {
 
     @Test
     fun `WAV RIFF header is recognised`() {
+        // WAV requires RIFF at 0-3 and WAVE at 8-11 (12 bytes minimum)
         val header =
             byteArrayOf(
                 'R'.code.toByte(),
@@ -126,6 +127,10 @@ class MediaSourceValidatorTest {
                 0x00,
                 0x00,
                 0x00,
+                'W'.code.toByte(),
+                'A'.code.toByte(),
+                'V'.code.toByte(),
+                'E'.code.toByte(),
             )
         assertTrue(MediaSourceValidator.isKnownAudioHeader(header))
     }
