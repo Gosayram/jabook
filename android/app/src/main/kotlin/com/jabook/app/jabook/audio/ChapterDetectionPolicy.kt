@@ -74,7 +74,7 @@ internal object ChapterDetectionPolicy {
         return result
     }
 
-    private fun confidenceForWindows(
+    internal fun confidenceForWindows(
         silentWindows: Int,
         requiredSilentWindows: Int,
         minSilenceDb: Float,
@@ -104,8 +104,8 @@ internal object ChapterDetectionPolicy {
     internal const val MAX_ADAPTIVE_THRESHOLD_DB: Float = -30f
     internal const val ADAPTIVE_THRESHOLD_MARGIN_DB: Float = 6f
     internal const val TARGET_SILENCE_DEPTH_DB: Float = 12f
-    private const val NOISE_FLOOR_PERCENTILE: Float = 0.2f
-    private const val DURATION_WEIGHT: Float = 0.7f
-    private const val DEPTH_WEIGHT: Float = 0.3f
-    private const val MAX_CONFIDENCE: Float = 1f
+    internal const val NOISE_FLOOR_PERCENTILE: Float = 0.2f
+    internal const val DURATION_WEIGHT: Float = 0.7f
+    internal const val DEPTH_WEIGHT: Float = 0.3f
+    internal const val MAX_CONFIDENCE: Float = 1f
 }

@@ -28,8 +28,7 @@ import kotlin.math.abs
 public object SpeedMemoryHierarchy {
     public const val MIN_TRUSTED_LISTENING_MS: Long = 5 * 60 * 1000L
 
-    private fun validSpeedOrNull(speed: Float?): Float? =
-        if (speed != null && speed.isFinite() && speed > 0f) speed else null
+    private fun validSpeedOrNull(speed: Float?): Float? = if (speed != null && speed.isFinite() && speed > 0f) speed else null
 
     public fun resolveSpeed(
         perBookSpeed: Float?,

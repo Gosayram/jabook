@@ -18,6 +18,8 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import java.io.File
 import java.io.IOException
 import java.nio.ByteOrder
@@ -25,8 +27,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.log10
 import kotlin.math.sqrt
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 
 /**
  * Default ChapterSignalExtractor implementation.

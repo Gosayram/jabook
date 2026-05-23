@@ -54,39 +54,40 @@ public class BufferManager(
     public fun start() {
         if (active) return
         active = true
-        monitoringJob = scope.launch {
-            while (active) {
-                try {
-                    val playbackState = player.playbackState
-                    val playWhenReady = player.playWhenReady
-                    val bufferedPosition = player.bufferedPosition
-                    val position = player.currentPosition
-                    val stateBuffering = Player.STATE_BUFFERING
-                    val stateReady = Player.STATE_READY
+        monitoringJob =
+            scope.launch {
+                while (active) {
+                    try {
+                        val playbackState = player.playbackState
+                        val playWhenReady = player.playWhenReady
+                        val bufferedPosition = player.bufferedPosition
+                        val position = player.currentPosition
+                        val stateBuffering = Player.STATE_BUFFERING
+                        val stateReady = Player.STATE_READY
 
-                    // Check for underrun (playback stalling)
-                    if (playWhenReady && playbackState == stateBuffering) {
-                        LogUtils.w(TAG, "Buffer underrun detected: bufferedPosition=$bufferedPosition, position=$position")
-                        // Reduce buffer size to minimize latency
-                        currentBufferMs = minBufferMs
-                        // Notify player to reduce buffer? (Media3 doesn't expose direct control)
-                    } else if (playWhenReady && playbackState == stateReady) {
-                        // Increase buffer size if we have enough data
-                        if (bufferedPosition - position > currentBufferMs) {
-                            currentBufferMs = (currentBufferMs * 1.1).toLong().coerceAtMost(maxBufferMs)
+                        // Check for underrun (playback stalling)
+                        if (playWhenReady && playbackState == stateBuffering) {
+                            LogUtils.w(TAG, "Buffer underrun detected: bufferedPosition=$bufferedPosition, position=$position")
+                            // Reduce buffer size to minimize latency
+                            currentBufferMs = minBufferMs
+                            // Notify player to reduce buffer? (Media3 doesn't expose direct control)
+                        } else if (playWhenReady && playbackState == stateReady) {
+                            // Increase buffer size if we have enough data
+                            if (bufferedPosition - position > currentBufferMs) {
+                                currentBufferMs = (currentBufferMs * 1.1).toLong().coerceAtMost(maxBufferMs)
+                            }
                         }
-                    }
 
-                    LogUtils.d(
-                        TAG,
-                        "BufferManager: currentBufferMs=$currentBufferMs, bufferedPosition=$bufferedPosition, position=$position",
-                    )
-                } catch (e: Exception) {
-                    LogUtils.e(TAG, "BufferManager error: ${e.message}", e)
+                        LogUtils.d(
+                            TAG,
+                            "BufferManager: currentBufferMs=$currentBufferMs, bufferedPosition=$bufferedPosition, position=$position",
+                        )
+                    } catch (e: Exception) {
+                        LogUtils.e(TAG, "BufferManager error: ${e.message}", e)
+                    }
+                    delay(checkIntervalMs)
                 }
-                delay(checkIntervalMs)
             }
-        }
     }
 
     /**

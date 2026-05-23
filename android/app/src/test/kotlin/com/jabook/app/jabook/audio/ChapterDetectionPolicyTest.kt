@@ -196,3 +196,197 @@ class ChapterDetectionPolicyTest {
         assertEquals(1f, result.first().confidence)
     }
 }
+
+@Test
+fun `confidenceForWindows returns zero when requiredSilentWindows is zero`() {
+    val confidence =
+        ChapterDetectionPolicy.confidenceForWindows(
+            silentWindows = 5,
+            requiredSilentWindows = 0,
+            minSilenceDb = -50f,
+            thresholdDb = -40f,
+        )
+    assertEquals(0f, confidence, 0.001f)
+}
+
+@Test
+fun `confidenceForWindows respects max confidence cap`() {
+    val confidence =
+        ChapterDetectionPolicy.confidenceForWindows(
+            silentWindows = 100,
+            requiredSilentWindows = 1,
+            minSilenceDb = -100f,
+            thresholdDb = 0f,
+        )
+    assertEquals(1f, confidence, 0.001f)
+}
+
+@Test
+fun `confidenceForWindows calculates correct duration ratio`() {
+    val confidence =
+        ChapterDetectionPolicy.confidenceForWindows(
+            silentWindows = 2,
+            requiredSilentWindows = 4,
+            minSilenceDb = -40f,
+            thresholdDb = -40f,
+        )
+    assertEquals(0.5f * ChapterDetectionPolicy.DEPTH_WEIGHT, confidence, 0.001f)
+}
+
+@Test
+fun `confidenceForWindows calculates correct depth ratio`() {
+    val confidence =
+        ChapterDetectionPolicy.confidenceForWindows(
+            silentWindows = 4,
+            requiredSilentWindows = 4,
+            minSilenceDb = -52f,
+            thresholdDb = -40f,
+        )
+    // depthDb = (-40) - (-52) = 12
+    // depthRatio = 12 / 12 = 1.0
+    // durationRatio = 1.0
+    // confidence = (1.0 * 0.7 + 1.0 * 0.3) = 1.0
+    assertEquals(1f, confidence, 0.001f)
+}
+
+@Test
+fun `confidenceForWindows handles negative depthDb`() {
+    val confidence =
+        ChapterDetectionPolicy.confidenceForWindows(
+            silentWindows = 4,
+            requiredSilentWindows = 4,
+            minSilenceDb = -30f,
+            thresholdDb = -40f,
+        )
+    // depthDb = (-40) - (-30) = -10 -> coerceAtLeast(0f) = 0
+    // depthRatio = 0 / 12 = 0
+    // durationRatio = 1.0
+    // confidence = (1.0 * 0.7 + 0 * 0.3) = 0.7
+    assertEquals(0.7f, confidence, 0.001f)
+}
+
+@Test
+fun `detectCandidates boundary time calculation uses windowStepMs`() {
+    val values =
+        buildList {
+            repeat(10) { add(-20f) } // speech
+            repeat(20) { add(-50f) } // silence 2000ms (exactly min)
+            repeat(10) { add(-20f) } // speech resumes
+        }
+
+    val result =
+        ChapterDetectionPolicy.detectCandidates(
+            rmsDbValues = values,
+            windowStepMs = 100L,
+            minSilenceMs = 2000L,
+        )
+
+    assertEquals(1, result.size)
+    // silence starts at index 10, ends at index 29
+    // boundary should be at index 30 * 100ms = 3000ms
+    assertEquals(3000L, result.first().startMs)
+}
+
+@Test
+fun `detectCandidates uses custom windowStepMs correctly`() {
+    val values =
+        buildList {
+            repeat(5) { add(-20f) } // speech
+            repeat(10) { add(-50f) } // silence 1000ms
+            repeat(5) { add(-20f) } // speech resumes
+        }
+
+    val result =
+        ChapterDetectionPolicy.detectCandidates(
+            rmsDbValues = values,
+            windowStepMs = 50L, // 50ms per sample
+            minSilenceMs = 1000L,
+        )
+
+    assertEquals(1, result.size)
+    // silence starts at index 5, ends at index 14
+    // boundary should be at index 15 * 50ms = 750ms
+    assertEquals(750L, result.first().startMs)
+}
+
+@Test
+fun `detectCandidates produces boundary when silence equals minSilenceMs`() {
+    val values =
+        buildList {
+            repeat(5) { add(-20f) } // speech
+            repeat(20) { add(-50f) } // silence exactly 2000ms
+            repeat(5) { add(-20f) } // speech resumes
+        }
+
+    val result = ChapterDetectionPolicy.detectCandidates(values)
+    assertEquals(1, result.size)
+}
+
+@Test
+fun `detectCandidates does not produce boundary when silence shorter than minSilenceMs`() {
+    val values =
+        buildList {
+            repeat(5) { add(-20f) } // speech
+            repeat(19) { add(-50f) } // silence 1900ms (< 2000ms min)
+            repeat(5) { add(-20f) } // speech resumes
+        }
+
+    val result = ChapterDetectionPolicy.detectCandidates(values)
+    assertTrue(result.isEmpty())
+}
+
+@Test
+fun `detectCandidates threshold edge behavior at exactly DEFAULT_SILENCE_THRESHOLD_DB`() {
+    // Using exact threshold value should be considered silent
+    val values =
+        buildList {
+            repeat(5) { add(-20f) } // speech
+            repeat(20) { add(-40f) } // silence exactly at threshold
+            repeat(5) { add(-20f) } // speech resumes
+        }
+
+    val result =
+        ChapterDetectionPolicy.detectCandidates(
+            rmsDbValues = values,
+            silenceThresholdDb = -40f, // DEFAULT_SILENCE_THRESHOLD_DB
+            minSilenceMs = 2000L,
+        )
+    assertEquals(1, result.size)
+}
+
+@Test
+fun `detectCandidates does not produce boundary when value slightly above threshold`() {
+    // Value slightly above threshold should not be considered silent
+    val values =
+        buildList {
+            repeat(5) { add(-20f) } // speech
+            repeat(20) { add(-39f) } // slightly above threshold
+            repeat(5) { add(-20f) } // speech resumes
+        }
+
+    val result =
+        ChapterDetectionPolicy.detectCandidates(
+            rmsDbValues = values,
+            silenceThresholdDb = -40f,
+            minSilenceMs = 2000L,
+        )
+    assertTrue(result.isEmpty())
+}
+
+@Test
+fun `detectCandidates works with null silenceThresholdDb (uses adaptive)`() {
+    val values =
+        buildList {
+            repeat(5) { add(-20f) } // speech
+            repeat(25) { add(-50f) } // silence
+            repeat(5) { add(-20f) } // speech resumes
+        }
+
+    val result =
+        ChapterDetectionPolicy.detectCandidates(
+            rmsDbValues = values,
+            silenceThresholdDb = null,
+            minSilenceMs = 2000L,
+        )
+    assertEquals(1, result.size)
+}
