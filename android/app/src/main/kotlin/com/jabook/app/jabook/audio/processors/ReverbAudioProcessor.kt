@@ -86,7 +86,10 @@ public class ReverbAudioProcessor(
         return outputBuffer!!
     }
 
-    override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
+    override fun isEnded(): Boolean =
+        inputEnded &&
+            inputBuffers.isEmpty() &&
+            (outputBuffer == null || outputBuffer?.hasRemaining() == false)
 
     @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun flush() {
