@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.repository
 
 import com.jabook.app.jabook.audio.PlayerPersistenceManager
+import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.logger.NoOpLogger
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
@@ -23,9 +24,11 @@ import com.jabook.app.jabook.compose.data.local.dao.ScanPathDao
 import com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import org.mockito.ArgumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
 
 class OfflineFirstBooksRepositoryTest {
@@ -57,5 +60,34 @@ class OfflineFirstBooksRepositoryTest {
                 bookId = eq("book-1"),
                 newOrderedIds = eq(orderedIds),
             )
+        }
+
+    @Test
+    fun `updatePreferredPlaybackSpeed rejects non-finite speeds without writing`() =
+        runTest {
+            val booksDao = mock<BooksDao>()
+            val chaptersDao = mock<ChaptersDao>()
+            val scanPathDao = mock<ScanPathDao>()
+            val playerPersistenceManager = mock<PlayerPersistenceManager>()
+            val localBookScanner = mock<LocalBookScanner>()
+            val logger = mock<Logger>()
+            val loggerFactory = mock<LoggerFactory>()
+            whenever(loggerFactory.get(eq("OfflineFirstBooksRepository"))).thenReturn(logger)
+
+            val repository =
+                OfflineFirstBooksRepository(
+                    booksDao = booksDao,
+                    chaptersDao = chaptersDao,
+                    scanPathDao = scanPathDao,
+                    playerPersistenceManager = playerPersistenceManager,
+                    localBookScanner = localBookScanner,
+                    loggerFactory = loggerFactory,
+                )
+
+            for (invalidSpeed in listOf(Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY, 0f, -1.5f)) {
+                repository.updatePreferredPlaybackSpeed(bookId = "book-1", speed = invalidSpeed)
+            }
+
+            verifyNoInteractions(booksDao)
         }
 }

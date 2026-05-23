@@ -590,28 +590,34 @@ public class TorrentSessionManager
         public fun restoreActiveDownloads() {
             sessionScope.launch {
                 try {
-                    val active = torrentDownloadDao.getResumableDownloads()
+                    val active = torrentDownloadDao.getActiveDownloads()
                     if (active.isEmpty()) return@launch
-                    logger.i { "Restoring ${active.size} torrent downloads with resume data" }
+                    logger.i { "Restoring ${active.size} active torrent downloads" }
                     active.forEach { entity ->
                         try {
                             if (torrents.containsKey(entity.hash)) return@forEach
-                            val resumeBytes = entity.resumeData ?: return@forEach
-                            val byteVector = Vectors.bytes2byte_vector(resumeBytes)
-                            val errorCode = error_code()
-                            val swigParams = libtorrent.read_resume_data_ex(byteVector, errorCode)
-                            if (errorCode.failed()) {
-                                logger.w { "Resume data rejected for ${entity.hash}: ${errorCode.message()}" }
-                                return@forEach
-                            }
-                            val params =
-                                AddTorrentParams(swigParams).apply {
-                                    setSavePath(entity.savePath)
+                            val resumeBytes = entity.resumeData
+                            if (resumeBytes != null) {
+                                val byteVector = Vectors.bytes2byte_vector(resumeBytes)
+                                val errorCode = error_code()
+                                val swigParams = libtorrent.read_resume_data_ex(byteVector, errorCode)
+                                if (errorCode.failed()) {
+                                    logger.w { "Resume data rejected for ${entity.hash}: ${errorCode.message()}" }
+                                    return@forEach
                                 }
-                            // SessionManager doesn't expose asyncAddTorrent directly;
-                            // go via the swig session_handle which does.
-                            session?.swig()?.async_add_torrent(params.swig())
-                            logger.d { "Restored torrent with resume data: ${entity.hash}" }
+                                val params =
+                                    AddTorrentParams(swigParams).apply {
+                                        setSavePath(entity.savePath)
+                                    }
+                                session?.swig()?.async_add_torrent(params.swig())
+                                logger.d { "Restored torrent with resume data: ${entity.hash}" }
+                            } else {
+                                val magnetUri = "magnet:?xt=urn:btih:" + entity.hash
+                                val params = AddTorrentParams.parseMagnetUri(magnetUri)
+                                params.setSavePath(entity.savePath)
+                                session?.swig()?.async_add_torrent(params.swig())
+                                logger.d { "Restored torrent via magnet URI fallback: ${entity.hash}" }
+                            }
                         } catch (e: Exception) {
                             logger.e({ "Failed to restore torrent ${entity.hash}" }, e)
                         }

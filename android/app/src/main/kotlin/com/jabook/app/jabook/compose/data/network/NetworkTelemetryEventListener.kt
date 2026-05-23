@@ -18,8 +18,8 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import okhttp3.Call
 import okhttp3.EventListener
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -132,8 +132,8 @@ public class NetworkTelemetryEventListenerFactory
         ) : EventListener() {
             companion object {
                 private const val SLOW_REQUEST_THRESHOLD_MS = 3_000L
-                private const val SLOW_REPORT_MIN_INTERVAL_MS = 60_000L
-                private val lastSlowReportMs = AtomicLong(0L)
+                private const val SLOW_REPORT_MIN_INTERVAL_MS = 300_000L
+                private val lastSlowReportByKey = ConcurrentHashMap<String, Long>()
             }
 
             private val tracker = NetworkCallMetricsTracker()
@@ -205,9 +205,11 @@ public class NetworkTelemetryEventListenerFactory
                         "tls=${snapshot.tlsMs ?: -1}ms ttfb=${snapshot.ttfbMs ?: -1}ms"
                 logger.d { "Network metrics $metricsLine" }
                 if (snapshot.totalMs > SLOW_REQUEST_THRESHOLD_MS) {
+                    val key = "$host|$path"
                     val now = System.currentTimeMillis()
-                    val last = lastSlowReportMs.get()
-                    if (now - last >= SLOW_REPORT_MIN_INTERVAL_MS && lastSlowReportMs.compareAndSet(last, now)) {
+                    val last = lastSlowReportByKey.getOrDefault(key, 0L)
+                    if (now - last >= SLOW_REPORT_MIN_INTERVAL_MS) {
+                        lastSlowReportByKey[key] = now
                         logger.w { "Slow network request [${snapshot.totalMs}ms] $metricsLine" }
                         CrashDiagnostics.reportNonFatal(
                             tag = "network_slow_request",

@@ -447,6 +447,7 @@ public object AudioDataModule {
         }
 
         builder.addMigrations(AudioDatabaseMigrations.MIGRATION_2_3)
+        builder.addMigrations(AudioDatabaseMigrations.MIGRATION_3_4)
 
         return builder.build()
     }
@@ -477,6 +478,12 @@ public object AudioRepositoryModule {
     public fun provideListeningSessionDao(
         database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
     ): com.jabook.app.jabook.audio.data.local.dao.ListeningSessionDao = database.listeningSessionDao()
+
+    @Provides
+    @Singleton
+    public fun provideLufsCacheDao(
+        database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
+    ): com.jabook.app.jabook.audio.data.local.dao.LufsCacheDao = database.lufsCacheDao()
 
     @Provides
     @Singleton

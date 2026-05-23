@@ -414,7 +414,10 @@ public class OfflineFirstBooksRepository
             bookId: String,
             speed: Float,
         ) {
-            if (!speed.isFinite() || speed <= 0f) return
+            if (!speed.isFinite() || speed <= 0f) {
+                logger.w { "Ignoring invalid preferred playback speed=$speed for bookId=$bookId" }
+                return
+            }
             val previous = booksDao.getPreferredSpeed(bookId)
             if (
                 !SpeedMemoryHierarchy.hasMeaningfulSpeedDelta(

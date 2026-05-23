@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import com.jabook.app.jabook.audio.data.local.database.AudioDatabase
 import com.jabook.app.jabook.audio.data.local.database.migration.AudioDatabaseMigrations
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -23,5 +24,16 @@ class AudioDatabaseMigrationSmokeTest {
     fun `migration contract includes 2 to 3`() {
         assertEquals(2, AudioDatabaseMigrations.MIGRATION_2_3.startVersion)
         assertEquals(3, AudioDatabaseMigrations.MIGRATION_2_3.endVersion)
+    }
+
+    @Test
+    fun `migration contract includes 3 to 4`() {
+        assertEquals(3, AudioDatabaseMigrations.MIGRATION_3_4.startVersion)
+        assertEquals(4, AudioDatabaseMigrations.MIGRATION_3_4.endVersion)
+    }
+
+    @Test
+    fun `schema version matches latest migration end version`() {
+        assertEquals(4, AudioDatabase.SCHEMA_VERSION)
     }
 }
