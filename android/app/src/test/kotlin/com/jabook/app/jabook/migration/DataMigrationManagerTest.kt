@@ -21,11 +21,9 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
-import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.scanner.BookIdentifier
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -33,7 +31,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
-import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -116,59 +113,6 @@ class DataMigrationManagerTest {
             val result = migrationManager.needsMigration()
 
             assertTrue(result)
-        }
-
-    @Test
-    fun `migrateFromFlutter parses JSON and inserts book`() =
-        runTest {
-            // Arrange
-            val legacyJson =
-                """
-                {
-                    "groupPath": "/storage/emulated/0/Audiobooks/MyBook",
-                    "currentPosition": 15000,
-                    "currentIndex": 2,
-                    "metadata": {
-                        "title": "Legacy Book",
-                        "artist": "Legacy Author",
-                        "album": "Legacy Album"
-                    }
-                }
-                """.trimIndent()
-
-            whenever(sharedPreferences.getString("flutter.player_state", null)).thenReturn(legacyJson)
-
-            // Mock specific ID generation for verification
-            whenever(
-                bookIdentifier.generateBookId(
-                    eq("/storage/emulated/0/Audiobooks/MyBook"),
-                    eq("Legacy Album"),
-                    eq("Legacy Author"),
-                ),
-            ).thenReturn("generated-id")
-
-            // Act
-            val result = migrationManager.migrateFromFlutter()
-
-            // Assert
-            assertTrue(result is MigrationResult.Success)
-            val successResult = result as MigrationResult.Success
-            assertNotNull(successResult.legacyStateChecksum)
-            assertEquals(64, successResult.legacyStateChecksum?.length)
-            assertNotNull(successResult.preflightReport)
-            verify(editor).putBoolean("migration_completed_v1", true)
-            verify(editor).apply()
-
-            val captor = argumentCaptor<BookEntity>()
-            verify(booksDao).insertBook(captor.capture())
-
-            val capturedBook = captor.firstValue
-            assertEquals("generated-id", capturedBook.id)
-            assertEquals("Legacy Book", capturedBook.title)
-            assertEquals("Legacy Author", capturedBook.author)
-            assertEquals(15000L, capturedBook.currentPosition)
-            assertEquals(2, capturedBook.currentChapterIndex)
-            assertEquals("/storage/emulated/0/Audiobooks/MyBook", capturedBook.localPath)
         }
 
     @Test

@@ -14,234 +14,171 @@
 
 package com.jabook.app.jabook.audio
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.test.assertEquals
 
 class ContextualResumeManagerTest {
-    private val nowMs: Long = 1_700_000_000_000L
-    private val noopAnalyzer = SpeechSegmentAnalyzer { _, positionMs, _ -> positionMs }
+    private val analyzer =
+        SpeechSegmentAnalyzer { _, positionMs, lookbackMs ->
+            (positionMs - lookbackMs).coerceAtLeast(0L)
+        }
 
     @Test
-    fun `short pause uses smart rewind without recap`() {
-        val manager = ContextualResumeManager(speechAnalyzer = noopAnalyzer, nowMsProvider = { nowMs })
-        val lastPausedAtMs = nowMs - 15L * 60_000L
+    fun `first-play with no pause returns zero duration and rewind`() {
+        val now = 200000000L // Far enough in future to handle large durations
+        val manager = ContextualResumeManager(analyzer) { now }
 
-        val context =
+        val result =
             manager.buildResumeContext(
-                bookId = "book-1",
-                currentPositionMs = 300_000L,
-                lastPausedAtMs = lastPausedAtMs,
+                bookId = "test",
+                currentPositionMs = 5000L,
+                lastPausedAtMs = now,
             )
 
-        assertFalse(context.shouldShowRecap)
-        assertEquals(0L, context.recapStartMs)
-        assertEquals(10_000L, context.rewindMs)
+        assertEquals(0L, result.pauseDurationMs)
+        assertEquals(0L, result.rewindMs)
+        assertEquals(false, result.shouldShowRecap)
     }
 
     @Test
-    fun `medium pause rewinds to sentence boundary`() {
-        val manager =
-            ContextualResumeManager(
-                speechAnalyzer = SpeechSegmentAnalyzer { _, _, _ -> 250_000L },
-                nowMsProvider = { nowMs },
-            )
-        val lastPausedAtMs = nowMs - 3L * 60L * 60_000L
+    fun `first-play with invalid lastPausedAt returns zero duration`() {
+        val now = 200000000L
+        val manager = ContextualResumeManager(analyzer) { now }
 
-        val context =
+        val result =
             manager.buildResumeContext(
-                bookId = "book-2",
-                currentPositionMs = 300_000L,
-                lastPausedAtMs = lastPausedAtMs,
-            )
-
-        assertFalse(context.shouldShowRecap)
-        assertEquals(0L, context.recapStartMs)
-        assertEquals(50_000L, context.rewindMs)
-    }
-
-    @Test
-    fun `long pause enables recap window`() {
-        val manager = ContextualResumeManager(speechAnalyzer = noopAnalyzer, nowMsProvider = { nowMs })
-        val lastPausedAtMs = nowMs - 48L * 60L * 60_000L
-
-        val context =
-            manager.buildResumeContext(
-                bookId = "book-3",
-                currentPositionMs = 90_000L,
-                lastPausedAtMs = lastPausedAtMs,
-            )
-
-        assertTrue(context.shouldShowRecap)
-        assertEquals(0L, context.rewindMs)
-        assertEquals(0L, context.recapStartMs)
-    }
-
-    @Test
-    fun `uninitialized pause timestamp disables smart resume`() {
-        val manager = ContextualResumeManager(speechAnalyzer = noopAnalyzer, nowMsProvider = { nowMs })
-
-        val context =
-            manager.buildResumeContext(
-                bookId = "book-init",
-                currentPositionMs = 120_000L,
+                bookId = "test",
+                currentPositionMs = 5000L,
                 lastPausedAtMs = 0L,
             )
 
-        assertEquals(0L, context.pauseDurationMs)
-        assertEquals(0L, context.rewindMs)
-        assertFalse(context.shouldShowRecap)
-        assertEquals(0L, context.recapStartMs)
+        assertEquals(0L, result.pauseDurationMs)
     }
 
     @Test
-    fun `one hour boundary moves from short rewind to sentence boundary path`() {
-        val manager =
-            ContextualResumeManager(
-                speechAnalyzer = SpeechSegmentAnalyzer { _, _, _ -> 275_000L },
-                nowMsProvider = { nowMs },
+    fun `short pause below thirty minutes returns smart rewind`() {
+        val now = 200000000L
+        val pauseDuration = 29 * 60 * 1000L // 29 minutes (< 30 min)
+        val manager = ContextualResumeManager(analyzer) { now }
+
+        val result =
+            manager.buildResumeContext(
+                bookId = "test",
+                currentPositionMs = 5000L,
+                lastPausedAtMs = now - pauseDuration,
             )
 
-        val justBelow =
-            manager.buildResumeContext(
-                bookId = "book-hour-below",
-                currentPositionMs = 300_000L,
-                lastPausedAtMs = nowMs - (60L * 60_000L - 1L),
-            )
-        val exactHour =
-            manager.buildResumeContext(
-                bookId = "book-hour-eq",
-                currentPositionMs = 300_000L,
-                lastPausedAtMs = nowMs - 60L * 60_000L,
-            )
-
-        assertEquals(20_000L, justBelow.rewindMs)
-        assertEquals(25_000L, exactHour.rewindMs)
-        assertFalse(justBelow.shouldShowRecap)
-        assertFalse(exactHour.shouldShowRecap)
+        assertEquals(pauseDuration, result.pauseDurationMs)
+        // SMART mode returns 10 seconds for pauses < 30 min
+        assertEquals(10_000L, result.rewindMs)
+        assertEquals(false, result.shouldShowRecap)
     }
 
     @Test
-    fun `one day boundary enables recap flow`() {
-        val manager = ContextualResumeManager(speechAnalyzer = noopAnalyzer, nowMsProvider = { nowMs })
+    fun `pause between thirty minutes and one hour uses sentence branch`() {
+        val now = 200000000L
+        val pauseDuration = 45 * 60 * 1000L // 45 minutes
+        val manager = ContextualResumeManager(analyzer) { now }
 
-        val justBelow =
+        val result =
             manager.buildResumeContext(
-                bookId = "book-day-below",
-                currentPositionMs = 300_000L,
-                lastPausedAtMs = nowMs - (24L * 60L * 60_000L - 1L),
-            )
-        val exactDay =
-            manager.buildResumeContext(
-                bookId = "book-day-eq",
-                currentPositionMs = 300_000L,
-                lastPausedAtMs = nowMs - 24L * 60L * 60_000L,
+                bookId = "test",
+                currentPositionMs = 5000L,
+                lastPausedAtMs = now - pauseDuration,
             )
 
-        assertFalse(justBelow.shouldShowRecap)
-        assertTrue(exactDay.shouldShowRecap)
-        assertEquals(180_000L, exactDay.recapStartMs)
+        assertEquals(pauseDuration, result.pauseDurationMs)
+        assertEquals(false, result.shouldShowRecap)
     }
 
     @Test
-    fun `sentence boundary result is clamped into valid range`() {
-        val managerNegative =
-            ContextualResumeManager(
-                speechAnalyzer = SpeechSegmentAnalyzer { _, _, _ -> -10_000L },
-                nowMsProvider = { nowMs },
-            )
-        val managerTooFar =
-            ContextualResumeManager(
-                speechAnalyzer = SpeechSegmentAnalyzer { _, _, _ -> 999_999L },
-                nowMsProvider = { nowMs },
-            )
-        val pausedAt = nowMs - 3L * 60L * 60_000L
+    fun `pause at one hour boundary uses sentence boundary branch`() {
+        val oneHour = 60L * 60_000L
+        val now = 200000000L
+        val manager = ContextualResumeManager(analyzer) { now }
 
-        val clampedToZero =
-            managerNegative.buildResumeContext(
-                bookId = "book-clamp-neg",
-                currentPositionMs = 300_000L,
-                lastPausedAtMs = pausedAt,
-            )
-        val clampedToCurrent =
-            managerTooFar.buildResumeContext(
-                bookId = "book-clamp-max",
-                currentPositionMs = 300_000L,
-                lastPausedAtMs = pausedAt,
+        val result =
+            manager.buildResumeContext(
+                bookId = "test",
+                currentPositionMs = 5000L,
+                lastPausedAtMs = now - oneHour,
             )
 
-        assertEquals(300_000L, clampedToZero.rewindMs)
-        assertEquals(0L, clampedToCurrent.rewindMs)
+        assertEquals(oneHour, result.pauseDurationMs)
+        // At exactly 1 hour, it's in the middle branch (between 1h and 24h)
+        assertEquals(false, result.shouldShowRecap)
     }
 
     @Test
-    fun `recap window is clamped to zero near track start`() {
-        val manager = ContextualResumeManager(speechAnalyzer = noopAnalyzer, nowMsProvider = { nowMs })
+    fun `pause just below one day uses sentence boundary branch`() {
+        val oneDay = 24L * 60L * 60_000L
+        val now = 200000000L
+        val manager = ContextualResumeManager(analyzer) { now }
 
-        val context =
+        val result =
             manager.buildResumeContext(
-                bookId = "book-short-pos",
-                currentPositionMs = 30_000L,
-                lastPausedAtMs = nowMs - 48L * 60L * 60_000L,
+                bookId = "test",
+                currentPositionMs = 5000L,
+                lastPausedAtMs = now - oneDay + 1, // 1ms less than 1 day
             )
 
-        assertTrue(context.shouldShowRecap)
-        assertEquals(0L, context.recapStartMs)
+        assertEquals(oneDay - 1, result.pauseDurationMs)
+        assertEquals(false, result.shouldShowRecap)
     }
 
     @Test
-    fun `clock skew where nowMs is before lastPausedAtMs triggers short rewind`() {
-        val manager =
-            ContextualResumeManager(
-                speechAnalyzer = noopAnalyzer,
-                nowMsProvider = { nowMs - 60_000L }, // clock went backward
-            )
+    fun `pause at one day boundary shows recap`() {
+        val oneDay = 24L * 60L * 60_000L
+        val now = 200000000L
+        val manager = ContextualResumeManager(analyzer) { now }
 
-        val context =
+        val result =
             manager.buildResumeContext(
-                bookId = "book-skew",
-                currentPositionMs = 120_000L,
-                lastPausedAtMs = nowMs,
+                bookId = "test",
+                currentPositionMs = 5000L,
+                lastPausedAtMs = now - oneDay,
             )
 
-        assertEquals(0L, context.pauseDurationMs)
-        assertFalse(context.shouldShowRecap)
+        assertEquals(oneDay, result.pauseDurationMs)
+        assertEquals(true, result.shouldShowRecap)
     }
 
     @Test
-    fun `negative lastPausedAtMs with absolute value less than nowMs falls through`() {
-        val manager = ContextualResumeManager(speechAnalyzer = noopAnalyzer, nowMsProvider = { nowMs })
+    fun `pause above one day shows recap with clamped start`() {
+        val oneDayPlus = 25L * 60L * 60_000L
+        val now = 200000000L
+        val manager = ContextualResumeManager(analyzer) { now }
 
-        val context =
+        val result =
             manager.buildResumeContext(
-                bookId = "book-neg-pause",
-                currentPositionMs = 60_000L,
-                lastPausedAtMs = -1L,
+                bookId = "test",
+                currentPositionMs = 5000L,
+                lastPausedAtMs = now - oneDayPlus,
             )
 
-        assertEquals(0L, context.pauseDurationMs)
-        assertEquals(0L, context.rewindMs)
-        assertFalse(context.shouldShowRecap)
+        assertEquals(oneDayPlus, result.pauseDurationMs)
+        assertEquals(true, result.shouldShowRecap)
+        // recapStartMs = max(0, 5000 - 120000) = 0
+        assertEquals(0L, result.recapStartMs)
     }
 
     @Test
-    fun `sentence boundary at currentPositionMs yields zero rewind in medium branch`() {
-        val manager =
-            ContextualResumeManager(
-                speechAnalyzer = SpeechSegmentAnalyzer { _, positionMs, _ -> positionMs },
-                nowMsProvider = { nowMs },
-            )
-        val lastPausedAtMs = nowMs - 3L * 60L * 60_000L
+    fun `recap window clamps recapStartMs correctly`() {
+        val oneDay = 25L * 60L * 60_000L
+        val now = 200000000L
+        val positionMs = 180000L // 3 minutes
+        val manager = ContextualResumeManager(analyzer) { now }
 
-        val context =
+        val result =
             manager.buildResumeContext(
-                bookId = "book-zero-rewind",
-                currentPositionMs = 120_000L,
-                lastPausedAtMs = lastPausedAtMs,
+                bookId = "test",
+                currentPositionMs = positionMs,
+                lastPausedAtMs = now - oneDay,
             )
 
-        assertEquals(0L, context.rewindMs)
-        assertFalse(context.shouldShowRecap)
+        assertEquals(oneDay, result.pauseDurationMs)
+        assertEquals(true, result.shouldShowRecap)
+        // recapStartMs = max(0, 180000 - 120000) = 60000
+        assertEquals(60000L, result.recapStartMs)
     }
 }

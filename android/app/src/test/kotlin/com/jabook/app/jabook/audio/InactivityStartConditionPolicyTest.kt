@@ -15,104 +15,92 @@
 package com.jabook.app.jabook.audio
 
 import androidx.media3.common.Player
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
-public class InactivityStartConditionPolicyTest {
+class InactivityStartConditionPolicyTest {
     @Test
-    public fun `shouldStart returns false when isPlaying is true`() {
-        val result =
+    fun `returns false when isPlaying is true`() {
+        assertFalse(
             InactivityStartConditionPolicy.shouldStart(
                 isPlaying = true,
                 mediaItemCount = 1,
                 playbackState = Player.STATE_READY,
                 playWhenReady = false,
-            )
-        assertFalse(result)
+            ),
+        )
     }
 
     @Test
-    public fun `shouldStart returns false when mediaItemCount is zero`() {
-        val result =
+    fun `returns false when mediaItemCount is zero`() {
+        assertFalse(
             InactivityStartConditionPolicy.shouldStart(
                 isPlaying = false,
                 mediaItemCount = 0,
-                playbackState = Player.STATE_ENDED,
+                playbackState = Player.STATE_READY,
                 playWhenReady = false,
-            )
-        assertFalse(result)
+            ),
+        )
     }
 
     @Test
-    public fun `shouldStart returns true when state is ENDED`() {
-        val result =
+    fun `returns true when STATE_READY and playWhenReady false`() {
+        assertTrue(
             InactivityStartConditionPolicy.shouldStart(
                 isPlaying = false,
                 mediaItemCount = 1,
-                playbackState = Player.STATE_ENDED,
+                playbackState = Player.STATE_READY,
                 playWhenReady = false,
-            )
-        assertTrue(result)
+            ),
+        )
     }
 
     @Test
-    public fun `shouldStart returns false when state is READY with playWhenReady true`() {
-        val result =
+    fun `returns false when STATE_READY and playWhenReady true`() {
+        assertFalse(
             InactivityStartConditionPolicy.shouldStart(
                 isPlaying = false,
                 mediaItemCount = 1,
                 playbackState = Player.STATE_READY,
                 playWhenReady = true,
-            )
-        assertFalse(result)
+            ),
+        )
     }
 
     @Test
-    public fun `shouldStart returns true when state is READY with playWhenReady false`() {
-        val result =
+    fun `returns true when STATE_ENDED`() {
+        assertTrue(
             InactivityStartConditionPolicy.shouldStart(
                 isPlaying = false,
                 mediaItemCount = 1,
-                playbackState = Player.STATE_READY,
+                playbackState = Player.STATE_ENDED,
                 playWhenReady = false,
-            )
-        assertTrue(result)
+            ),
+        )
     }
 
     @Test
-    public fun `shouldStart returns false when state is BUFFERING`() {
-        val result =
+    fun `returns false when STATE_BUFFERING`() {
+        assertFalse(
             InactivityStartConditionPolicy.shouldStart(
                 isPlaying = false,
                 mediaItemCount = 1,
                 playbackState = Player.STATE_BUFFERING,
                 playWhenReady = false,
-            )
-        assertFalse(result)
+            ),
+        )
     }
 
     @Test
-    public fun `shouldStart returns false when state is IDLE`() {
-        val result =
+    fun `returns false when STATE_IDLE`() {
+        assertFalse(
             InactivityStartConditionPolicy.shouldStart(
                 isPlaying = false,
                 mediaItemCount = 1,
                 playbackState = Player.STATE_IDLE,
                 playWhenReady = false,
-            )
-        assertFalse(result)
-    }
-
-    @Test
-    public fun `shouldStart combined isPlaying and zero mediaItemCount returns false`() {
-        val result =
-            InactivityStartConditionPolicy.shouldStart(
-                isPlaying = true,
-                mediaItemCount = 0,
-                playbackState = Player.STATE_ENDED,
-                playWhenReady = false,
-            )
-        assertFalse(result)
+            ),
+        )
     }
 }
