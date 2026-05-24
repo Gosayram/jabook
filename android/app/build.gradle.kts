@@ -606,6 +606,13 @@ dependencies {
     testImplementation(libs.jimfs)
     testImplementation(libs.kotest.property)
 
+    // Android Instrumentation tests
+    androidTestUtil(libs.androidx.test.services)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.media3.test.utils)
+
     // Firebase - Import the Firebase BoM to manage library versions
     implementation(platform(libs.firebase.bom))
 
