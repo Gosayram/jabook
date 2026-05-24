@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.download
 
 import android.content.Context
-import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
@@ -24,6 +23,7 @@ import androidx.work.workDataOf
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.crash.CrashDiagnostics
+import com.jabook.app.jabook.util.LogUtils
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
@@ -72,9 +72,9 @@ public class DownloadWorker
             val attempt = runAttemptCount + 1
             val stopReasonAtStart = runCatching { stopReason }.getOrDefault(-1)
 
-            Log.i(TAG, "Starting download: $bookTitle (attempt=$attempt, stopReason=$stopReasonAtStart)")
-            Log.d(TAG, "Magnet URI: $magnetUri")
-            Log.d(TAG, "Save path: $savePath")
+            LogUtils.i(TAG, "Starting download: $bookTitle (attempt=$attempt, stopReason=$stopReasonAtStart)")
+            LogUtils.d(TAG, "Magnet URI: $magnetUri")
+            LogUtils.d(TAG, "Save path: $savePath")
 
             return try {
                 // Initialize TorrentManager if needed
@@ -82,15 +82,15 @@ public class DownloadWorker
 
                 // Add magnet link
                 val infoHash = torrentManager.addMagnetLink(magnetUri, savePath, sequential = true)
-                Log.i(TAG, "Download started: $infoHash")
+                LogUtils.i(TAG, "Download started: $infoHash")
 
                 // Monitor progress until complete or error
                 monitorDownloadProgress(infoHash, bookTitle)
             } catch (e: CancellationException) {
-                Log.i(TAG, "Download cancelled: $bookTitle")
+                LogUtils.i(TAG, "Download cancelled: $bookTitle")
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "Download failed", e)
+                LogUtils.e(TAG, "Download failed", e)
                 CrashDiagnostics.reportNonFatal(
                     tag = "download_worker_failure",
                     throwable = e,
@@ -126,7 +126,7 @@ public class DownloadWorker
                     ),
                 )
 
-                Log.d(
+                LogUtils.d(
                     TAG,
                     "Progress: ${(download.progress * 100).toInt()}% - ${download.state} - " +
                         "${download.downloadSpeed / 1024}KB/s - ${download.numPeers} peers",
@@ -135,8 +135,8 @@ public class DownloadWorker
                 // Check if download is complete
                 when (download.state) {
                     TorrentState.COMPLETED -> {
-                        Log.i(TAG, "Download completed: $bookTitle")
-                        Log.i(TAG, "Download worker success stopReason=${runCatching { stopReason }.getOrDefault(-1)}")
+                        LogUtils.i(TAG, "Download completed: $bookTitle")
+                        LogUtils.i(TAG, "Download worker success stopReason=${runCatching { stopReason }.getOrDefault(-1)}")
                         result =
                             Result.success(
                                 workDataOf(
@@ -146,7 +146,7 @@ public class DownloadWorker
                             )
                     }
                     TorrentState.ERROR -> {
-                        Log.e(TAG, "Download failed: $bookTitle")
+                        LogUtils.e(TAG, "Download failed: $bookTitle")
                         CrashDiagnostics.reportNonFatal(
                             tag = "download_worker_torrent_error",
                             throwable = IllegalStateException("Torrent entered ERROR state"),

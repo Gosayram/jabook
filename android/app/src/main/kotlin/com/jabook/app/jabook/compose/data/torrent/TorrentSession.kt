@@ -160,6 +160,14 @@ public interface TorrentSession {
     public fun getDownload(hash: String): TorrentDownload?
 
     /**
+     * Restores non-completed downloads from persistent storage after a fresh [initSession].
+     *
+     * Downloads with saved resume data are re-added to libtorrent so already-downloaded
+     * pieces are not re-fetched. This should be called once after [initSession] succeeds.
+     */
+    public fun restoreActiveDownloads()
+
+    /**
      * Shut down the underlying session and release all resources.
      *
      * After calling this, the session must be re-initialized via [initSession]

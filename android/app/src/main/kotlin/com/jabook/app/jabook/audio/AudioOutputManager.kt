@@ -21,6 +21,7 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.AudioManager
 import android.os.PowerManager
+import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -77,7 +78,7 @@ public class AudioOutputManager
                 SensorManager.SENSOR_DELAY_NORMAL,
             )
             isMonitoring = true
-            android.util.Log.d("AudioOutputManager", "Proximity monitoring started")
+            LogUtils.d("AudioOutputManager", "Proximity monitoring started")
         }
 
         /**
@@ -94,7 +95,7 @@ public class AudioOutputManager
             setAudioOutput(false) // Force speaker
             releaseWakeLock()
 
-            android.util.Log.d("AudioOutputManager", "Proximity monitoring stopped")
+            LogUtils.d("AudioOutputManager", "Proximity monitoring stopped")
         }
 
         override fun onSensorChanged(event: SensorEvent?) {
@@ -109,7 +110,7 @@ public class AudioOutputManager
 
             if (isAtEar != isNear) {
                 isAtEar = isNear
-                android.util.Log.d("AudioOutputManager", "Proximity changed: $isNear (distance=$distance)")
+                LogUtils.d("AudioOutputManager", "Proximity changed: $isNear (distance=$distance)")
 
                 if (isNear) {
                     // Phone at ear
@@ -147,16 +148,16 @@ public class AudioOutputManager
                         try {
                             val result = audioManager.setCommunicationDevice(earpiece)
                             if (!result) {
-                                android.util.Log.w(
+                                LogUtils.w(
                                     "AudioOutputManager",
                                     "Failed to set communication device to earpiece",
                                 )
                             }
                         } catch (e: Exception) {
-                            android.util.Log.e("AudioOutputManager", "Error setting communication device", e)
+                            LogUtils.e("AudioOutputManager", "Error setting communication device", e)
                         }
                     } else {
-                        android.util.Log.w("AudioOutputManager", "No built-in earpiece found")
+                        LogUtils.w("AudioOutputManager", "No built-in earpiece found")
                     }
                 } else {
                     // Deprecated method for older Android versions
@@ -164,7 +165,7 @@ public class AudioOutputManager
                     audioManager.isSpeakerphoneOn = false
                 }
 
-                android.util.Log.i("AudioOutputManager", "Switched to EARPIECE")
+                LogUtils.i("AudioOutputManager", "Switched to EARPIECE")
             } else {
                 // Switch to Speaker
                 audioManager.mode = AudioManager.MODE_NORMAL
@@ -178,7 +179,7 @@ public class AudioOutputManager
                     audioManager.isSpeakerphoneOn = true
                 }
 
-                android.util.Log.i("AudioOutputManager", "Switched to SPEAKER")
+                LogUtils.i("AudioOutputManager", "Switched to SPEAKER")
             }
         }
 

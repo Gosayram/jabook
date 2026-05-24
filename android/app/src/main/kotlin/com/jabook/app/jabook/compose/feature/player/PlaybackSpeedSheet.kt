@@ -14,7 +14,10 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -22,6 +25,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -30,18 +36,38 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
+import com.jabook.app.jabook.compose.core.util.HapticManager
 import kotlin.math.roundToInt
+
+private object SpeedDialDefaults {
+    val DIAL_SIZE = 140.dp
+    val STROKE_WIDTH = 10.dp
+    val ARC_INSET = 16.dp
+}
 
 /**
  * Bottom sheet for selecting playback speed.
@@ -67,9 +93,23 @@ public fun PlaybackSpeedSheet(
 ) {
     // Local state for slider - allows real-time preview
     var sliderSpeed by remember { mutableFloatStateOf(currentSpeed) }
+    val hapticFeedback = LocalHapticFeedback.current
+    val recentSpeeds =
+        rememberSaveable(
+            saver =
+                listSaver(
+                    save = { it.toList() },
+                    restore = {
+                        mutableStateListOf<Float>().apply {
+                            addAll(it)
+                        }
+                    },
+                ),
+        ) {
+            mutableStateListOf(currentSpeed)
+        }
 
-    // Preset speeds for quick selection
-    val presetSpeeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+    val presetSpeeds = listOf(0.75f, 1.0f, 1.25f, 1.5f, 2.0f, 2.5f, 3.0f)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -102,6 +142,23 @@ public fun PlaybackSpeedSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            SpeedDial(
+                speed = sliderSpeed,
+                onSpeedChange = { newSpeed ->
+                    sliderSpeed = roundToStep(newSpeed)
+                },
+                onSpeedChangeFinished = {
+                    val rounded = roundToStep(sliderSpeed)
+                    sliderSpeed = rounded
+                    onSpeedSelected(rounded)
+                    addRecentSpeed(recentSpeeds, rounded)
+                },
+                hapticFeedback = hapticFeedback,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             // Speed slider
             Slider(
                 value = sliderSpeed,
@@ -110,7 +167,10 @@ public fun PlaybackSpeedSheet(
                     sliderSpeed = roundToStep(newSpeed)
                 },
                 onValueChangeFinished = {
-                    onSpeedSelected(sliderSpeed)
+                    val rounded = roundToStep(sliderSpeed)
+                    sliderSpeed = rounded
+                    onSpeedSelected(rounded)
+                    addRecentSpeed(recentSpeeds, rounded)
                 },
                 valueRange = PlaybackSpeedConstants.MIN_SPEED..PlaybackSpeedConstants.MAX_SPEED,
                 steps = PlaybackSpeedConstants.SLIDER_STEPS,
@@ -164,6 +224,35 @@ public fun PlaybackSpeedSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Last used quick speeds (max 3)
+            if (recentSpeeds.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.recentSpeedsTitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    recentSpeeds.take(3).forEach { speed ->
+                        FilterChip(
+                            selected = isSpeedSelected(sliderSpeed, speed),
+                            onClick = {
+                                sliderSpeed = speed
+                                onSpeedSelected(speed)
+                                addRecentSpeed(recentSpeeds, speed)
+                            },
+                            label = { Text(formatSpeedChip(speed)) },
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             // Preset speed chips
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
@@ -176,6 +265,7 @@ public fun PlaybackSpeedSheet(
                         onClick = {
                             sliderSpeed = speed
                             onSpeedSelected(speed)
+                            addRecentSpeed(recentSpeeds, speed)
                         },
                         label = {
                             Text(formatSpeedChip(speed))
@@ -224,3 +314,116 @@ private fun formatSpeedChip(speed: Float): String =
     } else {
         String.format("%.2fx", speed)
     }
+
+internal fun addRecentSpeed(
+    recentSpeeds: MutableList<Float>,
+    speed: Float,
+) {
+    recentSpeeds.removeAll { kotlin.math.abs(it - speed) < 0.01f }
+    recentSpeeds.add(0, speed)
+    while (recentSpeeds.size > 3) {
+        recentSpeeds.removeAt(recentSpeeds.lastIndex)
+    }
+}
+
+internal fun dialSpeedForDrag(
+    currentSpeed: Float,
+    dragDeltaX: Float,
+    dialWidthPx: Float,
+): Float {
+    if (!dialWidthPx.isFinite() || dialWidthPx <= 0f) {
+        return currentSpeed.coerceIn(
+            PlaybackSpeedConstants.MIN_SPEED,
+            PlaybackSpeedConstants.MAX_SPEED,
+        )
+    }
+    val speedSpan = PlaybackSpeedConstants.MAX_SPEED - PlaybackSpeedConstants.MIN_SPEED
+    val delta = (dragDeltaX / dialWidthPx) * speedSpan
+    return (currentSpeed + delta).coerceIn(
+        PlaybackSpeedConstants.MIN_SPEED,
+        PlaybackSpeedConstants.MAX_SPEED,
+    )
+}
+
+internal fun dialTickStep(speed: Float): Int = (speed / PlaybackSpeedConstants.SPEED_STEP).toInt()
+
+internal fun dialSweepAngle(speed: Float): Float {
+    val speedSpan = PlaybackSpeedConstants.MAX_SPEED - PlaybackSpeedConstants.MIN_SPEED
+    return ((speed - PlaybackSpeedConstants.MIN_SPEED) / speedSpan).coerceIn(0f, 1f) * PlaybackSpeedConstants.DIAL_TOTAL_SWEEP
+}
+
+@Composable
+private fun SpeedDial(
+    speed: Float,
+    onSpeedChange: (Float) -> Unit,
+    onSpeedChangeFinished: () -> Unit,
+    hapticFeedback: HapticFeedback,
+    modifier: Modifier = Modifier,
+) {
+    val currentSpeed by rememberUpdatedState(speed)
+    var lastHapticTickStep by remember {
+        mutableIntStateOf(dialTickStep(speed))
+    }
+    LaunchedEffect(currentSpeed) {
+        lastHapticTickStep = dialTickStep(currentSpeed)
+    }
+    val trackColor = MaterialTheme.colorScheme.surfaceVariant
+    val progressColor = MaterialTheme.colorScheme.primary
+
+    Box(
+        modifier = modifier.wrapContentHeight(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(
+            modifier =
+                Modifier
+                    .size(SpeedDialDefaults.DIAL_SIZE)
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragEnd = { onSpeedChangeFinished() },
+                        ) { change, dragDelta ->
+                            change.consume()
+                            val newSpeed = dialSpeedForDrag(currentSpeed, dragDelta, size.width.toFloat())
+                            val newTickStep = dialTickStep(newSpeed)
+                            if (newTickStep != lastHapticTickStep) {
+                                lastHapticTickStep = newTickStep
+                                HapticManager.performTap(hapticFeedback)
+                            }
+                            onSpeedChange(newSpeed)
+                        }
+                    },
+        ) {
+            val stroke = Stroke(width = SpeedDialDefaults.STROKE_WIDTH.toPx(), cap = StrokeCap.Round)
+            val inset = SpeedDialDefaults.ARC_INSET.toPx()
+            val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
+            val arcTopLeft = Offset(inset, inset)
+            val sweep = dialSweepAngle(speed)
+
+            drawArc(
+                color = trackColor,
+                startAngle = PlaybackSpeedConstants.DIAL_START_ANGLE,
+                sweepAngle = PlaybackSpeedConstants.DIAL_TOTAL_SWEEP,
+                useCenter = false,
+                style = stroke,
+                topLeft = arcTopLeft,
+                size = arcSize,
+            )
+            drawArc(
+                color = progressColor,
+                startAngle = PlaybackSpeedConstants.DIAL_START_ANGLE,
+                sweepAngle = sweep,
+                useCenter = false,
+                style = stroke,
+                topLeft = arcTopLeft,
+                size = arcSize,
+            )
+        }
+        Text(
+            text = formatSpeedDisplay(speed),
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.width(88.dp),
+        )
+    }
+}

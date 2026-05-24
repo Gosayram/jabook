@@ -32,6 +32,7 @@ public class JabookRulesProvider : DefaultRuleSetProvider {
             ruleSetId,
             listOf(
                 ::NoSilentCancellationException,
+                ::NoGlobalScope,
             ),
         )
 }

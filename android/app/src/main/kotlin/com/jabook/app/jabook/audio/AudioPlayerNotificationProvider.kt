@@ -29,6 +29,7 @@ import androidx.media3.session.MediaSession
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Custom MediaNotification.Provider to handle "Minimal Notification" mode.
@@ -85,7 +86,7 @@ public class AudioPlayerNotificationProvider(
             .setChannelId(NotificationHelper.CHANNEL_ID)
             .build()
             .also {
-                android.util.Log.i(
+                LogUtils.i(
                     "AudioPlayerNotificationProvider",
                     "DefaultMediaNotificationProvider built with Channel ID: ${NotificationHelper.CHANNEL_ID}",
                 )
@@ -99,7 +100,7 @@ public class AudioPlayerNotificationProvider(
     ): MediaNotification {
         // Use DefaultMediaNotificationProvider which handles MediaStyle automatically
         // This ensures Quick Settings controls support (Android 11+) and SeekBar (Android 13+)
-        android.util.Log.d(
+        LogUtils.d(
             "AudioPlayerNotificationProvider",
             "createNotification called. Session: ${mediaSession.token}",
         )
@@ -110,7 +111,7 @@ public class AudioPlayerNotificationProvider(
                 actionFactory,
                 onNotificationChangedCallback,
             )
-        android.util.Log.d("AudioPlayerNotificationProvider", "Notification created: ${mediaNotification.notification}")
+        LogUtils.d("AudioPlayerNotificationProvider", "Notification created: ${mediaNotification.notification}")
 
         // Ensure we use consistently the same notification ID
         return MediaNotification(

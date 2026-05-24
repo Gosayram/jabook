@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.infrastructure
 
-import android.util.Log
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -152,7 +152,7 @@ public object CoroutineTaskManager {
      */
     public fun pauseNonCritical() {
         paused = true
-        Log.i(TAG, "Paused non-critical tasks")
+        LogUtils.i(TAG, "Paused non-critical tasks")
     }
 
     /**
@@ -160,7 +160,7 @@ public object CoroutineTaskManager {
      */
     public fun resume() {
         paused = false
-        Log.i(TAG, "Resumed non-critical tasks")
+        LogUtils.i(TAG, "Resumed non-critical tasks")
     }
 
     /**
@@ -177,6 +177,6 @@ public object CoroutineTaskManager {
         heavyExecutor.shutdown()
         mediumExecutor.shutdown()
         lightExecutor.shutdown()
-        Log.i(TAG, "Shutdown all executors")
+        LogUtils.i(TAG, "Shutdown all executors")
     }
 }

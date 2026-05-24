@@ -66,6 +66,8 @@
     <string name="leechers">Leechers</string>
     <string name="registeredLabel">Registered</string>
     <string name="downloadedLabel">Downloaded</string>
+    <string name="streamingLabel">Streaming</string>
+    <string name="downloadFailedLabel">Failed</string>
     <string name="downloadedTimes"> %1$s times</string>
     <string name="pageOfPages">Page %1$d of %2$d</string>
     <string name="loadMoreComments">Load More (%1$d pages remaining)</string>
@@ -292,6 +294,8 @@
     <!-- Label for dark mode -->
     <string name="darkMode">Dark mode</string>
     <string name="themeAmoled">AMOLED / Pure Black</string>
+    <string name="themePreviewTitle">Live preview</string>
+    <string name="themePreviewBookTitle">Mini player preview</string>
     <string name="vinylMode">Vinyl Mode</string>
     <string name="lyrics">Lyrics</string>
     <string name="toggleLyricsView">Toggle lyrics view</string>
@@ -350,6 +354,10 @@
     <string name="equalizer_preset_flat">Flat</string>
     <string name="equalizer_preset_voice_clarity">Voice clarity</string>
     <string name="equalizer_preset_night">Night</string>
+    <string name="equalizer_preset_headphones">Headphones</string>
+    <string name="equalizer_preset_car">Car</string>
+    <string name="equalizer_five_band_title">5-band preview</string>
+    <string name="equalizer_gain_db">%1$d dB</string>
     <string name="equalizer_point_tooltip">%1$s • %2$s</string>
     <!-- Title for normalize volume setting -->
     <string name="normalizeVolumeTitle">Normalize Volume</string>
@@ -369,6 +377,7 @@
     <string name="autoVolumeLevelingDescription">Automatically adjust volume to maintain consistent level</string>
     <!-- Label for playback speed -->
     <string name="playbackSpeed">Playback speed</string>
+    <string name="recentSpeedsTitle">Recent speeds</string>
     <!-- Label for skip duration -->
     <string name="skipDuration">Skip duration</string>
     <!-- Title for downloads settings -->
@@ -1441,6 +1450,7 @@
     <string name="stopRecording">Stop recording</string>
     <string name="playVoiceNote">Play voice note</string>
     <string name="stopPlayback">Stop playback</string>
+    <string name="errorPlayingVoiceNote">Failed to play voice note</string>
     <!-- Button to acknowledge -->
     <string name="gotIt">Got It</string>
     <!-- Title for background compatibility banner -->
@@ -2448,6 +2458,12 @@
     <string name="errorMessageFormat">Error: $message</string>
     <string name="pause">Pause</string>
     <string name="searchBooksTitle">Search books</string>
+    <string name="spotlightSkip">Skip</string>
+    <string name="spotlightNext">Next</string>
+    <string name="spotlightSearchTitle">Search books faster</string>
+    <string name="spotlightSearchDescription">Use search to quickly find books by title or author.</string>
+    <string name="spotlightDownloadsTitle">Track downloads</string>
+    <string name="spotlightDownloadsDescription">Open downloads to monitor progress and manage queued items.</string>
     <string name="previousChapterTitle">Previous chapter</string>
     <string name="check">Check</string>
     <string name="expand">Expand</string>
@@ -2624,6 +2640,36 @@
     <string name="jumpToChapterNumber">Jump to chapter #...</string>
     <string name="playerChapterNavigationSnackbar">Moved to chapter %1$d</string>
     <string name="undoAction">Undo</string>
+    <string name="bookmarkAddedMessage">Bookmark added</string>
+    <string name="dragToReorder">Drag to reorder</string>
+    <string name="continueSeriesLabel">Continue series</string>
+    <string name="playNowAction">Play now</string>
+    <string name="dismissAction">Dismiss</string>
+    <string name="playerCoverAccessibilityDescription">%1$s cover art by %2$s</string>
+    <string name="playbackStatePlaying">Playing</string>
+    <string name="playbackStatePaused">Paused</string>
+    <string name="weeklyRecapTitle">Your week</string>
+    <string name="yearRecapTitle">%1$d recap</string>
+    <string name="yearRecapSubtitle">Your audiobook year in one card</string>
+    <string name="yearRecapShareHint">%1$d minutes listened. Share your annual summary.</string>
+    <string name="yearRecapShareAction">Share annual recap</string>
+    <string name="yearRecapMinutesLabel">Minutes listened</string>
+    <string name="yearRecapBooksLabel">Books completed</string>
+    <string name="yearRecapDaysLabel">Active days</string>
+    <string name="yearRecapSessionsLabel">Sessions</string>
+    <string name="yearRecapTopAuthorLabel">Most listened author</string>
+    <string name="rateCompletedBookTitle">How would you rate this book?</string>
+    <string name="rateCompletedBookThanks">Thanks! You rated this book %1$d/5.</string>
+    <string name="rateCompletedBookStar">%1$d stars</string>
+    <string name="laterAction">Later</string>
+    <string name="minutesLabel">minutes</string>
+    <string name="booksLabel">books</string>
+    <string name="streakDaysLabel">streak</string>
+    <string name="productivePeriodLabel">Most productive: %1$s</string>
+    <string name="productiveMorning">Morning</string>
+    <string name="productiveDay">Day</string>
+    <string name="productiveEvening">Evening</string>
+    <string name="productiveNight">Night</string>
     <!-- Search filters pane strings -->
     <string name="sizeRange">Size Range</string>
     <string name="sizeRangeWithBounds">Size Range: %1$s - %2$s</string>
@@ -2796,6 +2842,8 @@
     <string name="off">Off</string>
     <string name="volumeBoostPercent">+%1$d%%</string>
     <string name="smartEffectsTitle">Smart Effects</string>
+    <string name="smartResumeRecapSuggestion">Long pause detected (%1$d h). Replay last 2 minutes?</string>
+    <string name="smartResumeRecapAction">Replay</string>
     <string name="notificationPermissionPlaybackHint">Notifications help control playback from the notification bar</string>
     <string name="audioVisualizerPermissionHint">Audio visualizer needs microphone permission</string>
 

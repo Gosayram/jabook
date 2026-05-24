@@ -85,6 +85,10 @@ public class AudioPlayerService : MediaLibraryService() {
     @Inject
     public lateinit var audioVisualizerStateBridge: AudioVisualizerStateBridge
 
+    // Audio fader for smooth volume transitions (P-14: fade out before sleep timer expiry)
+    @Inject
+    public lateinit var audioFader: AudioFader
+
     // AppDispatchers for testable coroutine dispatchers
     @Inject
     public lateinit var dispatchers: com.jabook.app.jabook.compose.core.di.AppDispatchers

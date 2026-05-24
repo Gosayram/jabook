@@ -18,14 +18,19 @@ import android.app.TimePickerDialog
 import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -65,6 +70,7 @@ public fun SleepTimerSheet(
     onStartTimerEndOfTrack: () -> Unit,
     onCancelTimer: () -> Unit,
     onDismiss: () -> Unit,
+    presetDurations: List<Int> = DEFAULT_SLEEP_TIMER_PRESET_DURATIONS,
     modifier: Modifier = Modifier,
     sheetState: SheetState =
         androidx.compose.material3.rememberModalBottomSheetState(),
@@ -195,32 +201,10 @@ public fun SleepTimerSheet(
                     )
 
                     // Timer options
-                    val durations = listOf(5, 10, 15, 30, 45, 60)
-
-                    durations.forEach { minutes ->
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    pluralStringResource(
-                                        R.plurals.durationMinutesFull,
-                                        minutes,
-                                        minutes,
-                                    ),
-                                )
-                            },
-                            leadingContent = {
-                                Icon(
-                                    Icons.Filled.Timer,
-                                    contentDescription = null,
-                                )
-                            },
-                            modifier =
-                                Modifier.clickable {
-                                    onStartTimer(minutes)
-                                    onDismiss()
-                                },
-                        )
-                    }
+                    SleepTimerPresetChips(
+                        durations = presetDurations,
+                        onPresetClick = { minutes -> handleSleepTimerPresetSelection(minutes, onStartTimer, onDismiss) },
+                    )
                 }
 
                 is SleepTimerState.Active -> {
@@ -237,6 +221,11 @@ public fun SleepTimerSheet(
                                 formatSleepTimerStopAt(currentState.remainingSeconds),
                                 formatSleepTimerRemaining(currentState.remainingSeconds),
                             ),
+                        progressFraction =
+                            (
+                                currentState.remainingSeconds.toFloat() /
+                                    currentState.initialSeconds.coerceAtLeast(1).toFloat()
+                            ).coerceIn(0f, 1f),
                         onCancelTimer = onCancelTimer,
                         onDismiss = onDismiss,
                     )
@@ -275,10 +264,52 @@ public fun SleepTimerSheet(
     }
 }
 
+internal val DEFAULT_SLEEP_TIMER_PRESET_DURATIONS: List<Int> = listOf(5, 10, 15, 30, 45, 60)
+
+/**
+ * Extracted to keep click behavior deterministic and unit-testable without Compose runtime.
+ */
+internal fun handleSleepTimerPresetSelection(
+    minutes: Int,
+    onStartTimer: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    onStartTimer(minutes)
+    onDismiss()
+}
+
+@Composable
+private fun SleepTimerPresetChips(
+    durations: List<Int>,
+    onPresetClick: (Int) -> Unit,
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        durations.forEach { minutes ->
+            AssistChip(
+                onClick = { onPresetClick(minutes) },
+                label = {
+                    Text(
+                        pluralStringResource(
+                            R.plurals.durationMinutesFull,
+                            minutes,
+                            minutes,
+                        ),
+                    )
+                },
+            )
+        }
+    }
+}
+
 @Composable
 private fun ActiveTimerContent(
     timeText: String,
     detailsText: String? = null,
+    progressFraction: Float? = null,
     onCancelTimer: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -290,6 +321,25 @@ private fun ActiveTimerContent(
                 .fillMaxWidth()
                 .padding(16.dp),
     ) {
+        if (progressFraction != null) {
+            Box(
+                modifier = Modifier.size(96.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(
+                    progress = { progressFraction },
+                    modifier = Modifier.size(96.dp),
+                    strokeWidth = 6.dp,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                )
+                Icon(
+                    imageVector = Icons.Filled.Timer,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        }
+
         Text(
             text = stringResource(R.string.timerActive),
             style = MaterialTheme.typography.titleMedium,

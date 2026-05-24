@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -63,7 +64,7 @@ public class MediaSessionSettingsSync(
                     Pair(rewindSeconds, forwardSeconds)
                 }.distinctUntilChanged() // Only update when values actually change
                 .collect { (rewindSeconds, forwardSeconds) ->
-                    android.util.Log.d(
+                    LogUtils.d(
                         "MediaSessionSettingsSync",
                         "Syncing intervals: rewind=${rewindSeconds}s, forward=${forwardSeconds}s",
                     )
@@ -125,7 +126,7 @@ public class MediaSessionSettingsSync(
                     )
                 }.distinctUntilChanged()
                 .collect { settings ->
-                    android.util.Log.d(
+                    LogUtils.d(
                         "MediaSessionSettingsSync",
                         "Syncing audio settings: $settings",
                     )

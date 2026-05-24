@@ -85,6 +85,42 @@ public object CrashDiagnostics {
         }
     }
 
+    /**
+     * Records a structured player action breadcrumb. Helps reconstruct sequence of events before crashes.
+     */
+    public fun playerAction(
+        action: String,
+        bookId: String,
+        positionMs: Long,
+    ) {
+        if (!isEnabled()) return
+        safeRun {
+            val sink = sinkFactory()
+            sink.setCustomKey("last_player_action", sanitize(action))
+            sink.setCustomKey("last_book_id", sanitize(bookId))
+            sink.log("PLAYER[$action] book=${bookId.take(20)} pos=${positionMs}ms")
+        }
+    }
+
+    /**
+     * Records a network request result. Warns in Crashlytics on server errors (5xx).
+     */
+    public fun networkRequest(
+        url: String,
+        statusCode: Int,
+        durationMs: Long,
+    ) {
+        if (!isEnabled()) return
+        safeRun {
+            val sink = sinkFactory()
+            sink.log("NET: $statusCode ${durationMs}ms ${sanitize(url)}")
+            if (statusCode >= 500) {
+                sink.setCustomKey("last_server_error_code", statusCode.toString())
+                sink.setCustomKey("last_server_error_url", sanitize(url))
+            }
+        }
+    }
+
     public fun reportUncaughtException(
         threadName: String,
         throwable: Throwable,

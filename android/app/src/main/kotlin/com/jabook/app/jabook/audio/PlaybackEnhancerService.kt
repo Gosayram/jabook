@@ -20,6 +20,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -139,7 +140,7 @@ public class PlaybackEnhancerService
                 preferences?.let { mapVolumeBoostLevel(it.volumeBoostLevel) }
                     ?: PlaybackVolumeBoost.DISABLED
             } catch (e: Exception) {
-                android.util.Log.w("PlaybackEnhancerService", "Failed to get volume boost: ${e.message}", e)
+                LogUtils.w("PlaybackEnhancerService", "Failed to get volume boost: ${e.message}", e)
                 PlaybackVolumeBoost.DISABLED
             }
         }
@@ -157,9 +158,9 @@ public class PlaybackEnhancerService
             try {
                 enhancer = LoudnessEnhancer(sessionId)
                 updateGain(boost)
-                android.util.Log.d("PlaybackEnhancerService", "LoudnessEnhancer attached to session: $sessionId")
+                LogUtils.d("PlaybackEnhancerService", "LoudnessEnhancer attached to session: $sessionId")
             } catch (ex: Exception) {
-                android.util.Log.e("PlaybackEnhancerService", "Unable to attach LoudnessEnhancer: ${ex.message}", ex)
+                LogUtils.e("PlaybackEnhancerService", "Unable to attach LoudnessEnhancer: ${ex.message}", ex)
             }
         }
 
@@ -168,17 +169,17 @@ public class PlaybackEnhancerService
                 when (value) {
                     PlaybackVolumeBoost.DISABLED -> {
                         enhancer?.enabled = false
-                        android.util.Log.d("PlaybackEnhancerService", "Volume boost disabled")
+                        LogUtils.d("PlaybackEnhancerService", "Volume boost disabled")
                     }
                     else -> {
                         enhancer?.enabled = true
                         val gainMb = boostToMb(value)
                         enhancer?.setTargetGain(gainMb)
-                        android.util.Log.d("PlaybackEnhancerService", "Volume boost set: $value (${gainMb}mB)")
+                        LogUtils.d("PlaybackEnhancerService", "Volume boost set: $value (${gainMb}mB)")
                     }
                 }
             } catch (ex: Exception) {
-                android.util.Log.e(
+                LogUtils.e(
                     "PlaybackEnhancerService",
                     "Unable to update volume gain with $value: ${ex.message}",
                     ex,
@@ -215,6 +216,6 @@ public class PlaybackEnhancerService
             player.removeListener(playerListener)
             enhancer?.release()
             enhancer = null
-            android.util.Log.d("PlaybackEnhancerService", "LoudnessEnhancer released")
+            LogUtils.d("PlaybackEnhancerService", "LoudnessEnhancer released")
         }
     }

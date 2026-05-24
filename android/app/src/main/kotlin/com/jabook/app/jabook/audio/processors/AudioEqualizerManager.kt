@@ -15,10 +15,10 @@
 package com.jabook.app.jabook.audio.processors
 
 import android.media.audiofx.Equalizer
-import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -120,7 +120,7 @@ public class AudioEqualizerManager
             equalizer?.release()
             equalizer = null
             scope.cancel()
-            Log.d(TAG, "Equalizer released")
+            LogUtils.d(TAG, "Equalizer released")
         }
 
         /**
@@ -176,9 +176,9 @@ public class AudioEqualizerManager
                 val eq = eqFactory(sessionId)
                 equalizer = eq
                 applyPresetToEq(eq, preset)
-                Log.d(TAG, "Equalizer attached to session $sessionId, preset=${preset.name}")
+                LogUtils.d(TAG, "Equalizer attached to session $sessionId, preset=${preset.name}")
             } catch (ex: Exception) {
-                Log.e(TAG, "Failed to attach Equalizer: ${ex.message}", ex)
+                LogUtils.e(TAG, "Failed to attach Equalizer: ${ex.message}", ex)
             }
         }
 
@@ -186,9 +186,9 @@ public class AudioEqualizerManager
             val eq = equalizer ?: return
             try {
                 applyPresetToEq(eq, preset)
-                Log.d(TAG, "Applied preset ${preset.name}")
+                LogUtils.d(TAG, "Applied preset ${preset.name}")
             } catch (ex: Exception) {
-                Log.e(TAG, "Failed to apply preset ${preset.name}: ${ex.message}", ex)
+                LogUtils.e(TAG, "Failed to apply preset ${preset.name}: ${ex.message}", ex)
             }
         }
 

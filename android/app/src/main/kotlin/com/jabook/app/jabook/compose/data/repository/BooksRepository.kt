@@ -143,6 +143,23 @@ public interface BooksRepository {
     )
 
     /**
+     * Resolves effective playback speed for [bookId] using hierarchy:
+     * per-book -> per-author -> global.
+     */
+    public suspend fun resolvePreferredPlaybackSpeed(
+        bookId: String,
+        globalSpeed: Float,
+    ): Float
+
+    /**
+     * Persists per-book playback speed preference.
+     */
+    public suspend fun updatePreferredPlaybackSpeed(
+        bookId: String,
+        speed: Float,
+    )
+
+    /**
      * Checks if a book exists by its source URL.
      */
     public fun getBookBySourceUrlFlow(sourceUrl: String): Flow<Book?>

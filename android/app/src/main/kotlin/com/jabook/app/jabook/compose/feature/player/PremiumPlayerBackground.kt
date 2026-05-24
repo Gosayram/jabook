@@ -22,6 +22,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
 import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
 import com.jabook.app.jabook.compose.feature.player.components.HypnoticBackground
 import dev.chrisbanes.haze.HazeState
@@ -33,6 +36,7 @@ import dev.chrisbanes.haze.hazeSource
 @Composable
 public fun PremiumPlayerBackground(
     themeColors: PlayerThemeColors?,
+    coverImageModel: Any? = null,
     hazeState: HazeState? = null,
     isPowerSaveMode: Boolean = false,
     modifier: Modifier = Modifier,
@@ -74,6 +78,22 @@ public fun PremiumPlayerBackground(
                     Modifier
                         .fillMaxSize()
                         .then(fallbackBackgroundModifier),
+            )
+        }
+
+        if (coverImageModel != null) {
+            AsyncImage(
+                model = coverImageModel,
+                contentDescription = null,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer(
+                            alpha = 0.28f,
+                            scaleX = 1.1f,
+                            scaleY = 1.1f,
+                        ),
+                contentScale = ContentScale.Crop,
             )
         }
 

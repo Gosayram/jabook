@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.topic
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -56,10 +57,12 @@ import javax.inject.Inject
 public sealed interface TopicUiState {
     public data object Loading : TopicUiState
 
+    @Immutable
     public data class Success(
         val details: RutrackerTopicDetails,
     ) : TopicUiState
 
+    @Immutable
     public data class Error(
         val message: String,
     ) : TopicUiState

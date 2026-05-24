@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
-import android.util.Log
+import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -83,10 +83,10 @@ public class ThrottledSeekHandler
 
             pendingSeekJob =
                 scope.launch {
-                    Log.v(TAG, "Seek queued: ${positionMs}ms, waiting ${throttleMs}ms")
+                    LogUtils.v(TAG, "Seek queued: ${positionMs}ms, waiting ${throttleMs}ms")
                     delay(throttleMs)
 
-                    Log.d(TAG, "Seek executed: ${lastSeekPosition}ms")
+                    LogUtils.d(TAG, "Seek executed: ${lastSeekPosition}ms")
                     onSeekComplete(lastSeekPosition)
                     pendingSeekJob = null
                 }
@@ -103,7 +103,7 @@ public class ThrottledSeekHandler
             pendingSeekJob = null
 
             if (lastSeekPosition > 0 && onSeekComplete != null) {
-                Log.d(TAG, "Flush executed: ${lastSeekPosition}ms")
+                LogUtils.d(TAG, "Flush executed: ${lastSeekPosition}ms")
                 onSeekComplete(lastSeekPosition)
             }
         }
@@ -114,7 +114,7 @@ public class ThrottledSeekHandler
         public fun cancel() {
             pendingSeekJob?.cancel()
             pendingSeekJob = null
-            Log.v(TAG, "Pending seek cancelled")
+            LogUtils.v(TAG, "Pending seek cancelled")
         }
 
         /**
@@ -133,6 +133,6 @@ public class ThrottledSeekHandler
         public fun release() {
             cancel()
             lastSeekPosition = 0L
-            Log.d(TAG, "ThrottledSeekHandler released")
+            LogUtils.d(TAG, "ThrottledSeekHandler released")
         }
     }

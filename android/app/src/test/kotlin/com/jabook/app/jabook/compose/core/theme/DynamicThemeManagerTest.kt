@@ -16,7 +16,7 @@ package com.jabook.app.jabook.compose.core.theme
 
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.Color
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -29,7 +29,7 @@ import android.graphics.Color as AndroidColor
 class DynamicThemeManagerTest {
     @Test
     fun `extractColors returns valid colors for a solid bitmap`() =
-        runTest {
+        runBlocking {
             // Create a solid blue bitmap
             val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
             bitmap.eraseColor(AndroidColor.BLUE)
@@ -55,7 +55,7 @@ class DynamicThemeManagerTest {
 
     @Test
     fun `extractColors handles small bitmaps`() =
-        runTest {
+        runBlocking {
             val bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
             bitmap.eraseColor(AndroidColor.RED)
 

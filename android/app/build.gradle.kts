@@ -11,10 +11,16 @@ import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.testing.TestDescriptor
+import org.gradle.api.tasks.testing.TestListener
+import org.gradle.api.tasks.testing.TestResult
 import org.gradle.process.ExecOperations
 import java.io.File
+import java.lang.management.ManagementFactory
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.time.Duration
 import java.util.Properties
 import javax.inject.Inject
 
@@ -362,6 +368,13 @@ android {
             isUniversalApk = true // Also build a universal APK
         }
     }
+
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 java {
@@ -386,6 +399,75 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 
 tasks.withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
     dependsOn(generateProtoLite)
+}
+
+tasks.withType<Test>().configureEach {
+    // Hard stop for hung test task in local and CI runs.
+    timeout.set(Duration.ofMinutes(12))
+    failFast = true
+    maxParallelForks = maxOf(1, Runtime.getRuntime().availableProcessors() / 2)
+    forkEvery = 120
+    testLogging {
+        events("failed", "skipped")
+    }
+    systemProperty("kotlinx.coroutines.test.default_timeout", "30s")
+
+    // Emit thread diagnostics when a test likely failed due to timeout/hang.
+    // Note: tests run in forked JVMs (forkEvery=120, maxParallelForks>0), so this
+    // dump captures the Gradle daemon's threads, not the test process. Useful as a
+    // coarse signal but not a substitute for jstack on the forked PID.
+    val enableThreadDumpOnTimeout =
+        providers
+            .gradleProperty("test.threadDumpOnTimeout")
+            .map { it.equals("true", ignoreCase = true) }
+            .orElse(false)
+            .get()
+
+    addTestListener(
+        object : TestListener {
+            override fun beforeSuite(suite: TestDescriptor) = Unit
+
+            override fun afterSuite(
+                suite: TestDescriptor,
+                result: TestResult,
+            ) = Unit
+
+            override fun beforeTest(testDescriptor: TestDescriptor) = Unit
+
+            override fun afterTest(
+                testDescriptor: TestDescriptor,
+                result: TestResult,
+            ) {
+                if (result.resultType != TestResult.ResultType.FAILURE) return
+                val failureSummary =
+                    result
+                        .exceptions
+                        .joinToString(separator = "\n") { throwable ->
+                            buildString {
+                                append(throwable::class.java.name)
+                                append(": ")
+                                append(throwable.message.orEmpty())
+                            }
+                        }
+                val looksLikeTimeout =
+                    failureSummary.contains("TestTimedOutException") ||
+                        failureSummary.contains("TimeoutException") ||
+                        failureSummary.contains("timed out", ignoreCase = true)
+                if (!looksLikeTimeout || !enableThreadDumpOnTimeout) return
+
+                logger.error(
+                    "⏱️ Timeout-like failure in ${testDescriptor.className}.${testDescriptor.name}. " +
+                        "Thread dump is enabled via -Ptest.threadDumpOnTimeout=true.",
+                )
+                val threadDump =
+                    ManagementFactory
+                        .getThreadMXBean()
+                        .dumpAllThreads(true, true)
+                        .joinToString(separator = "\n\n") { threadInfo -> threadInfo.toString() }
+                logger.error(threadDump)
+            }
+        },
+    )
 }
 
 tasks

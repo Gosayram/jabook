@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
+import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.pow
@@ -67,7 +68,7 @@ public class VolumeBoostProcessor(
                 }
             }
 
-        android.util.Log.d("VolumeBoostProcessor", "Initialized with boost level: $boostLevel (${gainMultiplier}x)")
+        LogUtils.d("VolumeBoostProcessor", "Initialized with boost level: $boostLevel (${gainMultiplier}x)")
     }
 
     override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
@@ -84,7 +85,7 @@ public class VolumeBoostProcessor(
         // Only activate if boost is enabled
         isActive = boostLevel != VolumeBoostLevel.Off && gainMultiplier > 1.0f
 
-        android.util.Log.d(
+        LogUtils.d(
             "VolumeBoostProcessor",
             "Configured: sampleRate=${inputAudioFormat.sampleRate}, " +
                 "channels=${inputAudioFormat.channelCount}, " +

@@ -19,6 +19,7 @@ import androidx.core.app.ServiceCompat
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import com.jabook.app.jabook.crash.CrashDiagnostics
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.cancel
 
 /**
@@ -28,13 +29,13 @@ internal class ServiceLifecycleManager(
     private val service: AudioPlayerService,
 ) {
     public fun onTaskRemoved() {
-        android.util.Log.i("AudioPlayerService", "onTaskRemoved called")
+        LogUtils.i("AudioPlayerService", "onTaskRemoved called")
 
         try {
             // Best-effort immediate save to avoid losing progress when app is swiped away.
             service.saveCurrentPosition()
         } catch (e: Exception) {
-            android.util.Log.w("AudioPlayerService", "Failed to save position in onTaskRemoved", e)
+            LogUtils.w("AudioPlayerService", "Failed to save position in onTaskRemoved", e)
             CrashDiagnostics.reportNonFatal(
                 tag = "service_on_task_removed_save_failed",
                 throwable = e,
@@ -49,17 +50,17 @@ internal class ServiceLifecycleManager(
                 player.playbackState == Player.STATE_IDLE ||
                 player.playbackState == Player.STATE_ENDED
             ) {
-                android.util.Log.i("AudioPlayerService", "Stopping service onTaskRemoved because not playing")
+                LogUtils.i("AudioPlayerService", "Stopping service onTaskRemoved because not playing")
                 service.finishListeningSessionIfActive(reason = "task_removed")
                 // CRITICAL: Explicitly cancel notification to prevent it from getting stuck
                 // This mimics the behavior of Rhythm and other well-behaved players
                 ServiceCompat.stopForeground(service, ServiceCompat.STOP_FOREGROUND_REMOVE)
                 service.stopSelf()
             } else {
-                android.util.Log.i("AudioPlayerService", "Ignoring onTaskRemoved because playing")
+                LogUtils.i("AudioPlayerService", "Ignoring onTaskRemoved because playing")
             }
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Error in onTaskRemoved", e)
+            LogUtils.e("AudioPlayerService", "Error in onTaskRemoved", e)
             CrashDiagnostics.reportNonFatal(
                 tag = "service_on_task_removed_failed",
                 throwable = e,
@@ -72,7 +73,7 @@ internal class ServiceLifecycleManager(
 
     @OptIn(UnstableApi::class)
     public fun onDestroy() {
-        android.util.Log.d("AudioPlayerService", "onDestroy called")
+        LogUtils.d("AudioPlayerService", "onDestroy called")
 
         // CRITICAL: Save position before destroying service
         // This ensures position is saved when:
@@ -81,11 +82,11 @@ internal class ServiceLifecycleManager(
         // - System kills service
         // - Any other scenario where service is destroyed
         try {
-            android.util.Log.d("AudioPlayerService", "Saving position before service destruction")
+            LogUtils.d("AudioPlayerService", "Saving position before service destruction")
             service.saveCurrentPosition()
             service.finishListeningSessionIfActive(reason = "on_destroy")
         } catch (e: Exception) {
-            android.util.Log.w("AudioPlayerService", "Failed to save position in onDestroy", e)
+            LogUtils.w("AudioPlayerService", "Failed to save position in onDestroy", e)
             CrashDiagnostics.reportNonFatal(
                 tag = "service_on_destroy_save_failed",
                 throwable = e,
@@ -101,15 +102,15 @@ internal class ServiceLifecycleManager(
         // Setting player to null ensures notification updates stop
         // notificationManager removed - MediaSession handles notifications automatically
         try {
-            android.util.Log.d("AudioPlayerService", "Cleaning up notification")
+            LogUtils.d("AudioPlayerService", "Cleaning up notification")
             // Cancel any pending notifications directly via Android NotificationManager
             val androidNotifManager =
                 service.getSystemService(android.content.Context.NOTIFICATION_SERVICE)
                     as? android.app.NotificationManager
             androidNotifManager?.cancel(NotificationHelper.NOTIFICATION_ID)
-            android.util.Log.d("AudioPlayerService", "Notification cancelled")
+            LogUtils.d("AudioPlayerService", "Notification cancelled")
         } catch (e: Exception) {
-            android.util.Log.w("AudioPlayerService", "Error cleaning up notifications", e)
+            LogUtils.w("AudioPlayerService", "Error cleaning up notifications", e)
         }
 
         // IMPORTANT: Do NOT call exoPlayer.release() - it's a singleton via Hilt!
@@ -118,7 +119,7 @@ internal class ServiceLifecycleManager(
         try {
             service.getActivePlayer().clearMediaItems()
         } catch (e: Exception) {
-            android.util.Log.w("AudioPlayerService", "Error clearing media items", e)
+            LogUtils.w("AudioPlayerService", "Error clearing media items", e)
         }
 
         // Release custom player if exists (delegated to PlayerConfigurator)
@@ -129,24 +130,24 @@ internal class ServiceLifecycleManager(
         // Set back stacked activity before releasing session
         service.getBackStackedActivity()?.let { backStackedActivity ->
             service.mediaLibrarySession?.setSessionActivity(backStackedActivity)
-            android.util.Log.d("AudioPlayerService", "Set back stacked activity before session release")
+            LogUtils.d("AudioPlayerService", "Set back stacked activity before session release")
         }
 
         // Inspired by Easybook (lines 488-491): Proper MediaSession cleanup
         // Release sessions in correct order
         try {
             service.mediaLibrarySession?.release()
-            android.util.Log.d("AudioPlayerService", "MediaLibrarySession released")
+            LogUtils.d("AudioPlayerService", "MediaLibrarySession released")
         } catch (e: Exception) {
-            android.util.Log.w("AudioPlayerService", "Error releasing MediaLibrarySession", e)
+            LogUtils.w("AudioPlayerService", "Error releasing MediaLibrarySession", e)
         }
 
         try {
             service.mediaSession?.release()
             service.mediaSession = null
-            android.util.Log.d("AudioPlayerService", "MediaSession released")
+            LogUtils.d("AudioPlayerService", "MediaSession released")
         } catch (e: Exception) {
-            android.util.Log.w("AudioPlayerService", "Error releasing MediaSession", e)
+            LogUtils.w("AudioPlayerService", "Error releasing MediaSession", e)
         }
 
         // Release other managers
@@ -166,18 +167,18 @@ internal class ServiceLifecycleManager(
 
         // Assuming service.cleanupListener() or similar wrapper exists or we leave clearListener() in Service.
 
-        android.util.Log.i("AudioPlayerService", "Service destroyed and all resources cleaned up")
+        LogUtils.i("AudioPlayerService", "Service destroyed and all resources cleaned up")
     }
 
     public fun stopAndCleanup() {
-        android.util.Log.d("AudioPlayerService", "stopAndCleanup() called")
+        LogUtils.d("AudioPlayerService", "stopAndCleanup() called")
 
         // Clear duration cache to free memory
         service.durationManager.clearCache()
 
         val player = service.getActivePlayer()
         try {
-            android.util.Log.d("AudioPlayerService", "Stopping player and releasing resources")
+            LogUtils.d("AudioPlayerService", "Stopping player and releasing resources")
             player.stop()
             player.clearMediaItems()
             service.playbackTimer?.stopTimer()
@@ -193,17 +194,17 @@ internal class ServiceLifecycleManager(
                     service.getSystemService(android.content.Context.NOTIFICATION_SERVICE)
                         as? android.app.NotificationManager
                 notificationManager?.cancel(NotificationHelper.NOTIFICATION_ID)
-                android.util.Log.d("AudioPlayerService", "Notification cancelled in stopAndCleanup")
+                LogUtils.d("AudioPlayerService", "Notification cancelled in stopAndCleanup")
             } catch (e: Exception) {
-                android.util.Log.w("AudioPlayerService", "Error cancelling notification", e)
+                LogUtils.w("AudioPlayerService", "Error cancelling notification", e)
             }
 
             // notificationManager removed - MediaSession handles notifications automatically
             // service.notificationManager = null
 
-            android.util.Log.d("AudioPlayerService", "Player stopped and resources released")
+            LogUtils.d("AudioPlayerService", "Player stopped and resources released")
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Failed to stop and cleanup", e)
+            LogUtils.e("AudioPlayerService", "Failed to stop and cleanup", e)
             CrashDiagnostics.reportNonFatal(
                 tag = "service_stop_and_cleanup_failed",
                 throwable = e,

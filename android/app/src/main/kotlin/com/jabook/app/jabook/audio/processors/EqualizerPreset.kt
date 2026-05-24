@@ -63,6 +63,25 @@ public enum class EqualizerPreset(
         bandGainsMb = intArrayOf(-300, -200, -100, 0, 200, 300, 200, 100, 0, -100),
         preampMillibels = Int.MIN_VALUE + 1,
     ),
+
+    /**
+     * Headphones — enhances clarity for headphone listening.
+     * Slight bass boost and treble presence for a more engaging sound.
+     */
+    HEADPHONES(
+        displayName = "Headphones",
+        bandGainsMb = intArrayOf(100, 50, 0, 100, 200, 260, 200, 150, 100, 50),
+        preampMillibels = Int.MIN_VALUE + 1,
+    ),
+
+    /**
+     * Car — compensates for road noise with boosted mids and presence.
+     */
+    CAR(
+        displayName = "Car",
+        bandGainsMb = intArrayOf(-100, 0, 100, 200, 300, 300, 250, 200, 100, 0),
+        preampMillibels = Int.MIN_VALUE + 1,
+    ),
     ;
 
     /**

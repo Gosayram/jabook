@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Debug / Dev Network Security Configuration
+
+    Extends the main config to also trust user-installed certificates.
+    This allows debugging with Charles Proxy, mitmproxy, or Proxyman
+    on developer machines without certificate errors.
+
+    IMPORTANT: This file is only included in debug builds (debuggable=true).
+    It is NOT included in release builds due to Gradle source set merging rules.
+-->
+<network-security-config>
+    <!-- Base configuration: deny cleartext for all domains by default -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <!-- Trust user-installed certs (Charles, mitmproxy) only in debug -->
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <!--
+        Domain-specific allowlist for RuTracker mirrors.
+        Only these domains are permitted to use cleartext HTTP.
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">rutracker.net</domain>
+        <domain includeSubdomains="true">rutracker.org</domain>
+        <domain includeSubdomains="true">rutracker.me</domain>
+        <domain includeSubdomains="true">rutracker.nl</domain>
+        <domain includeSubdomains="true">rutracker.ru</domain>
+        <domain includeSubdomains="true">rutracker.lib</domain>
+        <domain includeSubdomains="true">rutracker.info</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </domain-config>
+
+    <!-- Allow localhost connections for debug tooling -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>

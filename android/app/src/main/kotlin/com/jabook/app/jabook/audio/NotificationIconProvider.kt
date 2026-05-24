@@ -18,6 +18,7 @@ import android.content.Context
 import android.graphics.drawable.Icon
 import androidx.annotation.DrawableRes
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.util.LogUtils
 
 /**
  * Utility class for managing notification icons.
@@ -140,7 +141,7 @@ public object NotificationIconProvider {
                 }
             } catch (e: Exception) {
                 // Fallback to original icon if theming fails
-                android.util.Log.w("NotificationIconProvider", "Failed to apply Material You theming", e)
+                LogUtils.w("NotificationIconProvider", "Failed to apply Material You theming", e)
             }
         }
 

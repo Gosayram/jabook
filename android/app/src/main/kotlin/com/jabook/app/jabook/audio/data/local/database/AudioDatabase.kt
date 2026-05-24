@@ -18,11 +18,13 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.jabook.app.jabook.audio.data.local.dao.ChapterMetadataDao
 import com.jabook.app.jabook.audio.data.local.dao.ListeningSessionDao
+import com.jabook.app.jabook.audio.data.local.dao.LufsCacheDao
 import com.jabook.app.jabook.audio.data.local.dao.PlaybackPositionDao
 import com.jabook.app.jabook.audio.data.local.dao.PlaylistDao
 import com.jabook.app.jabook.audio.data.local.dao.SavedPlayerStateDao
 import com.jabook.app.jabook.audio.data.local.database.entity.ChapterMetadataEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningSessionEntity
+import com.jabook.app.jabook.audio.data.local.database.entity.LufsCacheEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.PlaybackPositionEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.PlaylistEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEntity
@@ -39,8 +41,9 @@ import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEn
         ChapterMetadataEntity::class,
         SavedPlayerStateEntity::class,
         ListeningSessionEntity::class,
+        LufsCacheEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 public abstract class AudioDatabase : RoomDatabase() {
@@ -53,4 +56,10 @@ public abstract class AudioDatabase : RoomDatabase() {
     public abstract fun savedPlayerStateDao(): SavedPlayerStateDao
 
     public abstract fun listeningSessionDao(): ListeningSessionDao
+
+    public abstract fun lufsCacheDao(): LufsCacheDao
+
+    public companion object {
+        public const val SCHEMA_VERSION: Int = 4
+    }
 }

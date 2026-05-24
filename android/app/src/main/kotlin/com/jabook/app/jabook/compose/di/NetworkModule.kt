@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.di
 import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.data.network.AuthInterceptor
 import com.jabook.app.jabook.compose.data.network.DynamicBaseUrlInterceptor
+import com.jabook.app.jabook.compose.data.network.DynamicTimeoutInterceptor
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.NetworkTelemetryEventListenerFactory
@@ -137,6 +138,7 @@ public object NetworkModule {
         authInterceptor: AuthInterceptor,
         loggingInterceptor: HttpLoggingInterceptor,
         dynamicBaseUrlInterceptor: DynamicBaseUrlInterceptor,
+        dynamicTimeoutInterceptor: DynamicTimeoutInterceptor,
         rutrackerHeadersInterceptor: com.jabook.app.jabook.compose.data.network.RutrackerHeadersInterceptor,
         networkTelemetryEventListenerFactory: NetworkTelemetryEventListenerFactory,
     ): OkHttpClient =
@@ -150,11 +152,13 @@ public object NetworkModule {
             // 2. RutrackerHeadersInterceptor - Adds User-Agent, Accept, Accept-Language (NO Accept-Encoding!)
             // 3. AuthInterceptor - Handles session expiry and re-authentication
             // 4. DynamicBaseUrlInterceptor - Switches between RuTracker mirrors
-            // 5. LoggingInterceptor - Last to log final request/response
+            // 5. DynamicTimeoutInterceptor - Per-request timeout from @RequestTimeout annotation
+            // 6. LoggingInterceptor - Last to log final request/response
             .addInterceptor(BrotliInterceptor) // Automatic Brotli decompression (MUST be first to add Accept-Encoding!)
             .addInterceptor(rutrackerHeadersInterceptor) // Add browser-like headers (NO Accept-Encoding - BrotliInterceptor handles it)
             .addInterceptor(authInterceptor) // Auto re-authentication
             .addInterceptor(dynamicBaseUrlInterceptor) // Dynamic base URL for mirrors
+            .addInterceptor(dynamicTimeoutInterceptor) // Per-endpoint timeout override via @RequestTimeout
             .addInterceptor(loggingInterceptor) // Logging last for complete request/response
             // Improved timeouts with better defaults
             .callTimeout(NetworkRuntimePolicy.API_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)

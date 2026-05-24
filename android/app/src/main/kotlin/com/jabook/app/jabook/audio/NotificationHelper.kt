@@ -23,6 +23,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.util.LogUtils
 import android.app.NotificationManager as AndroidNotificationManager
 
 /**
@@ -112,7 +113,7 @@ internal class NotificationHelper(
                     ) as AndroidNotificationManager
                 notificationManager.createNotificationChannel(channel)
             } catch (e: Exception) {
-                android.util.Log.e("AudioPlayerService", "Failed to create notification channel", e)
+                LogUtils.e("AudioPlayerService", "Failed to create notification channel", e)
             }
         }
     }

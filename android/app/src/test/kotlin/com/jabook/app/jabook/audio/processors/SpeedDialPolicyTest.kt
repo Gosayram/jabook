@@ -214,6 +214,55 @@ class SpeedDialPolicyTest {
         assertTrue(firstCall === secondCall)
     }
 
+    // ── User presets ───────────────────────────────────────────────
+
+    @Test
+    fun `resolveSpeedForBook prefers per-book speed over last used`() {
+        val presets =
+            SpeedDialPolicy.UserSpeedPresets(
+                lastUsedSpeed = 1.25f,
+                perBookSpeeds = mapOf("book-1" to 1.75f),
+            )
+
+        assertEquals(1.75f, SpeedDialPolicy.resolveSpeedForBook("book-1", presets), EPSILON)
+    }
+
+    @Test
+    fun `resolveSpeedForBook falls back to last used speed`() {
+        val presets =
+            SpeedDialPolicy.UserSpeedPresets(
+                lastUsedSpeed = 1.25f,
+                perBookSpeeds = mapOf("book-1" to 1.75f),
+            )
+
+        assertEquals(1.25f, SpeedDialPolicy.resolveSpeedForBook("book-2", presets), EPSILON)
+    }
+
+    @Test
+    fun `recordSpeedForBook stores snapped speed and updates last used`() {
+        val presets = SpeedDialPolicy.UserSpeedPresets(lastUsedSpeed = 1.0f)
+
+        val updated =
+            SpeedDialPolicy.recordSpeedForBook(
+                currentPresets = presets,
+                bookId = "book-1",
+                speed = 1.27f,
+            )
+
+        assertEquals(1.25f, updated.lastUsedSpeed, EPSILON)
+        assertEquals(1.25f, updated.perBookSpeeds.getValue("book-1"), EPSILON)
+    }
+
+    @Test
+    fun `normalizePresets snaps removes duplicates and falls back when empty`() {
+        val normalized = SpeedDialPolicy.normalizePresets(listOf(1.02f, 1.0f, 1.28f))
+
+        assertEquals(2, normalized.size)
+        assertEquals(1.0f, normalized[0], EPSILON)
+        assertEquals(1.3f, normalized[1], EPSILON)
+        assertEquals(SpeedDialPolicy.DEFAULT_PRESETS, SpeedDialPolicy.normalizePresets(emptyList()))
+    }
+
     // ── formatSpeed ────────────────────────────────────────────────
 
     @Test

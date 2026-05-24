@@ -111,6 +111,10 @@ public class TorrentSessionAdapter
 
         override fun getDownload(hash: String): TorrentDownload? = delegate.getDownload(hash)
 
+        override fun restoreActiveDownloads() {
+            delegate.restoreActiveDownloads()
+        }
+
         override fun stopSession() {
             delegate.stopSession()
         }

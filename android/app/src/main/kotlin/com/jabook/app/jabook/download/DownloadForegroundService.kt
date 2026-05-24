@@ -24,13 +24,13 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.audio.ForegroundServiceStartPolicy
 import com.jabook.app.jabook.audio.ForegroundStartOutcome
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
+import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -102,8 +102,8 @@ public class DownloadForegroundService : Service() {
 
     private val foregroundStartPolicy =
         ForegroundServiceStartPolicy(
-            logDebug = { message -> Log.d(TAG, message) },
-            logWarn = { message, throwable -> Log.w(TAG, message, throwable) },
+            logDebug = { message -> LogUtils.d(TAG, message) },
+            logWarn = { message, throwable -> LogUtils.w(TAG, message, throwable) },
         )
 
     private var notificationManager: NotificationManager? = null
@@ -129,20 +129,20 @@ public class DownloadForegroundService : Service() {
         try {
             torrentManager.initialize()
         } catch (e: NoSuchMethodError) {
-            Log.e(TAG, "libtorrent4j version mismatch - native library incompatible", e)
+            LogUtils.e(TAG, "libtorrent4j version mismatch - native library incompatible", e)
             // Don't crash - allow service to continue without torrent functionality
             // User will see error when trying to download
         } catch (e: NoClassDefFoundError) {
-            Log.e(TAG, "libtorrent4j classes not available - version mismatch", e)
+            LogUtils.e(TAG, "libtorrent4j classes not available - version mismatch", e)
             // Don't crash - allow service to continue
         } catch (e: LinkageError) {
-            Log.e(TAG, "libtorrent4j linkage error - version mismatch", e)
+            LogUtils.e(TAG, "libtorrent4j linkage error - version mismatch", e)
             // Don't crash - allow service to continue
         } catch (e: UnsatisfiedLinkError) {
-            Log.e(TAG, "Failed to load libtorrent4j native library", e)
+            LogUtils.e(TAG, "Failed to load libtorrent4j native library", e)
             // Don't crash - allow service to continue
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize TorrentManager", e)
+            LogUtils.e(TAG, "Failed to initialize TorrentManager", e)
             // Don't crash - allow service to continue
         }
 
@@ -161,9 +161,9 @@ public class DownloadForegroundService : Service() {
                     "onCreate",
                 )
             if (outcome == ForegroundStartOutcome.SUCCESS) {
-                Log.d(TAG, "startForeground() completed via policy in onCreate()")
+                LogUtils.d(TAG, "startForeground() completed via policy in onCreate()")
             } else {
-                Log.w(TAG, "startForeground() failed in onCreate(): outcome=$outcome")
+                LogUtils.w(TAG, "startForeground() failed in onCreate(): outcome=$outcome")
             }
         }
     }
@@ -185,16 +185,16 @@ public class DownloadForegroundService : Service() {
                     "onStartCommand",
                 )
             if (outcome == ForegroundStartOutcome.SUCCESS) {
-                Log.d(TAG, "startForeground() completed via policy in onStartCommand()")
+                LogUtils.d(TAG, "startForeground() completed via policy in onStartCommand()")
             } else {
-                Log.w(TAG, "startForeground() failed in onStartCommand(): outcome=$outcome")
+                LogUtils.w(TAG, "startForeground() failed in onStartCommand(): outcome=$outcome")
             }
         }
 
         when (intent?.action) {
             ACTION_START -> {
                 isServiceRunning = true
-                Log.d(TAG, "Download service started")
+                LogUtils.d(TAG, "Download service started")
             }
             ACTION_ADD_MAGNET -> {
                 val magnetUri = intent.getStringExtra(EXTRA_MAGNET_URI)
@@ -203,7 +203,7 @@ public class DownloadForegroundService : Service() {
                 if (magnetUri != null && savePath != null) {
                     addMagnetLink(magnetUri, savePath)
                 } else {
-                    Log.w(TAG, "Invalid magnet link or save path")
+                    LogUtils.w(TAG, "Invalid magnet link or save path")
                 }
             }
             ACTION_PAUSE -> {
@@ -240,7 +240,7 @@ public class DownloadForegroundService : Service() {
         serviceScope.cancel()
 
         super.onDestroy()
-        Log.d(TAG, "Download service destroyed")
+        LogUtils.d(TAG, "Download service destroyed")
     }
 
     /**
@@ -252,12 +252,12 @@ public class DownloadForegroundService : Service() {
     ) {
         serviceScope.launch {
             try {
-                Log.d(TAG, "Adding magnet link: $magnetUri")
+                LogUtils.d(TAG, "Adding magnet link: $magnetUri")
                 val infoHash = torrentManager.addMagnetLink(magnetUri, savePath, sequential = true)
                 activeDownloads[infoHash] = magnetUri
-                Log.i(TAG, "Started download: $infoHash")
+                LogUtils.i(TAG, "Started download: $infoHash")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to add magnet link", e)
+                LogUtils.e(TAG, "Failed to add magnet link", e)
             }
         }
     }
@@ -269,9 +269,9 @@ public class DownloadForegroundService : Service() {
         serviceScope.launch {
             try {
                 torrentManager.pauseDownload(infoHash)
-                Log.d(TAG, "Paused download: $infoHash")
+                LogUtils.d(TAG, "Paused download: $infoHash")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to pause download", e)
+                LogUtils.e(TAG, "Failed to pause download", e)
             }
         }
     }
@@ -283,9 +283,9 @@ public class DownloadForegroundService : Service() {
         serviceScope.launch {
             try {
                 torrentManager.resumeDownload(infoHash)
-                Log.d(TAG, "Resumed download: $infoHash")
+                LogUtils.d(TAG, "Resumed download: $infoHash")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to resume download", e)
+                LogUtils.e(TAG, "Failed to resume download", e)
             }
         }
     }
@@ -301,14 +301,14 @@ public class DownloadForegroundService : Service() {
             try {
                 torrentManager.removeDownload(infoHash, deleteFiles)
                 activeDownloads.remove(infoHash)
-                Log.d(TAG, "Removed download: $infoHash")
+                LogUtils.d(TAG, "Removed download: $infoHash")
 
                 // Stop service if no active downloads
                 if (activeDownloads.isEmpty()) {
                     stopSelf()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to remove download", e)
+                LogUtils.e(TAG, "Failed to remove download", e)
             }
         }
     }

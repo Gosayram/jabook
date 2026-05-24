@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -83,7 +84,7 @@ internal class PlayerStateHelper(
         var duration: Long = player.duration
         val durationSource = if (duration != C.TIME_UNSET && duration > 0) "player" else "unknown"
 
-        android.util.Log.v(
+        LogUtils.v(
             "AudioPlayerService",
             "Getting duration: player.duration=$duration (${duration / 1000}s), source=$durationSource",
         )
@@ -101,7 +102,7 @@ internal class PlayerStateHelper(
                     val cachedDuration = getCachedDuration(filePath)
                     if (cachedDuration != null && cachedDuration > 0) {
                         duration = cachedDuration
-                        android.util.Log.d("AudioPlayerService", "Using cached duration for $filePath: ${duration}ms")
+                        LogUtils.d("AudioPlayerService", "Using cached duration for $filePath: ${duration}ms")
                     } else {
                         // Cache miss - try database via callback
                         val dbDuration = getDurationForFile?.invoke(filePath)
@@ -109,7 +110,7 @@ internal class PlayerStateHelper(
                             duration = dbDuration
                             // Cache it for future use
                             saveDurationToCache(filePath, duration)
-                            android.util.Log.d(
+                            LogUtils.d(
                                 "AudioPlayerService",
                                 "Got duration from database for $filePath: ${duration}ms",
                             )
@@ -130,14 +131,14 @@ internal class PlayerStateHelper(
                                             if (parsedDuration != null && parsedDuration > 0) {
                                                 // Update cache safely
                                                 saveDurationToCache(filePath, parsedDuration)
-                                                android.util.Log.d(
+                                                LogUtils.d(
                                                     "AudioPlayerService",
                                                     "Async duration fetch success for $filePath: ${parsedDuration}ms",
                                                 )
                                             }
                                         }
                                     } catch (e: Exception) {
-                                        android.util.Log.w(
+                                        LogUtils.w(
                                             "AudioPlayerService",
                                             "Async duration fetch failed for $filePath: ${e.message}",
                                         )
@@ -149,12 +150,12 @@ internal class PlayerStateHelper(
                                         }
                                     }
                                 }
-                                android.util.Log.v(
+                                LogUtils.v(
                                     "AudioPlayerService",
                                     "Triggered async duration fetch for $filePath",
                                 )
                             } else {
-                                android.util.Log.w(
+                                LogUtils.w(
                                     "AudioPlayerService",
                                     "CoroutineScope not provided, cannot fetch duration async for $filePath",
                                 )
@@ -172,7 +173,7 @@ internal class PlayerStateHelper(
                 if (filePath != null) {
                     // Cache duration from player (most reliable source)
                     saveDurationToCache(filePath, duration)
-                    android.util.Log.i(
+                    LogUtils.i(
                         "AudioPlayerService",
                         "Cached duration from player for $filePath: ${duration}ms (${duration / 1000}s)",
                     )
@@ -219,7 +220,7 @@ internal class PlayerStateHelper(
                         }
 
                     if (realIndex >= 0 && realIndex != currentIndex) {
-                        android.util.Log.d(
+                        LogUtils.d(
                             "AudioPlayerService",
                             "Found real index by URI: currentIndex=$currentIndex, realIndex=$realIndex, " +
                                 "file=${currentPath.substringAfterLast('/')}",
@@ -232,7 +233,7 @@ internal class PlayerStateHelper(
          */
 
         // Log current state for debugging
-        android.util.Log.v(
+        LogUtils.v(
             "AudioPlayerService",
             "PlayerStateHelper: actualTrackIndex=${getActualTrackIndex?.invoke()}, " +
                 "currentMediaItemIndex=${player.currentMediaItemIndex}, totalTracks=$totalTracks, " +
@@ -246,7 +247,7 @@ internal class PlayerStateHelper(
         ) {
             // Index was reset to 0 or went out of bounds after book completion, but we have saved index
             // Use saved index to show correct track number
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Using saved track index $savedIndex instead of invalid index $currentIndex (total=$totalTracks)",
             )
@@ -255,14 +256,14 @@ internal class PlayerStateHelper(
             // Index is out of bounds but no saved index - use last track index
             // This handles the case when ExoPlayer sets index to >= totalTracks
             val lastTrackIndex = totalTracks - 1
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Index out of bounds ($currentIndex >= $totalTracks), using last track index $lastTrackIndex",
             )
             currentIndex = lastTrackIndex
         } else if (currentIndex < 0 && totalTracks > 0) {
             // Index is negative - use 0 as fallback
-            android.util.Log.w(
+            LogUtils.w(
                 "AudioPlayerService",
                 "Index is negative ($currentIndex), using 0 as fallback",
             )
@@ -278,14 +279,14 @@ internal class PlayerStateHelper(
                 currentIndex + 1
             } else {
                 // Fallback to 1 if index is invalid
-                android.util.Log.w(
+                LogUtils.w(
                     "AudioPlayerService",
                     "Invalid currentIndex ($currentIndex) or totalTracks ($totalTracks), using chapterNumber=1",
                 )
                 1
             }
 
-        android.util.Log.v(
+        LogUtils.v(
             "AudioPlayerService",
             "PlayerStateHelper: final currentIndex=$currentIndex, chapterNumber=$chapterNumber, playbackState=${player.playbackState}",
         )

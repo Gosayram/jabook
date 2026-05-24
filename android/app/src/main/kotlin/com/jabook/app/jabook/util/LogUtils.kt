@@ -83,6 +83,28 @@ public object LogUtils {
     }
 
     /**
+     * Log an INFO message with a lazy message supplier (avoid string construction cost)
+     */
+    public fun i(
+        tag: String,
+        message: () -> String,
+    ) {
+        if (isDebugLoggingEnabled) {
+            Log.i(tag, message())
+        }
+    }
+
+    /**
+     * Log an ERROR message with a lazy message supplier (avoid string construction cost)
+     */
+    public fun e(
+        tag: String,
+        message: () -> String,
+    ) {
+        Log.e(tag, message())
+    }
+
+    /**
      * Log an INFO message
      */
     public fun i(
@@ -113,6 +135,11 @@ public object LogUtils {
             Log.w(tag, message)
         }
     }
+
+    public fun isLoggable(
+        tag: String,
+        priority: Int,
+    ): Boolean = isDebugLoggingEnabled || (priority >= Log.WARN)
 
     /**
      * Log an ERROR message (Always logged)

@@ -15,6 +15,7 @@
 package com.jabook.app.jabook
 
 import android.app.Application
+import android.os.StrictMode
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
@@ -25,6 +26,7 @@ import com.jabook.app.jabook.compose.data.sync.SyncManager
 import com.jabook.app.jabook.compose.infrastructure.notification.NotificationHelper
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.diagnostics.AnrWatchdog
+import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -74,6 +76,27 @@ public class JabookApplication :
     public override fun onCreate() {
         super.onCreate()
 
+        if (BuildConfig.DEBUG) {
+            StrictMode.setThreadPolicy(
+                StrictMode.ThreadPolicy
+                    .Builder()
+                    .detectAll()
+                    .penaltyLog()
+                    .penaltyFlashScreen()
+                    .build(),
+            )
+            StrictMode.setVmPolicy(
+                StrictMode.VmPolicy
+                    .Builder()
+                    .detectLeakedSqlLiteObjects()
+                    .detectLeakedClosableObjects()
+                    .detectActivityLeaks()
+                    .detectCleartextNetwork()
+                    .penaltyLog()
+                    .build(),
+            )
+        }
+
         configureDiagnostics()
 
         // Start ANR watchdog for debug/beta builds (BP-6.3)
@@ -96,14 +119,14 @@ public class JabookApplication :
         // This ensures instant playback readiness without delay on first play
         // Service will initialize MediaSession, ExoPlayer, and notification provider
         try {
-            android.util.Log.i("JabookApplication", "Starting AudioPlayerService warmup...")
+            LogUtils.i("JabookApplication", "Starting AudioPlayerService warmup...")
             CrashDiagnostics.log("audio_service_warmup_started")
             val serviceIntent = android.content.Intent(this, com.jabook.app.jabook.audio.AudioPlayerService::class.java)
             startService(serviceIntent)
-            android.util.Log.i("JabookApplication", "AudioPlayerService warmup initiated")
+            LogUtils.i("JabookApplication", "AudioPlayerService warmup initiated")
             CrashDiagnostics.log("audio_service_warmup_initiated")
         } catch (e: Exception) {
-            android.util.Log.e("JabookApplication", "Failed to start AudioPlayerService warmup", e)
+            LogUtils.e("JabookApplication", "Failed to start AudioPlayerService warmup", e)
             CrashDiagnostics.reportNonFatal(
                 tag = "audio_service_warmup_failed",
                 throwable = e,
@@ -155,7 +178,7 @@ public class JabookApplication :
                 .build()
         }
 
-        android.util.Log.d("JabookApplication", "Application created with Hilt support")
+        LogUtils.d("JabookApplication", "Application created with Hilt support")
     }
 
     private fun configureDiagnostics() {

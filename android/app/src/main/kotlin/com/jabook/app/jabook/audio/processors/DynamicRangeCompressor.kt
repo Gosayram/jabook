@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
+import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.exp
@@ -92,7 +93,7 @@ public class DynamicRangeCompressor(
             }
         }
 
-        android.util.Log.d(
+        LogUtils.d(
             "DynamicRangeCompressor",
             "Initialized with DRC level: $drcLevel " +
                 "(threshold=${thresholdDb}dB, ratio=$ratio:1, " +
@@ -131,7 +132,7 @@ public class DynamicRangeCompressor(
         outputBuffer = null
         inputEnded = false
 
-        android.util.Log.d(
+        LogUtils.d(
             "DynamicRangeCompressor",
             "Configured: sampleRate=${inputAudioFormat.sampleRate}, " +
                 "channels=${inputAudioFormat.channelCount}, " +

@@ -15,16 +15,25 @@
 package com.jabook.app.jabook.compose.designsystem.component
 
 import android.graphics.drawable.ColorDrawable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
@@ -75,6 +84,7 @@ public fun RemoteImage(
     placeholderColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     errorColor: Color = MaterialTheme.colorScheme.error,
     fallbackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    /** When true, shows an animated shimmer during image load. When false, shows the placeholder color. */
     showLoadingIndicator: Boolean = true,
 ) {
     val context = LocalContext.current
@@ -106,23 +116,9 @@ public fun RemoteImage(
         contentScale = contentScale,
         loading = {
             if (showLoadingIndicator) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center),
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
+                ShimmerLoadingBox(modifier = Modifier.fillMaxSize())
             } else {
-                // Show placeholder color
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    // Empty box for placeholder
-                }
+                Box(modifier = Modifier.fillMaxSize())
             }
         },
         error = {
@@ -148,6 +144,41 @@ public fun RemoteImage(
                 contentScale = contentScale,
             )
         },
+    )
+}
+
+/**
+ * Animated shimmer box used as the image loading placeholder.
+ *
+ * Sweeps a gradient highlight from left to right using [rememberInfiniteTransition].
+ * Colors are derived from the Material theme so it respects dark/light mode.
+ */
+@Composable
+private fun ShimmerLoadingBox(modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val progress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec =
+            infiniteRepeatable(
+                animation = tween(durationMillis = 1000, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+        label = "shimmer",
+    )
+    val baseColor = MaterialTheme.colorScheme.surfaceVariant
+    val highlightColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+    Box(
+        modifier =
+            modifier.drawBehind {
+                drawRect(
+                    Brush.linearGradient(
+                        colors = listOf(baseColor, highlightColor, baseColor),
+                        start = Offset(x = (progress - 0.5f) * 2f * size.width, y = 0f),
+                        end = Offset(x = (progress + 0.5f) * 2f * size.width, y = size.height),
+                    ),
+                )
+            },
     )
 }
 

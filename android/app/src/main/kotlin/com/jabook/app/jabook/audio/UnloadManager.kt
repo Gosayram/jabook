@@ -18,6 +18,7 @@ import android.content.Context
 import android.os.Build
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
+import com.jabook.app.jabook.util.LogUtils
 import android.app.NotificationManager as AndroidNotificationManager
 
 /**
@@ -59,14 +60,14 @@ internal class UnloadManager(
      * periodically and on app lifecycle events. This method focuses on resource cleanup.
      */
     public fun unloadPlayerDueToInactivity() {
-        android.util.Log.i("AudioPlayerService", "Unloading player due to inactivity")
+        LogUtils.i("AudioPlayerService", "Unloading player due to inactivity")
 
         try {
             // Log memory usage before unloading (for debugging)
             val runtime = Runtime.getRuntime()
             val usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024 // MB
             val maxMemory = runtime.maxMemory() / 1024 / 1024 // MB
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Memory usage before unload: ${usedMemory}MB / ${maxMemory}MB",
             )
@@ -76,7 +77,7 @@ internal class UnloadManager(
             if (activePlayer.mediaItemCount > 0) {
                 val currentIndex = activePlayer.currentMediaItemIndex
                 val currentPosition = activePlayer.currentPosition
-                android.util.Log.d(
+                LogUtils.d(
                     "AudioPlayerService",
                     "Saving position before unload: track=$currentIndex, position=${currentPosition}ms",
                 )
@@ -86,7 +87,7 @@ internal class UnloadManager(
                 try {
                     saveCurrentPosition()
                 } catch (e: Exception) {
-                    android.util.Log.w("AudioPlayerService", "Failed to send save position broadcast", e)
+                    LogUtils.w("AudioPlayerService", "Failed to send save position broadcast", e)
                     // Continue with unload even if broadcast fails - position is already saved periodically
                 }
 
@@ -98,9 +99,9 @@ internal class UnloadManager(
             try {
                 activePlayer.stop()
                 activePlayer.clearMediaItems()
-                android.util.Log.d("AudioPlayerService", "ExoPlayer stopped and MediaItems cleared")
+                LogUtils.d("AudioPlayerService", "ExoPlayer stopped and MediaItems cleared")
             } catch (e: Exception) {
-                android.util.Log.w("AudioPlayerService", "Error stopping player", e)
+                LogUtils.w("AudioPlayerService", "Error stopping player", e)
             }
 
             // Release custom player if exists
@@ -110,34 +111,34 @@ internal class UnloadManager(
             // Release MediaSession
             getMediaSession()?.release()
             releaseMediaSession()
-            android.util.Log.d("AudioPlayerService", "MediaSession released")
+            LogUtils.d("AudioPlayerService", "MediaSession released")
 
             // Release MediaSessionManager
             getMediaSessionManager()?.release()
             releaseMediaSessionManager()
-            android.util.Log.d("AudioPlayerService", "MediaSessionManager released")
+            LogUtils.d("AudioPlayerService", "MediaSessionManager released")
 
             // Release timers
             getInactivityTimer()?.release()
             releaseInactivityTimer()
             getPlaybackTimer()?.release()
             releasePlaybackTimer()
-            android.util.Log.d("AudioPlayerService", "Timers released")
+            LogUtils.d("AudioPlayerService", "Timers released")
 
             // Remove notification
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     stopForeground(android.app.Service.STOP_FOREGROUND_REMOVE)
-                    android.util.Log.d("AudioPlayerService", "Foreground service stopped and notification removed")
+                    LogUtils.d("AudioPlayerService", "Foreground service stopped and notification removed")
                 } else {
                     // Use AndroidNotificationManager to cancel notification
                     val androidNotificationManager =
                         context.getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
                     androidNotificationManager.cancel(NotificationHelper.NOTIFICATION_ID)
-                    android.util.Log.d("AudioPlayerService", "Notification cancelled")
+                    LogUtils.d("AudioPlayerService", "Notification cancelled")
                 }
             } catch (e: Exception) {
-                android.util.Log.w("AudioPlayerService", "Failed to remove notification", e)
+                LogUtils.w("AudioPlayerService", "Failed to remove notification", e)
             }
 
             // Clear metadata
@@ -145,24 +146,24 @@ internal class UnloadManager(
             setEmbeddedArtworkPath(null)
 
             // Stop the service
-            android.util.Log.i("AudioPlayerService", "Stopping service due to inactivity")
+            LogUtils.i("AudioPlayerService", "Stopping service due to inactivity")
 
             // Log memory usage after cleanup (for debugging)
             val runtimeAfter = Runtime.getRuntime()
             val usedMemoryAfter = (runtimeAfter.totalMemory() - runtimeAfter.freeMemory()) / 1024 / 1024 // MB
-            android.util.Log.d(
+            LogUtils.d(
                 "AudioPlayerService",
                 "Memory usage after cleanup: ${usedMemoryAfter}MB / ${runtimeAfter.maxMemory() / 1024 / 1024}MB",
             )
 
             stopSelf()
         } catch (e: Exception) {
-            android.util.Log.e("AudioPlayerService", "Error unloading player due to inactivity", e)
+            LogUtils.e("AudioPlayerService", "Error unloading player due to inactivity", e)
             // Still try to stop the service even if there was an error
             try {
                 stopSelf()
             } catch (e2: Exception) {
-                android.util.Log.e("AudioPlayerService", "Failed to stop service", e2)
+                LogUtils.e("AudioPlayerService", "Failed to stop service", e2)
             }
         }
     }

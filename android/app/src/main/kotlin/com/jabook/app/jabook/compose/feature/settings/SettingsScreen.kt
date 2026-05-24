@@ -41,6 +41,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -50,6 +52,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -1347,12 +1350,12 @@ internal fun SettingsSection(
 ) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleMedium,
+        style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.primary,
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = contentPadding, vertical = itemSpacing),
+                .padding(start = 72.dp, top = itemSpacing, end = contentPadding, bottom = 4.dp),
     )
 }
 
@@ -1364,7 +1367,31 @@ internal fun SettingsItem(
     onClick: (() -> Unit)? = null,
     content: (@Composable () -> Unit)? = null,
 ) {
-    Column(
+    ListItem(
+        headlineContent = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        },
+        supportingContent =
+            if (subtitle != null || content != null) {
+                {
+                    Column {
+                        subtitle?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                        content?.invoke()
+                    }
+                }
+            } else {
+                null
+            },
         modifier =
             modifier
                 .fillMaxWidth()
@@ -1374,25 +1401,8 @@ internal fun SettingsItem(
                     } else {
                         Modifier
                     },
-                ).padding(horizontal = 16.dp, vertical = 12.dp),
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-        )
-
-        if (subtitle != null) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-
-        content?.invoke()
-    }
+                ),
+    )
 }
 
 @Composable
@@ -1406,7 +1416,41 @@ internal fun SettingsSwitchItem(
     smallSpacing: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    ListItem(
+        headlineContent = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        },
+        supportingContent =
+            subtitle?.let {
+                {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+        trailingContent = {
+            Switch(
+                checked = checked,
+                onCheckedChange = null,
+                thumbContent =
+                    if (checked) {
+                        {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    } else {
+                        null
+                    },
+            )
+        },
         modifier =
             modifier
                 .fillMaxWidth()
@@ -1414,30 +1458,8 @@ internal fun SettingsSwitchItem(
                     value = checked,
                     onValueChange = onCheckedChange,
                     role = Role.Switch,
-                ).padding(horizontal = contentPadding, vertical = itemSpacing),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-            )
-
-            if (subtitle != null) {
-                Spacer(modifier = Modifier.height(smallSpacing))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
-        Switch(
-            checked = checked,
-            onCheckedChange = null, // Handled by parent Row
-        )
-    }
+                ).padding(horizontal = contentPadding, vertical = itemSpacing / 2),
+    )
 }
 
 @Composable
@@ -1534,6 +1556,8 @@ private fun ThemeSelector(
 ) {
     Column(modifier = modifier) {
         Spacer(modifier = Modifier.height(8.dp))
+        ThemeLivePreviewCard(selectedTheme = selectedTheme)
+        Spacer(modifier = Modifier.height(12.dp))
 
         ThemeOption(
             theme = AppTheme.LIGHT,
@@ -1562,6 +1586,66 @@ private fun ThemeSelector(
             selected = selectedTheme == AppTheme.SYSTEM,
             onSelected = { onThemeSelected(AppTheme.SYSTEM) },
         )
+    }
+}
+
+@Composable
+private fun ThemeLivePreviewCard(
+    selectedTheme: AppTheme,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            ),
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = stringResource(R.string.themePreviewTitle),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Card(
+                colors =
+                    CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
+            ) {
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.themePreviewBookTitle),
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                        )
+                        Text(
+                            text =
+                                when (selectedTheme) {
+                                    AppTheme.SYSTEM -> stringResource(R.string.systemDefault)
+                                    AppTheme.LIGHT -> stringResource(R.string.light)
+                                    AppTheme.DARK -> stringResource(R.string.dark)
+                                    AppTheme.AMOLED -> stringResource(R.string.themeAmoled)
+                                },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        }
     }
 }
 

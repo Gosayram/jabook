@@ -16,11 +16,20 @@ package com.jabook.app.jabook.compose.feature.library
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
@@ -31,12 +40,22 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
@@ -44,14 +63,25 @@ import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -60,13 +90,28 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
+import com.jabook.app.jabook.compose.designsystem.component.BookActionsBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
-import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
+import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
+import com.jabook.app.jabook.compose.designsystem.component.LibraryLoadingSkeleton
+import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
+import com.jabook.app.jabook.compose.feature.achievements.AchievementOverlay
+import com.jabook.app.jabook.compose.feature.achievements.AchievementUiModel
+import com.jabook.app.jabook.compose.feature.discovery.DiscoveryGenre
+import com.jabook.app.jabook.compose.feature.discovery.DiscoveryScreen
+import com.jabook.app.jabook.compose.feature.discovery.DiscoveryUiState
+import com.jabook.app.jabook.compose.feature.discovery.ListeningMood
+import com.jabook.app.jabook.compose.feature.onboarding.SpotlightOverlay
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * Library screen - displays the user's audiobook collection.
@@ -96,12 +141,25 @@ public fun LibraryScreen(
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val selectedBook by viewModel.selectedBookForProperties.collectAsStateWithLifecycle()
+    val weeklyRecap by viewModel.weeklyRecapState.collectAsStateWithLifecycle()
+    val yearRecap by viewModel.yearRecapState.collectAsStateWithLifecycle()
     val snackbarHostState = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateToFavorites = dropUnlessResumed { navigationClickGuard.run(onNavigateToFavorites) }
     val safeNavigateToSearch = dropUnlessResumed { navigationClickGuard.run(onNavigateToSearch) }
     val safeNavigateToDownloads = dropUnlessResumed { navigationClickGuard.run(onNavigateToDownloads) }
+    var activeQuickFilter by remember { mutableStateOf(LibraryQuickFilter.ALL) }
+    var showSortBottomSheet by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchBarExpanded by remember { mutableStateOf(false) }
+    var spotlightStep by rememberSaveable { mutableStateOf(0) }
+    var selectedBookForActions by remember { mutableStateOf<Book?>(null) }
+    var showDiscovery by rememberSaveable { mutableStateOf(false) }
+    var listeningMood by rememberSaveable { mutableStateOf(ListeningMood.RELAXING) }
+    var activeAchievement by remember { mutableStateOf<AchievementUiModel?>(null) }
+    var hasShownFirstBookAchievement by rememberSaveable { mutableStateOf(false) }
+    var hasShownStreakAchievement by rememberSaveable { mutableStateOf(false) }
 
     val storagePermissionText = stringResource(R.string.storagePermissionRequired)
     val foundBooksMessageTemplate = stringResource(R.string.foundBooksMessage)
@@ -110,6 +168,12 @@ public fun LibraryScreen(
     val scanCompleteNoBooksMessage = stringResource(R.string.scanCompleteNoBooks)
     val coverUpdatedMessage = stringResource(R.string.coverUpdated)
     val coverUpdateFailedMessage = stringResource(R.string.coverUpdateFailed)
+    val spotlightSkipText = stringResource(R.string.spotlightSkip)
+    val spotlightNextText = stringResource(R.string.spotlightNext)
+    val spotlightSearchTitle = stringResource(R.string.spotlightSearchTitle)
+    val spotlightSearchDescription = stringResource(R.string.spotlightSearchDescription)
+    val spotlightDownloadsTitle = stringResource(R.string.spotlightDownloadsTitle)
+    val spotlightDownloadsDescription = stringResource(R.string.spotlightDownloadsDescription)
     var hasReportedMeaningfulContent by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState) {
@@ -218,7 +282,16 @@ public fun LibraryScreen(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(backgroundGradient),
+                .background(backgroundGradient)
+                .onPreviewKeyEvent { keyEvent ->
+                    if (keyEvent.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    if (keyEvent.isCtrlPressed && keyEvent.key == Key.F) {
+                        searchBarExpanded = true
+                        true
+                    } else {
+                        false
+                    }
+                },
     ) {
         // 🎯 ListDetailPaneScaffold - Material 3 Adaptive component
         ListDetailPaneScaffold(
@@ -238,17 +311,30 @@ public fun LibraryScreen(
                                         scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
                                     ),
                                 actions = {
-                                    // Sort menu
-                                    SortOrderMenu(
-                                        currentSortOrder = sortOrder,
-                                        onSortOrderChanged = { order -> viewModel.onSortOrderChanged(order) },
-                                    )
+                                    IconButton(onClick = { showSortBottomSheet = true }) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.Sort,
+                                            contentDescription = stringResource(R.string.sort_by),
+                                        )
+                                    }
 
                                     // View mode toggle
                                     ViewModeToggle(
                                         currentMode = viewMode,
                                         onModeChanged = { mode -> viewModel.onViewModeChanged(mode) },
                                     )
+                                    IconButton(onClick = { showDiscovery = !showDiscovery }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Whatshot,
+                                            contentDescription = "Discovery",
+                                            tint =
+                                                if (showDiscovery) {
+                                                    androidx.compose.material3.MaterialTheme.colorScheme.primary
+                                                } else {
+                                                    androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
+                                                },
+                                        )
+                                    }
 
                                     // Favorites button
                                     IconButton(onClick = safeNavigateToFavorites) {
@@ -277,7 +363,9 @@ public fun LibraryScreen(
                         modifier = Modifier.fillMaxSize(),
                     ) { padding ->
                         val isRefreshing = scanState is ScanState.Scanning
+                        val pullToRefreshState = rememberPullToRefreshState()
                         androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                            state = pullToRefreshState,
                             isRefreshing = isRefreshing,
                             onRefresh = {
                                 if (isRefreshing) {
@@ -302,15 +390,34 @@ public fun LibraryScreen(
                                     permissionLauncher.launch(permission)
                                 }
                             },
+                            indicator = {
+                                PullToRefreshDefaults.Indicator(
+                                    state = pullToRefreshState,
+                                    isRefreshing = isRefreshing,
+                                    modifier = Modifier.align(Alignment.TopCenter),
+                                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                                )
+                            },
                             modifier = Modifier.padding(padding).fillMaxSize(),
                         ) {
                             when (uiState) {
                                 is LibraryUiState.Loading -> {
-                                    LoadingScreen(message = stringResource(R.string.loadingLibrary))
+                                    LibraryLoadingSkeleton(message = stringResource(R.string.loadingLibrary))
                                 }
 
                                 is LibraryUiState.Success -> {
                                     val books = (uiState as LibraryUiState.Success).books
+                                    val filteredBooks =
+                                        remember(books, activeQuickFilter, searchQuery) {
+                                            books
+                                                .filterBy(activeQuickFilter)
+                                                .filterByQuery(searchQuery)
+                                        }
+                                    val discoveryUiState =
+                                        remember(books, listeningMood) {
+                                            buildDiscoveryUiState(books, listeningMood)
+                                        }
                                     val actionsProvider =
                                         viewModel.createBookActionsProvider(
                                             onBookClick = { bookId ->
@@ -323,20 +430,98 @@ public fun LibraryScreen(
                                                     )
                                                 }
                                             },
+                                            onBookLongPress = { bookId ->
+                                                selectedBookForActions = books.firstOrNull { it.id == bookId }
+                                            },
                                         )
 
-                                    // Use unified view for all display modes
-                                    UnifiedBooksView(
-                                        books = books,
-                                        displayMode = viewMode.toBookDisplayMode(),
-                                        actionsProvider = actionsProvider,
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
+                                    Column(modifier = Modifier.fillMaxSize()) {
+                                        weeklyRecap?.let { recap ->
+                                            WeeklyRecapCard(
+                                                stats = recap,
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            )
+                                            yearRecap?.let { recapYear ->
+                                                YearRecapPromptCard(
+                                                    yearRecap = recapYear,
+                                                    onShareClick = {
+                                                        shareYearRecap(context, recapYear)
+                                                    },
+                                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                                )
+                                            }
+                                            ListeningHeatmap(
+                                                data = buildListeningHeatmapData(books),
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            )
+                                            SpeedDonutChart(
+                                                distribution = buildSpeedDistribution(books),
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            )
+                                        }
+                                        if (showDiscovery) {
+                                            DiscoveryScreen(
+                                                uiState = discoveryUiState,
+                                                selectedMood = listeningMood,
+                                                onMoodChange = { listeningMood = it },
+                                                onBookClick = { onBookClick(it.id) },
+                                                onGenreClick = { genre ->
+                                                    searchQuery = genre.title
+                                                    showDiscovery = false
+                                                },
+                                                modifier = Modifier.fillMaxSize(),
+                                            )
+                                        } else {
+                                            SearchBar(
+                                                inputField = {
+                                                    SearchBarDefaults.InputField(
+                                                        query = searchQuery,
+                                                        onQueryChange = { searchQuery = it },
+                                                        onSearch = { searchBarExpanded = false },
+                                                        expanded = searchBarExpanded,
+                                                        onExpandedChange = { searchBarExpanded = it },
+                                                        placeholder = { Text(text = stringResource(R.string.searchBooks)) },
+                                                        leadingIcon = {
+                                                            Icon(
+                                                                imageVector = Icons.Filled.Search,
+                                                                contentDescription = null,
+                                                            )
+                                                        },
+                                                    )
+                                                },
+                                                expanded = searchBarExpanded,
+                                                onExpandedChange = { searchBarExpanded = it },
+                                                modifier =
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 12.dp)
+                                                        .padding(bottom = 8.dp),
+                                            ) {}
+                                            LibraryQuickFilterChips(
+                                                activeFilter = activeQuickFilter,
+                                                onFilterChanged = { activeQuickFilter = it },
+                                                modifier =
+                                                    Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 12.dp)
+                                                        .padding(top = 4.dp, bottom = 8.dp),
+                                            )
+                                            UnifiedBooksView(
+                                                books = filteredBooks,
+                                                displayMode = viewMode.toBookDisplayMode(),
+                                                actionsProvider = actionsProvider,
+                                                modifier = Modifier.fillMaxSize(),
+                                            )
+                                        }
+                                    }
                                 }
 
                                 is LibraryUiState.Empty -> {
                                     EmptyState(
                                         message = stringResource(R.string.noBooksInLibrary),
+                                        subtitle = stringResource(R.string.noFoldersConfiguredPleaseAddInSettings),
+                                        ctaText = stringResource(R.string.retry),
+                                        onCta = { viewModel.startLibraryScan() },
                                     )
                                 }
 
@@ -373,9 +558,14 @@ public fun LibraryScreen(
                     if (selectedBookId != null && uiState is LibraryUiState.Success) {
                         val books = (uiState as LibraryUiState.Success).books
                         val selectedBook = books.find { it.id == selectedBookId }
+                        val selectedBookChapters by
+                            remember(selectedBookId) {
+                                selectedBookId?.let { viewModel.observeBookChapters(it) } ?: flowOf(emptyList())
+                            }.collectAsStateWithLifecycle(initialValue = emptyList())
 
                         BookDetailPane(
                             book = selectedBook,
+                            chapters = selectedBookChapters,
                             onPlayClick = {
                                 // Navigate to player when play is clicked
                                 selectedBookId?.let { onBookClick(it) }
@@ -421,6 +611,340 @@ public fun LibraryScreen(
                 )
             },
         )
+
+        selectedBookForActions?.let { book ->
+            val contextMenuActionsProvider =
+                BookActionsProvider(
+                    onBookClick = onBookClick,
+                    onBookLongPress = {},
+                    onToggleFavorite = viewModel::toggleFavorite,
+                    favoriteIds =
+                        (uiState as? LibraryUiState.Success)
+                            ?.books
+                            ?.filter { it.isFavorite }
+                            ?.map { it.id }
+                            ?.toSet()
+                            .orEmpty(),
+                    onShareBook = {
+                        val shareIntent =
+                            android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(android.content.Intent.EXTRA_TEXT, "${book.title} — ${book.author}")
+                            }
+                        context.startActivity(
+                            android.content.Intent.createChooser(
+                                shareIntent,
+                                context.getString(R.string.share),
+                            ),
+                        )
+                    },
+                    onDeleteBook = viewModel::deleteBook,
+                    onShowBookInfo = { viewModel.showBookProperties(it) },
+                )
+            BookActionsBottomSheet(
+                book = book,
+                actionsProvider = contextMenuActionsProvider,
+                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                onDismiss = { selectedBookForActions = null },
+            )
+        }
+
+        if (uiState is LibraryUiState.Success && spotlightStep in 1..2) {
+            val overlayCenter =
+                if (spotlightStep == 1) {
+                    Offset(x = 72f, y = 180f)
+                } else {
+                    Offset(x = 128f, y = 180f)
+                }
+            SpotlightOverlay(
+                title = if (spotlightStep == 1) spotlightSearchTitle else spotlightDownloadsTitle,
+                description = if (spotlightStep == 1) spotlightSearchDescription else spotlightDownloadsDescription,
+                skipText = spotlightSkipText,
+                nextText = spotlightNextText,
+                targetCenter = overlayCenter,
+                targetRadius = 30.dp,
+                onSkip = { spotlightStep = 0 },
+                onNext = {
+                    spotlightStep = if (spotlightStep == 1) 2 else 0
+                },
+                modifier = Modifier.align(Alignment.Center),
+            )
+        }
+
+        activeAchievement?.let { achievement ->
+            AchievementOverlay(
+                achievement = achievement,
+                onDismiss = { activeAchievement = null },
+                modifier = Modifier.align(Alignment.Center),
+            )
+        }
+    }
+
+    if (showSortBottomSheet) {
+        SortOrderBottomSheet(
+            currentSortOrder = sortOrder,
+            onSortOrderChanged = { order ->
+                viewModel.onSortOrderChanged(order)
+                showSortBottomSheet = false
+            },
+            onDismiss = { showSortBottomSheet = false },
+        )
+    }
+
+    LaunchedEffect(uiState) {
+        if (uiState is LibraryUiState.Success && spotlightStep == 0) {
+            spotlightStep = 1
+        }
+    }
+
+    LaunchedEffect(weeklyRecap) {
+        val recap = weeklyRecap ?: return@LaunchedEffect
+        if (recap.booksCompleted >= 1 && !hasShownFirstBookAchievement) {
+            hasShownFirstBookAchievement = true
+            activeAchievement =
+                AchievementUiModel(
+                    id = "first-book",
+                    title = "Первая страница",
+                    description = "Вы завершили первую книгу за неделю.",
+                )
+            return@LaunchedEffect
+        }
+        if (recap.streakDays >= 7 && !hasShownStreakAchievement) {
+            hasShownStreakAchievement = true
+            activeAchievement =
+                AchievementUiModel(
+                    id = "week-streak",
+                    title = "Неделя слова",
+                    description = "Вы слушаете уже 7 дней подряд.",
+                )
+        }
+    }
+}
+
+@Composable
+private fun YearRecapPromptCard(
+    yearRecap: YearRecapState,
+    onShareClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = SurfaceElevationTokens.Level1),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.yearRecapTitle, yearRecap.year),
+                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    text = stringResource(R.string.yearRecapShareHint, yearRecap.totalMinutesListened),
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+            OutlinedButton(onClick = onShareClick) {
+                Icon(
+                    imageVector = Icons.Filled.Share,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 6.dp),
+                )
+                Text(text = stringResource(R.string.share))
+            }
+        }
+    }
+}
+
+private fun buildDiscoveryUiState(
+    books: List<Book>,
+    mood: ListeningMood,
+): DiscoveryUiState {
+    val continueListening = books.filter { !it.isCompleted && (it.isStarted || it.progress > 0f) }.take(12)
+    val trending = books.sortedByDescending { it.addedDate }.take(12)
+    val personalized =
+        books
+            .filter { isMoodMatch(it, mood) }
+            .sortedByDescending { if (it.isFavorite) 1 else 0 }
+            .ifEmpty { books }
+            .take(12)
+    val genresByTitle = books.groupBy { inferGenreFromBook(it) }
+    val colorPalette =
+        listOf(
+            androidx.compose.ui.graphics
+                .Color(0xFF0D6EFD),
+            androidx.compose.ui.graphics
+                .Color(0xFF00A884),
+            androidx.compose.ui.graphics
+                .Color(0xFFFF7A00),
+            androidx.compose.ui.graphics
+                .Color(0xFFE91E63),
+            androidx.compose.ui.graphics
+                .Color(0xFF6F42C1),
+            androidx.compose.ui.graphics
+                .Color(0xFF0099CC),
+        )
+    val genres =
+        genresByTitle.entries
+            .sortedByDescending { it.value.size }
+            .take(8)
+            .mapIndexed { index, entry ->
+                DiscoveryGenre(
+                    id = "genre-${entry.key}",
+                    title = entry.key,
+                    color = colorPalette[index % colorPalette.size],
+                    coverHints = entry.value.map { it.title.take(1).ifBlank { "?" } }.take(2),
+                )
+            }
+    return DiscoveryUiState(
+        continueListening = continueListening,
+        trending = trending,
+        personalized = personalized,
+        genres = genres,
+    )
+}
+
+private fun isMoodMatch(
+    book: Book,
+    mood: ListeningMood,
+): Boolean {
+    val source = listOf(book.title, book.author, book.description.orEmpty()).joinToString(" ").lowercase()
+    return when (mood) {
+        ListeningMood.WALKING -> "подкаст" in source || "short" in source || "рассказ" in source
+        ListeningMood.DRIVING -> "детектив" in source || "триллер" in source || "боевик" in source
+        ListeningMood.SLEEPING -> "медитац" in source || "сказк" in source || "класс" in source
+        ListeningMood.WORKOUT -> "мотива" in source || "биограф" in source || "action" in source
+        ListeningMood.RELAXING -> "роман" in source || "повесть" in source || "драма" in source
+        ListeningMood.WORKING -> "бизнес" in source || "история" in source || "science" in source
+    }
+}
+
+private fun buildListeningHeatmapData(books: List<Book>): Map<LocalDate, Int> {
+    val zoneId = ZoneId.systemDefault()
+    return books
+        .mapNotNull { book ->
+            val lastPlayed = book.lastPlayedDate ?: return@mapNotNull null
+            val day = Instant.ofEpochMilli(lastPlayed).atZone(zoneId).toLocalDate()
+            day to ((book.progress * 60f).toInt().coerceAtLeast(1))
+        }.groupBy({ it.first }, { it.second })
+        .mapValues { (_, values) -> values.sum().coerceAtLeast(1) }
+}
+
+private fun buildSpeedDistribution(books: List<Book>): Map<Float, Long> {
+    if (books.isEmpty()) {
+        return emptyMap()
+    }
+    val base = books.size.toLong().coerceAtLeast(1L)
+    val fast = books.count { (it.forwardDuration ?: 0) >= 30 }.toLong()
+    val slow = books.count { (it.rewindDuration ?: 0) >= 20 }.toLong()
+    val normal = (base - fast - slow).coerceAtLeast(1L)
+    return mapOf(
+        1.0f to normal * 60_000L,
+        1.25f to fast.coerceAtLeast(1L) * 40_000L,
+        0.9f to slow.coerceAtLeast(1L) * 35_000L,
+    )
+}
+
+private fun inferGenreFromBook(book: Book): String {
+    val source = listOf(book.title, book.author, book.description.orEmpty(), book.sourceUrl.orEmpty()).joinToString(" ").lowercase()
+    return when {
+        "фантаст" in source || "sci-fi" in source || "fantasy" in source -> "Фантастика"
+        "детектив" in source || "detective" in source -> "Детективы"
+        "истор" in source || "history" in source -> "История"
+        "бизнес" in source || "business" in source -> "Бизнес"
+        "психолог" in source || "self" in source -> "Саморазвитие"
+        "класс" in source || "classic" in source -> "Классика"
+        else -> "Разное"
+    }
+}
+
+@Composable
+private fun WeeklyRecapCard(
+    stats: WeeklyRecapState,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = SurfaceElevationTokens.Level2),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.weeklyRecapTitle),
+                style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                WeeklyStatItem(
+                    icon = Icons.Filled.Headphones,
+                    value = stats.minutesListened.toString(),
+                    label = stringResource(R.string.minutesLabel),
+                )
+                WeeklyStatItem(
+                    icon = Icons.Filled.Check,
+                    value = stats.booksCompleted.toString(),
+                    label = stringResource(R.string.booksLabel),
+                )
+                WeeklyStatItem(
+                    icon = Icons.Filled.Whatshot,
+                    value = stats.streakDays.toString(),
+                    label = stringResource(R.string.streakDaysLabel),
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text =
+                    stringResource(
+                        R.string.productivePeriodLabel,
+                        when (stats.productivePeriod) {
+                            ProductivePeriod.MORNING -> stringResource(R.string.productiveMorning)
+                            ProductivePeriod.DAY -> stringResource(R.string.productiveDay)
+                            ProductivePeriod.EVENING -> stringResource(R.string.productiveEvening)
+                            ProductivePeriod.NIGHT -> stringResource(R.string.productiveNight)
+                            ProductivePeriod.UNKNOWN -> stringResource(R.string.unknown)
+                        },
+                    ),
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeeklyStatItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String,
+    label: String,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        Text(
+            text = value,
+            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        Text(
+            text = label,
+            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+        )
     }
 }
 
@@ -437,7 +961,7 @@ private fun LibraryContent(
     Box(modifier = modifier) {
         when (uiState) {
             is LibraryUiState.Loading -> {
-                LoadingScreen(message = stringResource(R.string.loadingLibrary))
+                LibraryLoadingSkeleton(message = stringResource(R.string.loadingLibrary))
             }
 
             is LibraryUiState.Success -> {
@@ -460,6 +984,9 @@ private fun LibraryContent(
             is LibraryUiState.Empty -> {
                 EmptyState(
                     message = stringResource(R.string.noBooksInLibrary),
+                    subtitle = stringResource(R.string.noFoldersConfiguredPleaseAddInSettings),
+                    ctaText = stringResource(R.string.retry),
+                    onCta = {},
                 )
             }
 
@@ -545,80 +1072,113 @@ private fun ViewModeToggle(
 private fun LibraryViewMode.isGrid(): Boolean = this == LibraryViewMode.GRID_COMPACT || this == LibraryViewMode.GRID_COMFORTABLE
 
 /**
- * Sort order menu.
+ * Sort order bottom sheet.
  */
 @Composable
-private fun SortOrderMenu(
+@OptIn(ExperimentalMaterial3Api::class)
+private fun SortOrderBottomSheet(
     currentSortOrder: com.jabook.app.jabook.compose.data.model.BookSortOrder,
     onSortOrderChanged: (com.jabook.app.jabook.compose.data.model.BookSortOrder) -> Unit,
-    modifier: Modifier = Modifier,
+    onDismiss: () -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-
-    Box(modifier = modifier) {
-        IconButton(onClick = { expanded = true }) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Sort,
-                contentDescription = stringResource(R.string.sort_by),
+    JabookModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(
+            text = stringResource(R.string.sort_by),
+            style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        com.jabook.app.jabook.compose.data.model.BookSortOrder.entries.forEach { order ->
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text =
+                            when (order) {
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY ->
+                                    stringResource(R.string.sort_by_activity)
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_ASC ->
+                                    stringResource(R.string.sort_title_asc)
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_DESC ->
+                                    stringResource(R.string.sort_title_desc)
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_ASC ->
+                                    stringResource(R.string.sort_author_asc)
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_DESC ->
+                                    stringResource(R.string.sort_author_desc)
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.RECENTLY_ADDED ->
+                                    stringResource(R.string.sort_recently_added)
+                                com.jabook.app.jabook.compose.data.model.BookSortOrder.OLDEST_FIRST ->
+                                    stringResource(R.string.sort_oldest_first)
+                            },
+                    )
+                },
+                leadingContent = {
+                    if (order == currentSortOrder) {
+                        Icon(imageVector = Icons.Default.Check, contentDescription = null)
+                    } else {
+                        Spacer(modifier = Modifier.size(24.dp))
+                    }
+                },
+                modifier = Modifier.combinedClickable(onClick = { onSortOrderChanged(order) }),
             )
         }
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
 
-        androidx.compose.material3.DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-        ) {
-            com.jabook.app.jabook.compose.data.model.BookSortOrder.entries.forEach { order ->
-                androidx.compose.material3.DropdownMenuItem(
-                    text = {
-                        Text(
-                            text =
-                                when (order) {
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY ->
-                                        stringResource(
-                                            R.string.sort_by_activity,
-                                        )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_ASC ->
-                                        stringResource(
-                                            R.string.sort_title_asc,
-                                        )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_DESC ->
-                                        stringResource(
-                                            R.string.sort_title_desc,
-                                        )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_ASC ->
-                                        stringResource(
-                                            R.string.sort_author_asc,
-                                        )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_DESC ->
-                                        stringResource(
-                                            R.string.sort_author_desc,
-                                        )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.RECENTLY_ADDED ->
-                                        stringResource(
-                                            R.string.sort_recently_added,
-                                        )
-                                    com.jabook.app.jabook.compose.data.model.BookSortOrder.OLDEST_FIRST ->
-                                        stringResource(
-                                            R.string.sort_oldest_first,
-                                        )
-                                },
-                        )
-                    },
-                    onClick = {
-                        onSortOrderChanged(order)
-                        expanded = false
-                    },
-                    leadingIcon = {
-                        if (order == currentSortOrder) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                            )
-                        }
-                    },
-                )
-            }
-        }
+private enum class LibraryQuickFilter {
+    ALL,
+    FAVORITES,
+    DOWNLOADED,
+    IN_PROGRESS,
+}
+
+private fun List<Book>.filterBy(filter: LibraryQuickFilter): List<Book> =
+    when (filter) {
+        LibraryQuickFilter.ALL -> this
+        LibraryQuickFilter.FAVORITES -> filter { it.isFavorite }
+        LibraryQuickFilter.DOWNLOADED -> filter { it.isDownloaded }
+        LibraryQuickFilter.IN_PROGRESS -> filter { it.progress > 0f && !it.isCompleted }
+    }
+
+private fun List<Book>.filterByQuery(query: String): List<Book> {
+    val normalizedQuery = query.trim()
+    if (normalizedQuery.isBlank()) return this
+    return filter { book ->
+        book.title.contains(normalizedQuery, ignoreCase = true) ||
+            book.author.contains(normalizedQuery, ignoreCase = true)
+    }
+}
+
+@Composable
+private fun LibraryQuickFilterChips(
+    activeFilter: LibraryQuickFilter,
+    onFilterChanged: (LibraryQuickFilter) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        FilterChip(
+            selected = activeFilter == LibraryQuickFilter.ALL,
+            onClick = { onFilterChanged(LibraryQuickFilter.ALL) },
+            label = { Text(stringResource(R.string.allFilter)) },
+        )
+        FilterChip(
+            selected = activeFilter == LibraryQuickFilter.FAVORITES,
+            onClick = { onFilterChanged(LibraryQuickFilter.FAVORITES) },
+            label = { Text(stringResource(R.string.favoritesTooltip)) },
+        )
+        FilterChip(
+            selected = activeFilter == LibraryQuickFilter.DOWNLOADED,
+            onClick = { onFilterChanged(LibraryQuickFilter.DOWNLOADED) },
+            label = { Text(stringResource(R.string.downloadedLabel)) },
+        )
+        FilterChip(
+            selected = activeFilter == LibraryQuickFilter.IN_PROGRESS,
+            onClick = { onFilterChanged(LibraryQuickFilter.IN_PROGRESS) },
+            label = { Text(stringResource(R.string.inProgress)) },
+        )
     }
 }
 

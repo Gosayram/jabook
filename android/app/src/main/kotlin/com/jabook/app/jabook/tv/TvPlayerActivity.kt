@@ -31,6 +31,7 @@ import androidx.lifecycle.lifecycleScope
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController
+import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -90,7 +91,7 @@ public class TvPlaybackFragment : PlaybackSupportFragment() {
                 book = booksRepository.getBook(bookId).first()
                 book?.let { setupPlayback(it) }
             } catch (e: Exception) {
-                android.util.Log.e("TvPlaybackFragment", "Error loading book", e)
+                LogUtils.e("TvPlaybackFragment", "Error loading book", e)
             }
         }
     }

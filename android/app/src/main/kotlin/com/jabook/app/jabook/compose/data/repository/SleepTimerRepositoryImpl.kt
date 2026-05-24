@@ -174,7 +174,7 @@ public class SleepTimerRepositoryImpl
                         } else {
                             val remaining = MediaControllerExtensions.getSleepTimerRemainingSeconds(controller)
                             if (remaining != null && remaining > 0) {
-                                SleepTimerState.Active(remaining)
+                                computeActiveState(_timerState.value, remaining)
                             } else {
                                 SleepTimerState.Idle
                             }
@@ -210,7 +210,11 @@ public class SleepTimerRepositoryImpl
                             )
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
                             // State will be updated by polling, but eagerly update for responsiveness
-                            _timerState.value = SleepTimerState.Active(durationMinutes * 60)
+                            _timerState.value =
+                                SleepTimerState.Active(
+                                    remainingSeconds = durationMinutes * 60,
+                                    initialSeconds = durationMinutes * 60,
+                                )
                             persistLastFixedDurationMinutes(durationMinutes)
                         }
                     } catch (e: InterruptedException) {
@@ -343,7 +347,24 @@ public class SleepTimerRepositoryImpl
             _lastFixedDurationMinutes.value = minutes
         }
 
-        private companion object {
+        public companion object {
+            public fun computeActiveState(
+                previousState: SleepTimerState,
+                remaining: Int,
+            ): SleepTimerState.Active {
+                val previousActive = previousState as? SleepTimerState.Active
+                val initialSeconds =
+                    if (previousActive != null && remaining <= previousActive.initialSeconds) {
+                        previousActive.initialSeconds
+                    } else {
+                        remaining
+                    }
+                return SleepTimerState.Active(
+                    remainingSeconds = remaining,
+                    initialSeconds = initialSeconds,
+                )
+            }
+
             private const val PREFS_NAME: String = "sleep_timer_repository"
             private const val KEY_LAST_FIXED_DURATION_MINUTES: String = "last_fixed_duration_minutes"
         }

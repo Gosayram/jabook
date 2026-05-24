@@ -20,6 +20,7 @@ import com.jabook.app.jabook.compose.data.preferences.PlayerStateSnapshotPrefere
 import com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode
+import com.jabook.app.jabook.compose.data.preferences.SleepTimerState
 import com.jabook.app.jabook.compose.data.preferences.ThemeMode
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -287,11 +288,17 @@ private class FakeSettingsRepository(
 
     override suspend fun updateOnboardingCompleted(completed: Boolean) = Unit
 
-    override suspend fun resetToDefaults() = Unit
-
     override suspend fun updateEqualizerPreset(preset: String) = Unit
 
     override suspend fun updatePlayerStateSnapshot(snapshot: PlayerStateSnapshotPreference) = Unit
 
     override suspend fun clearPlayerStateSnapshot() = Unit
+
+    override val sleepTimerState: Flow<SleepTimerState> = MutableStateFlow(SleepTimerState.getDefaultInstance())
+
+    override suspend fun updateSleepTimerState(state: SleepTimerState) = Unit
+
+    override suspend fun clearSleepTimerState() = Unit
+
+    override suspend fun resetToDefaults() = Unit
 }

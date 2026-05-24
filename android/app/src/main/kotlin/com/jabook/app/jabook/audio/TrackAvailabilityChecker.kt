@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.util.LogUtils
 import java.io.File
 
 /**
@@ -48,7 +49,7 @@ public object TrackAvailabilityChecker {
                 val file = File(uri.path ?: return false)
                 val exists = file.exists() && file.isFile && file.canRead()
                 if (!exists) {
-                    android.util.Log.w(
+                    LogUtils.w(
                         "TrackAvailabilityChecker",
                         "Track $index not available: file does not exist: ${uri.path}",
                     )
@@ -60,7 +61,7 @@ public object TrackAvailabilityChecker {
                 true
             }
             else -> {
-                android.util.Log.w(
+                LogUtils.w(
                     "TrackAvailabilityChecker",
                     "Track $index not available: unsupported URI scheme: ${uri.scheme}",
                 )
@@ -91,7 +92,7 @@ public object TrackAvailabilityChecker {
         }
 
         if (maxIterations <= 0) {
-            android.util.Log.w("TrackAvailabilityChecker", "Max iterations reached while searching for available track")
+            LogUtils.w("TrackAvailabilityChecker", "Max iterations reached while searching for available track")
             return null
         }
 

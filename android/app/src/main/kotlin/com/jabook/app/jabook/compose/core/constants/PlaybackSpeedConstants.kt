@@ -21,6 +21,8 @@ public object PlaybackSpeedConstants {
     public const val MIN_SPEED: Float = 0.5f
     public const val MAX_SPEED: Float = 2.0f
     public const val SPEED_STEP: Float = 0.05f
+    public const val DIAL_START_ANGLE: Float = 135f
+    public const val DIAL_TOTAL_SWEEP: Float = 270f
 
     /**
      * Calculate number of steps for a slider.

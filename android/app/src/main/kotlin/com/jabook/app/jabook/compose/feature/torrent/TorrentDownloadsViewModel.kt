@@ -49,8 +49,10 @@ import javax.inject.Inject
  * UI state for torrent downloads screen
  */
 public sealed interface TorrentDownloadsUiState {
+    @Immutable
     public data object Loading : TorrentDownloadsUiState
 
+    @Immutable
     public data class Success(
         val activeDownloads: ImmutableList<TorrentDownload>,
         val pausedDownloads: ImmutableList<TorrentDownload>,
@@ -58,6 +60,7 @@ public sealed interface TorrentDownloadsUiState {
         val errorDownloads: ImmutableList<TorrentDownload>,
     ) : TorrentDownloadsUiState
 
+    @Immutable
     public data object Empty : TorrentDownloadsUiState
 
     @Immutable

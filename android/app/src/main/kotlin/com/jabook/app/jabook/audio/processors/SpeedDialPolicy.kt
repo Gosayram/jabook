@@ -55,6 +55,59 @@ public object SpeedDialPolicy {
     public const val DEFAULT_SPEED: Float = 1.0f
 
     /**
+     * Default set of speed presets shown in the speed dial UI when no user
+     * customisation has been saved yet.
+     */
+    public val DEFAULT_PRESETS: List<Float> =
+        listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)
+
+    /**
+     * Holds per-book speed preferences together with the globally last-used speed.
+     */
+    public data class UserSpeedPresets(
+        val lastUsedSpeed: Float,
+        val perBookSpeeds: Map<String, Float> = emptyMap(),
+    )
+
+    /**
+     * Resolves the effective speed for a given book.
+     *
+     * @return the per-book speed if present, otherwise [lastUsedSpeed].
+     */
+    public fun resolveSpeedForBook(
+        bookId: String,
+        presets: UserSpeedPresets,
+    ): Float = presets.perBookSpeeds[bookId] ?: presets.lastUsedSpeed
+
+    /**
+     * Records a new speed for a given book, snapping to the nearest valid step.
+     * Updates both the per-book map and the global last-used speed.
+     */
+    public fun recordSpeedForBook(
+        currentPresets: UserSpeedPresets,
+        bookId: String,
+        speed: Float,
+    ): UserSpeedPresets {
+        val snapped = snapToStep(speed)
+        return UserSpeedPresets(
+            lastUsedSpeed = snapped,
+            perBookSpeeds = currentPresets.perBookSpeeds + (bookId to snapped),
+        )
+    }
+
+    /**
+     * Normalises a raw list of speed values by snapping to valid steps,
+     * removing duplicates while preserving order, and falling back to
+     * [DEFAULT_PRESETS] when the input is empty.
+     */
+    public fun normalizePresets(raw: List<Float>): List<Float> {
+        if (raw.isEmpty()) return DEFAULT_PRESETS
+        return raw
+            .map { snapToStep(it) }
+            .distinct()
+    }
+
+    /**
      * Quantizes an arbitrary speed value to the nearest valid step.
      *
      * Handles floating-point imprecision by rounding to the nearest step boundary.
