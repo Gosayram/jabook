@@ -14,42 +14,43 @@
 
 package com.jabook.app.jabook.audio
 
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.test.assertEquals
 
 class InactivityResetPolicyTest {
     @Test
-    fun `USER_UI resets timer`() {
-        assertEquals(true, InactivityResetPolicy.shouldReset(InactivityCommandSource.USER_UI))
+    fun `shouldReset returns true for USER_UI`() {
+        assertTrue(InactivityResetPolicy.shouldReset(InactivityCommandSource.USER_UI))
     }
 
     @Test
-    fun `HEADSET_BUTTON does not reset timer`() {
-        assertEquals(false, InactivityResetPolicy.shouldReset(InactivityCommandSource.HEADSET_BUTTON))
+    fun `shouldReset returns true for NOTIFICATION`() {
+        assertTrue(InactivityResetPolicy.shouldReset(InactivityCommandSource.NOTIFICATION))
     }
 
     @Test
-    fun `ANDROID_AUTO does not reset timer`() {
-        assertEquals(false, InactivityResetPolicy.shouldReset(InactivityCommandSource.ANDROID_AUTO))
+    fun `shouldReset returns true for PLAYBACK_INTERNAL`() {
+        assertTrue(InactivityResetPolicy.shouldReset(InactivityCommandSource.PLAYBACK_INTERNAL))
     }
 
     @Test
-    fun `WEAR_OS does not reset timer`() {
-        assertEquals(false, InactivityResetPolicy.shouldReset(InactivityCommandSource.WEAR_OS))
+    fun `shouldReset returns false for HEADSET_BUTTON`() {
+        assertFalse(InactivityResetPolicy.shouldReset(InactivityCommandSource.HEADSET_BUTTON))
     }
 
     @Test
-    fun `SLEEP_TIMER does not reset timer`() {
-        assertEquals(false, InactivityResetPolicy.shouldReset(InactivityCommandSource.SLEEP_TIMER))
+    fun `shouldReset returns false for ANDROID_AUTO`() {
+        assertFalse(InactivityResetPolicy.shouldReset(InactivityCommandSource.ANDROID_AUTO))
     }
 
     @Test
-    fun `NOTIFICATION resets timer`() {
-        assertEquals(true, InactivityResetPolicy.shouldReset(InactivityCommandSource.NOTIFICATION))
+    fun `shouldReset returns false for WEAR_OS`() {
+        assertFalse(InactivityResetPolicy.shouldReset(InactivityCommandSource.WEAR_OS))
     }
 
     @Test
-    fun `PLAYBACK_INTERNAL resets timer`() {
-        assertEquals(true, InactivityResetPolicy.shouldReset(InactivityCommandSource.PLAYBACK_INTERNAL))
+    fun `shouldReset returns false for SLEEP_TIMER`() {
+        assertFalse(InactivityResetPolicy.shouldReset(InactivityCommandSource.SLEEP_TIMER))
     }
 }
