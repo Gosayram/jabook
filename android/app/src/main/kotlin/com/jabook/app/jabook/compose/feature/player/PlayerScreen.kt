@@ -952,7 +952,7 @@ public fun PlayerScreen(
 }
 
 @Composable
-private fun StarRatingRow(
+internal fun StarRatingRow(
     selected: Int,
     onRate: (Int) -> Unit,
 ) {

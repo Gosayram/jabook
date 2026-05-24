@@ -145,14 +145,12 @@ internal class MediaCodecChapterSignalExtractor
             var buffersProcessed = 0
             var noProgressCounter = 0
 
-            while (pcm.size < targetSamplesPerChannel * channels && buffersProcessed < MAX_BUFFERS_PER_WINDOW) {
+            while (!shouldTerminate(pcm, buffersProcessed, outputBufferInfo, noProgressCounter, targetSamplesPerChannel * channels)) {
                 val madeProgress =
                     feedInput(extractor, codec) || drainOutput(codec, outputBufferInfo, pcm, targetSamplesPerChannel * channels)
                 buffersProcessed++
 
-                if ((outputBufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) break
                 noProgressCounter = if (madeProgress) 0 else noProgressCounter + 1
-                if (noProgressCounter > MAX_NO_PROGRESS_DEQUEUE_ATTEMPTS) break
             }
 
             return if (pcm.isNotEmpty()) pcm.toShortArray() else null
@@ -198,6 +196,18 @@ internal class MediaCodecChapterSignalExtractor
             }
             codec.releaseOutputBuffer(outputIndex, false)
             return true
+        }
+
+        internal fun shouldTerminate(
+            pcm: ArrayList<Short>,
+            buffersProcessed: Int,
+            outputBufferInfo: MediaCodec.BufferInfo,
+            noProgressCounter: Int,
+            targetSize: Int,
+        ): Boolean {
+            if (pcm.size >= targetSize || buffersProcessed >= MAX_BUFFERS_PER_WINDOW) return true
+            if ((outputBufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) return true
+            return noProgressCounter > MAX_NO_PROGRESS_DEQUEUE_ATTEMPTS
         }
 
         private fun rmsDb(samples: ShortArray): Float {
