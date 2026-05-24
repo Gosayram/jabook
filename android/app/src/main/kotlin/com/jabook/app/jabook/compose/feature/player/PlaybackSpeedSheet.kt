@@ -296,23 +296,23 @@ private fun isSpeedSelected(
 /**
  * Format speed for large display.
  */
-private fun formatSpeedDisplay(speed: Float): String =
+internal fun formatSpeedDisplay(speed: Float): String =
     if (speed % 1.0f == 0.0f) {
         "${speed.toInt()}x"
     } else {
-        String.format("%.2fx", speed)
+        String.format(java.util.Locale.US, "%.2fx", speed)
     }
 
 /**
  * Format speed for chip label.
  */
-private fun formatSpeedChip(speed: Float): String =
+internal fun formatSpeedChip(speed: Float): String =
     if (speed % 1.0f == 0.0f) {
         "${speed.toInt()}x"
     } else if (speed * 100 % 10 == 0f) {
-        String.format("%.1fx", speed)
+        String.format(java.util.Locale.US, "%.1fx", speed)
     } else {
-        String.format("%.2fx", speed)
+        String.format(java.util.Locale.US, "%.2fx", speed)
     }
 
 internal fun addRecentSpeed(
