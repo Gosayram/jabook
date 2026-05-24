@@ -25,7 +25,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class PlayerScreenKeyEventTest {
-
     // Simplified test version that directly tests the mapping logic
     // since mapKeyEventToPlayerIntent is internal and uses KeyEvent properties
 
@@ -84,7 +83,10 @@ class PlayerScreenKeyEventTest {
     }
 
     // Extract of the mapping logic for unit testing
-    private fun mapKeyToPlayerIntent(key: Key, isShiftPressed: Boolean): PlayerIntent? =
+    private fun mapKeyToPlayerIntent(
+        key: Key,
+        isShiftPressed: Boolean,
+    ): PlayerIntent? =
         when (key) {
             Key.Spacebar -> PlayerIntent.TogglePlayPause
             Key.DirectionLeft -> if (isShiftPressed) PlayerIntent.SkipPrevious else PlayerIntent.SeekBackward
