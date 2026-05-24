@@ -2920,6 +2920,19 @@ Wt45mNAFy6vraTYYCkGXQKqx1kxg+OurYgIFgw==
 =zwEJ
 -----END PGP PUBLIC KEY BLOCK-----
 
+pub    55C7E5E701832382
+uid    Andrey Somov (SnakeYAML) <public.somov@gmail.com>
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+xo0EVdDLQQEEAJMtYCaTA56YsP5RzQzPvqVTaR2nZ27qRk36blHB9WmXK+NHpGeH
+PHgq59mLPVueo2/M5k/fFrCe36jHePP31gYpFtueeYDfsofHwod0WhsHyC7JfG8d
+jEnSczTCmOHRZ3ed9ef6SeWUozYCQAX/tAbpoCthe0lTDYhFhkzVCe/FABEBAAG0
+MUFuZHJleSBTb21vdiAoU25ha2VZQU1MKSA8cHVibGljLnNvbW92QGdtYWlsLmNv
+bT4=
+=XKj5
+-----END PGP PUBLIC KEY BLOCK-----
+
 pub    571A5291E827E1C7
 uid    Central Repository sync with maven.java.net (Used for signing artifacts that support syncing maven.java.net with the Central Repository) <central@sonatype.com>
 
