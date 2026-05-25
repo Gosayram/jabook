@@ -144,4 +144,57 @@ class ThrottledSeekHandlerTest {
         handler.cancel()
         assertFalse(handler.hasPendingSeek())
     }
+
+    // ============ P-82: Trailing-Edge & seekToImmediate ============
+
+    @Test
+    fun `seekToImmediate executes callback immediately`() {
+        var seekTarget = 0L
+        handler.seekToImmediate(42_000L) { pos -> seekTarget = pos }
+
+        assertEquals(42_000L, seekTarget)
+        assertFalse(handler.hasPendingSeek())
+    }
+
+    @Test
+    fun `seekToImmediate clears pending throttled seek`() {
+        handler.notifySeek(30_000L) { }
+        assertTrue(handler.hasPendingSeek())
+
+        var seekTarget = 0L
+        handler.seekToImmediate(45_000L) { pos -> seekTarget = pos }
+
+        assertEquals(45_000L, seekTarget)
+        assertFalse(handler.hasPendingSeek())
+        assertEquals(0L, handler.getLastSeekPosition())
+    }
+
+    @Test
+    fun `rapid notifySeek only starts one job`() {
+        handler.throttleMs = 500L
+        handler.notifySeek(10_000L) { }
+        handler.notifySeek(20_000L) { }
+        handler.notifySeek(30_000L) { }
+
+        assertEquals(30_000L, handler.getLastSeekPosition())
+    }
+
+    @Test
+    fun `flush after seekToImmediate is no-op`() {
+        var flushCount = 0
+        handler.seekToImmediate(30_000L) { }
+
+        handler.flush { flushCount++ }
+
+        assertEquals(0, flushCount)
+    }
+
+    @Test
+    fun `cancel clears pendingPosition`() {
+        handler.notifySeek(50_000L) { }
+        handler.cancel()
+
+        assertEquals(0L, handler.getLastSeekPosition())
+        assertFalse(handler.hasPendingSeek())
+    }
 }
