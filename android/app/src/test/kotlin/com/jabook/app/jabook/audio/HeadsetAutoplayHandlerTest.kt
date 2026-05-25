@@ -14,55 +14,84 @@
 
 package com.jabook.app.jabook.audio
 
-import android.content.Context
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.times
-import org.mockito.kotlin.verify
-import org.robolectric.RobolectricTestRunner
 
-/**
- * Unit tests for HeadsetAutoplayHandler.
- */
-@RunWith(RobolectricTestRunner::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class HeadsetAutoplayHandlerTest {
-    private lateinit var context: Context
-    private lateinit var handler: HeadsetAutoplayHandler
-    private var callbackInvoked = false
+    private lateinit var autoplayCount: Int
+    private lateinit var testScope: TestScope
 
     @Before
-    fun setup() {
-        context = mock()
-        callbackInvoked = false
-        handler = HeadsetAutoplayHandler(context, onHeadsetConnected = { callbackInvoked = true })
+    fun setUp() {
+        autoplayCount = 0
+        testScope = TestScope(StandardTestDispatcher())
+    }
+
+    private fun createHandler(connected: Boolean = true): HeadsetAutoplayHandler =
+        HeadsetAutoplayHandler(
+            isDeviceConnected = { connected },
+        )
+
+    // --- Wired headset triggers immediately ---
+
+    @Test
+    fun `wired headset triggers immediately`() {
+        val device = mockDevice(android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET)
+        val handler = createHandler()
+
+        handler.onHeadsetConnected(device, testScope) { autoplayCount++ }
+        assertEquals(1, autoplayCount)
     }
 
     @Test
-    fun `startListening registers receiver`() {
-        handler.startListening()
-        verify(context).registerReceiver(any(), any())
+    fun `wired headphones triggers immediately`() {
+        val device = mockDevice(android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES)
+        val handler = createHandler()
+
+        handler.onHeadsetConnected(device, testScope) { autoplayCount++ }
+        assertEquals(1, autoplayCount)
     }
 
-    @Test
-    fun `stopListening unregisters receiver`() {
-        handler.startListening()
-        handler.stopListening()
-        verify(context).unregisterReceiver(any())
-    }
+    // --- Bluetooth delays ---
 
     @Test
-    fun `receiver ignores duplicate startListening`() {
-        handler.startListening()
-        handler.startListening()
-        verify(context, times(1)).registerReceiver(any(), any())
-    }
+    fun `bluetooth A2DP delays autoplay`() =
+        testScope.runTest {
+            val device = mockDevice(android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)
+            val handler = createHandler(connected = true)
+
+            handler.onHeadsetConnected(device, testScope) { autoplayCount++ }
+            assertEquals("Should not play immediately", 0, autoplayCount)
+
+            advanceUntilIdle()
+            assertEquals("Should play after delay", 1, autoplayCount)
+        }
 
     @Test
-    fun `stopListening handles unregistered state safely`() {
-        handler.stopListening()
-        // Should not throw
+    fun `bluetooth does not autoplay if device disconnects during delay`() =
+        testScope.runTest {
+            val device = mockDevice(android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)
+            val handler = createHandler(connected = false)
+
+            handler.onHeadsetConnected(device, testScope) { autoplayCount++ }
+            advanceUntilIdle()
+
+            assertEquals("Should not play if device disconnected", 0, autoplayCount)
+        }
+
+    private fun mockDevice(type: Int): android.media.AudioDeviceInfo {
+        val device = mock<android.media.AudioDeviceInfo>()
+        org.mockito.kotlin
+            .whenever(device.type)
+            .thenReturn(type)
+        return device
     }
 }
