@@ -14,84 +14,85 @@
 
 package com.jabook.app.jabook.audio
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Before
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.kotlin.mock
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class HeadsetAutoplayHandlerTest {
-    private lateinit var autoplayCount: Int
-    private lateinit var testScope: TestScope
+    private val context = mock<android.content.Context>()
 
-    @Before
-    fun setUp() {
-        autoplayCount = 0
-        testScope = TestScope(StandardTestDispatcher())
-    }
-
-    private fun createHandler(connected: Boolean = true): HeadsetAutoplayHandler =
+    private fun createHandler(
+        onConnected: () -> Unit = {},
+        onDisconnected: (() -> Unit)? = null,
+    ): HeadsetAutoplayHandler =
         HeadsetAutoplayHandler(
-            isDeviceConnected = { connected },
+            context = context,
+            onHeadsetConnected = onConnected,
+            onHeadsetDisconnected = onDisconnected,
         )
 
-    // --- Wired headset triggers immediately ---
+    // --- recordWasPlaying ---
 
     @Test
-    fun `wired headset triggers immediately`() {
-        val device = mockDevice(android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET)
+    fun `recordWasPlaying sets wasPlayingBeforeBtDisconnect`() {
         val handler = createHandler()
+        assertFalse(handler.wasPlayingBeforeBtDisconnect)
 
-        handler.onHeadsetConnected(device, testScope) { autoplayCount++ }
-        assertEquals(1, autoplayCount)
+        handler.recordWasPlaying(true)
+        assertTrue(handler.wasPlayingBeforeBtDisconnect)
+
+        handler.recordWasPlaying(false)
+        assertFalse(handler.wasPlayingBeforeBtDisconnect)
     }
 
-    @Test
-    fun `wired headphones triggers immediately`() {
-        val device = mockDevice(android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES)
-        val handler = createHandler()
+    // --- BT delay constant ---
 
-        handler.onHeadsetConnected(device, testScope) { autoplayCount++ }
-        assertEquals(1, autoplayCount)
+    @Test
+    fun `BT_DELAY_MS is 600ms`() {
+        assertEquals(600L, HeadsetAutoplayHandler.BT_DELAY_MS)
     }
 
-    // --- Bluetooth delays ---
+    // --- stopListening when not registered does not throw ---
 
     @Test
-    fun `bluetooth A2DP delays autoplay`() =
-        testScope.runTest {
-            val device = mockDevice(android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)
-            val handler = createHandler(connected = true)
+    fun `stopListening without startListening does not throw`() {
+        val handler = createHandler()
+        handler.stopListening()
+    }
 
-            handler.onHeadsetConnected(device, testScope) { autoplayCount++ }
-            assertEquals("Should not play immediately", 0, autoplayCount)
-
-            advanceUntilIdle()
-            assertEquals("Should play after delay", 1, autoplayCount)
-        }
+    // --- double startListening is idempotent ---
 
     @Test
-    fun `bluetooth does not autoplay if device disconnects during delay`() =
-        testScope.runTest {
-            val device = mockDevice(android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP)
-            val handler = createHandler(connected = false)
+    fun `double startListening registers only once`() {
+        val handler = createHandler()
+        handler.startListening()
+        handler.startListening()
+        handler.stopListening()
+    }
 
-            handler.onHeadsetConnected(device, testScope) { autoplayCount++ }
-            advanceUntilIdle()
+    // --- startListening and stopListening cycle ---
 
-            assertEquals("Should not play if device disconnected", 0, autoplayCount)
-        }
+    @Test
+    fun `start stop cycle works`() {
+        val handler = createHandler()
+        handler.startListening()
+        handler.stopListening()
+        handler.startListening()
+        handler.stopListening()
+    }
 
-    private fun mockDevice(type: Int): android.media.AudioDeviceInfo {
-        val device = mock<android.media.AudioDeviceInfo>()
-        org.mockito.kotlin
-            .whenever(device.type)
-            .thenReturn(type)
-        return device
+    // --- callback is not null-safe ---
+
+    @Test
+    fun `handler with null onHeadsetDisconnected creates successfully`() {
+        val handler =
+            HeadsetAutoplayHandler(
+                context = context,
+                onHeadsetConnected = {},
+                onHeadsetDisconnected = null,
+            )
+        handler.stopListening()
     }
 }

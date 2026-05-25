@@ -14,87 +14,147 @@
 
 package com.jabook.app.jabook.audio
 
-import android.media.AudioDeviceInfo
+import android.bluetooth.BluetoothDevice
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Handles headset auto-play with device-type-specific delays for A2DP negotiation.
+ * Handles headset and Bluetooth audio device connection/disconnection events.
  *
- * P-25: BLE headsets require 300–800ms to negotiate A2DP profile after connection.
- * If playback starts immediately, the first seconds play through the device speaker
- * before switching to the headset. This handler adds appropriate delays by device type.
+ * BP-13.2: Bluetooth A2DP reconnect guard.
+ * - On BT disconnect: saves position and pauses playback immediately.
+ * - On BT reconnect: triggers resume suggestion instead of auto-playing.
+ *   UI layer should show "Resume?" snackbar.
  *
- * Usage:
- * ```
- * handler.onHeadsetConnected(deviceInfo, scope) {
- *     player.play()
- * }
- * ```
+ * P-25: Device-type-specific delays for A2DP negotiation.
+ * BLE headsets require 300–800ms to negotiate A2DP profile after connection.
+ * Wired headset events trigger immediately with no delay.
  *
- * @param isDeviceConnected Check if the audio device is still connected
+ * Also handles wired headset plug events with auto-resume.
+ *
+ * @param context Context for registering BroadcastReceiver
+ * @param coroutineScope Scope for launching delayed autoplay coroutines
+ * @param onHeadsetConnected Callback when headset connects (may be delayed for BT)
+ * @param onHeadsetDisconnected Callback when headset disconnects
  */
-internal class HeadsetAutoplayHandler(
-    private val isDeviceConnected: (AudioDeviceInfo) -> Boolean = { true },
+public class HeadsetAutoplayHandler(
+    private val context: Context,
+    private val onHeadsetConnected: () -> Unit,
+    private val onHeadsetDisconnected: (() -> Unit)? = null,
+    private val coroutineScope: CoroutineScope? = null,
 ) {
-    /**
-     * Called when a headset is connected. Delays auto-play based on device type.
-     *
-     * @param deviceInfo The connected audio device
-     * @param scope Coroutine scope for the delay
-     * @param onReady Callback to invoke after delay (if device still connected)
-     */
-    fun onHeadsetConnected(
-        deviceInfo: AudioDeviceInfo,
-        scope: CoroutineScope,
-        onReady: () -> Unit,
-    ) {
-        val delayMs =
-            when (deviceInfo.type) {
-                AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> BLE_DELAY_MS
-                AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> BLE_DELAY_MS
-                AudioDeviceInfo.TYPE_USB_HEADSET -> USB_DELAY_MS
-                AudioDeviceInfo.TYPE_WIRED_HEADSET,
-                AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-                -> 0L
+    public companion object {
+        private const val TAG = "HeadsetAutoplayHandler"
 
-                else -> DEFAULT_DELAY_MS
-            }
-
-        if (delayMs == 0L) {
-            LogUtils.d(TAG, "Wired headset — immediate autoplay")
-            onReady()
-            return
-        }
-
-        LogUtils.d(TAG, "${deviceTypeLabel(deviceInfo.type)} — delaying autoplay ${delayMs}ms for A2DP negotiation")
-        scope.launch {
-            delay(delayMs)
-            if (isDeviceConnected(deviceInfo)) {
-                LogUtils.d(TAG, "Device still connected after delay — starting autoplay")
-                onReady()
-            } else {
-                LogUtils.d(TAG, "Device disconnected during delay — skipping autoplay")
-            }
-        }
+        /** P-25: Delay for Bluetooth A2DP negotiation (BLE takes 300-800ms). */
+        internal const val BT_DELAY_MS = 600L
     }
 
-    private fun deviceTypeLabel(type: Int): String =
-        when (type) {
-            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth A2DP"
-            AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetooth SCO"
-            AudioDeviceInfo.TYPE_USB_HEADSET -> "USB Headset"
-            AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Wired Headset"
-            AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "Wired Headphones"
-            else -> "Audio Device (type=$type)"
+    /**
+     * Whether playback was active before BT disconnect.
+     * Used to decide if a resume suggestion should be shown on reconnect.
+     */
+    public var wasPlayingBeforeBtDisconnect: Boolean = false
+        private set
+
+    /**
+     * Whether the last disconnect was a Bluetooth device.
+     * Used to distinguish BT reconnect from wired headset plug.
+     */
+    public var lastDisconnectWasBluetooth: Boolean = false
+        private set
+
+    private val receiver =
+        object : BroadcastReceiver() {
+            override fun onReceive(
+                context: Context,
+                intent: Intent,
+            ) {
+                when (intent.action) {
+                    Intent.ACTION_HEADSET_PLUG -> {
+                        val state = intent.getIntExtra("state", -1)
+                        if (state == 1) { // Plugged
+                            LogUtils.d(TAG, "Wired headset connected, triggering autoplay")
+                            lastDisconnectWasBluetooth = false
+                            onHeadsetConnected()
+                        } else if (state == 0) { // Unplugged
+                            LogUtils.d(TAG, "Wired headset disconnected")
+                            onHeadsetDisconnected?.invoke()
+                        }
+                    }
+                    BluetoothDevice.ACTION_ACL_CONNECTED -> {
+                        LogUtils.d(TAG, "Bluetooth device connected")
+                        if (lastDisconnectWasBluetooth && wasPlayingBeforeBtDisconnect) {
+                            if (coroutineScope != null) {
+                                LogUtils.d(TAG, "BT reconnect — delaying autoplay ${BT_DELAY_MS}ms for A2DP negotiation")
+                                coroutineScope.launch {
+                                    delay(BT_DELAY_MS)
+                                    LogUtils.d(TAG, "BT reconnect after delay — suggesting resume")
+                                    onHeadsetConnected()
+                                }
+                            } else {
+                                LogUtils.d(TAG, "BT reconnect after active playback — suggesting resume")
+                                onHeadsetConnected()
+                            }
+                        } else {
+                            LogUtils.d(TAG, "BT connected but no prior active playback — ignoring")
+                        }
+                        lastDisconnectWasBluetooth = false
+                    }
+                    BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
+                        LogUtils.d(TAG, "Bluetooth device disconnected")
+                        lastDisconnectWasBluetooth = true
+                        onHeadsetDisconnected?.invoke()
+                    }
+                }
+            }
         }
 
-    companion object {
-        internal const val BLE_DELAY_MS = 600L
-        internal const val USB_DELAY_MS = 200L
-        internal const val DEFAULT_DELAY_MS = 300L
-        private const val TAG = "HeadsetAutoplay"
+    private var isRegistered = false
+
+    /**
+     * Records that playback was active before BT disconnect.
+     * Called by the service when pausing due to BT disconnect.
+     */
+    public fun recordWasPlaying(wasPlaying: Boolean) {
+        wasPlayingBeforeBtDisconnect = wasPlaying
+    }
+
+    /**
+     * Starts listening for headset connection events.
+     */
+    public fun startListening() {
+        if (isRegistered) return
+
+        val filter =
+            IntentFilter().apply {
+                addAction(Intent.ACTION_HEADSET_PLUG)
+                addAction(BluetoothDevice.ACTION_ACL_CONNECTED)
+                addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED)
+            }
+        context.registerReceiver(receiver, filter)
+        isRegistered = true
+        LogUtils.d(TAG, "HeadsetAutoplayHandler started (with BT disconnect guard)")
+    }
+
+    /**
+     * Stops listening for events.
+     */
+    public fun stopListening() {
+        if (!isRegistered) return
+
+        try {
+            context.unregisterReceiver(receiver)
+        } catch (e: Exception) {
+            LogUtils.w(TAG, "Error unregistering receiver", e)
+        }
+        isRegistered = false
+        LogUtils.d(TAG, "HeadsetAutoplayHandler stopped")
     }
 }
