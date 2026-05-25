@@ -28,6 +28,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -130,5 +131,11 @@ class SnackbarUndoTest {
                 .isNotEmpty()
         }
         composeTestRule.onNodeWithText("Thanks! You rated this book 4/5.").assertIsDisplayed()
+        assertTrue(
+            composeTestRule
+                .onAllNodesWithText("Undo")
+                .fetchSemanticsNodes()
+                .isEmpty(),
+        )
     }
 }

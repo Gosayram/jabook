@@ -600,6 +600,7 @@ dependencies {
     compileOnly(libs.detekt.api)
 
     // Testing dependencies
+    testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.bundles.test)
     testImplementation(libs.bundles.compose.test)
     testImplementation(libs.androidx.work.testing)

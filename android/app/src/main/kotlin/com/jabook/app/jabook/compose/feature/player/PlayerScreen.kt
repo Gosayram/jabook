@@ -914,37 +914,21 @@ public fun PlayerScreen(
     )
 
     if (showRatingDialog) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = {
+        RatingDialog(
+            selectedRating = selectedRating,
+            onDismiss = {
                 ratedBookId = (uiState as? PlayerState.Active)?.book?.id
                 selectedRating = 0
                 showRatingDialog = false
             },
-            title = { Text(text = stringResource(R.string.rateCompletedBookTitle)) },
-            text = {
-                StarRatingRow(
-                    selected = selectedRating,
-                    onRate = { rating ->
-                        selectedRating = rating
-                        ratedBookId = (uiState as? PlayerState.Active)?.book?.id
-                        showRatingDialog = false
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = context.getString(R.string.rateCompletedBookThanks, rating),
-                            )
-                        }
-                    },
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        ratedBookId = (uiState as? PlayerState.Active)?.book?.id
-                        selectedRating = 0
-                        showRatingDialog = false
-                    },
-                ) {
-                    Text(text = stringResource(R.string.laterAction))
+            onRate = { rating ->
+                selectedRating = rating
+                ratedBookId = (uiState as? PlayerState.Active)?.book?.id
+                showRatingDialog = false
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = context.getString(R.string.rateCompletedBookThanks, rating),
+                    )
                 }
             },
         )
@@ -976,6 +960,29 @@ internal fun StarRatingRow(
             }
         }
     }
+}
+
+@Composable
+internal fun RatingDialog(
+    selectedRating: Int,
+    onDismiss: () -> Unit,
+    onRate: (Int) -> Unit,
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(R.string.rateCompletedBookTitle)) },
+        text = {
+            StarRatingRow(
+                selected = selectedRating,
+                onRate = onRate,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(R.string.laterAction))
+            }
+        },
+    )
 }
 
 @Composable

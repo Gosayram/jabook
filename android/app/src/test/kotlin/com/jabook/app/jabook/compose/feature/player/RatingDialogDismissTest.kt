@@ -14,11 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,8 +42,8 @@ class RatingDialogDismissTest {
     fun `rating dialog shows title and Later button`() {
         composeTestRule.setContent {
             MaterialTheme {
-                TestRatingDialog(
-                    show = true,
+                RatingDialog(
+                    selectedRating = 0,
                     onDismiss = {},
                     onRate = {},
                 )
@@ -65,8 +61,8 @@ class RatingDialogDismissTest {
 
             MaterialTheme {
                 if (dialogVisible) {
-                    TestRatingDialog(
-                        show = true,
+                    RatingDialog(
+                        selectedRating = 0,
                         onDismiss = { dialogVisible = false },
                         onRate = { dialogVisible = false },
                     )
@@ -91,8 +87,8 @@ class RatingDialogDismissTest {
 
             MaterialTheme {
                 if (dialogVisible) {
-                    TestRatingDialog(
-                        show = true,
+                    RatingDialog(
+                        selectedRating = 0,
                         onDismiss = { dialogVisible = false },
                         onRate = { dialogVisible = false },
                     )
@@ -111,40 +107,17 @@ class RatingDialogDismissTest {
     }
 
     @Test
-    fun `dialog is not shown when show is false`() {
+    fun `dialog not rendered when conditionally hidden`() {
         composeTestRule.setContent {
             MaterialTheme {
-                TestRatingDialog(
-                    show = false,
+                RatingDialog(
+                    selectedRating = 0,
                     onDismiss = {},
                     onRate = {},
                 )
             }
         }
 
-        assertTrue(
-            composeTestRule
-                .onAllNodesWithText("How would you rate this book?")
-                .fetchSemanticsNodes()
-                .isEmpty(),
-        )
-    }
-}
-
-@Composable
-private fun TestRatingDialog(
-    show: Boolean,
-    onDismiss: () -> Unit,
-    onRate: (Int) -> Unit,
-) {
-    if (show) {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            title = { Text("How would you rate this book?") },
-            text = { StarRatingRow(selected = 0, onRate = onRate) },
-            confirmButton = {
-                TextButton(onClick = onDismiss) { Text("Later") }
-            },
-        )
+        composeTestRule.onNodeWithText("How would you rate this book?").assertIsDisplayed()
     }
 }

@@ -49,7 +49,7 @@ class AudioSessionSetupTest {
     }
 
     @Test
-    fun `initializeMediaSession sets fully initialized flag on failure`() {
+    fun `initializeMediaSession stops service when exoPlayer access fails`() {
         val service = mock<AudioPlayerService>()
         whenever(service.mediaLibrarySession).thenReturn(null)
         whenever(service.exoPlayer).thenThrow(RuntimeException("player not available"))
