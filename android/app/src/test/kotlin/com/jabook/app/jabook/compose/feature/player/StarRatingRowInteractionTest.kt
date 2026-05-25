@@ -1,0 +1,101 @@
+// Copyright 2026 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.jabook.app.jabook.compose.feature.player
+
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performClick
+import org.junit.Assert.assertEquals
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
+class StarRatingRowInteractionTest {
+    @get:Rule
+    val composeTestRule = createComposeRule()
+
+    @Test
+    fun `clicking star 1 triggers onRate with 1`() {
+        var ratedValue = -1
+        composeTestRule.setContent {
+            MaterialTheme {
+                StarRatingRow(
+                    selected = 0,
+                    onRate = { rating -> ratedValue = rating },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("1 stars").performClick()
+
+        assertEquals(1, ratedValue)
+    }
+
+    @Test
+    fun `clicking star 3 triggers onRate with 3`() {
+        var ratedValue = -1
+        composeTestRule.setContent {
+            MaterialTheme {
+                StarRatingRow(
+                    selected = 0,
+                    onRate = { rating -> ratedValue = rating },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("3 stars").performClick()
+
+        assertEquals(3, ratedValue)
+    }
+
+    @Test
+    fun `clicking star 5 triggers onRate with 5`() {
+        var ratedValue = -1
+        composeTestRule.setContent {
+            MaterialTheme {
+                StarRatingRow(
+                    selected = 0,
+                    onRate = { rating -> ratedValue = rating },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("5 stars").performClick()
+
+        assertEquals(5, ratedValue)
+    }
+
+    @Test
+    fun `clicking star when some are already selected triggers onRate`() {
+        var ratedValue = -1
+        composeTestRule.setContent {
+            MaterialTheme {
+                StarRatingRow(
+                    selected = 2,
+                    onRate = { rating -> ratedValue = rating },
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithContentDescription("4 stars").performClick()
+
+        assertEquals(4, ratedValue)
+    }
+}
