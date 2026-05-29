@@ -18,10 +18,12 @@ import android.os.SystemClock
 import androidx.media3.common.Player
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Detects and recovers from stuck playback where ExoPlayer reports STATE_BUFFERING
@@ -56,6 +58,9 @@ internal class StuckPlaybackDetector(
     /**
      * Starts the watchdog loop. Call once after player is initialized.
      * Checks player state every [CHECK_INTERVAL_MS].
+     *
+     * Note: Player interactions happen on the scope's dispatcher.
+     * Ensure the scope is bound to the main looper for ExoPlayer safety.
      */
     fun startWatching() {
         stopWatching()
@@ -89,7 +94,7 @@ internal class StuckPlaybackDetector(
         recoveryAttempted = false
     }
 
-    private fun checkPlaybackState() {
+    private suspend fun checkPlaybackState() {
         val state: Int
         val isPlaying: Boolean
         val positionMs: Long
@@ -110,9 +115,27 @@ internal class StuckPlaybackDetector(
     }
 
     /** Exposes [checkPlaybackState] for direct unit testing without coroutine loop. */
-    internal fun checkPlaybackStateForTest() = checkPlaybackState()
+    internal fun checkPlaybackStateForTest() {
+        val state: Int
+        val isPlaying: Boolean
+        val positionMs: Long
 
-    private fun checkBufferingStuck(
+        try {
+            state = player.playbackState
+            isPlaying = player.isPlaying
+            positionMs = player.currentPosition
+        } catch (e: IllegalStateException) {
+            LogUtils.e(TAG, "Player in illegal state", e)
+            return
+        }
+
+        val now = nowMsProvider()
+
+        checkBufferingStuckSync(state, now)
+        checkPositionStuckSync(isPlaying, positionMs, now)
+    }
+
+    private suspend fun checkBufferingStuck(
         state: Int,
         now: Long,
     ) {
@@ -134,7 +157,7 @@ internal class StuckPlaybackDetector(
         }
     }
 
-    private fun checkPositionStuck(
+    private suspend fun checkPositionStuck(
         isPlaying: Boolean,
         positionMs: Long,
         now: Long,
@@ -157,7 +180,52 @@ internal class StuckPlaybackDetector(
         }
     }
 
-    private fun attemptRecovery() {
+    private fun checkBufferingStuckSync(
+        state: Int,
+        now: Long,
+    ) {
+        when {
+            state == Player.STATE_BUFFERING && bufferingStartMs == null -> {
+                bufferingStartMs = now
+            }
+            state == Player.STATE_BUFFERING && bufferingStartMs != null -> {
+                val bufferingDurationMs = now - bufferingStartMs!!
+                if (bufferingDurationMs > STUCK_THRESHOLD_MS) {
+                    LogUtils.w(TAG, "Stuck playback: buffering for ${bufferingDurationMs}ms")
+                    attemptRecoverySync()
+                }
+            }
+            state == Player.STATE_READY -> {
+                bufferingStartMs = null
+                recoveryAttempted = false
+            }
+        }
+    }
+
+    private fun checkPositionStuckSync(
+        isPlaying: Boolean,
+        positionMs: Long,
+        now: Long,
+    ) {
+        if (!isPlaying) {
+            lastPositionMs = -1L
+            return
+        }
+
+        if (lastPositionMs == positionMs && lastPositionMs != -1L) {
+            val stuckDurationMs = now - lastPositionCheckMs
+            if (stuckDurationMs > POSITION_STUCK_THRESHOLD_MS) {
+                LogUtils.w(TAG, "Position stuck at ${positionMs}ms for ${stuckDurationMs}ms while playing")
+                attemptRecoverySync()
+            }
+        } else {
+            lastPositionMs = positionMs
+            lastPositionCheckMs = now
+            recoveryAttempted = false
+        }
+    }
+
+    private fun attemptRecoverySync() {
         if (recoveryAttempted) {
             LogUtils.e(TAG, "Recovery already attempted, notifying unrecoverable")
             onUnrecoverable()
@@ -180,6 +248,32 @@ internal class StuckPlaybackDetector(
         } catch (e: IllegalStateException) {
             LogUtils.e(TAG, "Recovery seek failed", e)
             onUnrecoverable()
+        }
+    }
+
+    private suspend fun attemptRecovery() {
+        if (recoveryAttempted) {
+            LogUtils.e(TAG, "Recovery already attempted, notifying unrecoverable")
+            withContext(Dispatchers.Main) { onUnrecoverable() }
+            return
+        }
+
+        recoveryAttempted = true
+        val currentPos: Long
+        try {
+            currentPos = player.currentPosition
+        } catch (e: IllegalStateException) {
+            LogUtils.e(TAG, "Cannot read position for recovery", e)
+            withContext(Dispatchers.Main) { onUnrecoverable() }
+            return
+        }
+
+        LogUtils.w(TAG, "Attempting recovery: seek forward 1s from ${currentPos}ms")
+        try {
+            player.seekTo(currentPos + RECOVERY_SEEK_OFFSET_MS)
+        } catch (e: IllegalStateException) {
+            LogUtils.e(TAG, "Recovery seek failed", e)
+            withContext(Dispatchers.Main) { onUnrecoverable() }
         }
     }
 
