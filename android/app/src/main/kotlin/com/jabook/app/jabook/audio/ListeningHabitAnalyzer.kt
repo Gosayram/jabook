@@ -75,7 +75,7 @@ public class ListeningHabitAnalyzer
 
             val similarSessions =
                 sessions.filter { session ->
-                    abs(session.hourOfDay - context.hourOfDay) <= HOUR_TOLERANCE &&
+                    circularHourDistance(session.hourOfDay, context.hourOfDay) <= HOUR_TOLERANCE &&
                         session.outputType == context.outputType
                 }
 
@@ -116,5 +116,19 @@ public class ListeningHabitAnalyzer
             private const val MAX_SESSIONS = 500
             internal const val MIN_SPEED = 0.5f
             internal const val MAX_SPEED = 4.0f
+
+            /**
+             * Calculates the circular distance between two hours (0-23),
+             * correctly handling midnight wraparound.
+             *
+             * Example: distance between 23 and 1 is 2, not 22.
+             */
+            internal fun circularHourDistance(
+                a: Int,
+                b: Int,
+            ): Int {
+                val diff = abs(a - b)
+                return minOf(diff, 24 - diff)
+            }
         }
     }

@@ -47,6 +47,7 @@ internal class EventDeduplicator<T>(
         val lastSeen = seen[key]
 
         return if (lastSeen != null && now - lastSeen < windowMs) {
+            seen[key] = now
             true
         } else {
             seen[key] = now

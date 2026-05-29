@@ -72,11 +72,17 @@ public class DailyGoalTracker
          * @return Current streak data
          */
         public fun reportProgress(todayMinutes: Int): StreakData {
+            require(todayMinutes >= 0) { "todayMinutes must be non-negative, got $todayMinutes" }
+
             val today = todayDateString()
             val isMet = todayMinutes >= goalMinutes
 
             if (isMet && lastGoalMetDate != today) {
-                consecutiveDays++
+                if (lastGoalMetDate == yesterdayDateString()) {
+                    consecutiveDays++
+                } else {
+                    consecutiveDays = 1
+                }
                 lastGoalMetDate = today
                 LogUtils.d(TAG, "Goal met! Streak: $consecutiveDays days")
             }
@@ -106,6 +112,12 @@ public class DailyGoalTracker
 
         private fun todayDateString(): String {
             val cal = Calendar.getInstance()
+            return "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.DAY_OF_YEAR)}"
+        }
+
+        private fun yesterdayDateString(): String {
+            val cal = Calendar.getInstance()
+            cal.add(Calendar.DAY_OF_YEAR, -1)
             return "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.DAY_OF_YEAR)}"
         }
 
