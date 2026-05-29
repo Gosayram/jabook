@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import com.jabook.app.jabook.audio.core.result.Result
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.Dispatchers
@@ -61,21 +62,39 @@ internal class CrashSafePositionWriter
                 LogUtils.w(TAG, "writePositionSync: blank bookId, skipping")
                 return false
             }
+            if (trackIndex < 0) {
+                LogUtils.w(TAG, "writePositionSync: negative trackIndex=$trackIndex, skipping")
+                return false
+            }
             if (positionMs < 0) {
                 LogUtils.w(TAG, "writePositionSync: negative positionMs=$positionMs, skipping")
                 return false
             }
 
             return try {
-                runBlocking(Dispatchers.IO) {
-                    positionRepository.savePosition(
-                        bookId = bookId,
-                        trackIndex = trackIndex,
-                        position = positionMs,
-                    )
+                val result =
+                    runBlocking(Dispatchers.IO) {
+                        positionRepository.savePosition(
+                            bookId = bookId,
+                            trackIndex = trackIndex,
+                            position = positionMs,
+                        )
+                    }
+                when (result) {
+                    is Result.Success -> {
+                        LogUtils.d(TAG, "Crash-safe position written: book=$bookId, track=$trackIndex, pos=${positionMs}ms")
+                        true
+                    }
+                    is Result.Error -> {
+                        LogUtils.e(TAG, "Crash-safe position write FAILED for book=$bookId", result.exception)
+                        false
+                    }
+                    is Result.Loading -> {
+                        // Should not happen for a synchronous operation
+                        LogUtils.w(TAG, "Crash-safe position write returned Loading state")
+                        false
+                    }
                 }
-                LogUtils.d(TAG, "Crash-safe position written: book=$bookId, track=$trackIndex, pos=${positionMs}ms")
-                true
             } catch (e: Exception) {
                 LogUtils.e(TAG, "Crash-safe position write FAILED for book=$bookId", e)
                 false

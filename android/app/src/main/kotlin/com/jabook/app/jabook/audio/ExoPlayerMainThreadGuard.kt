@@ -71,7 +71,7 @@ internal class ExoPlayerMainThreadGuard(
             mainHandler.post {
                 try {
                     resultRef.set(player.block())
-                } catch (e: Throwable) {
+                } catch (e: Exception) {
                     errorRef.set(e)
                 } finally {
                     latch.countDown()

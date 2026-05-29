@@ -105,15 +105,23 @@ class CrashSafePositionWriterTest {
             assertTrue(result)
         }
 
-    // --- Repository returns error result (graceful, not an exception) ---
+    // --- Repository error result ---
 
     @Test
-    fun `writePositionSync returns true when repository returns error result`() =
+    fun `writePositionSync returns false when repository returns error result`() =
         runBlocking {
             mockSaveError()
 
             val writer = createWriter()
             val result = writer.writePositionSync("book-1", 0, 10_000L)
-            assertTrue("Result.Error is a graceful return, not a failure", result)
+            assertFalse(result)
         }
+
+    // --- Negative trackIndex ---
+
+    @Test
+    fun `writePositionSync returns false for negative trackIndex`() {
+        val writer = createWriter()
+        assertFalse(writer.writePositionSync("book-1", -1, 10_000L))
+    }
 }

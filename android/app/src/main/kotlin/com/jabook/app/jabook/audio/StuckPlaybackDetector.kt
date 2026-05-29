@@ -98,8 +98,8 @@ internal class StuckPlaybackDetector(
             state = player.playbackState
             isPlaying = player.isPlaying
             positionMs = player.currentPosition
-        } catch (e: Exception) {
-            LogUtils.e(TAG, "Error reading player state", e)
+        } catch (e: IllegalStateException) {
+            LogUtils.e(TAG, "Player in illegal state", e)
             return
         }
 
@@ -168,7 +168,7 @@ internal class StuckPlaybackDetector(
         val currentPos: Long
         try {
             currentPos = player.currentPosition
-        } catch (e: Exception) {
+        } catch (e: IllegalStateException) {
             LogUtils.e(TAG, "Cannot read position for recovery", e)
             onUnrecoverable()
             return
@@ -177,7 +177,7 @@ internal class StuckPlaybackDetector(
         LogUtils.w(TAG, "Attempting recovery: seek forward 1s from ${currentPos}ms")
         try {
             player.seekTo(currentPos + RECOVERY_SEEK_OFFSET_MS)
-        } catch (e: Exception) {
+        } catch (e: IllegalStateException) {
             LogUtils.e(TAG, "Recovery seek failed", e)
             onUnrecoverable()
         }

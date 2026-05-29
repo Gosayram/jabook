@@ -99,6 +99,8 @@ internal class ImprovedShakeDetector(
         object : SensorEventListener {
             override fun onSensorChanged(event: android.hardware.SensorEvent?) {
                 if (event == null) return
+                if (event.sensor?.type != android.hardware.Sensor.TYPE_ACCELEROMETER) return
+                if (event.values.size < 3) return
                 processAccelerometer(event.values[0], event.values[1], event.values[2])
             }
 
