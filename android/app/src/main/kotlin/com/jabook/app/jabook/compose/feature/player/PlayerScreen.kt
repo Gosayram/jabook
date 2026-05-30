@@ -18,7 +18,6 @@ import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.PowerManager
-import android.text.format.DateUtils
 import android.view.WindowManager
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
@@ -2853,29 +2852,10 @@ public fun PlayerSettingsSheet(
     }
 }
 
-/**
- * Format duration in milliseconds to elapsed-time format.
- */
-internal fun formatDuration(durationMs: Long): String {
-    val totalSeconds = (durationMs.coerceAtLeast(0L) / 1000L)
-    return DateUtils.formatElapsedTime(totalSeconds)
-}
+// P-91: Time formatting delegated to PlayerTimeFormatter
+internal fun formatDuration(durationMs: Long): String = PlayerTimeFormatter.formatDuration(durationMs)
 
-internal fun formatPlaybackSpeedLabel(playbackSpeed: Float): String {
-    val formattedSpeed =
-        if (playbackSpeed % 1.0f == 0.0f) {
-            playbackSpeed.toInt().toString()
-        } else {
-            val locale = java.util.Locale.getDefault()
-            val isRussian = locale.language == "ru"
-            val symbols =
-                java.text.DecimalFormatSymbols(
-                    if (isRussian) locale else java.util.Locale.US,
-                )
-            java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
-        }
-    return "${formattedSpeed}x"
-}
+internal fun formatPlaybackSpeedLabel(playbackSpeed: Float): String = PlayerTimeFormatter.formatPlaybackSpeedLabel(playbackSpeed)
 
 private const val HOLD_TO_BOOST_ACTIVATION_DELAY_MS: Long = 300L
 

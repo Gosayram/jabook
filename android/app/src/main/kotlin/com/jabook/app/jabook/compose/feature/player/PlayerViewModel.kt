@@ -1001,20 +1001,19 @@ public class PlayerViewModel
             playerController.setPitchCorrectionEnabled(enabled)
         }
 
+        // P-92: Bookmark operations extracted to PlayerBookmarkHandler
+        private val bookmarkHandler =
+            PlayerBookmarkHandler(
+                bookmarkRepository = bookmarkRepository,
+                uiState = uiState,
+                bookmarks = bookmarks,
+                viewModelScope = viewModelScope,
+                loggerFactory = loggerFactory,
+                reportError = { msg -> dispatch(PlayerIntent.ReportError(msg)) },
+            )
+
         public fun addBookmarkAtCurrentPosition(noteText: String? = null) {
-            val state = uiState.value as? PlayerState.Active ?: return
-            viewModelScope.launch {
-                bookmarkRepository
-                    .addBookmark(
-                        bookId = state.book.id,
-                        chapterIndex = state.currentChapterIndex,
-                        positionMs = state.currentPosition,
-                        noteText = noteText,
-                    ).onFailure { error ->
-                        logger.e({ "Failed to add bookmark" }, error)
-                        dispatch(PlayerIntent.ReportError("Failed to add bookmark"))
-                    }
-            }
+            bookmarkHandler.addBookmarkAtCurrentPosition(noteText)
         }
 
         public fun addBookmarkAtPosition(
@@ -1023,23 +1022,7 @@ public class PlayerViewModel
             noteText: String? = null,
             onCreated: (BookmarkItem?) -> Unit = {},
         ) {
-            val state = uiState.value as? PlayerState.Active ?: return
-            viewModelScope.launch {
-                val result =
-                    bookmarkRepository.addBookmark(
-                        bookId = state.book.id,
-                        chapterIndex = chapterIndex,
-                        positionMs = positionMs,
-                        noteText = noteText,
-                    )
-                result
-                    .onSuccess { bookmark -> onCreated(bookmark) }
-                    .onFailure { error ->
-                        logger.e({ "Failed to add bookmark at custom position" }, error)
-                        dispatch(PlayerIntent.ReportError("Failed to add bookmark"))
-                        onCreated(null)
-                    }
-            }
+            bookmarkHandler.addBookmarkAtPosition(chapterIndex, positionMs, noteText, onCreated)
         }
 
         public fun updateBookmarkContent(
@@ -1047,30 +1030,11 @@ public class PlayerViewModel
             noteText: String?,
             noteAudioPath: String? = null,
         ) {
-            val existing = bookmarks.value.firstOrNull { it.id == bookmarkId } ?: return
-            viewModelScope.launch {
-                bookmarkRepository
-                    .updateBookmark(
-                        existing.copy(
-                            noteText = noteText?.takeIf { it.isNotBlank() },
-                            noteAudioPath = noteAudioPath ?: existing.noteAudioPath,
-                        ),
-                    ).onFailure { error ->
-                        logger.e({ "Failed to update bookmark note" }, error)
-                        dispatch(PlayerIntent.ReportError("Failed to update bookmark"))
-                    }
-            }
+            bookmarkHandler.updateBookmarkContent(bookmarkId, noteText, noteAudioPath)
         }
 
         public fun deleteBookmark(bookmarkId: String) {
-            viewModelScope.launch {
-                val deleteResult = bookmarkRepository.deleteBookmark(bookmarkId)
-                val deleteFailureReason = resolveDeleteBookmarkFailureReason(deleteResult)
-                if (deleteFailureReason != null) {
-                    logger.e({ deleteFailureReason }, deleteResult.exceptionOrNull())
-                    dispatch(PlayerIntent.ReportError(deleteFailureReason))
-                }
-            }
+            bookmarkHandler.deleteBookmark(bookmarkId)
         }
 
         public fun initializeVisualizer() {
