@@ -16,15 +16,20 @@ package com.jabook.app.jabook.crash
 
 import android.app.Application
 import android.content.Context
-import android.content.Intent
+import android.os.Build
 import android.os.Process
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.util.LogUtils
+import java.io.File
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.system.exitProcess
 
 /**
- * Handles uncaught exceptions by launching the CrashActivity.
+ * Handles uncaught exceptions by writing crash report to disk.
+ *
+ * On next app startup, [CrashActivity] is launched if a report exists.
+ * This is more reliable than trying to launch UI from a dying process.
  */
 public class GlobalExceptionHandler(
     private val application: Application,
@@ -35,11 +40,10 @@ public class GlobalExceptionHandler(
     }
 
     public companion object {
-        /** Time window (ms) to detect consecutive crashes as a loop. */
-        private const val CRASH_LOOP_THRESHOLD_MS: Long = 30_000L
-
-        /** Max crashes allowed within the threshold window before breaking the loop. */
+        private const val CRASH_LOOP_THRESHOLD_MS: Long = 60_000L
         private const val MAX_CONSECUTIVE_CRASHES: Int = 3
+        private const val CRASH_REPORT_FILE = "last_crash_report.txt"
+        private const val CRASH_REPORT_MARKER = "has_crash_report"
     }
 
     override fun uncaughtException(
@@ -47,7 +51,6 @@ public class GlobalExceptionHandler(
         throwable: Throwable,
     ) {
         try {
-            // Log the exception
             LogUtils.e("GlobalExceptionHandler", "Uncaught exception", throwable)
             CrashDiagnostics.reportUncaughtException(
                 threadName = thread.name,
@@ -55,7 +58,6 @@ public class GlobalExceptionHandler(
                 attributes = mapOf("source" to "global_exception_handler"),
             )
 
-            // Crash loop protection: only show CrashActivity once per 30 seconds
             val now = System.currentTimeMillis()
             val lastCrashTime = prefs.getLong("last_crash_time", 0L)
             val crashCount = prefs.getInt("crash_count", 0)
@@ -63,52 +65,61 @@ public class GlobalExceptionHandler(
             if (now - lastCrashTime < CRASH_LOOP_THRESHOLD_MS && crashCount >= MAX_CONSECUTIVE_CRASHES) {
                 LogUtils.e(
                     "GlobalExceptionHandler",
-                    "Crash loop detected ($crashCount crashes in ${CRASH_LOOP_THRESHOLD_MS}ms), " +
-                        "clearing state to break the loop",
+                    "Crash loop detected ($crashCount crashes in ${CRASH_LOOP_THRESHOLD_MS}ms), breaking loop",
                 )
-                // Clear crash counter and let default handler finish the process
-                prefs
-                    .edit()
-                    .remove("last_crash_time")
-                    .remove("crash_count")
-                    .apply()
-                defaultHandler?.uncaughtException(thread, throwable)
-                    ?: run {
-                        Process.killProcess(Process.myPid())
-                        exitProcess(10)
-                    }
+                prefs.edit().remove("last_crash_time").remove("crash_count").remove(CRASH_REPORT_MARKER).apply()
+                deleteCrashReport()
+                defaultHandler?.uncaughtException(thread, throwable) ?: run {
+                    Process.killProcess(Process.myPid())
+                    exitProcess(10)
+                }
                 return
             }
 
-            // Update crash tracking
             val newCount = if (now - lastCrashTime < CRASH_LOOP_THRESHOLD_MS) crashCount + 1 else 1
-            prefs
-                .edit()
+            prefs.edit()
                 .putLong("last_crash_time", now)
                 .putInt("crash_count", newCount)
                 .apply()
 
-            // Launch CrashActivity
-            val intent =
-                Intent(application, CrashActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    putExtra(CrashActivity.EXTRA_STACK_TRACE, getStackTrace(throwable))
-                }
-            application.startActivity(intent)
+            writeCrashReport(thread, throwable)
 
-            // Kill the process
-            Process.killProcess(Process.myPid())
-            exitProcess(10)
+            defaultHandler?.uncaughtException(thread, throwable) ?: run {
+                Process.killProcess(Process.myPid())
+                exitProcess(10)
+            }
         } catch (e: Exception) {
-            // If the crash handler itself crashes, fall back to default
             defaultHandler?.uncaughtException(thread, throwable)
         }
     }
 
-    private fun getStackTrace(throwable: Throwable): String {
+    private fun writeCrashReport(thread: Thread, throwable: Throwable) {
+        try {
+            val report = buildCrashReport(thread, throwable)
+            val file = File(application.filesDir, CRASH_REPORT_FILE)
+            file.writeText(report)
+            prefs.edit().putBoolean(CRASH_REPORT_MARKER, true).apply()
+        } catch (e: Exception) {
+            LogUtils.e("GlobalExceptionHandler", "Failed to write crash report", e)
+        }
+    }
+
+    private fun deleteCrashReport() {
+        try {
+            File(application.filesDir, CRASH_REPORT_FILE).delete()
+        } catch (_: Exception) {}
+    }
+
+    private fun buildCrashReport(thread: Thread, throwable: Throwable): String = buildString {
+        appendLine("=== JaBook Crash Report ===")
+        appendLine("Time: ${java.util.Date()}")
+        appendLine("Thread: ${thread.name}")
+        appendLine("Build: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) flavor=${BuildConfig.FLAVOR}")
+        appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+        appendLine()
+        appendLine("Stack trace:")
         val sw = StringWriter()
-        val pw = PrintWriter(sw)
-        throwable.printStackTrace(pw)
-        return sw.toString()
+        throwable.printStackTrace(PrintWriter(sw))
+        appendLine(sw.toString())
     }
 }

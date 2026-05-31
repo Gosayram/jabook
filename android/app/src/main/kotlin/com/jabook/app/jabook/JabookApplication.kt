@@ -102,12 +102,15 @@ public class JabookApplication :
         // Start ANR watchdog for debug/beta builds (BP-6.3)
         anrWatchdog.start()
 
-        // Initialize Global Exception Handler
+        // Initialize Global Exception Handler (writes crash report to disk)
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler(
             com.jabook.app.jabook.crash
                 .GlobalExceptionHandler(this, defaultHandler),
         )
+
+        // Check for crash report from previous session and show CrashActivity if found
+        checkAndShowCrashReport()
 
         // Create notification channels for downloads and player
         NotificationHelper.createNotificationChannels(this)
@@ -164,6 +167,32 @@ public class JabookApplication :
         }
 
         LogUtils.d("JabookApplication", "Application created with Hilt support")
+    }
+
+    private fun checkAndShowCrashReport() {
+        try {
+            val prefs = getSharedPreferences("jabook_crash_handler", MODE_PRIVATE)
+            if (!prefs.getBoolean("has_crash_report", false)) return
+
+            val file = java.io.File(filesDir, "last_crash_report.txt")
+            if (!file.exists()) {
+                prefs.edit().remove("has_crash_report").apply()
+                return
+            }
+
+            val report = file.readText()
+            file.delete()
+            prefs.edit().remove("has_crash_report").apply()
+
+            LogUtils.w("JabookApplication", "Found crash report from previous session, launching CrashActivity")
+            val intent = android.content.Intent(this, com.jabook.app.jabook.crash.CrashActivity::class.java).apply {
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                putExtra(com.jabook.app.jabook.crash.CrashActivity.EXTRA_STACK_TRACE, report)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            LogUtils.e("JabookApplication", "Failed to check crash report", e)
+        }
     }
 
     private fun configureDiagnostics() {

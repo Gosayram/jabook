@@ -336,8 +336,8 @@ public object MediaModule {
                     .Builder()
                     .setAudioOffloadMode(
                         TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED,
-                    ).setIsGaplessSupportRequired(false) // Disabled with offload for battery efficiency
-                    .setIsSpeedChangeSupportRequired(true) // Required for pitch correction
+                    ).setIsGaplessSupportRequired(true) // Required for seamless book chapter transitions
+                    .setIsSpeedChangeSupportRequired(true) // Required for pitch-corrected speed
                     .build(),
             ).build()
 
