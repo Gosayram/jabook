@@ -68,17 +68,13 @@ public class ChapterMetadataRepository
                 return cached
             }
 
-            val result =
-                chapterDao
-                    .getChapters(bookId)
-                    .first()
-
-            @Suppress("UNCHECKED_CAST")
             val chapters =
-                when (result) {
-                    is Result.Success<*> -> (result as Result.Success<List<ChapterMetadataEntity>>).data
-                    is Result.Error -> emptyList()
-                    else -> emptyList()
+                try {
+                    chapterDao
+                        .getChapters(bookId)
+                        .first()
+                } catch (e: Exception) {
+                    emptyList()
                 }
 
             putCache(bookId, chapters)
