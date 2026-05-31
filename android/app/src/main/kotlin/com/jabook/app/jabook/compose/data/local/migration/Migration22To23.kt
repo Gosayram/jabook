@@ -23,7 +23,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * Replaces `LIKE '%query%'` full-scan with `MATCH` + `bm25()` ranking.
  * Uses external-content table (`content='cached_topics'`) to avoid data duplication.
  * Triggers keep FTS in sync with cached_topics on INSERT/UPDATE/DELETE.
- * Tokenizer `unicode61 remove_diacritics 2` normalizes case, diacritics, and ё→е.
+ * Tokenizer `unicode61 remove_diacritics 2` normalizes Latin diacritics.
+ * Triggers use REPLACE(…, 'ё','е') to normalize Cyrillic ё→е at index time.
  */
 public val MIGRATION_22_23: Migration =
     object : Migration(22, 23) {
@@ -41,7 +42,11 @@ public val MIGRATION_22_23: Migration =
             db.execSQL(
                 """
                 CREATE TRIGGER IF NOT EXISTS topics_fts_ai AFTER INSERT ON cached_topics BEGIN
-                    INSERT INTO topics_fts(rowid, title, author) VALUES (NEW.rowid, NEW.title, NEW.author);
+                    INSERT INTO topics_fts(rowid, title, author) VALUES (
+                        NEW.rowid,
+                        REPLACE(REPLACE(NEW.title, 'ё', 'е'), 'Ё', 'Е'),
+                        REPLACE(REPLACE(NEW.author, 'ё', 'е'), 'Ё', 'Е')
+                    );
                 END
                 """.trimIndent(),
             )
@@ -49,7 +54,11 @@ public val MIGRATION_22_23: Migration =
             db.execSQL(
                 """
                 CREATE TRIGGER IF NOT EXISTS topics_fts_ad AFTER DELETE ON cached_topics BEGIN
-                    INSERT INTO topics_fts(topics_fts, rowid, title, author) VALUES ('delete', OLD.rowid, OLD.title, OLD.author);
+                    INSERT INTO topics_fts(topics_fts, rowid, title, author) VALUES (
+                        'delete', OLD.rowid,
+                        REPLACE(REPLACE(OLD.title, 'ё', 'е'), 'Ё', 'Е'),
+                        REPLACE(REPLACE(OLD.author, 'ё', 'е'), 'Ё', 'Е')
+                    );
                 END
                 """.trimIndent(),
             )
@@ -57,12 +66,24 @@ public val MIGRATION_22_23: Migration =
             db.execSQL(
                 """
                 CREATE TRIGGER IF NOT EXISTS topics_fts_au AFTER UPDATE ON cached_topics BEGIN
-                    INSERT INTO topics_fts(topics_fts, rowid, title, author) VALUES ('delete', OLD.rowid, OLD.title, OLD.author);
-                    INSERT INTO topics_fts(rowid, title, author) VALUES (NEW.rowid, NEW.title, NEW.author);
+                    INSERT INTO topics_fts(topics_fts, rowid, title, author) VALUES (
+                        'delete', OLD.rowid,
+                        REPLACE(REPLACE(OLD.title, 'ё', 'е'), 'Ё', 'Е'),
+                        REPLACE(REPLACE(OLD.author, 'ё', 'е'), 'Ё', 'Е')
+                    );
+                    INSERT INTO topics_fts(rowid, title, author) VALUES (
+                        NEW.rowid,
+                        REPLACE(REPLACE(NEW.title, 'ё', 'е'), 'Ё', 'Е'),
+                        REPLACE(REPLACE(NEW.author, 'ё', 'е'), 'Ё', 'Е')
+                    );
                 END
                 """.trimIndent(),
             )
 
-            db.execSQL("INSERT INTO topics_fts(topics_fts) VALUES ('rebuild')")
+            db.execSQL(
+                "INSERT INTO topics_fts(rowid, title, author) SELECT rowid, " +
+                    "REPLACE(REPLACE(title, 'ё', 'е'), 'Ё', 'Е'), " +
+                    "REPLACE(REPLACE(author, 'ё', 'е'), 'Ё', 'Е') FROM cached_topics",
+            )
         }
     }

@@ -248,7 +248,9 @@ public class RutrackerRepository
             private const val TAG = "RutrackerRepository"
 
             internal fun toFtsQuery(input: String): String =
-                input.trim().split(Regex("\\s+"))
+                input.trim()
+                    .replace("ё", "е").replace("Ё", "Е") // FTS5 unicode61 doesn't normalize Cyrillic ё
+                    .split(Regex("\\s+"))
                     .filter { it.isNotBlank() }
                     .joinToString(" ") {
                         "\"" + it.replace("\"", "\"\"") + "\"*"
