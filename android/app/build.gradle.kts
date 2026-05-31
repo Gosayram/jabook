@@ -252,25 +252,20 @@ android {
         }
     }
 
-    // R8 configuration for code optimization
     buildTypes {
         release {
-            // Sign with the release keys
             signingConfig = signingConfigs.getByName("release")
-
-            // Enable code shrinking, obfuscation, and optimization for release builds
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
         }
         debug {
-            // Disable some optimizations for debug build speed
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             isShrinkResources = false
-            // Enable JaCoCo instrumentation so coverage data (.exec) is generated
             enableAndroidTestCoverage = true
             enableUnitTestCoverage = true
         }
@@ -387,6 +382,16 @@ java {
 // REMOVED: fixIntegrationTestPlugin task - GeneratedPluginRegistrant.java no longer exists
 
 // REMOVED: afterEvaluate block for fixIntegrationTestPlugin - task no longer needed
+
+// Only enable R8 minification for prod release builds
+androidComponents {
+    beforeVariants { variant ->
+        val flavor = variant.productFlavors.firstOrNull()?.second
+        if (flavor == "prod" && variant.buildType == "release") {
+            variant.isMinifyEnabled = true
+        }
+    }
+}
 
 // Configure KSP for Room and Hilt
 ksp {

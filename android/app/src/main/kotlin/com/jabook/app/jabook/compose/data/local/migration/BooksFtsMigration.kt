@@ -14,12 +14,16 @@
 
 package com.jabook.app.jabook.compose.data.local.migration
 
+import android.os.Build
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 public val MIGRATION_15_16: Migration =
     object : Migration(15, 16) {
         override fun migrate(db: SupportSQLiteDatabase) {
+            val support = checkFts4Support(db)
+            if (!support) return
+
             db.execSQL(
                 """
                 CREATE VIRTUAL TABLE IF NOT EXISTS books_fts
@@ -76,3 +80,17 @@ public val MIGRATION_15_16: Migration =
             )
         }
     }
+
+private fun checkFts4Support(db: SupportSQLiteDatabase): Boolean {
+    try {
+        val cursor = db.query("PRAGMA compile_options")
+        cursor.use {
+            while (it.moveToNext()) {
+                if (it.getString(0) == "ENABLE_FTS3") return true
+            }
+        }
+    } catch (_: Exception) {
+        return true
+    }
+    return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+}

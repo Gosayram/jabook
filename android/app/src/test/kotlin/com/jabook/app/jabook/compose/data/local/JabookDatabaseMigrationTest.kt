@@ -214,14 +214,19 @@ class JabookDatabaseMigrationTest {
         cursor.use { return it.moveToFirst() }
     }
 
-    private fun isFts5Available(): Boolean =
+    private fun isFts5Available(): Boolean {
         try {
-            db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS _fts5_check USING fts5(x)")
-            db.execSQL("DROP TABLE IF EXISTS _fts5_check")
-            true
+            val cursor = db.query("PRAGMA compile_options")
+            cursor.use {
+                while (it.moveToNext()) {
+                    if (it.getString(0) == "ENABLE_FTS5") return true
+                }
+            }
         } catch (_: Exception) {
-            false
+            return true
         }
+        return false
+    }
 
     @Test
     fun `migration 20 to 21 drops old FTS4 triggers and table`() {

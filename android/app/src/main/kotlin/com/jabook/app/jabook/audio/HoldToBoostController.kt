@@ -103,7 +103,7 @@ internal class HoldToBoostController(
             val fraction = (i + 1).toFloat() / rampSteps
             val speed = from + (to - from) * fraction
             player.playbackParameters = PlaybackParameters(speed)
-            LogUtils.v(TAG, "Speed ramp: ${String.format("%.2f", speed)}x (${i + 1}/$rampSteps)")
+            LogUtils.v(TAG, "Speed ramp: ${String.format(java.util.Locale.US, "%.2f", speed)}x (${i + 1}/$rampSteps)")
             delay(stepDelay)
         }
     }

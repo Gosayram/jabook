@@ -86,4 +86,45 @@ class FftWindowFunctionTest {
 
         assertEquals(4, bands.size)
     }
+
+    // --- Edge cases: n < 2 ---
+
+    @Test
+    fun `hann window with empty array returns empty`() {
+        val samples = FloatArray(0)
+        val result = FftWindowFunction.applyHann(samples)
+        assertEquals(0, result.size)
+    }
+
+    @Test
+    fun `hann window with single sample returns unchanged`() {
+        val samples = floatArrayOf(0.8f)
+        val result = FftWindowFunction.applyHann(samples)
+        assertEquals(0.8f, result[0], 0.001f)
+    }
+
+    @Test
+    fun `hann window with two samples zeros edges`() {
+        val samples = floatArrayOf(1f, 1f)
+        FftWindowFunction.applyHann(samples)
+        assertEquals(0f, samples[0], 0.001f)
+        assertEquals(0f, samples[1], 0.001f)
+    }
+
+    // --- Known coefficients for n=8 ---
+
+    @Test
+    fun `hann window n=8 first and last are zero`() {
+        val samples = FloatArray(8) { 1f }
+        FftWindowFunction.applyHann(samples)
+        assertEquals(0f, samples[0], 0.001f)
+        assertEquals(0f, samples[7], 0.001f)
+    }
+
+    @Test
+    fun `hann window n=8 middle is close to one`() {
+        val samples = FloatArray(8) { 1f }
+        FftWindowFunction.applyHann(samples)
+        assertTrue("Middle should be > 0.9", samples[3] > 0.9f || samples[4] > 0.9f)
+    }
 }

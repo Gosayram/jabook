@@ -70,15 +70,20 @@ public class ChapterMetadataRepository
 
             val chapters =
                 try {
-                    chapterDao
-                        .getChapters(bookId)
-                        .first()
+                    val loaded =
+                        chapterDao
+                            .getChapters(bookId)
+                            .first()
+                    putCache(bookId, loaded)
+                    LogUtils.d(TAG, "Cache miss for book=$bookId, loaded ${loaded.size} chapters")
+                    loaded
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
+                    LogUtils.e(TAG, "Failed to load chapters for book=$bookId", e)
                     emptyList()
                 }
 
-            putCache(bookId, chapters)
-            LogUtils.d(TAG, "Cache miss for book=$bookId, loaded ${chapters.size} chapters")
             return chapters
         }
 

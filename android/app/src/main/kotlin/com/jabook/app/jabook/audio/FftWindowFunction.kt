@@ -39,6 +39,7 @@ public object FftWindowFunction {
      */
     public fun applyHann(samples: FloatArray): FloatArray {
         val n = samples.size
+        if (n < 2) return samples
         for (i in samples.indices) {
             val window = 0.5f * (1f - cos(2.0 * PI * i / (n - 1)).toFloat())
             samples[i] *= window

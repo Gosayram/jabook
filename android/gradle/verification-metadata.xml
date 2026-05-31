@@ -61,6 +61,7 @@
          <trusted-key id="0F06FF86BEEAF4E71866EE5232EE5355A6BC6E42">
             <trusting group="androidx.annotation"/>
             <trusting group="androidx.appcompat"/>
+            <trusting group="androidx.benchmark"/>
             <trusting group="androidx.collection"/>
             <trusting group="androidx.core"/>
             <trusting group="androidx.databinding"/>
@@ -100,10 +101,17 @@
          <trusted-key id="20723A6399BC060154283B37CFAE163B64AC9189">
             <trusting group="org.jetbrains.androidx.lifecycle"/>
             <trusting group="org.jetbrains.androidx.savedstate"/>
+            <trusting group="org.jetbrains.skiko"/>
             <trusting group="^org[.]jetbrains[.]compose($|([.].*))" regex="true"/>
          </trusted-key>
          <trusted-key id="24D04176586361FDA94EE0315F7786DF73E61F56" group="com.google.devtools.ksp"/>
          <trusted-key id="2BAB4466B44F54F8F99BBBDD5ED22F661BBF0ACC" group="com.almworks.sqlite4java" name="sqlite4java" version="1.0.392"/>
+         <trusted-key id="2DB4F1EF0FA761ECC4EA935C86FDC7E2A11262CB">
+            <trusting group="commons-codec"/>
+            <trusting group="commons-io"/>
+            <trusting group="org.apache.commons"/>
+         </trusted-key>
+         <trusted-key id="2E3A1AFFE42B5F53AF19F780BCF4173966770193" group="org.jetbrains" name="annotations" version="13.0"/>
          <trusted-key id="2E92113263FC31C74CCBAAB20E91C2DE43B72BB1" group="org.ec4j.core"/>
          <trusted-key id="2EE890070AE9318C3AD3520CE08F28E25BD93E9F" group="com.google.testparameterinjector"/>
          <trusted-key id="2FC53E6B1F681184F4CCD637F5C81DE10A0B8ECC">
@@ -111,8 +119,12 @@
             <trusting group="org.yaml"/>
          </trusted-key>
          <trusted-key id="3051D45031E13516A6E8FAFF280D66A55F5316C5" group="org.bitbucket.b_c" name="jose4j" version="0.9.5"/>
+         <trusted-key id="31BAE2E51D95E0F8AD9B7BCC40A3C4432BD7308C" group="com.googlecode.juniversalchardet" name="juniversalchardet" version="1.0.3"/>
          <trusted-key id="32118CF76C9EC5D918E54967CA80D1F0EB6CA4BA" group="org.codehaus.mojo"/>
-         <trusted-key id="33FD4BFD33554634053D73C0C2148900BCD3C2AF" group="org.jetbrains" name="annotations" version="23.0.0"/>
+         <trusted-key id="33FD4BFD33554634053D73C0C2148900BCD3C2AF">
+            <trusting group="org.jetbrains" name="annotations" version="23.0.0"/>
+            <trusting group="org.jetbrains.runtime" name="jbr-api" version="1.5.0"/>
+         </trusted-key>
          <trusted-key id="34441E504A937F43EB0DAEF96A65176A0FB1CD0B" group="org.codehaus.groovy" name="groovy" version="3.0.22"/>
          <trusted-key id="3A4D86C56CA99373B6D8953DBE84D764623A3644" group="org.brotli"/>
          <trusted-key id="4021EEEAFF5DE8404DCD0A270AA3E5C3D232E79B" group="jakarta.inject" name="jakarta.inject-api" version="2.0.1"/>
@@ -142,6 +154,7 @@
          <trusted-key id="6DD3B8C64EF75253BEB2C53AD908A43FB7EC07AC" group="jakarta.activation"/>
          <trusted-key id="6F538074CCEBF35F28AF9B066A0975F8B1127B83" group="^org[.]jetbrains[.]kotlin($|([.].*))" regex="true"/>
          <trusted-key id="73976C9C39C1479B84E2641A5A68A2249128E2C6" group="com.google.crypto.tink"/>
+         <trusted-key id="7440F1F7D27BAC115F953D55EB095DA7D2F6AC0E" group="org.tensorflow" name="tensorflow-lite-metadata" version="0.2.0"/>
          <trusted-key id="7616EB882DAF57A11477AAF559A252FB1199D873" group="com.google.code.findbugs" name="jsr305" version="3.0.2"/>
          <trusted-key id="7B121B76A7ED6CE6E60AD51784E913A8E3A748C0" group="org.bouncycastle"/>
          <trusted-key id="7E22D50A7EBD9D2CD269B2D4056ACA74D46000BF" group="io.netty"/>
@@ -152,6 +165,7 @@
             <trusting group="androidx.emoji2"/>
             <trusting group="androidx.lifecycle"/>
             <trusting group="androidx.recyclerview"/>
+            <trusting group="androidx.test.uiautomator"/>
             <trusting group="androidx.tracing"/>
          </trusted-key>
          <trusted-key id="84789D24DF77A32433CE1F079EB80E92EB2135B1">
@@ -175,6 +189,7 @@
             <trusting group="androidx.profileinstaller"/>
             <trusting group="androidx.startup"/>
          </trusted-key>
+         <trusted-key id="A6D6C97108B8585F91B158748671A8DF71296252" group="^com[.]squareup($|([.].*))" regex="true"/>
          <trusted-key id="A7892505CF1A58076453E52D7999BEFBA1039E8B" group="net.bytebuddy"/>
          <trusted-key id="AA70C7C433D501636392EC02153E7A3C2B4E5118" group="org.eclipse.ee4j" name="project"/>
          <trusted-key id="ADBC987D1A7B91DB6B0AAA81995EFBF4A3D20BEB" group="com.pinterest.ktlint"/>
@@ -183,6 +198,7 @@
          <trusted-key id="BCC135FC7ED8214F823D73E97FE9900F412D622E" group="com.google.flatbuffers" name="flatbuffers-java" version="1.12.0"/>
          <trusted-key id="BDB5FA4FE719D787FB3D3197F6D4A1D411E9D1AE" group="^com[.]google($|([.].*))" regex="true"/>
          <trusted-key id="C1CBA75EC9BD0BAF8061935459E05CE618187ED4" group="org.xerial" name="sqlite-jdbc" version="3.41.2.2"/>
+         <trusted-key id="C6F7D1C804C821F49AF3BFC13AD93C3C677A106E" group="io.perfmark" name="perfmark-api"/>
          <trusted-key id="C7BE5BCC9FEC15518CFDA882B0F3710FA64900E7">
             <trusting group="com.google.code.gson"/>
             <trusting group="^com[.]google[.]auto($|([.].*))" regex="true"/>
@@ -278,6 +294,9 @@
          </artifact>
       </component>
       <component group="androidx.annotation" name="annotation-experimental" version="1.4.1">
+         <artifact name="annotation-experimental-1.4.1.aar">
+            <sha256 value="6bd4c7c7476f8260cd3bdbb81183583e93fc9f790c27dea7dc314181cbf87aa0" origin="Generated by Gradle"/>
+         </artifact>
          <artifact name="annotation-experimental-1.4.1.module">
             <sha256 value="2ac2f7106e12f263425b4a4dfc80989447fb895675fe902d86759aa74fd12b7d" origin="Generated by Gradle"/>
          </artifact>
@@ -301,6 +320,14 @@
          </artifact>
          <artifact name="annotation-jvm-1.10.0.module">
             <sha256 value="42afca374194273e4067b937cfc447bd3c8c4fd441f41d44f954050dfd6106dd" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.annotation" name="annotation-jvm" version="1.8.1">
+         <artifact name="annotation-jvm-1.8.1.jar">
+            <sha256 value="9aab326d9492800991854360ac248f493ce7f7c3183519309b78ace9e240f6f6" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="annotation-jvm-1.8.1.module">
+            <sha256 value="c959e3b0cdc75c15efe01605fa56aa79f033e39238e150638b8fabde6aa121a0" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.annotation" name="annotation-jvm" version="1.8.2">
@@ -333,6 +360,9 @@
          </artifact>
       </component>
       <component group="androidx.arch.core" name="core-common" version="2.1.0">
+         <artifact name="core-common-2.1.0.jar">
+            <sha256 value="fe1237bf029d063e7f29fe39aeaf73ef74c8b0a3658486fc29d3c54326653889" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
          <artifact name="core-common-2.1.0.pom">
             <sha256 value="83bbb3960eaabc600ac366c94cb59414e441532a1d6aa9388b0b8bfface5cf01" origin="Generated by Gradle" reason="Artifact is not signed"/>
          </artifact>
@@ -346,6 +376,9 @@
          </artifact>
       </component>
       <component group="androidx.arch.core" name="core-runtime" version="2.1.0">
+         <artifact name="core-runtime-2.1.0.aar">
+            <sha256 value="dd77615bd3dd275afb11b62df25bae46b10b4a117cd37943af45bdcbf8755852" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
          <artifact name="core-runtime-2.1.0.pom">
             <sha256 value="c0c4ed0160cd2ca18390015de8b392b697c173327c6b2c0947d4e62f6958c05d" origin="Generated by Gradle" reason="Artifact is not signed"/>
          </artifact>
@@ -366,7 +399,47 @@
             <sha256 value="3677abead5d4e06cf76cbacb954151e051779c2274494451fb424e375aa9e450" origin="Generated by Gradle" reason="Artifact is not signed"/>
          </artifact>
       </component>
+      <component group="androidx.benchmark" name="benchmark-common" version="1.4.0">
+         <artifact name="benchmark-common-1.4.0.aar">
+            <sha256 value="f63cfb7e6d7629599f55ae8a1c190beea5209095342c502f1fd219d539e29774" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="benchmark-common-1.4.0.module">
+            <sha256 value="54ebf415dbd250c2b96d5c358f3c6f6e43dd723fa4f745c02e9416406defddf9" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.benchmark" name="benchmark-macro" version="1.4.0">
+         <artifact name="benchmark-macro-1.4.0.aar">
+            <sha256 value="17166bbd0ffc96e89099b563a1e46677efa539d4bb0931de5a8680674f2c4978" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="benchmark-macro-1.4.0.module">
+            <sha256 value="f4815f3cb7d04cd088251144472175a234cab042b7ba1e4b65cf78992d011706" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.benchmark" name="benchmark-macro-junit4" version="1.4.0">
+         <artifact name="benchmark-macro-junit4-1.4.0.aar">
+            <sha256 value="58d2bf39d9b88e82a1e222375476ad490ca45bbf0d83bb94fe9942d3b5cdae8a" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="benchmark-macro-junit4-1.4.0.module">
+            <sha256 value="f2b36f352960ac59bcdf4a518255146a1d557717fa1f92810b62a63fabbbea7a" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.benchmark" name="benchmark-traceprocessor" version="1.4.0">
+         <artifact name="benchmark-traceprocessor-1.4.0.module">
+            <sha256 value="0afb4808556a4f1c7ae734e560cf00a41090b283a8a29ad8f13fccb11d082378" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.benchmark" name="benchmark-traceprocessor-android" version="1.4.0">
+         <artifact name="benchmark-traceprocessor-android-1.4.0.module">
+            <sha256 value="9b7a344f4997f32fcb833b9e61e3aef41e93e3d44467c06e775003de05854b81" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="benchmark-traceprocessor.aar">
+            <sha256 value="8b7ff08bba1a4c7cbeeb20c592a7887794e9c20b0ec2a2780b3a0e68695bfceb" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.collection" name="collection" version="1.0.0">
+         <artifact name="collection-1.0.0.jar">
+            <sha256 value="9c8d117b5c2bc120a1cdfeb857e05b495b16c36013570372a708f7827e3ac9f9" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
          <artifact name="collection-1.0.0.pom">
             <sha256 value="a7913a5275ad68e555d2612ebe8c14c367b153e14ca48a1872a64899020e54ef" origin="Generated by Gradle" reason="Artifact is not signed"/>
          </artifact>
@@ -551,6 +624,32 @@
             <sha256 value="852ac46931d528a50c3c633ef6127200fec0c0459ee2c4a63cfe62a48e0e58b8" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.compose.animation" name="animation-core-jvmstubs" version="1.11.1">
+         <artifact name="animation-core-jvmstubs-1.11.1.module">
+            <sha256 value="9b706d7d6b7bad980ac0686f2d2e0cac212d371d6061f4d6281cf23c28595083" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.animation" name="animation-core-jvmstubs" version="1.12.0-alpha02">
+         <artifact name="animation-core-jvmstubs-1.12.0-alpha02.jar">
+            <sha256 value="77a65915963861f1e06805216b297570dc0ad1b0495627833215723b02668dd3" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="animation-core-jvmstubs-1.12.0-alpha02.module">
+            <sha256 value="39e3d0a0cd2ac22591c93c798390d3181321a777301269a957a7395eb52e7a16" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.animation" name="animation-jvmstubs" version="1.11.1">
+         <artifact name="animation-jvmstubs-1.11.1.module">
+            <sha256 value="9cf72ff7983379ce2857d693f19f52020eaf996ac77fa035398a060fb72daca1" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.animation" name="animation-jvmstubs" version="1.12.0-alpha02">
+         <artifact name="animation-jvmstubs-1.12.0-alpha02.jar">
+            <sha256 value="fbaba7e34e50a92b7164720bdf5d3fe207f614eeb1e1b0699b0ede415754ce38" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="animation-jvmstubs-1.12.0-alpha02.module">
+            <sha256 value="c23fe8a4959a983231a8db44fb019dd08a743752f7fda54a44fc1a8a8ac10126" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.compose.foundation" name="foundation" version="1.10.0">
          <artifact name="foundation-1.10.0.module">
             <sha256 value="b9f547775ab6920e06afeb371322840ab72d738b5a694a6f733ad7049675c452" origin="Generated by Gradle"/>
@@ -615,6 +714,19 @@
             <sha256 value="74344537a4e46d1dd3c3319710d6950e17b3fd465c3f11f364fa75c20282d936" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.compose.foundation" name="foundation-jvmstubs" version="1.11.1">
+         <artifact name="foundation-jvmstubs-1.11.1.module">
+            <sha256 value="b5a65142357d2de02a1d3ad7456bfe8605f445be0d87e40175d7012020b6406c" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.foundation" name="foundation-jvmstubs" version="1.12.0-alpha02">
+         <artifact name="foundation-jvmstubs-1.12.0-alpha02.jar">
+            <sha256 value="1b6a0a67235272b3b258f3590b0b30ec34742db76d3cf6232c63ec39823a2ef1" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="foundation-jvmstubs-1.12.0-alpha02.module">
+            <sha256 value="4d18a8aeee1552a3dfb03e081617e20b25dbd77f178216d8449c89889535982e" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.compose.foundation" name="foundation-layout" version="1.10.6">
          <artifact name="foundation-layout-1.10.6.module">
             <sha256 value="4f0cc0fae2668af6304ee09005907de843ab51168ad091ff83d50a890967d0e5" origin="Generated by Gradle"/>
@@ -677,6 +789,19 @@
          </artifact>
          <artifact name="foundation-layout.aar">
             <sha256 value="3f23a4a8433dbea0117e4623d4b45f077ac7776f99c03ac82928657fccec3753" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.foundation" name="foundation-layout-jvmstubs" version="1.11.1">
+         <artifact name="foundation-layout-jvmstubs-1.11.1.module">
+            <sha256 value="8ad425de98bc62017b5c7a7ea86655c5d91b5d62693ef4cfc5701b8c1720b1ca" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.foundation" name="foundation-layout-jvmstubs" version="1.12.0-alpha02">
+         <artifact name="foundation-layout-jvmstubs-1.12.0-alpha02.jar">
+            <sha256 value="eb9d834e51ffaf12e6e8f1ca9d6f8ad4b3b4971960578c7a72944fe274534676" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="foundation-layout-jvmstubs-1.12.0-alpha02.module">
+            <sha256 value="4c1b6736abb994cf7ffd789b33e50b412c502cae1ba0ef645507758fdb34d69b" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.compose.material" name="material" version="1.10.6">
@@ -770,6 +895,14 @@
             <sha256 value="699fc504a7b6077dd6393fa2222c92a739763a6dde4a7b29229f9dc4db3d0fb0" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.compose.material" name="material-ripple-jvmstubs" version="1.12.0-alpha02">
+         <artifact name="material-ripple-jvmstubs-1.12.0-alpha02.jar">
+            <sha256 value="ab71680f2e83f678c765d2b634261b7c80c6672a733a5dc6aec86c90e5a6485a" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="material-ripple-jvmstubs-1.12.0-alpha02.module">
+            <sha256 value="a664d29daf39f11548e2cd0bfe1e17a08ce1e684b80786a0c8d2a909e1af03de" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.compose.material3" name="material3" version="1.4.0">
          <artifact name="material3-1.4.0.module">
             <sha256 value="757081d128daf8801c1dd9acc431fa5269e656b28a0a490ae98ccee68e9c3452" origin="Generated by Gradle"/>
@@ -811,6 +944,14 @@
             <sha256 value="0fe964363cba0dbb7be642dcd82e5d18f81c5b17cd53fcbbd4d26b2cfef02d38" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.compose.material3" name="material3-adaptive-navigation-suite-jvmstubs" version="1.5.0-alpha19">
+         <artifact name="material3-adaptive-navigation-suite-jvmstubs-1.5.0-alpha19.jar">
+            <sha256 value="6b2a0cd035fbbc6789b1dbebd77a01c59e1b767955f0feae181032f8f304c711" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="material3-adaptive-navigation-suite-jvmstubs-1.5.0-alpha19.module">
+            <sha256 value="4a56395fe633dc652738b040a05509e8d15405456a6de67ac423ef11f4bed447" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.compose.material3" name="material3-android" version="1.4.0">
          <artifact name="material3-android-1.4.0.module">
             <sha256 value="fccd6a8d0d33fcf7c3277bc43eb452c73803ec620597c81dbc4a79e290a71a97" origin="Generated by Gradle"/>
@@ -830,6 +971,19 @@
          </artifact>
          <artifact name="material3.aar">
             <sha256 value="d77c3f8e670dbc96517bb87245ac27459316f5976999d8106204f92eae8c34f4" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.material3" name="material3-jvmstubs" version="1.4.0">
+         <artifact name="material3-jvmstubs-1.4.0.module">
+            <sha256 value="23f6c9753a99718baa2be29538f62d1518ac53d6dc19992fc2c510473310cba0" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.material3" name="material3-jvmstubs" version="1.5.0-alpha19">
+         <artifact name="material3-jvmstubs-1.5.0-alpha19.jar">
+            <sha256 value="9f3677e8cdf66bb58d0248911dfeb06ea511feaadb0b9bb7689181f47d78698d" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="material3-jvmstubs-1.5.0-alpha19.module">
+            <sha256 value="a01cea7535dcaefeec8836a06f40568e475ff503ed6d85f414810d2980f9815b" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.compose.material3" name="material3-window-size-class" version="1.4.0">
@@ -868,6 +1022,19 @@
             <sha256 value="a5c911c20d1b2e4390cbbf3cb722741ca405a366b9925ddd4fa350af1b4d3078" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.compose.material3" name="material3-window-size-class-jvmstubs" version="1.4.0">
+         <artifact name="material3-window-size-class-jvmstubs-1.4.0.module">
+            <sha256 value="8986885885ff9b2f905fb99ec27a8eb750aae2d8e563884870bafd78f464030b" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.material3" name="material3-window-size-class-jvmstubs" version="1.5.0-alpha19">
+         <artifact name="material3-window-size-class-jvmstubs-1.5.0-alpha19.jar">
+            <sha256 value="97afeef9122816d75ed71106622cb2142ecb77cdf0e5b1ec16e6f53243a259de" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="material3-window-size-class-jvmstubs-1.5.0-alpha19.module">
+            <sha256 value="b2397fe82a000704325f8b454e326f67b4e9e631f94c34f178e5845790b3196c" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.compose.material3.adaptive" name="adaptive" version="1.3.0-alpha10">
          <artifact name="adaptive-1.3.0-alpha10.module">
             <sha256 value="fe718c4d74e73cdcc4b5e91fb83bd422ed51ab1fe9ce39af8a4a4cf9fdfb423e" origin="Generated by Gradle"/>
@@ -892,6 +1059,14 @@
          </artifact>
          <artifact name="adaptive.aar">
             <sha256 value="b8e122b8ef78d10751bee9979946e82cc28bec33caec2b98bd00c4214d59f43d" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.material3.adaptive" name="adaptive-jvmstubs" version="1.3.0-beta01">
+         <artifact name="adaptive-jvmstubs-1.3.0-beta01.jar">
+            <sha256 value="ff6466d4eda2608402819601784cf6ce7aa3cac18e3820fbfd81c92dfb3eb609" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="adaptive-jvmstubs-1.3.0-beta01.module">
+            <sha256 value="82490c4ca3fc683cedcb90edb368116c3a9a20c9e86fd9f5e9c6097590441fc0" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.compose.material3.adaptive" name="adaptive-layout" version="1.3.0-alpha10">
@@ -920,6 +1095,14 @@
             <sha256 value="67376fc4d45cedb19e9c22dddcbfd019ef561750e4f54809962232cf8e347bae" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.compose.material3.adaptive" name="adaptive-layout-jvmstubs" version="1.3.0-beta01">
+         <artifact name="adaptive-layout-jvmstubs-1.3.0-beta01.jar">
+            <sha256 value="e83192cb0ce194dd7420ed62264658ee9781dc58b1519218b3d5b9c7cf2ecd70" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="adaptive-layout-jvmstubs-1.3.0-beta01.module">
+            <sha256 value="4b6966532573365d975321f3fb358c4bcf009030aea3ab841e68d700d043561a" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.compose.material3.adaptive" name="adaptive-navigation" version="1.3.0-alpha10">
          <artifact name="adaptive-navigation-1.3.0-alpha10.module">
             <sha256 value="9e98fdc521755149a13bc1f4ec010cd6736324a1e055f5d862e9d51e062f92e7" origin="Generated by Gradle"/>
@@ -944,6 +1127,14 @@
          </artifact>
          <artifact name="adaptive-navigation.aar">
             <sha256 value="bb6d04eed11d3320e17833837f3c169e55875e9aaa3212e5c58befb58b3808dd" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.material3.adaptive" name="adaptive-navigation-jvmstubs" version="1.3.0-beta01">
+         <artifact name="adaptive-navigation-jvmstubs-1.3.0-beta01.jar">
+            <sha256 value="10b88c49adc4e96eb1e10a168f84e8f5d7dcafe2355a9b8b6d4b0d04f70742c5" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="adaptive-navigation-jvmstubs-1.3.0-beta01.module">
+            <sha256 value="fb0bf4857089e8dbf80ff8ca76a41c1ec36b50536bf1c0c45e5c6a5b180dcc21" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.compose.runtime" name="runtime" version="1.10.6">
@@ -1064,6 +1255,32 @@
             <sha256 value="8aa9877071b6b3d59deb0e5dc36626acbf585941b0795b3e35c6aaa88fb18134" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.compose.runtime" name="runtime-annotation-jvm" version="1.11.1">
+         <artifact name="runtime-annotation-jvm-1.11.1.module">
+            <sha256 value="5ae30c17d94a087377dd77aa55f1a85e3c9cf48147a498c4b72ff640182a5410" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.runtime" name="runtime-annotation-jvm" version="1.12.0-alpha02">
+         <artifact name="runtime-annotation-jvm-1.12.0-alpha02.jar">
+            <sha256 value="e286a8520709d7bdc66481c272660c2a8d26b12740f76102543ce45704370396" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="runtime-annotation-jvm-1.12.0-alpha02.module">
+            <sha256 value="ed6a01f8904b5c641b406bbf8691a95c14551f30d14c5fa392d5f393c161eae2" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.runtime" name="runtime-desktop" version="1.11.1">
+         <artifact name="runtime-desktop-1.11.1.module">
+            <sha256 value="dc0bad652fb7835f3e13e0fa91673045ee1cf9dfca4c70f3ef7d72fab5caa476" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.runtime" name="runtime-desktop" version="1.12.0-alpha02">
+         <artifact name="runtime-desktop-1.12.0-alpha02.jar">
+            <sha256 value="210be9c0bccbc008e6703c16045ffd3c88deaf8b95f9493ec1b2ddfd91f1b7dd" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="runtime-desktop-1.12.0-alpha02.module">
+            <sha256 value="8b11223532a35b2a72c933ce3cf4023c5e493a4d593c9f30ee456c86183d0f88" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.compose.runtime" name="runtime-retain" version="1.10.6">
          <artifact name="runtime-retain-1.10.6.module">
             <sha256 value="78e72334169a573aca347cb287c028eb804943dded6ec9fb57ba909fffe3ab66" origin="Generated by Gradle"/>
@@ -1123,6 +1340,19 @@
             <sha256 value="7490af77c60ee1e55219c7a713f077ee04efd2bc7e1e4f95afd6089b544a0f5a" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.compose.runtime" name="runtime-retain-desktop" version="1.11.1">
+         <artifact name="runtime-retain-desktop-1.11.1.module">
+            <sha256 value="65301e162dbacca02535450ffe37f3b2436b615f530d3b768e884b3df13c34d5" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.runtime" name="runtime-retain-desktop" version="1.12.0-alpha02">
+         <artifact name="runtime-retain-desktop-1.12.0-alpha02.jar">
+            <sha256 value="9b7e62a7df333c33eff9e1a6d6c2508a4d8fe4b7a43778075538fe3da4bc4485" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="runtime-retain-desktop-1.12.0-alpha02.module">
+            <sha256 value="3cca6ae4bf5530f26f9721f70d1db81e7bfe63d2e51adf27d1da96f745119d91" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.compose.runtime" name="runtime-saveable" version="1.10.6">
          <artifact name="runtime-saveable-1.10.6.module">
             <sha256 value="fd09006627fb37ec78c400e5acecd397d95209137390b80b393e71f516b1a3ed" origin="Generated by Gradle"/>
@@ -1180,6 +1410,19 @@
          </artifact>
          <artifact name="runtime-saveable.aar">
             <sha256 value="c4856277e5b5b4e1d4ea3ec7ab7b3f38d82118147b186729184825d9744a4e26" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.runtime" name="runtime-saveable-desktop" version="1.11.1">
+         <artifact name="runtime-saveable-desktop-1.11.1.module">
+            <sha256 value="fe9e66c6b3be760e9f3c591a0b5bab32695d0c8655a9cc03a04736930421498a" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.compose.runtime" name="runtime-saveable-desktop" version="1.12.0-alpha02">
+         <artifact name="runtime-saveable-desktop-1.12.0-alpha02.jar">
+            <sha256 value="e7fc62826bbc0feed7bdb19449065809d3c7bab8ef6ea3283e0d9316fd020f23" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="runtime-saveable-desktop-1.12.0-alpha02.module">
+            <sha256 value="e5b35a171eca761bce493dabaac6dbbbc33e59585d633eed28c7ac32d7c29c1f" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.compose.ui" name="ui" version="1.10.6">
@@ -1899,6 +2142,16 @@
             <sha256 value="de3ac11af4fb49995cea98012486cbfe3b2fa3531c0be9c9e8f716970a5791d2" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.concurrent" name="concurrent-futures" version="1.0.0">
+         <artifact name="concurrent-futures-1.0.0.pom">
+            <sha256 value="4505b9a5e30a9418b59a9ad6702c3e4193aea6e691a3d03cf220c7640ad083e2" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
+      </component>
+      <component group="androidx.concurrent" name="concurrent-futures" version="1.1.0">
+         <artifact name="concurrent-futures-1.1.0.module">
+            <sha256 value="77639a0b051e22510bad93affcea0ebd781ef124bf9b7621a95749937bcfcdfd" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
+      </component>
       <component group="androidx.concurrent" name="concurrent-futures" version="1.2.0">
          <artifact name="concurrent-futures-1.2.0.jar">
             <sha256 value="4810315a798690b5d3bb40c92bcd41c045fd2c36bbfc50b27cbac3d6a0eda190" origin="Generated by Gradle"/>
@@ -1944,6 +2197,14 @@
          </artifact>
          <artifact name="core-1.19.0-alpha01.module">
             <sha256 value="5b213f91b51d4a7ead8bd79039af5b33773c772d2de91592af31d3f1eff39bd4" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.core" name="core" version="1.9.0">
+         <artifact name="core-1.9.0.aar">
+            <sha256 value="8bda3ee3a88887d54f6679fb6b6cd788629f73234ac91c8bbed924e721ec85b8" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
+         <artifact name="core-1.9.0.module">
+            <sha256 value="8674ade1d12962469dd2d1e6edc03b465f20d180b0840a129bc40b351e8651d1" origin="Generated by Gradle" reason="Artifact is not signed"/>
          </artifact>
       </component>
       <component group="androidx.core" name="core-ktx" version="1.13.0">
@@ -2097,6 +2358,14 @@
             <sha256 value="435edad7bcb1fbb1a2a46de7be4d6daf299479b3328ebf757ebdfe02810cbdd8" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.datastore" name="datastore-core-jvm" version="1.2.1">
+         <artifact name="datastore-core-jvm-1.2.1.jar">
+            <sha256 value="dd2d080fc16eb0bea1e02e5551d43496fb9e5177855c5b72c6aaf6e16ab1c5c1" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="datastore-core-jvm-1.2.1.module">
+            <sha256 value="9f95de6e21a7afebaae381fbf592ad717d0f8a92dd7e15484aadf3e9251a4a86" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.datastore" name="datastore-core-okio" version="1.2.1">
          <artifact name="datastore-core-okio-1.2.1.module">
             <sha256 value="522a383bda58250b9608a9ce6762fca0f54be9a38f9446b2d2e261c2c9ceb2a8" origin="Generated by Gradle"/>
@@ -2108,6 +2377,14 @@
          </artifact>
          <artifact name="datastore-core-okio-jvm-1.2.1.module">
             <sha256 value="8753df38719dc9535a6d53834668b9137d3e116710821bb26b787a85c9fcbfca" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.datastore" name="datastore-jvm" version="1.2.1">
+         <artifact name="datastore-jvm-1.2.1.jar">
+            <sha256 value="1ce3073ce9cf1b21afdef04b3116ea002709ec2cfd0f57e0652ef90526345220" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="datastore-jvm-1.2.1.module">
+            <sha256 value="a2034821858585796861cea9cf3c5c70afcab89ab31cc4026f77ed36ea9b93e2" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.datastore" name="datastore-preferences" version="1.2.1">
@@ -2136,12 +2413,28 @@
             <sha256 value="48c2235e576fb015f861726e79ee9474948e37da31d2c887c16ebeb46817059f" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.datastore" name="datastore-preferences-core-jvm" version="1.2.1">
+         <artifact name="datastore-preferences-core-jvm-1.2.1.jar">
+            <sha256 value="bc8350c5a382a3f682601486f5451d6122d5fd8c15afa31ace7b22fa98005ea6" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="datastore-preferences-core-jvm-1.2.1.module">
+            <sha256 value="c8ed739bc494b2ef3c8933fea81a88b6aa6035f12effb474040766610fff844d" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.datastore" name="datastore-preferences-external-protobuf" version="1.2.1">
          <artifact name="datastore-preferences-external-protobuf-1.2.1.jar">
             <sha256 value="4f09ba7fca2a073a5c5527a9b637582b93e262c2b6a89977c584d28cea838ebc" origin="Generated by Gradle"/>
          </artifact>
          <artifact name="datastore-preferences-external-protobuf-1.2.1.module">
             <sha256 value="009455dce6f6e33c8b3ef9a44859f7bbea39d4904a523aa26c5b6660e03266b2" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.datastore" name="datastore-preferences-jvm" version="1.2.1">
+         <artifact name="datastore-preferences-jvm-1.2.1.jar">
+            <sha256 value="2cc2ecb9d62bf2b9f605c36605609c9e4d67ec548417002972668957a0a3964b" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="datastore-preferences-jvm-1.2.1.module">
+            <sha256 value="e7f0a669550f4a3507034fc281655306d7a4ef702dcde166ce38f25d38692b8d" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.datastore" name="datastore-preferences-proto" version="1.2.1">
@@ -2185,6 +2478,9 @@
          </artifact>
       </component>
       <component group="androidx.emoji2" name="emoji2" version="1.3.0">
+         <artifact name="emoji2-1.3.0.aar">
+            <sha256 value="2bf23818b23a996ddaa1b5fd5bb32129daff6bbb2dce15166e2fccdd2010b1a5" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
          <artifact name="emoji2-1.3.0.module">
             <sha256 value="ddc851edba65fd15a7a1bc3ad18648e2f732dd5ad8ef3602224bce0647f5b4d1" origin="Generated by Gradle" reason="Artifact is not signed"/>
          </artifact>
@@ -2203,6 +2499,9 @@
          </artifact>
       </component>
       <component group="androidx.emoji2" name="emoji2-views-helper" version="1.3.0">
+         <artifact name="emoji2-views-helper-1.3.0.aar">
+            <sha256 value="9a1351295a4f739df0efe8344adaa9afb34856c3af584d4a9afbec105a45b90b" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
          <artifact name="emoji2-views-helper-1.3.0.module">
             <sha256 value="09974bb5ef9780de9d56715d71171a35c78fb2e17fd865773b0c83a3acac039c" origin="Generated by Gradle" reason="Artifact is not signed"/>
          </artifact>
@@ -2216,6 +2515,9 @@
          </artifact>
       </component>
       <component group="androidx.exifinterface" name="exifinterface" version="1.3.6">
+         <artifact name="exifinterface-1.3.6.aar">
+            <sha256 value="1804105e9e05fdd8f760413bad5de498c381aa329f4f9d94c851bc891ac654c6" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
          <artifact name="exifinterface-1.3.6.module">
             <sha256 value="5e9fd84ca3fd3b7706f6856fa4383107de8676bf7c42b7d4b8108949414d6201" origin="Generated by Gradle" reason="Artifact is not signed"/>
          </artifact>
@@ -2351,6 +2653,9 @@
          </artifact>
       </component>
       <component group="androidx.lifecycle" name="lifecycle-common" version="2.3.1">
+         <artifact name="lifecycle-common-2.3.1.jar">
+            <sha256 value="15848fb56db32f4c7cdc72b324003183d52a4884d6bf09be708ac7f587d139b5" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
          <artifact name="lifecycle-common-2.3.1.module">
             <sha256 value="5fb7c8514d8c56cada5e29ef89dc0289e71942ab4cb0b2e6dca137b9dcb8fdd4" origin="Generated by Gradle" reason="Artifact is not signed"/>
          </artifact>
@@ -2448,6 +2753,14 @@
             <sha256 value="da805fa017a4acce13f501469a75a3f306248eebc58f5bcc28019b0015dfba65" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.lifecycle" name="lifecycle-runtime" version="2.3.1">
+         <artifact name="lifecycle-runtime-2.3.1.aar">
+            <sha256 value="dd294f4a689c71ff877fd41f3b67a3a62f7760d44ce420e6130f1fc3569d8f00" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
+         <artifact name="lifecycle-runtime-2.3.1.module">
+            <sha256 value="2a7b90e5049b674b36bccfd68677b3a0b3178b3f7c2ef7ddf618d3895598c4ce" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
+      </component>
       <component group="androidx.lifecycle" name="lifecycle-runtime" version="2.6.1">
          <artifact name="lifecycle-runtime-2.6.1.module">
             <sha256 value="a4cbb01a42d07047bd8d870017c96a1b0b7b4673320e86b66317a13be2ec10c7" origin="Generated by Gradle" reason="Artifact is not signed"/>
@@ -2482,6 +2795,22 @@
          </artifact>
          <artifact name="lifecycle-runtime-compose.aar">
             <sha256 value="46e996d526829596f6db4626169a967f056fde7103507ff596bcd177b73c3675" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.lifecycle" name="lifecycle-runtime-compose-desktop" version="2.10.0">
+         <artifact name="lifecycle-runtime-compose-desktop-2.10.0.jar">
+            <sha256 value="4d233eeecc6e2769a76442830c5fd1884057c36d0ce2745167193a10cc8976f8" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="lifecycle-runtime-compose-desktop-2.10.0.module">
+            <sha256 value="257b0bc6df73ad860e6b378b94890867964c7430da9c884a65f667cfe5cbdc10" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.lifecycle" name="lifecycle-runtime-desktop" version="2.10.0">
+         <artifact name="lifecycle-runtime-desktop-2.10.0.jar">
+            <sha256 value="6f70b76fb7a262f47b99317c23271c28a89ad18400547b4bfefbd2ef04500f90" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="lifecycle-runtime-desktop-2.10.0.module">
+            <sha256 value="2eeef8084cf67129e199227a3fabacf8506f57faeecb0aab0f765d5c4e59040a" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.lifecycle" name="lifecycle-runtime-ktx" version="2.10.0">
@@ -2559,6 +2888,22 @@
             <sha256 value="225904e54ad5154768630471e108b98e143c261df0c08380ff43ea7e832dad7e" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.lifecycle" name="lifecycle-viewmodel-compose-jvmstubs" version="2.10.0">
+         <artifact name="lifecycle-viewmodel-compose-jvmstubs-2.10.0.jar">
+            <sha256 value="e7a2558fe359d92d5ad455540589b25b2b5a9d77e4a3df7df26a139c08664c89" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="lifecycle-viewmodel-compose-jvmstubs-2.10.0.module">
+            <sha256 value="9dfac7b9733b7aa0c334571548c74b0cf675daeb31125c4e5131a5e249c4c3e8" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.lifecycle" name="lifecycle-viewmodel-desktop" version="2.10.0">
+         <artifact name="lifecycle-viewmodel-desktop-2.10.0.jar">
+            <sha256 value="e7c86a5e5c66fd41fd3cc9c9ad31a2997110b1a6380c441ba3f7b6b0b070e32b" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="lifecycle-viewmodel-desktop-2.10.0.module">
+            <sha256 value="cda319d7c9e32602859a72be81c0026e56d1797ef9ba67e9173e905d3f74774f" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.lifecycle" name="lifecycle-viewmodel-ktx" version="2.10.0">
          <artifact name="lifecycle-viewmodel-ktx-2.10.0.aar">
             <sha256 value="54295ac86b67886dc0613e38f621c531995d0662005fc763e340e19a90994f84" origin="Generated by Gradle"/>
@@ -2593,6 +2938,14 @@
          </artifact>
          <artifact name="lifecycle-viewmodel-savedstate.aar">
             <sha256 value="19404239fa584322c2f81e9659e162bc011b746d29dc950a11d260624d83225e" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.lifecycle" name="lifecycle-viewmodel-savedstate-desktop" version="2.10.0">
+         <artifact name="lifecycle-viewmodel-savedstate-desktop-2.10.0.jar">
+            <sha256 value="92944597842a697623d0746d719d8af3acb9f4c780da611062fa60d993944d2c" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="lifecycle-viewmodel-savedstate-desktop-2.10.0.module">
+            <sha256 value="59b7367fbd82b74a6053291a12743cac0c2cf1fe96929378c51d82bf8fe9a95d" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.loader" name="loader" version="1.0.0">
@@ -2773,6 +3126,14 @@
             <sha256 value="d43832772012afa0d5c71d03153aef764f1c5f683fe7605f0db77cada8515102" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.navigation" name="navigation-common-jvmstubs" version="2.9.8">
+         <artifact name="navigation-common-jvmstubs-2.9.8.jar">
+            <sha256 value="bae2ec95b8c2be2b412e60773ba966d8fae97e1ae580efc5e1e7ae2c91900922" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="navigation-common-jvmstubs-2.9.8.module">
+            <sha256 value="62625991fad1d02f921863c1befb999f3099849beb7f73a6beec49d077114c28" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.navigation" name="navigation-compose" version="2.9.7">
          <artifact name="navigation-compose-2.9.7.module">
             <sha256 value="d8fdf83cc03daa967816569efff20402f951afd81ef1d5117b949644009a2af9" origin="Generated by Gradle"/>
@@ -2797,6 +3158,14 @@
          </artifact>
          <artifact name="navigation-compose-release.aar">
             <sha256 value="53dccc442276cde3898751f53fcc869f335340fd677fb1ca5c6c0abc0575d180" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.navigation" name="navigation-compose-jvmstubs" version="2.9.8">
+         <artifact name="navigation-compose-jvmstubs-2.9.8.jar">
+            <sha256 value="92daf3247dc07817f4eb028bec8196d4a2e9759487570724b941f265ef172f25" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="navigation-compose-jvmstubs-2.9.8.module">
+            <sha256 value="f883d58d73cfa273a6f31ece38bf227fd9846929cea5f6c70e5d36c0514e178b" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.navigation" name="navigation-runtime" version="2.9.7">
@@ -2825,9 +3194,22 @@
             <sha256 value="7d741a3b0a299a8c8990712009c63bfca8d52d060afe8f5ad9c200619f113237" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.navigation" name="navigation-runtime-jvmstubs" version="2.9.8">
+         <artifact name="navigation-runtime-jvmstubs-2.9.8.jar">
+            <sha256 value="28a68c1219cd2111f34700784b89f8e652cdb655893b7217474685b57538e4e8" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="navigation-runtime-jvmstubs-2.9.8.module">
+            <sha256 value="9b5857ecd804271709ac5ba23e2604fe82fc6067c3b8f21751e2110247fe8a88" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.navigationevent" name="navigationevent" version="1.0.0">
          <artifact name="navigationevent-1.0.0.module">
             <sha256 value="f33f1e030a0a7d10aab608a5a5d3ff70d25df325ce825ca204aa19c0e0578b53" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.navigationevent" name="navigationevent" version="1.0.1">
+         <artifact name="navigationevent-1.0.1.module">
+            <sha256 value="36b448d7126c496d9b12bcab28dcd682ec48ec83fac7e562cd2e4b652781ef11" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.navigationevent" name="navigationevent-android" version="1.0.0">
@@ -2843,12 +3225,43 @@
             <sha256 value="a51c8f63cb5f188561903d8f2ef1496d9eff57e7acddf87d56859b09859baaaf" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.navigationevent" name="navigationevent-compose" version="1.0.1">
+         <artifact name="navigationevent-compose-1.0.1.module">
+            <sha256 value="2802d477a0f0f4267dfafa3231177682c6acc43a2e113eaf37b86002a1c5c117" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.navigationevent" name="navigationevent-compose-android" version="1.0.0">
          <artifact name="navigationevent-compose-android-1.0.0.module">
             <sha256 value="38e11be3d6d544e1a00b987f74f56db52f77bbd4a1344f022c36c52f014e162f" origin="Generated by Gradle"/>
          </artifact>
          <artifact name="navigationevent-compose.aar">
             <sha256 value="5cee018dbe130b538d2c43cc6f383a109a98f19ba9c8d7a6dda8ca90a2034671" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.navigationevent" name="navigationevent-compose-jvmstubs" version="1.0.0">
+         <artifact name="navigationevent-compose-jvmstubs-1.0.0.module">
+            <sha256 value="0c822b76bf1e442fe2844dc91ac8a4cf68d60af988ac2768cd02bb75d55af315" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.navigationevent" name="navigationevent-compose-jvmstubs" version="1.0.1">
+         <artifact name="navigationevent-compose-jvmstubs-1.0.1.jar">
+            <sha256 value="179d61de7c231d81bb4e4cb7f857b3b6a75a0905faccff5ad903907c51ef2db2" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="navigationevent-compose-jvmstubs-1.0.1.module">
+            <sha256 value="f6c829e19b188804267224cb717f1ef8ce08381d7ccaef2135b9e0c50f56971b" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.navigationevent" name="navigationevent-desktop" version="1.0.0">
+         <artifact name="navigationevent-desktop-1.0.0.module">
+            <sha256 value="1b6c45bfb1ee916d2136a88c9d1d5c89b6861932955fee391981ce84f5b1d178" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.navigationevent" name="navigationevent-desktop" version="1.0.1">
+         <artifact name="navigationevent-desktop-1.0.1.jar">
+            <sha256 value="43deeb5774fd737fa945e09a47f93b6f1a508d17fac8f3b65f1c863e7f7d0660" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="navigationevent-desktop-1.0.1.module">
+            <sha256 value="909e3a53b8760751d79aef5865f4bf491a16095d9e1afbdfb9e48ac68bd1fc68" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.palette" name="palette" version="1.0.0">
@@ -2889,6 +3302,9 @@
          </artifact>
       </component>
       <component group="androidx.profileinstaller" name="profileinstaller" version="1.4.0">
+         <artifact name="profileinstaller-1.4.0.aar">
+            <sha256 value="d502141fcce902430f62b674c32aecd0f75262e7ee2cd15c74adb617cd13130a" origin="Generated by Gradle"/>
+         </artifact>
          <artifact name="profileinstaller-1.4.0.module">
             <sha256 value="39bf997a28d8eed2cb319819f6f352a1ba3a78b9c979004fbe05e26b8f7d160b" origin="Generated by Gradle"/>
          </artifact>
@@ -2999,6 +3415,14 @@
             <sha256 value="3293575082024fa0a92b081c4e2d0609f14b5c109635ec227bc509db141a4e20" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.room" name="room-runtime-jvm" version="2.8.4">
+         <artifact name="room-runtime-jvm-2.8.4.jar">
+            <sha256 value="de8b2064b7da20b09df6e563d05a001fa13f4c07a0ea6f398a9d37e7becaa903" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="room-runtime-jvm-2.8.4.module">
+            <sha256 value="1c44bf33901c9aca2c7fafa71fab0cf49ef3b5a3228a5fe0271eac60936d0077" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.savedstate" name="savedstate" version="1.2.1">
          <artifact name="savedstate-1.2.1.module">
             <sha256 value="5bb656fc760d9e3996b535160cbb4106033c9f736e9089e6ef4eb0c669785066" origin="Generated by Gradle" reason="Artifact is not signed"/>
@@ -3070,6 +3494,37 @@
             <sha256 value="0f0ae3032d6c6eea834ee22179c8976160d09d841d30e47f53f56b1b3438774b" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.savedstate" name="savedstate-compose-desktop" version="1.3.2">
+         <artifact name="savedstate-compose-desktop-1.3.2.module">
+            <sha256 value="c98b1c15495468d63d592be4048a347949a5715a4f86ed3227cc902778ea64c4" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.savedstate" name="savedstate-compose-desktop" version="1.4.0">
+         <artifact name="savedstate-compose-desktop-1.4.0.jar">
+            <sha256 value="c02a98b0c2b35cdde245c0bfe6e7ff453c7b6d06a5eb8681d25b7f54b874ea48" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="savedstate-compose-desktop-1.4.0.module">
+            <sha256 value="808ff723a153acce160489a5bc4b58ca1d7033fe84a9060f52d17db227eaa4cd" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.savedstate" name="savedstate-compose-jvmstubs" version="1.3.0">
+         <artifact name="savedstate-compose-jvmstubs-1.3.0.module">
+            <sha256 value="7d1e95ef376b3b5c528c579d461ea88ccea6ce15946bff9085af59f11116113f" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.savedstate" name="savedstate-desktop" version="1.3.0">
+         <artifact name="savedstate-desktop-1.3.0.module">
+            <sha256 value="180c795ce754b3478ddf443d87481811bfc957dabc1cc2e8432af9ec634a309b" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.savedstate" name="savedstate-desktop" version="1.4.0">
+         <artifact name="savedstate-desktop-1.4.0.jar">
+            <sha256 value="e965ed7a011be83a271ac7d82249a776368479ee3a2b07948c3445b51d640856" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="savedstate-desktop-1.4.0.module">
+            <sha256 value="e73f2cf8818ece347d8b5dff990d0db639a7dfb8fcc85eeecb2618383f7ecef7" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.savedstate" name="savedstate-ktx" version="1.2.1">
          <artifact name="savedstate-ktx-1.2.1.module">
             <sha256 value="94359184b2ba51c0f498a2b9055d37b372231ef9bcc54a4972ac99f0303afff1" origin="Generated by Gradle" reason="Artifact is not signed"/>
@@ -3122,6 +3577,14 @@
          </artifact>
          <artifact name="sqlite-framework.aar">
             <sha256 value="b19125c7fff34222e0f380361fc179ab214e4d82e1a50b0c068ca26c851a6231" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.sqlite" name="sqlite-jvm" version="2.6.2">
+         <artifact name="sqlite-jvm-2.6.2.jar">
+            <sha256 value="53b050b80e666228a12a0ae72d49531b3d69615ba8fb62733f697f8fdc7fd6f3" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="sqlite-jvm-2.6.2.module">
+            <sha256 value="d1b165dd2bee90500733e4ad79024f5f590bfb3825682a894dfbd3274cefb0f8" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.startup" name="startup-runtime" version="1.1.1">
@@ -3228,6 +3691,14 @@
             <sha256 value="8e5d72e2bceef6ef807bc38834dbc7aa53177fd20da349f53dce5a4f2a028bbf" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.test.uiautomator" name="uiautomator" version="2.3.0">
+         <artifact name="uiautomator-2.3.0.aar">
+            <sha256 value="884c675c336b663f53a1d0de440642ee80d2bdf9d0049abdae2a3ecd5e6320fc" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="uiautomator-2.3.0.module">
+            <sha256 value="639b1bbaae4eaa538675ba9866a55888e08d640440f0911e26667553b2af3f71" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="androidx.tracing" name="tracing" version="1.0.0">
          <artifact name="tracing-1.0.0.module">
             <sha256 value="fc8b21ebe5fa3a7c96ee098bcdcd00f077ebce73f243fa858e2b0671615f75d8" origin="Generated by Gradle" reason="Artifact is not signed"/>
@@ -3242,6 +3713,9 @@
          </artifact>
       </component>
       <component group="androidx.tracing" name="tracing" version="1.2.0">
+         <artifact name="tracing-1.2.0.aar">
+            <sha256 value="6faa90390d1fdbf0adb9a99bf99de67b94c6c6f35aea9510593a9d17973736a2" origin="Generated by Gradle"/>
+         </artifact>
          <artifact name="tracing-1.2.0.module">
             <sha256 value="d0d8d486b6bd33206dbf3f1a6d167e9b43c268ea63c3321c886b1543ad05ece3" origin="Generated by Gradle"/>
          </artifact>
@@ -3259,7 +3733,23 @@
             <sha256 value="f59782bbe3470a6b0c531cef262dd1fc9d9a0233490bb5e6d553e1fe6a1816b2" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="androidx.tracing" name="tracing-ktx" version="1.0.0">
+         <artifact name="tracing-ktx-1.0.0.module">
+            <sha256 value="f426e636a23a05db8c7fabf2b959f4dab80c9ca97b5131bf411d422555c48c18" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
+      </component>
+      <component group="androidx.tracing" name="tracing-ktx" version="1.1.0">
+         <artifact name="tracing-ktx-1.1.0.aar">
+            <sha256 value="914d8c83aa16455d431b5b3af306cef0eb0a0bfd6550d097e39ad475435bf56c" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
+         <artifact name="tracing-ktx-1.1.0.module">
+            <sha256 value="6ec8aa998df9b964424c7ab215738237a9b2cc4301da135bb9b8cdc62325fb3e" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
+      </component>
       <component group="androidx.tracing" name="tracing-ktx" version="1.2.0">
+         <artifact name="tracing-ktx-1.2.0.aar">
+            <sha256 value="c33f9cbd931e6190ca38aa09bf8a7a8a19391d4b0fb7a7605a6b59f2d42580d1" origin="Generated by Gradle"/>
+         </artifact>
          <artifact name="tracing-ktx-1.2.0.module">
             <sha256 value="39288b23c71a4391132aec9951f5e27f41727a2cdff69c6e4b4ece49f63e540c" origin="Generated by Gradle"/>
          </artifact>
@@ -3270,6 +3760,30 @@
          </artifact>
          <artifact name="tracing-ktx-1.3.0.module">
             <sha256 value="1b1764d7d684a5743fd34c1a68714185439ea95f9d417bd6c5ea5fc9f8af2147" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.tracing" name="tracing-perfetto" version="1.0.0">
+         <artifact name="tracing-perfetto-1.0.0.aar">
+            <sha256 value="a9a21fb415cc42497216004f4a35dc45f3158e4ba5ea1a01b449a20180b25a5e" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="tracing-perfetto-1.0.0.module">
+            <sha256 value="c2ae89cb6f81abf51cae72f6a0e5e091267a9ab0b381d2bd30d66fb9b8c5e692" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.tracing" name="tracing-perfetto-binary" version="1.0.0">
+         <artifact name="tracing-perfetto-binary-1.0.0.aar">
+            <sha256 value="e36809d054202758488687ec60ed81a3cbd87bd027a87f05aa3f64451e6d3098" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="tracing-perfetto-binary-1.0.0.module">
+            <sha256 value="7d113c1199223c2a13ac27a00b588b1aa9312663923edc4a2c70d28710f5d0e9" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.tracing" name="tracing-perfetto-handshake" version="1.0.0">
+         <artifact name="tracing-perfetto-handshake-1.0.0.jar">
+            <sha256 value="2f2ee5c58561d72cabe9207c43669fe92d6c1386f8c1c2624489e6ab367b121e" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="tracing-perfetto-handshake-1.0.0.module">
+            <sha256 value="baba97bfc2834fbd29275ce3e250ac814305bd0d4beb8b3594248424cc6ff385" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.transition" name="transition" version="1.6.0">
@@ -3332,6 +3846,14 @@
          </artifact>
          <artifact name="window-core.aar">
             <sha256 value="d0d50db0756194a6d49a66ad8dafd17b24b4c5fbd8379375056e2eb9bdfeaf22" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="androidx.window" name="window-core-jvm" version="1.5.0">
+         <artifact name="window-core-jvm-1.5.0.jar">
+            <sha256 value="c3bef837bbeb9caeb9ac2570ee015f6fa02cd80cdfa30a2e360f9671e60737e0" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="window-core-jvm-1.5.0.module">
+            <sha256 value="9ebdef127cace4bae5ba825fcfda9e5c0a1a6df96dc2057819de5795617da715" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="androidx.work" name="work-runtime" version="2.11.2">
@@ -3506,6 +4028,11 @@
          </artifact>
          <artifact name="baseLibrary-9.2.1.pom">
             <sha256 value="8ddbc65e26b82a4d56c2137717e9041b96159b691cfc65395fefdda85204b58b" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="com.android.test" name="com.android.test.gradle.plugin" version="9.2.1">
+         <artifact name="com.android.test.gradle.plugin-9.2.1.pom">
+            <sha256 value="65a6f81598ea0dba27df0182f45ff46d1e93850ef0be5a3d0a69e3f4e4f48d29" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="com.android.tools" name="annotations" version="32.1.0">
@@ -5153,6 +5680,7 @@
       </component>
       <component group="com.google.auto" name="auto-parent" version="6">
          <artifact name="auto-parent-6.pom">
+            <pgp value="6F7E5ACBCD02DB60DFD232E45E1F79A7C298661E"/>
             <sha256 value="05f740c6648165db00cf618dd56c200c4725e358e6d54f5853e0bec15734ea0a" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
          </artifact>
       </component>
@@ -5914,6 +6442,9 @@
          <artifact name="guava-33.3.1-android.module">
             <sha256 value="6971614ddeee003e54d2b69c6b0c94ce8a5b5eba980d16455c81df9089a7acb7" origin="Generated by Gradle"/>
          </artifact>
+         <artifact name="guava-33.3.1-jre.jar">
+            <sha256 value="4bf0e2c5af8e4525c96e8fde17a4f7307f97f8478f11c4c8e35a0e3298ae4e90" origin="Generated by Gradle" reason="Artifact is not signed"/>
+         </artifact>
       </component>
       <component group="com.google.guava" name="guava" version="33.3.1-jre">
          <artifact name="guava-33.3.1-jre.jar">
@@ -5982,6 +6513,9 @@
          </artifact>
       </component>
       <component group="com.google.guava" name="listenablefuture" version="1.0">
+         <artifact name="listenablefuture-1.0.jar">
+            <sha256 value="e4ad7607e5c0477c6f890ef26a49cb8d1bb4dffb650bab4502afee64644e3069" origin="Generated by Gradle"/>
+         </artifact>
          <artifact name="listenablefuture-1.0.pom">
             <sha256 value="53873caf26bc1ed8a567ea6c939ab2aaa3f47a5e32d5cade95ddf5080d23238a" origin="Generated by Gradle"/>
          </artifact>
@@ -6304,6 +6838,14 @@
             <sha256 value="3e6fb1c5608f2e1a29583a51db278c9f621e9dec462f7334bf57d49436c963b2" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="com.mikepenz.hypnoticcanvas" name="hypnoticcanvas-jvm" version="0.4.1">
+         <artifact name="hypnoticcanvas-jvm-0.4.1.module">
+            <sha256 value="7b178f996a66ae52f913740da86154acba83bc7ac0ea8551cb8be2565b28fa6e" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="hypnoticcanvas-jvm.jar">
+            <sha256 value="97ac68800175aaf3d21eb545cd089487935aec3f6b155c1a64d384995b259d20" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="com.mikepenz.hypnoticcanvas" name="hypnoticcanvas-shaders" version="0.4.1">
          <artifact name="hypnoticcanvas-shaders-0.4.1.module">
             <sha256 value="060f9b30c01395572abf5a26468b5318ac6f3addf6cb8b08c07bcf5ca63c1d98" origin="Generated by Gradle"/>
@@ -6315,6 +6857,14 @@
          </artifact>
          <artifact name="hypnoticcanvas-shaders-release.aar">
             <sha256 value="e8a027801f4037ddb511103f6b1e0eacf5ac545c347ba413d596f1e9a4850251" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="com.mikepenz.hypnoticcanvas" name="hypnoticcanvas-shaders-jvm" version="0.4.1">
+         <artifact name="hypnoticcanvas-shaders-jvm-0.4.1.module">
+            <sha256 value="495243fb571dbc2b9dcdf152c03669a9a2f75f83b28acf60c40807704963d9de" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="hypnoticcanvas-shaders-jvm.jar">
+            <sha256 value="dc008a789ebbc1443e30e21e1a088f7ac3b950f974ad2d028fde4c1e64d81027" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="com.pinterest.ktlint" name="ktlint-cli" version="1.5.0">
@@ -6610,6 +7160,14 @@
             <sha256 value="52a8fef5c31eda7c6f7943ee9c9ef4cef2e448ea69a8857c213a96e074f966fc" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="com.squareup.moshi" name="moshi" version="1.13.0">
+         <artifact name="moshi-1.13.0.jar">
+            <sha256 value="bd004dd9ba175e603ad44420bf605250291b9b7bc6b9d9e916f5741ac8663307" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="moshi-1.13.0.module">
+            <sha256 value="dc5640e1a802012f7cf7171dab8a340d52e7714661a9d9dbb0b36788f1db04fc" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="com.squareup.okhttp3" name="logging-interceptor" version="5.3.2">
          <artifact name="logging-interceptor-5.3.2.jar">
             <sha256 value="86574a5e35f483e6d6ba97beaf84420996dffca19f4d5cf3a41636365d403239" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
@@ -6663,6 +7221,19 @@
             <sha256 value="8755d340671f908ef601ed1250a7c2360fe8f9f358df635bfeece96dd3845ce8" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
          </artifact>
       </component>
+      <component group="com.squareup.okhttp3" name="okhttp-jvm" version="5.3.2">
+         <artifact name="okhttp-jvm-5.3.2.jar">
+            <sha256 value="c771f48075b763f6c322055e21129a94b7de4c1faf3f8f58ace320b0c9517a30" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="okhttp-jvm-5.3.2.module">
+            <sha256 value="39130cf6065280d90de2e827350c3170bb55eb2f4835c2b4416f3b83b1f1ab85" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="com.squareup.okio" name="okio" version="2.10.0">
+         <artifact name="okio-2.10.0.module">
+            <sha256 value="11cbeabc3a765c9a803242fa2024a11853eb0865da536c4b05afdcdbb2346370" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="com.squareup.okio" name="okio" version="3.16.4">
          <artifact name="okio-3.16.4.module">
             <sha256 value="c8441a8726db1a4f9d4f39e068ebb42df6a59d647e32a9c61c15b5390ed59252" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
@@ -6679,6 +7250,14 @@
          </artifact>
          <artifact name="okio-jvm-3.16.4.module">
             <sha256 value="9008d5a2954a068c6848274f6eebdff48b14a70dbc693d3302e08c570cca032f" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
+         </artifact>
+      </component>
+      <component group="com.squareup.okio" name="okio-jvm" version="3.9.1">
+         <artifact name="okio-jvm-3.9.1.jar">
+            <sha256 value="fe6fe91378f9bfa7b08c3864828ce418005cf28acca12e8847eb65c565c37500" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="okio-jvm-3.9.1.module">
+            <sha256 value="b0afa9192c42d7c463de38d6325936c6901d9e3b7149735ffd18a11df31034ab" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="com.squareup.retrofit2" name="converter-kotlinx-serialization" version="3.0.0">
@@ -6703,6 +7282,19 @@
          </artifact>
          <artifact name="retrofit-3.0.0.module">
             <sha256 value="3de52829b898215534e86eda268da449ffcbf95b18703da529d99883277484f7" origin="Generated by Gradle" reason="A key couldn't be downloaded"/>
+         </artifact>
+      </component>
+      <component group="com.squareup.wire" name="wire-runtime" version="5.2.1">
+         <artifact name="wire-runtime-5.2.1.module">
+            <sha256 value="8ab81d1979d886d962a60b56f254590de381344b82559df3303478ff9e631232" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="com.squareup.wire" name="wire-runtime-jvm" version="5.2.1">
+         <artifact name="wire-runtime-jvm-5.2.1.jar">
+            <sha256 value="da392e28917a7467dae41f50323d453722f2a66b95d479c1ac565b09b056e697" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="wire-runtime-jvm-5.2.1.module">
+            <sha256 value="503c86cf21c0d68505778f3c8c512cc590c9fb6f9c15803fd71fc5003822ecdc" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="com.sun.activation" name="all" version="1.2.1">
@@ -6800,6 +7392,14 @@
          </artifact>
          <artifact name="haze-release.aar">
             <sha256 value="829805ba35bbd5099e6ef1ee8f27d231b9f5cce02ab62624152e88681e0179dd" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="dev.chrisbanes.haze" name="haze-jvm" version="1.7.2">
+         <artifact name="haze-jvm-1.7.2.module">
+            <sha256 value="cb6ea28fb25b2fb307bdf163adf8ff314c2e06923c69451a2dbb3a84ff5dd3fe" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="haze-jvm.jar">
+            <sha256 value="e9d046752b71d878c64707a3f53858f6be29cd1a74122e148a0c5f7899544fa1" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="dev.detekt" name="detekt-api" version="2.0.0-alpha.2">
@@ -7293,6 +7893,22 @@
             <sha256 value="0fab11c7f0cd158ed4cb39526b3d8c6c8b18b97a87195daf160ed40df9b2fd1b" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="io.coil-kt.coil3" name="coil-compose-core-jvm" version="3.4.0">
+         <artifact name="coil-compose-core-jvm-3.4.0.jar">
+            <sha256 value="519a471a2641ed5256d39da851b178aaff327c9fa2350622faeb44eeb18ed397" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="coil-compose-core-jvm-3.4.0.module">
+            <sha256 value="0c72e26d8540fc737c9051c684055086533f5139a0727bad7373d61789276008" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="io.coil-kt.coil3" name="coil-compose-jvm" version="3.4.0">
+         <artifact name="coil-compose-jvm-3.4.0.jar">
+            <sha256 value="1d895790033916955e6cc5b83575f9628cc737a29a55484d7c3cc2f3a6b3ed65" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="coil-compose-jvm-3.4.0.module">
+            <sha256 value="eb028f485b79be9f455dafdd9ef9d244e602021327dc69397debbd00fa538580" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="io.coil-kt.coil3" name="coil-core" version="3.4.0">
          <artifact name="coil-core-3.4.0.module">
             <sha256 value="ea21e0ef10b64f13261fc2fa680214ded4894e3be9f98532edfb148b5abc1e37" origin="Generated by Gradle"/>
@@ -7304,6 +7920,22 @@
          </artifact>
          <artifact name="coil-core.aar">
             <sha256 value="0b704b01a8338bf95cf8364497671f57fdbf127786c3041590a2c33582036084" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="io.coil-kt.coil3" name="coil-core-jvm" version="3.4.0">
+         <artifact name="coil-core-jvm-3.4.0.jar">
+            <sha256 value="55ca8ad78187c29b99e1e27d64bd534a25cf53ea28cf786cd622044a22aa3571" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="coil-core-jvm-3.4.0.module">
+            <sha256 value="42e6d87706824ab681370be5a45d6149b28935be2b1c9d6111621b48e60b55d2" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="io.coil-kt.coil3" name="coil-jvm" version="3.4.0">
+         <artifact name="coil-jvm-3.4.0.jar">
+            <sha256 value="16e44c1581bd7c573330d4c831453d81d2ca5065ad819c45cae8ff9641317a94" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="coil-jvm-3.4.0.module">
+            <sha256 value="dbd7752685a7f6ae9d459a7c5c645421c39cf91f36136d0325dae4fbab2c3965" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="io.coil-kt.coil3" name="coil-network-core" version="3.4.0">
@@ -7319,6 +7951,14 @@
             <sha256 value="2a453b4b11a0ee986b4af37f5c7b17e1d97ead9c62caa5b8eeaffabeccdb8a59" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="io.coil-kt.coil3" name="coil-network-core-jvm" version="3.4.0">
+         <artifact name="coil-network-core-jvm-3.4.0.jar">
+            <sha256 value="a5e9dd9f09466bdaa5770022064fbd9c01cfd67229a3568b1664a97a9d131bff" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="coil-network-core-jvm-3.4.0.module">
+            <sha256 value="d0f0568c403692befa3746ab74be198698eedb8ed54b903727261360f2ab81e6" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="io.coil-kt.coil3" name="coil-network-okhttp" version="3.4.0">
          <artifact name="coil-network-okhttp-3.4.0.module">
             <sha256 value="da86fbcb43b490ef194d40abefc53e6c977563c7339301a768215f7f5e91bf05" origin="Generated by Gradle"/>
@@ -7330,6 +7970,14 @@
          </artifact>
          <artifact name="coil-network-okhttp.aar">
             <sha256 value="9fd5791c34031d101bec95f44ba6e9e074c9f3da4fb5e5c132c260f7f8b1cb77" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="io.coil-kt.coil3" name="coil-network-okhttp-jvm" version="3.4.0">
+         <artifact name="coil-network-okhttp-jvm-3.4.0.jar">
+            <sha256 value="9693184ba35fbdee0cac644d475141076ad789e349d92126c7addbc7b89bdc2b" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="coil-network-okhttp-jvm-3.4.0.module">
+            <sha256 value="00d59ec47f3af82a1554b4da1a92e6cdcbd6c6b3baa60c90a5f190445b1a90ce" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="io.github.detekt.sarif4k" name="sarif4k" version="0.5.0">
@@ -8500,6 +9148,14 @@
             <sha256 value="80030c6408a8f20b1955787e1a613cb69f05876eaf5b9185fbe159480c0f6721" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="org.jetbrains.androidx.lifecycle" name="lifecycle-runtime-compose-desktop" version="2.9.6">
+         <artifact name="lifecycle-runtime-compose-desktop-2.9.6.jar">
+            <sha256 value="31c3c4b6dea38f078c46829dee2c43abba2bf8757b7ee8a0f660f31217364898" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="lifecycle-runtime-compose-desktop-2.9.6.module">
+            <sha256 value="878bf8a861fb87834df37e1eba73fde3a592115fc0d7ba66ea23e1915728331e" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="org.jetbrains.androidx.lifecycle" name="lifecycle-viewmodel" version="2.9.6">
          <artifact name="lifecycle-viewmodel-2.9.6.module">
             <sha256 value="24cbfc3653759275e49cbf5697be3c2fe7c4a6a1c1ca4f825805a4f3611b6095" origin="Generated by Gradle"/>
@@ -8518,6 +9174,14 @@
       <component group="org.jetbrains.androidx.savedstate" name="savedstate-compose" version="1.3.6">
          <artifact name="savedstate-compose-1.3.6.module">
             <sha256 value="afc3e5bd44604ea9ca610c23405a096b4089d62cd346797d339ff5e2c8a0e5b4" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="org.jetbrains.androidx.savedstate" name="savedstate-compose-desktop" version="1.3.6">
+         <artifact name="savedstate-compose-desktop-1.3.6.jar">
+            <sha256 value="0f3d045c5fd7e1301ab6c38cd0778067b0484cf39acac1233be71a723a6a8075" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="savedstate-compose-desktop-1.3.6.module">
+            <sha256 value="92b8dc079901866c1b520c750c31e0851b504995247dadf2bb51cf70b80ef698" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="org.jetbrains.compose.animation" name="animation" version="1.10.0">
@@ -8540,6 +9204,22 @@
             <sha256 value="fffd8999fe0c7aa2c62fe176a4645bc71b251f8f892bc7c1c1c6d9155eaf2cb2" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="org.jetbrains.compose.animation" name="animation-core-desktop" version="1.10.0">
+         <artifact name="animation-core-desktop-1.10.0.jar">
+            <sha256 value="41c0220ddbc55cb897feb0d5816b748f9c11162171f12743c04b50d0d84db628" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="animation-core-desktop-1.10.0.module">
+            <sha256 value="2df625008ff4a194155399521ffb251303832c794e07cbd2ae8f6687dc0c6111" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="org.jetbrains.compose.animation" name="animation-desktop" version="1.10.0">
+         <artifact name="animation-desktop-1.10.0.jar">
+            <sha256 value="3ec5254288b1e872263009221f677063ea728f90969598f399a5b02500ebc014" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="animation-desktop-1.10.0.module">
+            <sha256 value="6c840bbc2601a5894297c35f8309f8589dc365273051a029e2daf1d2fbe130f2" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="org.jetbrains.compose.annotation-internal" name="annotation" version="1.10.0">
          <artifact name="annotation-1.10.0.module">
             <sha256 value="1cbfae413d80c8a1583b334ff579efbc2f280cb723d911c0e241447f34b5e36c" origin="Generated by Gradle"/>
@@ -8560,6 +9240,14 @@
             <sha256 value="5cc2c2b54d779d99428d97208dff6672525ef0f058d1bfb717bb3c70da2956be" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="org.jetbrains.compose.foundation" name="foundation-desktop" version="1.10.0">
+         <artifact name="foundation-desktop-1.10.0.jar">
+            <sha256 value="f988ef9d9517dc26b360943349bf1412d5735beb8ecf4f5304f10ecfe6ca05db" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="foundation-desktop-1.10.0.module">
+            <sha256 value="8b5d4d6f4bece2fd24e6705674c7e9fe4527f8dac20a7b6c7ab288fc880229e6" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="org.jetbrains.compose.foundation" name="foundation-layout" version="1.10.0">
          <artifact name="foundation-layout-1.10.0.module">
             <sha256 value="f7670b5ce838f56a2a2851167c2141fc7f16a14a0dd302673596d7b7517305bc" origin="Generated by Gradle"/>
@@ -8570,9 +9258,25 @@
             <sha256 value="042d60633936f03fbce9dbce8bae835c6de647f6566aab655219af780a4f078a" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="org.jetbrains.compose.foundation" name="foundation-layout-desktop" version="1.10.0">
+         <artifact name="foundation-layout-desktop-1.10.0.jar">
+            <sha256 value="bd086a9f5ce453967ea1124bb709612bca14a4fbb6522a6023092a8866ee4ef0" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="foundation-layout-desktop-1.10.0.module">
+            <sha256 value="49f3e86f0765c8389ef29ba4e174c35bba6d2e6824fdb9243e2207a0355f3e23" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="org.jetbrains.compose.runtime" name="runtime" version="1.10.0">
          <artifact name="runtime-1.10.0.module">
             <sha256 value="ad4b851419d59f25527c06c7bbcf47db27abb33ff1aa56e962330c8af0a72158" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="org.jetbrains.compose.runtime" name="runtime-desktop" version="1.10.0">
+         <artifact name="runtime-desktop-1.10.0.jar">
+            <sha256 value="05f5570c0a7ea8addd6fe9507a70f293efa7f1450d8b9b16dc3c8fee21cc6127" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="runtime-desktop-1.10.0.module">
+            <sha256 value="99c0d63523914ca3298e96f69ed5e98c3255ebc9249a497dea834f9f35bc5dc4" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="org.jetbrains.compose.runtime" name="runtime-saveable" version="1.10.0">
@@ -8580,9 +9284,38 @@
             <sha256 value="6ab8feb4d43fa39a99328698e4d14793e8aeea709c5a661ce1b0df62491b63e1" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="org.jetbrains.compose.runtime" name="runtime-saveable-desktop" version="1.10.0">
+         <artifact name="runtime-saveable-desktop-1.10.0.jar">
+            <sha256 value="eb7132b55de2b0913736fdff4705022803e455810f018efecc9eb3230936520a" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="runtime-saveable-desktop-1.10.0.module">
+            <sha256 value="e32edcd9cc7abc07bfc80fc5ebb683a79b80d8d85d45c58950cec5bcbf046725" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="org.jetbrains.compose.ui" name="ui" version="1.10.0">
          <artifact name="ui-1.10.0.module">
             <sha256 value="b05e39605c49a863bb0f5a78b8c634dad92c4615c52a38d4bc43f10181658f7c" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="org.jetbrains.compose.ui" name="ui-backhandler" version="1.10.0">
+         <artifact name="ui-backhandler-1.10.0.module">
+            <sha256 value="294e166f4dff1bef1159a65817e569f7aceb49c61a5a7e122bfae9e912437272" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="org.jetbrains.compose.ui" name="ui-backhandler-desktop" version="1.10.0">
+         <artifact name="ui-backhandler-desktop-1.10.0.jar">
+            <sha256 value="1babf68f5a05cbe1ba8cf934f0e575bb0d0b184444514e6aa7ec1f8004c9ce33" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="ui-backhandler-desktop-1.10.0.module">
+            <sha256 value="07ab02a9f49aeef2c721f04374b999bf8272a06c687f24339b9b8bc7432e45ba" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="org.jetbrains.compose.ui" name="ui-desktop" version="1.10.0">
+         <artifact name="ui-desktop-1.10.0.jar">
+            <sha256 value="c699d8571082a7f507fbede0b9d567c661f47013a4f3f9b68109b8a0bd828ea8" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="ui-desktop-1.10.0.module">
+            <sha256 value="5eb5998b43aaf4793a243a2e02a5559e63b5ba78be416633730a2d4db5c2b599" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="org.jetbrains.compose.ui" name="ui-geometry" version="1.10.0">
@@ -8590,9 +9323,25 @@
             <sha256 value="0f68b7c9adadf2512e08524d0ea538b87e3ab71dd689e6b7f4fdde091ba65a45" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="org.jetbrains.compose.ui" name="ui-geometry-desktop" version="1.10.0">
+         <artifact name="ui-geometry-desktop-1.10.0.jar">
+            <sha256 value="cdbfdabccac8abef2d9bc0420ec0c4be7a880f6d26b2d1cc4e2317c0d252ee27" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="ui-geometry-desktop-1.10.0.module">
+            <sha256 value="1fa4e26f1426f2b2bc9e67708e3eb306b454ed33a2b372fb1a0969c64814e5fb" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="org.jetbrains.compose.ui" name="ui-graphics" version="1.10.0">
          <artifact name="ui-graphics-1.10.0.module">
             <sha256 value="d611813323c278a89d46d53aef615fb91ef1f28005e64afa4084bbcec79b436e" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="org.jetbrains.compose.ui" name="ui-graphics-desktop" version="1.10.0">
+         <artifact name="ui-graphics-desktop-1.10.0.jar">
+            <sha256 value="d1710a4a15b115fc4c37878b32b10a476a0ec3b8399fa1fb588181dba83dbdd2" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="ui-graphics-desktop-1.10.0.module">
+            <sha256 value="41c638a3463593dc329a7d0865ee43f9bd4b4bde3cef7ba098e9563277e30fff" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="org.jetbrains.compose.ui" name="ui-text" version="1.10.0">
@@ -8600,14 +9349,38 @@
             <sha256 value="cbbe241ed3af96b6ff6413da541066142d668080d9c0c459b764a3e16e4dde08" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="org.jetbrains.compose.ui" name="ui-text-desktop" version="1.10.0">
+         <artifact name="ui-text-desktop-1.10.0.jar">
+            <sha256 value="6ee18433659f389621386e759217b3ed5ef0f1e22ea177cad705457dc75aa27b" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="ui-text-desktop-1.10.0.module">
+            <sha256 value="a1764999bc5af94f1471a58dd3b063d9d91faea33808013b7cfa470309310c51" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="org.jetbrains.compose.ui" name="ui-unit" version="1.10.0">
          <artifact name="ui-unit-1.10.0.module">
             <sha256 value="3ce0ca97086a9c0ddba822b1ed0eccfe7e4070d642ad000d53aeda3db416a0f4" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="org.jetbrains.compose.ui" name="ui-unit-desktop" version="1.10.0">
+         <artifact name="ui-unit-desktop-1.10.0.jar">
+            <sha256 value="f0f3439928b3d9132f07cb2d7a86091696372ebc8354d16b48830b6ce15e8161" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="ui-unit-desktop-1.10.0.module">
+            <sha256 value="9793c2128ad75e64e621587aaad0e77de9921027e336b91e8a0baa00e7950b4c" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="org.jetbrains.compose.ui" name="ui-util" version="1.10.0">
          <artifact name="ui-util-1.10.0.module">
             <sha256 value="beff59eadd3d8945bf6d95ba207946f792491f16cb57999cd7bd977d1a9bd288" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="org.jetbrains.compose.ui" name="ui-util-desktop" version="1.10.0">
+         <artifact name="ui-util-desktop-1.10.0.jar">
+            <sha256 value="7bfc93a8cad2974cdfd5a2c817e3083e0e3c48ef99e4dbba51eb98a14c92ed2d" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="ui-util-desktop-1.10.0.module">
+            <sha256 value="cddbe8960d23d6a0d50d0ea515afb853e6300fa705eb5e9579af0a8f6bbb862f" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="org.jetbrains.intellij.deps" name="trove4j" version="1.0.20200330">
@@ -9343,6 +10116,14 @@
             <sha256 value="be494907e0e19c78bb821154afa1776d5ad7a058b4ab30090f74354b0e1338de" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="org.jetbrains.kotlin" name="kotlin-stdlib-jdk7" version="2.2.20">
+         <artifact name="kotlin-stdlib-jdk7-2.2.20.jar">
+            <sha256 value="3bd26ecb6d12978c5c4e0b41f76c9ff551fac2a5e6268427a9d2a0cdf8a5ad91" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="kotlin-stdlib-jdk7-2.2.20.pom">
+            <sha256 value="0ae91e6afff0660efda2cf028c5bdb9e7a1e867e19dc2c8ebae89a82571438e2" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="org.jetbrains.kotlin" name="kotlin-stdlib-jdk7" version="2.3.0">
          <artifact name="kotlin-stdlib-jdk7-2.3.0.jar">
             <sha256 value="5886a23865e68668a235c25645f4e367e8b4b19b9b12098633fb0f74f1a554b1" origin="Generated by Gradle"/>
@@ -9402,6 +10183,14 @@
          </artifact>
          <artifact name="kotlin-stdlib-jdk8-2.2.10.pom">
             <sha256 value="2569cf5a980724f140157501db36dffab919cd0d443d2e14b5a35a2f96f84fac" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="org.jetbrains.kotlin" name="kotlin-stdlib-jdk8" version="2.2.20">
+         <artifact name="kotlin-stdlib-jdk8-2.2.20.jar">
+            <sha256 value="c314177935d8dc2eda879507117f25d6de56f6c57ede99416b14cd622bb9e09d" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="kotlin-stdlib-jdk8-2.2.20.pom">
+            <sha256 value="35d8ad6c19da57ab74d21ed81ddc58499b7c1b002511b5e852000dbb0c58abae" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="org.jetbrains.kotlin" name="kotlin-stdlib-jdk8" version="2.3.0">
@@ -9541,12 +10330,25 @@
             <sha256 value="5c876ef7e1ee07dd30721c43b46ead8eda23ce2b22260e70f933cbe004e80607" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="org.jetbrains.kotlinx" name="atomicfu" version="0.23.2">
+         <artifact name="atomicfu-0.23.2.module">
+            <sha256 value="51530de284967a15e211c98563ca9d2356899b8cb331704560b0645adeac6dc0" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="org.jetbrains.kotlinx" name="atomicfu-jvm" version="0.22.0">
          <artifact name="atomicfu-jvm-0.22.0.jar">
             <sha256 value="2da073727f3ab5e5584e74c12e11519c908ae2dfaf6aeb25ded42b6682297882" origin="Generated by Gradle"/>
          </artifact>
          <artifact name="atomicfu-jvm-0.22.0.module">
             <sha256 value="35070f923ce69f87c6f90e5305720e2704409b69a2374492ac45be70075ee49a" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="org.jetbrains.kotlinx" name="atomicfu-jvm" version="0.23.2">
+         <artifact name="atomicfu-jvm-0.23.2.jar">
+            <sha256 value="101ff43ff563fca167af5ade98c3b69bf569010eab745013b84d8955034d3b3c" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="atomicfu-jvm-0.23.2.module">
+            <sha256 value="f5fac91c373a0098e5ccae6221e89bb71a1490cf6a8949ee348d46ee1ca8d3a6" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="org.jetbrains.kotlinx" name="kotlinx-collections-immutable" version="0.4.0">
@@ -9576,6 +10378,14 @@
          </artifact>
          <artifact name="kotlinx-coroutines-android-1.11.0.module">
             <sha256 value="7b7d1dddf188817deaad738e92e11faa5abdf937c87120cdf036102566ad4be3" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="org.jetbrains.kotlinx" name="kotlinx-coroutines-android" version="1.8.1">
+         <artifact name="kotlinx-coroutines-android-1.8.1.jar">
+            <sha256 value="a134dacf4e6578b29b32e97aa50548d09cb45e3cb3551ce77ac27e55e265d8f5" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="kotlinx-coroutines-android-1.8.1.module">
+            <sha256 value="f00af0920cb7dc4611205ff592eec5aa0071bc959b3797026abfe43cf14bfad4" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="org.jetbrains.kotlinx" name="kotlinx-coroutines-bom" version="1.10.2">
@@ -9638,6 +10448,11 @@
             <sha256 value="144eecd5365de3e30d7b46226c058051e39955b5c189e31fa4c7cffb99d620ba" origin="Generated by Gradle"/>
          </artifact>
       </component>
+      <component group="org.jetbrains.kotlinx" name="kotlinx-coroutines-core" version="1.8.1">
+         <artifact name="kotlinx-coroutines-core-1.8.1.module">
+            <sha256 value="08cbaf3325b54e0f8ef8da85e4eb596f7d946f843e5d1600385463f3268a4ef0" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
       <component group="org.jetbrains.kotlinx" name="kotlinx-coroutines-core" version="1.9.0">
          <artifact name="kotlinx-coroutines-core-1.9.0.module">
             <sha256 value="ad534034a953b4e12cbeeb874c66adf8b1ca14df15fe0d2e6547aa34e86dfeca" origin="Generated by Gradle"/>
@@ -9684,6 +10499,9 @@
          </artifact>
       </component>
       <component group="org.jetbrains.kotlinx" name="kotlinx-coroutines-core-jvm" version="1.8.1">
+         <artifact name="kotlinx-coroutines-core-jvm-1.8.1.jar">
+            <sha256 value="f3d4f5de1c391bbcc20f3b3435ccbac013521e76b6902d7d59635ec15c1f797e" origin="Generated by Gradle"/>
+         </artifact>
          <artifact name="kotlinx-coroutines-core-jvm-1.8.1.module">
             <sha256 value="09b81c9d11c2deebf133ad87b707927c1f04099cb611ef008c7725b3eb308329" origin="Generated by Gradle"/>
          </artifact>
@@ -9947,6 +10765,27 @@
          </artifact>
          <artifact name="kotlinx-serialization-json-jvm-1.8.1.module">
             <sha256 value="b991cb493400c1d960badfa86217158c637e5eca8881b20cd0125bb4ecfcf831" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="org.jetbrains.runtime" name="jbr-api" version="1.5.0">
+         <artifact name="jbr-api-1.5.0.jar">
+            <sha256 value="657ede7d7f8e175c909b23caa10fcd4d4a511304fd938aa9cc8457b4378950d5" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="jbr-api-1.5.0.pom">
+            <sha256 value="fe3ce28aa4f419ad06704ad1ca82334d0e871667ca5b113c5157e7517ce1321e" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="org.jetbrains.skiko" name="skiko" version="0.9.37.3">
+         <artifact name="skiko-0.9.37.3.module">
+            <sha256 value="6dead4904dde59a9c69868f82b0ad1fefb64fae5a0e38ea3141c875dd95d9c5b" origin="Generated by Gradle"/>
+         </artifact>
+      </component>
+      <component group="org.jetbrains.skiko" name="skiko-awt" version="0.9.37.3">
+         <artifact name="skiko-awt-0.9.37.3.jar">
+            <sha256 value="cdfe998711c8f0fa84f21745ebcfe6d840d307c4ceea7f0dda3158be2bb2193d" origin="Generated by Gradle"/>
+         </artifact>
+         <artifact name="skiko-awt-0.9.37.3.module">
+            <sha256 value="55ef1cb4da6e71a41b832f7fb2a6af0a483f5bfdcf51f1eb9b14222c518c3b02" origin="Generated by Gradle"/>
          </artifact>
       </component>
       <component group="org.jlleitschuh.gradle" name="ktlint-gradle" version="14.2.0">

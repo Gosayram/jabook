@@ -393,7 +393,7 @@ public fun SettingsScreen(
             )
 
             if (isIndexing || indexSize > 0 || clearingInProgress) {
-                SettingsItem(
+                SettingsItemWithContent(
                     title =
                         if (clearingInProgress) {
                             stringResource(R.string.indexClearingTitle)
@@ -601,7 +601,7 @@ public fun SettingsScreen(
 
             // Scan Progress
             val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
-            SettingsItem(
+            SettingsItemWithContent(
                 title = stringResource(R.string.scan_library),
                 subtitle =
                     when (val p = scanProgress) {
@@ -706,7 +706,7 @@ public fun SettingsScreen(
                         it.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.DOWNLOADING
                     }
 
-                SettingsItem(
+                SettingsItemWithContent(
                     title = stringResource(R.string.active_downloads),
                     subtitle =
                         if (downloadCount > 0) {
@@ -1121,7 +1121,7 @@ public fun SettingsScreen(
                 itemSpacing = itemSpacing,
             )
 
-            SettingsItem(
+            SettingsItemWithContent(
                 title = stringResource(R.string.themeTitle),
                 subtitle = stringResource(R.string.chooseAppTheme),
             ) {
@@ -1149,7 +1149,7 @@ public fun SettingsScreen(
                 onClick = { openSystemLanguageSettings(context) },
             )
 
-            SettingsItem(
+            SettingsItemWithContent(
                 title = stringResource(R.string.fontTitle),
                 subtitle = stringResource(R.string.chooseFontFamily),
             ) {
@@ -1365,7 +1365,6 @@ internal fun SettingsItem(
     subtitle: String? = null,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
-    content: (@Composable () -> Unit)? = null,
 ) {
     ListItem(
         headlineContent = {
@@ -1374,24 +1373,57 @@ internal fun SettingsItem(
                 style = MaterialTheme.typography.bodyLarge,
             )
         },
-        supportingContent =
-            if (subtitle != null || content != null) {
-                {
-                    Column {
-                        subtitle?.let {
-                            Text(
-                                text = it,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                        content?.invoke()
-                    }
+        supportingContent = {
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable(onClick = onClick)
+                    } else {
+                        Modifier
+                    },
+                ),
+    )
+}
+
+@Composable
+internal fun SettingsItemWithContent(
+    title: String,
+    subtitle: String? = null,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    ListItem(
+        headlineContent = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        },
+        supportingContent = {
+            Column {
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
-            } else {
-                null
-            },
+                content()
+            }
+        },
         modifier =
             modifier
                 .fillMaxWidth()
@@ -1423,32 +1455,28 @@ internal fun SettingsSwitchItem(
                 style = MaterialTheme.typography.bodyLarge,
             )
         },
-        supportingContent =
-            subtitle?.let {
-                {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            },
+        supportingContent = {
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
         trailingContent = {
             Switch(
                 checked = checked,
                 onCheckedChange = null,
-                thumbContent =
+                thumbContent = {
                     if (checked) {
-                        {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                    } else {
-                        null
-                    },
+                        Icon(
+                            imageVector = Icons.Filled.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                },
             )
         },
         modifier =

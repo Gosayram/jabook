@@ -203,6 +203,7 @@ public class OfflineFirstBooksRepository
             val fallback = variants.getOrNull(1).orEmpty()
             val ftsMatchQuery = TransliterationSearchPolicy.buildFtsMatchQuery(variants)
 
+            // Fall back to LIKE queries if FTS is not available or query is blank
             if (ftsMatchQuery.isBlank()) {
                 return booksDao
                     .searchBooksFlowWithFallback(
@@ -214,22 +215,35 @@ public class OfflineFirstBooksRepository
                     }
             }
 
-            return booksDao
-                .searchBooksByFtsFlow(
-                    SimpleSQLiteQuery(
-                        """
-                        SELECT b.*
-                        FROM books b
-                        JOIN books_fts f ON b.rowid = f.rowid
-                        WHERE books_fts MATCH ?
-                        ORDER BY bm25(books_fts) ASC
-                        """.trimIndent(),
-                        arrayOf(ftsMatchQuery),
-                    ),
-                ).map {
-                    warnOnLargeResult(path = "searchBooksByFtsFlow", rowCount = it.size)
-                    it.toBooks()
-                }
+            // Try FTS query; fall back to LIKE if FTS table doesn't exist
+            return try {
+                booksDao
+                    .searchBooksByFtsFlow(
+                        SimpleSQLiteQuery(
+                            """
+                            SELECT b.*
+                            FROM books b
+                            JOIN books_fts f ON b.rowid = f.rowid
+                            WHERE books_fts MATCH ?
+                            ORDER BY bm25(books_fts) ASC
+                            """.trimIndent(),
+                            arrayOf(ftsMatchQuery),
+                        ),
+                    ).map {
+                        warnOnLargeResult(path = "searchBooksByFtsFlow", rowCount = it.size)
+                        it.toBooks()
+                    }
+            } catch (_: Exception) {
+                // FTS not available, fall back to LIKE queries
+                booksDao
+                    .searchBooksFlowWithFallback(
+                        query = primary,
+                        fallbackQuery = fallback,
+                    ).map {
+                        warnOnLargeResult(path = "searchBooksFlowWithFallback", rowCount = it.size)
+                        it.toBooks()
+                    }
+            }
         }
 
         private fun warnOnLargeResult(

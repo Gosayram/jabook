@@ -81,6 +81,12 @@ leanback = "1.2.0"
 # Firebase
 firebaseBom = "34.13.0"
 
+# Benchmark
+androidxBenchmark = "1.4.0"
+androidxTestRunner = "1.7.0"
+androidxTestRules = "1.7.0"
+androidxTestUiautomator = "2.4.0"
+
 # Testing
 junit = "4.13.2"
 kotlinTest = "2.3.21"
@@ -219,6 +225,10 @@ leakcanary-android = { group = "com.squareup.leakcanary", name = "leakcanary-and
 # Code Quality - Detekt API for custom rules
 detekt-api = { group = "dev.detekt", name = "detekt-api", version.ref = "detekt" }
 
+# Benchmark
+benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "androidxBenchmark" }
+benchmark-junit4 = { group = "androidx.benchmark", name = "benchmark-junit4", version.ref = "androidxBenchmark" }
+
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlinTest" }
@@ -239,6 +249,7 @@ androidx-test-runner = { group = "androidx.test", name = "runner", version.ref =
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }
+android-test = { id = "com.android.test", version.ref = "androidGradlePlugin" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

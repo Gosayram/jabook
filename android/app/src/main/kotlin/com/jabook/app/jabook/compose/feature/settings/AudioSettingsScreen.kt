@@ -118,7 +118,7 @@ public fun AudioSettingsScreen(
             )
 
             // Auto-rewind on pause
-            SettingsItem(
+            SettingsItemWithContent(
                 title = stringResource(R.string.resume_rewind_title),
                 subtitle = stringResource(R.string.resume_rewind_desc),
             ) {
@@ -151,7 +151,7 @@ public fun AudioSettingsScreen(
             }
 
             if (protoSettings.resumeRewindMode == com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.FIXED) {
-                SettingsItem(
+                SettingsItemWithContent(
                     title = stringResource(R.string.resume_rewind_fixed_title),
                     subtitle = stringResource(R.string.resume_rewind_fixed_desc),
                 ) {
@@ -208,7 +208,7 @@ public fun AudioSettingsScreen(
                 smallSpacing = smallSpacing,
             )
 
-            SettingsItem(
+            SettingsItemWithContent(
                 title = stringResource(R.string.hold_to_boost_speed_title),
                 subtitle = stringResource(R.string.hold_to_boost_speed_desc),
             ) {
@@ -306,7 +306,7 @@ public fun AudioSettingsScreen(
                     smallSpacing = smallSpacing,
                 )
 
-                SettingsItem(
+                SettingsItemWithContent(
                     title = stringResource(R.string.skip_silence_mode_title),
                     subtitle = stringResource(R.string.skip_silence_mode_desc),
                 ) {
@@ -370,7 +370,7 @@ public fun AudioSettingsScreen(
                 itemSpacing = itemSpacing,
             )
 
-            SettingsItem(
+            SettingsItemWithContent(
                 title = stringResource(R.string.equalizer_preset_title),
                 subtitle = stringResource(R.string.equalizer_preset_desc),
             ) {
