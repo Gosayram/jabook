@@ -97,12 +97,21 @@ public fun PremiumPlayerBackground(
             )
         }
 
-        // Darkening overlay for text legibility
+        // Scrim gradient for text legibility (stronger at top/bottom, transparent center)
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f)),
+                    .background(
+                        Brush.verticalGradient(
+                            colors =
+                                listOf(
+                                    Color.Black.copy(alpha = 0.5f), // Top: strong scrim for title
+                                    Color.Black.copy(alpha = 0.15f), // Middle: light over cover
+                                    Color.Black.copy(alpha = 0.4f), // Bottom: controls area
+                                ),
+                        ),
+                    ),
         )
 
         content()

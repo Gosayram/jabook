@@ -141,9 +141,16 @@ public object NetworkModule {
         dynamicTimeoutInterceptor: DynamicTimeoutInterceptor,
         rutrackerHeadersInterceptor: com.jabook.app.jabook.compose.data.network.RutrackerHeadersInterceptor,
         networkTelemetryEventListenerFactory: NetworkTelemetryEventListenerFactory,
-    ): OkHttpClient =
-        OkHttpClient
+    ): OkHttpClient {
+        // DNS-over-HTTPS: bypass DNS blocks on some ISPs without VPN
+        // Uses Google Public DNS over HTTPS; falls back to system DNS on failure
+        val dohDns =
+            com.jabook.app.jabook.compose.data.network
+                .DnsOverHttpsDns()
+
+        return OkHttpClient
             .Builder()
+            .dns(dohDns)
             .cookieJar(cookieJar)
             .certificatePinner(rutrackerCertificatePinner)
             .eventListenerFactory(networkTelemetryEventListenerFactory)
@@ -170,6 +177,7 @@ public object NetworkModule {
             // - followRedirects = true (follow HTTP redirects)
             // - followSslRedirects = true (follow redirects between HTTP/HTTPS)
             .build()
+    }
 
     /**
      * Provide Retrofit instance.

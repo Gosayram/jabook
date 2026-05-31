@@ -162,7 +162,7 @@ internal fun ChapterItem(
 
         Text(
             text = formatDuration(chapter.duration.inWholeMilliseconds),
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 8.dp),
         )

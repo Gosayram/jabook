@@ -1,0 +1,124 @@
+// Copyright 2026 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.jabook.app.jabook.compose.data.worker
+
+import android.content.Context
+import androidx.hilt.work.HiltWorker
+import androidx.work.CoroutineWorker
+import androidx.work.Data
+import androidx.work.WorkerParameters
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
+import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
+import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+/**
+ * WorkManager worker for background forum indexing.
+ *
+ * Features:
+ * - Survives app restarts
+ * - Respects network constraints (Wi-Fi only)
+ * - Reports progress via WorkManager progress API
+ * - Chunked + resumable via ForumIndexer
+ */
+@HiltWorker
+public class IndexingWorker
+    @AssistedInject
+    constructor(
+        @Assisted context: Context,
+        @Assisted params: WorkerParameters,
+        private val forumIndexer: ForumIndexer,
+        private val loggerFactory: LoggerFactory,
+    ) : CoroutineWorker(context, params) {
+        public companion object {
+            private const val TAG = "IndexingWorker"
+
+            // Work names
+            public const val WORK_NAME_PERIODIC: String = "jabook_periodic_indexing"
+            public const val WORK_NAME_ONE_TIME: String = "jabook_one_time_indexing"
+
+            // Progress keys
+            public const val KEY_PROGRESS_PERCENT: String = "progress_percent"
+            public const val KEY_PROGRESS_MESSAGE: String = "progress_message"
+            public const val KEY_TOPICS_INDEXED: String = "topics_indexed"
+
+            // Input keys
+            public const val KEY_FULL_INDEX: String = "full_index"
+        }
+
+        private val logger = loggerFactory.get(TAG)
+
+        override suspend fun doWork(): Result =
+            withContext(Dispatchers.IO) {
+                val isFullIndex = inputData.getBoolean(KEY_FULL_INDEX, false)
+                logger.i { "Starting indexing worker (full=$isFullIndex, attempt=$runAttemptCount)" }
+
+                try {
+                    forumIndexer.indexForums(
+                        forumIds = RutrackerApi.AUDIOBOOKS_FORUM_IDS,
+                        preloadCovers = false,
+                    ) { progress ->
+                        when (progress) {
+                            is IndexingProgress.InProgress -> {
+                                val percent =
+                                    if (progress.totalForums > 0) {
+                                        (progress.progress * 100).toInt()
+                                    } else {
+                                        0
+                                    }
+                                setProgressAsync(
+                                    Data
+                                        .Builder()
+                                        .putInt(KEY_PROGRESS_PERCENT, percent)
+                                        .putString(KEY_PROGRESS_MESSAGE, progress.currentForum)
+                                        .build(),
+                                )
+                            }
+                            is IndexingProgress.Completed -> {
+                                setProgressAsync(
+                                    Data
+                                        .Builder()
+                                        .putInt(KEY_PROGRESS_PERCENT, 100)
+                                        .putLong(KEY_TOPICS_INDEXED, progress.totalTopics.toLong())
+                                        .build(),
+                                )
+                            }
+                            is IndexingProgress.Error -> {
+                                logger.e { "Indexing error: ${progress.message}" }
+                            }
+                            else -> { /* Idle */ }
+                        }
+                    }
+
+                    logger.i { "Indexing worker completed successfully" }
+                    Result.success()
+                } catch (e: CancellationException) {
+                    logger.w { "Indexing worker cancelled" }
+                    throw e
+                } catch (e: Exception) {
+                    logger.e({ "Indexing worker failed" }, e)
+                    if (runAttemptCount < 3) {
+                        Result.retry()
+                    } else {
+                        Result.failure()
+                    }
+                }
+            }
+    }

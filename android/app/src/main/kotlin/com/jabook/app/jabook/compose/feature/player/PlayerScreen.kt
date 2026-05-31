@@ -1775,20 +1775,24 @@ private fun PlayerContent(
                         )
                     }
 
-                    // Time labels
+                    // Time labels (tabular figures so digits don't jump)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
                             text = formatDuration(currentGlobalPositionMs),
-                            style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
+                            style =
+                                (if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall)
+                                    .copy(fontFeatureSettings = "tnum"),
                             color = adaptiveOnSurfaceVariant,
                         )
 
                         Text(
                             text = formatDuration(chapterTimeline.totalDurationMs),
-                            style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
+                            style =
+                                (if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall)
+                                    .copy(fontFeatureSettings = "tnum"),
                             color = adaptiveOnSurfaceVariant,
                         )
                     }

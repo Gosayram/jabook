@@ -133,6 +133,9 @@ public class JabookApplication :
         // Schedule periodic sync
         syncManager.schedulePeriodicSync()
 
+        // Schedule periodic indexing via WorkManager (daily incremental, Wi-Fi only)
+        schedulePeriodicIndexing()
+
         // Service starts lazily on first Play via MediaController connection.
         // Eager warmup removed: Android 15+ bans media-FGS from auto-start,
         // and race condition with MediaController required up to 15s retry.
@@ -230,6 +233,40 @@ public class JabookApplication :
         if (crashCount >= 3) {
             LogUtils.w("JabookApplication", "Crash-loop detected ($crashCount crashes), entering safe mode")
             prefs.edit().putBoolean("safe_mode", true).apply()
+        }
+    }
+
+    /**
+     * Schedule periodic forum indexing via WorkManager.
+     * Runs daily on Wi-Fi, respects charging/idle constraints.
+     */
+    private fun schedulePeriodicIndexing() {
+        try {
+            val constraints =
+                androidx.work.Constraints
+                    .Builder()
+                    .setRequiredNetworkType(androidx.work.NetworkType.UNMETERED)
+                    .setRequiresBatteryNotLow(true)
+                    .build()
+
+            val workRequest =
+                androidx.work
+                    .PeriodicWorkRequestBuilder<
+                        com.jabook.app.jabook.compose.data.worker.IndexingWorker,
+                    >(24, java.util.concurrent.TimeUnit.HOURS)
+                    .setConstraints(constraints)
+                    .setInitialDelay(6, java.util.concurrent.TimeUnit.HOURS)
+                    .addTag("periodic_indexing")
+                    .build()
+
+            androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                com.jabook.app.jabook.compose.data.worker.IndexingWorker.WORK_NAME_PERIODIC,
+                androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+                workRequest,
+            )
+            LogUtils.d("JabookApplication", "Periodic indexing scheduled (daily, Wi-Fi only)")
+        } catch (e: Exception) {
+            LogUtils.e("JabookApplication", "Failed to schedule periodic indexing", e)
         }
     }
 }

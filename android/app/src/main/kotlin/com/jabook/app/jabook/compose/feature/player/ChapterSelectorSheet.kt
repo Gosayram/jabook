@@ -387,10 +387,10 @@ private fun ChapterSelectorItem(
                 overflow = TextOverflow.Ellipsis,
             )
 
-            // Duration
+            // Duration (tabular figures so digits don't jump)
             Text(
                 text = formatDuration(chapter.duration.inWholeMilliseconds),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),
             )
