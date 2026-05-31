@@ -93,7 +93,8 @@ public class ForumIndexer
 
         public companion object {
             private const val TOPICS_PER_PAGE = 50
-            private const val DELAY_BETWEEN_REQUESTS_MS = 300L
+            private const val BASE_DELAY_MS = 300L
+            private const val JITTER_RANGE_MS = 150L // ±150ms random jitter
             private const val MAX_PAGES_PER_FORUM = 100_000
 
             private const val FULL_UPDATE_INTERVAL_DAYS = 7L
@@ -106,6 +107,35 @@ public class ForumIndexer
             private const val MAX_CONCURRENT_FORUMS = 3
             private const val BATCH_SIZE_FOR_DB = 100
             private const val MAX_MEMORY_TOPICS = 200
+
+            private const val INITIAL_BACKOFF_MS = 1000L
+            private const val MAX_BACKOFF_MS = 30_000L
+            private const val BACKOFF_MULTIPLIER = 2.0
+
+            /**
+             * Polite delay with jitter (±150ms around base).
+             * Avoids fixed-interval requests that look like bot behavior.
+             */
+            private suspend fun politeDelay(baseMs: Long = BASE_DELAY_MS) {
+                val jitter = (Math.random() * 2 * JITTER_RANGE_MS - JITTER_RANGE_MS).toLong()
+                delay((baseMs + jitter).coerceAtLeast(50L))
+            }
+
+            /**
+             * Adaptive backoff for rate-limit responses (429/503).
+             * Respects Retry-After header if present.
+             */
+            private suspend fun adaptiveBackoff(
+                attempt: Int,
+                retryAfterMs: Long? = null,
+            ) {
+                val backoff =
+                    retryAfterMs
+                        ?: (INITIAL_BACKOFF_MS * Math.pow(BACKOFF_MULTIPLIER, attempt.toDouble()))
+                            .toLong()
+                            .coerceAtMost(MAX_BACKOFF_MS)
+                delay(backoff)
+            }
 
             private const val MIN_VALID_TOPICS_ABSOLUTE = 10
             private const val MIN_VALID_RATIO = 0.5
@@ -355,6 +385,13 @@ public class ForumIndexer
                         logger.w {
                             "Failed to fetch forum $forumId page $page: HTTP ${response.code()} (took ${fetchTime}ms)"
                         }
+                        // Adaptive backoff for rate-limit responses
+                        if (response.code() == 429 || response.code() == 503) {
+                            val retryAfter = response.headers()["Retry-After"]?.toLongOrNull()?.let { it * 1000 }
+                            logger.i { "Rate-limited (${response.code()}), backing off..." }
+                            adaptiveBackoff(attempt = page, retryAfterMs = retryAfter)
+                            continue // Retry same page
+                        }
                         break
                     }
 
@@ -426,7 +463,7 @@ public class ForumIndexer
                         }
 
                         onProgress?.invoke(page, totalTopics)
-                        delay(DELAY_BETWEEN_REQUESTS_MS)
+                        politeDelay()
                         page++
                     }
                 } catch (e: Exception) {
@@ -498,6 +535,13 @@ public class ForumIndexer
 
                     if (!response.isSuccessful) {
                         logger.w { "Failed to fetch forum $forumId page $page: HTTP ${response.code()}" }
+                        // Adaptive backoff for rate-limit responses
+                        if (response.code() == 429 || response.code() == 503) {
+                            val retryAfter = response.headers()["Retry-After"]?.toLongOrNull()?.let { it * 1000 }
+                            logger.i { "Rate-limited (${response.code()}), backing off..." }
+                            adaptiveBackoff(attempt = page, retryAfterMs = retryAfter)
+                            continue // Retry same page
+                        }
                         break
                     }
 
@@ -541,7 +585,7 @@ public class ForumIndexer
                         // This logic is complex. For now, we iterate until pagination ends or heuristics.
                         // Assuming standard behavior: crawl all pages.
 
-                        delay(DELAY_BETWEEN_REQUESTS_MS)
+                        politeDelay()
                         page++
                     }
                 } catch (e: Exception) {

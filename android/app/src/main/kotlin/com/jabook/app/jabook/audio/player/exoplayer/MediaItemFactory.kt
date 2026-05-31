@@ -18,6 +18,7 @@ import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.MediaMetadata.MEDIA_TYPE_AUDIO_BOOK
 import androidx.media3.common.util.UnstableApi
 import com.jabook.app.jabook.audio.core.model.Chapter
 import com.jabook.app.jabook.audio.core.model.MediaItemData
@@ -38,7 +39,10 @@ public object MediaItemFactory {
                 .setMediaId(data.chapterId ?: data.uri.toString())
 
         // Set metadata if available
-        val metadataBuilder = MediaMetadata.Builder()
+        val metadataBuilder =
+            MediaMetadata
+                .Builder()
+                .setMediaType(MEDIA_TYPE_AUDIO_BOOK)
         if (data.title != null) {
             metadataBuilder.setTitle(data.title)
         }
@@ -48,8 +52,6 @@ public object MediaItemFactory {
         if (data.album != null) {
             metadataBuilder.setAlbumTitle(data.album)
         }
-        // Note: Duration is automatically extracted from media file by ExoPlayer
-        // No need to set it manually in MediaMetadata
 
         builder.setMediaMetadata(metadataBuilder.build())
         return builder.build()

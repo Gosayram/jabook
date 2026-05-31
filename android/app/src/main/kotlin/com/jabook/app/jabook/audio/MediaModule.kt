@@ -187,7 +187,14 @@ public object MediaModule {
                     ).setSkipSilenceEnabled(true)
                     .build()
                     .also {
-                        it.trackSelectionParameters = createAudioOffloadTrackSelectionParameters()
+                        // Disable audio offload in safe mode (crash-loop detected)
+                        if (!com.jabook.app.jabook.crash.GlobalExceptionHandler
+                                .isSafeMode(context)
+                        ) {
+                            it.trackSelectionParameters = createAudioOffloadTrackSelectionParameters()
+                        } else {
+                            LogUtils.w("MediaModule", "Safe mode: skipping audio offload")
+                        }
                     }
             } catch (e: Exception) {
                 LogUtils.e("MediaModule", "Error creating ExoPlayer: ${e.message}", e)
@@ -284,7 +291,14 @@ public object MediaModule {
                 builder
                     .build()
                     .also {
-                        it.trackSelectionParameters = createAudioOffloadTrackSelectionParameters()
+                        // Disable audio offload in safe mode (crash-loop detected)
+                        if (!com.jabook.app.jabook.crash.GlobalExceptionHandler
+                                .isSafeMode(context)
+                        ) {
+                            it.trackSelectionParameters = createAudioOffloadTrackSelectionParameters()
+                        } else {
+                            LogUtils.w("MediaModule", "Safe mode: skipping audio offload for processor player")
+                        }
                     }
             } catch (e: Exception) {
                 LogUtils.e("MediaModule", "Error creating ExoPlayer with processors: ${e.message}", e)

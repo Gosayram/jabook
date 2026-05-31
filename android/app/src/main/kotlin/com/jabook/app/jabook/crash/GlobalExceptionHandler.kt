@@ -44,6 +44,39 @@ public class GlobalExceptionHandler(
         private const val MAX_CONSECUTIVE_CRASHES: Int = 3
         private const val CRASH_REPORT_FILE = "last_crash_report.txt"
         private const val CRASH_REPORT_MARKER = "has_crash_report"
+        private const val CLEAN_SHUTDOWN_KEY = "clean_shutdown"
+        private const val SAFE_MODE_KEY = "safe_mode"
+
+        /**
+         * Check if app is in safe mode (crash-loop detected).
+         * When true, disable risky subsystems: audio offload, visualizer, shader background.
+         */
+        @JvmStatic
+        public fun isSafeMode(context: Context): Boolean =
+            context
+                .getSharedPreferences("jabook_crash_handler", Context.MODE_PRIVATE)
+                .getBoolean(SAFE_MODE_KEY, false)
+
+        /**
+         * Mark clean shutdown (call from onStop/onDestroy of main activity).
+         */
+        @JvmStatic
+        public fun markCleanShutdown(context: Context) {
+            context
+                .getSharedPreferences("jabook_crash_handler", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(CLEAN_SHUTDOWN_KEY, true)
+                .apply()
+        }
+
+        /**
+         * Check if previous session shut down cleanly.
+         */
+        @JvmStatic
+        public fun wasCleanShutdown(context: Context): Boolean =
+            context
+                .getSharedPreferences("jabook_crash_handler", Context.MODE_PRIVATE)
+                .getBoolean(CLEAN_SHUTDOWN_KEY, true) // default true = assume clean if unknown
     }
 
     override fun uncaughtException(
@@ -58,6 +91,9 @@ public class GlobalExceptionHandler(
                 attributes = mapOf("source" to "global_exception_handler"),
             )
 
+            // Clear clean-shutdown flag — we're crashing
+            prefs.edit().putBoolean(CLEAN_SHUTDOWN_KEY, false).apply()
+
             val now = System.currentTimeMillis()
             val lastCrashTime = prefs.getLong("last_crash_time", 0L)
             val crashCount = prefs.getInt("crash_count", 0)
@@ -65,13 +101,14 @@ public class GlobalExceptionHandler(
             if (now - lastCrashTime < CRASH_LOOP_THRESHOLD_MS && crashCount >= MAX_CONSECUTIVE_CRASHES) {
                 LogUtils.e(
                     "GlobalExceptionHandler",
-                    "Crash loop detected ($crashCount crashes in ${CRASH_LOOP_THRESHOLD_MS}ms), breaking loop",
+                    "Crash loop detected ($crashCount crashes in ${CRASH_LOOP_THRESHOLD_MS}ms), entering safe mode",
                 )
+                // Enter safe mode — app will disable risky subsystems on next start
                 prefs
                     .edit()
                     .remove("last_crash_time")
                     .remove("crash_count")
-                    .remove(CRASH_REPORT_MARKER)
+                    .putBoolean(SAFE_MODE_KEY, true)
                     .apply()
                 deleteCrashReport()
                 defaultHandler?.uncaughtException(thread, throwable) ?: run {

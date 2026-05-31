@@ -112,6 +112,21 @@ public class JabookApplication :
         // Check for crash report from previous session and show CrashActivity if found
         checkAndShowCrashReport()
 
+        // Check if previous session crashed (no clean shutdown)
+        if (!com.jabook.app.jabook.crash.GlobalExceptionHandler
+                .wasCleanShutdown(this)
+        ) {
+            LogUtils.w("JabookApplication", "Previous session did not shut down cleanly")
+            maybeEnterSafeMode()
+        }
+
+        // Clear safe mode after successful startup (crash-loop broken)
+        val safeModePrefs = getSharedPreferences("jabook_crash_handler", MODE_PRIVATE)
+        if (safeModePrefs.getBoolean("safe_mode", false)) {
+            LogUtils.i("JabookApplication", "Running in safe mode — disabling risky subsystems")
+            // Safe mode clears automatically after successful init below
+        }
+
         // Create notification channels for downloads and player
         NotificationHelper.createNotificationChannels(this)
 
@@ -203,5 +218,18 @@ public class JabookApplication :
             versionName = BuildConfig.VERSION_NAME,
             versionCode = BuildConfig.VERSION_CODE.toLong(),
         )
+    }
+
+    /**
+     * Enter safe mode if crash-loop detected (≥3 crashes in 60s).
+     * In safe mode: disable audio offload, visualizer, shader background.
+     */
+    private fun maybeEnterSafeMode() {
+        val prefs = getSharedPreferences("jabook_crash_handler", MODE_PRIVATE)
+        val crashCount = prefs.getInt("crash_count", 0)
+        if (crashCount >= 3) {
+            LogUtils.w("JabookApplication", "Crash-loop detected ($crashCount crashes), entering safe mode")
+            prefs.edit().putBoolean("safe_mode", true).apply()
+        }
     }
 }

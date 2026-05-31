@@ -214,13 +214,13 @@ public interface OfflineSearchDao {
     @Query(
         """
         SELECT * FROM cached_topics
-        WHERE last_updated < :maxAgeMs OR index_version != :currentIndexVersion
+        WHERE last_updated < :cutoffMs OR index_version != :currentIndexVersion
         ORDER BY last_updated ASC
         LIMIT :limit
     """,
     )
     public suspend fun getTopicsNeedingUpdate(
-        maxAgeMs: Long,
+        cutoffMs: Long,
         currentIndexVersion: Int,
         limit: Int = 1000,
     ): List<CachedTopicEntity>

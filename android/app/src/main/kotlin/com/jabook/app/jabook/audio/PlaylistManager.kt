@@ -1417,7 +1417,7 @@ internal class PlaylistManager(
                         index = index,
                         metadata = metadata,
                     ),
-                )
+                ).setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_AUDIO_BOOK)
 
         if (resolvedFields.artist != null) {
             metadataBuilder.setArtist(resolvedFields.artist)

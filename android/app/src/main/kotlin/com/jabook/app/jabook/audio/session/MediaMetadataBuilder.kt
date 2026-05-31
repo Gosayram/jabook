@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio.session
 
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.MediaMetadata.MEDIA_TYPE_AUDIO_BOOK
 
 /**
  * Builder for MediaSession metadata.
@@ -29,6 +30,7 @@ public object MediaMetadataBuilder {
      * @param chapterTitle The current chapter title
      * @param author The book author (optional)
      * @param duration The track duration in milliseconds (optional)
+     * @param artworkUri Cover art URI (optional)
      * @return MediaMetadata instance
      */
     public fun buildMetadata(
@@ -36,19 +38,21 @@ public object MediaMetadataBuilder {
         chapterTitle: String? = null,
         author: String? = null,
         duration: Long? = null,
+        artworkUri: android.net.Uri? = null,
     ): MediaMetadata {
         val builder =
             MediaMetadata
                 .Builder()
                 .setTitle(chapterTitle ?: bookTitle)
                 .setAlbumTitle(bookTitle)
+                .setMediaType(MEDIA_TYPE_AUDIO_BOOK)
 
         if (author != null) {
             builder.setArtist(author)
         }
-
-        // Note: Duration is automatically extracted from media file by ExoPlayer
-        // No need to set it manually in MediaMetadata
+        if (artworkUri != null) {
+            builder.setArtworkUri(artworkUri)
+        }
 
         return builder.build()
     }
