@@ -63,7 +63,7 @@ public class DnsOverHttpsDns : Dns {
         val response = client.newCall(request).execute()
         if (!response.isSuccessful) return emptyList()
 
-        val body = response.body?.string() ?: return emptyList()
+        val body = response.body.string()
         val json = JSONObject(body)
 
         // Check status (0 = NOERROR)
