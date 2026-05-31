@@ -18,7 +18,6 @@ import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.PowerManager
-import android.text.format.DateUtils
 import android.view.WindowManager
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
@@ -914,37 +913,21 @@ public fun PlayerScreen(
     )
 
     if (showRatingDialog) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = {
+        RatingDialog(
+            selectedRating = selectedRating,
+            onDismiss = {
                 ratedBookId = (uiState as? PlayerState.Active)?.book?.id
                 selectedRating = 0
                 showRatingDialog = false
             },
-            title = { Text(text = stringResource(R.string.rateCompletedBookTitle)) },
-            text = {
-                StarRatingRow(
-                    selected = selectedRating,
-                    onRate = { rating ->
-                        selectedRating = rating
-                        ratedBookId = (uiState as? PlayerState.Active)?.book?.id
-                        showRatingDialog = false
-                        scope.launch {
-                            snackbarHostState.showSnackbar(
-                                message = context.getString(R.string.rateCompletedBookThanks, rating),
-                            )
-                        }
-                    },
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        ratedBookId = (uiState as? PlayerState.Active)?.book?.id
-                        selectedRating = 0
-                        showRatingDialog = false
-                    },
-                ) {
-                    Text(text = stringResource(R.string.laterAction))
+            onRate = { rating ->
+                selectedRating = rating
+                ratedBookId = (uiState as? PlayerState.Active)?.book?.id
+                showRatingDialog = false
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        message = context.getString(R.string.rateCompletedBookThanks, rating),
+                    )
                 }
             },
         )
@@ -952,7 +935,7 @@ public fun PlayerScreen(
 }
 
 @Composable
-private fun StarRatingRow(
+internal fun StarRatingRow(
     selected: Int,
     onRate: (Int) -> Unit,
 ) {
@@ -976,6 +959,29 @@ private fun StarRatingRow(
             }
         }
     }
+}
+
+@Composable
+internal fun RatingDialog(
+    selectedRating: Int,
+    onDismiss: () -> Unit,
+    onRate: (Int) -> Unit,
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = stringResource(R.string.rateCompletedBookTitle)) },
+        text = {
+            StarRatingRow(
+                selected = selectedRating,
+                onRate = onRate,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = stringResource(R.string.laterAction))
+            }
+        },
+    )
 }
 
 @Composable
@@ -2846,29 +2852,10 @@ public fun PlayerSettingsSheet(
     }
 }
 
-/**
- * Format duration in milliseconds to elapsed-time format.
- */
-internal fun formatDuration(durationMs: Long): String {
-    val totalSeconds = (durationMs.coerceAtLeast(0L) / 1000L)
-    return DateUtils.formatElapsedTime(totalSeconds)
-}
+// P-91: Time formatting delegated to PlayerTimeFormatter
+internal fun formatDuration(durationMs: Long): String = PlayerTimeFormatter.formatDuration(durationMs)
 
-internal fun formatPlaybackSpeedLabel(playbackSpeed: Float): String {
-    val formattedSpeed =
-        if (playbackSpeed % 1.0f == 0.0f) {
-            playbackSpeed.toInt().toString()
-        } else {
-            val locale = java.util.Locale.getDefault()
-            val isRussian = locale.language == "ru"
-            val symbols =
-                java.text.DecimalFormatSymbols(
-                    if (isRussian) locale else java.util.Locale.US,
-                )
-            java.text.DecimalFormat("#.##", symbols).format(playbackSpeed)
-        }
-    return "${formattedSpeed}x"
-}
+internal fun formatPlaybackSpeedLabel(playbackSpeed: Float): String = PlayerTimeFormatter.formatPlaybackSpeedLabel(playbackSpeed)
 
 private const val HOLD_TO_BOOST_ACTIVATION_DELAY_MS: Long = 300L
 

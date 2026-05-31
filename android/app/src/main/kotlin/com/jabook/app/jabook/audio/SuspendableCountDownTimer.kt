@@ -14,30 +14,76 @@
 
 package com.jabook.app.jabook.audio
 
-import android.os.CountDownTimer
+import android.os.SystemClock
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 
 /**
- * Suspendable countdown timer that supports pause and resume operations.
+ * Precise countdown timer based on [SystemClock.elapsedRealtime].
  *
- * Inspired by lissen-android implementation for better timer control.
- * This allows the timer to pause when playback pauses and resume when playback resumes.
+ * P-15: Unlike [android.os.CountDownTimer] which accumulates error over time
+ * (~100-500ms per hour), this timer uses wall-clock absolute time to stay accurate.
+ * Each tick recalculates remaining time from the absolute deadline, preventing drift.
+ *
+ * Supports pause/resume: pause saves remaining time, resume recalculates deadline.
+ *
+ * @param totalMillis Total countdown duration
+ * @param intervalMillis Tick interval in milliseconds
+ * @param onTickSeconds Called every tick with remaining seconds
+ * @param onFinished Called when countdown reaches zero
+ * @param dispatcher Coroutine dispatcher for the timer (default: Dispatchers.Default)
  */
 public class SuspendableCountDownTimer(
     totalMillis: Long,
-    private val intervalMillis: Long,
+    private val intervalMillis: Long = 500L,
     private val onTickSeconds: (Long) -> Unit,
     private val onFinished: () -> Unit,
-) : CountDownTimer(totalMillis, intervalMillis) {
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
+) {
     private var remainingMillis: Long = totalMillis
+    private var job: Job? = null
+    private var isRunning: Boolean = false
 
-    override fun onTick(millisUntilFinished: Long) {
-        remainingMillis = millisUntilFinished
-        onTickSeconds(millisUntilFinished / 1000)
-    }
-
-    override fun onFinish() {
-        remainingMillis = 0L
-        onFinished()
+    /**
+     * Starts the countdown timer.
+     * If already running, this is a no-op.
+     */
+    public fun start() {
+        if (isRunning) return
+        isRunning = true
+        val deadlineMs = SystemClock.elapsedRealtime() + remainingMillis
+        val scope = CoroutineScope(dispatcher)
+        job =
+            scope.launch {
+                try {
+                    while (true) {
+                        ensureActive()
+                        val now = SystemClock.elapsedRealtime()
+                        val remaining = deadlineMs - now
+                        if (remaining <= 0L) {
+                            remainingMillis = 0L
+                            onTickSeconds(0L)
+                            onFinished()
+                            break
+                        }
+                        remainingMillis = remaining
+                        onTickSeconds(remaining / 1000L)
+                        val nextTick =
+                            minOf(
+                                intervalMillis,
+                                remaining.coerceAtMost(intervalMillis),
+                            )
+                        delay(nextTick)
+                    }
+                } finally {
+                    isRunning = false
+                }
+            }
     }
 
     /**
@@ -46,23 +92,42 @@ public class SuspendableCountDownTimer(
      * @return Remaining milliseconds
      */
     public fun pause(): Long {
-        cancel()
-        return remainingMillis
+        job?.cancel()
+        job = null
+        isRunning = false
+        return remainingMillis.coerceAtLeast(0L)
     }
 
     /**
      * Returns current remaining milliseconds.
      */
-    public fun getRemainingMillis(): Long = remainingMillis
+    public fun getRemainingMillis(): Long = remainingMillis.coerceAtLeast(0L)
 
     /**
      * Resumes the timer with remaining milliseconds.
+     * Creates a new instance with the current remaining time.
      *
-     * @return New SuspendableCountDownTimer instance
+     * @return New [SuspendableCountDownTimer] instance with remaining time
      */
     public fun resume(): SuspendableCountDownTimer {
-        val timer = SuspendableCountDownTimer(remainingMillis, intervalMillis, onTickSeconds, onFinished)
+        val timer =
+            SuspendableCountDownTimer(
+                totalMillis = remainingMillis.coerceAtLeast(0L),
+                intervalMillis = intervalMillis,
+                onTickSeconds = onTickSeconds,
+                onFinished = onFinished,
+                dispatcher = dispatcher,
+            )
         timer.start()
         return timer
+    }
+
+    /**
+     * Cancels the timer without triggering [onFinished].
+     */
+    public fun cancel() {
+        job?.cancel()
+        job = null
+        isRunning = false
     }
 }

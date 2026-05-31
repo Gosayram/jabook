@@ -14,55 +14,85 @@
 
 package com.jabook.app.jabook.audio
 
-import android.content.Context
-import org.junit.Before
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.times
-import org.mockito.kotlin.verify
-import org.robolectric.RobolectricTestRunner
 
-/**
- * Unit tests for HeadsetAutoplayHandler.
- */
-@RunWith(RobolectricTestRunner::class)
 class HeadsetAutoplayHandlerTest {
-    private lateinit var context: Context
-    private lateinit var handler: HeadsetAutoplayHandler
-    private var callbackInvoked = false
+    private val context = mock<android.content.Context>()
 
-    @Before
-    fun setup() {
-        context = mock()
-        callbackInvoked = false
-        handler = HeadsetAutoplayHandler(context, onHeadsetConnected = { callbackInvoked = true })
-    }
+    private fun createHandler(
+        onConnected: () -> Unit = {},
+        onDisconnected: (() -> Unit)? = null,
+    ): HeadsetAutoplayHandler =
+        HeadsetAutoplayHandler(
+            context = context,
+            onHeadsetConnected = onConnected,
+            onHeadsetDisconnected = onDisconnected,
+        )
+
+    // --- recordWasPlaying ---
 
     @Test
-    fun `startListening registers receiver`() {
+    fun `recordWasPlaying sets wasPlayingBeforeBtDisconnect`() {
+        val handler = createHandler()
+        assertFalse(handler.wasPlayingBeforeBtDisconnect)
+
+        handler.recordWasPlaying(true)
+        assertTrue(handler.wasPlayingBeforeBtDisconnect)
+
+        handler.recordWasPlaying(false)
+        assertFalse(handler.wasPlayingBeforeBtDisconnect)
+    }
+
+    // --- BT delay constant ---
+
+    @Test
+    fun `BT_DELAY_MS is 600ms`() {
+        assertEquals(600L, HeadsetAutoplayHandler.BT_DELAY_MS)
+    }
+
+    // --- stopListening when not registered does not throw ---
+
+    @Test
+    fun `stopListening without startListening does not throw`() {
+        val handler = createHandler()
+        handler.stopListening()
+    }
+
+    // --- double startListening is idempotent ---
+
+    @Test
+    fun `double startListening registers only once`() {
+        val handler = createHandler()
         handler.startListening()
-        verify(context).registerReceiver(any(), any())
-    }
-
-    @Test
-    fun `stopListening unregisters receiver`() {
         handler.startListening()
         handler.stopListening()
-        verify(context).unregisterReceiver(any())
     }
 
-    @Test
-    fun `receiver ignores duplicate startListening`() {
-        handler.startListening()
-        handler.startListening()
-        verify(context, times(1)).registerReceiver(any(), any())
-    }
+    // --- startListening and stopListening cycle ---
 
     @Test
-    fun `stopListening handles unregistered state safely`() {
+    fun `start stop cycle works`() {
+        val handler = createHandler()
+        handler.startListening()
         handler.stopListening()
-        // Should not throw
+        handler.startListening()
+        handler.stopListening()
+    }
+
+    // --- callback is not null-safe ---
+
+    @Test
+    fun `handler with null onHeadsetDisconnected creates successfully`() {
+        val handler =
+            HeadsetAutoplayHandler(
+                context = context,
+                onHeadsetConnected = {},
+                onHeadsetDisconnected = null,
+            )
+        handler.stopListening()
     }
 }

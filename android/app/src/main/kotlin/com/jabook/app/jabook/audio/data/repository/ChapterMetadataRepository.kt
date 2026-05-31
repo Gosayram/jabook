@@ -18,13 +18,20 @@ import com.jabook.app.jabook.audio.core.result.Result
 import com.jabook.app.jabook.audio.core.result.asResult
 import com.jabook.app.jabook.audio.data.local.dao.ChapterMetadataDao
 import com.jabook.app.jabook.audio.data.local.database.entity.ChapterMetadataEntity
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Repository for managing chapter metadata.
+ *
+ * P-89: Includes an in-memory LRU cache to avoid repeated Room queries
+ * on every `onMediaItemTransition`. The cache holds chapters for the
+ * current + 2 adjacent books.
  *
  * Provides offline-first access to chapter metadata with reactive Flow API.
  */
@@ -34,11 +41,50 @@ public class ChapterMetadataRepository
     constructor(
         private val chapterDao: ChapterMetadataDao,
     ) {
+        /** LRU cache: bookId → chapters. Size 3 (current + 2 adjacent). */
+        private val metadataCache = HashMap<String, List<ChapterMetadataEntity>>(CACHE_SIZE)
+
+        private val accessOrder = ArrayDeque<String>(CACHE_SIZE)
+
         /**
-         * Gets all chapters for a book.
+         * Gets all chapters for a book (Flow-based, for reactive UI).
          * Returns Flow<Result<List<ChapterMetadataEntity>>> for reactive updates.
          */
         public fun getChapters(bookId: String): Flow<Result<List<ChapterMetadataEntity>>> = chapterDao.getChapters(bookId).asResult()
+
+        /**
+         * P-89: Gets chapters with in-memory LRU cache.
+         *
+         * Use this for hot paths like `onMediaItemTransition` where
+         * a Room query on every call is wasteful. Returns cached data
+         * if available, otherwise loads from Room and caches the result.
+         *
+         * @param bookId Book identifier
+         * @return List of chapters (from cache or Room)
+         */
+        public suspend fun getCachedChapters(bookId: String): List<ChapterMetadataEntity> {
+            metadataCache[bookId]?.let { cached ->
+                touchKey(bookId)
+                return cached
+            }
+
+            val result =
+                chapterDao
+                    .getChapters(bookId)
+                    .first()
+
+            @Suppress("UNCHECKED_CAST")
+            val chapters =
+                when (result) {
+                    is Result.Success<*> -> (result as Result.Success<List<ChapterMetadataEntity>>).data
+                    is Result.Error -> emptyList()
+                    else -> emptyList()
+                }
+
+            putCache(bookId, chapters)
+            LogUtils.d(TAG, "Cache miss for book=$bookId, loaded ${chapters.size} chapters")
+            return chapters
+        }
 
         /**
          * Gets a specific chapter by ID.
@@ -58,9 +104,7 @@ public class ChapterMetadataRepository
             duration: Long? = null,
         ): Result<Unit> =
             try {
-                val id: String =
-                    "${bookId}_$fileIndex"
-
+                val id: String = "${bookId}_$fileIndex"
                 val entity =
                     ChapterMetadataEntity(
                         id = id,
@@ -74,6 +118,7 @@ public class ChapterMetadataRepository
                         lastUpdated = System.currentTimeMillis(),
                     )
                 chapterDao.upsertChapter(entity)
+                invalidateCache(bookId)
                 Result.Success(Unit)
             } catch (e: CancellationException) {
                 throw e
@@ -93,11 +138,8 @@ public class ChapterMetadataRepository
                     val wrongBookIds = chapters.map { it.bookId }.distinct().filter { it != bookId }
                     "saveChapters expects chapters for bookId=$bookId, got mismatched bookIds=$wrongBookIds"
                 }
-
-                chapterDao.replaceChaptersForBook(
-                    bookId = bookId,
-                    chapters = chapters,
-                )
+                chapterDao.replaceChaptersForBook(bookId = bookId, chapters = chapters)
+                invalidateCache(bookId)
                 Result.Success(Unit)
             } catch (e: CancellationException) {
                 throw e
@@ -111,6 +153,7 @@ public class ChapterMetadataRepository
         public suspend fun deleteChapters(bookId: String): Result<Unit> =
             try {
                 chapterDao.deleteChapters(bookId)
+                invalidateCache(bookId)
                 Result.Success(Unit)
             } catch (e: CancellationException) {
                 throw e
@@ -130,4 +173,45 @@ public class ChapterMetadataRepository
             } catch (e: Exception) {
                 Result.Error(e)
             }
+
+        /**
+         * P-89: Invalidates the cache for a specific book.
+         * Call when chapter metadata is modified externally.
+         */
+        public fun invalidateCache(bookId: String) {
+            metadataCache.remove(bookId)
+            accessOrder.remove(bookId)
+            LogUtils.d(TAG, "Cache invalidated for book=$bookId")
+        }
+
+        /**
+         * P-89: Clears the entire cache.
+         */
+        public fun clearCache() {
+            metadataCache.clear()
+            accessOrder.clear()
+            LogUtils.d(TAG, "Cache cleared")
+        }
+
+        private fun putCache(
+            bookId: String,
+            chapters: List<ChapterMetadataEntity>,
+        ) {
+            if (metadataCache.size >= CACHE_SIZE) {
+                val evictKey = accessOrder.removeFirstOrNull()
+                if (evictKey != null) metadataCache.remove(evictKey)
+            }
+            metadataCache[bookId] = chapters
+            touchKey(bookId)
+        }
+
+        private fun touchKey(bookId: String) {
+            accessOrder.remove(bookId)
+            accessOrder.addLast(bookId)
+        }
+
+        private companion object {
+            private const val TAG = "ChapterMetadataRepo"
+            private const val CACHE_SIZE = 3
+        }
     }

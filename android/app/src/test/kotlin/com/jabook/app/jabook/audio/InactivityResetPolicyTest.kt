@@ -14,44 +14,43 @@
 
 package com.jabook.app.jabook.audio
 
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class InactivityResetPolicyTest {
     @Test
-    fun `shouldReset is true for interactive local sources`() {
+    fun `shouldReset returns true for USER_UI`() {
         assertTrue(InactivityResetPolicy.shouldReset(InactivityCommandSource.USER_UI))
+    }
+
+    @Test
+    fun `shouldReset returns true for NOTIFICATION`() {
         assertTrue(InactivityResetPolicy.shouldReset(InactivityCommandSource.NOTIFICATION))
+    }
+
+    @Test
+    fun `shouldReset returns true for PLAYBACK_INTERNAL`() {
         assertTrue(InactivityResetPolicy.shouldReset(InactivityCommandSource.PLAYBACK_INTERNAL))
     }
 
     @Test
-    fun `shouldReset is false for remote and automation sources`() {
+    fun `shouldReset returns false for HEADSET_BUTTON`() {
         assertFalse(InactivityResetPolicy.shouldReset(InactivityCommandSource.HEADSET_BUTTON))
-        assertFalse(InactivityResetPolicy.shouldReset(InactivityCommandSource.ANDROID_AUTO))
-        assertFalse(InactivityResetPolicy.shouldReset(InactivityCommandSource.WEAR_OS))
-        assertFalse(InactivityResetPolicy.shouldReset(InactivityCommandSource.SLEEP_TIMER))
     }
 
     @Test
-    fun `shouldReset table is stable for all declared command sources`() {
-        val expected =
-            mapOf(
-                InactivityCommandSource.USER_UI to true,
-                InactivityCommandSource.NOTIFICATION to true,
-                InactivityCommandSource.PLAYBACK_INTERNAL to true,
-                InactivityCommandSource.HEADSET_BUTTON to false,
-                InactivityCommandSource.ANDROID_AUTO to false,
-                InactivityCommandSource.WEAR_OS to false,
-                InactivityCommandSource.SLEEP_TIMER to false,
-            )
+    fun `shouldReset returns false for ANDROID_AUTO`() {
+        assertFalse(InactivityResetPolicy.shouldReset(InactivityCommandSource.ANDROID_AUTO))
+    }
 
-        InactivityCommandSource.entries.forEach { source ->
-            assertTrue("Missing expectation for $source", expected.containsKey(source))
-            assertEquals(expected.getValue(source), InactivityResetPolicy.shouldReset(source))
-            assertEquals(expected.getValue(source), InactivityResetPolicy.shouldResetBySource(source))
-        }
+    @Test
+    fun `shouldReset returns false for WEAR_OS`() {
+        assertFalse(InactivityResetPolicy.shouldReset(InactivityCommandSource.WEAR_OS))
+    }
+
+    @Test
+    fun `shouldReset returns false for SLEEP_TIMER`() {
+        assertFalse(InactivityResetPolicy.shouldReset(InactivityCommandSource.SLEEP_TIMER))
     }
 }

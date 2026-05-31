@@ -14,29 +14,98 @@
 
 package com.jabook.app.jabook.audio
 
-import com.jabook.app.jabook.audio.PlaylistLoadProgress.Phase
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * Unit tests for [PlaylistLoadProgress].
- */
 class PlaylistLoadProgressTest {
+    // --- Fraction ---
+
     @Test
-    fun `fraction is calculated correctly`() {
-        val progress = PlaylistLoadProgress(loaded = 3, total = 10, phase = Phase.LOADING_BACKGROUND)
-        assertEquals(0.3f, progress.fraction, 0.001f)
+    fun `fraction is zero when total is zero`() {
+        val progress = PlaylistLoadProgress.IDLE
+        assertEquals(0.0f, progress.fraction, 0.001f)
     }
 
     @Test
-    fun `fraction is 0 when total is 0`() {
-        val progress = PlaylistLoadProgress(loaded = 0, total = 0, phase = Phase.IDLE)
-        assertEquals(0f, progress.fraction, 0.001f)
+    fun `fraction at midpoint`() {
+        val progress = PlaylistLoadProgress(5, 10, PlaylistLoadProgress.Phase.LOADING_BACKGROUND)
+        assertEquals(0.5f, progress.fraction, 0.001f)
     }
 
     @Test
-    fun `fraction is 1 when loaded equals total`() {
-        val progress = PlaylistLoadProgress(loaded = 10, total = 10, phase = Phase.DONE)
-        assertEquals(1f, progress.fraction, 0.001f)
+    fun `fraction clamped to 1_0`() {
+        val progress = PlaylistLoadProgress(15, 10, PlaylistLoadProgress.Phase.DONE)
+        assertEquals(1.0f, progress.fraction, 0.001f)
+    }
+
+    // --- isLoading ---
+
+    @Test
+    fun `IDLE is not loading`() {
+        assertFalse(PlaylistLoadProgress.IDLE.isLoading)
+    }
+
+    @Test
+    fun `DONE is not loading`() {
+        val progress = PlaylistLoadProgress(10, 10, PlaylistLoadProgress.Phase.DONE)
+        assertFalse(progress.isLoading)
+    }
+
+    @Test
+    fun `LOADING_FIRST is loading`() {
+        val progress = PlaylistLoadProgress(1, 10, PlaylistLoadProgress.Phase.LOADING_FIRST)
+        assertTrue(progress.isLoading)
+    }
+
+    @Test
+    fun `LOADING_BACKGROUND is loading`() {
+        val progress = PlaylistLoadProgress(7, 10, PlaylistLoadProgress.Phase.LOADING_BACKGROUND)
+        assertTrue(progress.isLoading)
+    }
+
+    // --- isFirstTrackReady ---
+
+    @Test
+    fun `IDLE first track not ready`() {
+        assertFalse(PlaylistLoadProgress.IDLE.isFirstTrackReady)
+    }
+
+    @Test
+    fun `LOADING_FIRST first track not ready`() {
+        val progress = PlaylistLoadProgress(1, 10, PlaylistLoadProgress.Phase.LOADING_FIRST)
+        assertFalse(progress.isFirstTrackReady)
+    }
+
+    @Test
+    fun `LOADING_CRITICAL first track ready`() {
+        val progress = PlaylistLoadProgress(5, 10, PlaylistLoadProgress.Phase.LOADING_CRITICAL)
+        assertTrue(progress.isFirstTrackReady)
+    }
+
+    @Test
+    fun `DONE first track ready`() {
+        val progress = PlaylistLoadProgress(10, 10, PlaylistLoadProgress.Phase.DONE)
+        assertTrue(progress.isFirstTrackReady)
+    }
+
+    // --- of helper ---
+
+    @Test
+    fun `of creates correct initial state`() {
+        val progress = PlaylistLoadProgress.of(50)
+        assertEquals(0, progress.loaded)
+        assertEquals(50, progress.total)
+        assertEquals(PlaylistLoadProgress.Phase.IDLE, progress.phase)
+    }
+
+    // --- IDLE companion ---
+
+    @Test
+    fun `IDLE has correct values`() {
+        assertEquals(0, PlaylistLoadProgress.IDLE.loaded)
+        assertEquals(0, PlaylistLoadProgress.IDLE.total)
+        assertEquals(PlaylistLoadProgress.Phase.IDLE, PlaylistLoadProgress.IDLE.phase)
     }
 }

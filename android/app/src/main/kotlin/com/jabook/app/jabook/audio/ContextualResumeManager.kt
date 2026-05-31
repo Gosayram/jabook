@@ -14,95 +14,122 @@
 
 package com.jabook.app.jabook.audio
 
-import androidx.compose.runtime.Immutable
+import javax.inject.Inject
 
-internal fun interface SpeechSegmentAnalyzer {
-    fun findLastSentenceStart(
-        bookId: String,
-        positionMs: Long,
-        lookbackMs: Long,
-    ): Long
-}
+/**
+ * P-53: Context-aware resume after long pauses.
+ *
+ * Instead of a fixed rewind (e.g., always 10 seconds), this class
+ * calculates the optimal rewind based on how long the user was away:
+ * - Short pause (< 5 min): no rewind
+ * - Medium pause (5 min – 1 hour): rewind 10–30 seconds
+ * - Long pause (1–24 hours): rewind 1–2 minutes
+ * - Very long pause (> 24 hours): rewind 2–5 minutes + show recap
+ *
+ * Inspired by Audible's Smart Resume.
+ */
+public class ContextualResumeManager
+    @Inject
+    constructor() {
+        /**
+         * Resume context calculated from pause duration.
+         */
+        public data class ResumeContext(
+            val pauseDurationMs: Long,
+            val rewindMs: Long,
+            val shouldShowRecap: Boolean,
+            val recapDurationMs: Long,
+        )
 
-internal class ContextualResumeManager(
-    private val speechAnalyzer: SpeechSegmentAnalyzer,
-    private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
-) {
-    @Immutable
-    data class ResumeContext(
-        val pauseDurationMs: Long,
-        val rewindMs: Long,
-        val shouldShowRecap: Boolean,
-        val recapStartMs: Long,
-    )
+        /**
+         * Calculates the optimal resume context.
+         *
+         * @param pauseDurationMs How long the user was away
+         * @return Resume context with rewind and recap settings
+         */
+        public fun buildResumeContext(pauseDurationMs: Long): ResumeContext {
+            val pauseMinutes = pauseDurationMs / (60 * 1000L)
 
-    fun buildResumeContext(
-        bookId: String,
-        currentPositionMs: Long,
-        lastPausedAtMs: Long,
-    ): ResumeContext {
-        if (lastPausedAtMs <= 0L) {
-            return ResumeContext(
-                pauseDurationMs = 0L,
-                rewindMs = 0L,
-                shouldShowRecap = false,
-                recapStartMs = 0L,
-            )
+            return when {
+                pauseMinutes < SHORT_PAUSE_MINUTES -> {
+                    ResumeContext(
+                        pauseDurationMs = pauseDurationMs,
+                        rewindMs = 0L,
+                        shouldShowRecap = false,
+                        recapDurationMs = 0L,
+                    )
+                }
+
+                pauseMinutes < MEDIUM_PAUSE_MINUTES -> {
+                    val rewindMs =
+                        calculateLinearRewind(
+                            pauseMinutes = pauseMinutes,
+                            minRewindMs = SHORT_REWIND_MS,
+                            maxRewindMs = MEDIUM_REWIND_MS,
+                            minPause = SHORT_PAUSE_MINUTES,
+                            maxPause = MEDIUM_PAUSE_MINUTES,
+                        )
+                    ResumeContext(
+                        pauseDurationMs = pauseDurationMs,
+                        rewindMs = rewindMs,
+                        shouldShowRecap = false,
+                        recapDurationMs = 0L,
+                    )
+                }
+
+                pauseMinutes < LONG_PAUSE_MINUTES -> {
+                    val rewindMs =
+                        calculateLinearRewind(
+                            pauseMinutes = pauseMinutes,
+                            minRewindMs = MEDIUM_REWIND_MS,
+                            maxRewindMs = LONG_REWIND_MS,
+                            minPause = MEDIUM_PAUSE_MINUTES,
+                            maxPause = LONG_PAUSE_MINUTES,
+                        )
+                    ResumeContext(
+                        pauseDurationMs = pauseDurationMs,
+                        rewindMs = rewindMs,
+                        shouldShowRecap = false,
+                        recapDurationMs = 0L,
+                    )
+                }
+
+                else -> {
+                    ResumeContext(
+                        pauseDurationMs = pauseDurationMs,
+                        rewindMs = VERY_LONG_REWIND_MS,
+                        shouldShowRecap = true,
+                        recapDurationMs = RECAP_DURATION_MS,
+                    )
+                }
+            }
         }
-        val nowMs = nowMsProvider()
-        // If the system clock adjusted backward (nowMs < lastPausedAtMs), pause
-        // duration coerces to 0L, triggering the short-rewind branch. This is
-        // intentional — a clock-skewed pause of unknown length is treated as brief.
-        val pauseDurationMs = (nowMs - lastPausedAtMs).coerceAtLeast(0L)
 
-        return when {
-            pauseDurationMs < ONE_HOUR_MS -> {
-                ResumeContext(
-                    pauseDurationMs = pauseDurationMs,
-                    rewindMs =
-                        ResumeRewindPolicy.resolveRewindMs(
-                            pauseDurationMs = pauseDurationMs,
-                            configuredSeconds = DEFAULT_SHORT_REWIND_SECONDS,
-                            mode = ResumeRewindMode.SMART,
-                            aggressiveness = 1.0f,
-                        ),
-                    shouldShowRecap = false,
-                    recapStartMs = 0L,
-                )
-            }
+        /**
+         * Whether the pause is long enough to warrant special handling.
+         */
+        public fun isLongPause(pauseDurationMs: Long): Boolean = pauseDurationMs >= SHORT_PAUSE_MINUTES * 60 * 1000L
 
-            pauseDurationMs < ONE_DAY_MS -> {
-                val sentenceBoundary =
-                    speechAnalyzer
-                        .findLastSentenceStart(
-                            bookId = bookId,
-                            positionMs = currentPositionMs,
-                            lookbackMs = SENTENCE_LOOKBACK_MS,
-                        ).coerceIn(0L, currentPositionMs)
-                ResumeContext(
-                    pauseDurationMs = pauseDurationMs,
-                    rewindMs = currentPositionMs - sentenceBoundary,
-                    shouldShowRecap = false,
-                    recapStartMs = 0L,
-                )
-            }
+        private fun calculateLinearRewind(
+            pauseMinutes: Long,
+            minRewindMs: Long,
+            maxRewindMs: Long,
+            minPause: Long,
+            maxPause: Long,
+        ): Long {
+            val fraction = ((pauseMinutes - minPause).toFloat() / (maxPause - minPause)).coerceIn(0f, 1f)
+            return minRewindMs + ((maxRewindMs - minRewindMs) * fraction).toLong()
+        }
 
-            else -> {
-                ResumeContext(
-                    pauseDurationMs = pauseDurationMs,
-                    rewindMs = 0L,
-                    shouldShowRecap = true,
-                    recapStartMs = (currentPositionMs - RECAP_WINDOW_MS).coerceAtLeast(0L),
-                )
-            }
+        public companion object {
+            private const val SHORT_PAUSE_MINUTES = 5L
+            private const val MEDIUM_PAUSE_MINUTES = 60L
+            private const val LONG_PAUSE_MINUTES = 24 * 60L
+
+            internal const val SHORT_REWIND_MS = 10_000L
+            internal const val MEDIUM_REWIND_MS = 30_000L
+            internal const val LONG_REWIND_MS = 120_000L
+            internal const val VERY_LONG_REWIND_MS = 300_000L
+            internal const val RECAP_DURATION_MS = 120_000L
         }
     }
-
-    private companion object {
-        private const val ONE_HOUR_MS: Long = 60L * 60_000L
-        private const val ONE_DAY_MS: Long = 24L * 60L * 60_000L
-        private const val SENTENCE_LOOKBACK_MS: Long = 30_000L
-        private const val RECAP_WINDOW_MS: Long = 2L * 60_000L
-        private const val DEFAULT_SHORT_REWIND_SECONDS: Int = 10
-    }
-}

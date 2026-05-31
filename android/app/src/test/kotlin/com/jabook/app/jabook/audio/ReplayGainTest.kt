@@ -91,6 +91,7 @@ class ReplayGainTest {
         verify(loudnessNormalizer, org.mockito.kotlin.never()).setReplayGain(any())
     }
 
+    @Test
     fun `onMetadata prefers track ReplayGain over album ReplayGain`() {
         val albumGainEntry = mock<Metadata.Entry>()
         whenever(albumGainEntry.toString()).thenReturn("TXXX: description=REPLAYGAIN_ALBUM_GAIN, value=-7.50 dB")

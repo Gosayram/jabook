@@ -20,6 +20,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Handles headset and Bluetooth audio device connection/disconnection events.
@@ -29,15 +32,28 @@ import com.jabook.app.jabook.util.LogUtils
  * - On BT reconnect: triggers resume suggestion instead of auto-playing.
  *   UI layer should show "Resume?" snackbar.
  *
+ * P-25: Device-type-specific delays for A2DP negotiation.
+ * BLE headsets require 300–800ms to negotiate A2DP profile after connection.
+ * Wired headset events trigger immediately with no delay.
+ *
  * Also handles wired headset plug events with auto-resume.
+ *
+ * @param context Context for registering BroadcastReceiver
+ * @param coroutineScope Scope for launching delayed autoplay coroutines
+ * @param onHeadsetConnected Callback when headset connects (may be delayed for BT)
+ * @param onHeadsetDisconnected Callback when headset disconnects
  */
 public class HeadsetAutoplayHandler(
     private val context: Context,
     private val onHeadsetConnected: () -> Unit,
     private val onHeadsetDisconnected: (() -> Unit)? = null,
+    private val coroutineScope: CoroutineScope? = null,
 ) {
     public companion object {
         private const val TAG = "HeadsetAutoplayHandler"
+
+        /** P-25: Delay for Bluetooth A2DP negotiation (BLE takes 300-800ms). */
+        internal const val BT_DELAY_MS = 600L
     }
 
     /**
@@ -75,9 +91,17 @@ public class HeadsetAutoplayHandler(
                     BluetoothDevice.ACTION_ACL_CONNECTED -> {
                         LogUtils.d(TAG, "Bluetooth device connected")
                         if (lastDisconnectWasBluetooth && wasPlayingBeforeBtDisconnect) {
-                            // BP-13.2: Don't auto-resume, let UI show "Resume?" snackbar
-                            LogUtils.d(TAG, "BT reconnect after active playback — suggesting resume")
-                            onHeadsetConnected()
+                            if (coroutineScope != null) {
+                                LogUtils.d(TAG, "BT reconnect — delaying autoplay ${BT_DELAY_MS}ms for A2DP negotiation")
+                                coroutineScope.launch {
+                                    delay(BT_DELAY_MS)
+                                    LogUtils.d(TAG, "BT reconnect after delay — suggesting resume")
+                                    onHeadsetConnected()
+                                }
+                            } else {
+                                LogUtils.d(TAG, "BT reconnect after active playback — suggesting resume")
+                                onHeadsetConnected()
+                            }
                         } else {
                             LogUtils.d(TAG, "BT connected but no prior active playback — ignoring")
                         }
@@ -86,7 +110,6 @@ public class HeadsetAutoplayHandler(
                     BluetoothDevice.ACTION_ACL_DISCONNECTED -> {
                         LogUtils.d(TAG, "Bluetooth device disconnected")
                         lastDisconnectWasBluetooth = true
-                        // BP-13.2: Pause and save position on BT disconnect
                         onHeadsetDisconnected?.invoke()
                     }
                 }

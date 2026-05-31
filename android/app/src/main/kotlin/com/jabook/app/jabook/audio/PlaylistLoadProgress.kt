@@ -15,22 +15,59 @@
 package com.jabook.app.jabook.audio
 
 /**
- * Progress of playlist loading for UI display.
+ * P-09: Tracks playlist load progress as a data model for UI display.
  *
- * P-09: Provides progress feedback during large playlist loading.
+ * When loading a large playlist (≥50 tracks), the UI needs to show
+ * progress instead of a generic "buffering..." message.
+ *
+ * @property loaded Number of tracks loaded so far
+ * @property total Total number of tracks in the playlist
+ * @property phase Current loading phase
  */
 public data class PlaylistLoadProgress(
-    public val loaded: Int,
-    public val total: Int,
-    public val phase: Phase,
+    val loaded: Int,
+    val total: Int,
+    val phase: Phase,
 ) {
-    public val fraction: Float get() = if (total > 0) (loaded.toFloat() / total).coerceIn(0f, 1f) else 0f
-
+    /**
+     * Loading phase of the playlist.
+     */
     public enum class Phase {
+        /** No loading in progress. */
         IDLE,
+
+        /** Loading the first track (user wants to play immediately). */
         LOADING_FIRST,
+
+        /** Loading critical tracks (current + next few). */
         LOADING_CRITICAL,
+
+        /** Loading remaining tracks in background. */
         LOADING_BACKGROUND,
+
+        /** All tracks loaded. */
         DONE,
+    }
+
+    /** Progress fraction 0.0–1.0. */
+    val fraction: Float
+        get() = if (total > 0) (loaded.toFloat() / total).coerceIn(0f, 1f) else 0f
+
+    /** Whether loading is in progress. */
+    val isLoading: Boolean
+        get() = phase != Phase.IDLE && phase != Phase.DONE
+
+    /** Whether the first track is ready for playback. */
+    val isFirstTrackReady: Boolean
+        get() = phase == Phase.LOADING_CRITICAL || phase == Phase.LOADING_BACKGROUND || phase == Phase.DONE
+
+    public companion object {
+        /** Default idle state. */
+        public val IDLE: PlaylistLoadProgress = PlaylistLoadProgress(0, 0, Phase.IDLE)
+
+        /**
+         * Creates a progress for a playlist of [total] tracks.
+         */
+        public fun of(total: Int): PlaylistLoadProgress = PlaylistLoadProgress(0, total, Phase.IDLE)
     }
 }

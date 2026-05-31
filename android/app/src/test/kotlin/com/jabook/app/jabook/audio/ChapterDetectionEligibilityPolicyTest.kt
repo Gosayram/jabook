@@ -14,87 +14,87 @@
 
 package com.jabook.app.jabook.audio
 
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
-public class ChapterDetectionEligibilityPolicyTest {
+class ChapterDetectionEligibilityPolicyTest {
     private val minDuration = ChapterDetectionEligibilityPolicy.MIN_ELIGIBLE_DURATION_MS
 
     @Test
-    public fun `shouldEnqueueSingleFileDetection returns true for valid input`() {
-        val result =
+    fun `returns true when all conditions met - exactly 10 minutes`() {
+        assertTrue(
             ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
                 chapterCount = 1,
-                filePath = "/path/to/book.mp3",
+                filePath = "/valid/path.mp3",
                 durationMs = minDuration,
-            )
-        assertTrue(result)
+            ),
+        )
     }
 
     @Test
-    public fun `shouldEnqueueSingleFileDetection returns false when duration below threshold`() {
-        val result =
+    fun `returns false when duration below threshold`() {
+        assertFalse(
             ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
                 chapterCount = 1,
-                filePath = "/path/to/book.mp3",
+                filePath = "/valid/path.mp3",
                 durationMs = minDuration - 1,
-            )
-        assertFalse(result)
+            ),
+        )
     }
 
     @Test
-    public fun `shouldEnqueueSingleFileDetection returns false for blank filePath`() {
-        val result =
+    fun `returns false when chapterCount is zero`() {
+        assertFalse(
+            ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
+                chapterCount = 0,
+                filePath = "/valid/path.mp3",
+                durationMs = minDuration,
+            ),
+        )
+    }
+
+    @Test
+    fun `returns false when chapterCount greater than one`() {
+        assertFalse(
+            ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
+                chapterCount = 2,
+                filePath = "/valid/path.mp3",
+                durationMs = minDuration,
+            ),
+        )
+    }
+
+    @Test
+    fun `returns false when filePath is blank`() {
+        assertFalse(
             ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
                 chapterCount = 1,
                 filePath = "",
                 durationMs = minDuration,
-            )
-        assertFalse(result)
+            ),
+        )
     }
 
     @Test
-    public fun `shouldEnqueueSingleFileDetection returns false for whitespace filePath`() {
-        val result =
+    fun `returns false when filePath is blank whitespace`() {
+        assertFalse(
             ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
                 chapterCount = 1,
                 filePath = "   ",
                 durationMs = minDuration,
-            )
-        assertFalse(result)
+            ),
+        )
     }
 
     @Test
-    public fun `shouldEnqueueSingleFileDetection returns false when chapterCount not 1`() {
-        val result =
+    fun `returns false when filePath is null-like representation`() {
+        assertFalse(
             ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
-                chapterCount = 0,
-                filePath = "/path/to/book.mp3",
+                chapterCount = 1,
+                filePath = "\n\t",
                 durationMs = minDuration,
-            )
-        assertFalse(result)
-    }
-
-    @Test
-    public fun `shouldEnqueueSingleFileDetection returns false when chapterCount greater than 1`() {
-        val result =
-            ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
-                chapterCount = 5,
-                filePath = "/path/to/book.mp3",
-                durationMs = minDuration,
-            )
-        assertFalse(result)
-    }
-
-    @Test
-    public fun `shouldEnqueueSingleFileDetection returns false for all invalid conditions`() {
-        val result =
-            ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
-                chapterCount = 0,
-                filePath = "",
-                durationMs = 0L,
-            )
-        assertFalse(result)
+            ),
+        )
     }
 }
