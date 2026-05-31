@@ -28,8 +28,11 @@ import com.jabook.app.jabook.compose.domain.model.toBook
 import com.jabook.app.jabook.compose.domain.model.toBooks
 import com.jabook.app.jabook.compose.domain.model.toChapters
 import com.jabook.app.jabook.compose.domain.model.toEntity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -215,35 +218,36 @@ public class OfflineFirstBooksRepository
                     }
             }
 
-            // Try FTS query; fall back to LIKE if FTS table doesn't exist
-            return try {
-                booksDao
-                    .searchBooksByFtsFlow(
-                        SimpleSQLiteQuery(
-                            """
-                            SELECT b.*
-                            FROM books b
-                            JOIN books_fts f ON b.rowid = f.rowid
-                            WHERE books_fts MATCH ?
-                            ORDER BY bm25(books_fts) ASC
-                            """.trimIndent(),
-                            arrayOf(ftsMatchQuery),
-                        ),
-                    ).map {
-                        warnOnLargeResult(path = "searchBooksByFtsFlow", rowCount = it.size)
-                        it.toBooks()
-                    }
-            } catch (_: Exception) {
-                // FTS not available, fall back to LIKE queries
-                booksDao
-                    .searchBooksFlowWithFallback(
-                        query = primary,
-                        fallbackQuery = fallback,
-                    ).map {
-                        warnOnLargeResult(path = "searchBooksFlowWithFallback", rowCount = it.size)
-                        it.toBooks()
-                    }
-            }
+            // Try FTS query; fall back to LIKE if FTS table doesn't exist.
+            // Room flows are cold, so FTS errors surface only when collected.
+            return booksDao
+                .searchBooksByFtsFlow(
+                    SimpleSQLiteQuery(
+                        """
+                        SELECT b.*
+                        FROM books b
+                        JOIN books_fts f ON b.rowid = f.rowid
+                        WHERE books_fts MATCH ?
+                        ORDER BY bm25(books_fts) ASC
+                        """.trimIndent(),
+                        arrayOf(ftsMatchQuery),
+                    ),
+                ).map {
+                    warnOnLargeResult(path = "searchBooksByFtsFlow", rowCount = it.size)
+                    it.toBooks()
+                }.catch { e ->
+                    if (e is CancellationException) throw e
+                    emitAll(
+                        booksDao
+                            .searchBooksFlowWithFallback(
+                                query = primary,
+                                fallbackQuery = fallback,
+                            ).map {
+                                warnOnLargeResult(path = "searchBooksFlowWithFallback", rowCount = it.size)
+                                it.toBooks()
+                            },
+                    )
+                }
         }
 
         private fun warnOnLargeResult(
