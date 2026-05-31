@@ -1045,55 +1045,50 @@ public class PlayerViewModel
             playerController.setVisualizerEnabled(enabled)
         }
 
+        // P-92: Sleep timer operations extracted to PlayerSleepTimerHandler
+        private val sleepTimerHandler =
+            PlayerSleepTimerHandler(
+                sleepTimerRepository = sleepTimerRepository,
+                sleepTimerState = sleepTimerState,
+                loggerFactory = loggerFactory,
+            )
+
         public fun startSleepTimer(minutes: Int) {
-            if (!PlayerIntentGuardPolicy.shouldStartFixedSleepTimer(sleepTimerState.value, minutes)) {
-                logger.d { "Sleep timer already active with same target, skipping restart" }
-                return
-            }
-            sleepTimerRepository.startTimer(minutes)
+            sleepTimerHandler.startSleepTimer(minutes)
         }
 
         public fun startSleepTimerEndOfChapter() {
-            if (!PlayerIntentGuardPolicy.shouldStartEndOfChapter(sleepTimerState.value)) {
-                logger.d { "Sleep timer is already in end-of-chapter mode, skipping restart" }
-                return
-            }
-            sleepTimerRepository.startTimerEndOfChapter()
+            sleepTimerHandler.startSleepTimerEndOfChapter()
         }
 
         public fun startSleepTimerEndOfTrack() {
-            if (!PlayerIntentGuardPolicy.shouldStartEndOfTrack(sleepTimerState.value)) {
-                logger.d { "Sleep timer is already in end-of-track mode, skipping restart" }
-                return
-            }
-            sleepTimerRepository.startTimerEndOfTrack()
+            sleepTimerHandler.startSleepTimerEndOfTrack()
         }
 
         public fun cancelSleepTimer() {
-            sleepTimerRepository.cancelTimer()
+            sleepTimerHandler.cancelSleepTimer()
         }
+
+        // P-92: Book and audio settings operations extracted to PlayerSettingsHandler
+        private val settingsHandler =
+            PlayerSettingsHandler(
+                bookId = bookId,
+                updateBookSettingsUseCase = updateBookSettingsUseCase,
+                settingsRepository = settingsRepository,
+                viewModelScope = viewModelScope,
+                loggerFactory = loggerFactory,
+                reportError = { msg -> dispatch(PlayerIntent.ReportError(msg)) },
+            )
 
         public fun updateBookSeekSettings(
             rewindSeconds: Int?,
             forwardSeconds: Int?,
         ) {
-            viewModelScope.launch {
-                runCatching { updateBookSettingsUseCase(bookId, rewindSeconds, forwardSeconds) }
-                    .onFailure { error ->
-                        logger.e({ "Failed to update book seek settings" }, error)
-                        dispatch(PlayerIntent.ReportError("Failed to update seek settings"))
-                    }
-            }
+            settingsHandler.updateBookSeekSettings(rewindSeconds, forwardSeconds)
         }
 
         public fun resetBookSeekSettings() {
-            viewModelScope.launch {
-                runCatching { updateBookSettingsUseCase.resetForBook(bookId) }
-                    .onFailure { error ->
-                        logger.e({ "Failed to reset book seek settings" }, error)
-                        dispatch(PlayerIntent.ReportError("Failed to reset seek settings"))
-                    }
-            }
+            settingsHandler.resetBookSeekSettings()
         }
 
         public fun updateAudioSettings(
@@ -1106,23 +1101,16 @@ public class PlayerViewModel
             speechEnhancer: Boolean? = null,
             autoVolumeLeveling: Boolean? = null,
         ) {
-            viewModelScope.launch {
-                runCatching {
-                    settingsRepository.updateAudioSettings(
-                        volumeBoost = volumeBoostLevel?.name,
-                        skipSilence = skipSilence,
-                        skipSilenceThresholdDb = skipSilenceThresholdDb,
-                        skipSilenceMinMs = skipSilenceMinMs,
-                        skipSilenceMode = skipSilenceMode,
-                        normalizeVolume = normalizeVolume,
-                        speechEnhancer = speechEnhancer,
-                        autoVolumeLeveling = autoVolumeLeveling,
-                    )
-                }.onFailure { error ->
-                    logger.e({ "Failed to update audio settings" }, error)
-                    dispatch(PlayerIntent.ReportError("Failed to update audio settings"))
-                }
-            }
+            settingsHandler.updateAudioSettings(
+                volumeBoostLevel = volumeBoostLevel,
+                skipSilence = skipSilence,
+                skipSilenceThresholdDb = skipSilenceThresholdDb,
+                skipSilenceMinMs = skipSilenceMinMs,
+                skipSilenceMode = skipSilenceMode,
+                normalizeVolume = normalizeVolume,
+                speechEnhancer = speechEnhancer,
+                autoVolumeLeveling = autoVolumeLeveling,
+            )
         }
 
         /**
