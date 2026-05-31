@@ -115,24 +115,9 @@ public class JabookApplication :
         // Schedule periodic sync
         syncManager.schedulePeriodicSync()
 
-        // CRITICAL: Start AudioPlayerService for warmup
-        // This ensures instant playback readiness without delay on first play
-        // Service will initialize MediaSession, ExoPlayer, and notification provider
-        try {
-            LogUtils.i("JabookApplication", "Starting AudioPlayerService warmup...")
-            CrashDiagnostics.log("audio_service_warmup_started")
-            val serviceIntent = android.content.Intent(this, com.jabook.app.jabook.audio.AudioPlayerService::class.java)
-            startService(serviceIntent)
-            LogUtils.i("JabookApplication", "AudioPlayerService warmup initiated")
-            CrashDiagnostics.log("audio_service_warmup_initiated")
-        } catch (e: Exception) {
-            LogUtils.e("JabookApplication", "Failed to start AudioPlayerService warmup", e)
-            CrashDiagnostics.reportNonFatal(
-                tag = "audio_service_warmup_failed",
-                throwable = e,
-                attributes = mapOf("phase" to "application_on_create"),
-            )
-        }
+        // Service starts lazily on first Play via MediaController connection.
+        // Eager warmup removed: Android 15+ bans media-FGS from auto-start,
+        // and race condition with MediaController required up to 15s retry.
 
         // Configure Coil ImageLoader with OkHttpClient from Hilt
         // Use setSafe to ensure it won't overwrite an existing ImageLoader

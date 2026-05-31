@@ -26,7 +26,6 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
-import androidx.media3.ui.PlayerNotificationManager
 import com.jabook.app.jabook.audio.processors.BookLoudnessCompensator
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.util.LogUtils
@@ -114,10 +113,6 @@ public class AudioPlayerService : MediaLibraryService() {
      * This replaces getInstance() pattern and provides proper Media3 integration.
      */
     public fun getServiceMediaController(): MediaController? = serviceMediaController
-
-    // PlayerNotificationManager for direct notification control (androidx.media3.ui)
-    // Replaces MediaNotification.Provider which doesn't work with background service warmup
-    internal var playerNotificationManager: PlayerNotificationManager? = null
 
     internal var notificationHelper: NotificationHelper? = null
     internal var mediaSessionManager: MediaSessionManager? = null
@@ -683,25 +678,6 @@ public class AudioPlayerService : MediaLibraryService() {
     @OptIn(UnstableApi::class)
     internal fun setNotificationProvider(provider: MediaNotification.Provider) {
         setMediaNotificationProvider(provider)
-    }
-
-    @OptIn(UnstableApi::class)
-    internal fun setupPlayerNotificationManager() {
-        // Guard: Prevent duplicate initialization
-        if (playerNotificationManager != null) {
-            LogUtils.w("AudioPlayerService", "PlayerNotificationManager already initialized, skipping")
-            return
-        }
-        playerNotificationManager =
-            PlayerNotificationSetup(
-                service = this,
-                scope = playerServiceScope,
-                notificationHelper = notificationHelper ?: NotificationHelper(this),
-                foregroundNotificationCoordinator = foregroundNotificationCoordinator,
-                getActivePlayer = { exoPlayer },
-                getMediaLibrarySession = { mediaLibrarySession },
-            ).setup()
-        return
     }
 
     private fun cleanupExistingComponents() {

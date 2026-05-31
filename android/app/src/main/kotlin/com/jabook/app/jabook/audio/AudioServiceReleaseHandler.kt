@@ -75,9 +75,6 @@ internal class AudioServiceReleaseHandler(
             service.playerServiceScope.coroutineContext.cancelChildren()
         }
 
-        service.playerNotificationManager?.setPlayer(null)
-        service.playerNotificationManager = null
-
         if (service.isAudioOutputManagerInitialized()) {
             service.audioOutputManager.stopMonitoring()
         }

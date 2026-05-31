@@ -36,7 +36,6 @@ internal class AudioPlayerPostInitCoordinator(
     fun run() {
         restorePlaybackSpeed()
         setupNotificationProvider()
-        setupPlayerNotificationManagerFallback()
         setupAudioOutputManager()
         service.playbackEnhancerService.initialize()
         initializeVisualizer()
@@ -65,13 +64,6 @@ internal class AudioPlayerPostInitCoordinator(
             LogUtils.i("AudioPlayerService", "MediaNotificationProvider set for MediaLibrarySession")
         } else {
             LogUtils.w("AudioPlayerService", "MediaLibrarySession is null, cannot set MediaNotificationProvider")
-        }
-    }
-
-    private fun setupPlayerNotificationManagerFallback() {
-        if (service.mediaLibrarySession == null) {
-            LogUtils.w("AudioPlayerService", "MediaLibrarySession not available, using PlayerNotificationManager as fallback")
-            service.setupPlayerNotificationManager()
         }
     }
 

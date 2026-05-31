@@ -92,23 +92,23 @@ public class ForumIndexer
         )
 
         public companion object {
-            private const val TOPICS_PER_PAGE = 50 // Typical RuTracker forum page size
-            private const val DELAY_BETWEEN_REQUESTS_MS = 300L // Rate limiting (reduced for faster indexing)
-            private const val MAX_PAGES_PER_FORUM = 100_000 // Effectively unlimited (some forums have 350+ pages)
+            private const val TOPICS_PER_PAGE = 50
+            private const val DELAY_BETWEEN_REQUESTS_MS = 300L
+            private const val MAX_PAGES_PER_FORUM = 100_000
 
-            // Update strategy constants
-            private const val FULL_UPDATE_INTERVAL_DAYS = 7L // Full re-index every 7 days
-            private const val INCREMENTAL_UPDATE_INTERVAL_HOURS = 24L // Incremental update daily
+            private const val FULL_UPDATE_INTERVAL_DAYS = 7L
+            private const val INCREMENTAL_UPDATE_INTERVAL_HOURS = 24L
             private const val MAX_AGE_FOR_UPDATE_MS = INCREMENTAL_UPDATE_INTERVAL_HOURS * 60 * 60 * 1000
 
-            // Cover preloading
-            private const val PRELOAD_COVERS_BATCH_SIZE = 10 // Preload covers in batches
-            private const val PRELOAD_COVERS_DELAY_MS = 100L // Delay between cover preloads
+            private const val PRELOAD_COVERS_BATCH_SIZE = 10
+            private const val PRELOAD_COVERS_DELAY_MS = 100L
 
-            // Performance optimization
-            private const val MAX_CONCURRENT_FORUMS = 3 // Increased from 2 to 3 for better performance
-            private const val BATCH_SIZE_FOR_DB = 100 // Increased from 50 to 100 for faster DB writes
-            private const val MAX_MEMORY_TOPICS = 200 // Max topics to keep in memory before DB flush
+            private const val MAX_CONCURRENT_FORUMS = 3
+            private const val BATCH_SIZE_FOR_DB = 100
+            private const val MAX_MEMORY_TOPICS = 200
+
+            private const val MIN_VALID_TOPICS_ABSOLUTE = 10
+            private const val MIN_VALID_RATIO = 0.5
         }
 
         /**
@@ -239,6 +239,15 @@ public class ForumIndexer
                     throw IllegalStateException(message)
                 }
 
+                if (oldCount > MIN_VALID_TOPICS_ABSOLUTE && totalIndexed < oldCount * MIN_VALID_RATIO) {
+                    val message =
+                        "Indexing produced too few topics ($totalIndexed) vs existing ($oldCount). " +
+                            "Old index preserved (threshold: ${(oldCount * MIN_VALID_RATIO).toInt()})."
+                    logger.w { message }
+                    onProgress?.invoke(IndexingProgress.Error(message))
+                    throw IllegalStateException(message)
+                }
+
                 if (preloadCovers && coversToPreload.isNotEmpty()) {
                     preloadCovers(coversToPreload)
                 }
@@ -355,6 +364,14 @@ public class ForumIndexer
                     val pageResult = parser.parseForumPageWithPagination(body, forumId)
                     val topics = pageResult.topics
                     val parseTime = System.currentTimeMillis() - parseStartTime
+
+                    if (page == 0 && topics.isEmpty()) {
+                        val bodyStr = body.string()
+                        if (!isHealthyForumPage(bodyStr, 0)) {
+                            logger.w { "Forum $forumId page 0: unhealthy response (CAPTCHA/login-wall/block page), aborting forum" }
+                            break
+                        }
+                    }
 
                     hasMorePages = pageResult.hasMorePages
 
@@ -639,4 +656,16 @@ public class ForumIndexer
                 offlineSearchDao.deleteAllMappings()
                 logger.i { "Index cleared" }
             }
+
+        internal fun isHealthyForumPage(html: String, parsedRows: Int): Boolean = when {
+            parsedRows > 0 -> true
+            html.contains("captcha", ignoreCase = true) -> false
+            html.contains("login-form", ignoreCase = true) -> false
+            html.contains("введите код", ignoreCase = true) -> false
+            html.contains("заблокирован", ignoreCase = true) -> false
+            html.contains("доступ запрещён", ignoreCase = true) -> false
+            html.contains("доступ запрещен", ignoreCase = true) -> false
+            html.length < 500 -> false
+            else -> false
+        }
     }

@@ -78,10 +78,6 @@ public class RutrackerRepository
         private val mirrorManager: MirrorManager,
         private val loggerFactory: LoggerFactory,
     ) {
-        public companion object {
-            private const val TAG = "RutrackerRepository"
-        }
-
         private val logger = loggerFactory.get(TAG)
         private val rutrackerParser: RutrackerParser
             get() = parser.get()
@@ -159,38 +155,42 @@ public class RutrackerRepository
                     logger.i { "Input query: '$query', limit: $limit" }
                     logger.i { "Current mirror: $currentMirror" }
 
-                    // Log exact SQL that will be executed (reconstructed for visibility)
-                    val sqlPattern =
-                        "SELECT * FROM cached_topics " +
-                            "WHERE (title LIKE '%$query%' OR author LIKE '%$query%') " +
-                            "AND category IS NOT NULL AND category != '' " +
-                            "ORDER BY CASE WHEN title LIKE '$query%' THEN 1 ELSE 2 END, " +
-                            "seeders DESC, timestamp DESC LIMIT $limit"
-                    logger.d { "SQL query pattern: $sqlPattern" }
-                    logger.d { "Query filters: title/author contains '$query', category NOT NULL/empty" }
+                    val ftsQuery = toFtsQuery(query)
+                    logger.d { "FTS5 query: '$ftsQuery' (from raw: '$query')" }
 
-                    val entities = offlineSearchDao.searchIndexedTopics(query, limit)
+                    val entities = try {
+                        val ftsSql =
+                            "SELECT t.* FROM cached_topics t " +
+                                "JOIN topics_fts ON topics_fts.rowid = t.rowid " +
+                                "WHERE topics_fts MATCH ? " +
+                                "AND t.category IS NOT NULL AND t.category != '' " +
+                                "ORDER BY bm25(topics_fts), t.seeders DESC LIMIT $limit"
+                        offlineSearchDao.searchIndexedTopicsFtsRaw(
+                            androidx.sqlite.db.SimpleSQLiteQuery(ftsSql, arrayOf<Any>(ftsQuery)),
+                        )
+                    } catch (e: Exception) {
+                        logger.w { "FTS5 search failed, falling back to LIKE: ${e.message}" }
+                        offlineSearchDao.searchIndexedTopics(query, limit)
+                    }
                     val dbDuration = System.currentTimeMillis() - searchStartTime
 
                     logger.i { "DB query completed: ${entities.size} entities returned in ${dbDuration}ms" }
 
                     // Diagnostic: if no results, check why
                     if (entities.isEmpty()) {
-                        logger.w { "⚠️ Zero results from DB - running diagnostics..." }
+                        logger.w { "Zero results from DB - running diagnostics..." }
                         val totalTopics = offlineSearchDao.getTopicCount()
                         val topicsWithCategory = offlineSearchDao.getTopicsWithNonEmptyCategory()
                         logger.w { "Total topics in DB: $totalTopics" }
                         logger.w { "Topics with non-empty category: $topicsWithCategory" }
                         logger.w { "Topics filtered by category constraint: ${totalTopics - topicsWithCategory}" }
 
-                        // Sample a few topics to see what's in DB
                         val sampleTopics = offlineSearchDao.getSampleTopics(5)
                         sampleTopics.forEachIndexed { i, topic ->
                             logger.d { "Sample[$i]: title='${topic.title.take(40)}', category='${topic.category}'" }
                         }
                     }
 
-                    // Log first 3 entities for diagnostics
                     entities.take(3).forEachIndexed { i, entity ->
                         logger.d {
                             "Result[$i]: id=${entity.topicId}, " +
@@ -208,20 +208,18 @@ public class RutrackerRepository
                     logger.d { "DTO mapping: ${entities.size} → ${dtoResults.size} in ${dtoMapDuration}ms" }
 
                     val domainMapStartTime = System.currentTimeMillis()
-                    // Use lenient validation for indexed results
                     val domainResults = dtoResults.toDomainFromIndex()
                     val domainMapDuration = System.currentTimeMillis() - domainMapStartTime
 
                     val filteredCount = dtoResults.size - domainResults.size
                     if (filteredCount > 0) {
                         logger.w {
-                            "⚠️ Validation filtered out $filteredCount results " +
+                            "Validation filtered out $filteredCount results " +
                                 "(${dtoResults.size} DTO → ${domainResults.size} domain, ${domainMapDuration}ms)"
                         }
-                        // Log why items were filtered
                         val filtered = dtoResults.toDomainFromIndex()
                         if (filtered.isEmpty() && dtoResults.isNotEmpty()) {
-                            logger.e { "❌ ALL results filtered out! First DTO: ${dtoResults.first()}" }
+                            logger.e { "ALL results filtered out! First DTO: ${dtoResults.first()}" }
                         }
                     } else {
                         logger.d {
@@ -238,7 +236,7 @@ public class RutrackerRepository
                     domainResults
                 } catch (e: Exception) {
                     logger.e(
-                        { "❌ Indexed search EXCEPTION for query '$query': ${e.message}" },
+                        { "Indexed search EXCEPTION for query '$query': ${e.message}" },
                         e,
                     )
                     logger.e { "Exception type: ${e.javaClass.simpleName}, stack trace below" }
@@ -246,14 +244,19 @@ public class RutrackerRepository
                 }
             }
 
+        public companion object {
+            private const val TAG = "RutrackerRepository"
+
+            internal fun toFtsQuery(input: String): String =
+                input.trim().split(Regex("\\s+"))
+                    .filter { it.isNotBlank() }
+                    .joinToString(" ") {
+                        "\"" + it.replace("\"", "\"\"") + "\"*"
+                    }
+        }
+
         /**
          * Search using ONLY indexed topics (offline, no network).
-         *
-         * This method uses the pre-indexed topics from forums, ensuring:
-         * - Fast, offline search
-         * - Only audiobook topics (from indexed forums)
-         * - No unwanted topics from other forums
-         * - No network requests
          *
          * If index is empty or search fails, returns empty list (never falls back to network).
          */
@@ -262,10 +265,6 @@ public class RutrackerRepository
             forumIds: String? = null,
         ): Flow<Result<List<RutrackerSearchResult>>> =
             flow {
-                val currentMirror = mirrorManager.getCurrentMirrorDomain()
-                logger.i { "🔍 SWR search started: query='$query', forumIds=$forumIds" }
-                logger.i { "Using mirror: $currentMirror" }
-
                 try {
                     var lastEmitted: List<RutrackerSearchResult> = emptyList()
 
@@ -276,30 +275,22 @@ public class RutrackerRepository
                         }
                     }
 
-                    // 1) Immediate stale emission from in-memory cache
                     searchCache.get(query, forumIds)?.let { cached ->
                         val domainCached = cached.toDomainFromIndex()
                         if (domainCached.isNotEmpty()) {
-                            logger.d { "⚡ Emitting memory-cached search result: ${domainCached.size} items" }
                             emitIfChanged(domainCached)
                         }
                     }
 
-                    // Check if index exists and has data
                     val indexSize =
                         withContext(Dispatchers.IO) {
                             try {
                                 offlineSearchDao.getTopicCount()
                             } catch (e: Exception) {
-                                logger.e(
-                                    { "Failed to get topic count" },
-                                    e,
-                                )
                                 0
                             }
                         }
 
-                    // 2) Stale emission from indexed DB snapshot (if available)
                     if (indexSize > 0) {
                         if (query.trim() == "!index" || query.trim() == ":debug") {
                             val sampleTopics = offlineSearchDao.getSampleTopics(10)
@@ -313,46 +304,41 @@ public class RutrackerRepository
                         if (tokens.isEmpty()) {
                             emitIfChanged(emptyList())
                         } else {
-                            val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
-                            val args = ArrayList<Any>()
-
-                            tokens.forEachIndexed { index, token ->
-                                if (index > 0) sqlBuilder.append(" AND ")
-                                sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
-
-                                val likePattern: String = "%$token%"
-                                args.add(likePattern)
-                                args.add(likePattern)
-                            }
-
-                            // Add ordering and limit
-                            sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
-
-                            val simpleQuery =
-                                androidx.sqlite.db.SimpleSQLiteQuery(
-                                    sqlBuilder.toString(),
-                                    args.toArray(),
+                            val ftsQuery = toFtsQuery(query)
+                            val indexedEntities = try {
+                                val ftsSql =
+                                    "SELECT t.* FROM cached_topics t " +
+                                        "JOIN topics_fts ON topics_fts.rowid = t.rowid " +
+                                        "WHERE topics_fts MATCH ? " +
+                                        "AND t.category IS NOT NULL AND t.category != '' " +
+                                        "ORDER BY bm25(topics_fts), t.seeders DESC LIMIT 200"
+                                offlineSearchDao.searchIndexedTopicsFtsRaw(
+                                    androidx.sqlite.db.SimpleSQLiteQuery(ftsSql, arrayOf<Any>(ftsQuery)),
                                 )
-
-                            val indexedEntities = offlineSearchDao.searchIndexedTopicsRaw(simpleQuery).first()
-                            val indexedDomainResults = indexedEntities.map { it.toSearchResult() }.toDomainFromIndex()
-                            if (indexedDomainResults.isNotEmpty()) {
-                                logger.d { "📚 Emitting indexed stale result: ${indexedDomainResults.size} items" }
+                            } catch (e: Exception) {
+                                logger.w { "FTS5 flow search failed, falling back to LIKE: ${e.message}" }
+                                val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
+                                val args = ArrayList<Any>()
+                                tokens.forEachIndexed { index, token ->
+                                    if (index > 0) sqlBuilder.append(" AND ")
+                                    sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
+                                    args.add("%$token%")
+                                    args.add("%$token%")
+                                }
+                                sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
+                                offlineSearchDao.searchIndexedTopicsRaw(
+                                    androidx.sqlite.db.SimpleSQLiteQuery(sqlBuilder.toString(), args.toArray()),
+                                ).first()
                             }
+                            val indexedDomainResults = indexedEntities.map { it.toSearchResult() }.toDomainFromIndex()
                             emitIfChanged(indexedDomainResults)
                         }
-                    } else {
-                        logger.w { "⚠️ Index is empty ($indexSize topics)." }
                     }
 
-                    // 3) Revalidate from network and emit refreshed result when changed
                     val refreshed = fetchFromNetwork(query, forumIds)
                     if (refreshed.isSuccess) {
                         emitIfChanged(refreshed.getOrDefault(emptyList()))
                     } else {
-                        logger.w {
-                            "SWR network revalidation failed for query '$query': ${refreshed.exceptionOrNull()?.message}"
-                        }
                         if (lastEmitted.isEmpty()) {
                             emit(Result.success(emptyList()))
                         }
@@ -360,18 +346,10 @@ public class RutrackerRepository
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    logger.e(
-                        { "❌ Indexed search failed for query '$query'" },
-                        e,
-                    )
                     emit(Result.success(emptyList()))
                 }
             }.catch { e ->
                 if (e is CancellationException) throw e
-                logger.e(
-                    { "Search flow error" },
-                    e,
-                )
                 emit(Result.success(emptyList()))
             }
 

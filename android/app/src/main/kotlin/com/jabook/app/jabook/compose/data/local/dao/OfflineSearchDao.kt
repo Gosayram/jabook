@@ -19,6 +19,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.RewriteQueriesToDropUnusedColumns
 import androidx.room.Transaction
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
@@ -142,6 +143,18 @@ public interface OfflineSearchDao {
         query: String,
         limit: Int = 100,
     ): List<CachedTopicEntity>
+
+    /**
+     * FTS5-powered search with bm25 ranking for instant offline search.
+     * Uses MATCH + bm25() for relevance sorting instead of LIKE full-scan.
+     *
+     * @param ftsQuery Pre-sanitized FTS5 query with bind args (e.g. "гарри поттер*")
+     * @param limit Maximum number of results
+     * @return List of matching topics ranked by relevance and seeders
+     */
+    @RewriteQueriesToDropUnusedColumns
+    @RawQuery(observedEntities = [CachedTopicEntity::class])
+    public suspend fun searchIndexedTopicsFtsRaw(query: androidx.sqlite.db.SupportSQLiteQuery): List<CachedTopicEntity>
 
     /**
      * Raw query string search for dynamic token-based matching.

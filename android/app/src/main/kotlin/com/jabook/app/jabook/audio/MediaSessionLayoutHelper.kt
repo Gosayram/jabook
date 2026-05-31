@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import androidx.annotation.OptIn
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
@@ -129,27 +130,19 @@ internal class MediaSessionLayoutHelper(
         val rewindButton =
             CommandButton
                 .Builder(CommandButton.ICON_SKIP_BACK)
-                .setDisplayName("-$rewindSeconds")
-                .setSessionCommand(
-                    androidx.media3.session.SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_REWIND,
-                        android.os.Bundle.EMPTY,
-                    ),
-                ).build()
+                .setDisplayName("-${rewindSeconds}s")
+                .setPlayerCommand(Player.COMMAND_SEEK_BACK)
+                .build()
 
         val forwardButton =
             CommandButton
                 .Builder(CommandButton.ICON_SKIP_FORWARD)
-                .setDisplayName("+$forwardSeconds")
-                .setSessionCommand(
-                    androidx.media3.session.SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_FORWARD,
-                        android.os.Bundle.EMPTY,
-                    ),
-                ).build()
+                .setDisplayName("+${forwardSeconds}s")
+                .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
+                .build()
 
-        session.setCustomLayout(listOf(rewindButton, forwardButton))
-        LogUtils.d(TAG, "Updated custom layout - Rewind: ${rewindSeconds}s, Forward: ${forwardSeconds}s")
+        session.setMediaButtonPreferences(listOf(rewindButton, forwardButton))
+        LogUtils.d(TAG, "Updated media button preferences - Rewind: ${rewindSeconds}s, Forward: ${forwardSeconds}s")
     }
 
     private companion object {

@@ -27,6 +27,8 @@ import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.room.RoomDatabase
 import com.jabook.app.jabook.audio.data.local.database.migration.AudioDatabaseMigrations
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
@@ -154,23 +156,36 @@ public object MediaModule {
         // Create optimized LoadControl
         val loadControl = createOptimizedLoadControl(context)
 
+        val extractorsFactory = DefaultExtractorsFactory()
+            .setMp3ExtractorFlags(
+                Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING or
+                    Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING,
+            )
+
+        val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
+            context,
+            extractorsFactory,
+        )
+
         val player =
             try {
                 ExoPlayer
                     .Builder(context)
                     .setLoadControl(loadControl)
+                    .setMediaSourceFactory(mediaSourceFactory)
                     .setHandleAudioBecomingNoisy(true)
-                    .setWakeMode(C.WAKE_MODE_LOCAL) // CRITICAL: Keep CPU awake during playback
+                    .setWakeMode(C.WAKE_MODE_LOCAL)
                     .setAudioAttributes(
                         AudioAttributes
                             .Builder()
                             .setUsage(C.USAGE_MEDIA)
-                            .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH) // Match lissen-android exactly
+                            .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
                             .build(),
-                        true, // handleAudioFocus=true - ExoPlayer manages AudioFocus automatically
-                    ).build()
-                    .apply {
-                        setTrackSelectionParameters(createAudioOffloadTrackSelectionParameters())
+                        true,
+                    ).setSkipSilenceEnabled(true)
+                    .build()
+                    .also {
+                        it.trackSelectionParameters = createAudioOffloadTrackSelectionParameters()
                     }
             } catch (e: Exception) {
                 LogUtils.e("MediaModule", "Error creating ExoPlayer: ${e.message}", e)
@@ -209,6 +224,12 @@ public object MediaModule {
                 .createProcessorChain(settings)
         val processors = chainResult.processors
 
+        val extractorsFactory = DefaultExtractorsFactory()
+            .setMp3ExtractorFlags(
+                Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING or
+                    Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING,
+            )
+
         val player =
             try {
                 // Create RenderersFactory with custom AudioSink that supports processors
@@ -226,20 +247,27 @@ public object MediaModule {
                                 .build()
                     }
 
+                val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
+                    context,
+                    extractorsFactory,
+                )
+
                 val builder =
                     ExoPlayer
                         .Builder(context)
                         .setRenderersFactory(renderersFactory)
+                        .setMediaSourceFactory(mediaSourceFactory)
                         .setLoadControl(createOptimizedLoadControl(context))
                         .setHandleAudioBecomingNoisy(true)
-                        .setWakeMode(C.WAKE_MODE_LOCAL) // CRITICAL: Keep CPU awake during playback
+                        .setWakeMode(C.WAKE_MODE_LOCAL)
+                        .setSkipSilenceEnabled(true)
                         .setAudioAttributes(
                             AudioAttributes
                                 .Builder()
                                 .setUsage(C.USAGE_MEDIA)
                                 .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
                                 .build(),
-                            true, // handleAudioFocus=true
+                            true,
                         )
 
                 if (processors.isNotEmpty()) {
@@ -251,8 +279,8 @@ public object MediaModule {
 
                 builder
                     .build()
-                    .apply {
-                        setTrackSelectionParameters(createAudioOffloadTrackSelectionParameters())
+                    .also {
+                        it.trackSelectionParameters = createAudioOffloadTrackSelectionParameters()
                     }
             } catch (e: Exception) {
                 LogUtils.e("MediaModule", "Error creating ExoPlayer with processors: ${e.message}", e)
