@@ -263,7 +263,6 @@ android {
             )
         }
         debug {
-            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             isShrinkResources = false
             enableAndroidTestCoverage = true
