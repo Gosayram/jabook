@@ -185,10 +185,11 @@ public class JabookApplication :
             prefs.edit().remove("has_crash_report").apply()
 
             LogUtils.w("JabookApplication", "Found crash report from previous session, launching CrashActivity")
-            val intent = android.content.Intent(this, com.jabook.app.jabook.crash.CrashActivity::class.java).apply {
-                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                putExtra(com.jabook.app.jabook.crash.CrashActivity.EXTRA_STACK_TRACE, report)
-            }
+            val intent =
+                android.content.Intent(this, com.jabook.app.jabook.crash.CrashActivity::class.java).apply {
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    putExtra(com.jabook.app.jabook.crash.CrashActivity.EXTRA_STACK_TRACE, report)
+                }
             startActivity(intent)
         } catch (e: Exception) {
             LogUtils.e("JabookApplication", "Failed to check crash report", e)

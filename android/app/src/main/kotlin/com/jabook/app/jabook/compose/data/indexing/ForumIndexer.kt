@@ -657,15 +657,19 @@ public class ForumIndexer
                 logger.i { "Index cleared" }
             }
 
-        internal fun isHealthyForumPage(html: String, parsedRows: Int): Boolean = when {
-            parsedRows > 0 -> true
-            html.contains("captcha", ignoreCase = true) -> false
-            html.contains("login-form", ignoreCase = true) -> false
-            html.contains("введите код", ignoreCase = true) -> false
-            html.contains("заблокирован", ignoreCase = true) -> false
-            html.contains("доступ запрещён", ignoreCase = true) -> false
-            html.contains("доступ запрещен", ignoreCase = true) -> false
-            html.length < 500 -> false
-            else -> false
-        }
+        internal fun isHealthyForumPage(
+            html: String,
+            parsedRows: Int,
+        ): Boolean =
+            when {
+                parsedRows > 0 -> true
+                html.contains("captcha", ignoreCase = true) -> false
+                html.contains("login-form", ignoreCase = true) -> false
+                html.contains("введите код", ignoreCase = true) -> false
+                html.contains("заблокирован", ignoreCase = true) -> false
+                html.contains("доступ запрещён", ignoreCase = true) -> false
+                html.contains("доступ запрещен", ignoreCase = true) -> false
+                html.length < 500 -> false
+                else -> false
+            }
     }

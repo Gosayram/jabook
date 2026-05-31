@@ -54,14 +54,15 @@ internal fun resolveMediaDataSourceRoute(uri: Uri): MediaDataSourceRoute =
  * Example: "Глава 2.mp3" < "Глава 10.mp3" < "Глава 100.mp3".
  * Falls back to lexicographic comparison when segments are non-numeric.
  */
-internal fun sortFilesByNumericPrefix(filePaths: List<String>): List<String> {
-    return filePaths.sortedWith(NaturalOrderComparator)
-}
+internal fun sortFilesByNumericPrefix(filePaths: List<String>): List<String> = filePaths.sortedWith(NaturalOrderComparator)
 
 private val segmentRegex = Regex("\\d+|\\D+")
 
 private object NaturalOrderComparator : Comparator<String> {
-    override fun compare(a: String, b: String): Int {
+    override fun compare(
+        a: String,
+        b: String,
+    ): Int {
         val nameA = a.substringAfterLast('/')
         val nameB = b.substringAfterLast('/')
 
@@ -75,10 +76,11 @@ private object NaturalOrderComparator : Comparator<String> {
             val na = sa.toLongOrNull()
             val nb = sb.toLongOrNull()
 
-            val cmp = when {
-                na != null && nb != null -> na.compareTo(nb)
-                else -> sa.compareTo(sb, ignoreCase = true)
-            }
+            val cmp =
+                when {
+                    na != null && nb != null -> na.compareTo(nb)
+                    else -> sa.compareTo(sb, ignoreCase = true)
+                }
             if (cmp != 0) return cmp
         }
         return 0

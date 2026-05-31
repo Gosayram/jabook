@@ -67,7 +67,12 @@ public class GlobalExceptionHandler(
                     "GlobalExceptionHandler",
                     "Crash loop detected ($crashCount crashes in ${CRASH_LOOP_THRESHOLD_MS}ms), breaking loop",
                 )
-                prefs.edit().remove("last_crash_time").remove("crash_count").remove(CRASH_REPORT_MARKER).apply()
+                prefs
+                    .edit()
+                    .remove("last_crash_time")
+                    .remove("crash_count")
+                    .remove(CRASH_REPORT_MARKER)
+                    .apply()
                 deleteCrashReport()
                 defaultHandler?.uncaughtException(thread, throwable) ?: run {
                     Process.killProcess(Process.myPid())
@@ -77,7 +82,8 @@ public class GlobalExceptionHandler(
             }
 
             val newCount = if (now - lastCrashTime < CRASH_LOOP_THRESHOLD_MS) crashCount + 1 else 1
-            prefs.edit()
+            prefs
+                .edit()
                 .putLong("last_crash_time", now)
                 .putInt("crash_count", newCount)
                 .apply()
@@ -93,7 +99,10 @@ public class GlobalExceptionHandler(
         }
     }
 
-    private fun writeCrashReport(thread: Thread, throwable: Throwable) {
+    private fun writeCrashReport(
+        thread: Thread,
+        throwable: Throwable,
+    ) {
         try {
             val report = buildCrashReport(thread, throwable)
             val file = File(application.filesDir, CRASH_REPORT_FILE)
@@ -107,19 +116,24 @@ public class GlobalExceptionHandler(
     private fun deleteCrashReport() {
         try {
             File(application.filesDir, CRASH_REPORT_FILE).delete()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
     }
 
-    private fun buildCrashReport(thread: Thread, throwable: Throwable): String = buildString {
-        appendLine("=== JaBook Crash Report ===")
-        appendLine("Time: ${java.util.Date()}")
-        appendLine("Thread: ${thread.name}")
-        appendLine("Build: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) flavor=${BuildConfig.FLAVOR}")
-        appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
-        appendLine()
-        appendLine("Stack trace:")
-        val sw = StringWriter()
-        throwable.printStackTrace(PrintWriter(sw))
-        appendLine(sw.toString())
-    }
+    private fun buildCrashReport(
+        thread: Thread,
+        throwable: Throwable,
+    ): String =
+        buildString {
+            appendLine("=== JaBook Crash Report ===")
+            appendLine("Time: ${java.util.Date()}")
+            appendLine("Thread: ${thread.name}")
+            appendLine("Build: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) flavor=${BuildConfig.FLAVOR}")
+            appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+            appendLine()
+            appendLine("Stack trace:")
+            val sw = StringWriter()
+            throwable.printStackTrace(PrintWriter(sw))
+            appendLine(sw.toString())
+        }
 }

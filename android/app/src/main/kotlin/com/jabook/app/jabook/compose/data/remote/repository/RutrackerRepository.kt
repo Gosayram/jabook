@@ -158,20 +158,21 @@ public class RutrackerRepository
                     val ftsQuery = toFtsQuery(query)
                     logger.d { "FTS5 query: '$ftsQuery' (from raw: '$query')" }
 
-                    val entities = try {
-                        val ftsSql =
-                            "SELECT t.* FROM cached_topics t " +
-                                "JOIN topics_fts ON topics_fts.rowid = t.rowid " +
-                                "WHERE topics_fts MATCH ? " +
-                                "AND t.category IS NOT NULL AND t.category != '' " +
-                                "ORDER BY bm25(topics_fts), t.seeders DESC LIMIT $limit"
-                        offlineSearchDao.searchIndexedTopicsFtsRaw(
-                            androidx.sqlite.db.SimpleSQLiteQuery(ftsSql, arrayOf<Any>(ftsQuery)),
-                        )
-                    } catch (e: Exception) {
-                        logger.w { "FTS5 search failed, falling back to LIKE: ${e.message}" }
-                        offlineSearchDao.searchIndexedTopics(query, limit)
-                    }
+                    val entities =
+                        try {
+                            val ftsSql =
+                                "SELECT t.* FROM cached_topics t " +
+                                    "JOIN topics_fts ON topics_fts.rowid = t.rowid " +
+                                    "WHERE topics_fts MATCH ? " +
+                                    "AND t.category IS NOT NULL AND t.category != '' " +
+                                    "ORDER BY bm25(topics_fts), t.seeders DESC LIMIT $limit"
+                            offlineSearchDao.searchIndexedTopicsFtsRaw(
+                                androidx.sqlite.db.SimpleSQLiteQuery(ftsSql, arrayOf<Any>(ftsQuery)),
+                            )
+                        } catch (e: Exception) {
+                            logger.w { "FTS5 search failed, falling back to LIKE: ${e.message}" }
+                            offlineSearchDao.searchIndexedTopics(query, limit)
+                        }
                     val dbDuration = System.currentTimeMillis() - searchStartTime
 
                     logger.i { "DB query completed: ${entities.size} entities returned in ${dbDuration}ms" }
@@ -248,8 +249,10 @@ public class RutrackerRepository
             private const val TAG = "RutrackerRepository"
 
             internal fun toFtsQuery(input: String): String =
-                input.trim()
-                    .replace("ё", "е").replace("Ё", "Е") // FTS5 unicode61 doesn't normalize Cyrillic ё
+                input
+                    .trim()
+                    .replace("ё", "е")
+                    .replace("Ё", "Е") // FTS5 unicode61 doesn't normalize Cyrillic ё
                     .split(Regex("\\s+"))
                     .filter { it.isNotBlank() }
                     .joinToString(" ") {
@@ -307,31 +310,33 @@ public class RutrackerRepository
                             emitIfChanged(emptyList())
                         } else {
                             val ftsQuery = toFtsQuery(query)
-                            val indexedEntities = try {
-                                val ftsSql =
-                                    "SELECT t.* FROM cached_topics t " +
-                                        "JOIN topics_fts ON topics_fts.rowid = t.rowid " +
-                                        "WHERE topics_fts MATCH ? " +
-                                        "AND t.category IS NOT NULL AND t.category != '' " +
-                                        "ORDER BY bm25(topics_fts), t.seeders DESC LIMIT 200"
-                                offlineSearchDao.searchIndexedTopicsFtsRaw(
-                                    androidx.sqlite.db.SimpleSQLiteQuery(ftsSql, arrayOf<Any>(ftsQuery)),
-                                )
-                            } catch (e: Exception) {
-                                logger.w { "FTS5 flow search failed, falling back to LIKE: ${e.message}" }
-                                val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
-                                val args = ArrayList<Any>()
-                                tokens.forEachIndexed { index, token ->
-                                    if (index > 0) sqlBuilder.append(" AND ")
-                                    sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
-                                    args.add("%$token%")
-                                    args.add("%$token%")
+                            val indexedEntities =
+                                try {
+                                    val ftsSql =
+                                        "SELECT t.* FROM cached_topics t " +
+                                            "JOIN topics_fts ON topics_fts.rowid = t.rowid " +
+                                            "WHERE topics_fts MATCH ? " +
+                                            "AND t.category IS NOT NULL AND t.category != '' " +
+                                            "ORDER BY bm25(topics_fts), t.seeders DESC LIMIT 200"
+                                    offlineSearchDao.searchIndexedTopicsFtsRaw(
+                                        androidx.sqlite.db.SimpleSQLiteQuery(ftsSql, arrayOf<Any>(ftsQuery)),
+                                    )
+                                } catch (e: Exception) {
+                                    logger.w { "FTS5 flow search failed, falling back to LIKE: ${e.message}" }
+                                    val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
+                                    val args = ArrayList<Any>()
+                                    tokens.forEachIndexed { index, token ->
+                                        if (index > 0) sqlBuilder.append(" AND ")
+                                        sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
+                                        args.add("%$token%")
+                                        args.add("%$token%")
+                                    }
+                                    sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
+                                    offlineSearchDao
+                                        .searchIndexedTopicsRaw(
+                                            androidx.sqlite.db.SimpleSQLiteQuery(sqlBuilder.toString(), args.toArray()),
+                                        ).first()
                                 }
-                                sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
-                                offlineSearchDao.searchIndexedTopicsRaw(
-                                    androidx.sqlite.db.SimpleSQLiteQuery(sqlBuilder.toString(), args.toArray()),
-                                ).first()
-                            }
                             val indexedDomainResults = indexedEntities.map { it.toSearchResult() }.toDomainFromIndex()
                             emitIfChanged(indexedDomainResults)
                         }

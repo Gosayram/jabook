@@ -156,16 +156,18 @@ public object MediaModule {
         // Create optimized LoadControl
         val loadControl = createOptimizedLoadControl(context)
 
-        val extractorsFactory = DefaultExtractorsFactory()
-            .setMp3ExtractorFlags(
-                Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING or
-                    Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING,
-            )
+        val extractorsFactory =
+            DefaultExtractorsFactory()
+                .setMp3ExtractorFlags(
+                    Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING or
+                        Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING,
+                )
 
-        val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
-            context,
-            extractorsFactory,
-        )
+        val mediaSourceFactory =
+            androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
+                context,
+                extractorsFactory,
+            )
 
         val player =
             try {
@@ -224,11 +226,12 @@ public object MediaModule {
                 .createProcessorChain(settings)
         val processors = chainResult.processors
 
-        val extractorsFactory = DefaultExtractorsFactory()
-            .setMp3ExtractorFlags(
-                Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING or
-                    Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING,
-            )
+        val extractorsFactory =
+            DefaultExtractorsFactory()
+                .setMp3ExtractorFlags(
+                    Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING or
+                        Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING,
+                )
 
         val player =
             try {
@@ -247,10 +250,11 @@ public object MediaModule {
                                 .build()
                     }
 
-                val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
-                    context,
-                    extractorsFactory,
-                )
+                val mediaSourceFactory =
+                    androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
+                        context,
+                        extractorsFactory,
+                    )
 
                 val builder =
                     ExoPlayer
