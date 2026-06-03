@@ -62,7 +62,7 @@ re2j = "1.8"
 coil3 = "3.4.0"
 
 # Serialization
-protobuf = "4.34.1"
+protobuf = "4.35.0"
 
 # Security
 tink = "1.21.0"
