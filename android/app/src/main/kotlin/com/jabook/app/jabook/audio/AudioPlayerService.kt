@@ -208,7 +208,7 @@ public class AudioPlayerService : MediaLibraryService() {
     internal val notificationIntentFactory = NotificationIntentFactory(this)
 
     internal val mediaSessionLayoutHelper =
-        MediaSessionLayoutHelper(playerServiceScope) { mediaSession }
+        MediaSessionLayoutHelper(this, playerServiceScope) { mediaSession }
 
     internal val foregroundNotificationCoordinator by lazy {
         ForegroundNotificationCoordinator(

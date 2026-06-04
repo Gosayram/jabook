@@ -60,33 +60,38 @@ public class DnsOverHttpsDns : Dns {
                 .header("Accept", "application/dns-json")
                 .build()
 
-        val response = client.newCall(request).execute()
-        if (!response.isSuccessful) return emptyList()
+        return try {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return emptyList()
 
-        val body = response.body.string()
-        val json = JSONObject(body)
+                val bodyString = response.body?.string() ?: return emptyList()
+                val json = JSONObject(bodyString)
 
-        // Check status (0 = NOERROR)
-        val status = json.optInt("Status", -1)
-        if (status != 0) return emptyList()
+                // Check status (0 = NOERROR)
+                val status = json.optInt("Status", -1)
+                if (status != 0) return emptyList()
 
-        val answers = json.optJSONArray("Answer") ?: return emptyList()
-        val results = mutableListOf<InetAddress>()
+                val answers = json.optJSONArray("Answer") ?: return emptyList()
+                val results = mutableListOf<InetAddress>()
 
-        for (i in 0 until answers.length()) {
-            val answer = answers.getJSONObject(i)
-            val type = answer.optInt("type", 0)
-            val data = answer.optString("data", "")
-            // Type 1 = A record, Type 28 = AAAA
-            if ((type == 1 || type == 28) && data.isNotEmpty()) {
-                try {
-                    results.add(InetAddress.getByName(data))
-                } catch (_: Exception) {
-                    // Skip invalid addresses
+                for (i in 0 until answers.length()) {
+                    val answer = answers.getJSONObject(i)
+                    val type = answer.optInt("type", 0)
+                    val data = answer.optString("data", "")
+                    // Type 1 = A record, Type 28 = AAAA
+                    if ((type == 1 || type == 28) && data.isNotEmpty()) {
+                        try {
+                            results.add(InetAddress.getByName(data))
+                        } catch (_: Exception) {
+                            // Skip invalid addresses
+                        }
+                    }
                 }
-            }
-        }
 
-        return results
+                results
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 }

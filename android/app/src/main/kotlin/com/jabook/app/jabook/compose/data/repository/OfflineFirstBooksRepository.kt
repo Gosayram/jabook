@@ -237,6 +237,7 @@ public class OfflineFirstBooksRepository
                     it.toBooks()
                 }.catch { e ->
                     if (e is CancellationException) throw e
+                    logger.w({ "FTS search failed, falling back to LIKE query" }, e)
                     emitAll(
                         booksDao
                             .searchBooksFlowWithFallback(

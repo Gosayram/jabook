@@ -58,17 +58,15 @@ public class IndexingWorker
             public const val KEY_PROGRESS_PERCENT: String = "progress_percent"
             public const val KEY_PROGRESS_MESSAGE: String = "progress_message"
             public const val KEY_TOPICS_INDEXED: String = "topics_indexed"
-
-            // Input keys
-            public const val KEY_FULL_INDEX: String = "full_index"
         }
 
         private val logger = loggerFactory.get(TAG)
 
         override suspend fun doWork(): Result =
             withContext(Dispatchers.IO) {
-                val isFullIndex = inputData.getBoolean(KEY_FULL_INDEX, false)
-                logger.i { "Starting indexing worker (full=$isFullIndex, attempt=$runAttemptCount)" }
+                logger.i { "Starting indexing worker (attempt=$runAttemptCount)" }
+
+                var errorOccurred = false
 
                 try {
                     forumIndexer.indexForums(
@@ -101,16 +99,21 @@ public class IndexingWorker
                                 )
                             }
                             is IndexingProgress.Error -> {
-                                logger.e { "Indexing error: ${progress.message}" }
+                                errorOccurred = true
+                                logger.e({ "Indexing error: ${progress.message}" })
                             }
                             else -> { /* Idle */ }
                         }
                     }
 
-                    logger.i { "Indexing worker completed successfully" }
-                    Result.success()
+                    if (errorOccurred) {
+                        Result.failure()
+                    } else {
+                        logger.i { "Indexing worker completed successfully" }
+                        Result.success()
+                    }
                 } catch (e: CancellationException) {
-                    logger.w { "Indexing worker cancelled" }
+                    logger.w({ "Indexing worker cancelled" })
                     throw e
                 } catch (e: Exception) {
                     logger.e({ "Indexing worker failed" }, e)

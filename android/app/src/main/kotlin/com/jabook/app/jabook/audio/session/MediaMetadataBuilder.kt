@@ -29,7 +29,6 @@ public object MediaMetadataBuilder {
      * @param bookTitle The book title
      * @param chapterTitle The current chapter title
      * @param author The book author (optional)
-     * @param duration The track duration in milliseconds (optional)
      * @param artworkUri Cover art URI (optional)
      * @return MediaMetadata instance
      */
@@ -37,7 +36,6 @@ public object MediaMetadataBuilder {
         bookTitle: String,
         chapterTitle: String? = null,
         author: String? = null,
-        duration: Long? = null,
         artworkUri: android.net.Uri? = null,
     ): MediaMetadata {
         val builder =

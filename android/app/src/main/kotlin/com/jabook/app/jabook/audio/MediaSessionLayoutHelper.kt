@@ -14,11 +14,13 @@
 
 package com.jabook.app.jabook.audio
 
+import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -34,11 +36,13 @@ import kotlinx.coroutines.launch
  *
  * Follows the Rhythm pattern for debounced layout updates to prevent flickering.
  *
+ * @param context Application context for string resources
  * @param scope Coroutine scope for async operations
  * @param getSession Function to get the current MediaSession (nullable)
  */
 @OptIn(UnstableApi::class)
 internal class MediaSessionLayoutHelper(
+    private val context: Context,
     private val scope: CoroutineScope,
     private val getSession: () -> MediaSession?,
 ) {
@@ -145,14 +149,14 @@ internal class MediaSessionLayoutHelper(
         val prevChapterButton =
             CommandButton
                 .Builder(CommandButton.ICON_PREVIOUS)
-                .setDisplayName("Предыдущая глава")
+                .setDisplayName(context.getString(R.string.previousChapter))
                 .setPlayerCommand(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
                 .build()
 
         val nextChapterButton =
             CommandButton
                 .Builder(CommandButton.ICON_NEXT)
-                .setDisplayName("Следующая глава")
+                .setDisplayName(context.getString(R.string.nextChapter))
                 .setPlayerCommand(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
                 .build()
 
