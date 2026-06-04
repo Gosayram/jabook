@@ -295,7 +295,7 @@ public object MediaModule {
                         if (!com.jabook.app.jabook.crash.GlobalExceptionHandler
                                 .isSafeMode(context)
                         ) {
-                            it.trackSelectionParameters = createAudioOffloadTrackSelectionParameters()
+                            it.trackSelectionParameters = createTrackSelectionParameters(settings)
                         } else {
                             LogUtils.w("MediaModule", "Safe mode: skipping audio offload for processor player")
                         }
