@@ -141,7 +141,24 @@ internal class MediaSessionLayoutHelper(
                 .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
                 .build()
 
-        session.setMediaButtonPreferences(listOf(rewindButton, forwardButton))
+        // Map next/prev to ±chapter for audiobooks (not track skip)
+        val prevChapterButton =
+            CommandButton
+                .Builder(CommandButton.ICON_PREVIOUS)
+                .setDisplayName("Предыдущая глава")
+                .setPlayerCommand(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                .build()
+
+        val nextChapterButton =
+            CommandButton
+                .Builder(CommandButton.ICON_NEXT)
+                .setDisplayName("Следующая глава")
+                .setPlayerCommand(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                .build()
+
+        session.setMediaButtonPreferences(
+            listOf(prevChapterButton, rewindButton, forwardButton, nextChapterButton),
+        )
         LogUtils.d(TAG, "Updated media button preferences - Rewind: ${rewindSeconds}s, Forward: ${forwardSeconds}s")
     }
 

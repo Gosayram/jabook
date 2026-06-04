@@ -47,6 +47,19 @@ public class GlobalExceptionHandler(
         private const val CLEAN_SHUTDOWN_KEY = "clean_shutdown"
         private const val SAFE_MODE_KEY = "safe_mode"
 
+        @Volatile
+        private var lastPlaybackContext: String? = null
+
+        /**
+         * Set current playback context for crash reports.
+         * Call from AudioPlayerService when book/chapter changes.
+         * Thread-safe via volatile.
+         */
+        @JvmStatic
+        public fun setPlaybackContext(context: String?) {
+            lastPlaybackContext = context
+        }
+
         /**
          * Check if app is in safe mode (crash-loop detected).
          * When true, disable risky subsystems: audio offload, visualizer, shader background.
@@ -167,6 +180,10 @@ public class GlobalExceptionHandler(
             appendLine("Thread: ${thread.name}")
             appendLine("Build: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) flavor=${BuildConfig.FLAVOR}")
             appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+            val playbackCtx = lastPlaybackContext
+            if (playbackCtx != null) {
+                appendLine("Playback: $playbackCtx")
+            }
             appendLine()
             appendLine("Stack trace:")
             val sw = StringWriter()

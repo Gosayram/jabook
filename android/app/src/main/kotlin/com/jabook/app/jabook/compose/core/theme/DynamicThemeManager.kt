@@ -284,6 +284,15 @@ public object DynamicThemeManager {
         return Color(r, g, b)
     }
 
+    /**
+     * Determine if a color is considered dark based on luminance.
+     * Used for contrast decisions and theme selection.
+     *
+     * @param color The color to check.
+     * @return true if luminance is below 0.5 (dark), false otherwise.
+     */
+    public fun isDark(color: Color): Boolean = color.luminance() < 0.5
+
     private fun hueToRgb(
         p: Float,
         q: Float,
