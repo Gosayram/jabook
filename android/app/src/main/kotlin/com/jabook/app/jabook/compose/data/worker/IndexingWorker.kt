@@ -58,6 +58,22 @@ public class IndexingWorker
             public const val KEY_PROGRESS_PERCENT: String = "progress_percent"
             public const val KEY_PROGRESS_MESSAGE: String = "progress_message"
             public const val KEY_TOPICS_INDEXED: String = "topics_indexed"
+            public const val KEY_FORUM_IDS: String = "forumIds"
+            public const val KEY_PRELOAD_COVERS: String = "preloadCovers"
+
+            internal fun parseForumIds(input: String?): String {
+                val forumIds =
+                    input
+                    ?.split(',')
+                    ?.map(String::trim)
+                    ?.filter(String::isNotEmpty)
+
+                return if (forumIds.isNullOrEmpty() || forumIds.any { !it.all(Char::isDigit) }) {
+                    RutrackerApi.AUDIOBOOKS_FORUM_IDS
+                } else {
+                    forumIds.joinToString(",")
+                }
+            }
         }
 
         private val logger = loggerFactory.get(TAG)
@@ -69,9 +85,12 @@ public class IndexingWorker
                 var errorOccurred = false
 
                 try {
+                    val forumIds = parseForumIds(inputData.getString(KEY_FORUM_IDS))
+                    val preloadCovers = inputData.getBoolean(KEY_PRELOAD_COVERS, false)
+
                     forumIndexer.indexForums(
-                        forumIds = RutrackerApi.AUDIOBOOKS_FORUM_IDS,
-                        preloadCovers = false,
+                        forumIds = forumIds,
+                        preloadCovers = preloadCovers,
                     ) { progress ->
                         when (progress) {
                             is IndexingProgress.InProgress -> {

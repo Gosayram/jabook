@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.compose.data.network
 
 import okhttp3.Dns
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
@@ -29,13 +31,16 @@ import java.net.UnknownHostException
  *
  * Uses JSON API: https://dns.google/resolve?name=example.com&type=A
  */
-public class DnsOverHttpsDns : Dns {
-    private val client =
+public class DnsOverHttpsDns(
+    private val client: OkHttpClient =
         OkHttpClient
             .Builder()
             .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
-            .build()
+            .build(),
+    private val dohEndpoint: HttpUrl = "https://dns.google/resolve".toHttpUrl(),
+    private val fallbackDns: Dns = Dns.SYSTEM,
+) : Dns {
 
     @Throws(UnknownHostException::class)
     override fun lookup(hostname: String): List<InetAddress> {
@@ -48,11 +53,16 @@ public class DnsOverHttpsDns : Dns {
         }
 
         // Fallback to system DNS
-        return Dns.SYSTEM.lookup(hostname)
+        return fallbackDns.lookup(hostname)
     }
 
     private fun resolveViaDoH(hostname: String): List<InetAddress> {
-        val url = "https://dns.google/resolve?name=$hostname&type=A"
+        val url =
+            dohEndpoint
+                .newBuilder()
+                .addQueryParameter("name", hostname)
+                .addQueryParameter("type", "A")
+                .build()
         val request =
             Request
                 .Builder()
@@ -64,7 +74,7 @@ public class DnsOverHttpsDns : Dns {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return emptyList()
 
-                val bodyString = response.body?.string() ?: return emptyList()
+                val bodyString = response.body.string()
                 val json = JSONObject(bodyString)
 
                 // Check status (0 = NOERROR)
