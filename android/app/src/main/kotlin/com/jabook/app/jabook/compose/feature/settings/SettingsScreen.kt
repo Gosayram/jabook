@@ -57,7 +57,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -87,6 +87,7 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.ScanProgress
+import com.jabook.app.jabook.compose.designsystem.component.JaBookSwitch
 import kotlinx.coroutines.launch
 
 private object GitHubUrls {
@@ -1465,18 +1466,9 @@ internal fun SettingsSwitchItem(
             }
         },
         trailingContent = {
-            Switch(
+            JaBookSwitch(
                 checked = checked,
-                onCheckedChange = null,
-                thumbContent = {
-                    if (checked) {
-                        Icon(
-                            imageVector = Icons.Filled.Check,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
-                },
+                onCheckedChange = onCheckedChange,
             )
         },
         modifier =

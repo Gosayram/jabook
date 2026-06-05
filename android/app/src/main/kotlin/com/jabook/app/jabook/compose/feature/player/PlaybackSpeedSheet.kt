@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 import com.jabook.app.jabook.compose.core.util.HapticManager
+import com.jabook.app.jabook.compose.designsystem.component.JaBookSwitch
 import kotlin.math.roundToInt
 
 private object SpeedDialDefaults {
@@ -216,7 +217,7 @@ public fun PlaybackSpeedSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                androidx.compose.material3.Switch(
+                JaBookSwitch(
                     checked = pitchCorrectionEnabled,
                     onCheckedChange = onPitchCorrectionChanged,
                 )

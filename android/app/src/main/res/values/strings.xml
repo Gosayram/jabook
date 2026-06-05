@@ -263,6 +263,8 @@
     <string name="searchChaptersHint">Search by number or title...</string>
     <!-- Filter for showing all chapters -->
     <string name="allFilter">All</string>
+    <!-- Filter for new/unplayed books -->
+    <string name="newFilter">New</string>
     <!-- Filter for showing current chapter -->
     <string name="currentFilter">Current</string>
     <!-- Message when no chapters found in search/filter -->

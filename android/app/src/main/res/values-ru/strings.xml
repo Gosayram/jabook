@@ -244,6 +244,8 @@
     <string name="searchChaptersHint">Поиск по номеру или названию...</string>
     <!-- Фильтр для показа всех глав -->
     <string name="allFilter">Все</string>
+    <!-- Фильтр для новых/не прослушанных книг -->
+    <string name="newFilter">Новые</string>
     <!-- Фильтр для показа текущей главы -->
     <string name="currentFilter">Текущая</string>
     <!-- Сообщение когда главы не найдены при поиске/фильтрации -->

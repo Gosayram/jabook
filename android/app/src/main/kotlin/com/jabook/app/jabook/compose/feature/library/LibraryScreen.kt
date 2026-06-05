@@ -1126,17 +1126,21 @@ private fun SortOrderBottomSheet(
 
 private enum class LibraryQuickFilter {
     ALL,
+    IN_PROGRESS,
+    COMPLETED,
+    NEW,
     FAVORITES,
     DOWNLOADED,
-    IN_PROGRESS,
 }
 
 private fun List<Book>.filterBy(filter: LibraryQuickFilter): List<Book> =
     when (filter) {
         LibraryQuickFilter.ALL -> this
+        LibraryQuickFilter.IN_PROGRESS -> filter { it.progress > 0f && !it.isCompleted }
+        LibraryQuickFilter.COMPLETED -> filter { it.isCompleted }
+        LibraryQuickFilter.NEW -> filter { it.progress == 0f }
         LibraryQuickFilter.FAVORITES -> filter { it.isFavorite }
         LibraryQuickFilter.DOWNLOADED -> filter { it.isDownloaded }
-        LibraryQuickFilter.IN_PROGRESS -> filter { it.progress > 0f && !it.isCompleted }
     }
 
 private fun List<Book>.filterByQuery(query: String): List<Book> {
@@ -1165,19 +1169,24 @@ private fun LibraryQuickFilterChips(
             label = { Text(stringResource(R.string.allFilter)) },
         )
         FilterChip(
-            selected = activeFilter == LibraryQuickFilter.FAVORITES,
-            onClick = { onFilterChanged(LibraryQuickFilter.FAVORITES) },
-            label = { Text(stringResource(R.string.favoritesTooltip)) },
-        )
-        FilterChip(
-            selected = activeFilter == LibraryQuickFilter.DOWNLOADED,
-            onClick = { onFilterChanged(LibraryQuickFilter.DOWNLOADED) },
-            label = { Text(stringResource(R.string.downloadedLabel)) },
-        )
-        FilterChip(
             selected = activeFilter == LibraryQuickFilter.IN_PROGRESS,
             onClick = { onFilterChanged(LibraryQuickFilter.IN_PROGRESS) },
             label = { Text(stringResource(R.string.inProgress)) },
+        )
+        FilterChip(
+            selected = activeFilter == LibraryQuickFilter.COMPLETED,
+            onClick = { onFilterChanged(LibraryQuickFilter.COMPLETED) },
+            label = { Text(stringResource(R.string.completed)) },
+        )
+        FilterChip(
+            selected = activeFilter == LibraryQuickFilter.NEW,
+            onClick = { onFilterChanged(LibraryQuickFilter.NEW) },
+            label = { Text(stringResource(R.string.newFilter)) },
+        )
+        FilterChip(
+            selected = activeFilter == LibraryQuickFilter.FAVORITES,
+            onClick = { onFilterChanged(LibraryQuickFilter.FAVORITES) },
+            label = { Text(stringResource(R.string.favoritesTooltip)) },
         )
     }
 }
