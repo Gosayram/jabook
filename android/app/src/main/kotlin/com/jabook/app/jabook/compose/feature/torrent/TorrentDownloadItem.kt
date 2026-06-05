@@ -90,16 +90,10 @@ public fun TorrentDownloadItem(
                         overflow = TextOverflow.Ellipsis,
                     )
 
-                    Spacer(Modifier.height(4.dp))
+Spacer(Modifier.height(4.dp))
 
-                    // State badge
-                    StateBadge(state = download.state)
-
-                    if (download.state == TorrentState.STREAMING) {
-                        Spacer(Modifier.size(6.dp))
-                        StreamingBadge()
-                    }
-                }
+                     StateBadge(state = download.state)
+                 }
 
                 // Actions
                 Row {
@@ -139,9 +133,9 @@ public fun TorrentDownloadItem(
 
             Spacer(Modifier.height(8.dp))
 
-            // Progress bar
-            ThinProgressBar(
-                progress = download.progress.coerceIn(0f, 1f),
+// Progress bar
+             ThinProgressBar(
+                progress = download.progress,
                 modifier = Modifier.fillMaxWidth(),
                 trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                 progressColor = MaterialTheme.colorScheme.primary,

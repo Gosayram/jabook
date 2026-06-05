@@ -28,6 +28,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,8 +36,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.processors.VolumeBoostLevel
-import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import androidx.compose.material3.Switch
+import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.VerticalEqSlider
 
 /**
@@ -162,6 +163,7 @@ public fun AudioSettingsSheet(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // Equalizer Section
+            val validEqBands = remember(eqBands) { eqBands?.take(5) ?: listOf(0f, 0f, 0f, 0f, 0f) }
             if (eqBands != null && onEqBandChange != null) {
                 Text(
                     text = stringResource(R.string.equalizer_section_title),
@@ -174,24 +176,22 @@ public fun AudioSettingsSheet(
                 val presetVoice = stringResource(R.string.eqPresetVoice)
                 val presetBass = stringResource(R.string.eqPresetBass)
                 val presetConcert = stringResource(R.string.eqPresetConcert)
+                val presets =
+                    remember(presetStandard, presetVoice, presetBass, presetConcert) {
+                        listOf(
+                            presetStandard to floatArrayOf(0f, 0f, 0f, 0f, 0f),
+                            presetVoice to floatArrayOf(-2f, 0f, 4f, 3f, 1f),
+                            presetBass to floatArrayOf(6f, 4f, 0f, -1f, -2f),
+                            presetConcert to floatArrayOf(3f, 1f, -1f, 2f, 4f),
+                        )
+                    }
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    val presets =
-                        remember(presetStandard, presetVoice, presetBass, presetConcert) {
-                            listOf(
-                                presetStandard to floatArrayOf(0f, 0f, 0f, 0f, 0f),
-                                presetVoice to floatArrayOf(-2f, 0f, 4f, 3f, 1f),
-                                presetBass to floatArrayOf(6f, 4f, 0f, -1f, -2f),
-                                presetConcert to floatArrayOf(3f, 1f, -1f, 2f, 4f),
-                            )
-                        }
                     presets.forEach { (name, values) ->
                         val isActive =
-                            remember(eqBands) {
-                                eqBands.size == values.size && eqBands.indices.all { eqBands[it] == values[it] }
-                            }
+                            eqBands.size == values.size && eqBands.indices.all { eqBands[it] == values[it] }
                         FilterChip(
                             selected = isActive,
                             onClick = {
@@ -216,7 +216,7 @@ public fun AudioSettingsSheet(
                     frequencies.forEachIndexed { index, freq ->
                         VerticalEqSlider(
                             frequencyHz = freq,
-                            value = eqBands.getOrElse(index) { 0f },
+                            value = validEqBands.getOrElse(index) { 0f },
                             onValueChange = { onEqBandChange(index, it) },
                         )
                     }

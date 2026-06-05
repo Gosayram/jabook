@@ -335,8 +335,7 @@ public fun SettingsScreen(
                 if (isIndexing && indexingStartTime != null) {
                     while (true) {
                         val duration = System.currentTimeMillis() - indexingStartTime!!
-                        val seconds = duration / 1000
-                        elapsedTimeStr = UiFormatters.formatDuration(seconds * 1000L)
+                        elapsedTimeStr = UiFormatters.formatDuration(duration)
                         kotlinx.coroutines.delay(1000L)
                     }
                 } else {
@@ -1468,7 +1467,7 @@ internal fun SettingsSwitchItem(
         trailingContent = {
             Switch(
                 checked = checked,
-                onCheckedChange = onCheckedChange,
+                onCheckedChange = null,
             )
         },
         modifier =
