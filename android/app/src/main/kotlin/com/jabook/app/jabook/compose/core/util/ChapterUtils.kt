@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.core.util
 
-import android.text.format.DateUtils
 import com.jabook.app.jabook.compose.domain.model.Chapter
 
 /**
@@ -128,18 +127,7 @@ public object ChapterUtils {
         normalizeEnabled: Boolean = true,
     ): String {
         val name = formatChapterName(chapter, index, localizedPrefix, normalizeEnabled)
-        val duration = formatDuration(chapter.duration.inWholeMilliseconds)
+        val duration = UiFormatters.formatDuration(chapter.duration.inWholeMilliseconds)
         return "$name • $duration"
-    }
-
-    /**
-     * Format duration in milliseconds to HH:MM:SS or MM:SS.
-     *
-     * @param millis Duration in milliseconds
-     * @return Formatted duration string
-     */
-    private fun formatDuration(millis: Long): String {
-        val totalSeconds = (millis.coerceAtLeast(0L) / 1000L)
-        return DateUtils.formatElapsedTime(totalSeconds)
     }
 }

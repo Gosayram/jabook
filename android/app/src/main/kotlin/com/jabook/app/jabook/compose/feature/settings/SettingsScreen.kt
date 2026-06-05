@@ -21,7 +21,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import android.text.format.DateUtils
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -85,6 +84,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import kotlinx.coroutines.launch
@@ -335,7 +335,7 @@ public fun SettingsScreen(
                     while (true) {
                         val duration = System.currentTimeMillis() - indexingStartTime!!
                         val seconds = duration / 1000
-                        elapsedTimeStr = DateUtils.formatElapsedTime(seconds)
+                        elapsedTimeStr = UiFormatters.formatDuration(seconds * 1000L)
                         kotlinx.coroutines.delay(1000L)
                     }
                 } else {
@@ -713,7 +713,7 @@ public fun SettingsScreen(
                             stringResource(
                                 R.string.downloading_count_speed,
                                 downloadCount,
-                                formatBytes(totalSpeed.toLong()) + "/s",
+                                UiFormatters.formatSpeedBytes(totalSpeed.toLong()),
                             )
                         } else {
                             pluralStringResource(
@@ -841,7 +841,7 @@ public fun SettingsScreen(
 
             SettingsItem(
                 title = stringResource(R.string.downloadsStorage),
-                subtitle = stringResource(R.string.storageUsedFormat, formatBytes(torrentStorageSize)),
+                subtitle = stringResource(R.string.storageUsedFormat, UiFormatters.formatFileSize(torrentStorageSize)),
             )
 
             var showDeleteAllDialog by remember { mutableStateOf(false) }
@@ -1018,7 +1018,7 @@ public fun SettingsScreen(
             SettingsItem(
                 title = stringResource(R.string.totalCacheSize),
                 subtitle =
-                    cacheStats?.let { formatBytes(it.totalSize) }
+                    cacheStats?.let { UiFormatters.formatFileSize(it.totalSize) }
                         ?: if (cacheOperation is CacheOperationState.Loading) {
                             stringResource(
                                 R.string.calculating,
@@ -1048,7 +1048,7 @@ public fun SettingsScreen(
                     cacheStats?.let {
                         stringResource(
                             R.string.freeUpCacheSize,
-                            formatBytes(it.totalSize),
+                            UiFormatters.formatFileSize(it.totalSize),
                         )
                     } ?: "",
                 onClick = {
@@ -1067,7 +1067,7 @@ public fun SettingsScreen(
                         Text(
                             stringResource(
                                 R.string.clearCacheConfirmation,
-                                cacheStats?.let { formatBytes(it.totalSize) } ?: stringResource(R.string.unknown),
+                                cacheStats?.let { UiFormatters.formatFileSize(it.totalSize) } ?: stringResource(R.string.unknown),
                             ),
                         )
                     },
@@ -1954,17 +1954,6 @@ private fun extractDomain(input: String): String? {
         null
     }
 }
-
-/**
- * Format bytes to human-readable string (B, KB, MB, GB).
- */
-private fun formatBytes(bytes: Long): String =
-    when {
-        bytes < 1024 -> "$bytes B"
-        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
-        bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
-        else -> "${bytes / (1024 * 1024 * 1024)} GB"
-    }
 
 /**
  * Format timestamp to readable date string (GOST 7.64-90 format).
