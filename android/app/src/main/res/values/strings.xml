@@ -261,6 +261,12 @@
     <string name="chaptersLabel">Chapters</string>
     <!-- Hint for chapters search field -->
     <string name="searchChaptersHint">Search by number or title...</string>
+    <!-- Top bar title -->
+    <string name="nowListening">Now listening</string>
+    <!-- Back action -->
+    <string name="backAction">Back</string>
+    <!-- Statistics overlay -->
+    <string name="statsOverlay">Statistics</string>
     <!-- Filter for showing all chapters -->
     <string name="allFilter">All</string>
     <!-- Filter for new/unplayed books -->

@@ -242,6 +242,12 @@
     <string name="chaptersLabel">Главы</string>
     <!-- Подсказка для поля поиска глав -->
     <string name="searchChaptersHint">Поиск по номеру или названию...</string>
+    <!-- Заголовок для верхней панели плеера -->
+    <string name="nowListening">Сейчас слушаете</string>
+    <!-- Действие "назад" -->
+    <string name="backAction">Назад</string>
+    <!-- Статистика воспроизведения -->
+    <string name="statsOverlay">Статистика</string>
     <!-- Фильтр для показа всех глав -->
     <string name="allFilter">Все</string>
     <!-- Фильтр для новых/не прослушанных книг -->

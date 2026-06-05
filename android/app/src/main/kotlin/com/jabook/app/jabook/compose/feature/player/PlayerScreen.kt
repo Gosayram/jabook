@@ -57,10 +57,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -626,6 +628,37 @@ public fun PlayerScreen(
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
+                    topBar = {
+                        androidx.compose.material3.TopAppBar(
+                            title = {
+                                androidx.compose.material3.Text(
+                                    text = stringResource(R.string.nowListening),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                )
+                            },
+                            navigationIcon = {
+                                androidx.compose.material3.IconButton(onClick = onNavigateBack) {
+                                    androidx.compose.material3.Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = stringResource(R.string.backAction),
+                                    )
+                                }
+                            },
+                            actions = {
+                                androidx.compose.material3.IconButton(onClick = { showStatsOverlay = true }) {
+                                    androidx.compose.material3.Icon(
+                                        imageVector = Icons.Filled.MoreVert,
+                                        contentDescription = stringResource(R.string.statsOverlay),
+                                    )
+                                }
+                            },
+                            colors =
+                                androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                                ),
+                        )
+                    },
                 ) { padding ->
                     Box(
                         modifier =
