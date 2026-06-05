@@ -33,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 
 /**
@@ -117,7 +118,7 @@ public fun IndexingProgressDialog(
 
                         // Progress percentage
                         Text(
-                            text = "${(progress.progress * 100).toInt()}%",
+                            text = UiFormatters.formatPercent(progress.progress),
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.primary,
                         )

@@ -59,6 +59,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
 import com.jabook.app.jabook.compose.domain.model.HistorySortOrder
 import java.text.SimpleDateFormat
@@ -324,7 +325,7 @@ private fun HistoryCard(
             // Size (if available)
             entry.totalBytes?.let { bytes ->
                 Text(
-                    text = formatBytes(bytes),
+                    text = UiFormatters.formatFileSize(bytes),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -349,14 +350,3 @@ private fun formatDate(timestamp: Long): String {
     val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
     return sdf.format(Date(timestamp))
 }
-
-/**
- * Format bytes to human-readable string.
- */
-private fun formatBytes(bytes: Long): String =
-    when {
-        bytes < 1024 -> "$bytes B"
-        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
-        bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
-        else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
-    }

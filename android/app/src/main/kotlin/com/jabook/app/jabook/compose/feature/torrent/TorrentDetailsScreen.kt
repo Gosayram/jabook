@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.feature.torrent
 
-import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,10 +56,10 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.torrent.TorrentFile
 import kotlinx.coroutines.flow.collect
 import java.io.File
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -170,13 +169,13 @@ public fun TorrentDetailsScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Text(
-                                stringResource(R.string.torrentSizeLabel, formatSize(state.totalSize)),
+                                stringResource(R.string.torrentSizeLabel, UiFormatters.formatFileSize(state.totalSize)),
                                 style = MaterialTheme.typography.bodyMedium,
                             )
 
                             if (state.eta > 0) {
                                 Text(
-                                    stringResource(R.string.torrentEtaLabel, formatEta(state.eta)),
+                                    stringResource(R.string.torrentEtaLabel, UiFormatters.formatDuration(state.eta * 1000L)),
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                             }
@@ -231,7 +230,7 @@ private fun FileItem(
         headlineContent = { Text(File(file.path).name) },
         supportingContent = {
             Column {
-                Text(formatSize(file.size))
+                Text(UiFormatters.formatFileSize(file.size))
                 LinearProgressIndicator(
                     progress = { file.progress },
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -246,21 +245,4 @@ private fun FileItem(
             }
         },
     )
-}
-
-private fun formatSize(bytes: Long): String {
-    val kb = bytes / 1024.0
-    val mb = kb / 1024.0
-    val gb = mb / 1024.0
-    return when {
-        gb >= 1 -> "%.2f GB".format(Locale.US, gb)
-        mb >= 1 -> "%.2f MB".format(Locale.US, mb)
-        kb >= 1 -> "%.2f KB".format(Locale.US, kb)
-        else -> "$bytes B"
-    }
-}
-
-private fun formatEta(seconds: Long): String {
-    if (seconds < 0) return "∞"
-    return DateUtils.formatElapsedTime(seconds.coerceAtLeast(0))
 }

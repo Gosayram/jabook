@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.feature.library
 
-import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.domain.model.Book
 import java.io.File
 import java.text.SimpleDateFormat
@@ -116,7 +116,7 @@ public fun BookPropertiesDialog(
                 // Duration
                 PropertyRow(
                     label = stringResource(R.string.duration),
-                    value = formatDuration(book.totalDuration.inWholeSeconds),
+                    value = UiFormatters.formatDuration(book.totalDuration.inWholeMilliseconds),
                 )
 
                 // File size (if available)
@@ -127,7 +127,7 @@ public fun BookPropertiesDialog(
                     if (size > 0) {
                         PropertyRow(
                             label = stringResource(R.string.size),
-                            value = formatFileSize(size),
+                            value = UiFormatters.formatFileSize(size),
                         )
                     }
                 }
@@ -136,7 +136,7 @@ public fun BookPropertiesDialog(
                 if (book.progress > 0f) {
                     PropertyRow(
                         label = stringResource(R.string.progress),
-                        value = "${(book.progress * 100).toInt()}%",
+                        value = UiFormatters.formatPercent(book.progress),
                     )
                 }
 
@@ -199,14 +199,6 @@ private fun formatDate(timestamp: Long): String {
 }
 
 /**
- * Format duration in seconds to HH:MM:SS or MM:SS.
- */
-private fun formatDuration(seconds: Long): String {
-    val safeSeconds = seconds.coerceAtLeast(0L)
-    return DateUtils.formatElapsedTime(safeSeconds)
-}
-
-/**
  * Calculate total size of directory.
  * Returns size in bytes, or 0 if calculation fails.
  */
@@ -221,19 +213,3 @@ private fun calculateDirectorySize(path: String): Long =
     } catch (e: Exception) {
         0L
     }
-
-/**
- * Format file size to human-readable string.
- */
-private fun formatFileSize(bytes: Long): String {
-    val kb = bytes / 1024.0
-    val mb = kb / 1024.0
-    val gb = mb / 1024.0
-
-    return when {
-        gb >= 1.0 -> String.format("%.2f GB", gb)
-        mb >= 1.0 -> String.format("%.2f MB", mb)
-        kb >= 1.0 -> String.format("%.2f KB", kb)
-        else -> "$bytes B"
-    }
-}

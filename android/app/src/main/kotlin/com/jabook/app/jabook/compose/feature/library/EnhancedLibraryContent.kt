@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.designsystem.component.ContinueListeningHeroCard
 import com.jabook.app.jabook.compose.designsystem.component.UnifiedBookCard
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
@@ -62,17 +63,71 @@ public fun EnhancedLibraryContent(
         contentPadding = PaddingValues(vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
-        // Continue Listening Section - Recently Played
+        // Continue Listening Section — hero card + horizontal row
         if (recentlyPlayed.isNotEmpty()) {
+            val heroBook = recentlyPlayed.first()
+            val remaining = recentlyPlayed.drop(1)
+
             item {
-                BookSection(
-                    title = stringResource(R.string.continueListening),
-                    books = recentlyPlayed,
-                    onBookClick = onBookClick,
-                    onToggleFavorite = onToggleFavorite,
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope,
-                )
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.continueListening),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+
+                    ContinueListeningHeroCard(
+                        book = heroBook,
+                        onPlayClick = { onBookClick(heroBook.id) },
+                        onClick = { onBookClick(heroBook.id) },
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                }
+            }
+
+            if (remaining.isNotEmpty()) {
+                item {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(
+                            items = remaining,
+                            key = { it.id },
+                        ) { book ->
+                            val imageModifier =
+                                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                                    with(sharedTransitionScope) {
+                                        Modifier.sharedElement(
+                                            sharedContentState = rememberSharedContentState(key = "cover_${book.id}"),
+                                            animatedVisibilityScope = animatedVisibilityScope,
+                                        )
+                                    }
+                                } else {
+                                    Modifier
+                                }
+
+                            UnifiedBookCard(
+                                book = book,
+                                displayMode = BookDisplayMode.GRID_COMPACT,
+                                actionsProvider =
+                                    BookActionsProvider(
+                                        onBookClick = onBookClick,
+                                        onBookLongPress = {},
+                                        onToggleFavorite = { _, isFav -> onToggleFavorite(book.id, isFav) },
+                                        favoriteIds = emptySet(),
+                                        showProgress = true,
+                                        showFavoriteButton = false,
+                                    ),
+                                modifier = Modifier.fillMaxWidth(0.4f),
+                                imageModifier = imageModifier,
+                            )
+                        }
+                    }
+                }
             }
         }
 

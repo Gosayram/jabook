@@ -14,12 +14,12 @@
 
 package com.jabook.app.jabook.compose.feature.library
 
-import android.text.format.DateUtils
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -79,6 +79,8 @@ import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
+import com.jabook.app.jabook.compose.core.util.UiFormatters
+import com.jabook.app.jabook.compose.designsystem.component.MetadataPill
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Chapter
 
@@ -322,25 +324,40 @@ public fun BookDetailPane(
                         }
                     }
 
-                    // Book metadata
+                    // Book metadata pills
                     item {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            MetadataRow(
-                                label = stringResource(R.string.totalDuration),
-                                value = formatDuration(book.totalDuration.inWholeMilliseconds),
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            MetadataPill(
+                                text =
+                                    UiFormatters.formatDurationCompact(
+                                        book.totalDuration.inWholeMilliseconds,
+                                    ),
+                                contentDescription = stringResource(R.string.totalDuration),
                             )
-                            MetadataRow(
-                                label = stringResource(R.string.currentPosition),
-                                value = formatDuration(book.currentPosition.inWholeMilliseconds),
-                            )
-                            MetadataRow(
-                                label = stringResource(R.string.progress),
-                                value = "${(book.progress * 100).toInt()}%",
-                            )
+                            if (book.isStarted) {
+                                MetadataPill(
+                                    text = UiFormatters.formatPercent(book.progress),
+                                    contentDescription = stringResource(R.string.progress),
+                                )
+                            }
                             if (book.isDownloaded) {
-                                MetadataRow(
-                                    label = stringResource(R.string.downloadStatus),
-                                    value = stringResource(R.string.downloaded),
+                                MetadataPill(
+                                    text = stringResource(R.string.downloaded),
+                                    contentDescription = stringResource(R.string.downloadStatus),
+                                )
+                            }
+                            if (book.isStarted && book.remainingDuration.inWholeMilliseconds > 0) {
+                                MetadataPill(
+                                    text =
+                                        stringResource(
+                                            R.string.timeRemaining,
+                                            UiFormatters.formatDurationCompact(
+                                                book.remainingDuration.inWholeMilliseconds,
+                                            ),
+                                        ),
                                 )
                             }
                         }
@@ -452,7 +469,7 @@ private fun ChapterProgressRow(chapter: Chapter) {
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
-                text = "${(chapter.progress * 100).toInt()}%",
+                text = UiFormatters.formatPercent(chapter.progress),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -492,12 +509,4 @@ private fun MetadataRow(
             style = MaterialTheme.typography.bodyMedium,
         )
     }
-}
-
-/**
- * Formats a duration in milliseconds to elapsed-time format.
- */
-private fun formatDuration(millis: Long): String {
-    val totalSeconds = millis.coerceAtLeast(0L) / 1000L
-    return DateUtils.formatElapsedTime(totalSeconds)
 }
