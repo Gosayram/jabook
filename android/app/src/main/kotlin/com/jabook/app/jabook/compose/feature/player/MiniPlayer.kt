@@ -37,9 +37,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -68,6 +65,9 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
+import com.jabook.app.jabook.compose.designsystem.component.CircularIconButton
+import com.jabook.app.jabook.compose.designsystem.component.CircularIconButtonStyle
+import com.jabook.app.jabook.compose.designsystem.component.ThinProgressBar
 import com.jabook.app.jabook.ui.theme.JabookTheme
 import kotlin.math.abs
 
@@ -261,34 +261,26 @@ public fun MiniPlayer(
                 }
 
                 // Play/Pause button with larger touch target
-                IconButton(
+                CircularIconButton(
+                    icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription =
+                        if (isPlaying) {
+                            stringResource(R.string.pause)
+                        } else {
+                            stringResource(R.string.play)
+                        },
                     onClick = onPlayPauseClick,
-                    modifier = Modifier.size(48.dp),
-                ) {
-                    Icon(
-                        imageVector =
-                            if (isPlaying) {
-                                Icons.Filled.Pause
-                            } else {
-                                Icons.Filled.PlayArrow
-                            },
-                        contentDescription =
-                            if (isPlaying) {
-                                stringResource(R.string.pause)
-                            } else {
-                                stringResource(R.string.play)
-                            },
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(28.dp),
-                    )
-                }
+                    style = CircularIconButtonStyle.DEFAULT,
+                    size = 28.dp,
+                )
             }
 
             // Progress indicator
-            LinearProgressIndicator(
-                progress = { progress },
+            ThinProgressBar(
+                progress = progress,
                 modifier = Modifier.fillMaxWidth(),
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                progressColor = MaterialTheme.colorScheme.primary,
             )
         }
     }

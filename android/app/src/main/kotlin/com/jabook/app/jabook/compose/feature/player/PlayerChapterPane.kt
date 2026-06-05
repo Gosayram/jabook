@@ -35,7 +35,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -308,7 +308,7 @@ private fun ChapterListItem(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = formatChapterDuration(chapter.duration.inWholeMilliseconds),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -317,7 +317,7 @@ private fun ChapterListItem(
             if (isSelected) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(
-                    imageVector = Icons.Default.PlayArrow,
+                    imageVector = Icons.Filled.Equalizer,
                     contentDescription = stringResource(R.string.currentlyPlaying),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp),

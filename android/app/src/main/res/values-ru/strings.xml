@@ -339,6 +339,14 @@
     <string name="equalizer_preset_car">Авто</string>
     <string name="equalizer_five_band_title">5-полосный предпросмотр</string>
     <string name="equalizer_gain_db">%1$d дБ</string>
+    <!-- EQ Presets -->
+    <string name="eqPresetStandard">Стандарт</string>
+    <string name="eqPresetVoice">Голос</string>
+    <string name="eqPresetBass">Бас</string>
+    <string name="eqPresetConcert">Концерт</string>
+    <string name="eqPresetCustom">Пользовательский</string>
+    <!-- Audio Enhancement title -->
+    <string name="equalizerTitle">Эквалайзер</string>
     <string name="equalizer_point_tooltip">%1$s • %2$s</string>
     <!-- Заголовок настройки нормализации громкости -->
     <string name="normalizeVolumeTitle">Нормализация громкости</string>

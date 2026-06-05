@@ -66,6 +66,7 @@ public fun BookCard(
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
     imageModifier: Modifier = Modifier,
+    progress: Float = 0f,
 ) {
     Card(
         onClick = onClick,
@@ -131,6 +132,17 @@ public fun BookCard(
             )
 
             Spacer(modifier = Modifier.height(8.dp))
+
+            // Progress strip (only visible when > 0)
+            if (progress > 0f) {
+                ThinProgressBar(
+                    progress = progress,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    progressColor = MaterialTheme.colorScheme.primary,
+                    height = 2.dp,
+                )
+            }
 
             // Title
             Text(

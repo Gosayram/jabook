@@ -35,7 +35,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -323,12 +322,17 @@ private fun GridBookCard(
             }
 
             if (actionsProvider.showProgress && book.progress > 0f) {
-                LinearProgressIndicator(
-                    progress = { book.progress },
+                ThinProgressBar(
+                    progress = book.progress,
                     modifier =
                         Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth(),
+                    trackColor =
+                        androidx.compose.ui.graphics.Color.White
+                            .copy(alpha = 0.2f),
+                    progressColor = MaterialTheme.colorScheme.primary,
+                    height = 2.dp,
                 )
             }
         }
@@ -475,13 +479,12 @@ private fun ListBookCard(
                 // Progress indicator in the text column
                 if (actionsProvider.showProgress && book.progress > 0f) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    LinearProgressIndicator(
-                        progress = { book.progress },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(4.dp),
-                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    ThinProgressBar(
+                        progress = book.progress,
+                        modifier = Modifier.fillMaxWidth(),
+                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                        progressColor = MaterialTheme.colorScheme.primary,
+                        height = 4.dp,
                     )
                 }
             }

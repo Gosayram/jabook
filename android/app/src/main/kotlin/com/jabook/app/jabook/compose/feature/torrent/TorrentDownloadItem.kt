@@ -35,7 +35,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
+import com.jabook.app.jabook.compose.designsystem.component.ThinProgressBar
 
 /**
  * Download item component with progress and actions
@@ -140,9 +140,11 @@ public fun TorrentDownloadItem(
             Spacer(Modifier.height(8.dp))
 
             // Progress bar
-            LinearProgressIndicator(
-                progress = { download.progress.coerceIn(0f, 1f) },
+            ThinProgressBar(
+                progress = download.progress.coerceIn(0f, 1f),
                 modifier = Modifier.fillMaxWidth(),
+                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                progressColor = MaterialTheme.colorScheme.primary,
             )
 
             Spacer(Modifier.height(8.dp))
@@ -155,7 +157,10 @@ public fun TorrentDownloadItem(
                 // Progress percentage
                 Text(
                     text = "${(download.progress.coerceIn(0f, 1f) * 100).toInt()}%",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style =
+                        MaterialTheme.typography.bodyMedium.copy(
+                            fontFeatureSettings = "tnum",
+                        ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
@@ -163,7 +168,10 @@ public fun TorrentDownloadItem(
                 if (download.state == TorrentState.DOWNLOADING) {
                     Text(
                         text = "↓ ${formatSpeed(download.downloadSpeed.toLong())}/s",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style =
+                            MaterialTheme.typography.bodyMedium.copy(
+                                fontFeatureSettings = "tnum",
+                            ),
                         color = MaterialTheme.colorScheme.primary,
                     )
                 }
@@ -172,7 +180,10 @@ public fun TorrentDownloadItem(
                 if (download.uploadSpeed > 0) {
                     Text(
                         text = "↑ ${formatSpeed(download.uploadSpeed.toLong())}/s",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style =
+                            MaterialTheme.typography.bodyMedium.copy(
+                                fontFeatureSettings = "tnum",
+                            ),
                         color = MaterialTheme.colorScheme.secondary,
                     )
                 }
@@ -187,7 +198,10 @@ public fun TorrentDownloadItem(
                 ) {
                     Text(
                         text = formatEta(download.eta),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style =
+                            MaterialTheme.typography.bodyMedium.copy(
+                                fontFeatureSettings = "tnum",
+                            ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -197,7 +211,10 @@ public fun TorrentDownloadItem(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = "${formatBytes(download.downloadedSize)} / ${formatBytes(download.totalSize)}",
-                    style = MaterialTheme.typography.bodySmall,
+                    style =
+                        MaterialTheme.typography.bodySmall.copy(
+                            fontFeatureSettings = "tnum",
+                        ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }

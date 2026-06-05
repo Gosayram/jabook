@@ -162,8 +162,10 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.ContrastPolicy
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.core.util.HapticManager
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
+import com.jabook.app.jabook.compose.designsystem.component.CircularIconButton
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.feature.player.SquigglySlider
@@ -1797,7 +1799,13 @@ private fun PlayerContent(
                         )
                     }
 
-                    // Smart Info (Chapter index & Finish time)
+// Smart Info (Chapter index & Time remaining)
+                    val chapterText =
+                        stringResource(
+                            R.string.chapterOf,
+                            state.currentChapterIndex + 1,
+                            state.chapters.size,
+                        )
                     Row(
                         modifier =
                             Modifier
@@ -1805,14 +1813,7 @@ private fun PlayerContent(
                                 .padding(top = 4.dp),
                         horizontalArrangement = Arrangement.Center,
                     ) {
-                        val chapterText =
-                            stringResource(
-                                R.string.chapterOf,
-                                (if (isDragging) previewSeekTarget.chapterIndex else state.currentChapterIndex) + 1,
-                                state.chapters.size,
-                            )
-
-                        val formattedFinishTime by remember(
+                        val remainingText by remember(
                             chapterTimeline.totalDurationMs,
                             currentGlobalPositionMs,
                             state.playbackSpeed,
@@ -1821,21 +1822,16 @@ private fun PlayerContent(
                                 val remainingMs = (chapterTimeline.totalDurationMs - currentGlobalPositionMs).coerceAtLeast(0L)
                                 val speed = state.playbackSpeed
                                 val realRemainingMs = if (speed > 0f) (remainingMs / speed).toLong() else remainingMs
-                                val finishTime =
-                                    java.util.Calendar.getInstance().apply {
-                                        add(java.util.Calendar.MILLISECOND, realRemainingMs.toInt())
-                                    }
-                                java.text
-                                    .SimpleDateFormat(
-                                        "HH:mm",
-                                        java.util.Locale.getDefault(),
-                                    ).format(finishTime.time)
+                                if (realRemainingMs > 0L) {
+                                    "-${UiFormatters.formatDurationCompact(realRemainingMs)}"
+                                } else {
+                                    ""
+                                }
                             }
                         }
-                        val finishText = stringResource(R.string.finishAt, formattedFinishTime)
 
                         Text(
-                            text = "$chapterText • $finishText",
+                            text = if (remainingText.isNotEmpty()) "$chapterText • $remainingText" else chapterText,
                             style = MaterialTheme.typography.labelSmall,
                             color = adaptiveOnSurfaceVariant.copy(alpha = 0.86f),
                         )
@@ -1953,29 +1949,22 @@ private fun PlayerContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     // Skip previous
-                    IconButton(
+                    CircularIconButton(
+                        icon = Icons.Filled.SkipPrevious,
+                        contentDescription = stringResource(R.string.previousChapter),
                         onClick = onSkipPrevious,
                         modifier = Modifier.size(skipButtonSize),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.SkipPrevious,
-                            contentDescription = stringResource(R.string.previousChapter),
-                            modifier = Modifier.size(skipIconSize),
-                        )
-                    }
+                        size = skipIconSize,
+                    )
 
                     // Seek backward (10s)
-                    IconButton(
+                    CircularIconButton(
+                        icon = Icons.Filled.Replay,
+                        contentDescription = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
                         onClick = onSeekBackward,
                         modifier = Modifier.size(seekButtonSize),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Replay,
-                            contentDescription = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
-                            modifier = Modifier.size(seekIconSize),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                        )
-                    }
+                        size = seekIconSize,
+                    )
 
                     Spacer(modifier = Modifier.width(16.dp))
                     val playbackStateDescription =
@@ -2033,30 +2022,22 @@ private fun PlayerContent(
                     Spacer(modifier = Modifier.width(16.dp))
 
                     // Seek forward (30s)
-                    IconButton(
+                    CircularIconButton(
+                        icon = Icons.Filled.FastForward,
+                        contentDescription = stringResource(R.string.seekForwardDescription, state.forwardInterval),
                         onClick = onSeekForward,
                         modifier = Modifier.size(seekButtonSize),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.FastForward,
-                            contentDescription = stringResource(R.string.seekForwardDescription, state.forwardInterval),
-                            modifier = Modifier.size(seekIconSize),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                        )
-                    }
+                        size = seekIconSize,
+                    )
 
                     // Skip next
-                    IconButton(
+                    CircularIconButton(
+                        icon = Icons.Filled.SkipNext,
+                        contentDescription = stringResource(R.string.nextChapter),
                         onClick = onSkipNext,
                         modifier = Modifier.size(skipButtonSize),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.SkipNext,
-                            contentDescription = stringResource(R.string.nextChapter),
-                            modifier = Modifier.size(skipIconSize),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                        )
-                    }
+                        size = skipIconSize,
+                    )
                 }
             }
 
