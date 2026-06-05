@@ -275,12 +275,19 @@
     <string name="currentFilter">Current</string>
     <!-- Message when no chapters found in search/filter -->
     <string name="noChaptersFoundInSearch">No chapters found</string>
+    <!-- Message when books not found for filter -->
+    <string name="noBooksMatchFilter">No books match the filter</string>
     <!-- Message for upcoming download feature -->
     <string name="downloadFunctionalityComingSoon">Download functionality coming soon</string>
     <!-- Message for request timeout -->
     <string name="requestTimedOut">Request timed out</string>
     <!-- Message for network error -->
     <string name="networkError">Network error</string>
+    <!-- Plurals for book count display -->
+    <plurals name="booksCount">
+        <item quantity="one">%1$d book</item>
+        <item quantity="other">%1$d books</item>
+    </plurals>
     <!-- Status for disabled mirror -->
     <string name="mirrorStatusDisabled">Disabled</string>
     <!-- Label for mirror response time -->

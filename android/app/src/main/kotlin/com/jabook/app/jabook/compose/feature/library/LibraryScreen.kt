@@ -20,7 +20,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -48,10 +47,10 @@ import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
@@ -83,6 +82,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -93,9 +93,11 @@ import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.designsystem.component.BookActionsBottomSheet
+import com.jabook.app.jabook.compose.designsystem.component.ChipRow
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
+import com.jabook.app.jabook.compose.designsystem.component.LibraryFilterChip
 import com.jabook.app.jabook.compose.designsystem.component.LibraryLoadingSkeleton
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
@@ -500,6 +502,17 @@ public fun LibraryScreen(
                                             LibraryQuickFilterChips(
                                                 activeFilter = activeQuickFilter,
                                                 onFilterChanged = { activeQuickFilter = it },
+                                                bookCounts =
+                                                    mapOf(
+                                                        LibraryQuickFilter.ALL to books.size,
+                                                        LibraryQuickFilter.IN_PROGRESS to
+                                                            books.filterBy(LibraryQuickFilter.IN_PROGRESS).size,
+                                                        LibraryQuickFilter.COMPLETED to
+                                                            books.filterBy(LibraryQuickFilter.COMPLETED).size,
+                                                        LibraryQuickFilter.NEW to books.filterBy(LibraryQuickFilter.NEW).size,
+                                                        LibraryQuickFilter.FAVORITES to
+                                                            books.filterBy(LibraryQuickFilter.FAVORITES).size,
+                                                    ),
                                                 modifier =
                                                     Modifier
                                                         .fillMaxWidth()
@@ -1156,37 +1169,46 @@ private fun List<Book>.filterByQuery(query: String): List<Book> {
 private fun LibraryQuickFilterChips(
     activeFilter: LibraryQuickFilter,
     onFilterChanged: (LibraryQuickFilter) -> Unit,
+    bookCounts: Map<LibraryQuickFilter, Int>,
     modifier: Modifier = Modifier,
 ) {
-    FlowRow(
+    val currentCount = bookCounts[activeFilter] ?: 0
+    androidx.compose.foundation.layout.Column(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        FilterChip(
-            selected = activeFilter == LibraryQuickFilter.ALL,
-            onClick = { onFilterChanged(LibraryQuickFilter.ALL) },
-            label = { Text(stringResource(R.string.allFilter)) },
-        )
-        FilterChip(
-            selected = activeFilter == LibraryQuickFilter.IN_PROGRESS,
-            onClick = { onFilterChanged(LibraryQuickFilter.IN_PROGRESS) },
-            label = { Text(stringResource(R.string.inProgress)) },
-        )
-        FilterChip(
-            selected = activeFilter == LibraryQuickFilter.COMPLETED,
-            onClick = { onFilterChanged(LibraryQuickFilter.COMPLETED) },
-            label = { Text(stringResource(R.string.completed)) },
-        )
-        FilterChip(
-            selected = activeFilter == LibraryQuickFilter.NEW,
-            onClick = { onFilterChanged(LibraryQuickFilter.NEW) },
-            label = { Text(stringResource(R.string.newFilter)) },
-        )
-        FilterChip(
-            selected = activeFilter == LibraryQuickFilter.FAVORITES,
-            onClick = { onFilterChanged(LibraryQuickFilter.FAVORITES) },
-            label = { Text(stringResource(R.string.favoritesTooltip)) },
+        ChipRow {
+            LibraryFilterChip(
+                selected = activeFilter == LibraryQuickFilter.ALL,
+                onClick = { onFilterChanged(LibraryQuickFilter.ALL) },
+                label = stringResource(R.string.allFilter),
+            )
+            LibraryFilterChip(
+                selected = activeFilter == LibraryQuickFilter.IN_PROGRESS,
+                onClick = { onFilterChanged(LibraryQuickFilter.IN_PROGRESS) },
+                label = stringResource(R.string.inProgress),
+            )
+            LibraryFilterChip(
+                selected = activeFilter == LibraryQuickFilter.COMPLETED,
+                onClick = { onFilterChanged(LibraryQuickFilter.COMPLETED) },
+                label = stringResource(R.string.completed),
+            )
+            LibraryFilterChip(
+                selected = activeFilter == LibraryQuickFilter.NEW,
+                onClick = { onFilterChanged(LibraryQuickFilter.NEW) },
+                label = stringResource(R.string.newFilter),
+            )
+            LibraryFilterChip(
+                selected = activeFilter == LibraryQuickFilter.FAVORITES,
+                onClick = { onFilterChanged(LibraryQuickFilter.FAVORITES) },
+                label = stringResource(R.string.favoritesTooltip),
+            )
+        }
+        Text(
+            text = pluralStringResource(R.plurals.booksCount, currentCount, currentCount),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 4.dp),
         )
     }
 }

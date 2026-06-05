@@ -256,6 +256,8 @@
     <string name="currentFilter">Текущая</string>
     <!-- Сообщение когда главы не найдены при поиске/фильтрации -->
     <string name="noChaptersFoundInSearch">Главы не найдены</string>
+    <!-- Сообщение когда книги не найдены по фильтру -->
+    <string name="noBooksMatchFilter">Нет книг, соответствующих фильтру</string>
     <!-- Сообщение о предстоящей функции загрузки -->
     <string name="downloadFunctionalityComingSoon">Функция загрузки скоро появится</string>
     <!-- Сообщение об истечении времени запроса -->
@@ -2927,5 +2929,11 @@
         <item quantity="few">Выбрано %d записи</item>
         <item quantity="many">Выбрано %d записей</item>
         <item quantity="other">Выбрано %d записи</item>
+    </plurals>
+    <plurals name="booksCount">
+        <item quantity="one">%1$d книга</item>
+        <item quantity="few">%1$d книги</item>
+        <item quantity="many">%1$d книг</item>
+        <item quantity="other">%1$d книги</item>
     </plurals>
 </resources>
