@@ -87,7 +87,7 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.ScanProgress
-import com.jabook.app.jabook.compose.designsystem.component.JaBookSwitch
+import androidx.compose.material3.Switch
 import kotlinx.coroutines.launch
 
 private object GitHubUrls {
@@ -1466,7 +1466,7 @@ internal fun SettingsSwitchItem(
             }
         },
         trailingContent = {
-            JaBookSwitch(
+            Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
             )

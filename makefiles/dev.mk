@@ -90,6 +90,23 @@ refresh-verification-metadata: ## Regenerate Gradle dependency verification meta
 	fi
 
 .PHONY: lint-kotlin
+
+.PHONY: update-logging-baseline
+update-logging-baseline: ## Update logging direct‑usage baseline file
+	@echo "Generating logging direct‑usage baseline..."
+	@if command -v rg >/dev/null 2>&1; then \
+		rg -n "android\\.util\\.Log\\." android/app/src/main/kotlin \
+			--glob '!**/util/LogUtils.kt' \
+			--glob '!**/compose/core/logger/AndroidLogger.kt' \
+			| cut -d: -f1 | sort -u > scripts/logging-direct-usage-baseline.txt; \
+	else \
+		grep -R -n -E "android\\.util\\.Log\\." android/app/src/main/kotlin \
+			--exclude='LogUtils.kt' \
+			--exclude='AndroidLogger.kt' \
+			| cut -d: -f1 | sort -u > scripts/logging-direct-usage-baseline.txt; \
+	fi
+	@echo "✅ Baseline updated: scripts/logging-direct-usage-baseline.txt"
+
 lint-kotlin: ## Lint Kotlin code (ktlint + detekt check + dependency verification)
 	@echo "Linting Kotlin code with ktlint + detekt..."
 	@echo "Checking coroutine test discipline (no Thread.sleep in unit tests)..."

@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.processors.VolumeBoostLevel
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
-import com.jabook.app.jabook.compose.designsystem.component.JaBookSwitch
+import androidx.compose.material3.Switch
 import com.jabook.app.jabook.compose.designsystem.component.VerticalEqSlider
 
 /**
@@ -309,7 +309,7 @@ private fun AudioSettingSwitch(
                 )
             }
         }
-        JaBookSwitch(
+        Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
         )
