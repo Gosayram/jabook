@@ -41,7 +41,6 @@ public class DnsOverHttpsDns(
     private val dohEndpoint: HttpUrl = "https://dns.google/resolve".toHttpUrl(),
     private val fallbackDns: Dns = Dns.SYSTEM,
 ) : Dns {
-
     @Throws(UnknownHostException::class)
     override fun lookup(hostname: String): List<InetAddress> {
         // Try DoH first

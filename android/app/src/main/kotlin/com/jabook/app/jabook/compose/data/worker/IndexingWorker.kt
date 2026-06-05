@@ -64,9 +64,9 @@ public class IndexingWorker
             internal fun parseForumIds(input: String?): String {
                 val forumIds =
                     input
-                    ?.split(',')
-                    ?.map(String::trim)
-                    ?.filter(String::isNotEmpty)
+                        ?.split(',')
+                        ?.map(String::trim)
+                        ?.filter(String::isNotEmpty)
 
                 return if (forumIds.isNullOrEmpty() || forumIds.any { !it.all(Char::isDigit) }) {
                     RutrackerApi.AUDIOBOOKS_FORUM_IDS

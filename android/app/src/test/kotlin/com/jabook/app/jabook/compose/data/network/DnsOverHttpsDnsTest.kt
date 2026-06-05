@@ -71,9 +71,9 @@ class DnsOverHttpsDnsTest {
         val result = resolver().lookup("example.com")
 
         val addresses = result.map(InetAddress::getHostAddress)
-        assertTrue(addresses.contains("93.184.216.34"))
-        assertTrue(result.any { it is Inet4Address })
-        assertTrue(result.any { it is Inet6Address })
+        assertTrue("Expected IPv4 in $addresses", addresses.contains("93.184.216.34"))
+        assertTrue("Expected Inet4Address in $result", result.any { it is Inet4Address })
+        assertTrue("Expected Inet6Address in $result", result.any { it is Inet6Address })
         assertEquals(0, fallbackLookups)
     }
 

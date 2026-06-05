@@ -2326,6 +2326,10 @@
     <string name="concurrentDownloads">Concurrent Downloads</string>
     <!-- Continue Listening -->
     <string name="continueListening">Continue Listening</string>
+    <!-- Continue Listening action button -->
+    <string name="continueListeningAction">Continue</string>
+    <!-- Time remaining: %s is formatted duration -->
+    <string name="timeRemaining">%s left</string>
     <!-- Dark -->
     <string name="dark">Dark</string>
     <!-- Dark Theme -->

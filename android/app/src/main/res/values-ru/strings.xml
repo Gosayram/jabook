@@ -2296,6 +2296,10 @@
     <string name="concurrentDownloads">Одновременные загрузки</string>
     <!-- Продолжить прослушивание -->
     <string name="continueListening">Продолжить прослушивание</string>
+    <!-- Кнопка продолжения -->
+    <string name="continueListeningAction">Продолжить</string>
+    <!-- Оставшееся время: %s — форматированная длительность -->
+    <string name="timeRemaining">Осталось %s</string>
     <!-- Темный -->
     <string name="dark">Темный</string>
     <!-- Темная тема -->

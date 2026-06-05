@@ -15,13 +15,18 @@
 package com.jabook.app.jabook.compose.feature.torrent
 
 import android.content.res.Resources
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Pause
@@ -32,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -88,6 +94,11 @@ public fun TorrentDownloadItem(
 
                     // State badge
                     StateBadge(state = download.state)
+
+                    if (download.state == TorrentState.STREAMING) {
+                        Spacer(Modifier.size(6.dp))
+                        StreamingBadge()
+                    }
                 }
 
                 // Actions
@@ -232,6 +243,36 @@ internal fun formatBytes(
         mb >= 1.0 -> resources.getString(R.string.size_mb, mb)
         kb >= 1.0 -> resources.getString(R.string.size_kb, kb)
         else -> resources.getString(R.string.size_bytes, safeBytes)
+    }
+}
+
+/**
+ * Streaming badge — shown when playback-while-downloading is active.
+ */
+@Composable
+private fun StreamingBadge(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(4.dp),
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(6.dp)
+                        .background(MaterialTheme.colorScheme.tertiary, CircleShape),
+            )
+            Text(
+                text = stringResource(R.string.streamingLabel),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+        }
     }
 }
 
