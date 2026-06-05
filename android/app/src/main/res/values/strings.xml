@@ -348,6 +348,18 @@
     <string name="audioEnhancementTitle">Audio Enhancement</string>
     <!-- Description for audio enhancement settings -->
     <string name="audioEnhancementDescription">Improve audio quality and volume consistency</string>
+    <!-- Equalizer section title -->
+    <string name="equalizerTitle">Equalizer</string>
+    <!-- Equalizer preset: Standard -->
+    <string name="eqPresetStandard">Standard</string>
+    <!-- Equalizer preset: Voice -->
+    <string name="eqPresetVoice">Voice</string>
+    <!-- Equalizer preset: Bass -->
+    <string name="eqPresetBass">Bass</string>
+    <!-- Equalizer preset: Concert -->
+    <string name="eqPresetConcert">Concert</string>
+    <!-- Equalizer preset: Custom -->
+    <string name="eqPresetCustom">Custom</string>
     <string name="equalizer_section_title">Equalizer</string>
     <string name="equalizer_preset_title">Preset</string>
     <string name="equalizer_preset_desc">Adjust speech timbre for your listening environment</string>
