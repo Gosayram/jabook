@@ -66,6 +66,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 21: Upgraded books_fts from FTS4 to FTS5 for bm25 ranking and better Unicode support.
  * Database version 22: Added resumeData BLOB column to torrent_downloads for crash-safe download resumption.
  * Database version 23: Added topics_fts FTS5 virtual table with triggers for instant offline search (MATCH + bm25).
+ * Database version 24: Added narrator column to books table for audiobook narrator information.
  */
 @Database(
     entities = [
@@ -82,7 +83,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         CachedTopicEntity::class,
         SearchQueryEntity::class,
     ],
-    version = 23,
+    version = 24,
     exportSchema = true, // Enable schema export for migration validation and debugging
 )
 public abstract class JabookDatabase : RoomDatabase() {

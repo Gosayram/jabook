@@ -125,6 +125,16 @@ public fun ContinueListeningHeroCard(
                     overflow = TextOverflow.Ellipsis,
                 )
 
+                book.narrator?.let { narrator ->
+                    Text(
+                        text = narrator,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+
                 LinearProgressIndicator(
                     progress = { book.progress.coerceIn(0f, 1f) },
                     modifier =

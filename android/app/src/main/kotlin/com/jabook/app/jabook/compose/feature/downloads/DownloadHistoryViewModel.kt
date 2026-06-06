@@ -19,8 +19,11 @@ import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.repository.DownloadHistoryRepository
 import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
 import com.jabook.app.jabook.compose.domain.model.HistorySortOrder
+import com.jabook.app.jabook.download.DownloadProgressInfo
+import com.jabook.app.jabook.download.DownloadQueueManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +41,7 @@ public class DownloadHistoryViewModel
     @Inject
     constructor(
         private val downloadHistoryRepository: DownloadHistoryRepository,
+        private val downloadQueueManager: DownloadQueueManager,
     ) : ViewModel() {
         // Search query
         private val _searchQuery = MutableStateFlow("")
@@ -57,6 +61,10 @@ public class DownloadHistoryViewModel
                     started = SharingStarted.WhileSubscribed(5000),
                     initialValue = emptyList(),
                 )
+
+        // Active downloads
+        public val activeDownloads: Flow<List<DownloadProgressInfo>> =
+            downloadQueueManager.getActiveDownloads()
 
         // Update search query
         public fun updateSearchQuery(query: String) {

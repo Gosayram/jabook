@@ -2759,6 +2759,7 @@
     <string name="checking_state">Проверка</string>
     <string name="metadata_state">Получение инфо</string>
     <string name="queued_state">В очереди</string>
+    <string name="cancelled_state">Отменено</string>
     <string name="stopped_state">Остановлен</string>
     <string name="seeding_paused_state">Раздача (На паузе)</string>
     <string name="in_library">В библиотеке</string>
@@ -2936,4 +2937,6 @@
         <item quantity="many">%1$d книг</item>
         <item quantity="other">%1$d книги</item>
     </plurals>
+    <string name="downloadsActiveTab">Активные</string>
+    <string name="downloadsHistoryTab">История</string>
 </resources>

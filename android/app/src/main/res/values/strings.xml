@@ -2757,6 +2757,7 @@
     <string name="checking_state">Checking</string>
     <string name="metadata_state">Getting info</string>
     <string name="queued_state">Queued</string>
+    <string name="cancelled_state">Cancelled</string>
     <string name="stopped_state">Stopped</string>
     <string name="seeding_paused_state">Seeding (Paused)</string>
     
@@ -2890,4 +2891,7 @@
         <item quantity="one">%d selected</item>
         <item quantity="other">%d selected</item>
     </plurals>
+    <!-- Downloads tabs -->
+    <string name="downloadsActiveTab">Active</string>
+    <string name="downloadsHistoryTab">History</string>
 </resources>

@@ -36,6 +36,7 @@ import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_19_20
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_20_21
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_21_22
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_22_23
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_23_24
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_6_7
 import com.jabook.app.jabook.compose.data.local.migration.createBooksFts5Index
 import dagger.Module
@@ -336,6 +337,7 @@ public object DatabaseModule {
             MIGRATION_20_21,
             MIGRATION_21_22,
             MIGRATION_22_23,
+            MIGRATION_23_24,
         )
 
     @Provides

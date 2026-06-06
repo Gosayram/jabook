@@ -59,6 +59,8 @@ public data class BookEntity(
     val title: String,
     @ColumnInfo(name = "author")
     val author: String,
+    @ColumnInfo(name = "narrator")
+    val narrator: String? = null,
     @ColumnInfo(name = "cover_url")
     val coverUrl: String?,
     @ColumnInfo(name = "description")

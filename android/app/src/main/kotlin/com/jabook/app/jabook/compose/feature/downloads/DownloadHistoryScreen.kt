@@ -39,7 +39,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
@@ -47,6 +49,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -62,6 +65,7 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
 import com.jabook.app.jabook.compose.domain.model.HistorySortOrder
+import com.jabook.app.jabook.download.DownloadProgressInfo
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -89,10 +93,14 @@ public fun DownloadHistoryScreen(
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val history by viewModel.history.collectAsStateWithLifecycle()
+    val activeDownloads by viewModel.activeDownloads.collectAsStateWithLifecycle(initialValue = emptyList())
 
     var showSortMenu by remember { mutableStateOf(false) }
     var showOptionsMenu by remember { mutableStateOf(false) }
     var searchActive by remember { mutableStateOf(false) }
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
+
+    val tabs = listOf(stringResource(R.string.downloadsActiveTab), stringResource(R.string.downloadsHistoryTab))
 
     Scaffold(
         topBar = {
@@ -202,6 +210,16 @@ public fun DownloadHistoryScreen(
                     .fillMaxSize()
                     .padding(paddingValues),
         ) {
+            PrimaryScrollableTabRow(selectedTabIndex = selectedTabIndex) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTabIndex == index,
+                        onClick = { selectedTabIndex = index },
+                        text = { Text(title) },
+                    )
+                }
+            }
+
             // Search bar when active
             if (searchActive) {
                 Row(
@@ -232,8 +250,20 @@ public fun DownloadHistoryScreen(
             }
 
             // History list or empty state
-            if (history.isEmpty()) {
+            if (selectedTabIndex == 1 && history.isEmpty()) {
                 EmptyHistoryState()
+            } else if (selectedTabIndex == 0 && activeDownloads.isEmpty()) {
+                // Empty state for Active tab (no active downloads)
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(R.string.noActiveDownloads),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -242,8 +272,16 @@ public fun DownloadHistoryScreen(
                             .PaddingValues(contentPadding),
                     verticalArrangement = Arrangement.spacedBy(itemSpacing),
                 ) {
-                    items(history, key = { it.id }) { entry ->
-                        HistoryCard(entry = entry, contentPadding = contentPadding)
+                    if (selectedTabIndex == 0) {
+                        // Active downloads
+                        items(activeDownloads, key = { it.workId.toString() }) { item ->
+                            ActiveDownloadCard(item = item, contentPadding = contentPadding)
+                        }
+                    } else {
+                        // History
+                        items(history, key = { it.id }) { entry ->
+                            HistoryCard(entry = entry, contentPadding = contentPadding)
+                        }
                     }
                 }
             }
@@ -349,4 +387,68 @@ private fun HistoryCard(
 private fun formatDate(timestamp: Long): String {
     val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
     return sdf.format(Date(timestamp))
+}
+
+/**
+ * Card for active download item.
+ */
+@Composable
+private fun ActiveDownloadCard(
+    item: DownloadProgressInfo,
+    contentPadding: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth().padding(horizontal = contentPadding),
+    ) {
+        Column(
+            modifier = Modifier.padding(contentPadding),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // Title
+            Text(
+                text = item.bookTitle,
+                style = MaterialTheme.typography.titleMedium,
+            )
+
+            // Progress indicator
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                // State badge
+                val stateText =
+                    when (item.state) {
+                        androidx.work.WorkInfo.State.RUNNING -> stringResource(R.string.downloading_state)
+                        androidx.work.WorkInfo.State.ENQUEUED -> stringResource(R.string.queued_state)
+                        androidx.work.WorkInfo.State.SUCCEEDED -> stringResource(R.string.completed_state)
+                        androidx.work.WorkInfo.State.FAILED -> stringResource(R.string.error)
+                        androidx.work.WorkInfo.State.CANCELLED -> stringResource(R.string.cancelled_state)
+                        else -> item.state.name
+                    }
+
+                Text(
+                    text = stateText,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+
+                // Progress
+                Text(
+                    text = "${item.progress}%",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            // Peers count (if available)
+            if (item.numPeers > 0) {
+                Text(
+                    text = "${item.numPeers} peers",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
 }
