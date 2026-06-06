@@ -57,10 +57,11 @@ public fun LibraryMasterDetailPane(
 
         // Vertical divider
         Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .width(1.dp)
-                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+            modifier =
+                Modifier
+                    .fillMaxHeight()
+                    .width(1.dp)
+                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
         )
 
         // Detail pane - shows book details when a book is selected
