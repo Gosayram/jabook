@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --color-surface: var(--surface);
+  --color-surface-variant: var(--surface-variant);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-secondary: var(--secondary);
+  --color-outline: var(--outline);
+}
+
+:root {
+  --radius: 1.75rem;
+}
+
+/* ===== JaBook flavor themes (values pulled from android ui/theme/Color.kt) ===== */
+
+/* BETA — Cyber-Premium Tech (Neon Green) — Dark */
+[data-flavor="beta"] {
+  --bg: #171717;            /* Neutral900 */
+  --fg: #e2e2e6;            /* beta_dark_onBackground */
+  --surface: #1f1f1f;
+  --surface-variant: #262626; /* Neutral800 */
+  --on-surface-variant: #c4c6cf;
+  --primary: #39ff14;       /* BetaPrimaryColor */
+  --on-primary: #003300;
+  --secondary: #00b4d8;     /* electric blue */
+  --tertiary: #00f0ff;      /* cyan */
+  --outline: #8e9099;
+  --primary-glow: rgba(57, 255, 20, 0.35);
+  --scrim: rgba(10, 14, 9, 0.72);
+}
+
+/* PROD — Royal Premium (Gold/Purple) — Dark */
+[data-flavor="prod"] {
+  --bg: #171717;
+  --fg: #e6e1e6;            /* prod_dark_onBackground */
+  --surface: #1f1d22;
+  --surface-variant: #262626;
+  --on-surface-variant: #cac4cf;
+  --primary: #ffd700;       /* ProdPrimaryColor gold */
+  --on-primary: #402d00;
+  --secondary: #cfbcff;     /* light purple */
+  --tertiary: #ffd700;
+  --outline: #948f99;
+  --primary-glow: rgba(255, 215, 0, 0.30);
+  --scrim: rgba(20, 14, 6, 0.74);
+}
+
+/* AMOLED toggle */
+[data-amoled="true"] {
+  --bg: #000000;
+  --surface: #050505;
+  --surface-variant: #141414;
+}
+
+* { border-color: color-mix(in oklab, var(--outline) 25%, transparent); }
+
+html { background: #0c0c0c; }
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* squiggly progress used in the player */
+@keyframes squiggle-shift {
+  from { background-position-x: 0; }
+  to { background-position-x: 28px; }
+}
+.squiggly {
+  background-image: repeating-radial-gradient(
+    circle at 7px -4px,
+    transparent 0 5px,
+    currentColor 5px 6.5px,
+    transparent 6.5px 14px
+  );
+  animation: squiggle-shift 0.9s linear infinite;
+}
+
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+.vinyl-spin { animation: spin-slow 8s linear infinite; }
+
+@keyframes eq-bounce {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+.eq-bar { animation: eq-bounce 0.9s ease-in-out infinite; transform-origin: bottom; }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
