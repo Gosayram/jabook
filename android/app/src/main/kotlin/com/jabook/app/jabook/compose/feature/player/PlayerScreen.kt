@@ -171,6 +171,8 @@ import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.designsystem.component.CircularIconButton
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
+import com.jabook.app.jabook.compose.domain.model.BookmarkItem
+import com.jabook.app.jabook.compose.domain.model.Chapter
 import com.jabook.app.jabook.compose.feature.player.SquigglySlider
 import com.jabook.app.jabook.compose.feature.player.lyrics.LyricsView
 import com.jabook.app.jabook.compose.util.rememberClickDebouncer
@@ -181,6 +183,7 @@ import dagger.hilt.components.SingletonComponent
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -277,6 +280,9 @@ public fun PlayerScreen(
     var showRatingDialog by remember { mutableStateOf(false) }
     var selectedRating by remember { mutableIntStateOf(0) }
     var ratedBookId by remember { mutableStateOf<String?>(null) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showStatsOverlay by remember { mutableStateOf(false) }
+    var isBookmarkNoteSheetVisible by remember { mutableStateOf(false) }
 
     // Vinyl Mode State
     var isVinylMode by remember { mutableStateOf(false) }
@@ -609,9 +615,30 @@ public fun PlayerScreen(
         )
     }
 
+    // Player Overflow Menu Sheet
+    if (showOverflowMenu && uiState is PlayerState.Active) {
+        val state = uiState as PlayerState.Active
+        JabookModalBottomSheet(
+            onDismissRequest = { showOverflowMenu = false },
+        ) {
+            PlayerOverflowMenuSheet(
+                isFavorite = state.book.isFavorite,
+                onShareClick = {
+                    // Share via system share sheet
+                },
+                onToggleFavorite = {
+                    // TODO: favorite toggle via library repo
+                },
+                onGoToBookClick = {
+                    onNavigateToBook(state.book.id)
+                },
+                onStatsClick = { showStatsOverlay = true },
+                onDismiss = { showOverflowMenu = false },
+            )
+        }
+    }
+
     // Stats for Nerds Overlay
-    var showStatsOverlay by remember { mutableStateOf(false) }
-    var isBookmarkNoteSheetVisible by remember { mutableStateOf(false) }
     if (showStatsOverlay) {
         val stats by viewModel.playerStats.collectAsStateWithLifecycle()
         StatsOverlay(
@@ -619,6 +646,8 @@ public fun PlayerScreen(
             onDismiss = { showStatsOverlay = false },
         )
     }
+
+    // Player content
 
     // SupportingPaneScaffold for adaptive chapter display
     SupportingPaneScaffold(
@@ -647,10 +676,10 @@ public fun PlayerScreen(
                                 }
                             },
                             actions = {
-                                androidx.compose.material3.IconButton(onClick = { showStatsOverlay = true }) {
+                                androidx.compose.material3.IconButton(onClick = { showOverflowMenu = true }) {
                                     androidx.compose.material3.Icon(
                                         imageVector = Icons.Filled.MoreVert,
-                                        contentDescription = stringResource(R.string.statsOverlay),
+                                        contentDescription = stringResource(R.string.playerOverflowMenu),
                                     )
                                 }
                             },
@@ -674,7 +703,8 @@ public fun PlayerScreen(
                                             showChapterSheet ||
                                             showSettingsSheet ||
                                             showRatingDialog ||
-                                            isBookmarkNoteSheetVisible
+                                            isBookmarkNoteSheetVisible ||
+                                            showOverflowMenu
                                     if (shouldIgnoreShortcuts) return@onPreviewKeyEvent false
                                     when (keyEvent.key) {
                                         Key.DirectionUp -> {
@@ -1554,6 +1584,23 @@ private fun PlayerContent(
                             )
                         }
                     }
+
+                    // Calculate bookmark marker fractions from bookmarks
+                    val bookmarkMarkersFractions by remember(
+                        state.bookmarks,
+                        state.chapters,
+                        state.currentChapterIndex,
+                        state.currentPosition,
+                    ) {
+                        derivedStateOf {
+                            calculateBookmarkMarkerFractions(
+                                bookmarks = state.bookmarks,
+                                chapters = state.chapters,
+                                currentChapterIndex = state.currentChapterIndex,
+                                currentChapterPositionMs = state.currentPosition.coerceAtLeast(0L),
+                            )
+                        }
+                    }
                     val playerProgress by remember(chapterTimeline) {
                         derivedStateOf {
                             chapterTimeline.progress
@@ -1741,6 +1788,7 @@ private fun PlayerContent(
                         },
                         isPlaying = state.isPlaying,
                         chapterMarkersFractions = chapterTimeline.chapterMarkersFractions,
+                        bookmarkMarkersFractions = bookmarkMarkersFractions,
                         waveformData = seekbarWaveformData,
                         activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
                         inactiveTrackColor =
@@ -3086,4 +3134,31 @@ private fun PlayerLoadingSkeleton(modifier: Modifier = Modifier) {
             )
         }
     }
+}
+
+/**
+ * Convert bookmarks to marker fractions (0..1) based on global position and total duration.
+ */
+private fun calculateBookmarkMarkerFractions(
+    bookmarks: ImmutableList<BookmarkItem>,
+    chapters: List<Chapter>,
+    currentChapterIndex: Int,
+    currentChapterPositionMs: Long,
+): List<Float> {
+    if (chapters.isEmpty()) return emptyList()
+    val durations = chapters.map { it.duration.inWholeMilliseconds.coerceAtLeast(0L) }
+    val totalDuration = durations.sum().coerceAtLeast(0L)
+    if (totalDuration <= 0) return emptyList()
+
+    return bookmarks
+        .asSequence()
+        .mapNotNull { bookmark ->
+            val chapterIdx = bookmark.chapterIndex.coerceIn(0, chapters.lastIndex)
+            val chapterOffset = durations.take(chapterIdx).sumOf { it }
+            val globalPositionMs = (chapterOffset + bookmark.positionMs).coerceIn(0L, totalDuration)
+            (globalPositionMs.toFloat() / totalDuration.toFloat())
+                .takeIf { it.isFinite() && it >= 0f && it <= 1f }
+        }.sorted()
+        .distinct()
+        .toList()
 }

@@ -2943,4 +2943,5 @@
     <string name="playerGoToBook">Перейти к книге</string>
     <string name="playerShare">Поделиться</string>
     <string name="playerStatistics">Статистика</string>
+    <string name="playerOverflowMenu">Дополнительно</string>
 </resources>

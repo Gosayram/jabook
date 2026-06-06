@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.runtime.Immutable
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.domain.model.BookmarkItem
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import kotlinx.collections.immutable.ImmutableList
 
@@ -73,6 +74,7 @@ public sealed interface PlayerState {
         val autoVolumeLeveling: Boolean = false,
         val themeColors: com.jabook.app.jabook.compose.core.theme.PlayerThemeColors? = null,
         val lyrics: ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? = null,
+        val bookmarks: ImmutableList<BookmarkItem> = kotlinx.collections.immutable.persistentListOf(),
     ) : PlayerState
 
     /**

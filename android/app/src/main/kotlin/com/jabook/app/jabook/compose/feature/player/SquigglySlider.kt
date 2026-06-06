@@ -105,10 +105,12 @@ public fun SquigglySlider(
     trackHeight: Dp = 4.dp, // Standard Material track is roughly 4dp
     thumbRadius: Dp = 10.dp,
     chapterMarkersFractions: List<Float> = emptyList(),
+    bookmarkMarkersFractions: List<Float> = emptyList(),
     waveformData: FloatArray = FloatArray(0),
     activeTrackColor: Color = MaterialTheme.colorScheme.primary,
     inactiveTrackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
     chapterMarkerColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+    bookmarkMarkerColor: Color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.9f),
     valueFormatter: ValueFormatter? = null,
 ) {
     val normalizedRange =
@@ -118,6 +120,10 @@ public fun SquigglySlider(
     val sanitizedChapterMarkers =
         remember(chapterMarkersFractions.toList()) {
             sanitizeChapterMarkersFractions(chapterMarkersFractions)
+        }
+    val sanitizedBookmarkMarkers =
+        remember(bookmarkMarkersFractions.toList()) {
+            sanitizeChapterMarkersFractions(bookmarkMarkersFractions)
         }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -296,6 +302,19 @@ public fun SquigglySlider(
                     start = Offset(markerX, centerY - markerHalfHeight),
                     end = Offset(markerX, centerY + markerHalfHeight),
                     strokeWidth = 1.5.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+            }
+
+            // Draw bookmark markers over the track (taller, tertiary color).
+            val bookmarkHalfHeight = (trackHeight.toPx() * 2.5f).coerceAtLeast(5f)
+            sanitizedBookmarkMarkers.forEach { markerFraction ->
+                val markerX = width * markerFraction
+                drawLine(
+                    color = bookmarkMarkerColor,
+                    start = Offset(markerX, centerY - bookmarkHalfHeight),
+                    end = Offset(markerX, centerY + bookmarkHalfHeight),
+                    strokeWidth = 2.dp.toPx(),
                     cap = StrokeCap.Round,
                 )
             }

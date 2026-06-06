@@ -2895,6 +2895,7 @@
     <string name="playerShare">Share</string>
     <string name="playerGoToBook">Go to book</string>
     <string name="playerStatistics">Statistics</string>
+    <string name="playerOverflowMenu">More options</string>
     <string name="desktopSelectBookHint">Select a book to view details</string>
 
     <!-- Downloads tabs -->
