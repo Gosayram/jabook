@@ -2939,4 +2939,8 @@
     </plurals>
     <string name="downloadsActiveTab">Активные</string>
     <string name="downloadsHistoryTab">История</string>
+    <string name="desktopSelectBookHint">Выберите книгу для просмотра деталей</string>
+    <string name="playerGoToBook">Перейти к книге</string>
+    <string name="playerShare">Поделиться</string>
+    <string name="playerStatistics">Статистика</string>
 </resources>
