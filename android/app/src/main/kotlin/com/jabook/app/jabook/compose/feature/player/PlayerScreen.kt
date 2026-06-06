@@ -1245,7 +1245,7 @@ private fun PlayerContent(
         }
     }
 
-    val displayAuthor = authorFromMetadata
+    val displayAuthor = authorFromMetadata ?: state.book.author
     val sleepTimerAccessibilityDescription =
         when (sleepTimerState) {
             is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active ->
