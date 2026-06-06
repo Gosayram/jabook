@@ -89,6 +89,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -1511,6 +1512,23 @@ private fun PlayerContent(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+            }
+
+            // Chapter chip (clickable, opens chapter sheet)
+            item {
+                androidx.compose.material3.AssistChip(
+                    onClick = onChapterClick,
+                    label = {
+                        Text(
+                            text = stringResource(
+                                R.string.chapterOf,
+                                state.currentChapterIndex + 1,
+                                state.chapters.size,
+                            ),
+                        )
+                    },
+                    modifier = Modifier.semantics { role = androidx.compose.ui.semantics.Role.Button },
+                )
             }
 
             // Spacer after book title
