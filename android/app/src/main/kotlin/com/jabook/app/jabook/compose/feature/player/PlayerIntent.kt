@@ -77,7 +77,6 @@ public sealed interface PlayerIntent {
 
     public data object ResetBookSeekSettings : PlayerIntent
 
-
     public data class UpdateAudioSettings(
         val volumeBoostLevel: com.jabook.app.jabook.audio.processors.VolumeBoostLevel? = null,
         val skipSilence: Boolean? = null,
