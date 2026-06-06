@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Share
@@ -46,6 +47,7 @@ public fun PlayerOverflowMenuSheet(
     onShareClick: () -> Unit,
     onToggleFavorite: () -> Unit,
     onGoToBookClick: () -> Unit,
+    onBookmarksClick: () -> Unit,
     onStatsClick: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -80,6 +82,15 @@ public fun PlayerOverflowMenuSheet(
             titleRes = R.string.playerGoToBook,
             onClick = {
                 onGoToBookClick()
+                onDismiss()
+            },
+        )
+
+        OverflowMenuItem(
+            icon = Icons.Filled.Bookmark,
+            titleRes = R.string.bookmarks,
+            onClick = {
+                onBookmarksClick()
                 onDismiss()
             },
         )

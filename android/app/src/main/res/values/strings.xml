@@ -2294,6 +2294,13 @@
     <string name="shareLogs">Share logs</string>
     <!-- Sleep Timer -->
     <string name="sleepTimer">Sleep Timer</string>
+    <!-- Bookmarks -->
+    <string name="bookmarks">Bookmarks</string>
+    <string name="bookmarkCount">%1$d bookmarks</string>
+    <string name="noBookmarks">No bookmarks yet</string>
+    <string name="noBookmarksDescription">Long press on the seekbar to add a bookmark</string>
+    <string name="jumpToBookmark">Jump to bookmark</string>
+    <string name="deleteBookmark">Delete bookmark</string>
     <!-- Smallest First -->
     <string name="smallestFirst">Smallest First</string>
     <!-- Tap to open app and resume playback -->

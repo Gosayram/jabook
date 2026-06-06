@@ -873,6 +873,16 @@ public class PlayerViewModel
             playerController.seekTo(clampedPositionMs)
         }
 
+        public fun seekToBookmark(bookmark: BookmarkItem) {
+            val state = uiState.value as? PlayerState.Active
+            // If bookmark is in a different chapter, we need to seek to that chapter first
+            if (state?.currentChapterIndex != bookmark.chapterIndex) {
+                playerController.skipToChapter(bookmark.chapterIndex)
+            }
+            // Then seek to the bookmark position within the chapter
+            seekTo(bookmark.positionMs)
+        }
+
         public fun skipToNext() {
             logger.d { "Action: Skip Next requested" }
             playerController.skipToNext()

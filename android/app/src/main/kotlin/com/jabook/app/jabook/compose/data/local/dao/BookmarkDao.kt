@@ -29,6 +29,9 @@ public interface BookmarkDao {
     @Query("SELECT * FROM bookmarks WHERE book_id = :bookId ORDER BY position_ms ASC")
     public fun getBookmarksForBook(bookId: String): Flow<List<BookmarkEntity>>
 
+    @Query("SELECT * FROM bookmarks WHERE book_id = :bookId ORDER BY position_ms ASC")
+    public suspend fun getBookmarksForBookSync(bookId: String): List<BookmarkEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     public suspend fun upsertBookmark(bookmark: BookmarkEntity)
 

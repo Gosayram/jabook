@@ -47,6 +47,18 @@ public class BookmarkRepository
         ): Result<BookmarkItem> =
             withContext(Dispatchers.IO) {
                 try {
+                    val duplicateThresholdMs = 5000L
+                    val existing = bookmarkDao.getBookmarksForBookSync(bookId)
+                    val isDuplicate =
+                        existing.any { bm ->
+                            bm.chapterIndex == chapterIndex.coerceAtLeast(0) &&
+                                kotlin.math.abs(bm.positionMs - positionMs.coerceAtLeast(0L)) < duplicateThresholdMs
+                        }
+                    if (isDuplicate) {
+                        return@withContext Result.failure(
+                            IllegalStateException("Duplicate bookmark within $duplicateThresholdMs ms"),
+                        )
+                    }
                     val now = System.currentTimeMillis()
                     val bookmark =
                         BookmarkItem(

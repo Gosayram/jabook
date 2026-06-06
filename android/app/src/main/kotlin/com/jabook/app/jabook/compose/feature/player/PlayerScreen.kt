@@ -75,6 +75,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.StarOutline
@@ -286,6 +287,7 @@ public fun PlayerScreen(
 
     // Vinyl Mode State
     var isVinylMode by remember { mutableStateOf(false) }
+    var showBookmarkSheet by remember { mutableStateOf(false) }
 
     // Navigator for SupportingPaneScaffold
     val scaffoldNavigator = rememberSupportingPaneScaffoldNavigator()
@@ -632,6 +634,7 @@ public fun PlayerScreen(
                 onGoToBookClick = {
                     onNavigateToBook(state.book.id)
                 },
+                onBookmarksClick = { showBookmarkSheet = true },
                 onStatsClick = { showStatsOverlay = true },
                 onDismiss = { showOverflowMenu = false },
             )
@@ -645,6 +648,28 @@ public fun PlayerScreen(
             stats = stats,
             onDismiss = { showStatsOverlay = false },
         )
+    }
+
+    // Bookmarks Sheet
+    if (showBookmarkSheet && uiState is PlayerState.Active) {
+        val state = uiState as PlayerState.Active
+        JabookModalBottomSheet(
+            onDismissRequest = { showBookmarkSheet = false },
+        ) {
+            BookmarksSheet(
+                bookmarks = state.bookmarks,
+                currentPositionMs = state.currentPosition,
+                chapters = state.chapters,
+                currentChapterIndex = state.currentChapterIndex,
+                onJumpToBookmark = { bookmark ->
+                    viewModel.seekToBookmark(bookmark)
+                },
+                onDeleteBookmark = { bookmarkId ->
+                    viewModel.deleteBookmark(bookmarkId)
+                },
+                onDismiss = { showBookmarkSheet = false },
+            )
+        }
     }
 
     // Player content
@@ -890,6 +915,7 @@ public fun PlayerScreen(
                                                     viewModel.dispatch(PlayerIntent.ToggleChapterRepeat)
                                                 }
                                             },
+                                            onBookmarksClick = { showBookmarkSheet = true },
                                             onStatsClick = { showStatsOverlay = true },
                                             onAddBookmarkAtPosition = { chapterIndex, positionMs, onCreated ->
                                                 viewModel.addBookmarkAtPosition(
@@ -1163,6 +1189,7 @@ private fun PlayerContent(
     onSleepTimerClick: () -> Unit,
     onChapterRepeatClick: () -> Unit,
     onStatsClick: () -> Unit,
+    onBookmarksClick: () -> Unit,
     onAddBookmarkAtPosition: (Int, Long, (com.jabook.app.jabook.compose.domain.model.BookmarkItem?) -> Unit) -> Unit,
     onUpdateBookmark: (String, String?, String?) -> Unit,
     onDeleteBookmark: (String) -> Unit,
@@ -2270,6 +2297,43 @@ private fun PlayerContent(
                                     val activeState = sleepTimerState
                                     Text(
                                         formatSleepTimerRemaining(activeState.remainingSeconds),
+                                        fontSize = controlButtonTextSize,
+                                    )
+                                }
+                            }
+
+                            // Bookmarks Button
+                            FilledTonalButton(
+                                onClick = onBookmarksClick,
+                                modifier = Modifier.weight(1f).height(controlButtonHeight),
+                                colors =
+                                    ButtonDefaults.filledTonalButtonColors(
+                                        containerColor =
+                                            if (state.bookmarks.isNotEmpty()) {
+                                                MaterialTheme.colorScheme.primaryContainer
+                                            } else {
+                                                MaterialTheme.colorScheme.surfaceVariant
+                                            },
+                                        contentColor =
+                                            if (state.bookmarks.isNotEmpty()) {
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                            },
+                                    ),
+                            ) {
+                                Icon(
+                                    if (state.bookmarks.isNotEmpty()) {
+                                        Icons.Filled.Bookmark
+                                    } else {
+                                        Icons.Outlined.Bookmark
+                                    },
+                                    stringResource(R.string.bookmarks),
+                                    Modifier.size(controlButtonIconSize),
+                                )
+                                if (state.bookmarks.isNotEmpty()) {
+                                    Text(
+                                        text = stringResource(R.string.bookmarkCount, state.bookmarks.size),
                                         fontSize = controlButtonTextSize,
                                     )
                                 }

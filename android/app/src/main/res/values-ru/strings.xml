@@ -2249,6 +2249,13 @@
     <string name="shareLogs">Поделиться журналами</string>
     <!-- Таймер сна -->
     <string name="sleepTimer">Таймер сна</string>
+    <!-- Закладки -->
+    <string name="bookmarks">Закладки</string>
+    <string name="bookmarkCount">%1$d закладок</string>
+    <string name="noBookmarks">Закладок пока нет</string>
+    <string name="noBookmarksDescription">Долгое нажатие на ползунок для добавления закладки</string>
+    <string name="jumpToBookmark">Перейти к закладке</string>
+    <string name="deleteBookmark">Удалить закладку</string>
     <!-- Самый маленький первый -->
     <string name="smallestFirst">Самый маленький первый</string>
     <string name="tapToOpenAppAndResumePlayback">Нажмите, чтобы открыть приложение и возобновить воспроизведение.</string>
