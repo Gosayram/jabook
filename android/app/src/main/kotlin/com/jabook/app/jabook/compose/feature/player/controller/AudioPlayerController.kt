@@ -360,10 +360,34 @@ public class AudioPlayerController
                     .trim()
             val bufferMs = controller.bufferedPosition - controller.currentPosition
 
+            val sampleRate =
+                format?.sampleRate?.let {
+                    if (it > 0) "${it / 1000} kHz" else "Unknown"
+                } ?: "Unknown"
+
+            val channelCount = format?.channelCount ?: -1
+            val channelLayout =
+                when (channelCount) {
+                    1 -> "Mono"
+                    2 -> "Stereo"
+                    6 -> "5.1"
+                    8 -> "7.1"
+                    -1 -> "Unknown"
+                    else -> "$channelCount ch"
+                }
+
+            val isStreaming =
+                currentBookId.value?.let { bookId ->
+                    // Check if book source is a remote URL vs local file
+                    bookId.startsWith("http")
+                } ?: false
+
             _playerStats.value =
                 com.jabook.app.jabook.compose.feature.player.PlayerStats(
                     audioFormat = audioFormat.ifEmpty { "Unknown" },
                     bitrate = format?.bitrate?.let { if (it > 0) "${it / 1000} kbps" else "Unknown" } ?: "Unknown",
+                    sampleRate = sampleRate,
+                    channelLayout = channelLayout,
                     bufferHealth = "${bufferMs / 1000}s",
                     audioSessionId =
                         if (exoPlayerForStats.audioSessionId !=
@@ -374,7 +398,8 @@ public class AudioPlayerController
                             "None"
                         },
                     decoderName = "ExoPlayer Audio Decoder",
-                    droppedFrames = 0, // Audio usually doesn't drop frames like video
+                    droppedFrames = 0,
+                    isStreaming = isStreaming,
                 )
         }
 

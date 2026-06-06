@@ -96,6 +96,8 @@
     <string name="statsForNerds">Статистика для гиков</string>
     <string name="audioFormat">Формат аудио</string>
     <string name="bitrate">Битрейт</string>
+    <string name="sampleRate">Частота дискретизации</string>
+    <string name="channelLayout">Каналы</string>
     <string name="bufferHealth">Здоровье буфера</string>
     <string name="audioSessionId">ID аудиосессии</string>
     <string name="decoder">Декодер</string>

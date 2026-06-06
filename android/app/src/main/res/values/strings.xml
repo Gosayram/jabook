@@ -94,6 +94,8 @@
     <string name="statsForNerds">Stats for Nerds</string>
     <string name="audioFormat">Audio Format</string>
     <string name="bitrate">Bitrate</string>
+    <string name="sampleRate">Sample Rate</string>
+    <string name="channelLayout">Channels</string>
     <string name="bufferHealth">Buffer Health</string>
     <string name="audioSessionId">Audio Session ID</string>
     <string name="decoder">Decoder</string>

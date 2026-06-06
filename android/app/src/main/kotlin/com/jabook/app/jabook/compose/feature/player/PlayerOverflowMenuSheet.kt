@@ -71,6 +71,7 @@ public fun PlayerOverflowMenuSheet(
         OverflowMenuItem(
             icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
             titleRes = if (isFavorite) R.string.removeFromFavorites else R.string.addToFavorites,
+            iconTint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
             onClick = {
                 onToggleFavorite()
                 onDismiss()
@@ -111,6 +112,7 @@ private fun OverflowMenuItem(
     icon: ImageVector,
     titleRes: Int,
     onClick: () -> Unit,
+    iconTint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
 ) {
     TextButton(
         onClick = onClick,
@@ -123,7 +125,7 @@ private fun OverflowMenuItem(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface,
+                tint = iconTint,
             )
             Text(
                 text = stringResource(titleRes),

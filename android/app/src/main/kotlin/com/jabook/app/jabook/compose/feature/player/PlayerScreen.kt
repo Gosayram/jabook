@@ -624,7 +624,18 @@ public fun PlayerScreen(
             PlayerOverflowMenuSheet(
                 isFavorite = state.book.isFavorite,
                 onShareClick = {
-                    // Share via system share sheet
+                    val shareIntent =
+                        android.content.Intent().apply {
+                            action = android.content.Intent.ACTION_SEND
+                            putExtra(
+                                android.content.Intent.EXTRA_TEXT,
+                                state.book.title + " by " + (state.book.author ?: ""),
+                            )
+                            type = "text/plain"
+                        }
+                    context.startActivity(
+                        android.content.Intent.createChooser(shareIntent, null),
+                    )
                 },
                 onToggleFavorite = {
                     // TODO: favorite toggle via library repo
@@ -856,11 +867,53 @@ public fun PlayerScreen(
                                             },
                                             onSkipNext = {
                                                 HapticManager.performGesture(hapticFeedback)
-                                                clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipNext) }
+                                                clickDebouncer.debounce {
+                                                    val activeState = uiState as? PlayerState.Active ?: return@debounce
+                                                    when (
+                                                        val action =
+                                                            ChapterNavigationPolicy.resolveNextAction(
+                                                                activeState.chapters,
+                                                                activeState.currentChapterIndex,
+                                                            )
+                                                    ) {
+                                                        is ChapterNavigationAction.JumpToChapter ->
+                                                            viewModel.skipToChapter(
+                                                                action.chapterIndex,
+                                                            )
+                                                        is ChapterNavigationAction.EndOfBook -> viewModel.dispatch(PlayerIntent.SkipNext)
+                                                        is ChapterNavigationAction.RestartCurrentChapter ->
+                                                            viewModel.skipToChapter(
+                                                                action.chapterIndex,
+                                                            )
+                                                    }
+                                                }
                                             },
                                             onSkipPrevious = {
                                                 HapticManager.performGesture(hapticFeedback)
-                                                clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipPrevious) }
+                                                clickDebouncer.debounce {
+                                                    val activeState = uiState as? PlayerState.Active ?: return@debounce
+                                                    when (
+                                                        val action =
+                                                            ChapterNavigationPolicy.resolvePreviousAction(
+                                                                activeState.chapters,
+                                                                activeState.currentChapterIndex,
+                                                                activeState.currentPosition,
+                                                            )
+                                                    ) {
+                                                        is ChapterNavigationAction.RestartCurrentChapter -> {
+                                                            viewModel.skipToChapter(action.chapterIndex)
+                                                            viewModel.seekTo(0L)
+                                                        }
+                                                        is ChapterNavigationAction.JumpToChapter ->
+                                                            viewModel.skipToChapter(
+                                                                action.chapterIndex,
+                                                            )
+                                                        is ChapterNavigationAction.EndOfBook ->
+                                                            viewModel.dispatch(
+                                                                PlayerIntent.SkipPrevious,
+                                                            )
+                                                    }
+                                                }
                                             },
                                             onSeek = { positionMs ->
                                                 viewModel.dispatch(PlayerIntent.SeekTo(positionMs))

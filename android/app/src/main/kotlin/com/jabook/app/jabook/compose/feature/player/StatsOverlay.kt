@@ -45,10 +45,13 @@ import com.jabook.app.jabook.R
 public data class PlayerStats(
     val audioFormat: String = "Unknown",
     val bitrate: String = "Unknown",
+    val sampleRate: String = "Unknown",
+    val channelLayout: String = "Unknown",
     val bufferHealth: String = "0s",
     val audioSessionId: String = "Unknown",
     val decoderName: String = "Unknown",
     val droppedFrames: Int = 0,
+    val isStreaming: Boolean = false,
 )
 
 @Composable
@@ -99,8 +102,13 @@ public fun StatsOverlay(
 
             StatItem(label = stringResource(R.string.audioFormat), value = stats.audioFormat)
             StatItem(label = stringResource(R.string.bitrate), value = stats.bitrate)
+            StatItem(label = stringResource(R.string.sampleRate), value = stats.sampleRate)
+            StatItem(label = stringResource(R.string.channelLayout), value = stats.channelLayout)
             StatItem(label = stringResource(R.string.decoder), value = stats.decoderName)
-            StatItem(label = stringResource(R.string.bufferHealth), value = stats.bufferHealth)
+            StatItem(
+                label = stringResource(R.string.bufferHealth),
+                value = if (stats.isStreaming) stats.bufferHealth + " (streaming)" else stats.bufferHealth + " (local)",
+            )
             StatItem(label = stringResource(R.string.audioSessionId), value = stats.audioSessionId)
 
             if (stats.droppedFrames > 0) {
