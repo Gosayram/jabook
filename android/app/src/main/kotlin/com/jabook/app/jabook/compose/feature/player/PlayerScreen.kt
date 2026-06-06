@@ -173,7 +173,6 @@ import com.jabook.app.jabook.compose.designsystem.component.CircularIconButton
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.domain.model.BookmarkItem
-import com.jabook.app.jabook.compose.domain.model.Chapter
 import com.jabook.app.jabook.compose.feature.player.SquigglySlider
 import com.jabook.app.jabook.compose.feature.player.lyrics.LyricsView
 import com.jabook.app.jabook.compose.util.rememberClickDebouncer
@@ -184,7 +183,6 @@ import dagger.hilt.components.SingletonComponent
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.rememberHazeState
-import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -1616,15 +1614,11 @@ private fun PlayerContent(
                     val bookmarkMarkersFractions by remember(
                         state.bookmarks,
                         state.chapters,
-                        state.currentChapterIndex,
-                        state.currentPosition,
                     ) {
                         derivedStateOf {
-                            calculateBookmarkMarkerFractions(
+                            BookmarkMarkerPolicy.calculateBookmarkMarkerFractions(
                                 bookmarks = state.bookmarks,
                                 chapters = state.chapters,
-                                currentChapterIndex = state.currentChapterIndex,
-                                currentChapterPositionMs = state.currentPosition.coerceAtLeast(0L),
                             )
                         }
                     }
@@ -3198,31 +3192,4 @@ private fun PlayerLoadingSkeleton(modifier: Modifier = Modifier) {
             )
         }
     }
-}
-
-/**
- * Convert bookmarks to marker fractions (0..1) based on global position and total duration.
- */
-private fun calculateBookmarkMarkerFractions(
-    bookmarks: ImmutableList<BookmarkItem>,
-    chapters: List<Chapter>,
-    currentChapterIndex: Int,
-    currentChapterPositionMs: Long,
-): List<Float> {
-    if (chapters.isEmpty()) return emptyList()
-    val durations = chapters.map { it.duration.inWholeMilliseconds.coerceAtLeast(0L) }
-    val totalDuration = durations.sum().coerceAtLeast(0L)
-    if (totalDuration <= 0) return emptyList()
-
-    return bookmarks
-        .asSequence()
-        .mapNotNull { bookmark ->
-            val chapterIdx = bookmark.chapterIndex.coerceIn(0, chapters.lastIndex)
-            val chapterOffset = durations.take(chapterIdx).sumOf { it }
-            val globalPositionMs = (chapterOffset + bookmark.positionMs).coerceIn(0L, totalDuration)
-            (globalPositionMs.toFloat() / totalDuration.toFloat())
-                .takeIf { it.isFinite() && it >= 0f && it <= 1f }
-        }.sorted()
-        .distinct()
-        .toList()
 }
