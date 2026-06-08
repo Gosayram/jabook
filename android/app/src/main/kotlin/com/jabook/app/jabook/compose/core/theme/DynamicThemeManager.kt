@@ -53,12 +53,16 @@ public data class PlayerThemeColors(
  * - Guaranteed 4.5:1 contrast for on-colors
  * - "Dislike" fix: auto-corrects universally unpleasant yellow-green colors
  * - Tonal harmonization of gradient colors
+ * - LRU cache keyed by cover URL for performance
  */
 public object DynamicThemeManager {
     // Hue range for "dislike" colors (yellow-green, universally unpleasant)
     private const val DISLIKE_HUE_MIN = 70.0
     private const val DISLIKE_HUE_MAX = 130.0
     private const val DISLIKE_CHROMA_MIN = 20.0
+
+    // LRU cache for extracted colors - 20 entries (fits in ~200KB)
+    private val cache = LinkedHashMap<String, PlayerThemeColors>(20)
 
     /**
      * Extracts a color palette from the given bitmap asynchronously.
@@ -129,6 +133,35 @@ public object DynamicThemeManager {
                 gradientColors = gradientColors,
             )
         }
+
+    /**
+     * Extracts colors and caches result by cover URL.
+     *
+     * @param coverUrl URL of the cover image (used as cache key).
+     * @param bitmap The source bitmap (album art).
+     * @return Extracted PlayerThemeColors with guaranteed contrast.
+     */
+    public suspend fun extractColorsCached(
+        coverUrl: String,
+        bitmap: Bitmap,
+    ): PlayerThemeColors {
+        cache[coverUrl]?.let { return it }
+        val colors = extractColors(bitmap)
+        cache[coverUrl] = colors
+        // Enforce cache size limit
+        if (cache.size > 20) {
+            cache.remove(cache.keys.first())
+        }
+        return colors
+    }
+
+    /**
+     * Clears the color cache.
+     * Call during theme changes or when memory pressure is high.
+     */
+    public fun clearCache() {
+        cache.clear()
+    }
 
     /**
      * Fix "dislike" colors — universally unpleasant yellow-green hues.

@@ -640,8 +640,9 @@ public class PlayerViewModel
                 if (result is coil3.request.SuccessResult) {
                     val bitmap = result.image.toBitmap()
                     val colors =
-                        com.jabook.app.jabook.compose.core.theme.DynamicThemeManager.extractColors(
-                            bitmap,
+                        com.jabook.app.jabook.compose.core.theme.DynamicThemeManager.extractColorsCached(
+                            coverUrl = coverUrl,
+                            bitmap = bitmap,
                         )
                     _themeColors.value = colors
                 }

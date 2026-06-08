@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -93,9 +94,13 @@ import com.jabook.app.jabook.compose.domain.model.Chapter
  * It displays the book cover, metadata, action buttons, and a preview of chapters.
  *
  * @param book The book to display details for
+ * @param chapters List of book chapters
  * @param onPlayClick Callback when the play button is clicked
  * @param onClose Callback when the close button is clicked
  * @param onToggleFavorite Callback when favorite button is toggled
+ * @param onNavigateToAudioSettings Callback to navigate to audio settings screen
+ * @param onChapterClick Callback for chapter selection
+ * @param onAllChaptersClick Callback to view all chapters
  * @param modifier Modifier for the root composable
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
@@ -106,6 +111,7 @@ public fun BookDetailPane(
     onPlayClick: () -> Unit,
     onClose: () -> Unit,
     onToggleFavorite: () -> Unit = {},
+    onNavigateToAudioSettings: () -> Unit = {},
     onChapterClick: ((Chapter) -> Unit)? = null,
     onAllChaptersClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -277,7 +283,7 @@ public fun BookDetailPane(
                         }
                     }
 
-                    // Action buttons
+// Action buttons
                     item {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -298,6 +304,31 @@ public fun BookDetailPane(
                                 Spacer(modifier = Modifier.width(AdaptiveUtils.getItemSpacing(windowSizeClass) * 0.5f))
                                 Text(
                                     text = stringResource(R.string.play),
+                                    style =
+                                        AdaptiveUtils.getAdaptiveTextStyle(
+                                            MaterialTheme.typography.labelLarge,
+                                            windowSizeClass,
+                                        ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+
+                            FilledTonalButton(
+                                onClick = onNavigateToAudioSettings,
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .heightIn(min = AdaptiveUtils.getButtonHeight(windowSizeClass)),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Settings,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(AdaptiveUtils.getIconSize(windowSizeClass)),
+                                )
+                                Spacer(modifier = Modifier.width(AdaptiveUtils.getItemSpacing(windowSizeClass) * 0.5f))
+                                Text(
+                                    text = stringResource(R.string.audioTuning),
                                     style =
                                         AdaptiveUtils.getAdaptiveTextStyle(
                                             MaterialTheme.typography.labelLarge,

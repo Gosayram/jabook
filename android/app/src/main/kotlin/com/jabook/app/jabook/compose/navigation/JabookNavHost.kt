@@ -277,6 +277,9 @@ public fun JabookNavHost(
                 onNavigateToFavorites = {
                     navController.navigate(FavoritesRoute)
                 },
+                onNavigateToAudioSettings = {
+                    navController.navigate(AudioSettingsRoute)
+                },
                 onFirstMeaningfulContentDrawn = onFirstMeaningfulContentDrawn,
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = this,

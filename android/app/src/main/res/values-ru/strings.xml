@@ -94,6 +94,7 @@
     <!-- Подпись кнопки для действия сброса -->
     <string name="reset">Сбросить</string>
     <string name="statsForNerds">Статистика для гиков</string>
+    <string name="audioTuning">Настройки звука</string>
     <string name="audioFormat">Формат аудио</string>
     <string name="bitrate">Битрейт</string>
     <string name="sampleRate">Частота дискретизации</string>

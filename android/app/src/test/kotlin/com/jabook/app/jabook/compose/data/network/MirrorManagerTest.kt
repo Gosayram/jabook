@@ -247,6 +247,10 @@ private class FakeSettingsRepository(
         state.update { prefs -> prefs.toBuilder().setSelectedMirror(domain).build() }
     }
 
+    override suspend fun updateAccentSwatchIndex(index: Int) = Unit
+
+    override suspend fun updatePlayerCoverMode(mode: Int) = Unit
+
     override suspend fun addCustomMirror(domain: String) {
         state.update { prefs ->
             val builder = prefs.toBuilder()

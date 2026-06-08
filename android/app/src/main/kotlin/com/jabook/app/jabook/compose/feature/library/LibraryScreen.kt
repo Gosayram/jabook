@@ -123,6 +123,11 @@ import java.time.ZoneId
  * Uses Material 3 Adaptive ListDetailPaneScaffold for proper list-detail pattern on larger screens.
  *
  * @param onBookClick Callback when a book is clicked
+ * @param onNavigateToSearch Callback to navigate to search screen
+ * @param onNavigateToDownloads Callback to navigate to downloads screen
+ * @param onNavigateToFavorites Callback to navigate to favorites screen
+ * @param onNavigateToAudioSettings Callback to navigate to audio settings screen
+ * @param onFirstMeaningfulContentDrawn Callback for performance tracking
  * @param viewModel ViewModel provided by Hilt
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
@@ -132,6 +137,7 @@ public fun LibraryScreen(
     onNavigateToSearch: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onNavigateToFavorites: () -> Unit = {},
+    onNavigateToAudioSettings: () -> Unit = {},
     onFirstMeaningfulContentDrawn: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
@@ -594,6 +600,10 @@ public fun LibraryScreen(
                                 selectedBook?.let { book ->
                                     viewModel.toggleFavorite(book.id, !book.isFavorite)
                                 }
+                            },
+                            onNavigateToAudioSettings = {
+                                // Navigate to audio settings screen
+                                onNavigateToAudioSettings()
                             },
                         )
                     }

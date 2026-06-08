@@ -92,6 +92,7 @@
     <!-- Button label for reset action -->
     <string name="reset">Reset</string>
     <string name="statsForNerds">Stats for Nerds</string>
+    <string name="audioTuning">Audio Tuning</string>
     <string name="audioFormat">Audio Format</string>
     <string name="bitrate">Bitrate</string>
     <string name="sampleRate">Sample Rate</string>
