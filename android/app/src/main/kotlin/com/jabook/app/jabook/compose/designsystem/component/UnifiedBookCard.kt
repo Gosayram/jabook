@@ -29,8 +29,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
@@ -273,6 +275,24 @@ private fun GridBookCard(
                             .align(Alignment.TopStart)
                             .padding(8.dp),
                 )
+            } else if (book.isCompleted) {
+                androidx.compose.foundation.layout.Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp)
+                            .background(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                                androidx.compose.foundation.shape
+                                    .RoundedCornerShape(4.dp),
+                            ).padding(horizontal = 6.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        text = "✓",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                }
             }
 
             Box(
@@ -514,7 +534,7 @@ private fun ListBookCard(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Filled.CheckCircle,
+                            imageVector = androidx.compose.material.icons.Icons.Filled.Check,
                             contentDescription = null,
                             modifier = Modifier.size(12.dp),
                             tint = MaterialTheme.colorScheme.primary,
@@ -526,14 +546,14 @@ private fun ListBookCard(
                         )
                     }
                 } else if (book.progress > 0f && actionsProvider.showProgress) {
-                    val remaining = book.remainingTime
+                    val remaining = book.remainingDuration
                     if (remaining.inWholeMinutes > 0) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Filled.Schedule,
+                                imageVector = androidx.compose.material.icons.Icons.Filled.Timer,
                                 contentDescription = null,
                                 modifier = Modifier.size(12.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
