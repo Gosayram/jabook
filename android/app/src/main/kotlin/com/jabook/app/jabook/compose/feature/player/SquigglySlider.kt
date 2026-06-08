@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
 import kotlin.math.sin
 
 internal const val SQUIGGLY_SLIDER_TAG: String = "squiggly_slider_track"
@@ -134,6 +135,8 @@ public fun SquigglySlider(
     var tooltipWidthDp by remember { mutableStateOf(56.dp) }
     val density = LocalDensity.current
 
+    val reduceMotion = rememberReduceMotion()
+
     // Animation for the wave phase (movement)
     val infiniteTransition = rememberInfiniteTransition(label = "wave_phase")
     val phase by infiniteTransition.animateFloat(
@@ -152,7 +155,7 @@ public fun SquigglySlider(
     // - 0f when not playing (static straight or subtle?) -> Let's do 0f for static if paused, or maybe keep subtle?
     // Plan said "Squiggly Slider". Usually it's squiggly when playing.
     val targetAmplitude =
-        if (isInteracting) {
+        if (reduceMotion || isInteracting) {
             0f
         } else if (isPlaying) {
             1f

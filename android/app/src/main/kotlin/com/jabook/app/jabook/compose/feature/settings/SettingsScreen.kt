@@ -21,8 +21,11 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -72,6 +75,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -83,6 +87,7 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.theme.getAllAccentSwatches
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.model.AppTheme
@@ -1142,6 +1147,16 @@ public fun SettingsScreen(
                 )
             }
 
+            SettingsItemWithContent(
+                title = stringResource(R.string.accentColorTitle),
+                subtitle = stringResource(R.string.accentColorDescription),
+            ) {
+                AccentSwatchSelector(
+                    selectedIndex = protoSettings.accentSwatchIndex,
+                    onSwatchSelected = { viewModel.updateAccentSwatchIndex(it) },
+                )
+            }
+
             SettingsItem(
                 title = stringResource(R.string.languageSettingsLabel),
                 subtitle = stringResource(R.string.languageDescription),
@@ -1972,5 +1987,58 @@ private fun openSystemLanguageSettings(context: Context) {
         }
     } catch (_: ActivityNotFoundException) {
         context.startActivity(fallbackIntent)
+    }
+}
+
+@Composable
+private fun AccentSwatchSelector(
+    selectedIndex: Int,
+    onSwatchSelected: (Int) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        getAllAccentSwatches().forEachIndexed { index, swatch ->
+            val isSelected = index == selectedIndex
+            Box(
+                modifier =
+                    Modifier
+                        .size(40.dp)
+                        .background(
+                            color = swatch.primary,
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                        ).then(
+                            if (isSelected) {
+                                Modifier.border(
+                                    width = 3.dp,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                )
+                            } else {
+                                Modifier.border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                )
+                            },
+                        ).clickable(onClick = { onSwatchSelected(index) }),
+                contentAlignment = androidx.compose.ui.Alignment.Center,
+            ) {
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = swatch.name,
+                        modifier = Modifier.size(20.dp),
+                        tint =
+                            if (swatch.primary.luminance() < 0.5f) {
+                                androidx.compose.ui.graphics.Color.White
+                            } else {
+                                androidx.compose.ui.graphics.Color.Black
+                            },
+                    )
+                }
+            }
+        }
     }
 }

@@ -2349,6 +2349,8 @@
     <string name="chooseAppTheme">Choose app theme</string>
     <string name="dynamicColorsTitle">Dynamic colors (Material You)</string>
     <string name="dynamicColorsDescription">Adapt app colors to your wallpaper on Android 12+</string>
+    <string name="accentColorTitle">Accent color</string>
+    <string name="accentColorDescription">Choose a fallback accent color when dynamic colors are disabled</string>
     <!-- Font settings title -->
     <string name="fontTitle">Font</string>
     <!-- Choose font family -->

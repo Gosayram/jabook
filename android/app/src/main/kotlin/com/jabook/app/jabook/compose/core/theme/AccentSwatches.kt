@@ -108,3 +108,5 @@ public fun getAccentSwatch(index: Int): AccentSwatch? = CURATED_ACCENT_SWATCHES.
  * Gets all curated accent swatch names.
  */
 public fun getAccentSwatchNames(): List<String> = CURATED_ACCENT_SWATCHES.map { it.name }
+
+public fun getAllAccentSwatches(): List<AccentSwatch> = CURATED_ACCENT_SWATCHES

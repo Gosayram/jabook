@@ -96,6 +96,12 @@ message UserPreferences {
 
   // Sleep Timer state (migrated from SharedPreferences)
   SleepTimerState sleep_timer_state = 48;
+
+  // Fallback accent swatch index when dynamic color is disabled (0=violet..7=terracotta).
+  int32 accent_swatch_index = 49;
+
+  // Player cover mode: 0 = card, 1 = vinyl.
+  int32 player_cover_mode = 50;
 }
 
 message SleepTimerState {

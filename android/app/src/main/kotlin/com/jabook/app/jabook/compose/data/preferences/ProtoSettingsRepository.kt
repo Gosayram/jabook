@@ -74,6 +74,10 @@ public interface SettingsRepository {
      */
     public suspend fun updateDynamicColors(enabled: Boolean)
 
+    public suspend fun updateAccentSwatchIndex(index: Int)
+
+    public suspend fun updatePlayerCoverMode(mode: Int)
+
     /**
      * Update playback speed.
      */
@@ -263,6 +267,18 @@ public class ProtoSettingsRepository
         override suspend fun updateDynamicColors(enabled: Boolean) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setUseDynamicColors(enabled).build()
+            }
+        }
+
+        override suspend fun updateAccentSwatchIndex(index: Int) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setAccentSwatchIndex(index).build()
+            }
+        }
+
+        override suspend fun updatePlayerCoverMode(mode: Int) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setPlayerCoverMode(mode).build()
             }
         }
 

@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
 
 /**
  * A hypnotic, animated background effect for the player.
@@ -45,11 +46,61 @@ public fun HypnoticBackground(
 ) {
     if (colors.isEmpty()) return
 
-    // Ensure we have at least 3 colors for the effect
+    val reduceMotion = rememberReduceMotion()
+
     val color1 = colors.getOrElse(0) { Color.Black }
     val color2 = colors.getOrElse(1) { Color.DarkGray }
     val color3 = colors.getOrElse(2) { Color.Gray }
-    val color4 = colors.getOrElse(3) { color1 } // Loop back or use another if available
+    val color4 = colors.getOrElse(3) { color1 }
+
+    if (reduceMotion) {
+        Box(
+            modifier =
+                modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val width = size.width
+                val height = size.height
+                drawRect(
+                    brush =
+                        Brush.verticalGradient(
+                            colors = listOf(color1.copy(alpha = 0.4f), color2.copy(alpha = 0.8f)),
+                        ),
+                )
+                drawCircle(
+                    brush =
+                        Brush.radialGradient(
+                            colors = listOf(color3.copy(alpha = 0.6f), Color.Transparent),
+                            center = Offset(width * 0.35f, height * 0.3f),
+                            radius = width * 0.8f,
+                        ),
+                    center = Offset(width * 0.35f, height * 0.3f),
+                    radius = width * 0.8f,
+                )
+                drawCircle(
+                    brush =
+                        Brush.radialGradient(
+                            colors = listOf(color2.copy(alpha = 0.5f), Color.Transparent),
+                            center = Offset(width * 0.65f, height * 0.7f),
+                            radius = width * 0.7f,
+                        ),
+                    center = Offset(width * 0.65f, height * 0.7f),
+                    radius = width * 0.7f,
+                )
+                drawRect(
+                    brush =
+                        Brush.radialGradient(
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)),
+                            center = center,
+                            radius = size.minDimension,
+                        ),
+                )
+            }
+        }
+        return
+    }
 
     // Animation transition
     val infiniteTransition = rememberInfiniteTransition(label = "HypnoticAnimation")

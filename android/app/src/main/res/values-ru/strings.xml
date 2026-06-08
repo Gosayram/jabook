@@ -2311,6 +2311,8 @@
     <string name="chooseAppTheme">Выберите тему приложения</string>
     <string name="dynamicColorsTitle">Динамические цвета (Material You)</string>
     <string name="dynamicColorsDescription">Подстраивать цвета приложения под обои на Android 12+</string>
+    <string name="accentColorTitle">Цвет акцента</string>
+    <string name="accentColorDescription">Выберите запасной цвет, если динамические цвета отключены</string>
     <!-- Настройки шрифта -->
     <string name="fontTitle">Шрифт</string>
     <!-- Выберите шрифт -->

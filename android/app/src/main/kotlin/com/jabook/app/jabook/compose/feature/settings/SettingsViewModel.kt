@@ -229,6 +229,18 @@ public class SettingsViewModel
             }
         }
 
+        public fun updateAccentSwatchIndex(index: Int) {
+            viewModelScope.launch {
+                settingsRepository.updateAccentSwatchIndex(index)
+            }
+        }
+
+        public fun updatePlayerCoverMode(mode: Int) {
+            viewModelScope.launch {
+                settingsRepository.updatePlayerCoverMode(mode)
+            }
+        }
+
         public fun updateAudioSettings(
             rewindSeconds: Int? = null,
             forwardSeconds: Int? = null,
