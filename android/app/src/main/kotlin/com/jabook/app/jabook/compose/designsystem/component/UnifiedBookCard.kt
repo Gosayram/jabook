@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.designsystem.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -224,6 +225,19 @@ private fun GridBookCard(
                             .aspectRatio(0.72f),
                     ),
                 contentScale = ContentScale.Crop,
+            )
+
+            Box(
+                modifier =
+                    Modifier
+                        .matchParentSize()
+                        .border(
+                            width = 0.5.dp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                            shape =
+                                androidx.compose.foundation.shape
+                                    .RoundedCornerShape(8.dp),
+                        ),
             )
 
             // Favorite button in top-right corner with adaptive icon size
@@ -462,6 +476,19 @@ private fun ListBookCard(
                     contentDescription = book.title,
                     modifier = Modifier.size(coverSize),
                     contentScale = ContentScale.Crop,
+                )
+
+                Box(
+                    modifier =
+                        Modifier
+                            .matchParentSize()
+                            .border(
+                                width = 0.5.dp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                                shape =
+                                    androidx.compose.foundation.shape
+                                        .RoundedCornerShape(8.dp),
+                            ),
                 )
 
                 // Download progress indicator for list mode

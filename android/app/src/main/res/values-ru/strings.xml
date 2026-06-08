@@ -242,6 +242,13 @@
     <string name="failedToLoadAudio">Не удалось загрузить аудио</string>
     <!-- Метка для глав -->
     <string name="chaptersLabel">Главы</string>
+    <string name="allChaptersCount">Все %d глав</string>
+    <plurals name="chapterCount">
+        <item quantity="one">%d глава</item>
+        <item quantity="few">%d главы</item>
+        <item quantity="many">%d глав</item>
+        <item quantity="other">%d глав</item>
+    </plurals>
     <!-- Подсказка для поля поиска глав -->
     <string name="searchChaptersHint">Поиск по номеру или названию...</string>
     <!-- Заголовок для верхней панели плеера -->

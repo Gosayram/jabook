@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.library
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
@@ -104,6 +106,8 @@ public fun BookDetailPane(
     onPlayClick: () -> Unit,
     onClose: () -> Unit,
     onToggleFavorite: () -> Unit = {},
+    onChapterClick: ((Chapter) -> Unit)? = null,
+    onAllChaptersClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -253,6 +257,23 @@ public fun BookDetailPane(
                                     ),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            if (!book.narrator.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Headphones,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = book.narrator,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -376,18 +397,58 @@ public fun BookDetailPane(
 
                     // Chapters progress preview
                     if (chapters.isNotEmpty()) {
+                        val previewChapters = chapters.take(5)
+                        val hasMoreChapters = chapters.size > 5
                         item {
-                            Text(
-                                text = stringResource(R.string.chaptersLabel),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.chaptersLabel),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text =
+                                        pluralStringResource(
+                                            R.plurals.chapterCount,
+                                            chapters.size,
+                                            chapters.size,
+                                        ),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                         items(
-                            items = chapters,
+                            items = previewChapters,
                             key = { chapter -> chapter.id },
                         ) { chapter ->
-                            ChapterProgressRow(chapter = chapter)
+                            ChapterProgressRow(
+                                chapter = chapter,
+                                onClick = { onChapterClick?.invoke(chapter) },
+                            )
+                        }
+                        if (hasMoreChapters) {
+                            item {
+                                TextButton(
+                                    onClick = { onAllChaptersClick?.invoke() },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(
+                                        text = stringResource(R.string.allChaptersCount, chapters.size),
+                                        style = MaterialTheme.typography.labelLarge,
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.Filled.KeyboardArrowDown,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -443,7 +504,10 @@ private fun ExpandableDescription(
 }
 
 @Composable
-private fun ChapterProgressRow(chapter: Chapter) {
+private fun ChapterProgressRow(
+    chapter: Chapter,
+    onClick: (() -> Unit)? = null,
+) {
     val remaining = chapter.remainingDuration.inWholeMinutes.coerceAtLeast(0)
     Column(
         modifier =
@@ -451,6 +515,7 @@ private fun ChapterProgressRow(chapter: Chapter) {
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
                 .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {

@@ -261,6 +261,11 @@
     <string name="failedToLoadAudio">Failed to load audio</string>
     <!-- Label for chapters -->
     <string name="chaptersLabel">Chapters</string>
+    <string name="allChaptersCount">All %d chapters</string>
+    <plurals name="chapterCount">
+        <item quantity="one">%d chapter</item>
+        <item quantity="other">%d chapters</item>
+    </plurals>
     <!-- Hint for chapters search field -->
     <string name="searchChaptersHint">Search by number or title...</string>
     <!-- Top bar title -->
