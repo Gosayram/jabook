@@ -892,6 +892,13 @@ public class PlayerViewModel
             seekTo(bookmark.positionMs)
         }
 
+        public fun toggleFavorite() {
+            val state = uiState.value as? PlayerState.Active ?: return
+            viewModelScope.launch {
+                booksRepository.setFavorite(state.book.id, !state.book.isFavorite)
+            }
+        }
+
         public fun skipToNext() {
             logger.d { "Action: Skip Next requested" }
             playerController.skipToNext()

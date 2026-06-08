@@ -159,10 +159,18 @@ public interface BooksRepository {
         speed: Float,
     )
 
-    /**
+/**
      * Checks if a book exists by its source URL.
      */
     public fun getBookBySourceUrlFlow(sourceUrl: String): Flow<Book?>
 
     public suspend fun getBookBySourceUrl(sourceUrl: String): Book?
+
+    /**
+     * Update favorite status for a book.
+     */
+    public suspend fun setFavorite(
+        bookId: String,
+        isFavorite: Boolean,
+    )
 }

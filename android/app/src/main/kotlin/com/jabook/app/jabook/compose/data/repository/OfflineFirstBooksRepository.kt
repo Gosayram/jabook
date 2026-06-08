@@ -347,6 +347,13 @@ public class OfflineFirstBooksRepository
             booksDao.deleteById(bookId)
         }
 
+        override suspend fun setFavorite(
+            bookId: String,
+            isFavorite: Boolean,
+        ) {
+            booksDao.updateFavoriteStatus(bookId, isFavorite)
+        }
+
         override suspend fun updateBookSettings(
             bookId: String,
             rewindDuration: Int?,

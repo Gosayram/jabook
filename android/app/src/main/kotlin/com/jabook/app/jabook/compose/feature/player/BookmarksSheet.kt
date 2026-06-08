@@ -45,6 +45,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.BookmarkItem
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import kotlinx.collections.immutable.ImmutableList
+import java.util.Locale
 import kotlin.math.abs
 
 @Composable
@@ -81,7 +82,7 @@ public fun BookmarksSheet(
             IconButton(onClick = onDismiss) {
                 Icon(
                     imageVector = Icons.Filled.Close,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.close),
                 )
             }
         }
@@ -121,6 +122,7 @@ public fun BookmarksSheet(
                     BookmarkItemRow(
                         bookmark = bookmark,
                         currentPositionMs = currentPositionMs,
+                        currentChapterIndex = currentChapterIndex,
                         chapters = chapters,
                         onJump = { onJumpToBookmark(bookmark) },
                         onDelete = { onDeleteBookmark(bookmark.id) },
@@ -135,6 +137,7 @@ public fun BookmarksSheet(
 private fun BookmarkItemRow(
     bookmark: BookmarkItem,
     currentPositionMs: Long,
+    currentChapterIndex: Int,
     chapters: ImmutableList<Chapter>,
     onJump: () -> Unit,
     onDelete: () -> Unit,
@@ -142,7 +145,9 @@ private fun BookmarkItemRow(
     val chapterName =
         chapters.getOrNull(bookmark.chapterIndex)?.title
             ?: "Chapter ${bookmark.chapterIndex + 1}"
-    val isActive = abs(bookmark.positionMs - currentPositionMs) < 5000
+    val isActive =
+        bookmark.chapterIndex == currentChapterIndex &&
+            abs(bookmark.positionMs - currentPositionMs) < 5000
 
     OutlinedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -219,8 +224,8 @@ private fun formatBookmarkDuration(ms: Long): String {
     val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
     return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, seconds)
+        String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, seconds)
     } else {
-        String.format("%d:%02d", minutes, seconds)
+        String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
     }
 }

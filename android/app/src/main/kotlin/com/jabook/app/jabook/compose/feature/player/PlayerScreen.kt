@@ -639,7 +639,7 @@ public fun PlayerScreen(
                     )
                 },
                 onToggleFavorite = {
-                    // TODO: favorite toggle via library repo
+                    viewModel.toggleFavorite()
                 },
                 onGoToBookClick = {
                     onNavigateToBook(state.book.id)
