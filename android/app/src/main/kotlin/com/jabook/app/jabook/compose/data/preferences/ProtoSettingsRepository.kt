@@ -19,6 +19,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.core.DataStoreFactory
 import androidx.datastore.dataStoreFile
 import com.jabook.app.jabook.core.datastore.DataStoreCorruptionPolicy
+import com.jabook.app.jabook.compose.core.theme.getAllAccentSwatches
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -271,14 +272,16 @@ public class ProtoSettingsRepository
         }
 
         override suspend fun updateAccentSwatchIndex(index: Int) {
+            val safeIndex = index.coerceIn(0, getAllAccentSwatches().size - 1)
             dataStore.updateData { preferences ->
-                preferences.toBuilder().setAccentSwatchIndex(index).build()
+                preferences.toBuilder().setAccentSwatchIndex(safeIndex).build()
             }
         }
 
         override suspend fun updatePlayerCoverMode(mode: Int) {
+            val safeMode = mode.coerceIn(0, 1)
             dataStore.updateData { preferences ->
-                preferences.toBuilder().setPlayerCoverMode(mode).build()
+                preferences.toBuilder().setPlayerCoverMode(safeMode).build()
             }
         }
 

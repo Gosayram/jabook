@@ -89,4 +89,33 @@ class OfflineFirstBooksRepositoryTest {
 
             verifyNoInteractions(booksDao)
         }
+
+    @Test
+    fun `setFavorite delegates to DAO updateFavoriteStatus`() =
+        runTest {
+            val booksDao = mock<BooksDao>()
+            val chaptersDao = mock<ChaptersDao>()
+            val scanPathDao = mock<ScanPathDao>()
+            val playerPersistenceManager = mock<PlayerPersistenceManager>()
+            val localBookScanner = mock<LocalBookScanner>()
+            val loggerFactory = mock<LoggerFactory>()
+            whenever(loggerFactory.get(eq("OfflineFirstBooksRepository"))).thenReturn(NoOpLogger)
+
+            val repository =
+                OfflineFirstBooksRepository(
+                    booksDao = booksDao,
+                    chaptersDao = chaptersDao,
+                    scanPathDao = scanPathDao,
+                    playerPersistenceManager = playerPersistenceManager,
+                    localBookScanner = localBookScanner,
+                    loggerFactory = loggerFactory,
+                )
+
+            repository.setFavorite(bookId = "book-1", isFavorite = true)
+
+            verify(booksDao).updateFavoriteStatus(
+                bookId = eq("book-1"),
+                isFavorite = eq(true),
+            )
+        }
 }
