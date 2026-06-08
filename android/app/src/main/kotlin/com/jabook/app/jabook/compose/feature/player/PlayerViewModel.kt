@@ -463,17 +463,22 @@ public class PlayerViewModel
                             bucket * POSITION_AUTOPLAY_EVAL_BUCKET_MS
                         }.distinctUntilChanged()
 
+                val autoPlayNextFlow = userPreferencesRepository.userData.map { it.autoPlayNext }
+
                 combine(
                     uiState,
                     playerController.isPlaying,
                     throttledPositionFlow,
                     playerController.duration,
-                ) { state, isPlaying, positionMs, durationMs ->
+                    autoPlayNextFlow,
+                ) { state, isPlaying, positionMs, durationMs, autoPlayNext ->
                     TriggerSeriesAutoplaySnapshot(
                         state = state,
                         isPlaying = isPlaying,
                         positionMs = positionMs,
                         durationMs = durationMs,
+                        autoPlayNext = autoPlayNext,
+                        hasTriggeredSeriesAutoplay = hasTriggeredSeriesAutoplay,
                     )
                 }.collect { snapshot ->
                     val activeState = snapshot.state as? PlayerState.Active ?: return@collect
@@ -484,19 +489,20 @@ public class PlayerViewModel
                             isPlaying = snapshot.isPlaying,
                             positionMs = snapshot.positionMs,
                             durationMs = snapshot.durationMs,
-                            hasTriggeredSeriesAutoplay = hasTriggeredSeriesAutoplay,
+                            hasTriggeredSeriesAutoplay = snapshot.hasTriggeredSeriesAutoplay,
                         )
 
-                    if (autoplayDecision.shouldTriggerAutoplay && !autoplayDismissedUntilChapterChange) {
+                    if (autoplayDecision.shouldTriggerAutoplay && !autoplayDismissedUntilChapterChange && snapshot.autoPlayNext) {
                         hasTriggeredSeriesAutoplay = true
                         maybeStartSeriesAutoplay(activeState.book)
-                    } else if (autoplayDecision.shouldResetAutoplay) {
+                    } else if (autoplayDecision.shouldResetAutoplay || !snapshot.autoPlayNext) {
                         // Explicit dismiss should survive play/pause and near-end jitter
                         // until the user leaves the last chapter.
+                        // Also reset if autoplay is disabled.
                         if (!isLastChapter) {
                             autoplayDismissedUntilChapterChange = false
                             hasTriggeredSeriesAutoplay = false
-                        } else if (!autoplayDismissedUntilChapterChange) {
+                        } else if (!autoplayDismissedUntilChapterChange && autoplayDecision.shouldResetAutoplay) {
                             hasTriggeredSeriesAutoplay = false
                         }
                         seriesAutoplayJob?.cancel()
@@ -599,6 +605,8 @@ public class PlayerViewModel
             val isPlaying: Boolean,
             val positionMs: Long,
             val durationMs: Long,
+            val autoPlayNext: Boolean,
+            val hasTriggeredSeriesAutoplay: Boolean,
         )
 
         private suspend fun loadLyricsOrNull(
