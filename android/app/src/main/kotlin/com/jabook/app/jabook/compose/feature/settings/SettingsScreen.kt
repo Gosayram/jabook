@@ -82,6 +82,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -1288,11 +1289,21 @@ public fun SettingsScreen(
                         selected = protoSettings.playerCoverMode == 0,
                         onClick = { viewModel.updatePlayerCoverMode(0) },
                         label = { Text(stringResource(R.string.coverModeCard)) },
+                        modifier =
+                            Modifier.semantics {
+                                role = Role.Checkbox
+                                selected = protoSettings.playerCoverMode == 0
+                            },
                     )
                     androidx.compose.material3.FilterChip(
                         selected = protoSettings.playerCoverMode == 1,
                         onClick = { viewModel.updatePlayerCoverMode(1) },
                         label = { Text(stringResource(R.string.coverModeVinyl)) },
+                        modifier =
+                            Modifier.semantics {
+                                role = Role.Checkbox
+                                selected = protoSettings.playerCoverMode == 1
+                            },
                     )
                 }
             }

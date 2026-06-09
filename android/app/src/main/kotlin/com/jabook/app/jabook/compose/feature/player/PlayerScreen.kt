@@ -55,6 +55,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -138,6 +139,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.progressBarRangeInfo
@@ -2922,7 +2924,22 @@ public fun PlayerSettingsSheet(
             var forwardSeconds by remember { mutableStateOf((book.forwardDuration ?: 30).toFloat()) }
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics { role = Role.Switch }
+                        .toggleable(
+                            value = useGlobal,
+                            onValueChange = {
+                                useGlobal = it
+                                if (it) {
+                                    onResetSettings()
+                                } else {
+                                    onUpdateSettings(rewindSeconds.toInt(), forwardSeconds.toInt())
+                                }
+                            },
+                            role = Role.Switch,
+                        ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -2932,15 +2949,7 @@ public fun PlayerSettingsSheet(
                 )
                 androidx.compose.material3.Switch(
                     checked = useGlobal,
-                    onCheckedChange = {
-                        useGlobal = it
-                        if (it) {
-                            onResetSettings()
-                        } else {
-                            // When switching to custom, save current slider values
-                            onUpdateSettings(rewindSeconds.toInt(), forwardSeconds.toInt())
-                        }
-                    },
+                    onCheckedChange = null,
                 )
             }
 
@@ -3022,7 +3031,13 @@ public fun PlayerSettingsSheet(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 12.dp),
+                        .padding(vertical = 12.dp)
+                        .semantics { role = Role.Switch }
+                        .toggleable(
+                            value = isVinylMode,
+                            onValueChange = onVinylModeChange,
+                            role = Role.Switch,
+                        ),
             ) {
                 Text(
                     text = stringResource(R.string.vinylMode),
@@ -3031,7 +3046,7 @@ public fun PlayerSettingsSheet(
                 )
                 Switch(
                     checked = isVinylMode,
-                    onCheckedChange = onVinylModeChange,
+                    onCheckedChange = null,
                 )
             }
         }

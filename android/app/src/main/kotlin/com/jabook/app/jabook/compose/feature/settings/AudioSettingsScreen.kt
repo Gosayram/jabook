@@ -50,7 +50,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -135,6 +139,13 @@ public fun AudioSettingsScreen(
                             )
                         },
                         label = { Text(stringResource(R.string.resume_rewind_mode_smart)) },
+                        modifier =
+                            Modifier.semantics {
+                                role = Role.Checkbox
+                                selected =
+                                    protoSettings.resumeRewindMode ==
+                                        com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART
+                            },
                     )
                     FilterChip(
                         selected =
@@ -146,6 +157,13 @@ public fun AudioSettingsScreen(
                             )
                         },
                         label = { Text(stringResource(R.string.resume_rewind_mode_fixed)) },
+                        modifier =
+                            Modifier.semantics {
+                                role = Role.Checkbox
+                                selected =
+                                    protoSettings.resumeRewindMode ==
+                                        com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.FIXED
+                            },
                     )
                 }
             }
@@ -173,6 +191,11 @@ public fun AudioSettingsScreen(
                                         ),
                                     )
                                 },
+                                modifier =
+                                    Modifier.semantics {
+                                        role = Role.Checkbox
+                                        selected = protoSettings.resumeRewindSeconds == seconds
+                                    },
                             )
                         }
                     }
@@ -220,6 +243,11 @@ public fun AudioSettingsScreen(
                             selected = kotlin.math.abs(protoSettings.holdToBoostSpeed - speed) < 0.01f,
                             onClick = { viewModel.updateAudioSettings(holdToBoostSpeed = speed) },
                             label = { Text(stringResource(R.string.playback_speed_format, speed)) },
+                            modifier =
+                                Modifier.semantics {
+                                    role = Role.Checkbox
+                                    selected = kotlin.math.abs(protoSettings.holdToBoostSpeed - speed) < 0.01f
+                                },
                         )
                     }
                 }
@@ -323,6 +351,13 @@ public fun AudioSettingsScreen(
                                 )
                             },
                             label = { Text(stringResource(R.string.skip_silence_mode_skip)) },
+                            modifier =
+                                Modifier.semantics {
+                                    role = Role.Checkbox
+                                    selected =
+                                        protoSettings.skipSilenceMode ==
+                                            com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SKIP
+                                },
                         )
                         FilterChip(
                             selected =
@@ -334,6 +369,13 @@ public fun AudioSettingsScreen(
                                 )
                             },
                             label = { Text(stringResource(R.string.skip_silence_mode_speed_up)) },
+                            modifier =
+                                Modifier.semantics {
+                                    role = Role.Checkbox
+                                    selected =
+                                        protoSettings.skipSilenceMode ==
+                                            com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SPEED_UP
+                                },
                         )
                     }
                 }
@@ -391,6 +433,11 @@ public fun AudioSettingsScreen(
                                         },
                                 )
                             },
+                            modifier =
+                                Modifier.semantics {
+                                    role = Role.Checkbox
+                                    selected = selectedEqPreset == preset
+                                },
                         )
                     }
                 }
