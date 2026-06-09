@@ -59,6 +59,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -164,6 +165,8 @@ public fun PlaybackSpeedSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            val playbackSpeedSliderDesc = stringResource(R.string.playbackSpeedSlider)
+
             // Speed slider
             Slider(
                 value = sliderSpeed,
@@ -179,7 +182,10 @@ public fun PlaybackSpeedSheet(
                 },
                 valueRange = PlaybackSpeedConstants.MIN_SPEED..PlaybackSpeedConstants.MAX_SPEED,
                 steps = PlaybackSpeedConstants.SLIDER_STEPS,
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .semantics { contentDescription = playbackSpeedSliderDesc },
             )
 
             // Min/Max labels

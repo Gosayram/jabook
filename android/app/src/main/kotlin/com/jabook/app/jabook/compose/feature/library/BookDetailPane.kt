@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
@@ -114,6 +115,7 @@ public fun BookDetailPane(
     onClose: () -> Unit,
     onToggleFavorite: () -> Unit = {},
     onNavigateToAudioSettings: () -> Unit = {},
+    onShareClick: (() -> Unit)? = null,
     onChapterClick: ((Chapter) -> Unit)? = null,
     onAllChaptersClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -137,6 +139,16 @@ public fun BookDetailPane(
                             imageVector = Icons.Default.Close,
                             contentDescription = stringResource(R.string.close),
                         )
+                    }
+                },
+                actions = {
+                    if (onShareClick != null && book != null) {
+                        IconButton(onClick = onShareClick) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = stringResource(R.string.share),
+                            )
+                        }
                     }
                 },
             )

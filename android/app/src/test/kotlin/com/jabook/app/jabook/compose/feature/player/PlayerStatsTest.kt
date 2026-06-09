@@ -34,6 +34,7 @@ class PlayerStatsTest {
         assertEquals("Unknown", stats.decoderName)
         assertEquals(0, stats.droppedFrames)
         assertFalse(stats.isStreaming)
+        assertEquals(null, stats.audioQuality)
     }
 
     @Test
@@ -273,5 +274,62 @@ class PlayerStatsTest {
         assertEquals("Unknown", stats.decoderName)
         assertEquals("0s", stats.bufferHealth)
         assertEquals(0, stats.droppedFrames)
+    }
+
+    @Test
+    fun `PlayerStats with audioQuality preserves quality info`() {
+        val quality =
+            com.jabook.app.jabook.audio.AudioQualityInfo(
+                format = "FLAC",
+                bitrateKbps = 876,
+                sampleRateHz = 44100,
+                channels = 2,
+                isLossless = true,
+            )
+        val stats =
+            PlayerStats(
+                audioFormat = "FLAC",
+                bitrate = "876 kbit/s",
+                sampleRate = "44100 Hz",
+                channelLayout = "Stereo",
+                audioQuality = quality,
+            )
+        assertEquals(quality, stats.audioQuality)
+        assertEquals("FLAC", stats.audioQuality!!.format)
+        assertEquals(876, stats.audioQuality!!.bitrateKbps)
+        assertTrue(stats.audioQuality!!.isLossless)
+    }
+
+    @Test
+    fun `PlayerStats copy preserves audioQuality`() {
+        val quality =
+            com.jabook.app.jabook.audio.AudioQualityInfo(
+                format = "MP3",
+                bitrateKbps = 128,
+                sampleRateHz = 44100,
+                channels = 2,
+                isLossless = false,
+            )
+        val stats = PlayerStats(audioQuality = quality)
+        val copy = stats.copy(droppedFrames = 5)
+        assertEquals(quality, copy.audioQuality)
+        assertEquals(5, copy.droppedFrames)
+    }
+
+    @Test
+    fun `PlayerStats equality includes audioQuality`() {
+        val quality =
+            com.jabook.app.jabook.audio.AudioQualityInfo(
+                format = "MP3",
+                bitrateKbps = 320,
+                sampleRateHz = 44100,
+                channels = 2,
+                isLossless = false,
+            )
+        val a = PlayerStats(audioQuality = quality)
+        val b = PlayerStats(audioQuality = quality)
+        assertEquals(a, b)
+        val c = PlayerStats(audioQuality = null)
+        assertNotEquals(a, c)
     }
 }

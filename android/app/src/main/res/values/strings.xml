@@ -567,6 +567,7 @@
     <string name="configureMirrorsSubtitle">Configure and test RuTracker mirrors</string>
     <!-- Title for playback speed setting -->
     <string name="playbackSpeedTitle">Playback Speed</string>
+    <string name="playbackSpeedSlider">Playback speed slider</string>
     <!-- Title for skip duration setting -->
     <string name="skipDurationTitle">Skip Duration</string>
     <!-- Title for download location setting -->

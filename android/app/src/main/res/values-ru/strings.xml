@@ -544,6 +544,7 @@
     <string name="configureMirrorsSubtitle">Настройте и проверьте зеркала RuTracker</string>
     <!-- Заголовок настройки скорости воспроизведения -->
     <string name="playbackSpeedTitle">Скорость воспроизведения</string>
+    <string name="playbackSpeedSlider">Ползунок скорости воспроизведения</string>
     <!-- Заголовок настройки длительности пропуска -->
     <string name="skipDurationTitle">Длительность пропуска</string>
     <!-- Заголовок настройки места загрузки -->
