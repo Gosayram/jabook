@@ -15,6 +15,16 @@
 package com.jabook.app.jabook.audio
 
 import androidx.media3.common.Format
+import java.util.Locale
+
+/**
+ * Quality tier derived from codec and bitrate.
+ */
+public enum class QualityTier {
+    HIGH,
+    STANDARD,
+    LOW,
+}
 
 /**
  * P-65: Audio quality metadata extracted from ExoPlayer [Format].
@@ -29,6 +39,56 @@ public data class AudioQualityInfo(
     val channels: Int?,
     val isLossless: Boolean,
 ) {
+    /**
+     * Derived quality tier based on codec and bitrate.
+     * Lossless codecs and bitrate >= 256 kbit/s → HIGH
+     * Bitrate >= 128 kbit/s → STANDARD
+     * Lower bitrate → LOW
+     */
+    public val tier: QualityTier
+        get() =
+            when {
+                isLossless -> QualityTier.HIGH
+                bitrateKbps != null && bitrateKbps >= 256 -> QualityTier.HIGH
+                bitrateKbps != null && bitrateKbps >= 128 -> QualityTier.STANDARD
+                else -> QualityTier.LOW
+            }
+
+    /**
+     * Short label for compact display.
+     * E.g. "MP3 320", "M4B 128 VBR", "FLAC"
+     */
+    public fun toShortLabel(): String =
+        buildString {
+            append(format)
+            bitrateKbps?.let { append(" $it") }
+        }
+
+    /**
+     * Full label for detailed display with tier.
+     * E.g. "MP3 · 256 кбит/с · CBR · 44.1 кГц · стерео"
+     */
+    public fun toFullLabel(): String =
+        buildString {
+            append(format)
+            bitrateKbps?.let { append(" · $it кбит/с") }
+            if (isLossless) append(" · Lossless")
+            sampleRateHz?.let {
+                val khz = it / 1000.0
+                append(" · ${String.format(Locale.US, "%.1f", khz)} кГц")
+            }
+            channels?.let {
+                append(
+                    " · " +
+                        when (it) {
+                            1 -> "моно"
+                            2 -> "стерео"
+                            else -> "$it кан."
+                        },
+                )
+            }
+        }
+
     /**
      * Human-readable label for UI display.
      * E.g. "FLAC · 876 кбит/с · Lossless" or "MP3 · 128 кбит/с"

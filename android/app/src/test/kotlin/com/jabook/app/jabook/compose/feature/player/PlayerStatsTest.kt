@@ -162,4 +162,117 @@ class PlayerStatsTest {
 
     private fun formatAudioSessionId(sessionId: Int): String =
         if (sessionId < 0) "None" else sessionId.toString()
+
+    // --- Full stats row mapping scenarios ---
+
+    @Test
+    fun `MP3 128 stereo stats rows`() {
+        val stats =
+            PlayerStats(
+                audioFormat = "audio/mpeg 128kbps",
+                bitrate = "128 kbps",
+                sampleRate = "44.1 kHz",
+                channelLayout = "Stereo",
+                bufferHealth = "10s",
+                audioSessionId = "42",
+                decoderName = "ExoPlayer Audio Decoder",
+                droppedFrames = 0,
+                isStreaming = false,
+            )
+        assertEquals("audio/mpeg 128kbps", stats.audioFormat)
+        assertEquals("Stereo", stats.channelLayout)
+        assertEquals("10s (local)", stats.bufferHealth + " (local)")
+        assertEquals("42", stats.audioSessionId)
+        assertFalse(stats.droppedFrames > 0)
+    }
+
+    @Test
+    fun `FLAC lossless stats rows`() {
+        val stats =
+            PlayerStats(
+                audioFormat = "audio/flac 876kbps",
+                bitrate = "876 kbps",
+                sampleRate = "44.1 kHz",
+                channelLayout = "Stereo",
+                bufferHealth = "20s",
+                audioSessionId = "7",
+                decoderName = "ExoPlayer Audio Decoder",
+                droppedFrames = 0,
+                isStreaming = false,
+            )
+        assertEquals("audio/flac 876kbps", stats.audioFormat)
+        assertEquals("876 kbps", stats.bitrate)
+        assertEquals("20s (local)", stats.bufferHealth + " (local)")
+    }
+
+    @Test
+    fun `M4B AAC streaming stats rows`() {
+        val stats =
+            PlayerStats(
+                audioFormat = "audio/mp4 256kbps",
+                bitrate = "256 kbps",
+                sampleRate = "48.0 kHz",
+                channelLayout = "Stereo",
+                bufferHealth = "5s",
+                audioSessionId = "15",
+                decoderName = "ExoPlayer Audio Decoder",
+                droppedFrames = 0,
+                isStreaming = true,
+            )
+        assertEquals("audio/mp4 256kbps", stats.audioFormat)
+        assertEquals("5s (streaming)", stats.bufferHealth + " (streaming)")
+        assertTrue(stats.isStreaming)
+    }
+
+    @Test
+    fun `mono low quality stats rows`() {
+        val stats =
+            PlayerStats(
+                audioFormat = "audio/mpeg 32kbps",
+                bitrate = "32 kbps",
+                sampleRate = "22.1 kHz",
+                channelLayout = "Mono",
+                bufferHealth = "3s",
+                audioSessionId = "3",
+                decoderName = "ExoPlayer Audio Decoder",
+                droppedFrames = 0,
+                isStreaming = false,
+            )
+        assertEquals("Mono", stats.channelLayout)
+        assertEquals("32 kbps", stats.bitrate)
+        assertEquals("22.1 kHz", stats.sampleRate)
+    }
+
+    @Test
+    fun `5 surround sound stats rows`() {
+        val stats =
+            PlayerStats(
+                audioFormat = "audio/flac 1411kbps",
+                bitrate = "1411 kbps",
+                sampleRate = "48.0 kHz",
+                channelLayout = "5.1",
+                bufferHealth = "30s",
+                audioSessionId = "99",
+                decoderName = "ExoPlayer Audio Decoder",
+                droppedFrames = 2,
+                isStreaming = false,
+            )
+        assertEquals("5.1", stats.channelLayout)
+        assertEquals("1411 kbps", stats.bitrate)
+        assertTrue(stats.droppedFrames > 0)
+        assertEquals("2", stats.droppedFrames.toString())
+    }
+
+    @Test
+    fun `unknown format fallback stats rows`() {
+        val stats = PlayerStats()
+        assertEquals("Unknown", stats.audioFormat)
+        assertEquals("Unknown", stats.bitrate)
+        assertEquals("Unknown", stats.sampleRate)
+        assertEquals("Unknown", stats.channelLayout)
+        assertEquals("Unknown", stats.audioSessionId)
+        assertEquals("Unknown", stats.decoderName)
+        assertEquals("0s", stats.bufferHealth)
+        assertEquals(0, stats.droppedFrames)
+    }
 }
