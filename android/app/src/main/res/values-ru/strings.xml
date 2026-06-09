@@ -2685,6 +2685,11 @@
     <string name="downloaded">Загружено</string>
     <string name="listened">Прослушано</string>
     <string name="listenedStatus">Статус прослушивания</string>
+    <!-- Строки значка качества -->
+    <string name="qualityHigh">Высокое</string>
+    <string name="qualityStandard">Стандартное</string>
+    <string name="qualityLow">Низкое</string>
+    <string name="qualityBadgeContentDescription">Качество %1$s: %2$s</string>
     <!-- Строки панели глав плеера -->
     <string name="currentlyPlaying">Сейчас играет</string>
     <string name="jumpToChapterNumber">Перейти к главе №...</string>

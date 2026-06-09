@@ -2689,6 +2689,11 @@
     <string name="downloaded">Downloaded</string>
     <string name="listened">Listened</string>
     <string name="listenedStatus">Listen Status</string>
+    <!-- Quality badge strings -->
+    <string name="qualityHigh">High</string>
+    <string name="qualityStandard">Standard</string>
+    <string name="qualityLow">Low</string>
+    <string name="qualityBadgeContentDescription">%1$s quality: %2$s</string>
     <!-- Player chapter pane strings -->
     <string name="currentlyPlaying">Currently playing</string>
     <string name="jumpToChapterNumber">Jump to chapter #...</string>

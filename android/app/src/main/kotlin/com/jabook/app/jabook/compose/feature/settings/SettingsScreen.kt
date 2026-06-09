@@ -42,6 +42,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -203,6 +204,7 @@ public fun SettingsScreen(
                     SettingsItem(
                         title = stringResource(R.string.loginToRutracker),
                         subtitle = stringResource(R.string.requiredToDownloadTorrents),
+                        trailingIcon = Icons.Default.ChevronRight,
                         onClick = { safeNavigateToAuth() },
                     )
                 }
@@ -1422,6 +1424,7 @@ internal fun SettingsItem(
     title: String,
     subtitle: String? = null,
     modifier: Modifier = Modifier,
+    trailingIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     onClick: (() -> Unit)? = null,
 ) {
     ListItem(
@@ -1438,6 +1441,15 @@ internal fun SettingsItem(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        trailingContent = {
+            if (trailingIcon != null) {
+                Icon(
+                    imageVector = trailingIcon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },

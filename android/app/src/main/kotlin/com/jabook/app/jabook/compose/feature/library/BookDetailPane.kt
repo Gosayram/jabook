@@ -54,6 +54,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -379,45 +380,62 @@ public fun BookDetailPane(
 
                     // Book metadata pills
                     item {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        Surface(
+                            tonalElevation = if (book.isStarted) 2.dp else 0.dp,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier =
+                                if (book.isStarted) {
+                                    Modifier.fillMaxWidth()
+                                } else {
+                                    Modifier
+                                },
                         ) {
-                            MetadataPill(
-                                text =
-                                    UiFormatters.formatDurationCompact(
-                                        book.totalDuration.inWholeMilliseconds,
-                                    ),
-                                contentDescription = stringResource(R.string.totalDuration),
-                            )
-                            if (book.isStarted) {
-                                MetadataPill(
-                                    text = UiFormatters.formatPercent(book.progress),
-                                    contentDescription = stringResource(R.string.progress),
-                                )
-                            }
-                            if (book.isDownloaded) {
-                                MetadataPill(
-                                    text = stringResource(R.string.downloaded),
-                                    contentDescription = stringResource(R.string.downloadStatus),
-                                )
-                            }
-                            if (book.isCompleted) {
-                                MetadataPill(
-                                    text = stringResource(R.string.listened),
-                                    contentDescription = stringResource(R.string.listenedStatus),
-                                )
-                            }
-                            if (book.isStarted && book.remainingDuration.inWholeMilliseconds > 0) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier =
+                                    if (book.isStarted) {
+                                        Modifier.padding(12.dp)
+                                    } else {
+                                        Modifier
+                                    },
+                            ) {
                                 MetadataPill(
                                     text =
-                                        stringResource(
-                                            R.string.timeRemaining,
-                                            UiFormatters.formatDurationCompact(
-                                                book.remainingDuration.inWholeMilliseconds,
-                                            ),
+                                        UiFormatters.formatDurationCompact(
+                                            book.totalDuration.inWholeMilliseconds,
                                         ),
+                                    contentDescription = stringResource(R.string.totalDuration),
                                 )
+                                if (book.isStarted) {
+                                    MetadataPill(
+                                        text = UiFormatters.formatPercent(book.progress),
+                                        contentDescription = stringResource(R.string.progress),
+                                    )
+                                }
+                                if (book.isDownloaded) {
+                                    MetadataPill(
+                                        text = stringResource(R.string.downloaded),
+                                        contentDescription = stringResource(R.string.downloadStatus),
+                                    )
+                                }
+                                if (book.isCompleted) {
+                                    MetadataPill(
+                                        text = stringResource(R.string.listened),
+                                        contentDescription = stringResource(R.string.listenedStatus),
+                                    )
+                                }
+                                if (book.isStarted && book.remainingDuration.inWholeMilliseconds > 0) {
+                                    MetadataPill(
+                                        text =
+                                            stringResource(
+                                                R.string.timeRemaining,
+                                                UiFormatters.formatDurationCompact(
+                                                    book.remainingDuration.inWholeMilliseconds,
+                                                ),
+                                            ),
+                                    )
+                                }
                             }
                         }
                     }

@@ -52,6 +52,7 @@ public data class PlayerStats(
     val decoderName: String = "Unknown",
     val droppedFrames: Int = 0,
     val isStreaming: Boolean = false,
+    val audioQuality: com.jabook.app.jabook.audio.AudioQualityInfo? = null,
 )
 
 @Composable
@@ -99,6 +100,15 @@ public fun StatsOverlay(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            stats.audioQuality?.let { quality ->
+                com.jabook.app.jabook.compose.designsystem.component.QualityBadge(
+                    audioQuality = quality,
+                    showTierLabel = true,
+                    large = true,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
             StatItem(label = stringResource(R.string.audioFormat), value = stats.audioFormat)
             StatItem(label = stringResource(R.string.bitrate), value = stats.bitrate)
