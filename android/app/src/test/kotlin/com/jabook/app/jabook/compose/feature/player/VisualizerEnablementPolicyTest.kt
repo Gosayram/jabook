@@ -46,97 +46,105 @@ class VisualizerEnablementPolicyTest {
 
     @Test
     fun `visualizer disabled when user preference is off`() {
-        val state = VisualizerState(
-            userPreferenceEnabled = false,
-            isAudioOffloaded = false,
-            isBatterySaverActive = false,
-            hasAudioSession = true,
-            isSafeMode = false,
-        )
+        val state =
+            VisualizerState(
+                userPreferenceEnabled = false,
+                isAudioOffloaded = false,
+                isBatterySaverActive = false,
+                hasAudioSession = true,
+                isSafeMode = false,
+            )
         assertFalse(shouldEnableVisualizer(state))
     }
 
     @Test
     fun `visualizer enabled when all conditions met`() {
-        val state = VisualizerState(
-            userPreferenceEnabled = true,
-            isAudioOffloaded = false,
-            isBatterySaverActive = false,
-            hasAudioSession = true,
-            isSafeMode = false,
-        )
+        val state =
+            VisualizerState(
+                userPreferenceEnabled = true,
+                isAudioOffloaded = false,
+                isBatterySaverActive = false,
+                hasAudioSession = true,
+                isSafeMode = false,
+            )
         assertTrue(shouldEnableVisualizer(state))
     }
 
     @Test
     fun `visualizer disabled during audio offload`() {
-        val state = VisualizerState(
-            userPreferenceEnabled = true,
-            isAudioOffloaded = true,
-            isBatterySaverActive = false,
-            hasAudioSession = true,
-            isSafeMode = false,
-        )
+        val state =
+            VisualizerState(
+                userPreferenceEnabled = true,
+                isAudioOffloaded = true,
+                isBatterySaverActive = false,
+                hasAudioSession = true,
+                isSafeMode = false,
+            )
         assertFalse(shouldEnableVisualizer(state))
     }
 
     @Test
     fun `visualizer disabled during battery saver`() {
-        val state = VisualizerState(
-            userPreferenceEnabled = true,
-            isAudioOffloaded = false,
-            isBatterySaverActive = true,
-            hasAudioSession = true,
-            isSafeMode = false,
-        )
+        val state =
+            VisualizerState(
+                userPreferenceEnabled = true,
+                isAudioOffloaded = false,
+                isBatterySaverActive = true,
+                hasAudioSession = true,
+                isSafeMode = false,
+            )
         assertFalse(shouldEnableVisualizer(state))
     }
 
     @Test
     fun `visualizer disabled in safe mode`() {
-        val state = VisualizerState(
-            userPreferenceEnabled = true,
-            isAudioOffloaded = false,
-            isBatterySaverActive = false,
-            hasAudioSession = true,
-            isSafeMode = true,
-        )
+        val state =
+            VisualizerState(
+                userPreferenceEnabled = true,
+                isAudioOffloaded = false,
+                isBatterySaverActive = false,
+                hasAudioSession = true,
+                isSafeMode = true,
+            )
         assertFalse(shouldEnableVisualizer(state))
     }
 
     @Test
     fun `visualizer disabled without audio session`() {
-        val state = VisualizerState(
-            userPreferenceEnabled = true,
-            isAudioOffloaded = false,
-            isBatterySaverActive = false,
-            hasAudioSession = false,
-            isSafeMode = false,
-        )
+        val state =
+            VisualizerState(
+                userPreferenceEnabled = true,
+                isAudioOffloaded = false,
+                isBatterySaverActive = false,
+                hasAudioSession = false,
+                isSafeMode = false,
+            )
         assertFalse(shouldEnableVisualizer(state))
     }
 
     @Test
     fun `user preference off takes priority over all other conditions`() {
-        val state = VisualizerState(
-            userPreferenceEnabled = false,
-            isAudioOffloaded = false,
-            isBatterySaverActive = false,
-            hasAudioSession = true,
-            isSafeMode = false,
-        )
+        val state =
+            VisualizerState(
+                userPreferenceEnabled = false,
+                isAudioOffloaded = false,
+                isBatterySaverActive = false,
+                hasAudioSession = true,
+                isSafeMode = false,
+            )
         assertFalse(shouldEnableVisualizer(state))
     }
 
     @Test
     fun `visualizer disabled when both offload and battery saver active`() {
-        val state = VisualizerState(
-            userPreferenceEnabled = true,
-            isAudioOffloaded = true,
-            isBatterySaverActive = true,
-            hasAudioSession = true,
-            isSafeMode = false,
-        )
+        val state =
+            VisualizerState(
+                userPreferenceEnabled = true,
+                isAudioOffloaded = true,
+                isBatterySaverActive = true,
+                hasAudioSession = true,
+                isSafeMode = false,
+            )
         assertFalse(shouldEnableVisualizer(state))
     }
 }

@@ -144,7 +144,7 @@ public fun AudioSettingsScreen(
                                 role = Role.Checkbox
                                 selected =
                                     protoSettings.resumeRewindMode ==
-                                        com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART
+                                    com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART
                             },
                     )
                     FilterChip(
@@ -162,7 +162,7 @@ public fun AudioSettingsScreen(
                                 role = Role.Checkbox
                                 selected =
                                     protoSettings.resumeRewindMode ==
-                                        com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.FIXED
+                                    com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.FIXED
                             },
                     )
                 }
@@ -356,7 +356,7 @@ public fun AudioSettingsScreen(
                                     role = Role.Checkbox
                                     selected =
                                         protoSettings.skipSilenceMode ==
-                                            com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SKIP
+                                        com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SKIP
                                 },
                         )
                         FilterChip(
@@ -374,7 +374,7 @@ public fun AudioSettingsScreen(
                                     role = Role.Checkbox
                                     selected =
                                         protoSettings.skipSilenceMode ==
-                                            com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SPEED_UP
+                                        com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode.SPEED_UP
                                 },
                         )
                     }

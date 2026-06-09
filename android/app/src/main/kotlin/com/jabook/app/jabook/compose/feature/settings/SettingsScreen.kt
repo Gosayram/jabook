@@ -1612,12 +1612,13 @@ internal fun SettingsSliderItem(
                 onValueChangeFinished = { onValueChange(currentValue) },
                 valueRange = valueRange,
                 steps = steps,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 8.dp)
-                    .semantics {
-                        contentDescription = title
-                    },
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp)
+                        .semantics {
+                            contentDescription = title
+                        },
             )
 
             // Max label
@@ -2045,9 +2046,10 @@ private fun AccentSwatchSelector(
     onSwatchSelected: (Int) -> Unit,
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         getAllAccentSwatches().forEachIndexed { index, swatch ->

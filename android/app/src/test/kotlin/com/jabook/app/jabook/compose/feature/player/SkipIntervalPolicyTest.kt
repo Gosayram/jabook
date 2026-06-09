@@ -43,70 +43,76 @@ class SkipIntervalPolicyTest {
 
     @Test
     fun `default rewind is 10 seconds when no overrides set`() {
-        val config = SkipConfig(
-            rewindDuration = null,
-            forwardDuration = null,
-            globalRewindSeconds = 0,
-            globalForwardSeconds = 0,
-        )
+        val config =
+            SkipConfig(
+                rewindDuration = null,
+                forwardDuration = null,
+                globalRewindSeconds = 0,
+                globalForwardSeconds = 0,
+            )
         assertEquals(10, resolveRewind(config))
     }
 
     @Test
     fun `default forward is 30 seconds when no overrides set`() {
-        val config = SkipConfig(
-            rewindDuration = null,
-            forwardDuration = null,
-            globalRewindSeconds = 0,
-            globalForwardSeconds = 0,
-        )
+        val config =
+            SkipConfig(
+                rewindDuration = null,
+                forwardDuration = null,
+                globalRewindSeconds = 0,
+                globalForwardSeconds = 0,
+            )
         assertEquals(30, resolveForward(config))
     }
 
     @Test
     fun `global preference overrides default`() {
-        val config = SkipConfig(
-            rewindDuration = null,
-            forwardDuration = null,
-            globalRewindSeconds = 15,
-            globalForwardSeconds = 60,
-        )
+        val config =
+            SkipConfig(
+                rewindDuration = null,
+                forwardDuration = null,
+                globalRewindSeconds = 15,
+                globalForwardSeconds = 60,
+            )
         assertEquals(15, resolveRewind(config))
         assertEquals(60, resolveForward(config))
     }
 
     @Test
     fun `per-book override takes highest priority`() {
-        val config = SkipConfig(
-            rewindDuration = 5,
-            forwardDuration = 45,
-            globalRewindSeconds = 15,
-            globalForwardSeconds = 60,
-        )
+        val config =
+            SkipConfig(
+                rewindDuration = 5,
+                forwardDuration = 45,
+                globalRewindSeconds = 15,
+                globalForwardSeconds = 60,
+            )
         assertEquals(5, resolveRewind(config))
         assertEquals(45, resolveForward(config))
     }
 
     @Test
     fun `per-book rewind overrides global even when global is set`() {
-        val config = SkipConfig(
-            rewindDuration = 10,
-            forwardDuration = null,
-            globalRewindSeconds = 15,
-            globalForwardSeconds = 0,
-        )
+        val config =
+            SkipConfig(
+                rewindDuration = 10,
+                forwardDuration = null,
+                globalRewindSeconds = 15,
+                globalForwardSeconds = 0,
+            )
         assertEquals(10, resolveRewind(config))
         assertEquals(30, resolveForward(config))
     }
 
     @Test
     fun `global rewind applies when per-book is null`() {
-        val config = SkipConfig(
-            rewindDuration = null,
-            forwardDuration = 20,
-            globalRewindSeconds = 15,
-            globalForwardSeconds = 0,
-        )
+        val config =
+            SkipConfig(
+                rewindDuration = null,
+                forwardDuration = 20,
+                globalRewindSeconds = 15,
+                globalForwardSeconds = 0,
+            )
         assertEquals(15, resolveRewind(config))
         assertEquals(20, resolveForward(config))
     }
@@ -115,12 +121,13 @@ class SkipIntervalPolicyTest {
     fun `valid skip intervals are 10 15 30 60 seconds`() {
         val validIntervals = listOf(10, 15, 30, 60)
         for (interval in validIntervals) {
-            val config = SkipConfig(
-                rewindDuration = interval,
-                forwardDuration = interval,
-                globalRewindSeconds = 0,
-                globalForwardSeconds = 0,
-            )
+            val config =
+                SkipConfig(
+                    rewindDuration = interval,
+                    forwardDuration = interval,
+                    globalRewindSeconds = 0,
+                    globalForwardSeconds = 0,
+                )
             assertEquals(interval, resolveRewind(config))
             assertEquals(interval, resolveForward(config))
         }

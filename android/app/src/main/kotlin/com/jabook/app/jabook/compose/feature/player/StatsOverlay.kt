@@ -129,13 +129,15 @@ private fun StatItem(
             Modifier
                 .fillMaxWidth()
                 .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "$label: ",
+            text = "$label:",
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White.copy(alpha = 0.7f),
             fontFamily = FontFamily.Monospace,
             fontSize = 12.sp,
+            modifier = Modifier.weight(1f),
         )
         Text(
             text = value,

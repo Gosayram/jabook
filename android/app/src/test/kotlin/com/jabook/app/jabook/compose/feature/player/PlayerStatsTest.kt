@@ -160,8 +160,7 @@ class PlayerStatsTest {
 
     private fun formatSampleRate(rate: Int): String = String.format(Locale.US, "%.1f kHz", rate / 1000.0)
 
-    private fun formatAudioSessionId(sessionId: Int): String =
-        if (sessionId < 0) "None" else sessionId.toString()
+    private fun formatAudioSessionId(sessionId: Int): String = if (sessionId < 0) "None" else sessionId.toString()
 
     // --- Full stats row mapping scenarios ---
 

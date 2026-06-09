@@ -1955,24 +1955,30 @@ private fun PlayerContent(
                     }
 
                     // Time labels (tabular figures so digits don't jump)
+                    val elapsedFormatted = formatDuration(currentGlobalPositionMs)
+                    val totalFormatted = formatDuration(chapterTimeline.totalDurationMs)
+                    val elapsedAccessibility = stringResource(R.string.elapsedTimeDescription, elapsedFormatted)
+                    val totalAccessibility = stringResource(R.string.totalDurationDescription, totalFormatted)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            text = formatDuration(currentGlobalPositionMs),
+                            text = elapsedFormatted,
                             style =
                                 (if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall)
                                     .copy(fontFeatureSettings = "tnum"),
                             color = adaptiveOnSurfaceVariant,
+                            modifier = Modifier.semantics { contentDescription = elapsedAccessibility },
                         )
 
                         Text(
-                            text = formatDuration(chapterTimeline.totalDurationMs),
+                            text = totalFormatted,
                             style =
                                 (if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall)
                                     .copy(fontFeatureSettings = "tnum"),
                             color = adaptiveOnSurfaceVariant,
+                            modifier = Modifier.semantics { contentDescription = totalAccessibility },
                         )
                     }
 

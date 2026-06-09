@@ -2374,6 +2374,10 @@
     <string name="continueListeningAction">Continue</string>
     <!-- Time remaining: %s is formatted duration -->
     <string name="timeRemaining">%s left</string>
+    <!-- TalkBack description for elapsed playback time -->
+    <string name="elapsedTimeDescription">Listened: %s</string>
+    <!-- TalkBack description for total duration -->
+    <string name="totalDurationDescription">Total duration: %s</string>
     <!-- Dark -->
     <string name="dark">Dark</string>
     <!-- Dark Theme -->
@@ -2683,6 +2687,8 @@
     <string name="totalDuration">Total Duration</string>
     <string name="downloadStatus">Download Status</string>
     <string name="downloaded">Downloaded</string>
+    <string name="listened">Listened</string>
+    <string name="listenedStatus">Listen Status</string>
     <!-- Player chapter pane strings -->
     <string name="currentlyPlaying">Currently playing</string>
     <string name="jumpToChapterNumber">Jump to chapter #...</string>

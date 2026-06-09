@@ -2337,6 +2337,10 @@
     <string name="continueListeningAction">Продолжить</string>
     <!-- Оставшееся время: %s — форматированная длительность -->
     <string name="timeRemaining">Осталось %s</string>
+    <!-- TalkBack описание для прошедшего времени воспроизведения -->
+    <string name="elapsedTimeDescription">Прослушано: %s</string>
+    <!-- TalkBack описание для общей длительности -->
+    <string name="totalDurationDescription">Общая длительность: %s</string>
     <!-- Темный -->
     <string name="dark">Темный</string>
     <!-- Темная тема -->
@@ -2679,6 +2683,8 @@
     <string name="totalDuration">Общая длительность</string>
     <string name="downloadStatus">Статус загрузки</string>
     <string name="downloaded">Загружено</string>
+    <string name="listened">Прослушано</string>
+    <string name="listenedStatus">Статус прослушивания</string>
     <!-- Строки панели глав плеера -->
     <string name="currentlyPlaying">Сейчас играет</string>
     <string name="jumpToChapterNumber">Перейти к главе №...</string>

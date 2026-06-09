@@ -176,9 +176,9 @@ public fun BookDetailPane(
                         val isCoverVisible = listState.firstVisibleItemIndex == 0
                         val scrollOffset = listState.firstVisibleItemScrollOffset.toFloat()
                         if (isCoverVisible) {
-                            scrollOffset * 0.35f
+                            scrollOffset * 0.42f
                         } else {
-                            96f
+                            120f
                         }
                     }
                 }
@@ -234,7 +234,7 @@ public fun BookDetailPane(
                                             colors =
                                                 listOf(
                                                     Color.Transparent,
-                                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
+                                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
                                                 ),
                                         ),
                                     ),
@@ -400,6 +400,12 @@ public fun BookDetailPane(
                                 MetadataPill(
                                     text = stringResource(R.string.downloaded),
                                     contentDescription = stringResource(R.string.downloadStatus),
+                                )
+                            }
+                            if (book.isCompleted) {
+                                MetadataPill(
+                                    text = stringResource(R.string.listened),
+                                    contentDescription = stringResource(R.string.listenedStatus),
                                 )
                             }
                             if (book.isStarted && book.remainingDuration.inWholeMilliseconds > 0) {

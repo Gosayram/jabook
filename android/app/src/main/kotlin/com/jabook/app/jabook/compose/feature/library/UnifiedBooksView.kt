@@ -191,16 +191,15 @@ private fun BooksGridLayout(
 ) {
     val configuration = LocalConfiguration.current
     val isVeryNarrow = configuration.screenWidthDp < 360
+    val isWide = configuration.screenWidthDp >= 840
     val gridCells =
         remember(displayMode, windowSizeClass, configuration.screenWidthDp) {
             if (isVeryNarrow) {
                 GridCells.Fixed(1)
+            } else if (isWide) {
+                GridCells.Adaptive(minSize = 168.dp)
             } else {
-                when {
-                    configuration.screenWidthDp >= 840 -> GridCells.Fixed(4)
-                    configuration.screenWidthDp >= 600 -> GridCells.Fixed(3)
-                    else -> GridCells.Fixed(2)
-                }
+                GridCells.Adaptive(minSize = 150.dp)
             }
         }
     val contentPadding = remember(windowSizeClass) { AdaptiveUtils.getContentPadding(windowSizeClass) }

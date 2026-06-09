@@ -70,7 +70,7 @@ public fun BookmarksSheet(
         ) {
             Text(
                 text = stringResource(R.string.bookmarks),
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
             )
             if (bookmarks.isNotEmpty()) {
                 Text(
