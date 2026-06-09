@@ -250,4 +250,82 @@ class BookmarkMarkerPolicyTest {
             )
         assertTrue(result)
     }
+
+    @Test
+    fun `markers remain aligned when chapters loaded after bookmarks`() {
+        // Simulates async scenario: bookmarks arrive before chapters
+        val bookmarks =
+            listOf(
+                bookmark(id = "bm-1", chapterIndex = 0, positionMs = 2_000L),
+                bookmark(id = "bm-2", chapterIndex = 1, positionMs = 3_000L),
+            )
+        val chapters =
+            listOf(
+                chapter(0, 10_000L),
+                chapter(1, 10_000L),
+            )
+
+        val result =
+            BookmarkMarkerPolicy.calculateBookmarkMarkerFractions(
+                bookmarks = bookmarks,
+                chapters = chapters,
+            )
+
+        assertEquals(2, result.size)
+        assertEquals(0.1f, result[0], 0.001f)
+        assertEquals(0.65f, result[1], 0.001f)
+    }
+
+    @Test
+    fun `markers handle variable chapter durations correctly`() {
+        val chapters =
+            listOf(
+                chapter(0, 5_000L),
+                chapter(1, 15_000L),
+                chapter(2, 10_000L),
+            )
+        val bookmarks =
+            listOf(
+                bookmark(id = "bm-1", chapterIndex = 0, positionMs = 2_500L),
+                bookmark(id = "bm-2", chapterIndex = 1, positionMs = 7_500L),
+                bookmark(id = "bm-3", chapterIndex = 2, positionMs = 5_000L),
+            )
+
+        val result =
+            BookmarkMarkerPolicy.calculateBookmarkMarkerFractions(
+                bookmarks = bookmarks,
+                chapters = chapters,
+            )
+
+        assertEquals(3, result.size)
+        // 2500/30000 = 0.0833
+        assertEquals(0.0833f, result[0], 0.001f)
+        // (5000 + 7500)/30000 = 0.4167
+        assertEquals(0.4167f, result[1], 0.001f)
+        // (5000 + 15000 + 5000)/30000 = 0.8333
+        assertEquals(0.8333f, result[2], 0.001f)
+    }
+
+    @Test
+    fun `markers handle single bookmark across many chapters`() {
+        val chapters =
+            listOf(
+                chapter(0, 10_000L),
+                chapter(1, 10_000L),
+                chapter(2, 10_000L),
+                chapter(3, 10_000L),
+                chapter(4, 10_000L),
+            )
+        val bookmarks = listOf(bookmark(id = "bm-1", chapterIndex = 3, positionMs = 5_000L))
+
+        val result =
+            BookmarkMarkerPolicy.calculateBookmarkMarkerFractions(
+                bookmarks = bookmarks,
+                chapters = chapters,
+            )
+
+        assertEquals(1, result.size)
+        // (10000*3 + 5000) / 50000 = 35000/50000 = 0.7
+        assertEquals(0.7f, result[0], 0.001f)
+    }
 }

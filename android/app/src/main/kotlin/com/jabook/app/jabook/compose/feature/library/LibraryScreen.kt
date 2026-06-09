@@ -36,6 +36,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GridView
@@ -494,6 +495,16 @@ public fun LibraryScreen(
                                                                 imageVector = Icons.Filled.Search,
                                                                 contentDescription = null,
                                                             )
+                                                        },
+                                                        trailingIcon = {
+                                                            if (searchQuery.isNotEmpty()) {
+                                                                IconButton(onClick = { searchQuery = "" }) {
+                                                                    Icon(
+                                                                        imageVector = Icons.Filled.Clear,
+                                                                        contentDescription = stringResource(R.string.clearSearch),
+                                                                    )
+                                                                }
+                                                            }
                                                         },
                                                     )
                                                 },
