@@ -23,13 +23,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
@@ -338,19 +344,28 @@ private fun HistoryCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 // Status badge
-                val statusColor =
+                val (statusIcon, statusColor) =
                     when (entry.status) {
-                        "completed" -> MaterialTheme.colorScheme.primary
-                        "failed" -> MaterialTheme.colorScheme.error
-                        "cancelled" -> MaterialTheme.colorScheme.onSurfaceVariant
-                        else -> MaterialTheme.colorScheme.onSurface
+                        "completed" -> Icons.Default.CheckCircle to MaterialTheme.colorScheme.primary
+                        "failed" -> Icons.Default.Error to MaterialTheme.colorScheme.error
+                        "cancelled" -> Icons.Default.Cancel to MaterialTheme.colorScheme.onSurfaceVariant
+                        else -> Icons.Default.Book to MaterialTheme.colorScheme.onSurface
                     }
 
-                Text(
-                    text = entry.status.uppercase(Locale.getDefault()),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = statusColor,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = statusIcon,
+                        contentDescription = null,
+                        tint = statusColor,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = entry.status.replaceFirstChar { it.titlecase(Locale.getDefault()) },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = statusColor,
+                    )
+                }
 
                 // Date
                 Text(
