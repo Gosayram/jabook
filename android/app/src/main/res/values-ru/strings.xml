@@ -2963,4 +2963,11 @@
     <string name="playerShare">Поделиться</string>
     <string name="playerStatistics">Статистика</string>
     <string name="playerOverflowMenu">Дополнительно</string>
+
+    <!-- Device and Layout -->
+    <string name="deviceAndLayout">Устройство и макет</string>
+    <string name="playerCoverModeTitle">Обложка плеера</string>
+    <string name="playerCoverModeDescription">Выберите способ отображения обложки</string>
+    <string name="coverModeCard">Карточка</string>
+    <string name="coverModeVinyl">Винил</string>
 </resources>

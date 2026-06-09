@@ -1267,6 +1267,35 @@ public fun SettingsScreen(
 
             HorizontalDivider()
 
+            // Device and Layout Section
+            SettingsSection(
+                title = stringResource(R.string.deviceAndLayout),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
+
+            SettingsItemWithContent(
+                title = stringResource(R.string.playerCoverModeTitle),
+                subtitle = stringResource(R.string.playerCoverModeDescription),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    androidx.compose.material3.FilterChip(
+                        selected = protoSettings.playerCoverMode == 0,
+                        onClick = { viewModel.updatePlayerCoverMode(0) },
+                        label = { Text(stringResource(R.string.coverModeCard)) },
+                    )
+                    androidx.compose.material3.FilterChip(
+                        selected = protoSettings.playerCoverMode == 1,
+                        onClick = { viewModel.updatePlayerCoverMode(1) },
+                        label = { Text(stringResource(R.string.coverModeVinyl)) },
+                    )
+                }
+            }
+
+            HorizontalDivider()
+
             // About Section
             SettingsSection(
                 title = stringResource(R.string.aboutTitle),

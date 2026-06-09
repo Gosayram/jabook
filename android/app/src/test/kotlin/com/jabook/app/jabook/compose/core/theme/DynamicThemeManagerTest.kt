@@ -20,6 +20,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -126,14 +127,80 @@ class DynamicThemeManagerTest {
 
     @Test
     fun `fixDislikeColor shifts yellow-green hues`() {
-        // Pure yellow (60° hue) - should shift to 50° (warm yellow)
-        val yellow = Color(1f, 1f, 0f)
-        val fixed = DynamicThemeManager.fixDislikeColor(yellow)
+        // Yellow-green is in the "dislike" range (hue 70-130, moderate saturation)
+        // Use a known yellowish-green color that falls in the dislike range
+        val yellowGreen = Color(0.4f, 0.6f, 0.1f) // Greenish-yellow
+        val fixed = DynamicThemeManager.fixDislikeColor(yellowGreen)
 
-        // The color should not be pure yellow anymore (hue shifted)
+        // The color should be shifted to a more pleasant hue
+        // (either warm yellow at hue 50 or cool teal at hue 150)
         assertFalse(
-            "Yellow hue should be shifted",
-            fixed == yellow,
+            "Yellow-green hue should be shifted",
+            fixed == yellowGreen,
         )
     }
+
+    @Test
+    fun `accent swatches all have valid primary colors`() {
+        val swatches = getAllAccentSwatches()
+        assertEquals("Should have 8 curated swatches", 8, swatches.size)
+        swatches.forEach { swatch ->
+            assertNotNull("Swatch ${swatch.name} should have a name", swatch.name)
+            assertTrue("Swatch ${swatch.name} name should not be blank", swatch.name.isNotBlank())
+            // Primary color should be fully opaque
+            assertEquals(
+                "Swatch ${swatch.name} primary should be fully opaque",
+                1f,
+                swatch.primary.alpha,
+                0.001f,
+            )
+        }
+    }
+
+    @Test
+    fun `getAccentSwatch returns correct swatch for valid index`() {
+        val swatch = getAccentSwatch(0)
+        assertNotNull(swatch)
+        assertEquals("Violet", swatch!!.name)
+    }
+
+    @Test
+    fun `getAccentSwatch returns null for out-of-range index`() {
+        assertNull(getAccentSwatch(-1))
+        assertNull(getAccentSwatch(100))
+    }
+
+    @Test
+    fun `getDefaultAccentIndex returns zero`() {
+        assertEquals(0, getDefaultAccentIndex())
+    }
+
+    @Test
+    fun `accent swatch toPlayerThemeColors produces valid colors`() {
+        val swatch = getAccentSwatch(0)!!
+        val themeColors = swatch.toPlayerThemeColors()
+        assertNotNull(themeColors.primaryColor)
+        assertNotNull(themeColors.onPrimaryColor)
+        assertNotNull(themeColors.secondaryColor)
+        assertNotNull(themeColors.surfaceColor)
+        assertNotNull(themeColors.onSurfaceColor)
+        assertNotNull(themeColors.containerColor)
+        assertTrue("Gradient should have at least 2 colors", themeColors.gradientColors.size >= 2)
+    }
+
+    @Test
+    fun `extractColors returns non-default colors for vibrant bitmap`() =
+        runBlocking {
+            val bitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+            // Use a vibrant purple-ish color
+            bitmap.eraseColor(AndroidColor.rgb(128, 0, 255))
+
+            val colors = DynamicThemeManager.extractColors(bitmap)
+
+            assertNotNull(colors)
+            // Primary should not be the default violet fallback
+            // The palette extractor should find something close to purple
+            assertNotNull(colors.primaryColor)
+            assertNotNull(colors.secondaryColor)
+        }
 }

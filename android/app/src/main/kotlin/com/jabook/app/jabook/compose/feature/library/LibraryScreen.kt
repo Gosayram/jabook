@@ -955,7 +955,7 @@ private fun WeeklyStatItem(
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(
             imageVector = icon,
-            contentDescription = null,
+            contentDescription = label,
             tint = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
         )
         Text(

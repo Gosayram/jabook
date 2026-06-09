@@ -2918,4 +2918,11 @@
     <!-- Downloads tabs -->
     <string name="downloadsActiveTab">Active</string>
     <string name="downloadsHistoryTab">History</string>
+
+    <!-- Device and Layout -->
+    <string name="deviceAndLayout">Device and Layout</string>
+    <string name="playerCoverModeTitle">Player Cover</string>
+    <string name="playerCoverModeDescription">Choose how the cover art is displayed</string>
+    <string name="coverModeCard">Card</string>
+    <string name="coverModeVinyl">Vinyl</string>
 </resources>
