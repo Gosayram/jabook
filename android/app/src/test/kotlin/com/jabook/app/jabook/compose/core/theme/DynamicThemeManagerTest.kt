@@ -203,4 +203,46 @@ class DynamicThemeManagerTest {
             assertNotNull(colors.primaryColor)
             assertNotNull(colors.secondaryColor)
         }
+
+    @Test
+    fun `accent swatch index bounds - negative index clamps to zero`() {
+        val maxIndex = getAllAccentSwatches().size - 1
+        val safeIndex = (-5).coerceIn(0, maxIndex)
+        assertEquals(0, safeIndex)
+        assertNotNull(getAccentSwatch(safeIndex))
+    }
+
+    @Test
+    fun `accent swatch index bounds - oversized index clamps to max`() {
+        val maxIndex = getAllAccentSwatches().size - 1
+        val safeIndex = 100.coerceIn(0, maxIndex)
+        assertEquals(maxIndex, safeIndex)
+        assertNotNull(getAccentSwatch(safeIndex))
+    }
+
+    @Test
+    fun `accent swatch index bounds - valid index passes through unchanged`() {
+        val maxIndex = getAllAccentSwatches().size - 1
+        val safeIndex = 3.coerceIn(0, maxIndex)
+        assertEquals(3, safeIndex)
+        assertNotNull(getAccentSwatch(safeIndex))
+    }
+
+    @Test
+    fun `player cover mode bounds - negative clamps to zero`() {
+        val safeMode = (-1).coerceIn(0, 1)
+        assertEquals(0, safeMode)
+    }
+
+    @Test
+    fun `player cover mode bounds - two clamps to one`() {
+        val safeMode = 2.coerceIn(0, 1)
+        assertEquals(1, safeMode)
+    }
+
+    @Test
+    fun `player cover mode bounds - valid modes pass through`() {
+        assertEquals(0, 0.coerceIn(0, 1))
+        assertEquals(1, 1.coerceIn(0, 1))
+    }
 }

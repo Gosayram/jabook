@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material3.Card
@@ -502,6 +503,13 @@ public fun LibraryScreen(
                                                                     Icon(
                                                                         imageVector = Icons.Filled.Clear,
                                                                         contentDescription = stringResource(R.string.clearSearch),
+                                                                    )
+                                                                }
+                                                            } else if (searchBarExpanded) {
+                                                                IconButton(onClick = { /* TODO: open filter sheet */ }) {
+                                                                    Icon(
+                                                                        imageVector = Icons.Filled.Tune,
+                                                                        contentDescription = stringResource(R.string.filterLibraryTooltip),
                                                                     )
                                                                 }
                                                             }
