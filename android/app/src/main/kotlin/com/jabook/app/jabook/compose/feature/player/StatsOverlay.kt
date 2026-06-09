@@ -108,6 +108,17 @@ public fun StatsOverlay(
                     large = true,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
+
+                if (quality.tier == com.jabook.app.jabook.audio.QualityTier.LOW) {
+                    Text(
+                        text = stringResource(R.string.lowQualityWarning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
 
             StatItem(label = stringResource(R.string.audioFormat), value = stats.audioFormat)

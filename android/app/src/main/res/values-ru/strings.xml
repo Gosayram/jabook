@@ -2691,6 +2691,7 @@
     <string name="qualityStandard">Стандартное</string>
     <string name="qualityLow">Низкое</string>
     <string name="qualityBadgeContentDescription">Качество %1$s: %2$s</string>
+    <string name="lowQualityWarning">Архивный низкокачественный релиз</string>
     <!-- Строки панели глав плеера -->
     <string name="currentlyPlaying">Сейчас играет</string>
     <string name="jumpToChapterNumber">Перейти к главе №...</string>
