@@ -57,6 +57,7 @@ public enum class VisualizerStyle {
  * @param isPlaying Whether audio is currently playing
  * @param style Visualization style
  * @param height Component height
+ * @param lowCostMode Reduces bar count for performance on low-end devices
  * @param modifier Modifier
  */
 @Composable
@@ -65,6 +66,7 @@ public fun AudioVisualizer(
     isPlaying: Boolean,
     style: VisualizerStyle = VisualizerStyle.BARS,
     height: Dp = 48.dp,
+    lowCostMode: Boolean = false,
     primaryColor: Color = MaterialTheme.colorScheme.primary,
     secondaryColor: Color = MaterialTheme.colorScheme.secondary,
     modifier: Modifier = Modifier,
@@ -91,6 +93,7 @@ public fun AudioVisualizer(
                 waveformData = waveformData,
                 primaryColor = primaryColor.copy(alpha = alpha),
                 secondaryColor = secondaryColor.copy(alpha = alpha * 0.5f),
+                lowCostMode = lowCostMode,
                 modifier =
                     modifier
                         .fillMaxWidth()
@@ -100,6 +103,7 @@ public fun AudioVisualizer(
             CircularVisualizer(
                 waveformData = waveformData,
                 color = primaryColor.copy(alpha = alpha),
+                lowCostMode = lowCostMode,
                 modifier =
                     modifier
                         .fillMaxWidth()
@@ -156,10 +160,12 @@ private fun BarsVisualizer(
     waveformData: FloatArray,
     primaryColor: Color,
     secondaryColor: Color,
+    lowCostMode: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     // Reduce data to fewer bars for cleaner look
-    val barCount = 32
+    // Low-cost mode uses 16 bars instead of 32 for better performance on low-end devices
+    val barCount = if (lowCostMode) 16 else 32
     val reducedData =
         remember(waveformData) {
             if (waveformData.isEmpty()) {
@@ -216,10 +222,12 @@ private fun BarsVisualizer(
 private fun CircularVisualizer(
     waveformData: FloatArray,
     color: Color,
+    lowCostMode: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     // Reduce data points for cleaner radial bars
-    val barCount = 40 // Amount of bars around the circle
+    // Low-cost mode uses 20 bars instead of 40 for better performance on low-end devices
+    val barCount = if (lowCostMode) 20 else 40
     val reducedData =
         remember(waveformData) {
             if (waveformData.isEmpty()) {

@@ -88,4 +88,10 @@ public object UiFormatters {
         index: Int,
         total: Int,
     ): String = "${index + 1} / $total"
+
+    /**
+     * Strips leading numeric prefixes like "1.", "01.", "12) " from strings.
+     * Used to avoid duplication when chapter display number is prepended.
+     */
+    public fun stripLeadingNumericPrefix(title: String): String = title.replace(Regex("^\\d+[.)\\s]+"), "").trim()
 }

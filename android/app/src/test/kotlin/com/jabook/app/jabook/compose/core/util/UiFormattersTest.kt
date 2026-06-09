@@ -172,4 +172,46 @@ class UiFormattersTest {
     fun formatChapterNumber() {
         assertEquals("3 / 10", UiFormatters.formatChapterNumber(2, 10))
     }
+
+    // --- stripLeadingNumericPrefix ---
+
+    @Test
+    fun stripPrefix_dotSeparator() {
+        assertEquals("Introduction", UiFormatters.stripLeadingNumericPrefix("1. Introduction"))
+    }
+
+    @Test
+    fun stripPrefix_doubleDigitDot() {
+        assertEquals("Chapter Title", UiFormatters.stripLeadingNumericPrefix("12. Chapter Title"))
+    }
+
+    @Test
+    fun stripPrefix_parenthesis() {
+        assertEquals("First Part", UiFormatters.stripLeadingNumericPrefix("1) First Part"))
+    }
+
+    @Test
+    fun stripPrefix_dotSpace() {
+        assertEquals("Beginning", UiFormatters.stripLeadingNumericPrefix("01. Beginning"))
+    }
+
+    @Test
+    fun stripPrefix_noPrefix() {
+        assertEquals("Just a Title", UiFormatters.stripLeadingNumericPrefix("Just a Title"))
+    }
+
+    @Test
+    fun stripPrefix_emptyString() {
+        assertEquals("", UiFormatters.stripLeadingNumericPrefix(""))
+    }
+
+    @Test
+    fun stripPrefix_onlyNumber() {
+        assertEquals("", UiFormatters.stripLeadingNumericPrefix("1."))
+    }
+
+    @Test
+    fun stripPrefix_numberWithSpaces() {
+        assertEquals("Title Here", UiFormatters.stripLeadingNumericPrefix("5  Title Here"))
+    }
 }
