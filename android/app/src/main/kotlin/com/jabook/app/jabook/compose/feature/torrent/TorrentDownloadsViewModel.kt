@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.feature.torrent
 
 import android.os.Environment
+import android.os.StatFs
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -58,6 +59,12 @@ public sealed interface TorrentDownloadsUiState {
         val pausedDownloads: ImmutableList<TorrentDownload>,
         val completedDownloads: ImmutableList<TorrentDownload>,
         val errorDownloads: ImmutableList<TorrentDownload>,
+        val downloadingCount: Int,
+        val totalDownloadSpeed: Long,
+        val queuedCount: Int,
+        val audiobookStorageUsed: Long,
+        val totalStorageUsed: Long,
+        val availableStorage: Long,
     ) : TorrentDownloadsUiState
 
     @Immutable
@@ -138,12 +145,26 @@ public class TorrentDownloadsViewModel
                         val paused = allDownloads.filter { it.state == TorrentState.PAUSED }
                         val completed = allDownloads.filter { it.state == TorrentState.COMPLETED }
                         val errors = allDownloads.filter { it.state == TorrentState.ERROR }
+                        val queued = allDownloads.filter { it.state == TorrentState.QUEUED }
+                        val downloading = allDownloads.filter { it.state == TorrentState.DOWNLOADING }
+
+                        // Calculate stats
+                        val totalDownloadSpeed = downloading.sumOf { it.downloadSpeed.toLong() }
+
+                        // Calculate storage stats
+                        val storageStats = calculateStorageStats(allDownloads)
 
                         TorrentDownloadsUiState.Success(
                             activeDownloads = active.toImmutableList(),
                             pausedDownloads = paused.toImmutableList(),
                             completedDownloads = completed.toImmutableList(),
                             errorDownloads = errors.toImmutableList(),
+                            downloadingCount = downloading.size,
+                            totalDownloadSpeed = totalDownloadSpeed,
+                            queuedCount = queued.size,
+                            audiobookStorageUsed = storageStats.audiobookStorageUsed,
+                            totalStorageUsed = storageStats.totalStorageUsed,
+                            availableStorage = storageStats.availableStorage,
                         )
                     }
                 } catch (e: Exception) {
@@ -329,5 +350,38 @@ public class TorrentDownloadsViewModel
             ) {
                 _snackbarEvent.send("Download queued: Waiting for WiFi connection")
             }
+        }
+
+        private data class StorageStats(
+            val audiobookStorageUsed: Long,
+            val totalStorageUsed: Long,
+            val availableStorage: Long,
+        )
+
+        private fun calculateStorageStats(downloads: List<TorrentDownload>): StorageStats {
+            // Get downloads directory stats
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val stat = StatFs(downloadsDir.absolutePath)
+            val availableStorage = stat.availableBlocksLong * stat.blockSizeLong
+
+            // Calculate total storage used by downloads
+            var totalStorageUsed = 0L
+            var audiobookStorageUsed = 0L
+
+            for (download in downloads) {
+                if (download.totalSize > 0) {
+                    totalStorageUsed += download.totalSize
+                }
+                // Completed downloads are audiobooks
+                if (download.state == TorrentState.COMPLETED && download.totalSize > 0) {
+                    audiobookStorageUsed += download.totalSize
+                }
+            }
+
+            return StorageStats(
+                audiobookStorageUsed = audiobookStorageUsed,
+                totalStorageUsed = totalStorageUsed,
+                availableStorage = availableStorage,
+            )
         }
     }

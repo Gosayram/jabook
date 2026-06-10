@@ -2824,6 +2824,7 @@
     <string name="duration_hm">%1$dч %2$dм</string>
     <string name="duration_m">%1$dм</string>
     <string name="duration_less_minute">&lt;1м</string>
+    <string name="eta_approx_min">≈ %1$d мин</string>
     
     <string name="peers_seeds">Пиры: %1$d (сидов: %2$d)</string>
     <string name="no_downloads">Нет загрузок</string>
@@ -2975,6 +2976,13 @@
     <string name="downloadsActiveTab">Активные</string>
     <string name="downloadsHistoryTab">История</string>
     <string name="streamingBufferLabel">Стриминг (%1$s)</string>
+    <string name="downloadsActiveSummary">Активные загрузки</string>
+    <string name="downloadsActiveStats">%1$d загружается • %2$s/с • %3$d в очереди</string>
+    <string name="downloadsPausedNoSpeed">%1$d загружается • На паузе • %2$d в очереди</string>
+    <string name="no_active_downloads">Нет активных загрузок</string>
+    <string name="storageUsedLabel">%1$s использовано • %2$s свободно</string>
+    <string name="storageLegendAudiobooks">Аудиокниги</string>
+    <string name="storageLegendDownloading">Загрузка</string>
     <string name="desktopSelectBookHint">Выберите книгу для просмотра деталей</string>
     <string name="playerGoToBook">Перейти к книге</string>
     <string name="playerShare">Поделиться</string>

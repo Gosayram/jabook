@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -50,7 +49,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
-import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.compose.designsystem.component.ThinProgressBar
@@ -142,105 +140,117 @@ public fun TorrentDownloadItem(
 
             Spacer(Modifier.height(8.dp))
 
-// Progress bar
-            ThinProgressBar(
-                progress = download.progress,
-                modifier = Modifier.fillMaxWidth(),
-                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                progressColor = MaterialTheme.colorScheme.primary,
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            // Stats row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                // Progress percentage
-                Text(
-                    text = "${(download.progress.coerceIn(0f, 1f) * 100).toInt()}%",
-                    style =
-                        MaterialTheme.typography.bodyMedium.copy(
-                            fontFeatureSettings = "tnum",
-                        ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            // Progress bar (hidden for queued)
+            if (download.state != TorrentState.QUEUED) {
+                ThinProgressBar(
+                    progress = download.progress,
+                    modifier = Modifier.fillMaxWidth(),
+                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    progressColor =
+                        if (download.state == TorrentState.PAUSED) {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
                 )
 
-                // Download speed
-                if (download.state == TorrentState.DOWNLOADING) {
-                    Text(
-                        text = "↓ ${formatSpeed(download.downloadSpeed.toLong())}/s",
-                        style =
-                            MaterialTheme.typography.bodyMedium.copy(
-                                fontFeatureSettings = "tnum",
-                            ),
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
+                Spacer(Modifier.height(8.dp))
 
-                // Upload speed
-                if (download.uploadSpeed > 0) {
-                    Text(
-                        text = "↑ ${formatSpeed(download.uploadSpeed.toLong())}/s",
-                        style =
-                            MaterialTheme.typography.bodyMedium.copy(
-                                fontFeatureSettings = "tnum",
-                            ),
-                        color = MaterialTheme.colorScheme.secondary,
-                    )
-                }
-
-                // ETA
-                if (download.eta > 0 &&
-                    download.state in
-                    listOf(
-                        TorrentState.DOWNLOADING,
-                        TorrentState.STREAMING,
-                    )
+                // Stats row (hidden for queued)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
+                    // Progress percentage (muted for paused)
                     Text(
-                        text = formatEta(download.eta),
+                        text = "${(download.progress.coerceIn(0f, 1f) * 100).toInt()}%",
                         style =
                             MaterialTheme.typography.bodyMedium.copy(
+                                fontFeatureSettings = "tnum",
+                            ),
+                        color =
+                            if (download.state == TorrentState.PAUSED) {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                    )
+
+                    // Download speed
+                    if (download.state == TorrentState.DOWNLOADING) {
+                        Text(
+                            text = "↓ ${formatSpeed(download.downloadSpeed.toLong())}/s",
+                            style =
+                                MaterialTheme.typography.bodyMedium.copy(
+                                    fontFeatureSettings = "tnum",
+                                ),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+
+                    // Upload speed
+                    if (download.uploadSpeed > 0) {
+                        Text(
+                            text = "↑ ${formatSpeed(download.uploadSpeed.toLong())}/s",
+                            style =
+                                MaterialTheme.typography.bodyMedium.copy(
+                                    fontFeatureSettings = "tnum",
+                                ),
+                            color = MaterialTheme.colorScheme.secondary,
+                        )
+                    }
+
+                    // ETA
+                    if (download.eta > 0 &&
+                        download.state in
+                        listOf(
+                            TorrentState.DOWNLOADING,
+                            TorrentState.STREAMING,
+                        )
+                    ) {
+                        Text(
+                            text = formatEta(download.eta),
+                            style =
+                                MaterialTheme.typography.bodyMedium.copy(
+                                    fontFeatureSettings = "tnum",
+                                ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+
+                if (download.totalSize > 0L) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "${formatBytes(download.downloadedSize)} / ${formatBytes(download.totalSize)}",
+                        style =
+                            MaterialTheme.typography.bodySmall.copy(
                                 fontFeatureSettings = "tnum",
                             ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            }
 
-            if (download.totalSize > 0L) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "${formatBytes(download.downloadedSize)} / ${formatBytes(download.totalSize)}",
-                    style =
-                        MaterialTheme.typography.bodySmall.copy(
-                            fontFeatureSettings = "tnum",
-                        ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            // Peers/Seeds info
-            if (download.state in
-                listOf(
-                    TorrentState.DOWNLOADING,
-                    TorrentState.SEEDING,
-                    TorrentState.STREAMING,
-                )
-            ) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text =
-                        stringResource(
-                            R.string.peers_seeds,
-                            download.numPeers,
-                            download.numSeeds,
-                        ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                // Peers/Seeds info (hidden for queued)
+                if (download.state in
+                    listOf(
+                        TorrentState.DOWNLOADING,
+                        TorrentState.SEEDING,
+                        TorrentState.STREAMING,
+                    )
+                ) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text =
+                            stringResource(
+                                R.string.peers_seeds,
+                                download.numPeers,
+                                download.numSeeds,
+                            ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
@@ -323,7 +333,7 @@ private fun StateBadge(
 
             TorrentState.COMPLETED,
             TorrentState.FINISHED,
-    ->
+            ->
                 Triple(
                     stringResource(R.string.completed_state),
                     MaterialTheme.colorScheme.tertiary,
@@ -354,7 +364,7 @@ private fun StateBadge(
             TorrentState.CHECKING,
             TorrentState.DOWNLOADING_METADATA,
             TorrentState.QUEUED,
-    ->
+            ->
                 Triple(
                     stringResource(
                         when (state) {
@@ -434,7 +444,7 @@ internal fun formatEta(
 
     return when {
         hours > 0 -> resources.getString(R.string.duration_hm, hours, minutes)
-        minutes > 0 -> resources.getString(R.string.duration_m, minutes)
+        minutes > 0 -> resources.getString(R.string.eta_approx_min, minutes)
         else -> resources.getString(R.string.duration_less_minute)
     }
 }

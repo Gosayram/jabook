@@ -2801,6 +2801,7 @@
     <string name="duration_hm">%1$dh %2$dm</string>
     <string name="duration_m">%1$dm</string>
     <string name="duration_less_minute">&lt;1m</string>
+    <string name="eta_approx_min">≈ %1$d мин</string>
     
     <string name="peers_seeds">Peers: %1$d (%2$d seeds)</string>
     <string name="no_downloads">No downloads yet</string>
@@ -2934,6 +2935,13 @@
     <string name="downloadsActiveTab">Active</string>
     <string name="downloadsHistoryTab">History</string>
     <string name="streamingBufferLabel">Streaming (%1$s)</string>
+    <string name="downloadsActiveSummary">Active downloads</string>
+    <string name="downloadsActiveStats">%1$d downloading • %2$s/s • %3$d queued</string>
+    <string name="downloadsPausedNoSpeed">%1$d downloading • Paused • %2$d queued</string>
+    <string name="no_active_downloads">No active downloads</string>
+    <string name="storageUsedLabel">%1$s used • %2$s free</string>
+    <string name="storageLegendAudiobooks">Audiobooks</string>
+    <string name="storageLegendDownloading">Downloading</string>
 
     <!-- Device and Layout -->
     <string name="deviceAndLayout">Device and Layout</string>

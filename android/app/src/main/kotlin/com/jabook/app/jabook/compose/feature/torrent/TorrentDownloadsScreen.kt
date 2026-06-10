@@ -15,14 +15,18 @@
 package com.jabook.app.jabook.compose.feature.torrent
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -33,6 +37,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -62,6 +68,7 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
@@ -321,6 +328,12 @@ public fun TorrentDownloadsScreen(
                         pausedDownloads = state.pausedDownloads,
                         completedDownloads = state.completedDownloads,
                         errorDownloads = state.errorDownloads,
+                        downloadingCount = state.downloadingCount,
+                        totalDownloadSpeed = state.totalDownloadSpeed,
+                        queuedCount = state.queuedCount,
+                        audiobookStorageUsed = state.audiobookStorageUsed,
+                        totalStorageUsed = state.totalStorageUsed,
+                        availableStorage = state.availableStorage,
                         onPauseClick = { hash -> viewModel.pauseDownload(hash) },
                         onResumeClick = { hash -> viewModel.resumeDownload(hash) },
                         onDeleteClick = { download -> downloadToDelete = download },
@@ -342,6 +355,12 @@ private fun TorrentDownloadsList(
     pausedDownloads: List<TorrentDownload>,
     completedDownloads: List<TorrentDownload>,
     errorDownloads: List<TorrentDownload>,
+    downloadingCount: Int,
+    totalDownloadSpeed: Long,
+    queuedCount: Int,
+    audiobookStorageUsed: Long,
+    totalStorageUsed: Long,
+    availableStorage: Long,
     onPauseClick: (String) -> Unit,
     onResumeClick: (String) -> Unit,
     onDeleteClick: (TorrentDownload) -> Unit,
@@ -356,6 +375,30 @@ private fun TorrentDownloadsList(
         contentPadding = PaddingValues(contentPadding),
         verticalArrangement = Arrangement.spacedBy(itemSpacing),
     ) {
+        // Active summary card
+        if (!showCompletedOnly && activeDownloads.isNotEmpty()) {
+            item {
+                ActiveDownloadsSummaryCard(
+                    downloadingCount = downloadingCount,
+                    downloadSpeed = totalDownloadSpeed,
+                    queuedCount = queuedCount,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        // Storage summary card
+        if (!showCompletedOnly && availableStorage > 0) {
+            item {
+                StorageSummaryCard(
+                    audiobookStorageUsed = audiobookStorageUsed,
+                    totalStorageUsed = totalStorageUsed,
+                    availableStorage = availableStorage,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
         if (!showCompletedOnly) {
             // Active downloads
             if (activeDownloads.isNotEmpty()) {
@@ -419,6 +462,135 @@ private fun TorrentDownloadsList(
                     onDeleteClick = { onDeleteClick(download) },
                     onItemClick = { onItemClick(download) },
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Active downloads summary card showing count and speed.
+ */
+@Composable
+private fun ActiveDownloadsSummaryCard(
+    downloadingCount: Int,
+    downloadSpeed: Long,
+    queuedCount: Int,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier,
+        colors =
+            androidx.compose.material3.CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            ),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.downloadsActiveSummary),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text =
+                    if (downloadSpeed > 0) {
+                        stringResource(
+                            R.string.downloadsActiveStats,
+                            downloadingCount,
+                            UiFormatters.formatSpeedBytes(downloadSpeed),
+                            queuedCount,
+                        )
+                    } else if (downloadingCount > 0 || queuedCount > 0) {
+                        stringResource(R.string.downloadsPausedNoSpeed, downloadingCount, queuedCount)
+                    } else {
+                        stringResource(R.string.no_active_downloads)
+                    },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * Storage summary card showing used/available space with breakdown.
+ */
+@Composable
+private fun StorageSummaryCard(
+    audiobookStorageUsed: Long,
+    totalStorageUsed: Long,
+    availableStorage: Long,
+    modifier: Modifier = Modifier,
+) {
+    val totalStorage = audiobookStorageUsed + totalStorageUsed
+    val usageFraction = if (totalStorage > 0) audiobookStorageUsed.toFloat() / totalStorage.toFloat() else 0f
+
+    Card(
+        modifier = modifier,
+        colors =
+            androidx.compose.material3.CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            ),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.storageSummaryTitle),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text =
+                    stringResource(
+                        R.string.storageUsedLabel,
+                        UiFormatters.formatFileSize(audiobookStorageUsed),
+                        UiFormatters.formatFileSize(availableStorage),
+                    ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+
+            // Legend for audiobooks vs downloading
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(12.dp)
+                                .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape),
+                    )
+                    Text(
+                        text = stringResource(R.string.storageLegendAudiobooks),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(12.dp)
+                                .background(MaterialTheme.colorScheme.secondary, androidx.compose.foundation.shape.CircleShape),
+                    )
+                    Text(
+                        text = stringResource(R.string.storageLegendDownloading),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
