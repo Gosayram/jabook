@@ -66,6 +66,7 @@ public data class Book(
     val sourceUrl: String?,
     val rewindDuration: Int? = null,
     val forwardDuration: Int? = null,
+    val year: String? = null,
 ) {
     /**
      * Calculated remaining duration to complete the book.
@@ -154,6 +155,7 @@ public fun BookEntity.toBook(): Book =
         sourceUrl = sourceUrl,
         rewindDuration = rewindDuration,
         forwardDuration = forwardDuration,
+        year = year,
     )
 
 /**
@@ -180,7 +182,7 @@ public fun Book.toEntity(): BookEntity =
         sourceUrl = sourceUrl,
         rewindDuration = rewindDuration,
         forwardDuration = forwardDuration,
-        isDownloaded = downloadStatus == DownloadStatus.DOWNLOADED,
+        year = year,
     )
 
 /**

@@ -277,6 +277,17 @@ public fun BookDetailPane(
                                     ),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            if (!book.year.isNullOrBlank()) {
+                                Text(
+                                    text = book.year,
+                                    style =
+                                        AdaptiveUtils.getAdaptiveTextStyle(
+                                            MaterialTheme.typography.bodySmall,
+                                            windowSizeClass,
+                                        ),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                )
+                            }
                             if (!book.narrator.isNullOrBlank()) {
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {

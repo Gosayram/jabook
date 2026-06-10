@@ -97,6 +97,9 @@ public data class BookEntity(
     // Per-book LUFS loudness estimate (null = not yet analyzed)
     @ColumnInfo(name = "lufs_value")
     val lufsValue: Double? = null,
+    // Publication year for display in library/detail
+    @ColumnInfo(name = "year")
+    val year: String? = null,
     // Per-book preferred playback speed (null = use global default)
     @ColumnInfo(name = "preferred_speed")
     val preferredSpeed: Float? = null,
