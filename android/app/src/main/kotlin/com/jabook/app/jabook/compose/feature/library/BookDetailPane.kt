@@ -41,7 +41,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
@@ -83,10 +82,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.audio.AudioQualityInfo
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.designsystem.component.MetadataPill
+import com.jabook.app.jabook.compose.designsystem.component.QualityBadge
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Chapter
 
@@ -98,6 +99,7 @@ import com.jabook.app.jabook.compose.domain.model.Chapter
  *
  * @param book The book to display details for
  * @param chapters List of book chapters
+ * @param audioQuality Audio quality info to display (codec, bitrate, etc.)
  * @param onPlayClick Callback when the play button is clicked
  * @param onClose Callback when the close button is clicked
  * @param onToggleFavorite Callback when favorite button is toggled
@@ -111,6 +113,7 @@ import com.jabook.app.jabook.compose.domain.model.Chapter
 public fun BookDetailPane(
     book: Book?,
     chapters: List<Chapter>,
+    audioQuality: AudioQualityInfo? = null,
     onPlayClick: () -> Unit,
     onClose: () -> Unit,
     onToggleFavorite: () -> Unit = {},
@@ -289,21 +292,8 @@ public fun BookDetailPane(
                                 )
                             }
                             if (!book.narrator.isNullOrBlank()) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Headphones,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = book.narrator,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                NarratorCard(narrator = book.narrator, book = book)
                             }
                         }
                     }
@@ -457,6 +447,13 @@ public fun BookDetailPane(
                                                     book.remainingDuration.inWholeMilliseconds,
                                                 ),
                                             ),
+                                    )
+                                }
+                                audioQuality?.let { quality ->
+                                    QualityBadge(
+                                        audioQuality = quality,
+                                        showTierLabel = true,
+                                        large = false,
                                     )
                                 }
                             }
@@ -641,6 +638,59 @@ private fun ChapterProgressRow(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+/**
+ * Narrator card with cover-colored avatar initials.
+ */
+@Composable
+private fun NarratorCard(
+    narrator: String,
+    book: Book,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.narratorCardTitle),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                tonalElevation = 3.dp,
+                modifier = Modifier.size(44.dp),
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.background(MaterialTheme.colorScheme.secondaryContainer),
+                ) {
+                    Text(
+                        text = narrator.firstOrNull()?.toString() ?: "?",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+            }
+            Column {
+                Text(
+                    text = narrator,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = book.narratorMeta ?: stringResource(R.string.narratorMetaProfessional),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                )
+            }
+        }
     }
 }
 

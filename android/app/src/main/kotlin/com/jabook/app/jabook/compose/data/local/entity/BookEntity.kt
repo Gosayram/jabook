@@ -100,6 +100,9 @@ public data class BookEntity(
     // Publication year for display in library/detail
     @ColumnInfo(name = "year")
     val year: String? = null,
+    // Narrator metadata for detail screen
+    @ColumnInfo(name = "narrator_meta")
+    val narratorMeta: String? = null,
     // Per-book preferred playback speed (null = use global default)
     @ColumnInfo(name = "preferred_speed")
     val preferredSpeed: Float? = null,

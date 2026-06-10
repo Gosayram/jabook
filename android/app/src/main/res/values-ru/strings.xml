@@ -2692,6 +2692,9 @@
     <string name="qualityLow">Низкое</string>
     <string name="qualityBadgeContentDescription">Качество %1$s: %2$s</string>
     <string name="lowQualityWarning">Архивный низкокачественный релиз</string>
+    <string name="narratorCardTitle">Читает</string>
+    <string name="narratorMetaProfessional">Профессиональный чтец</string>
+    <!-- Player chapter pane strings -->
     <!-- Строки панели глав плеера -->
     <string name="currentlyPlaying">Сейчас играет</string>
     <string name="jumpToChapterNumber">Перейти к главе №...</string>
