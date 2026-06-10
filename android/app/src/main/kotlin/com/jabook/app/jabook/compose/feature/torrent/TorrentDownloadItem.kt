@@ -28,7 +28,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Card
@@ -46,6 +50,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.compose.designsystem.component.ThinProgressBar
@@ -92,7 +97,11 @@ public fun TorrentDownloadItem(
 
                     Spacer(Modifier.height(4.dp))
 
-                    StateBadge(state = download.state)
+                    if (download.state == TorrentState.STREAMING) {
+                        StreamingBadge()
+                    } else {
+                        StateBadge(state = download.state)
+                    }
                 }
 
                 // Actions
@@ -288,7 +297,7 @@ private fun StreamingBadge(modifier: Modifier = Modifier) {
 }
 
 /**
- * State badge component
+ * State badge component with icon and label
  */
 @Composable
 @Suppress("DEPRECATION")
@@ -296,31 +305,101 @@ private fun StateBadge(
     state: TorrentState,
     modifier: Modifier = Modifier,
 ) {
-    val (text, color) =
+    val badgeInfo =
         when (state) {
-            TorrentState.DOWNLOADING -> stringResource(R.string.downloading_state) to MaterialTheme.colorScheme.primary
-            TorrentState.PAUSED -> stringResource(R.string.paused_state) to MaterialTheme.colorScheme.onSurfaceVariant
-            TorrentState.COMPLETED -> stringResource(R.string.completed_state) to MaterialTheme.colorScheme.tertiary
-            TorrentState.FINISHED -> stringResource(R.string.completed_state) to MaterialTheme.colorScheme.tertiary
-            TorrentState.ERROR -> stringResource(R.string.error_state) to MaterialTheme.colorScheme.error
-            TorrentState.SEEDING -> stringResource(R.string.seeding_state) to MaterialTheme.colorScheme.tertiary
-            TorrentState.STREAMING -> stringResource(R.string.streaming_state) to MaterialTheme.colorScheme.secondary
-            TorrentState.CHECKING ->
-                stringResource(R.string.checking_state) to
-                    MaterialTheme.colorScheme.onSurfaceVariant
-            TorrentState.DOWNLOADING_METADATA ->
-                stringResource(R.string.metadata_state) to
-                    MaterialTheme.colorScheme.onSurfaceVariant
-            TorrentState.QUEUED -> stringResource(R.string.queued_state) to MaterialTheme.colorScheme.onSurfaceVariant
-            TorrentState.STOPPED -> stringResource(R.string.stopped_state) to MaterialTheme.colorScheme.onSurfaceVariant
+            TorrentState.DOWNLOADING ->
+                Triple(
+                    stringResource(R.string.downloading_state),
+                    MaterialTheme.colorScheme.primary,
+                    Icons.Filled.CheckCircle,
+                )
+
+            TorrentState.PAUSED ->
+                Triple(
+                    stringResource(R.string.paused_state),
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    Icons.Filled.Close,
+                )
+
+            TorrentState.COMPLETED,
+            TorrentState.FINISHED,
+    ->
+                Triple(
+                    stringResource(R.string.completed_state),
+                    MaterialTheme.colorScheme.tertiary,
+                    Icons.Filled.CheckCircle,
+                )
+
+            TorrentState.ERROR ->
+                Triple(
+                    stringResource(R.string.error_state),
+                    MaterialTheme.colorScheme.error,
+                    Icons.Filled.Close,
+                )
+
+            TorrentState.SEEDING ->
+                Triple(
+                    stringResource(R.string.seeding_state),
+                    MaterialTheme.colorScheme.tertiary,
+                    Icons.Filled.CheckCircle,
+                )
+
+            TorrentState.STREAMING ->
+                Triple(
+                    stringResource(R.string.streaming_state),
+                    MaterialTheme.colorScheme.secondary,
+                    Icons.Filled.PlayArrow,
+                )
+
+            TorrentState.CHECKING,
+            TorrentState.DOWNLOADING_METADATA,
+            TorrentState.QUEUED,
+    ->
+                Triple(
+                    stringResource(
+                        when (state) {
+                            TorrentState.CHECKING -> R.string.checking_state
+                            TorrentState.DOWNLOADING_METADATA -> R.string.metadata_state
+                            else -> R.string.queued_state
+                        },
+                    ),
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    Icons.Filled.Info,
+                )
+
+            TorrentState.STOPPED ->
+                Triple(
+                    stringResource(R.string.stopped_state),
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    Icons.Filled.Close,
+                )
         }
 
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelSmall,
-        color = color,
+    val (text, color, icon) = badgeInfo
+
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = color.copy(alpha = 0.12f),
         modifier = modifier,
-    )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = color,
+            )
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                color = color,
+            )
+        }
+    }
 }
 
 /**

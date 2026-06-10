@@ -2933,6 +2933,7 @@
     <!-- Downloads tabs -->
     <string name="downloadsActiveTab">Active</string>
     <string name="downloadsHistoryTab">History</string>
+    <string name="streamingBufferLabel">Streaming (%1$s)</string>
 
     <!-- Device and Layout -->
     <string name="deviceAndLayout">Device and Layout</string>

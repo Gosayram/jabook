@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.designsystem.component
 
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
