@@ -300,25 +300,56 @@ private fun BooksListLayout(
     )
 
     Box(modifier = modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = contentPadding, vertical = contentPadding * 0.75f),
-            verticalArrangement = Arrangement.spacedBy(itemSpacing * 0.75f),
-        ) {
-            items(
-                items = books,
-                key = { it.id },
-                contentType = { "book_list_${displayMode.name}" },
-            ) { book ->
-                SwipeableBookCard(
-                    book = book,
-                    displayMode = displayMode,
-                    actionsProvider = actionsProvider,
-                    isSelectionMode = isSelectionMode,
-                    isSelected = selectedIds.contains(book.id),
-                    onToggleSelection = { onToggleSelection?.invoke(book.id) },
-                )
+        // Use two-column grid for compact list on expanded layouts
+        val isExpandedWidth = AdaptiveUtils.isLargeScreen(windowSizeClass)
+        if (isExpandedWidth && displayMode == BookDisplayMode.LIST_COMPACT) {
+            val gridState = rememberLazyGridState()
+            LazyVerticalGrid(
+                columns =
+                    androidx.compose.foundation.lazy.grid.GridCells
+                        .Fixed(2),
+                state = gridState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = contentPadding, vertical = contentPadding * 0.75f),
+                verticalArrangement = Arrangement.spacedBy(itemSpacing * 0.75f),
+                horizontalArrangement = Arrangement.spacedBy(itemSpacing * 0.75f),
+            ) {
+                items(
+                    items = books,
+                    key = { it.id },
+                    contentType = { "book_list_${displayMode.name}" },
+                ) { book ->
+                    SwipeableBookCard(
+                        book = book,
+                        displayMode = displayMode,
+                        actionsProvider = actionsProvider,
+                        isSelectionMode = isSelectionMode,
+                        isSelected = selectedIds.contains(book.id),
+                        onToggleSelection = { onToggleSelection?.invoke(book.id) },
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = contentPadding, vertical = contentPadding * 0.75f),
+                verticalArrangement = Arrangement.spacedBy(itemSpacing * 0.75f),
+            ) {
+                items(
+                    items = books,
+                    key = { it.id },
+                    contentType = { "book_list_${displayMode.name}" },
+                ) { book ->
+                    SwipeableBookCard(
+                        book = book,
+                        displayMode = displayMode,
+                        actionsProvider = actionsProvider,
+                        isSelectionMode = isSelectionMode,
+                        isSelected = selectedIds.contains(book.id),
+                        onToggleSelection = { onToggleSelection?.invoke(book.id) },
+                    )
+                }
             }
         }
 

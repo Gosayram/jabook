@@ -60,6 +60,8 @@ public data class TorrentDownload(
     var pauseReason: PauseReason? = null,
     /** Topic ID from RuTracker (for sync) */
     val topicId: String? = null,
+    /** Narrator name (runtime-enriched, not persisted) */
+    val narrator: String? = null,
 ) {
     /** Share ratio (uploaded/downloaded) */
     val ratio: Float
@@ -81,6 +83,14 @@ public data class TorrentDownload(
     /** Total number of files */
     val totalFiles: Int
         get() = files.size
+
+    /** Total number of audio files (chapters) */
+    val totalAudioFiles: Int
+        get() = files.count { it.isAudioFile }
+
+    /** Number of completed audio files (progress >= 1.0) */
+    val completedAudioFiles: Int
+        get() = files.count { it.isAudioFile && it.progress >= 1f }
 
     public companion object {
         private val ACTIVE_STATES =

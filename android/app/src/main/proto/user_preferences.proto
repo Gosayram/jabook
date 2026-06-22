@@ -102,6 +102,12 @@ message UserPreferences {
 
   // Player cover mode: 0 = card, 1 = vinyl.
   int32 player_cover_mode = 50;
+
+  // Spotlight coachmarks completed (true = all coachmarks done or skipped).
+  bool spotlight_completed = 51;
+
+  // Haptics enabled for seek and gesture vibration.
+  bool haptics_enabled = 52;
 }
 
 message SleepTimerState {

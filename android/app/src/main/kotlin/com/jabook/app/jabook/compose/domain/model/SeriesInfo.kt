@@ -14,23 +14,21 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
- * Filter criteria for search results.
+ * Nullable metadata describing a book series membership.
+ *
+ * @property name Series name
+ * @property itemIndex 1-based index of this book within the series
+ * @property totalCount Total number of books in the series
  */
-public data class SearchFilters(
-    val categories: Set<String> = emptySet(),
-    val minSize: Long? = null,
-    val maxSize: Long? = null,
-    val minSeeders: Int? = null,
-    val qualityFilter: QualityFilter = QualityFilter.ALL,
+@Immutable
+public data class SeriesInfo(
+    val name: String,
+    val itemIndex: Int,
+    val totalCount: Int,
 ) {
-    /**
-     * Returns true when any filter differs from defaults.
-     */
-    public fun isActive(): Boolean =
-        categories.isNotEmpty() ||
-            minSize != null ||
-            maxSize != null ||
-            minSeeders != null ||
-            qualityFilter != QualityFilter.ALL
+    /** Formatted label, e.g. "Book 2 of 5" */
+    public fun formatLabel(): String = "Book $itemIndex of $totalCount"
 }

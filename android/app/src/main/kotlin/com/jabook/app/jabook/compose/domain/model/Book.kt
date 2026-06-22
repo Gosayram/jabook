@@ -68,6 +68,12 @@ public data class Book(
     val rewindDuration: Int? = null,
     val forwardDuration: Int? = null,
     val year: String? = null,
+    /** Series info if book belongs to a series (runtime-enriched) */
+    val series: SeriesInfo? = null,
+    /** Rating value suitable for partial-star rendering (0.0–5.0) */
+    val rating: Float? = null,
+    /** Vote count for localization at display boundary */
+    val votes: Int? = null,
 ) {
     /**
      * Calculated remaining duration to complete the book.

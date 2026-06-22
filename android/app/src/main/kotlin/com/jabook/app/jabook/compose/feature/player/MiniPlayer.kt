@@ -37,6 +37,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -260,6 +262,17 @@ public fun MiniPlayer(
                     }
                 }
 
+                // Previous chapter button
+                CircularIconButton(
+                    icon = Icons.Filled.SkipPrevious,
+                    contentDescription = stringResource(R.string.previousChapter),
+                    onClick = onPreviousClick,
+                    style = CircularIconButtonStyle.DEFAULT,
+                    size = 24.dp,
+                )
+
+                Spacer(modifier = Modifier.width(4.dp))
+
                 // Play/Pause button with larger touch target
                 CircularIconButton(
                     icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
@@ -272,6 +285,17 @@ public fun MiniPlayer(
                     onClick = onPlayPauseClick,
                     style = CircularIconButtonStyle.DEFAULT,
                     size = 28.dp,
+                )
+
+                Spacer(modifier = Modifier.width(4.dp))
+
+                // Next chapter button
+                CircularIconButton(
+                    icon = Icons.Filled.SkipNext,
+                    contentDescription = stringResource(R.string.nextChapter),
+                    onClick = onNextClick,
+                    style = CircularIconButtonStyle.DEFAULT,
+                    size = 24.dp,
                 )
             }
 

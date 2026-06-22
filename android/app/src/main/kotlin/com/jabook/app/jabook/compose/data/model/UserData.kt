@@ -30,6 +30,9 @@ public data class UserData(
     val normalizeChapterTitles: Boolean = false, // Default: OFF
     val onboardingCompleted: Boolean = false,
     val storageFallbackEnabled: Boolean = false,
+    val spotlightCompleted: Boolean = false,
+    val hapticsEnabled: Boolean = true,
+    val languageCode: String = "ru",
 )
 
 /**

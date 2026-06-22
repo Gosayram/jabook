@@ -328,6 +328,7 @@ public fun TorrentDownloadsScreen(
                         pausedDownloads = state.pausedDownloads,
                         completedDownloads = state.completedDownloads,
                         errorDownloads = state.errorDownloads,
+                        historyItems = state.historyItems,
                         downloadingCount = state.downloadingCount,
                         totalDownloadSpeed = state.totalDownloadSpeed,
                         queuedCount = state.queuedCount,
@@ -338,6 +339,7 @@ public fun TorrentDownloadsScreen(
                         onResumeClick = { hash -> viewModel.resumeDownload(hash) },
                         onDeleteClick = { download -> downloadToDelete = download },
                         onItemClick = { download -> onNavigateToDetails(download.hash) },
+                        onOpenBook = { bookId -> onNavigateToDetails(bookId) },
                         showCompletedOnly = showCompletedOnly,
                         contentPadding = contentPadding,
                         itemSpacing = itemSpacing,
@@ -355,6 +357,7 @@ private fun TorrentDownloadsList(
     pausedDownloads: List<TorrentDownload>,
     completedDownloads: List<TorrentDownload>,
     errorDownloads: List<TorrentDownload>,
+    historyItems: List<com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem>,
     downloadingCount: Int,
     totalDownloadSpeed: Long,
     queuedCount: Int,
@@ -365,6 +368,7 @@ private fun TorrentDownloadsList(
     onResumeClick: (String) -> Unit,
     onDeleteClick: (TorrentDownload) -> Unit,
     onItemClick: (TorrentDownload) -> Unit,
+    onOpenBook: (String) -> Unit,
     showCompletedOnly: Boolean,
     contentPadding: androidx.compose.ui.unit.Dp,
     itemSpacing: androidx.compose.ui.unit.Dp,
@@ -461,6 +465,20 @@ private fun TorrentDownloadsList(
                     onResumeClick = { onResumeClick(download.hash) },
                     onDeleteClick = { onDeleteClick(download) },
                     onItemClick = { onItemClick(download) },
+                )
+            }
+        }
+
+        // History section (past completed/failed/cancelled downloads)
+        if (historyItems.isNotEmpty()) {
+            stickyHeader {
+                SectionHeader(title = stringResource(R.string.downloadsHistorySection, historyItems.size))
+            }
+            items(historyItems, key = { it.id }) { item ->
+                DownloadHistoryItemRow(
+                    item = item,
+                    onOpenBook = onOpenBook,
+                    onRetry = { /* Retry handled by parent */ },
                 )
             }
         }

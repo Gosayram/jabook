@@ -21,14 +21,19 @@ import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.NetworkType
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
+import com.jabook.app.jabook.compose.data.repository.DownloadHistoryRepository
+import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
+import com.jabook.app.jabook.compose.data.torrent.TorrentState
+import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -38,6 +43,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -54,6 +60,7 @@ class TorrentDownloadsViewModelTest {
     private val repository: TorrentDownloadRepository = mock()
     private val settingsRepository: SettingsRepository = mock()
     private val networkMonitor: NetworkMonitor = mock()
+    private val downloadHistoryRepository: DownloadHistoryRepository = mock()
     private val loggerFactory: LoggerFactory = mock()
     private val savedStateHandle = SavedStateHandle()
 
@@ -72,7 +79,8 @@ class TorrentDownloadsViewModelTest {
         Dispatchers.setMain(testDispatcher)
         whenever(loggerFactory.get(any<String>())).thenReturn(NoOpLogger)
         whenever(torrentManager.downloadsFlow).thenReturn(MutableStateFlow(emptyMap()))
-        whenever(repository.getAllFlow()).thenReturn(emptyFlow())
+        whenever(repository.getAllFlow()).thenReturn(flowOf(emptyList()))
+        whenever(downloadHistoryRepository.getHistoryWithFilter(any(), any())).thenReturn(flowOf(emptyList()))
         whenever(settingsRepository.userPreferences).thenReturn(preferencesFlow)
         whenever(networkMonitor.networkType).thenReturn(networkTypeFlow)
     }
@@ -91,6 +99,7 @@ class TorrentDownloadsViewModelTest {
                     repository = repository,
                     settingsRepository = settingsRepository,
                     networkMonitor = networkMonitor,
+                    downloadHistoryRepository = downloadHistoryRepository,
                     loggerFactory = loggerFactory,
                     savedStateHandle = savedStateHandle,
                 )
@@ -123,6 +132,7 @@ class TorrentDownloadsViewModelTest {
                     repository = repository,
                     settingsRepository = settingsRepository,
                     networkMonitor = networkMonitor,
+                    downloadHistoryRepository = downloadHistoryRepository,
                     loggerFactory = loggerFactory,
                     savedStateHandle = savedStateHandle,
                 )
@@ -165,6 +175,7 @@ class TorrentDownloadsViewModelTest {
                         repository = repository,
                         settingsRepository = settingsRepository,
                         networkMonitor = networkMonitor,
+                        downloadHistoryRepository = downloadHistoryRepository,
                         loggerFactory = loggerFactory,
                         savedStateHandle = savedStateHandle,
                     )
@@ -202,6 +213,7 @@ class TorrentDownloadsViewModelTest {
                     repository = repository,
                     settingsRepository = settingsRepository,
                     networkMonitor = networkMonitor,
+                    downloadHistoryRepository = downloadHistoryRepository,
                     loggerFactory = loggerFactory,
                     savedStateHandle = savedStateHandle,
                 )
@@ -226,5 +238,273 @@ class TorrentDownloadsViewModelTest {
 
             assertEquals("Download queued: Waiting for WiFi connection", snackbarDeferred.await())
             verify(torrentManager).addTorrent("magnet:?xt=urn:btih:test", "/tmp")
+        }
+
+    @Test
+    fun `status mapping groups downloads by state correctly`() =
+        runTest(testDispatcher) {
+            val downloading =
+                TorrentDownload(
+                    hash = "h1",
+                    name = "Book 1",
+                    state = TorrentState.DOWNLOADING,
+                    progress = 0.5f,
+                    downloadSpeed = 100,
+                )
+            val paused =
+                TorrentDownload(
+                    hash = "h2",
+                    name = "Book 2",
+                    state = TorrentState.PAUSED,
+                    progress = 0.3f,
+                )
+            val completed =
+                TorrentDownload(
+                    hash = "h3",
+                    name = "Book 3",
+                    state = TorrentState.COMPLETED,
+                    progress = 1f,
+                    totalSize = 1000L,
+                )
+            val errored =
+                TorrentDownload(
+                    hash = "h4",
+                    name = "Book 4",
+                    state = TorrentState.ERROR,
+                    errorMessage = "Timeout",
+                )
+            val queued =
+                TorrentDownload(
+                    hash = "h5",
+                    name = "Book 5",
+                    state = TorrentState.QUEUED,
+                )
+
+            whenever(torrentManager.downloadsFlow).thenReturn(
+                MutableStateFlow(
+                    mapOf(
+                        "h1" to downloading,
+                        "h2" to paused,
+                        "h3" to completed,
+                        "h4" to errored,
+                        "h5" to queued,
+                    ),
+                ),
+            )
+
+            val viewModel =
+                TorrentDownloadsViewModel(
+                    torrentManager = torrentManager,
+                    repository = repository,
+                    settingsRepository = settingsRepository,
+                    networkMonitor = networkMonitor,
+                    downloadHistoryRepository = downloadHistoryRepository,
+                    loggerFactory = loggerFactory,
+                    savedStateHandle = savedStateHandle,
+                )
+
+            // Subscribe to trigger WhileSubscribed collection
+            val collectJob = backgroundScope.launch { viewModel.uiState.collect { } }
+            advanceUntilIdle()
+
+            val success = viewModel.uiState.value as TorrentDownloadsUiState.Success
+
+            assertEquals(1, success.activeDownloads.size) // downloading
+            assertEquals(1, success.pausedDownloads.size) // paused
+            assertEquals(1, success.completedDownloads.size) // completed
+            assertEquals(1, success.errorDownloads.size) // error
+            assertEquals(1, success.queuedCount) // queued
+            assertEquals(1, success.downloadingCount)
+            assertEquals(100L, success.totalDownloadSpeed)
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `history items are loaded into Success state`() =
+        runTest(testDispatcher) {
+            val historyItems =
+                listOf(
+                    DownloadHistoryItem(
+                        id = 1,
+                        bookId = "b1",
+                        bookTitle = "Completed Book",
+                        status = "completed",
+                        startedAt = 1000L,
+                        completedAt = 2000L,
+                        totalBytes = 5000L,
+                        errorMessage = null,
+                    ),
+                    DownloadHistoryItem(
+                        id = 2,
+                        bookId = "b2",
+                        bookTitle = "Failed Book",
+                        status = "failed",
+                        startedAt = 1000L,
+                        completedAt = 2000L,
+                        totalBytes = null,
+                        errorMessage = "Network error",
+                    ),
+                    DownloadHistoryItem(
+                        id = 3,
+                        bookId = "b3",
+                        bookTitle = "Cancelled Book",
+                        status = "cancelled",
+                        startedAt = 1000L,
+                        completedAt = 2000L,
+                        totalBytes = null,
+                        errorMessage = null,
+                    ),
+                )
+
+            whenever(downloadHistoryRepository.getHistoryWithFilter(any(), any())).thenReturn(
+                flowOf(historyItems),
+            )
+
+            whenever(torrentManager.downloadsFlow).thenReturn(
+                MutableStateFlow(
+                    mapOf(
+                        "h1" to TorrentDownload(hash = "h1", name = "Active", state = TorrentState.DOWNLOADING),
+                    ),
+                ),
+            )
+
+            val viewModel =
+                TorrentDownloadsViewModel(
+                    torrentManager = torrentManager,
+                    repository = repository,
+                    settingsRepository = settingsRepository,
+                    networkMonitor = networkMonitor,
+                    downloadHistoryRepository = downloadHistoryRepository,
+                    loggerFactory = loggerFactory,
+                    savedStateHandle = savedStateHandle,
+                )
+
+            // Subscribe to trigger WhileSubscribed collection
+            val collectJob = backgroundScope.launch { viewModel.uiState.collect { } }
+            advanceUntilIdle()
+
+            val success = viewModel.uiState.value as TorrentDownloadsUiState.Success
+
+            assertEquals(3, success.historyItems.size)
+            assertEquals("completed", success.historyItems[0].status)
+            assertEquals("failed", success.historyItems[1].status)
+            assertEquals("cancelled", success.historyItems[2].status)
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `storage summary maps completed download sizes to audiobook storage`() =
+        runTest(testDispatcher) {
+            val completedDownload =
+                TorrentDownload(
+                    hash = "h1",
+                    name = "Audiobook",
+                    state = TorrentState.COMPLETED,
+                    progress = 1f,
+                    totalSize = 50_000_000L,
+                )
+            val downloadingDownload =
+                TorrentDownload(
+                    hash = "h2",
+                    name = "Downloading",
+                    state = TorrentState.DOWNLOADING,
+                    progress = 0.5f,
+                    totalSize = 30_000_000L,
+                )
+
+            whenever(torrentManager.downloadsFlow).thenReturn(
+                MutableStateFlow(
+                    mapOf(
+                        "h1" to completedDownload,
+                        "h2" to downloadingDownload,
+                    ),
+                ),
+            )
+
+            val viewModel =
+                TorrentDownloadsViewModel(
+                    torrentManager = torrentManager,
+                    repository = repository,
+                    settingsRepository = settingsRepository,
+                    networkMonitor = networkMonitor,
+                    downloadHistoryRepository = downloadHistoryRepository,
+                    loggerFactory = loggerFactory,
+                    savedStateHandle = savedStateHandle,
+                )
+
+            // Subscribe to trigger WhileSubscribed collection
+            val collectJob = backgroundScope.launch { viewModel.uiState.collect { } }
+            advanceUntilIdle()
+
+            val success = viewModel.uiState.value as TorrentDownloadsUiState.Success
+
+            // Audiobook storage = only completed downloads
+            assertEquals(50_000_000L, success.audiobookStorageUsed)
+            // Total storage = all downloads
+            assertEquals(80_000_000L, success.totalStorageUsed)
+            // Available storage should be non-negative (StatFs may return 0 in test env)
+            assertTrue(success.availableStorage >= 0L)
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `pause all sends pause to all active downloads`() =
+        runTest(testDispatcher) {
+            val activeMap =
+                mapOf(
+                    "h1" to TorrentDownload(hash = "h1", name = "Book 1", state = TorrentState.DOWNLOADING),
+                    "h2" to TorrentDownload(hash = "h2", name = "Book 2", state = TorrentState.STREAMING),
+                )
+            whenever(torrentManager.downloadsFlow).thenReturn(MutableStateFlow(activeMap))
+
+            val viewModel =
+                TorrentDownloadsViewModel(
+                    torrentManager = torrentManager,
+                    repository = repository,
+                    settingsRepository = settingsRepository,
+                    networkMonitor = networkMonitor,
+                    downloadHistoryRepository = downloadHistoryRepository,
+                    loggerFactory = loggerFactory,
+                    savedStateHandle = savedStateHandle,
+                )
+
+            // Subscribe to trigger WhileSubscribed collection before checking state
+            val collectJob = backgroundScope.launch { viewModel.uiState.collect { } }
+            advanceUntilIdle()
+            viewModel.pauseAll()
+            advanceUntilIdle()
+
+            verify(torrentManager).pauseTorrent("h1")
+            verify(torrentManager).pauseTorrent("h2")
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `cancel delete removes from manager and repository`() =
+        runTest(testDispatcher) {
+            whenever(torrentManager.downloadsFlow).thenReturn(
+                MutableStateFlow(
+                    mapOf(
+                        "h1" to TorrentDownload(hash = "h1", name = "Book 1", state = TorrentState.DOWNLOADING),
+                    ),
+                ),
+            )
+
+            val viewModel =
+                TorrentDownloadsViewModel(
+                    torrentManager = torrentManager,
+                    repository = repository,
+                    settingsRepository = settingsRepository,
+                    networkMonitor = networkMonitor,
+                    downloadHistoryRepository = downloadHistoryRepository,
+                    loggerFactory = loggerFactory,
+                    savedStateHandle = savedStateHandle,
+                )
+
+            viewModel.deleteDownload("h1", deleteFiles = false)
+            advanceUntilIdle()
+
+            verify(torrentManager).removeTorrent("h1", false)
+            verify(repository).delete("h1")
         }
 }

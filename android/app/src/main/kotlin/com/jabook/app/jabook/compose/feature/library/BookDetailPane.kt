@@ -40,6 +40,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -119,8 +120,10 @@ public fun BookDetailPane(
     onToggleFavorite: () -> Unit = {},
     onNavigateToAudioSettings: () -> Unit = {},
     onShareClick: (() -> Unit)? = null,
+    onDownloadClick: (() -> Unit)? = null,
     onChapterClick: ((Chapter) -> Unit)? = null,
     onAllChaptersClick: (() -> Unit)? = null,
+    embedded: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -135,13 +138,22 @@ public fun BookDetailPane(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = stringResource(R.string.bookDetails)) },
+                title = {
+                    Text(
+                        text =
+                            stringResource(
+                                if (embedded) R.string.aboutBook else R.string.bookDetails,
+                            ),
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = stringResource(R.string.close),
-                        )
+                    if (!embedded) {
+                        IconButton(onClick = onClose) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.close),
+                            )
+                        }
                     }
                 },
                 actions = {
@@ -387,6 +399,44 @@ public fun BookDetailPane(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
+                            }
+
+                            // Download / Completed check action
+                            if (onDownloadClick != null) {
+                                FilledTonalButton(
+                                    onClick = onDownloadClick,
+                                    modifier =
+                                        Modifier
+                                            .weight(1f)
+                                            .heightIn(min = AdaptiveUtils.getButtonHeight(windowSizeClass)),
+                                ) {
+                                    Icon(
+                                        imageVector =
+                                            if (book.isDownloaded) {
+                                                Icons.Default.CheckCircle
+                                            } else {
+                                                Icons.Default.Download
+                                            },
+                                        contentDescription = null,
+                                        modifier = Modifier.size(AdaptiveUtils.getIconSize(windowSizeClass)),
+                                    )
+                                    Spacer(modifier = Modifier.width(AdaptiveUtils.getItemSpacing(windowSizeClass) * 0.5f))
+                                    Text(
+                                        text =
+                                            if (book.isDownloaded) {
+                                                stringResource(R.string.downloadedLabel)
+                                            } else {
+                                                stringResource(R.string.downloadLabel)
+                                            },
+                                        style =
+                                            AdaptiveUtils.getAdaptiveTextStyle(
+                                                MaterialTheme.typography.labelLarge,
+                                                windowSizeClass,
+                                            ),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
                         }
                     }

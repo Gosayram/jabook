@@ -270,6 +270,18 @@ public class SearchViewModel
                         minOk && maxOk
                     }
             }
+            if (f.qualityFilter != com.jabook.app.jabook.compose.domain.model.QualityFilter.ALL) {
+                processing =
+                    processing.filter { result ->
+                        val bitrate = extractBitrate(result)
+                        when (f.qualityFilter) {
+                            com.jabook.app.jabook.compose.domain.model.QualityFilter.HIGH -> bitrate >= 256
+                            com.jabook.app.jabook.compose.domain.model.QualityFilter.STANDARD -> bitrate >= 128
+                            com.jabook.app.jabook.compose.domain.model.QualityFilter.LOW -> bitrate in 1..<128
+                            else -> true
+                        }
+                    }
+            }
 
             // Apply sort
             processing =
@@ -298,6 +310,31 @@ public class SearchViewModel
                 unit.contains("KB") -> (value * 1024).toLong()
                 else -> value.toLong()
             }
+        }
+
+        /**
+         * Extracts bitrate in kbit/s from a search result for quality filtering.
+         * Falls back to 128 kbit/s (standard) when unknown.
+         */
+        private fun extractBitrate(result: RutrackerSearchResult): Int {
+            val title = result.title.lowercase()
+            // Try to find bitrate patterns like "128kbps", "320 kbit", "192 kbps"
+            val bitratePattern = Regex("(\\d{2,3})\\s*kbit")
+            val match = bitratePattern.find(title)
+            if (match != null) {
+                return match.groupValues[1].toIntOrNull() ?: 128
+            }
+            // Heuristic: FLAC/lossless = high quality
+            if (title.contains("flac") || title.contains("lossless") || title.contains("alac")) {
+                return 320
+            }
+            // Heuristic: AAC/M4B with bitrate
+            val aacPattern = Regex("(\\d{2,3})\\s*kbit")
+            val aacMatch = aacPattern.find(title)
+            if (aacMatch != null) {
+                return aacMatch.groupValues[1].toIntOrNull() ?: 128
+            }
+            return 128 // default standard
         }
 
         /**

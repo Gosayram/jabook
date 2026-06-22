@@ -2296,7 +2296,7 @@
     <!-- rutracker.nl -->
     <string name="rutrackernl">rutracker.nl</string>
     <!-- Search books... -->
-    <string name="searchBooks">Search books...</string>
+    <string name="searchBooks">Search books, authors, narrators…</string>
     <!-- $seeders -->
     <!-- Seeders -->
     <!-- Share logs -->
@@ -2321,6 +2321,7 @@
     <!-- Unavailable -->
     <string name="unavailable">Unavailable</string>
     <string name="bookDetails">Book details</string>
+    <string name="aboutBook">About book</string>
     <string name="add">Add</string>
     <string name="addMirror">Add mirror</string>
     <string name="domain">Domain</string>
@@ -2942,6 +2943,24 @@
     <string name="storageUsedLabel">%1$s used • %2$s free</string>
     <string name="storageLegendAudiobooks">Audiobooks</string>
     <string name="storageLegendDownloading">Downloading</string>
+    <string name="downloadNarratedBy">Reads: %1$s</string>
+    <string name="downloadChaptersProgress">%1$d/%2$d chapters</string>
+    <string name="downloadsHistorySection">History (%1$d)</string>
+    <string name="historyStatusCompleted">Completed</string>
+    <string name="historyStatusFailed">Failed</string>
+    <string name="historyStatusCancelled">Cancelled</string>
+    <string name="historyRetry">Retry</string>
+    <string name="settingsProfileGuest">Guest</string>
+    <string name="settingsProfileStats">%1$d books · %2$d h listened · %3$d favorites</string>
+    <string name="settingsSignIn">Sign in</string>
+    <string name="settingsGeneral">General</string>
+    <string name="settingsLanguage">Interface language</string>
+    <string name="settingsHaptics">Haptics</string>
+    <string name="settingsHapticsDesc">Vibration on seek and gestures</string>
+    <string name="settingsPhone">Phone</string>
+    <string name="settingsTablet">Tablet</string>
+    <string name="settingsDesktopMode">Desktop</string>
+    <string name="settingsDesktopModeDesc">Large screen · list-detail</string>
 
     <!-- Device and Layout -->
     <string name="deviceAndLayout">Device and Layout</string>
@@ -2949,4 +2968,27 @@
     <string name="playerCoverModeDescription">Choose how the cover art is displayed</string>
     <string name="coverModeCard">Card</string>
     <string name="coverModeVinyl">Vinyl</string>
+
+    <!-- Search Discovery V4 -->
+    <string name="searchModeLocal">Library</string>
+    <string name="searchModeRemote">RuTracker</string>
+    <string name="searchPlaceholderLocal">Search local library…</string>
+    <string name="searchPlaceholderRemote">Search RuTracker…</string>
+    <string name="genreClassics">Classics</string>
+    <string name="genreSciFi">Sci-fi</string>
+    <string name="genreDetective">Detective</string>
+    <string name="genreHistory">History</string>
+    <string name="genreBiographies">Biographies</string>
+    <string name="genreChildren">Children\'s</string>
+    <string name="qualityAny">Any</string>
+    <string name="qualityAtLeastHigh">≥ 256 kbit</string>
+    <string name="qualityAtLeastStandard">≥ 128 kbit</string>
+    <string name="searchSortSeeds">By seeds</string>
+    <string name="searchSortSize">By size</string>
+    <string name="searchSortRelevance">Relevance</string>
+    <string name="localResultsCount">Found %1$d book</string>
+    <string name="localResultsCountPlural">Found %1$d books</string>
+    <string name="searchDiscoveryTitle">Discover</string>
+    <string name="searchGenreChipsTitle">Genres</string>
+    <string name="searchQualityChipsTitle">Quality</string>
 </resources>

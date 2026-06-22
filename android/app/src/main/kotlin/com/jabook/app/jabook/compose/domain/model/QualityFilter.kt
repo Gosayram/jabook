@@ -15,22 +15,11 @@
 package com.jabook.app.jabook.compose.domain.model
 
 /**
- * Filter criteria for search results.
+ * Quality tiers for filtering remote search results by bitrate.
  */
-public data class SearchFilters(
-    val categories: Set<String> = emptySet(),
-    val minSize: Long? = null,
-    val maxSize: Long? = null,
-    val minSeeders: Int? = null,
-    val qualityFilter: QualityFilter = QualityFilter.ALL,
-) {
-    /**
-     * Returns true when any filter differs from defaults.
-     */
-    public fun isActive(): Boolean =
-        categories.isNotEmpty() ||
-            minSize != null ||
-            maxSize != null ||
-            minSeeders != null ||
-            qualityFilter != QualityFilter.ALL
+public enum class QualityFilter {
+    ALL,
+    HIGH,
+    STANDARD,
+    LOW,
 }

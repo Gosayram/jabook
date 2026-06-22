@@ -33,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Card
@@ -587,6 +588,27 @@ private fun ListBookCard(
                             )
                             Text(
                                 text = "${remaining.inWholeMinutes} min left",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            )
+                        }
+                    }
+                } else {
+                    // New/not-started books: show total duration
+                    val totalMin = book.totalDuration.inWholeMinutes
+                    if (totalMin > 0) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Filled.Schedule,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            )
+                            Text(
+                                text = "$totalMin min",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             )

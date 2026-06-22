@@ -41,9 +41,12 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material3.Card
@@ -140,6 +143,7 @@ public fun LibraryScreen(
     onNavigateToDownloads: () -> Unit,
     onNavigateToFavorites: () -> Unit = {},
     onNavigateToAudioSettings: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
     onFirstMeaningfulContentDrawn: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
@@ -159,10 +163,12 @@ public fun LibraryScreen(
     val safeNavigateToFavorites = dropUnlessResumed { navigationClickGuard.run(onNavigateToFavorites) }
     val safeNavigateToSearch = dropUnlessResumed { navigationClickGuard.run(onNavigateToSearch) }
     val safeNavigateToDownloads = dropUnlessResumed { navigationClickGuard.run(onNavigateToDownloads) }
+    val safeNavigateToSettings = dropUnlessResumed { navigationClickGuard.run(onNavigateToSettings) }
     var activeQuickFilter by remember { mutableStateOf(LibraryQuickFilter.ALL) }
     var showSortBottomSheet by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var searchBarExpanded by remember { mutableStateOf(false) }
+    val spotlightCompleted by viewModel.spotlightCompleted.collectAsStateWithLifecycle()
     var spotlightStep by rememberSaveable { mutableStateOf(0) }
     var selectedBookForActions by remember { mutableStateOf<Book?>(null) }
     var showDiscovery by rememberSaveable { mutableStateOf(false) }
@@ -314,13 +320,35 @@ public fun LibraryScreen(
                         containerColor = androidx.compose.ui.graphics.Color.Transparent, // Transparent to show gradient
                         topBar = {
                             TopAppBar(
-                                title = { },
+                                title = {
+                                    Text(
+                                        text = stringResource(R.string.libraryTitle),
+                                        style = androidx.compose.material3.MaterialTheme.typography.headlineSmall,
+                                    )
+                                },
                                 colors =
                                     androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
                                         containerColor = androidx.compose.ui.graphics.Color.Transparent,
                                         scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
                                     ),
                                 actions = {
+                                    // Theme toggle
+                                    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+                                    IconButton(onClick = { /* Theme follows system */ }) {
+                                        Icon(
+                                            imageVector = if (isDark) Icons.Filled.WbSunny else Icons.Filled.NightsStay,
+                                            contentDescription = stringResource(R.string.darkMode),
+                                        )
+                                    }
+
+                                    // Account/avatar entry
+                                    IconButton(onClick = safeNavigateToSettings) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Person,
+                                            contentDescription = stringResource(R.string.account),
+                                        )
+                                    }
+
                                     IconButton(onClick = { showSortBottomSheet = true }) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.Sort,
@@ -705,9 +733,17 @@ public fun LibraryScreen(
                 nextText = spotlightNextText,
                 targetCenter = overlayCenter,
                 targetRadius = 30.dp,
-                onSkip = { spotlightStep = 0 },
+                onSkip = {
+                    spotlightStep = 0
+                    viewModel.completeSpotlight()
+                },
                 onNext = {
-                    spotlightStep = if (spotlightStep == 1) 2 else 0
+                    if (spotlightStep == 1) {
+                        spotlightStep = 2
+                    } else {
+                        spotlightStep = 0
+                        viewModel.completeSpotlight()
+                    }
                 },
                 modifier = Modifier.align(Alignment.Center),
             )
@@ -734,7 +770,7 @@ public fun LibraryScreen(
     }
 
     LaunchedEffect(uiState) {
-        if (uiState is LibraryUiState.Success && spotlightStep == 0) {
+        if (uiState is LibraryUiState.Success && spotlightStep == 0 && !spotlightCompleted) {
             spotlightStep = 1
         }
     }

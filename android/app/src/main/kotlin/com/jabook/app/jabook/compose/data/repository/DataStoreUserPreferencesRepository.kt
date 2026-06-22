@@ -52,6 +52,9 @@ public class DataStoreUserPreferencesRepository
             private val NORMALIZE_CHAPTER_TITLES = booleanPreferencesKey("normalize_chapter_titles")
             private val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
             private val STORAGE_FALLBACK_ENABLED = booleanPreferencesKey("storage_fallback_enabled")
+            private val SPOTLIGHT_COMPLETED = booleanPreferencesKey("spotlight_completed")
+            private val HAPTICS_ENABLED = booleanPreferencesKey("haptics_enabled")
+            private val LANGUAGE_CODE = stringPreferencesKey("language_code")
         }
 
         override val userData: Flow<UserData> =
@@ -95,6 +98,9 @@ public class DataStoreUserPreferencesRepository
                     normalizeChapterTitles = preferences[NORMALIZE_CHAPTER_TITLES] ?: false,
                     onboardingCompleted = preferences[ONBOARDING_COMPLETED] ?: false,
                     storageFallbackEnabled = preferences[STORAGE_FALLBACK_ENABLED] ?: false,
+                    spotlightCompleted = preferences[SPOTLIGHT_COMPLETED] ?: false,
+                    hapticsEnabled = preferences[HAPTICS_ENABLED] ?: true,
+                    languageCode = preferences[LANGUAGE_CODE] ?: "ru",
                 )
             }
 
@@ -155,6 +161,24 @@ public class DataStoreUserPreferencesRepository
         override suspend fun setStorageFallbackEnabled(enabled: Boolean) {
             dataStore.edit { preferences ->
                 preferences[STORAGE_FALLBACK_ENABLED] = enabled
+            }
+        }
+
+        override suspend fun setSpotlightCompleted(completed: Boolean) {
+            dataStore.edit { preferences ->
+                preferences[SPOTLIGHT_COMPLETED] = completed
+            }
+        }
+
+        override suspend fun setHapticsEnabled(enabled: Boolean) {
+            dataStore.edit { preferences ->
+                preferences[HAPTICS_ENABLED] = enabled
+            }
+        }
+
+        override suspend fun setLanguage(languageCode: String) {
+            dataStore.edit { preferences ->
+                preferences[LANGUAGE_CODE] = languageCode
             }
         }
     }

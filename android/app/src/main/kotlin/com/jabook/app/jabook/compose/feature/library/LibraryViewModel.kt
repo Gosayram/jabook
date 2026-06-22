@@ -107,13 +107,28 @@ public class LibraryViewModel
         private val _selectedBookForProperties = MutableStateFlow<Book?>(null)
         public val selectedBookForProperties: StateFlow<Book?> = _selectedBookForProperties
 
+        // Spotlight coachmarks completed state
+        private val _spotlightCompleted = MutableStateFlow(false)
+        public val spotlightCompleted: StateFlow<Boolean> = _spotlightCompleted
+
         init {
             // Load saved settings from preferences
             viewModelScope.launch {
                 userPreferencesRepository.userData.collect { userData ->
                     _viewMode.value = userData.viewMode
                     _sortOrder.value = userData.sortOrder
+                    _spotlightCompleted.value = userData.spotlightCompleted
                 }
+            }
+        }
+
+        /**
+         * Mark spotlight coachmarks as completed and persist.
+         */
+        public fun completeSpotlight() {
+            viewModelScope.launch {
+                userPreferencesRepository.setSpotlightCompleted(true)
+                _spotlightCompleted.value = true
             }
         }
 

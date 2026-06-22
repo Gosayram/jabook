@@ -25,10 +25,12 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.TorrentDownloadNetworkPolicy
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
+import com.jabook.app.jabook.compose.data.repository.DownloadHistoryRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
+import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
 import com.jabook.app.jabook.compose.navigation.DownloadsRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.ImmutableList
@@ -59,6 +61,7 @@ public sealed interface TorrentDownloadsUiState {
         val pausedDownloads: ImmutableList<TorrentDownload>,
         val completedDownloads: ImmutableList<TorrentDownload>,
         val errorDownloads: ImmutableList<TorrentDownload>,
+        val historyItems: ImmutableList<DownloadHistoryItem>,
         val downloadingCount: Int,
         val totalDownloadSpeed: Long,
         val queuedCount: Int,
@@ -87,6 +90,7 @@ public class TorrentDownloadsViewModel
         private val repository: TorrentDownloadRepository,
         private val settingsRepository: SettingsRepository,
         private val networkMonitor: NetworkMonitor,
+        private val downloadHistoryRepository: DownloadHistoryRepository,
         private val loggerFactory: LoggerFactory,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
@@ -110,7 +114,8 @@ public class TorrentDownloadsViewModel
                 torrentManager.downloadsFlow,
                 repository.getAllFlow(),
                 _showCompletedOnly,
-            ) { activeDownloads, persistedDownloads, showCompletedOnly ->
+                downloadHistoryRepository.getHistoryWithFilter(),
+            ) { activeDownloads, persistedDownloads, showCompletedOnly, historyItems ->
                 try {
                     // Merge active downloads with persisted ones
                     // Active downloads take precedence (they have real-time data)
@@ -126,7 +131,7 @@ public class TorrentDownloadsViewModel
                                 download.hash.isNotBlank() && download.name.isNotBlank()
                             }.sortedByDescending { it.addedTime }
 
-                    if (allDownloads.isEmpty()) {
+                    if (allDownloads.isEmpty() && historyItems.isEmpty()) {
                         TorrentDownloadsUiState.Empty
                     } else {
                         // Group by state
@@ -159,6 +164,7 @@ public class TorrentDownloadsViewModel
                             pausedDownloads = paused.toImmutableList(),
                             completedDownloads = completed.toImmutableList(),
                             errorDownloads = errors.toImmutableList(),
+                            historyItems = historyItems.take(50).toImmutableList(),
                             downloadingCount = downloading.size,
                             totalDownloadSpeed = totalDownloadSpeed,
                             queuedCount = queued.size,

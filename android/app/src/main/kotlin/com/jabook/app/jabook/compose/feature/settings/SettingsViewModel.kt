@@ -207,6 +207,12 @@ public class SettingsViewModel
             }
         }
 
+        public fun updateHaptics(enabled: Boolean) {
+            viewModelScope.launch {
+                userPreferencesRepository.setHapticsEnabled(enabled)
+            }
+        }
+
         public fun updatePlaybackSpeed(speed: Float) {
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)
@@ -290,6 +296,7 @@ public class SettingsViewModel
         public fun updateLanguage(languageCode: String) {
             viewModelScope.launch {
                 settingsRepository.updateLanguage(languageCode)
+                userPreferencesRepository.setLanguage(languageCode)
             }
         }
 

@@ -2254,7 +2254,7 @@
     <!-- Приоритетное меню -->
     <string name="priorityMenu">Приоритетное меню</string>
     <!-- Поиск книг... -->
-    <string name="searchBooks">Поиск книг...</string>
+    <string name="searchBooks">Поиск книг, авторов, чтецов…</string>
     <!-- Сиды -->
     <!-- Поделиться журналами -->
     <string name="shareLogs">Поделиться журналами</string>
@@ -2275,6 +2275,7 @@
     <string name="unavailable">Недоступно</string>
     <!-- Детали книги -->
     <string name="bookDetails">Детали книги</string>
+    <string name="aboutBook">О книге</string>
     <!-- Добавить -->
     <string name="add">Добавить</string>
     <!-- Добавить зеркало -->
@@ -2983,6 +2984,24 @@
     <string name="storageUsedLabel">%1$s использовано • %2$s свободно</string>
     <string name="storageLegendAudiobooks">Аудиокниги</string>
     <string name="storageLegendDownloading">Загрузка</string>
+    <string name="downloadNarratedBy">Читает: %1$s</string>
+    <string name="downloadChaptersProgress">%1$d/%2$d глав</string>
+    <string name="downloadsHistorySection">История (%1$d)</string>
+    <string name="historyStatusCompleted">Завершено</string>
+    <string name="historyStatusFailed">Ошибка</string>
+    <string name="historyStatusCancelled">Отменено</string>
+    <string name="historyRetry">Повторить</string>
+    <string name="settingsProfileGuest">Гость</string>
+    <string name="settingsProfileStats">%1$d книг · %2$d ч прослушано · %3$d в избранном</string>
+    <string name="settingsSignIn">Войти</string>
+    <string name="settingsGeneral">Общее</string>
+    <string name="settingsLanguage">Язык интерфейса</string>
+    <string name="settingsHaptics">Вибрация</string>
+    <string name="settingsHapticsDesc">Вибрация при перемотке и жестах</string>
+    <string name="settingsPhone">Телефон</string>
+    <string name="settingsTablet">Планшет</string>
+    <string name="settingsDesktopMode">Большой</string>
+    <string name="settingsDesktopModeDesc">Большой экран · список-детали</string>
     <string name="desktopSelectBookHint">Выберите книгу для просмотра деталей</string>
     <string name="playerGoToBook">Перейти к книге</string>
     <string name="playerShare">Поделиться</string>
@@ -2995,4 +3014,27 @@
     <string name="playerCoverModeDescription">Выберите способ отображения обложки</string>
     <string name="coverModeCard">Карточка</string>
     <string name="coverModeVinyl">Винил</string>
+
+    <!-- Search Discovery V4 -->
+    <string name="searchModeLocal">Библиотека</string>
+    <string name="searchModeRemote">RuTracker</string>
+    <string name="searchPlaceholderLocal">Поиск в библиотеке…</string>
+    <string name="searchPlaceholderRemote">Поиск на RuTracker…</string>
+    <string name="genreClassics">Классика</string>
+    <string name="genreSciFi">Фантастика</string>
+    <string name="genreDetective">Детектив</string>
+    <string name="genreHistory">История</string>
+    <string name="genreBiographies">Биографии</string>
+    <string name="genreChildren">Детские</string>
+    <string name="qualityAny">Любое</string>
+    <string name="qualityAtLeastHigh">≥ 256 кбит</string>
+    <string name="qualityAtLeastStandard">≥ 128 кбит</string>
+    <string name="searchSortSeeds">По сидам</string>
+    <string name="searchSortSize">По размеру</string>
+    <string name="searchSortRelevance">Релевантность</string>
+    <string name="localResultsCount">Найдена %1$d книга</string>
+    <string name="localResultsCountPlural">Найдено %1$d книг</string>
+    <string name="searchDiscoveryTitle">Подборки</string>
+    <string name="searchGenreChipsTitle">Жанры</string>
+    <string name="searchQualityChipsTitle">Качество</string>
 </resources>

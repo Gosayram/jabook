@@ -290,6 +290,10 @@ private class FakeSettingsRepository(
 
     override suspend fun updateLibrarySortOrder(sortOrder: String) = Unit
 
+    override suspend fun updateSpotlightCompleted(completed: Boolean) = Unit
+
+    override suspend fun updateHapticsEnabled(enabled: Boolean) = Unit
+
     override suspend fun updateOnboardingCompleted(completed: Boolean) = Unit
 
     override suspend fun updateEqualizerPreset(preset: String) = Unit

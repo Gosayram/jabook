@@ -412,6 +412,16 @@ public fun SearchScreen(
                                 }
                             }
 
+                            // Genre discovery chips (shown when query is empty)
+                            if (searchQuery.isEmpty()) {
+                                SearchDiscoverySection(
+                                    onGenreClick = { genre ->
+                                        viewModel.onSearchQueryChanged(genre)
+                                    },
+                                )
+                                Spacer(Modifier.height(16.dp))
+                            }
+
                             // Content based on UI state
                             when (val state = uiState) {
                                 is SearchUiState.Idle -> {
@@ -719,5 +729,46 @@ private fun OnlineSearchResults(
                 ),
             modifier = modifier.fillMaxSize(),
         )
+    }
+}
+
+/**
+ * Genre discovery section shown when search query is empty.
+ * Provides quick-access genre chips for remote search discovery.
+ */
+@Composable
+private fun SearchDiscoverySection(
+    onGenreClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val genres =
+        listOf(
+            R.string.genreClassics to stringResource(R.string.genreClassics),
+            R.string.genreSciFi to stringResource(R.string.genreSciFi),
+            R.string.genreDetective to stringResource(R.string.genreDetective),
+            R.string.genreHistory to stringResource(R.string.genreHistory),
+            R.string.genreBiographies to stringResource(R.string.genreBiographies),
+            R.string.genreChildren to stringResource(R.string.genreChildren),
+        )
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.searchDiscoveryTitle),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(8.dp))
+        androidx.compose.foundation.lazy.LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(genres.size) { index ->
+                val (_, label) = genres[index]
+                androidx.compose.material3.FilterChip(
+                    selected = false,
+                    onClick = { onGenreClick(label) },
+                    label = { Text(label) },
+                )
+            }
+        }
     }
 }

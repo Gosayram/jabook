@@ -179,6 +179,16 @@ public interface SettingsRepository {
     public suspend fun updateLibrarySortOrder(sortOrder: String)
 
     /**
+     * Mark spotlight coachmarks as completed.
+     */
+    public suspend fun updateSpotlightCompleted(completed: Boolean)
+
+    /**
+     * Update haptics enabled setting.
+     */
+    public suspend fun updateHapticsEnabled(enabled: Boolean)
+
+    /**
      * Update equalizer preset.
      */
     public suspend fun updateEqualizerPreset(preset: String)
@@ -434,6 +444,18 @@ public class ProtoSettingsRepository
         override suspend fun updateLibrarySortOrder(sortOrder: String) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setLibrarySortOrder(sortOrder).build()
+            }
+        }
+
+        override suspend fun updateSpotlightCompleted(completed: Boolean) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setSpotlightCompleted(completed).build()
+            }
+        }
+
+        override suspend fun updateHapticsEnabled(enabled: Boolean) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setHapticsEnabled(enabled).build()
             }
         }
 

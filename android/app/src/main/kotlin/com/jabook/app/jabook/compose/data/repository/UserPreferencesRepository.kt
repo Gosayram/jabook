@@ -83,4 +83,19 @@ public interface UserPreferencesRepository {
      * When enabled, app can continue in restricted storage mode without all-files access.
      */
     public suspend fun setStorageFallbackEnabled(enabled: Boolean)
+
+    /**
+     * Mark spotlight coachmarks as completed.
+     */
+    public suspend fun setSpotlightCompleted(completed: Boolean)
+
+    /**
+     * Update haptics enabled setting.
+     */
+    public suspend fun setHapticsEnabled(enabled: Boolean)
+
+    /**
+     * Update language setting.
+     */
+    public suspend fun setLanguage(languageCode: String)
 }

@@ -44,6 +44,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -77,6 +78,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -184,6 +186,74 @@ public fun SettingsScreen(
                     .padding(padding)
                     .verticalScroll(rememberScrollState()),
         ) {
+            // Profile header
+            ProfileHeader(
+                authStatus = viewModel.authStatus.collectAsStateWithLifecycle().value,
+                onSignIn = { safeNavigateToAuth() },
+                contentPadding = contentPadding,
+            )
+
+            HorizontalDivider()
+
+            // ОБЩЕЕ (General) Section
+            SettingsSection(
+                title = stringResource(R.string.settingsGeneral),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
+
+            val userPrefs by viewModel.userPreferences.collectAsStateWithLifecycle()
+            var selectedLang by remember(userPrefs) { mutableStateOf(userPrefs?.languageCode ?: "ru") }
+            StackedSegmentedControl(
+                label = stringResource(R.string.settingsLanguage),
+                options = listOf("Русский" to "ru", "English" to "en"),
+                selectedValue = selectedLang,
+                onSelect = { value: String ->
+                    selectedLang = value
+                    viewModel.updateLanguage(value)
+                },
+                contentPadding = contentPadding,
+            )
+
+            var hapticsEnabled by remember(userPrefs) { mutableStateOf(userPrefs?.hapticsEnabled ?: true) }
+            SettingsSwitchItem(
+                title = stringResource(R.string.settingsHaptics),
+                subtitle = stringResource(R.string.settingsHapticsDesc),
+                checked = hapticsEnabled,
+                onCheckedChange = {
+                    hapticsEnabled = it
+                    viewModel.updateHaptics(it)
+                },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            HorizontalDivider()
+
+            // Device and Layout Section
+            SettingsSection(
+                title = stringResource(R.string.deviceAndLayout),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
+
+            var selectedDeviceMode by remember { mutableStateOf("phone") }
+            StackedSegmentedControl(
+                label = stringResource(R.string.deviceAndLayout),
+                options =
+                    listOf(
+                        stringResource(R.string.settingsPhone) to "phone",
+                        stringResource(R.string.settingsTablet) to "tablet",
+                        stringResource(R.string.settingsDesktopMode) to "desktop",
+                    ),
+                selectedValue = selectedDeviceMode,
+                onSelect = { value: String -> selectedDeviceMode = value },
+                contentPadding = contentPadding,
+            )
+
+            HorizontalDivider()
+
             // Authentication Section
             val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
             SettingsSection(
@@ -679,7 +749,6 @@ public fun SettingsScreen(
             )
 
             // Chapter Normalization Toggle
-            val userPrefs by viewModel.userPreferences.collectAsStateWithLifecycle()
             SettingsSwitchItem(
                 title = stringResource(R.string.normalizeChapterTitles),
                 subtitle = stringResource(R.string.normalizeChapterTitlesDesc),
@@ -2104,6 +2173,120 @@ private fun AccentSwatchSelector(
                                 androidx.compose.ui.graphics.Color.White
                             } else {
                                 androidx.compose.ui.graphics.Color.Black
+                            },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileHeader(
+    authStatus: com.jabook.app.jabook.compose.domain.model.AuthStatus,
+    onSignIn: () -> Unit,
+    contentPadding: androidx.compose.ui.unit.Dp,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = contentPadding, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier =
+                        Modifier.size(48.dp).background(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            androidx.compose.foundation.shape.CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Filled.Person,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+                Column {
+                    val name =
+                        when (authStatus) {
+                            is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated -> authStatus.username
+                            else -> stringResource(R.string.settingsProfileGuest)
+                        }
+                    Text(text = name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = stringResource(R.string.settingsProfileStats, 0, 0, 0),
+                        style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (authStatus !is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated) {
+                TextButton(onClick = onSignIn) { Text(stringResource(R.string.settingsSignIn)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StackedSegmentedControl(
+    label: String,
+    options: List<Pair<String, String>>,
+    selectedValue: String,
+    onSelect: (String) -> Unit,
+    contentPadding: androidx.compose.ui.unit.Dp,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = contentPadding, vertical = 4.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        Row(modifier = Modifier.fillMaxWidth()) {
+            options.forEachIndexed { index, (labelText, value) ->
+                val isSelected = value == selectedValue
+                val shape =
+                    when (index) {
+                        0 ->
+                            androidx.compose.foundation.shape
+                                .RoundedCornerShape(topStartPercent = 50, bottomStartPercent = 50)
+                        options.lastIndex ->
+                            androidx.compose.foundation.shape
+                                .RoundedCornerShape(topEndPercent = 50, bottomEndPercent = 50)
+                        else -> RectangleShape
+                    }
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(40.dp)
+                            .background(
+                                if (isSelected) {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                },
+                                shape,
+                            ).clickable { onSelect(value) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = labelText,
+                        style = MaterialTheme.typography.labelMedium,
+                        color =
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.onSecondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
                             },
                     )
                 }

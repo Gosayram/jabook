@@ -93,6 +93,18 @@ public fun TorrentDownloadItem(
                         overflow = TextOverflow.Ellipsis,
                     )
 
+                    // Narrator metadata under title
+                    if (!download.narrator.isNullOrBlank()) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(R.string.downloadNarratedBy, download.narrator),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+
                     Spacer(Modifier.height(4.dp))
 
                     if (download.state == TorrentState.STREAMING) {
@@ -219,16 +231,39 @@ public fun TorrentDownloadItem(
                     }
                 }
 
-                if (download.totalSize > 0L) {
+                if (download.totalSize > 0L || download.totalAudioFiles > 0) {
                     Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = "${formatBytes(download.downloadedSize)} / ${formatBytes(download.totalSize)}",
-                        style =
-                            MaterialTheme.typography.bodySmall.copy(
-                                fontFeatureSettings = "tnum",
-                            ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        if (download.totalSize > 0L) {
+                            Text(
+                                text = "${formatBytes(download.downloadedSize)} / ${formatBytes(download.totalSize)}",
+                                style =
+                                    MaterialTheme.typography.bodySmall.copy(
+                                        fontFeatureSettings = "tnum",
+                                    ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        // Chapter download progress (14/24 глав)
+                        if (download.totalAudioFiles > 0) {
+                            Text(
+                                text =
+                                    stringResource(
+                                        R.string.downloadChaptersProgress,
+                                        download.completedAudioFiles,
+                                        download.totalAudioFiles,
+                                    ),
+                                style =
+                                    MaterialTheme.typography.bodySmall.copy(
+                                        fontFeatureSettings = "tnum",
+                                    ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
 
                 // Peers/Seeds info (hidden for queued)
