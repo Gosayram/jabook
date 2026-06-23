@@ -49,40 +49,79 @@ private fun createUserPreferencesDataStore(context: Context): DataStore<UserPref
  *
  * Uses Proto DataStore for type-safe, structured preferences storage.
  */
-public interface SettingsRepository {
+@Singleton
+public class SettingsRepository(
+    private val dataStore: DataStore<UserPreferences>
+) {
     /**
      * Get user preferences as Flow.
      */
-    public val userPreferences: Flow<UserPreferences>
+    public val userPreferences: Flow<UserPreferences> =
+        dataStore.data.catch { emit(UserPreferencesSerializer.defaultValue) }
 
     /**
      * Last persisted player snapshot for process-death fallback.
      */
-    public val playerStateSnapshot: Flow<PlayerStateSnapshotPreference?>
+    public val playerStateSnapshot: Flow<PlayerStateSnapshotPreference?> =
+        userPreferences.map { preferences ->
+            val bookId = preferences.playerSnapshotBookId
+            if (bookId.isBlank()) {
+                null
+            } else {
+                PlayerStateSnapshotPreference(
+                    bookId = bookId,
+                    positionMs = preferences.playerSnapshotPositionMs.coerceAtLeast(0L),
+                    chapterIndex = preferences.playerSnapshotChapterIndex.coerceAtLeast(0),
+                    playbackSpeed = preferences.playerSnapshotPlaybackSpeed.coerceAtLeast(0f),
+                    sleepTimerMode = preferences.playerSnapshotSleepMode,
+                )
+            }
+        }
 
     /**
      * Sleep timer state from DataStore (P-12 migration from SharedPreferences).
      */
-    public val sleepTimerState: Flow<SleepTimerState>
+    public val sleepTimerState: Flow<SleepTimerState> =
+        userPreferences.map { preferences -> preferences.sleepTimerState }
 
     /**
      * Update theme mode.
      */
-    public suspend fun updateThemeMode(themeMode: ThemeMode)
+    public suspend fun updateThemeMode(themeMode: ThemeMode) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setThemeMode(themeMode).build()
+        }
+    }
 
     /**
      * Update dynamic colors setting.
      */
-    public suspend fun updateDynamicColors(enabled: Boolean)
+    public suspend fun updateDynamicColors(enabled: Boolean) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setUseDynamicColors(enabled).build()
+        }
+    }
 
-    public suspend fun updateAccentSwatchIndex(index: Int)
+    public suspend fun updateAccentSwatchIndex(index: Int) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setAccentSwatchIndex(index).build()
+        }
+    }
 
-    public suspend fun updatePlayerCoverMode(mode: Int)
+    public suspend fun updatePlayerCoverMode(mode: Int) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setPlayerCoverMode(mode).build()
+        }
+    }
 
     /**
      * Update playback speed.
      */
-    public suspend fun updatePlaybackSpeed(speed: Float)
+    public suspend fun updatePlaybackSpeed(speed: Float) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setPlaybackSpeed(speed).build()
+        }
+    }
 
     /**
      * Update audio settings.
@@ -107,12 +146,42 @@ public interface SettingsRepository {
         skipSilenceMode: SkipSilenceMode? = null,
         crossfadeEnabled: Boolean? = null,
         crossfadeDurationMs: Long? = null,
-    )
+    ) {
+        val prefs = userPreferences.map { preferences ->
+            val builder = preferences.toBuilder()
+            if (rewindSeconds != null) builder.setRewindDurationSeconds(rewindSeconds)
+            if (forwardSeconds != null) builder.setForwardDurationSeconds(forwardSeconds)
+            if (resumeRewindSeconds != null) builder.setResumeRewindSeconds(resumeRewindSeconds)
+            if (resumeRewindMode != null) builder.setResumeRewindMode(resumeRewindMode)
+            if (resumeRewindAggressiveness != null) builder.setResumeRewindAggressiveness(resumeRewindAggressiveness)
+            if (sleepTimerShakeExtendEnabled != null) builder.setSleepTimerShakeExtendEnabled(sleepTimerShakeExtendEnabled)
+            if (holdToBoostSpeed != null) builder.setHoldToBoostSpeed(holdToBoostSpeed)
+            if (autoPipEnabled != null) builder.setAutoPipEnabled(autoPipEnabled)
+            if (volumeBoost != null) builder.setVolumeBoostLevel(volumeBoost)
+            if (drcLevel != null) builder.setDrcLevel(drcLevel)
+            if (speechEnhancer != null) builder.setSpeechEnhancer(speechEnhancer)
+            if (autoVolumeLeveling != null) builder.setAutoVolumeLeveling(autoVolumeLeveling)
+            if (normalizeVolume != null) builder.setNormalizeVolume(normalizeVolume)
+            if (skipSilence != null) builder.setSkipSilence(skipSilence)
+            if (skipSilenceThresholdDb != null) builder.setSkipSilenceThresholdDb(skipSilenceThresholdDb)
+            if (skipSilenceMinMs != null) builder.setSkipSilenceMinMs(skipSilenceMinMs)
+            if (skipSilenceMode != null) builder.setSkipSilenceMode(skipSilenceMode)
+            if (crossfadeEnabled != null) builder.setCrossfadeEnabled(crossfadeEnabled)
+            if (crossfadeDurationMs != null) builder.setCrossfadeDurationMs(crossfadeDurationMs)
+            builder.build()
+        }.first()
+        
+        dataStore.updateData { prefs }
+    }
 
     /**
      * Update language.
      */
-    public suspend fun updateLanguage(languageCode: String)
+    public suspend fun updateLanguage(languageCode: String) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setLanguageCode(languageCode).build()
+        }
+    }
 
     /**
      * Update notification settings.
@@ -121,82 +190,161 @@ public interface SettingsRepository {
         notificationsEnabled: Boolean? = null,
         downloadNotifications: Boolean? = null,
         playerNotifications: Boolean? = null,
-    )
+    ) {
+        val prefs = userPreferences.map { preferences ->
+            val builder = preferences.toBuilder()
+            if (notificationsEnabled != null) builder.setNotificationsEnabled(notificationsEnabled)
+            if (downloadNotifications != null) builder.setDownloadNotifications(downloadNotifications)
+            if (playerNotifications != null) builder.setPlayerNotifications(playerNotifications)
+            builder.build()
+        }.first()
+        
+        dataStore.updateData { prefs }
+    }
 
     /**
      * Update selected mirror domain.
      */
-    public suspend fun updateSelectedMirror(domain: String)
+    public suspend fun updateSelectedMirror(domain: String) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setSelectedMirror(domain).build()
+        }
+    }
 
     /**
      * Add a custom mirror domain.
      */
-    public suspend fun addCustomMirror(domain: String)
+    public suspend fun addCustomMirror(domain: String) {
+        dataStore.updateData { preferences ->
+            val builder = preferences.toBuilder()
+            if (!builder.customMirrorsList.contains(domain)) {
+                builder.addCustomMirrors(domain)
+            }
+            builder.build()
+        }
+    }
 
     /**
      * Remove a custom mirror domain.
      */
-    public suspend fun removeCustomMirror(domain: String)
+    public suspend fun removeCustomMirror(domain: String) {
+        dataStore.updateData { preferences ->
+            val filtered = preferences.customMirrorsList.filterNot { it == domain }
+            preferences
+                .toBuilder()
+                .clearCustomMirrors()
+                .addAllCustomMirrors(filtered)
+                .build()
+        }
+    }
 
     /**
      * Update auto-switch mirror setting.
      */
-    public suspend fun updateAutoSwitchMirror(enabled: Boolean)
+    public suspend fun updateAutoSwitchMirror(enabled: Boolean) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setAutoSwitchMirror(enabled).build()
+        }
+    }
 
     /**
      * Update download path.
      */
-    public suspend fun updateDownloadPath(path: String)
+    public suspend fun updateDownloadPath(path: String) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setDownloadPath(path).build()
+        }
+    }
 
     /**
      * Update Wi-Fi only download setting.
      */
-    public suspend fun updateWifiOnly(enabled: Boolean)
+    public suspend fun updateWifiOnly(enabled: Boolean) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setWifiOnlyDownload(enabled).build()
+        }
+    }
 
     /**
      * Update download speed limiting.
      */
-    public suspend fun updateLimitDownloadSpeed(enabled: Boolean)
+    public suspend fun updateLimitDownloadSpeed(enabled: Boolean) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setLimitDownloadSpeed(enabled).build()
+        }
+    }
 
     /**
      * Update max download speed in KB/s.
      */
-    public suspend fun updateMaxDownloadSpeed(speedKb: Int)
+    public suspend fun updateMaxDownloadSpeed(speedKb: Int) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setMaxDownloadSpeedKb(speedKb).build()
+        }
+    }
 
     /**
      * Update max concurrent downloads.
      */
-    public suspend fun updateMaxConcurrentDownloads(count: Int)
+    public suspend fun updateMaxConcurrentDownloads(count: Int) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setMaxConcurrentDownloads(count).build()
+        }
+    }
 
     /**
      * Update cover loading behavior on cellular network.
      */
-    public suspend fun updateAutoLoadCoversOnCellular(enabled: Boolean)
+    public suspend fun updateAutoLoadCoversOnCellular(enabled: Boolean) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setAutoLoadCoversOnCellular(enabled).build()
+        }
+    }
 
     /**
      * Update library sort order.
      */
-    public suspend fun updateLibrarySortOrder(sortOrder: String)
+    public suspend fun updateLibrarySortOrder(sortOrder: String) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setLibrarySortOrder(sortOrder).build()
+        }
+    }
 
     /**
      * Mark spotlight coachmarks as completed.
      */
-    public suspend fun updateSpotlightCompleted(completed: Boolean)
+    public suspend fun updateSpotlightCompleted(completed: Boolean) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setSpotlightCompleted(completed).build()
+        }
+    }
 
     /**
      * Update haptics enabled setting.
      */
-    public suspend fun updateHapticsEnabled(enabled: Boolean)
+    public suspend fun updateHapticsEnabled(enabled: Boolean) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setHapticsEnabled(enabled).build()
+        }
+    }
 
     /**
      * Update equalizer preset.
      */
-    public suspend fun updateEqualizerPreset(preset: String)
+    public suspend fun updateEqualizerPreset(preset: String) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setEqualizerPreset(preset).build()
+        }
+    }
 
     /**
      * Update onboarding completion status.
      */
-    public suspend fun updateOnboardingCompleted(completed: Boolean)
+    public suspend fun updateOnboardingCompleted(completed: Boolean) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setOnboardingCompleted(completed).build()
+        }
+    }
 
 /**
      * Persist player state snapshot for process death restore fallback.
