@@ -281,7 +281,6 @@ public class IndexingViewModel
                                 } else {
                                     IndexingProgress.Error("Индексация не завершилась успешно")
                                 }
-                            }
                         }
                     }
                 }
@@ -298,9 +297,9 @@ public class IndexingViewModel
             return IndexingProgress.InProgress(
                 currentForum = progress.getString("progress_message").orEmpty(),
                 currentPage = percent,
-                totalPages = 100,
                 currentForumIndex = 0,
                 totalForums = 1,
+                topicsIndexed = percent,
             )
         }
     }
