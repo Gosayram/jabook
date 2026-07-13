@@ -29,6 +29,7 @@ import com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
+import com.jabook.app.jabook.compose.data.local.search.TransliterationSearchPolicy
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.network.SearchStaleWhileRevalidatePolicy
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
@@ -249,15 +250,8 @@ public class RutrackerRepository
             private const val TAG = "RutrackerRepository"
 
             internal fun toFtsQuery(input: String): String =
-                input
-                    .trim()
-                    .replace("ё", "е")
-                    .replace("Ё", "Е") // FTS5 unicode61 doesn't normalize Cyrillic ё
-                    .split(Regex("\\s+"))
-                    .filter { it.isNotBlank() }
-                    .joinToString(" ") {
-                        "\"" + it.replace("\"", "\"\"") + "\"*"
-                    }
+                TransliterationSearchPolicy
+                    .buildFtsMatchQuery(input.replace('ё', 'е').replace('Ё', 'Е'))
         }
 
         /**
