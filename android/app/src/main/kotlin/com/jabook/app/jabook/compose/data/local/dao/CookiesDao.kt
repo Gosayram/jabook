@@ -15,9 +15,8 @@
 package com.jabook.app.jabook.compose.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
 
 /**
@@ -30,7 +29,7 @@ public interface CookiesDao {
      * Save cookies for a URL.
      * Replaces existing cookies if URL already exists.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun saveCookies(cookie: CookieEntity)
 
     /**

@@ -16,9 +16,8 @@ package com.jabook.app.jabook.compose.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Delete
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.DownloadQueueEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -54,7 +53,7 @@ public interface DownloadQueueDao {
     /**
      * Insert or update queue entry.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insert(entity: DownloadQueueEntity)
 
     /**

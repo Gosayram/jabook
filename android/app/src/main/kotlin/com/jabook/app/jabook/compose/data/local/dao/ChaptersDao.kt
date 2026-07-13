@@ -16,11 +16,10 @@ package com.jabook.app.jabook.compose.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Delete
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -61,13 +60,13 @@ public interface ChaptersDao {
     /**
      * Inserts or replaces a chapter.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertChapter(chapter: ChapterEntity)
 
     /**
      * Inserts or replaces multiple chapters.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertAll(chapters: List<ChapterEntity>)
 
     /**

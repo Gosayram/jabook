@@ -15,9 +15,8 @@
 package com.jabook.app.jabook.compose.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -47,7 +46,7 @@ public interface FavoriteDao {
     /**
      * Insert or replace a favorite.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertFavorite(favorite: FavoriteEntity)
 
     /**
