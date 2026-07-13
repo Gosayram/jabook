@@ -23,6 +23,7 @@ import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import com.jabook.app.jabook.crash.CrashDiagnostics
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 
 /**
@@ -75,6 +76,9 @@ public class SyncWorker
 
                 logger.i { "Sync completed successfully attempt=$attempt" }
                 Result.success()
+            } catch (e: CancellationException) {
+                logger.i { "Sync cancelled attempt=$attempt" }
+                throw e
             } catch (e: Exception) {
                 logger.e({ "Sync failed" }, e)
                 if (runAttemptCount < 3) {

@@ -30,6 +30,7 @@ import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
 import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertTrue
@@ -38,6 +39,7 @@ import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
+import kotlin.test.assertFailsWith
 
 @RunWith(RobolectricTestRunner::class)
 class SyncWorkerTest {
@@ -87,6 +89,20 @@ class SyncWorkerTest {
             val result = worker.doWork()
 
             assertTrue(result is ListenableWorker.Result.Failure)
+        }
+
+    @Test
+    fun `doWork propagates cancellation instead of scheduling a retry`() =
+        runTest {
+            whenever(settingsRepository.userPreferences).thenReturn(flowOf(UserPreferencesSerializer.defaultValue))
+            whenever(networkMonitor.networkType).thenReturn(flowOf(NetworkType.WIFI))
+            whenever(torrentDownloadRepository.getAll()).thenReturn(emptyList())
+            whenever(booksDao.getAllBooks()).thenReturn(emptyList())
+            whenever(offlineSearchDao.clearOldCache(org.mockito.kotlin.any())).thenThrow(CancellationException("cancelled"))
+
+            assertFailsWith<CancellationException> {
+                buildWorker(runAttemptCount = 0).doWork()
+            }
         }
 
     private fun buildWorker(runAttemptCount: Int): SyncWorker {
