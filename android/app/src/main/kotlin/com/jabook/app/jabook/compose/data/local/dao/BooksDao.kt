@@ -15,8 +15,6 @@
 package com.jabook.app.jabook.compose.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.Transaction
@@ -149,25 +147,25 @@ public interface BooksDao {
     /**
      * Insert or replace a book.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertBook(book: BookEntity)
 
     /**
      * Insert or replace multiple books.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertBooks(books: List<BookEntity>)
 
     /**
      * Insert or replace a chapter.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertChapter(chapter: ChapterEntity)
 
     /**
      * Insert or replace multiple chapters.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertChapters(chapters: List<ChapterEntity>)
 
     /**
