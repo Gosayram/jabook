@@ -16,15 +16,16 @@ package com.jabook.app.jabook.compose.feature.indexing
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.work.WorkInfo
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 import com.jabook.app.jabook.compose.data.local.dao.IndexMetadata
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
+import com.jabook.app.jabook.compose.data.worker.IndexingWorkScheduler
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.usecase.auth.WithAuthorisedCheckUseCase
-import com.jabook.app.jabook.indexing.IndexingForegroundService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -46,6 +47,7 @@ public class IndexingViewModel
         private val forumIndexer: ForumIndexer,
         private val authRepository: AuthRepository,
         private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase,
+        private val indexingWorkScheduler: IndexingWorkScheduler,
         private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
         private companion object {
@@ -69,10 +71,10 @@ public class IndexingViewModel
         public val isIndexing: StateFlow<Boolean> = _isIndexing.asStateFlow()
         private val _indexSize = MutableStateFlow(0)
         public val indexSize: StateFlow<Int> = _indexSize.asStateFlow()
-        private var serviceMonitorJob: Job? = null
+        private var indexingMonitorJob: Job? = null
 
         init {
-            startServiceCompletionMonitor()
+            startIndexingWorkMonitor()
             viewModelScope.launch {
                 refreshIndexSize()
             }
@@ -93,12 +95,12 @@ public class IndexingViewModel
 
             // If context is provided, use foreground service for background indexing
             if (context != null) {
-                logger.d { "Starting indexing via Foreground Service (background mode)" }
+                logger.d { "Starting indexing via WorkManager" }
                 _isIndexing.value = true
                 _indexingStartTime.value = System.currentTimeMillis()
                 _indexingProgress.value = IndexingProgress.Idle
-                IndexingForegroundService.start(context)
-                startServiceCompletionMonitor()
+                indexingWorkScheduler.enqueue()
+                startIndexingWorkMonitor()
                 // Progress will be updated from service via broadcast or we can observe service state
                 // For now, we'll update state when service completes
                 return
@@ -146,9 +148,9 @@ public class IndexingViewModel
          * Cancel indexing (if possible).
          */
         public fun cancelIndexing() {
-            // Note: Current implementation doesn't support cancellation
-            // This is a placeholder for future implementation
-            logger.d { "Cancel indexing requested (not yet implemented)" }
+            indexingWorkScheduler.cancel()
+            _isIndexing.value = false
+            _indexingProgress.value = IndexingProgress.Idle
         }
 
         /**
@@ -214,7 +216,7 @@ public class IndexingViewModel
          * @param context Context needed to start foreground service
          */
         public fun startIndexingInBackground(context: android.content.Context) {
-            logger.d { "Transferring indexing to foreground service" }
+            logger.d { "Transferring indexing to WorkManager" }
 
             // Stop current indexing in ViewModel if running
             if (_isIndexing.value) {
@@ -225,9 +227,10 @@ public class IndexingViewModel
             }
 
             // Start foreground service
-            IndexingForegroundService.start(context)
+            indexingWorkScheduler.enqueue()
             _isIndexing.value = true
-            startServiceCompletionMonitor()
+            _indexingStartTime.value = System.currentTimeMillis()
+            startIndexingWorkMonitor()
         }
 
         /**
@@ -255,59 +258,49 @@ public class IndexingViewModel
                 _clearingInProgress.value = false
             }
 
-        private fun startServiceCompletionMonitor() {
-            if (serviceMonitorJob?.isActive == true) {
+        private fun startIndexingWorkMonitor() {
+            if (indexingMonitorJob?.isActive == true) {
                 return
             }
-            serviceMonitorJob =
+            indexingMonitorJob =
                 viewModelScope.launch {
-                    var serviceWasRunning = false
-                    var lastIdleIndexRefreshAt = 0L
-                    while (isActive) {
-                        val running = IndexingForegroundService.isRunning()
-                        val serviceProgress = IndexingForegroundService.getCurrentProgress()
-
-                        if (running) {
-                            serviceWasRunning = true
+                    var workWasActive = false
+                    indexingWorkScheduler.observe().collect { workInfos ->
+                        val activeWork = workInfos.firstOrNull { !it.state.isFinished }
+                        if (activeWork != null) {
+                            workWasActive = true
                             _isIndexing.value = true
-                            if (serviceProgress != null) {
-                                _indexingProgress.value = serviceProgress
-                            }
-                        } else {
-                            if (serviceWasRunning) {
-                                serviceWasRunning = false
-                                val sizeAfterFinish = resolveIndexSizeAfterServiceCompletion()
-                                if (
-                                    _indexingProgress.value is IndexingProgress.InProgress ||
-                                    _indexingProgress.value is IndexingProgress.Idle
-                                ) {
-                                    _indexingProgress.value =
-                                        if (sizeAfterFinish > 0) {
-                                            IndexingProgress.Completed(
-                                                totalTopics = sizeAfterFinish,
-                                                durationMs = 0L,
-                                            )
-                                        } else {
-                                            IndexingProgress.Error("Индексация завершилась без данных")
-                                        }
-                                }
-                            } else if (_indexingProgress.value is IndexingProgress.Idle) {
-                                val now = System.currentTimeMillis()
-                                if (now - lastIdleIndexRefreshAt >= 10_000L) {
-                                    refreshIndexSize()
-                                    lastIdleIndexRefreshAt = now
-                                }
-                            }
+                            _indexingProgress.value = activeWork.toIndexingProgress()
+                        } else if (workWasActive) {
+                            workWasActive = false
                             _isIndexing.value = false
+                            val sizeAfterFinish = resolveIndexSizeAfterServiceCompletion()
+                            _indexingProgress.value =
+                                if (workInfos.any { it.state == WorkInfo.State.SUCCEEDED } && sizeAfterFinish > 0) {
+                                    IndexingProgress.Completed(totalTopics = sizeAfterFinish, durationMs = 0L)
+                                } else {
+                                    IndexingProgress.Error("Индексация не завершилась успешно")
+                                }
+                            }
                         }
-                        delay(1000L)
                     }
                 }
         }
 
         override fun onCleared() {
             super.onCleared()
-            serviceMonitorJob?.cancel()
-            serviceMonitorJob = null
+            indexingMonitorJob?.cancel()
+            indexingMonitorJob = null
+        }
+
+        private fun WorkInfo.toIndexingProgress(): IndexingProgress {
+            val percent = progress.getInt("progress_percent", 0).coerceIn(0, 100)
+            return IndexingProgress.InProgress(
+                currentForum = progress.getString("progress_message").orEmpty(),
+                currentPage = percent,
+                totalPages = 100,
+                currentForumIndex = 0,
+                totalForums = 1,
+            )
         }
     }

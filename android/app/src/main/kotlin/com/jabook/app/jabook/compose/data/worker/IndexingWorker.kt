@@ -15,9 +15,15 @@
 package com.jabook.app.jabook.compose.data.worker
 
 import android.content.Context
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.pm.ServiceInfo
+import android.os.Build
+import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.Data
+import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
@@ -53,6 +59,8 @@ public class IndexingWorker
             // Work names
             public const val WORK_NAME_PERIODIC: String = "jabook_periodic_indexing"
             public const val WORK_NAME_ONE_TIME: String = "jabook_one_time_indexing"
+            private const val NOTIFICATION_ID: Int = 3_104
+            private const val NOTIFICATION_CHANNEL_ID: String = "indexing_work"
 
             // Progress keys
             public const val KEY_PROGRESS_PERCENT: String = "progress_percent"
@@ -78,6 +86,23 @@ public class IndexingWorker
 
         private val logger = loggerFactory.get(TAG)
 
+        override suspend fun getForegroundInfo(): ForegroundInfo {
+            createNotificationChannel()
+            val notification =
+                NotificationCompat
+                    .Builder(applicationContext, NOTIFICATION_CHANNEL_ID)
+                    .setSmallIcon(com.jabook.app.jabook.R.drawable.ic_notification_logo)
+                    .setContentTitle("Индексация аудиокниг")
+                    .setContentText("Подготавливаем офлайн-поиск")
+                    .setOngoing(true)
+                    .build()
+            return ForegroundInfo(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+            )
+        }
+
         override suspend fun doWork(): Result =
             withContext(Dispatchers.IO) {
                 logger.i { "Starting indexing worker (attempt=$runAttemptCount)" }
@@ -85,6 +110,7 @@ public class IndexingWorker
                 var errorOccurred = false
 
                 try {
+                    setForeground(getForegroundInfo())
                     val forumIds = parseForumIds(inputData.getString(KEY_FORUM_IDS))
                     val preloadCovers = inputData.getBoolean(KEY_PRELOAD_COVERS, false)
 
@@ -106,7 +132,7 @@ public class IndexingWorker
                                         .putInt(KEY_PROGRESS_PERCENT, percent)
                                         .putString(KEY_PROGRESS_MESSAGE, progress.currentForum)
                                         .build(),
-                                )
+                                ).get()
                             }
                             is IndexingProgress.Completed -> {
                                 setProgressAsync(
@@ -115,7 +141,7 @@ public class IndexingWorker
                                         .putInt(KEY_PROGRESS_PERCENT, 100)
                                         .putLong(KEY_TOPICS_INDEXED, progress.totalTopics.toLong())
                                         .build(),
-                                )
+                                ).get()
                             }
                             is IndexingProgress.Error -> {
                                 errorOccurred = true
@@ -143,4 +169,17 @@ public class IndexingWorker
                     }
                 }
             }
+
+        private fun createNotificationChannel() {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+            applicationContext
+                .getSystemService(NotificationManager::class.java)
+                .createNotificationChannel(
+                    NotificationChannel(
+                        NOTIFICATION_CHANNEL_ID,
+                        "Индексация",
+                        NotificationManager.IMPORTANCE_LOW,
+                    ),
+                )
+        }
     }
