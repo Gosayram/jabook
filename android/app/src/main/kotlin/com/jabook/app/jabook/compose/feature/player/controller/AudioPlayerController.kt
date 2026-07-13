@@ -445,8 +445,7 @@ public class AudioPlayerController
          * Uses retry logic to handle cases when service is not yet ready.
          */
         private fun initMediaController(retryCount: Int = 0) {
-            val maxRetries = 10
-            val retryDelayMs = 1500L
+            val maxRetries = MediaControllerRetryPolicy.MAX_RETRIES
 
             if (mediaController != null) {
                 _connectionState.value = ConnectionState.CONNECTED
@@ -530,7 +529,6 @@ public class AudioPlayerController
                             scheduleMediaControllerRetry(
                                 nextRetryCount = retryCount + 1,
                                 maxRetries = maxRetries,
-                                retryDelayMs = retryDelayMs,
                                 reason = "timeout",
                             )
                         } catch (e: Exception) {
@@ -539,7 +537,6 @@ public class AudioPlayerController
                             scheduleMediaControllerRetry(
                                 nextRetryCount = retryCount + 1,
                                 maxRetries = maxRetries,
-                                retryDelayMs = retryDelayMs,
                                 reason = "exception",
                             )
                         }
@@ -552,7 +549,6 @@ public class AudioPlayerController
                 scheduleMediaControllerRetry(
                     nextRetryCount = retryCount + 1,
                     maxRetries = maxRetries,
-                    retryDelayMs = retryDelayMs,
                     reason = "token_creation",
                 )
             }
@@ -561,7 +557,6 @@ public class AudioPlayerController
         private fun scheduleMediaControllerRetry(
             nextRetryCount: Int,
             maxRetries: Int,
-            retryDelayMs: Long,
             reason: String,
         ) {
             if (mediaController != null) {
@@ -578,7 +573,7 @@ public class AudioPlayerController
                 mediaControllerRetryJob?.cancel()
                 mediaControllerRetryJob =
                     scope.launch {
-                        delay(retryDelayMs)
+                        delay(MediaControllerRetryPolicy.delayMs(maxRetries))
                         if (mediaController == null) {
                             initMediaController(retryCount = 0)
                         }
@@ -588,7 +583,7 @@ public class AudioPlayerController
             mediaControllerRetryJob?.cancel()
             mediaControllerRetryJob =
                 scope.launch {
-                    delay(retryDelayMs)
+                    delay(MediaControllerRetryPolicy.delayMs(nextRetryCount))
                     initMediaController(nextRetryCount)
                 }
         }
