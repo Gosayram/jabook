@@ -22,6 +22,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_20_21
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_21_22
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_22_23
+import com.jabook.app.jabook.compose.data.local.migration.createTopicsFts5Index
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -448,5 +449,22 @@ class JabookDatabaseMigrationTest {
     fun `migration 22 to 23 version contract is correct`() {
         assertEquals(22, MIGRATION_22_23.startVersion)
         assertEquals(23, MIGRATION_22_23.endVersion)
+    }
+
+    @Test
+    fun `topics FTS setup is safe to run when the index already exists`() {
+        assumeTrue("FTS5 not available in this SQLite build", isFts5Available())
+        createCachedTopicsTable()
+        db.execSQL(
+            "INSERT INTO cached_topics VALUES ('t1', 'Книга', 'Автор', 'Аудиокниги', '1 GB', 5, 0, NULL, NULL, NULL, 1, 1, 1)",
+        )
+
+        createTopicsFts5Index(db)
+        createTopicsFts5Index(db)
+
+        db.query("SELECT COUNT(*) FROM topics_fts WHERE topics_fts MATCH 'книга'").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(1, it.getInt(0))
+        }
     }
 }

@@ -51,7 +51,7 @@ private fun createUserPreferencesDataStore(context: Context): DataStore<UserPref
  */
 @Singleton
 public class SettingsRepository(
-    private val dataStore: DataStore<UserPreferences>
+    private val dataStore: DataStore<UserPreferences>,
 ) {
     /**
      * Get user preferences as Flow.
@@ -147,7 +147,7 @@ public class SettingsRepository(
         crossfadeEnabled: Boolean? = null,
         crossfadeDurationMs: Long? = null,
     ) {
-        val prefs = userPreferences.map { preferences ->
+        dataStore.updateData { preferences ->
             val builder = preferences.toBuilder()
             if (rewindSeconds != null) builder.setRewindDurationSeconds(rewindSeconds)
             if (forwardSeconds != null) builder.setForwardDurationSeconds(forwardSeconds)
@@ -169,9 +169,7 @@ public class SettingsRepository(
             if (crossfadeEnabled != null) builder.setCrossfadeEnabled(crossfadeEnabled)
             if (crossfadeDurationMs != null) builder.setCrossfadeDurationMs(crossfadeDurationMs)
             builder.build()
-        }.first()
-        
-        dataStore.updateData { prefs }
+        }
     }
 
     /**
@@ -191,15 +189,13 @@ public class SettingsRepository(
         downloadNotifications: Boolean? = null,
         playerNotifications: Boolean? = null,
     ) {
-        val prefs = userPreferences.map { preferences ->
+        dataStore.updateData { preferences ->
             val builder = preferences.toBuilder()
             if (notificationsEnabled != null) builder.setNotificationsEnabled(notificationsEnabled)
             if (downloadNotifications != null) builder.setDownloadNotifications(downloadNotifications)
             if (playerNotifications != null) builder.setPlayerNotifications(playerNotifications)
             builder.build()
-        }.first()
-        
-        dataStore.updateData { prefs }
+        }
     }
 
     /**

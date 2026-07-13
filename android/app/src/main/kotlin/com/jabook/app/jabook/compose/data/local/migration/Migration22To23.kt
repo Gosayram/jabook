@@ -37,9 +37,12 @@ public val MIGRATION_22_23: Migration =
  * Creates the RuTracker FTS index and its synchronization triggers.
  *
  * Room does not manage virtual FTS tables declared outside of entities. Therefore this helper
- * must be invoked both by the 22→23 migration and when a database is created from scratch.
+ * must be invoked by the 22→23 migration, on a fresh database, and on open to repair older
+ * fresh installs that were created without the virtual table.
  */
 public fun createTopicsFts5Index(db: SupportSQLiteDatabase) {
+    val indexAlreadyExists = db.hasTable("topics_fts")
+
     db.execSQL(
         """
         CREATE VIRTUAL TABLE IF NOT EXISTS topics_fts USING fts5(
@@ -91,9 +94,16 @@ public fun createTopicsFts5Index(db: SupportSQLiteDatabase) {
         """.trimIndent(),
     )
 
-    db.execSQL(
-        "INSERT INTO topics_fts(rowid, title, author) SELECT rowid, " +
-            "REPLACE(REPLACE(title, 'ё', 'е'), 'Ё', 'Е'), " +
-            "REPLACE(REPLACE(author, 'ё', 'е'), 'Ё', 'Е') FROM cached_topics",
-    )
+    if (!indexAlreadyExists) {
+        db.execSQL(
+            "INSERT INTO topics_fts(rowid, title, author) SELECT rowid, " +
+                "REPLACE(REPLACE(title, 'ё', 'е'), 'Ё', 'Е'), " +
+                "REPLACE(REPLACE(author, 'ё', 'е'), 'Ё', 'Е') FROM cached_topics",
+        )
+    }
 }
+
+private fun SupportSQLiteDatabase.hasTable(tableName: String): Boolean =
+    query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", arrayOf(tableName)).use {
+        it.moveToFirst()
+    }

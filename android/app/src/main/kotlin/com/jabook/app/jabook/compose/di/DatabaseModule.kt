@@ -380,6 +380,8 @@ public object DatabaseModule {
                     super.onOpen(db)
                     // Enable foreign key constraints on each database open
                     db.execSQL("PRAGMA foreign_keys = ON")
+                    // Repair databases created before topics_fts was initialized on fresh installs.
+                    createTopicsFts5Index(db)
                     // Optimize for better query performance
                     db.execSQL("PRAGMA optimize")
                 }
