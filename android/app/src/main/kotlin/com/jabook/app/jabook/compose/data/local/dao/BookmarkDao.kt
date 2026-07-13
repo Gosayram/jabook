@@ -15,9 +15,8 @@
 package com.jabook.app.jabook.compose.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.BookmarkEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -32,7 +31,7 @@ public interface BookmarkDao {
     @Query("SELECT * FROM bookmarks WHERE book_id = :bookId ORDER BY position_ms ASC")
     public suspend fun getBookmarksForBookSync(bookId: String): List<BookmarkEntity>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun upsertBookmark(bookmark: BookmarkEntity)
 
     @Query("DELETE FROM bookmarks WHERE id = :bookmarkId")
