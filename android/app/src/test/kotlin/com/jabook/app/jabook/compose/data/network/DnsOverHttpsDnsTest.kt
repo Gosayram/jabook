@@ -42,6 +42,7 @@ class DnsOverHttpsDnsTest {
     @Before
     fun setUp() {
         server = MockWebServer()
+        server.start()
         fallbackLookups = 0
     }
 
@@ -55,6 +56,7 @@ class DnsOverHttpsDnsTest {
         server.enqueue(
             MockResponse()
                 .setResponseCode(200)
+                .setHeader("Content-Type", "application/dns-json; charset=utf-8")
                 .setBody(
                     """
                     {

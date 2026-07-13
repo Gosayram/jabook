@@ -19,7 +19,12 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.json.JSONObject
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.net.InetAddress
 import java.net.UnknownHostException
 
@@ -75,21 +80,21 @@ public class DnsOverHttpsDns(
 
                 val body = response.body ?: return emptyList()
                 val bodyString = body.string()
-                val json = JSONObject(bodyString)
+                val json = Json.parseToJsonElement(bodyString).jsonObject
 
                 // Check status (0 = NOERROR)
-                val status = json.optInt("Status", -1)
+                val status = json["Status"]?.jsonPrimitive?.intOrNull ?: return emptyList()
                 if (status != 0) return emptyList()
 
-                val answers = json.optJSONArray("Answer") ?: return emptyList()
+                val answers = json["Answer"]?.jsonArray ?: return emptyList()
                 val results = mutableListOf<InetAddress>()
 
-                for (i in 0 until answers.length()) {
-                    val answer = answers.getJSONObject(i)
-                    val type = answer.optInt("type", 0)
-                    val data = answer.optString("data", "")
+                for (answer in answers) {
+                    val answerObject = answer.jsonObject
+                    val type = answerObject["type"]?.jsonPrimitive?.intOrNull ?: continue
+                    val data = answerObject["data"]?.jsonPrimitive?.contentOrNull ?: continue
                     // Type 1 = A record, Type 28 = AAAA
-                    if ((type == 1 || type == 28) && data.isNotEmpty()) {
+                    if (type == 1 || type == 28) {
                         try {
                             results.add(InetAddress.getByName(data))
                         } catch (_: Exception) {
