@@ -22,6 +22,5 @@ internal object MediaControllerRetryPolicy {
     private const val MAX_DELAY_MS: Long = 1_000L
 
     /** Returns the delay before retry number [retryCount], where the first retry is one. */
-    fun delayMs(retryCount: Int): Long =
-        (INITIAL_DELAY_MS shl (retryCount - 1).coerceAtLeast(0)).coerceAtMost(MAX_DELAY_MS)
+    fun delayMs(retryCount: Int): Long = (INITIAL_DELAY_MS shl (retryCount - 1).coerceAtLeast(0)).coerceAtMost(MAX_DELAY_MS)
 }

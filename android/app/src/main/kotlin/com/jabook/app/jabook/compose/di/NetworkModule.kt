@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.di
 
+import android.content.Context
 import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.data.network.AuthInterceptor
 import com.jabook.app.jabook.compose.data.network.DynamicBaseUrlInterceptor
@@ -29,10 +30,12 @@ import com.jabook.app.jabook.core.network.NetworkRuntimePolicy
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.brotli.BrotliInterceptor
 import okhttp3.logging.HttpLoggingInterceptor
@@ -134,6 +137,7 @@ public object NetworkModule {
     @Provides
     @Singleton
     public fun provideOkHttpClient(
+        @ApplicationContext context: Context,
         cookieJar: PersistentCookieJar,
         authInterceptor: AuthInterceptor,
         loggingInterceptor: HttpLoggingInterceptor,
@@ -151,6 +155,7 @@ public object NetworkModule {
         return OkHttpClient
             .Builder()
             .dns(dohDns)
+            .cache(Cache(context.cacheDir.resolve("rutracker_http"), HTTP_CACHE_SIZE_BYTES))
             .cookieJar(cookieJar)
             .certificatePinner(rutrackerCertificatePinner)
             .eventListenerFactory(networkTelemetryEventListenerFactory)
@@ -178,6 +183,8 @@ public object NetworkModule {
             // - followSslRedirects = true (follow redirects between HTTP/HTTPS)
             .build()
     }
+
+    private const val HTTP_CACHE_SIZE_BYTES: Long = 10L * 1024L * 1024L
 
     /**
      * Provide Retrofit instance.

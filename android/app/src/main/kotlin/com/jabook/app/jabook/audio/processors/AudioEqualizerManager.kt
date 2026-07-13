@@ -18,6 +18,7 @@ import android.media.audiofx.Equalizer
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -179,6 +180,7 @@ public class AudioEqualizerManager
                 LogUtils.d(TAG, "Equalizer attached to session $sessionId, preset=${preset.name}")
             } catch (ex: Exception) {
                 LogUtils.e(TAG, "Failed to attach Equalizer: ${ex.message}", ex)
+                CrashDiagnostics.reportNonFatal("audio_equalizer_attach", ex)
             }
         }
 

@@ -40,7 +40,7 @@ internal object ChapterNavigationPolicy {
 
         val safeIndex = currentChapterIndex.coerceIn(0, chapters.lastIndex)
 
-        if (currentChapterPositionMs > RESTART_THRESHOLD_MS) {
+        if (currentChapterPositionMs >= RESTART_THRESHOLD_MS) {
             return ChapterNavigationAction.RestartCurrentChapter(safeIndex)
         }
 

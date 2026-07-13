@@ -19,6 +19,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.media.audiofx.Visualizer
 import androidx.core.content.ContextCompat
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -142,6 +143,7 @@ public class AudioVisualizerManager(
             LogUtils.d(TAG, "Visualizer initialized with session $audioSessionId")
         } catch (e: Exception) {
             LogUtils.e(TAG, "Failed to initialize visualizer", e)
+            CrashDiagnostics.reportNonFatal("audio_visualizer_initialize", e)
             release(clearRequestedSessionId = false)
         }
     }
@@ -182,6 +184,7 @@ public class AudioVisualizerManager(
             applyVisualizerEnabledState(enabled)
         } catch (e: Exception) {
             LogUtils.e(TAG, "Failed to set visualizer enabled state", e)
+            CrashDiagnostics.reportNonFatal("audio_visualizer_enable", e)
             release(clearRequestedSessionId = false)
         }
     }

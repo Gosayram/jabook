@@ -57,7 +57,13 @@ private class LegacySettingsRepository(
      * Get user preferences as Flow.
      */
     public val userPreferences: Flow<UserPreferences> =
-        dataStore.data.catch { emit(UserPreferencesSerializer.defaultValue) }
+        dataStore.data.catch { exception ->
+            if (exception is IOException) {
+                emit(UserPreferencesSerializer.defaultValue)
+            } else {
+                throw exception
+            }
+        }
 
     /**
      * Last persisted player snapshot for process-death fallback.
@@ -373,41 +379,85 @@ public interface SettingsRepository {
     public val userPreferences: Flow<UserPreferences>
     public val playerStateSnapshot: Flow<PlayerStateSnapshotPreference?>
     public val sleepTimerState: Flow<SleepTimerState>
+
     public suspend fun updateThemeMode(themeMode: ThemeMode)
+
     public suspend fun updateDynamicColors(enabled: Boolean)
+
     public suspend fun updateAccentSwatchIndex(index: Int)
+
     public suspend fun updatePlayerCoverMode(mode: Int)
+
     public suspend fun updatePlaybackSpeed(speed: Float)
+
     public suspend fun updateAudioSettings(
-        rewindSeconds: Int? = null, forwardSeconds: Int? = null, resumeRewindSeconds: Int? = null,
-        resumeRewindMode: ResumeRewindMode? = null, resumeRewindAggressiveness: Float? = null,
-        sleepTimerShakeExtendEnabled: Boolean? = null, holdToBoostSpeed: Float? = null,
-        autoPipEnabled: Boolean? = null, volumeBoost: String? = null, drcLevel: String? = null,
-        speechEnhancer: Boolean? = null, autoVolumeLeveling: Boolean? = null, normalizeVolume: Boolean? = null,
-        skipSilence: Boolean? = null, skipSilenceThresholdDb: Float? = null, skipSilenceMinMs: Int? = null,
-        skipSilenceMode: SkipSilenceMode? = null, crossfadeEnabled: Boolean? = null, crossfadeDurationMs: Long? = null,
+        rewindSeconds: Int? = null,
+        forwardSeconds: Int? = null,
+        resumeRewindSeconds: Int? = null,
+        resumeRewindMode: ResumeRewindMode? = null,
+        resumeRewindAggressiveness: Float? = null,
+        sleepTimerShakeExtendEnabled: Boolean? = null,
+        holdToBoostSpeed: Float? = null,
+        autoPipEnabled: Boolean? = null,
+        volumeBoost: String? = null,
+        drcLevel: String? = null,
+        speechEnhancer: Boolean? = null,
+        autoVolumeLeveling: Boolean? = null,
+        normalizeVolume: Boolean? = null,
+        skipSilence: Boolean? = null,
+        skipSilenceThresholdDb: Float? = null,
+        skipSilenceMinMs: Int? = null,
+        skipSilenceMode: SkipSilenceMode? = null,
+        crossfadeEnabled: Boolean? = null,
+        crossfadeDurationMs: Long? = null,
     )
+
     public suspend fun updateLanguage(languageCode: String)
-    public suspend fun updateNotificationSettings(notificationsEnabled: Boolean?, downloadNotifications: Boolean?, playerNotifications: Boolean?)
+
+    public suspend fun updateNotificationSettings(
+        notificationsEnabled: Boolean?,
+        downloadNotifications: Boolean?,
+        playerNotifications: Boolean?,
+    )
+
     public suspend fun updateSelectedMirror(domain: String)
+
     public suspend fun addCustomMirror(domain: String)
+
     public suspend fun removeCustomMirror(domain: String)
+
     public suspend fun updateAutoSwitchMirror(enabled: Boolean)
+
     public suspend fun updateDownloadPath(path: String)
+
     public suspend fun updateWifiOnly(enabled: Boolean)
+
     public suspend fun updateLimitDownloadSpeed(enabled: Boolean)
+
     public suspend fun updateMaxDownloadSpeed(speedKb: Int)
+
     public suspend fun updateMaxConcurrentDownloads(count: Int)
+
     public suspend fun updateAutoLoadCoversOnCellular(enabled: Boolean)
+
     public suspend fun updateLibrarySortOrder(sortOrder: String)
+
     public suspend fun updateSpotlightCompleted(completed: Boolean)
+
     public suspend fun updateHapticsEnabled(enabled: Boolean)
+
     public suspend fun updateEqualizerPreset(preset: String)
+
     public suspend fun updateOnboardingCompleted(completed: Boolean)
+
     public suspend fun updatePlayerStateSnapshot(snapshot: PlayerStateSnapshotPreference)
+
     public suspend fun clearPlayerStateSnapshot()
+
     public suspend fun updateSleepTimerState(state: SleepTimerState)
+
     public suspend fun clearSleepTimerState()
+
     public suspend fun resetToDefaults()
 }
 
