@@ -18,6 +18,7 @@ import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
+import com.jabook.app.jabook.compose.data.worker.IndexingWorkScheduler
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.usecase.auth.WithAuthorisedCheckUseCase
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +28,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.flow.emptyFlow
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -42,6 +44,7 @@ class IndexingViewModelTest {
     private val forumIndexer: ForumIndexer = mock()
     private val authRepository: AuthRepository = mock()
     private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase = mock()
+    private val indexingWorkScheduler: IndexingWorkScheduler = mock()
     private val loggerFactory: LoggerFactory = mock()
     private val logger: Logger = mock()
     private val testDispatcher = StandardTestDispatcher()
@@ -52,18 +55,20 @@ class IndexingViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         whenever(loggerFactory.get(any<String>())).thenReturn(logger)
+        whenever(indexingWorkScheduler.observe()).thenReturn(emptyFlow())
 
         viewModel =
             IndexingViewModel(
                 forumIndexer = forumIndexer,
                 authRepository = authRepository,
                 withAuthorisedCheckUseCase = withAuthorisedCheckUseCase,
+                indexingWorkScheduler = indexingWorkScheduler,
                 loggerFactory = loggerFactory,
             )
 
-        // Stop infinite service monitor loop started in init for deterministic JVM tests.
+        // Stop the monitor started in init for deterministic JVM tests.
         runCatching {
-            val monitorField = IndexingViewModel::class.java.getDeclaredField("serviceMonitorJob")
+            val monitorField = IndexingViewModel::class.java.getDeclaredField("indexingMonitorJob")
             monitorField.isAccessible = true
             (monitorField.get(viewModel) as? Job)?.cancel()
             monitorField.set(viewModel, null)
