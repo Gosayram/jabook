@@ -230,6 +230,7 @@ public class AudioVisualizerManager(
             LogUtils.d(TAG, "Visualizer released")
         } catch (e: Exception) {
             LogUtils.e(TAG, "Failed to release visualizer", e)
+            CrashDiagnostics.reportNonFatal("audio_visualizer_release", e)
             visualizer = null
             audioSessionId = 0
             if (clearRequestedSessionId) {

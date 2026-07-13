@@ -78,8 +78,7 @@ public class DnsOverHttpsDns(
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return emptyList()
 
-                val body = response.body ?: return emptyList()
-                val bodyString = body.string()
+                val bodyString = response.body.string()
                 val json = Json.parseToJsonElement(bodyString).jsonObject
 
                 // Check status (0 = NOERROR)
@@ -90,7 +89,7 @@ public class DnsOverHttpsDns(
                 val results = mutableListOf<InetAddress>()
 
                 for (answer in answers) {
-                    val answerObject = answer.jsonObject
+                    val answerObject = runCatching { answer.jsonObject }.getOrNull() ?: continue
                     val type = answerObject["type"]?.jsonPrimitive?.intOrNull ?: continue
                     val data = answerObject["data"]?.jsonPrimitive?.contentOrNull ?: continue
                     // Type 1 = A record, Type 28 = AAAA

@@ -117,6 +117,20 @@ class DnsOverHttpsDnsTest {
     }
 
     @Test
+    fun `lookup ignores malformed answers when valid records remain`() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody("""{"Status":0,"Answer":["invalid",{"type":1,"data":"93.184.216.34"}]}"""),
+        )
+
+        val result = resolver().lookup("example.com")
+
+        assertEquals(listOf("93.184.216.34"), result.map(InetAddress::getHostAddress))
+        assertEquals(0, fallbackLookups)
+    }
+
+    @Test
     fun `lookup falls back to system DNS delegate on malformed DoH JSON`() {
         server.enqueue(
             MockResponse()

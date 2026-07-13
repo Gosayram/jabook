@@ -238,7 +238,12 @@ public class AudioEqualizerManager
         }
 
         private fun releaseEqualizer() {
-            equalizer?.release()
+            try {
+                equalizer?.release()
+            } catch (ex: Exception) {
+                LogUtils.e(TAG, "Failed to release Equalizer: ${ex.message}", ex)
+                CrashDiagnostics.reportNonFatal("audio_equalizer_release", ex)
+            }
             equalizer = null
         }
 

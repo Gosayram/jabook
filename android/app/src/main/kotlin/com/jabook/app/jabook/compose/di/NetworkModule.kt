@@ -100,6 +100,7 @@ public object NetworkModule {
     @Provides
     @Singleton
     public fun provideMirrorManager(
+        @ApplicationContext context: Context,
         settingsRepository: SettingsRepository,
         cookieJar: PersistentCookieJar,
         loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory,
@@ -110,6 +111,7 @@ public object NetworkModule {
             OkHttpClient
                 .Builder()
                 .cookieJar(cookieJar)
+                .cache(Cache(context.cacheDir.resolve("rutracker_health"), HTTP_CACHE_SIZE_BYTES))
                 .certificatePinner(rutrackerCertificatePinner)
                 .callTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .connectTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
