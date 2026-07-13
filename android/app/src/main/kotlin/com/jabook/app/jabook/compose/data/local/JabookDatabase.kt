@@ -67,6 +67,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 22: Added resumeData BLOB column to torrent_downloads for crash-safe download resumption.
  * Database version 23: Added topics_fts FTS5 virtual table with triggers for instant offline search (MATCH + bm25).
  * Database version 24: Added narrator column to books table for audiobook narrator information.
+ * Database version 25: Rebuilt topics_fts as contentless FTS5 to reduce index size.
  */
 @Database(
     entities = [
@@ -83,7 +84,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         CachedTopicEntity::class,
         SearchQueryEntity::class,
     ],
-    version = 24,
+    version = 25,
     exportSchema = true, // Enable schema export for migration validation and debugging
 )
 public abstract class JabookDatabase : RoomDatabase() {

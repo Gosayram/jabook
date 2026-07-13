@@ -21,7 +21,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * Adds `topics_fts` FTS5 virtual table for instant offline search.
  *
  * Replaces `LIKE '%query%'` full-scan with `MATCH` + `bm25()` ranking.
- * Uses external-content table (`content='cached_topics'`) to avoid data duplication.
+ * Uses a contentless table to minimize index storage.
  * Triggers keep FTS in sync with cached_topics on INSERT/UPDATE/DELETE.
  * Tokenizer `unicode61 remove_diacritics 2` normalizes Latin diacritics.
  * Triggers use REPLACE(…, 'ё','е') to normalize Cyrillic ё→е at index time.
@@ -47,7 +47,7 @@ public fun createTopicsFts5Index(db: SupportSQLiteDatabase) {
         """
         CREATE VIRTUAL TABLE IF NOT EXISTS topics_fts USING fts5(
             title, author,
-            content='cached_topics', content_rowid='rowid',
+            content='',
             tokenize = "unicode61 remove_diacritics 2"
         )
         """.trimIndent(),
