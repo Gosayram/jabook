@@ -29,61 +29,71 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 public val MIGRATION_22_23: Migration =
     object : Migration(22, 23) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            db.execSQL(
-                """
-                CREATE VIRTUAL TABLE IF NOT EXISTS topics_fts USING fts5(
-                    title, author,
-                    content='cached_topics', content_rowid='rowid',
-                    tokenize = "unicode61 remove_diacritics 2"
-                )
-                """.trimIndent(),
-            )
-
-            db.execSQL(
-                """
-                CREATE TRIGGER IF NOT EXISTS topics_fts_ai AFTER INSERT ON cached_topics BEGIN
-                    INSERT INTO topics_fts(rowid, title, author) VALUES (
-                        NEW.rowid,
-                        REPLACE(REPLACE(NEW.title, 'ё', 'е'), 'Ё', 'Е'),
-                        REPLACE(REPLACE(NEW.author, 'ё', 'е'), 'Ё', 'Е')
-                    );
-                END
-                """.trimIndent(),
-            )
-
-            db.execSQL(
-                """
-                CREATE TRIGGER IF NOT EXISTS topics_fts_ad AFTER DELETE ON cached_topics BEGIN
-                    INSERT INTO topics_fts(topics_fts, rowid, title, author) VALUES (
-                        'delete', OLD.rowid,
-                        REPLACE(REPLACE(OLD.title, 'ё', 'е'), 'Ё', 'Е'),
-                        REPLACE(REPLACE(OLD.author, 'ё', 'е'), 'Ё', 'Е')
-                    );
-                END
-                """.trimIndent(),
-            )
-
-            db.execSQL(
-                """
-                CREATE TRIGGER IF NOT EXISTS topics_fts_au AFTER UPDATE ON cached_topics BEGIN
-                    INSERT INTO topics_fts(topics_fts, rowid, title, author) VALUES (
-                        'delete', OLD.rowid,
-                        REPLACE(REPLACE(OLD.title, 'ё', 'е'), 'Ё', 'Е'),
-                        REPLACE(REPLACE(OLD.author, 'ё', 'е'), 'Ё', 'Е')
-                    );
-                    INSERT INTO topics_fts(rowid, title, author) VALUES (
-                        NEW.rowid,
-                        REPLACE(REPLACE(NEW.title, 'ё', 'е'), 'Ё', 'Е'),
-                        REPLACE(REPLACE(NEW.author, 'ё', 'е'), 'Ё', 'Е')
-                    );
-                END
-                """.trimIndent(),
-            )
-
-            db.execSQL(
-                "INSERT INTO topics_fts(rowid, title, author) SELECT rowid, " +
-                    "REPLACE(REPLACE(title, 'ё', 'е'), 'Ё', 'Е'), " +
-                    "REPLACE(REPLACE(author, 'ё', 'е'), 'Ё', 'Е') FROM cached_topics",
-            )
+            createTopicsFts5Index(db)
         }
     }
+
+/**
+ * Creates the RuTracker FTS index and its synchronization triggers.
+ *
+ * Room does not manage virtual FTS tables declared outside of entities. Therefore this helper
+ * must be invoked both by the 22→23 migration and when a database is created from scratch.
+ */
+public fun createTopicsFts5Index(db: SupportSQLiteDatabase) {
+    db.execSQL(
+        """
+        CREATE VIRTUAL TABLE IF NOT EXISTS topics_fts USING fts5(
+            title, author,
+            content='cached_topics', content_rowid='rowid',
+            tokenize = "unicode61 remove_diacritics 2"
+        )
+        """.trimIndent(),
+    )
+
+    db.execSQL(
+        """
+        CREATE TRIGGER IF NOT EXISTS topics_fts_ai AFTER INSERT ON cached_topics BEGIN
+            INSERT INTO topics_fts(rowid, title, author) VALUES (
+                NEW.rowid,
+                REPLACE(REPLACE(NEW.title, 'ё', 'е'), 'Ё', 'Е'),
+                REPLACE(REPLACE(NEW.author, 'ё', 'е'), 'Ё', 'Е')
+            );
+        END
+        """.trimIndent(),
+    )
+
+    db.execSQL(
+        """
+        CREATE TRIGGER IF NOT EXISTS topics_fts_ad AFTER DELETE ON cached_topics BEGIN
+            INSERT INTO topics_fts(topics_fts, rowid, title, author) VALUES (
+                'delete', OLD.rowid,
+                REPLACE(REPLACE(OLD.title, 'ё', 'е'), 'Ё', 'Е'),
+                REPLACE(REPLACE(OLD.author, 'ё', 'е'), 'Ё', 'Е')
+            );
+        END
+        """.trimIndent(),
+    )
+
+    db.execSQL(
+        """
+        CREATE TRIGGER IF NOT EXISTS topics_fts_au AFTER UPDATE ON cached_topics BEGIN
+            INSERT INTO topics_fts(topics_fts, rowid, title, author) VALUES (
+                'delete', OLD.rowid,
+                REPLACE(REPLACE(OLD.title, 'ё', 'е'), 'Ё', 'Е'),
+                REPLACE(REPLACE(OLD.author, 'ё', 'е'), 'Ё', 'Е')
+            );
+            INSERT INTO topics_fts(rowid, title, author) VALUES (
+                NEW.rowid,
+                REPLACE(REPLACE(NEW.title, 'ё', 'е'), 'Ё', 'Е'),
+                REPLACE(REPLACE(NEW.author, 'ё', 'е'), 'Ё', 'Е')
+            );
+        END
+        """.trimIndent(),
+    )
+
+    db.execSQL(
+        "INSERT INTO topics_fts(rowid, title, author) SELECT rowid, " +
+            "REPLACE(REPLACE(title, 'ё', 'е'), 'Ё', 'Е'), " +
+            "REPLACE(REPLACE(author, 'ё', 'е'), 'Ё', 'Е') FROM cached_topics",
+    )
+}

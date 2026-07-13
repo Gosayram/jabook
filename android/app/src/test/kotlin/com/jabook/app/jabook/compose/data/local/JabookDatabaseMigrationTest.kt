@@ -21,6 +21,7 @@ import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_20_21
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_21_22
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_22_23
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -185,6 +186,28 @@ class JabookDatabaseMigrationTest {
                 completedTime INTEGER NOT NULL,
                 pauseReason TEXT,
                 topicId TEXT
+            )
+            """.trimIndent(),
+        )
+    }
+
+    private fun createCachedTopicsTable() {
+        db.execSQL(
+            """
+            CREATE TABLE cached_topics (
+                topic_id TEXT PRIMARY KEY NOT NULL,
+                title TEXT NOT NULL,
+                author TEXT NOT NULL,
+                category TEXT NOT NULL,
+                size TEXT NOT NULL,
+                seeders INTEGER NOT NULL,
+                leechers INTEGER NOT NULL,
+                magnet_url TEXT,
+                torrent_url TEXT,
+                cover_url TEXT,
+                timestamp INTEGER NOT NULL,
+                last_updated INTEGER NOT NULL,
+                index_version INTEGER NOT NULL
             )
             """.trimIndent(),
         )
@@ -393,5 +416,37 @@ class JabookDatabaseMigrationTest {
             assertTrue(it.moveToFirst())
             assertEquals("chain.torrent", it.getString(0))
         }
+    }
+
+    @Test
+    fun `migration 22 to 23 creates and keeps topics FTS index synchronized`() {
+        assumeTrue("FTS5 not available in this SQLite build", isFts5Available())
+        createCachedTopicsTable()
+        db.execSQL(
+            "INSERT INTO cached_topics VALUES ('t1', 'Ёжик в тумане', 'Автор', 'Аудиокниги', '1 GB', 5, 0, NULL, NULL, NULL, 1, 1, 1)",
+        )
+
+        MIGRATION_22_23.migrate(db)
+
+        assertTrue(hasTable("topics_fts"))
+        assertTrue(hasTrigger("topics_fts_ai"))
+        assertTrue(hasTrigger("topics_fts_ad"))
+        assertTrue(hasTrigger("topics_fts_au"))
+        db.query("SELECT COUNT(*) FROM topics_fts WHERE topics_fts MATCH 'ежик'").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(1, it.getInt(0))
+        }
+
+        db.execSQL("UPDATE cached_topics SET title = 'Лиса' WHERE topic_id = 't1'")
+        db.query("SELECT COUNT(*) FROM topics_fts WHERE topics_fts MATCH 'лиса'").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(1, it.getInt(0))
+        }
+    }
+
+    @Test
+    fun `migration 22 to 23 version contract is correct`() {
+        assertEquals(22, MIGRATION_22_23.startVersion)
+        assertEquals(23, MIGRATION_22_23.endVersion)
     }
 }

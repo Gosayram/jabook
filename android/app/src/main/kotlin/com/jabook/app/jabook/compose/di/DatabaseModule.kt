@@ -39,6 +39,7 @@ import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_22_23
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_23_24
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_6_7
 import com.jabook.app.jabook.compose.data.local.migration.createBooksFts5Index
+import com.jabook.app.jabook.compose.data.local.migration.createTopicsFts5Index
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -372,6 +373,7 @@ public object DatabaseModule {
                     // Enable foreign key constraints for referential integrity
                     db.execSQL("PRAGMA foreign_keys = ON")
                     createBooksFts5Index(db)
+                    createTopicsFts5Index(db)
                 }
 
                 override fun onOpen(db: SupportSQLiteDatabase) {
