@@ -30,12 +30,12 @@ import com.jabook.app.jabook.core.network.NetworkRuntimePolicy
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Cache
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.brotli.BrotliInterceptor
 import okhttp3.logging.HttpLoggingInterceptor
@@ -107,11 +107,12 @@ public object NetworkModule {
         networkTelemetryEventListenerFactory: NetworkTelemetryEventListenerFactory,
     ): MirrorManager {
         // Lightweight OkHttpClient for health checks only
+        val healthCache = Cache(context.cacheDir.resolve("rutracker_health"), HTTP_CACHE_SIZE_BYTES)
         val healthCheckClient =
             OkHttpClient
                 .Builder()
                 .cookieJar(cookieJar)
-                .cache(Cache(context.cacheDir.resolve("rutracker_health"), HTTP_CACHE_SIZE_BYTES))
+                .cache(healthCache)
                 .certificatePinner(rutrackerCertificatePinner)
                 .callTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .connectTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -153,11 +154,12 @@ public object NetworkModule {
         val dohDns =
             com.jabook.app.jabook.compose.data.network
                 .DnsOverHttpsDns()
+        val apiCache = Cache(context.cacheDir.resolve("rutracker_http"), HTTP_CACHE_SIZE_BYTES)
 
         return OkHttpClient
             .Builder()
             .dns(dohDns)
-            .cache(Cache(context.cacheDir.resolve("rutracker_http"), HTTP_CACHE_SIZE_BYTES))
+            .cache(apiCache)
             .cookieJar(cookieJar)
             .certificatePinner(rutrackerCertificatePinner)
             .eventListenerFactory(networkTelemetryEventListenerFactory)
