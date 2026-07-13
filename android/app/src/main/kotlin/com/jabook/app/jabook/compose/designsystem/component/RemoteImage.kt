@@ -21,6 +21,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
@@ -136,11 +137,11 @@ public fun RemoteImage(
             }
         },
         success = { state ->
-            // Show image when loaded successfully
-            AsyncImage(
-                model = imageRequest,
+            // Reuse the already-loaded painter to avoid a second request and transition flicker.
+            Image(
+                painter = state.painter,
                 contentDescription = contentDescription,
-                modifier = modifier,
+                modifier = Modifier.fillMaxSize(),
                 contentScale = contentScale,
             )
         },
