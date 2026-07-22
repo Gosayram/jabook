@@ -143,6 +143,7 @@ public class AudioPlayerService : MediaLibraryService() {
     // Audio visualizer manager
     internal var audioVisualizerManager: AudioVisualizerManager? = null
     internal var visualizerBridgeJob: kotlinx.coroutines.Job? = null
+    internal var sessionExtrasJob: kotlinx.coroutines.Job? = null
 
     // Phone call listener for automatic resume after calls
     internal var phoneCallListener: PhoneCallListener? = null
@@ -368,6 +369,11 @@ public class AudioPlayerService : MediaLibraryService() {
             // Capitalize first letter for display (using utility function)
             return flavor.capitalizeFirst()
         }
+
+        // Session extras keys for Auto / Wear
+        public const val EXTRA_SLEEP_TIMER_REMAINING_MS: String = "sleep_timer_remaining_ms"
+        public const val EXTRA_PLAYBACK_SPEED: String = "playback_speed"
+        public const val EXTRA_IS_SLEEP_TIMER_ACTIVE: String = "is_sleep_timer_active"
     }
 
     @Volatile

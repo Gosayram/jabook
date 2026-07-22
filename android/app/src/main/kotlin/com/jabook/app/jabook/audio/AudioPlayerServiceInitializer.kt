@@ -24,7 +24,9 @@ import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
@@ -474,6 +476,26 @@ public class AudioPlayerServiceInitializer(
                 Bundle().apply {
                     putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV, true)
                     putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_NEXT, true)
+                }
+
+            // Periodically update sessionExtras with dynamic state so Auto / WearOS
+            // can read sleep timer remaining and playback speed without custom commands.
+            service.sessionExtrasJob =
+                service.playerServiceScope.launch {
+                    while (isActive) {
+                        delay(5_000L)
+                        val remaining = service.getSleepTimerRemainingSeconds() ?: -1
+                        val speed = service.getPlaybackSpeed()
+                        val isTimerActive = remaining > 0
+                        service.mediaLibrarySession?.sessionExtras =
+                            Bundle().apply {
+                                putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV, true)
+                                putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_NEXT, true)
+                                putLong(AudioPlayerService.EXTRA_SLEEP_TIMER_REMAINING_MS, remaining * 1000L)
+                                putFloat(AudioPlayerService.EXTRA_PLAYBACK_SPEED, speed)
+                                putBoolean(AudioPlayerService.EXTRA_IS_SLEEP_TIMER_ACTIVE, isTimerActive)
+                            }
+                    }
                 }
 
             // Assign to legacy field for compatibility

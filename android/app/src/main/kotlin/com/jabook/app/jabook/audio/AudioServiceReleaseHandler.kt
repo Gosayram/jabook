@@ -99,6 +99,8 @@ internal class AudioServiceReleaseHandler(
         service.audioVisualizerManager = null
         service.visualizerBridgeJob?.cancel()
         service.visualizerBridgeJob = null
+        service.sessionExtrasJob?.cancel()
+        service.sessionExtrasJob = null
         if (service.isAudioVisualizerStateBridgeInitialized()) {
             service.audioVisualizerStateBridge.reset()
         }

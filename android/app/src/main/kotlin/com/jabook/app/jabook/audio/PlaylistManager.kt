@@ -236,7 +236,7 @@ internal class PlaylistManager(
         val dataSourceFactory = SimpleMediaDataSourceFactory()
         val mediaItems =
             updatedPaths.mapIndexed { index, path ->
-                createMediaItemForPath(path, index, currentMetadata, dataSourceFactory)
+                createMediaItemForPath(path, index, currentMetadata, updatedPaths.size, dataSourceFactory)
             }
 
         withContext(dispatchers.main) {
@@ -597,7 +597,7 @@ internal class PlaylistManager(
         // Create all MediaItems synchronously (fast for small playlists)
         val mediaItems =
             filePaths.mapIndexed { index, path ->
-                createMediaItemForPath(path, index, metadata, dataSourceFactory)
+                createMediaItemForPath(path, index, metadata, filePaths.size, dataSourceFactory)
             }
 
         // Apply to player on main thread
@@ -1360,10 +1360,11 @@ internal class PlaylistManager(
         path: String,
         index: Int,
         metadata: Map<String, String>?,
+        totalChapters: Int,
         dataSourceFactory: SimpleMediaDataSourceFactory,
     ): MediaItem {
         val uri = createUriForPath(path)
-        val mediaMetadata = createMediaMetadata(path, index, metadata)
+        val mediaMetadata = createMediaMetadata(path, index, metadata, totalChapters)
 
         return MediaItem
             .Builder()
@@ -1395,6 +1396,7 @@ internal class PlaylistManager(
         path: String,
         index: Int,
         metadata: Map<String, String>?,
+        totalChapters: Int,
     ): androidx.media3.common.MediaMetadata {
         val fileName = PlaylistTrackTitlePolicy.deriveFileName(path, index)
         val resolvedFields = PlaylistMetadataFieldPolicy.resolve(metadata)
@@ -1416,6 +1418,7 @@ internal class PlaylistManager(
                         path = path,
                         index = index,
                         metadata = metadata,
+                        totalChapters = totalChapters,
                     ),
                 ).setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_AUDIO_BOOK)
 
@@ -1453,7 +1456,7 @@ internal class PlaylistManager(
     ): MediaSource {
         val path = filePaths[index]
         val uri = createUriForPath(path)
-        val mediaMetadata = createMediaMetadata(path, index, metadata)
+        val mediaMetadata = createMediaMetadata(path, index, metadata, filePaths.size)
 
         LogUtils.d(
             "AudioPlayerService",
