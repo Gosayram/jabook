@@ -137,7 +137,6 @@ internal class PlaybackController(
                 resetInactivityTimer()
             } catch (e: Exception) {
                 LogUtils.e("AudioPlayerService", "Failed to start playback", e)
-                e.printStackTrace()
                 ErrorHandler.handleGeneralError("AudioPlayerService", e, "Play method execution")
             }
         }

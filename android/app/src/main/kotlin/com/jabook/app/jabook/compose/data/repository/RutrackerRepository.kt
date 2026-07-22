@@ -113,20 +113,12 @@ public class RutrackerRepositoryImpl
         override suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>, AppError>> =
             flow {
                 // Use ONLY indexed search (no network)
-                // LogUtils.d("RutrackerRepositoryImpl", "🔍 Search started: query='$query'")
                 try {
-                    val countStartTime = System.currentTimeMillis()
                     val indexSize = offlineSearchDao.getTopicCount()
-                    val countDuration = System.currentTimeMillis() - countStartTime
-                    // LogUtils.d(
-                    //    "RutrackerRepositoryImpl",
-                    //    "Index size check: $indexSize topics (${countDuration}ms)",
-                    // )
 
                     if (indexSize > 0) {
                         // Check for debug command
                         if (query.trim() == "!index" || query.trim() == ":debug") {
-                            // LogUtils.d("RutrackerRepositoryImpl", "🐞 Debug command detected, fetching sample topics")
                             val sampleTopics = offlineSearchDao.getSampleTopics(10)
                             val domainResults =
                                 sampleTopics
@@ -181,14 +173,12 @@ public class RutrackerRepositoryImpl
                                 }
                         }
                     } else {
-                        // LogUtils.w("RutrackerRepositoryImpl", "⚠️ Index is empty, returning empty results")
                         // Index is empty - return empty results
                         emit(Result.Success(emptyList()))
                     }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    // LogUtils.e("RutrackerRepositoryImpl", "❌ Search failed for query '$query'", e)
                     // Search failed - return error
                     emit(Result.Error(e.toAppError()))
                 }
@@ -204,11 +194,9 @@ public class RutrackerRepositoryImpl
                     is Result.Success -> {
                         val coverUrl = result.data.coverUrl
                         if (!coverUrl.isNullOrBlank()) {
-                            // LogUtils.d("RutrackerRepositoryImpl", "Updating cover for $topicId: $coverUrl")
                             offlineSearchDao.updateCoverUrl(topicId, coverUrl)
                             Result.Success(Unit)
                         } else {
-                            // LogUtils.d("RutrackerRepositoryImpl", "No cover found for $topicId")
                             Result.Success(Unit) // Success even if no cover, just nothing to save
                         }
                     }
@@ -231,8 +219,8 @@ public class RutrackerRepositoryImpl
                 offlineSearchDao.saveSearchResults(query, results.map { it.toCachedTopicEntity() })
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
-                // LogUtils.e("RutrackerRepo", "Failed to save results", e)
+            } catch (e: Exception) {
+                logger.e(e) { "Failed to save results" }
             }
         }
 
