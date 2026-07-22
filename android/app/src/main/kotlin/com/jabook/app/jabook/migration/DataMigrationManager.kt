@@ -28,8 +28,12 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Stub for data migration from Flutter to Kotlin.
- * TODO: Implement full migration logic.
+ * Migrates legacy Flutter player state into the current Room database.
+ *
+ * Reads `flutter.player_state` from `FlutterSharedPreferences`, validates and
+ * normalizes the legacy group path (traversal + system-root guards), runs a
+ * preflight check, inserts a `BookEntity` for playback resumption, and marks
+ * the migration complete. Rolls back the insert on failure.
  */
 @Singleton
 public class DataMigrationManager

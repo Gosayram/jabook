@@ -211,6 +211,10 @@ lint-kotlin: ## Lint Kotlin code (ktlint + detekt check + dependency verificatio
 check-i18n-keys: ## Verify base values keys are present in values-ru
 	@./scripts/check-i18n-keys.sh
 
+.PHONY: check-docs
+check-docs: ## Verify README/AGENTS/.kotlin-version match code versions (DB + Kotlin)
+	@./scripts/check-docs.sh
+
 .PHONY: ktlint-strace
 ktlint-strace: ## Run ktlint format with stacktrace (debug formatting issues)
 	@(cd android && ./gradlew :app:runKtlintFormatOverMainSourceSet --no-daemon --stacktrace); \
