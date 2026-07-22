@@ -118,7 +118,7 @@ public fun BookmarksSheet(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(bookmarks) { bookmark ->
+                items(bookmarks, key = { it.id }) { bookmark ->
                     BookmarkItemRow(
                         bookmark = bookmark,
                         currentPositionMs = currentPositionMs,
