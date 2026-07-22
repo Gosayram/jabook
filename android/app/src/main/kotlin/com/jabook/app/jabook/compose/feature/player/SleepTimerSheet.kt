@@ -42,10 +42,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.HapticManager
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
 import java.time.LocalDateTime
 
@@ -81,6 +83,7 @@ public fun SleepTimerSheet(
         modifier = modifier,
     ) {
         val context = LocalContext.current
+        val hapticFeedback = LocalHapticFeedback.current
         Column(
             modifier =
                 Modifier
@@ -124,6 +127,7 @@ public fun SleepTimerSheet(
                             },
                             modifier =
                                 Modifier.clickable {
+                                    HapticManager.performTap(hapticFeedback)
                                     onStartTimer(minutes)
                                     onDismiss()
                                 },
@@ -143,6 +147,7 @@ public fun SleepTimerSheet(
                         },
                         modifier =
                             Modifier.clickable {
+                                HapticManager.performTap(hapticFeedback)
                                 onStartTimerEndOfChapter()
                                 onDismiss()
                             },
@@ -160,6 +165,7 @@ public fun SleepTimerSheet(
                         },
                         modifier =
                             Modifier.clickable {
+                                HapticManager.performTap(hapticFeedback)
                                 onStartTimerEndOfTrack()
                                 onDismiss()
                             },
@@ -191,6 +197,7 @@ public fun SleepTimerSheet(
                                                 now = LocalDateTime.now(),
                                             )
                                         onStartTimer(minutesUntilStop)
+                                        HapticManager.performTap(hapticFeedback)
                                         onDismiss()
                                     },
                                     now.hour,
@@ -203,7 +210,10 @@ public fun SleepTimerSheet(
                     // Timer options
                     SleepTimerPresetChips(
                         durations = presetDurations,
-                        onPresetClick = { minutes -> handleSleepTimerPresetSelection(minutes, onStartTimer, onDismiss) },
+                        onPresetClick = { minutes ->
+                            HapticManager.performTap(hapticFeedback)
+                            handleSleepTimerPresetSelection(minutes, onStartTimer, onDismiss)
+                        },
                     )
                 }
 
