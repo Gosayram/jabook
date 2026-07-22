@@ -29,8 +29,10 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.MediaControllerConstants
 import com.jabook.app.jabook.audio.MediaControllerExtensions
+import com.jabook.app.jabook.audio.processors.ChapterLoudnessTransitionPolicy
 import com.jabook.app.jabook.audio.processors.PitchCorrectionPolicy
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -68,11 +70,18 @@ public class AudioPlayerController
         @param:ApplicationContext private val context: Context,
         private val exoPlayer: ExoPlayer, // Keep for backward compatibility during migration
         private val userPreferencesRepository: com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository,
+        private val chaptersDao: ChaptersDao,
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("AudioPlayerController")
         private val scope = CoroutineScope(Dispatchers.Main)
         private var mediaController: MediaController? = null
+        private val chapterLoudnessPolicy =
+            ChapterLoudnessTransitionPolicy(
+                player = exoPlayer,
+                chaptersDao = chaptersDao,
+                scope = scope,
+            )
         private var mediaControllerFuture: ListenableFuture<MediaController>? = null
         private var mediaControllerRetryJob: Job? = null
         private var serviceInitRetryJob: Job? = null
@@ -265,6 +274,7 @@ public class AudioPlayerController
                     _currentChapterIndex.value = controller.currentMediaItemIndex
                     _duration.value = controller.duration.coerceAtLeast(0)
                     updateStats(controller)
+                    chapterLoudnessPolicy.onChapterTransition(controller.currentMediaItemIndex)
                 }
 
                 override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
@@ -322,6 +332,7 @@ public class AudioPlayerController
                     _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
                     _duration.value = exoPlayer.duration.coerceAtLeast(0)
                     updateStats(exoPlayer)
+                    chapterLoudnessPolicy.onChapterTransition(exoPlayer.currentMediaItemIndex)
                 }
 
                 override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
@@ -761,6 +772,7 @@ public class AudioPlayerController
 
             // Update current book ID
             _currentBookId.value = request.bookId
+            chapterLoudnessPolicy.onBookChanged(request.bookId)
 
             // Use MediaController for all operations including setPlaylist
             val controller = mediaController
@@ -1084,5 +1096,6 @@ public class AudioPlayerController
             }
             mediaControllerFuture = null
             _connectionState.value = ConnectionState.DISCONNECTED
+            chapterLoudnessPolicy.release()
         }
     }

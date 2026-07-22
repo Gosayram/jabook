@@ -165,4 +165,6 @@ public data class ChapterEntity(
     val isCompleted: Boolean = false,
     @ColumnInfo(name = "is_downloaded")
     val isDownloaded: Boolean = false,
+    @ColumnInfo(name = "lufs_value")
+    val lufsValue: Double? = null,
 )

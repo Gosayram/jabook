@@ -68,6 +68,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 23: Added topics_fts FTS5 virtual table with triggers for instant offline search (MATCH + bm25).
  * Database version 24: Added narrator column to books table for audiobook narrator information.
  * Database version 25: Rebuilt topics_fts as contentless FTS5 to reduce index size.
+ * Database version 26: Added lufs_value column to chapters table for per-chapter loudness normalization.
  */
 @Database(
     entities = [
@@ -84,7 +85,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         CachedTopicEntity::class,
         SearchQueryEntity::class,
     ],
-    version = 25,
+    version = 26,
     exportSchema = true, // Enable schema export for migration validation and debugging
 )
 public abstract class JabookDatabase : RoomDatabase() {

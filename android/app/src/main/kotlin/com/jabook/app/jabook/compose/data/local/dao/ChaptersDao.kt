@@ -109,6 +109,21 @@ public interface ChaptersDao {
     )
 
     /**
+     * Updates the LUFS loudness estimate for a chapter.
+     *
+     * This value is computed by [LufsAnalysisWorker] during background loudness analysis
+     * and consumed by [ChapterLoudnessTransitionPolicy] during chapter transitions.
+     *
+     * @param chapterId target chapter ID
+     * @param lufs estimated LUFS value (negative, e.g. -20.0), or null to clear
+     */
+    @Query("UPDATE chapters SET lufs_value = :lufs WHERE id = :chapterId")
+    public suspend fun updateLufsValue(
+        chapterId: String,
+        lufs: Double?,
+    )
+
+    /**
      * Updates download status for a chapter.
      */
     @Query("UPDATE chapters SET is_downloaded = :isDownloaded WHERE id = :chapterId")

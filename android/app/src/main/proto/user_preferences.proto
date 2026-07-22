@@ -111,6 +111,12 @@ message UserPreferences {
 
   // Bass boost strength (0-100, 0 = disabled).
   int32 bass_boost_strength = 53;
+
+  // Speech compressor level: "Off", "Gentle", "Moderate", "Aggressive"
+  string speech_compressor_level = 54;
+
+  // Noise gate level: "Off", "Light", "Medium", "Strong"
+  string noise_gate_level = 55;
 }
 
 message SleepTimerState {

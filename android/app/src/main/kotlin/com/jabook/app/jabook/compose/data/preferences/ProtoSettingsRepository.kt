@@ -143,6 +143,7 @@ private class LegacySettingsRepository(
         autoPipEnabled: Boolean? = null,
         volumeBoost: String? = null,
         drcLevel: String? = null,
+        speechCompressorLevel: String? = null,
         speechEnhancer: Boolean? = null,
         autoVolumeLeveling: Boolean? = null,
         normalizeVolume: Boolean? = null,
@@ -152,6 +153,7 @@ private class LegacySettingsRepository(
         skipSilenceMode: SkipSilenceMode? = null,
         crossfadeEnabled: Boolean? = null,
         crossfadeDurationMs: Long? = null,
+        noiseGateLevel: String? = null,
     ) {
         dataStore.updateData { preferences ->
             val builder = preferences.toBuilder()
@@ -165,6 +167,7 @@ private class LegacySettingsRepository(
             if (autoPipEnabled != null) builder.setAutoPipEnabled(autoPipEnabled)
             if (volumeBoost != null) builder.setVolumeBoostLevel(volumeBoost)
             if (drcLevel != null) builder.setDrcLevel(drcLevel)
+            if (speechCompressorLevel != null) builder.setSpeechCompressorLevel(speechCompressorLevel)
             if (speechEnhancer != null) builder.setSpeechEnhancer(speechEnhancer)
             if (autoVolumeLeveling != null) builder.setAutoVolumeLeveling(autoVolumeLeveling)
             if (normalizeVolume != null) builder.setNormalizeVolume(normalizeVolume)
@@ -174,6 +177,7 @@ private class LegacySettingsRepository(
             if (skipSilenceMode != null) builder.setSkipSilenceMode(skipSilenceMode)
             if (crossfadeEnabled != null) builder.setCrossfadeEnabled(crossfadeEnabled)
             if (crossfadeDurationMs != null) builder.setCrossfadeDurationMs(crossfadeDurationMs)
+            if (noiseGateLevel != null) builder.setNoiseGateLevel(noiseGateLevel)
             builder.build()
         }
     }
@@ -411,6 +415,7 @@ public interface SettingsRepository {
         autoPipEnabled: Boolean? = null,
         volumeBoost: String? = null,
         drcLevel: String? = null,
+        speechCompressorLevel: String? = null,
         speechEnhancer: Boolean? = null,
         autoVolumeLeveling: Boolean? = null,
         normalizeVolume: Boolean? = null,
@@ -420,6 +425,7 @@ public interface SettingsRepository {
         skipSilenceMode: SkipSilenceMode? = null,
         crossfadeEnabled: Boolean? = null,
         crossfadeDurationMs: Long? = null,
+        noiseGateLevel: String? = null,
     )
 
     public suspend fun updateLanguage(languageCode: String)
@@ -563,6 +569,7 @@ public class ProtoSettingsRepository
             autoPipEnabled: Boolean?,
             volumeBoost: String?,
             drcLevel: String?,
+            speechCompressorLevel: String?,
             speechEnhancer: Boolean?,
             autoVolumeLeveling: Boolean?,
             normalizeVolume: Boolean?,
@@ -572,6 +579,7 @@ public class ProtoSettingsRepository
             skipSilenceMode: SkipSilenceMode?,
             crossfadeEnabled: Boolean?,
             crossfadeDurationMs: Long?,
+            noiseGateLevel: String?,
         ) {
             dataStore.updateData { preferences ->
                 val builder = preferences.toBuilder()
@@ -585,6 +593,7 @@ public class ProtoSettingsRepository
                 autoPipEnabled?.let { builder.setAutoPipEnabled(it) }
                 volumeBoost?.let { builder.setVolumeBoostLevel(it) }
                 drcLevel?.let { builder.setDrcLevel(it) }
+                speechCompressorLevel?.let { builder.setSpeechCompressorLevel(it) }
                 speechEnhancer?.let { builder.setSpeechEnhancer(it) }
                 autoVolumeLeveling?.let { builder.setAutoVolumeLeveling(it) }
                 normalizeVolume?.let { builder.setNormalizeVolume(it) }
@@ -594,6 +603,7 @@ public class ProtoSettingsRepository
                 skipSilenceMode?.let { builder.setSkipSilenceMode(it) }
                 crossfadeEnabled?.let { builder.setCrossfadeEnabled(it) }
                 crossfadeDurationMs?.let { builder.setCrossfadeDurationMs(it) }
+                noiseGateLevel?.let { builder.setNoiseGateLevel(it) }
                 builder.build()
             }
         }

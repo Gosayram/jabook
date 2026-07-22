@@ -55,8 +55,9 @@ import com.jabook.app.jabook.util.LogUtils
  */
 @UnstableApi
 public class AudioProcessorChainManager {
-    /** The nine proxy slots, each wrapping a single processing concern. */
+    /** The ten proxy slots, each wrapping a single processing concern. */
     private val loudnessProxy = ProxyAudioProcessor()
+    private val speechCompressorProxy = ProxyAudioProcessor()
     private val boostProxy = ProxyAudioProcessor()
     private val drcProxy = ProxyAudioProcessor()
     private val speechProxy = ProxyAudioProcessor()
@@ -64,6 +65,7 @@ public class AudioProcessorChainManager {
     private val skipSilenceProxy = ProxyAudioProcessor()
     private val equalizerProxy = ProxyAudioProcessor()
     private val noiseSuppressionProxy = ProxyAudioProcessor()
+    private val noiseGateProxy = ProxyAudioProcessor() // P-14: Noise Gate
     private val reverbProxy = ProxyAudioProcessor() // P-29: Reverb
     private val echoProxy = ProxyAudioProcessor() // P-30: Echo
 
@@ -77,6 +79,7 @@ public class AudioProcessorChainManager {
     public fun proxies(): List<AudioProcessor> =
         listOf(
             loudnessProxy,
+            speechCompressorProxy,
             boostProxy,
             drcProxy,
             speechProxy,
@@ -84,6 +87,7 @@ public class AudioProcessorChainManager {
             skipSilenceProxy,
             equalizerProxy,
             noiseSuppressionProxy,
+            noiseGateProxy, // P-14: Noise Gate
             reverbProxy, // P-29: Add reverb
             echoProxy, // P-30: Add echo
         )
@@ -110,7 +114,16 @@ public class AudioProcessorChainManager {
             },
         )
 
-        // 2. Volume Boost
+        // 2. Speech Compressor (applied after normalization, before boost)
+        speechCompressorProxy.swapDelegate(
+            if (settings.speechCompressorLevel != SpeechCompressorLevel.Off) {
+                SpeechCompressorAudioProcessor(settings.speechCompressorLevel)
+            } else {
+                PassthroughAudioProcessor()
+            },
+        )
+
+        // 3. Volume Boost
         boostProxy.swapDelegate(
             if (settings.volumeBoostLevel != VolumeBoostLevel.Off) {
                 VolumeBoostProcessor(settings.volumeBoostLevel)
@@ -119,7 +132,7 @@ public class AudioProcessorChainManager {
             },
         )
 
-        // 3. Dynamic Range Compression
+        // 4. Dynamic Range Compression
         drcProxy.swapDelegate(
             if (settings.drcLevel != DRCLevel.Off) {
                 DynamicRangeCompressor(settings.drcLevel)
@@ -128,7 +141,7 @@ public class AudioProcessorChainManager {
             },
         )
 
-        // 4. Speech Enhancement
+        // 5. Speech Enhancement
         speechProxy.swapDelegate(
             if (settings.speechEnhancer) {
                 SpeechEnhancer()
@@ -137,7 +150,7 @@ public class AudioProcessorChainManager {
             },
         )
 
-        // 5. Auto Volume Leveling
+        // 6. Auto Volume Leveling
         levelerProxy.swapDelegate(
             if (settings.autoVolumeLeveling) {
                 AutoVolumeLeveler()
@@ -146,7 +159,7 @@ public class AudioProcessorChainManager {
             },
         )
 
-        // 6. Skip Silence
+        // 7. Skip Silence
         skipSilenceProxy.swapDelegate(
             if (settings.skipSilence) {
                 SkipSilenceAudioProcessor(
@@ -161,7 +174,16 @@ public class AudioProcessorChainManager {
             },
         )
 
-        // 10. Echo (P-30)
+        // 9. Noise Gate (P-14)
+        noiseGateProxy.swapDelegate(
+            if (settings.noiseGateLevel != NoiseGateLevel.Off) {
+                NoiseGateAudioProcessor(settings.noiseGateLevel)
+            } else {
+                PassthroughAudioProcessor()
+            },
+        )
+
+        // 11. Echo (P-30)
         echoProxy.swapDelegate(
             if (settings.echoEnabled) {
                 EchoAudioProcessor(
@@ -178,6 +200,7 @@ public class AudioProcessorChainManager {
             TAG,
             "Applied settings via proxy chain: " +
                 "normalize=${settings.normalizeVolume}, " +
+                "speechCompressor=${settings.speechCompressorLevel}, " +
                 "boost=${settings.volumeBoostLevel}, " +
                 "drc=${settings.drcLevel}, " +
                 "speech=${settings.speechEnhancer}, " +
@@ -185,6 +208,7 @@ public class AudioProcessorChainManager {
                 "skipSilence=${settings.skipSilence}, " +
                 "equalizer=${settings.equalizerEnabled}, " +
                 "noiseSuppression=${settings.noiseSuppressionEnabled}, " +
+                "noiseGate=${settings.noiseGateLevel}, " +
                 "reverb=${settings.reverbEnabled}, " +
                 "echo=${settings.echoEnabled}",
         )

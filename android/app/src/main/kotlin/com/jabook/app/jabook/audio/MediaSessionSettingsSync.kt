@@ -83,6 +83,17 @@ public class MediaSessionSettingsSync(
                 .map { prefs ->
                     com.jabook.app.jabook.audio.processors.AudioProcessingSettings(
                         normalizeVolume = prefs.normalizeVolume,
+                        speechCompressorLevel =
+                            try {
+                                if (prefs.speechCompressorLevel.isNotEmpty()) {
+                                    com.jabook.app.jabook.audio.processors.SpeechCompressorLevel
+                                        .valueOf(prefs.speechCompressorLevel)
+                                } else {
+                                    com.jabook.app.jabook.audio.processors.SpeechCompressorLevel.Off
+                                }
+                            } catch (e: Exception) {
+                                com.jabook.app.jabook.audio.processors.SpeechCompressorLevel.Off
+                            },
                         volumeBoostLevel =
                             try {
                                 if (prefs.volumeBoostLevel.isNotEmpty()) {
@@ -123,6 +134,17 @@ public class MediaSessionSettingsSync(
                             },
                         isCrossfadeEnabled = prefs.crossfadeEnabled,
                         crossfadeDurationMs = if (prefs.crossfadeDurationMs > 0) prefs.crossfadeDurationMs else 2000L,
+                        noiseGateLevel =
+                            try {
+                                if (prefs.noiseGateLevel.isNotEmpty()) {
+                                    com.jabook.app.jabook.audio.processors.NoiseGateLevel
+                                        .valueOf(prefs.noiseGateLevel)
+                                } else {
+                                    com.jabook.app.jabook.audio.processors.NoiseGateLevel.Off
+                                }
+                            } catch (e: Exception) {
+                                com.jabook.app.jabook.audio.processors.NoiseGateLevel.Off
+                            },
                     )
                 }.distinctUntilChanged()
                 .collect { settings ->

@@ -24,6 +24,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -59,6 +60,7 @@ public class LufsAnalysisWorker
         @Assisted context: Context,
         @Assisted params: WorkerParameters,
         private val booksDao: BooksDao,
+        private val chaptersDao: ChaptersDao,
         private val loggerFactory: LoggerFactory,
     ) : CoroutineWorker(context, params) {
         private val logger = loggerFactory.get("LufsAnalysisWorker")
@@ -116,7 +118,9 @@ public class LufsAnalysisWorker
             return try {
                 val lufsValue =
                     withContext(Dispatchers.IO) {
-                        analyzeBookLoudness(bookId)
+                        val bookLufs = analyzeBookLoudness(bookId)
+                        analyzePerChapterLoudness(bookId)
+                        bookLufs
                     }
 
                 if (lufsValue != null) {
@@ -173,18 +177,51 @@ public class LufsAnalysisWorker
         }
 
         /**
+         * Analyzes per-chapter loudness for all chapters of a book.
+         *
+         * For each chapter, locates its audio file (via [ChapterEntity.fileUrl]),
+         * estimates LUFS using [estimateLufsForFile], and persists the result
+         * via [ChaptersDao.updateLufsValue].
+         *
+         * Deduplicates by file path to avoid redundant analysis of the same file
+         * (e.g. when multiple auto-detected chapters share a single audio file).
+         * Chapters whose file cannot be located or analyzed keep a null LUFS value.
+         */
+        internal suspend fun analyzePerChapterLoudness(bookId: String) {
+            val chapters = chaptersDao.getChaptersByBookId(bookId)
+            if (chapters.isEmpty()) return
+
+            val analyzedPaths = mutableSetOf<String>()
+
+            for (chapter in chapters) {
+                val fileUrl = chapter.fileUrl ?: continue
+                if (fileUrl in analyzedPaths) continue
+                analyzedPaths.add(fileUrl)
+
+                val file = File(fileUrl)
+                if (!file.exists() || !isSupportedAudioFile(file)) continue
+
+                val lufs = estimateLufsForFile(file)
+                if (lufs != null) {
+                    chaptersDao.updateLufsValue(chapter.id, lufs)
+                    logger.i { "Chapter LUFS: chapter=${chapter.id}, lufs=$lufs" }
+                }
+            }
+        }
+
+        /**
          * Finds the first supported audio file in the given directory (or the file itself).
          */
         internal fun findFirstAudioFile(path: String): File? {
             val file = File(path)
             if (!file.exists()) return null
 
-            if (file.isFile && file.isSupportedAudioFile()) return file
+            if (file.isFile && isSupportedAudioFile(file)) return file
 
             if (file.isDirectory) {
                 return file
                     .listFiles()
-                    ?.filter { it.isSupportedAudioFile() }
+                    ?.filter { isSupportedAudioFile(it) }
                     ?.minByOrNull { it.name }
             }
             return null
@@ -373,8 +410,8 @@ public class LufsAnalysisWorker
         /**
          * Checks if the file has a supported audio extension.
          */
-        private fun File.isSupportedAudioFile(): Boolean {
-            val ext = extension.lowercase()
+        internal fun isSupportedAudioFile(file: File): Boolean {
+            val ext = file.extension.lowercase()
             return ext in SUPPORTED_EXTENSIONS
         }
     }

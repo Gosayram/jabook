@@ -66,7 +66,21 @@ public object AudioProcessorFactory {
                 }
             }
 
-            // 2. Volume Boost (applied after normalization)
+            // 2. Speech Compressor (applied after normalization, before boost)
+            if (settings.speechCompressorLevel != SpeechCompressorLevel.Off) {
+                try {
+                    val compressor = SpeechCompressorAudioProcessor(settings.speechCompressorLevel)
+                    processors.add(compressor)
+                    LogUtils.d(
+                        "AudioProcessorFactory",
+                        "Added SpeechCompressorAudioProcessor (${settings.speechCompressorLevel}) to chain",
+                    )
+                } catch (e: Exception) {
+                    LogUtils.e("AudioProcessorFactory", "Failed to create SpeechCompressorAudioProcessor", e)
+                }
+            }
+
+            // 3. Volume Boost (applied after normalization and speech compression)
             if (settings.volumeBoostLevel != VolumeBoostLevel.Off) {
                 try {
                     val boostProcessor = VolumeBoostProcessor(settings.volumeBoostLevel)
@@ -80,7 +94,7 @@ public object AudioProcessorFactory {
                 }
             }
 
-            // 3. Dynamic Range Compression (applied after boost)
+            // 4. Dynamic Range Compression (applied after boost)
             if (settings.drcLevel != DRCLevel.Off) {
                 try {
                     val compressor = DynamicRangeCompressor(settings.drcLevel)
@@ -94,7 +108,7 @@ public object AudioProcessorFactory {
                 }
             }
 
-            // 4. Speech Enhancer (applied after compression)
+            // 5. Speech Enhancer (applied after compression)
             if (settings.speechEnhancer) {
                 try {
                     val enhancer = SpeechEnhancer()
@@ -105,7 +119,7 @@ public object AudioProcessorFactory {
                 }
             }
 
-            // 5. Auto Volume Leveling (applied last for final volume control)
+            // 6. Auto Volume Leveling (applied last for final volume control)
             if (settings.autoVolumeLeveling) {
                 try {
                     val leveler = AutoVolumeLeveler()
@@ -116,7 +130,7 @@ public object AudioProcessorFactory {
                 }
             }
 
-            // 6. Skip Silence (applied at the very end to remove silent parts)
+            // 7. Skip Silence (applied at the very end to remove silent parts)
             if (settings.skipSilence) {
                 try {
                     val silenceSkippingProcessor =
@@ -135,6 +149,20 @@ public object AudioProcessorFactory {
                     )
                 } catch (e: Exception) {
                     LogUtils.e("AudioProcessorFactory", "Failed to create SkipSilenceAudioProcessor", e)
+                }
+            }
+
+            // 8. Noise Gate (applied after skip silence, reduces noise floor between speech)
+            if (settings.noiseGateLevel != NoiseGateLevel.Off) {
+                try {
+                    val noiseGate = NoiseGateAudioProcessor(settings.noiseGateLevel)
+                    processors.add(noiseGate)
+                    LogUtils.d(
+                        "AudioProcessorFactory",
+                        "Added NoiseGateAudioProcessor (${settings.noiseGateLevel}) to chain",
+                    )
+                } catch (e: Exception) {
+                    LogUtils.e("AudioProcessorFactory", "Failed to create NoiseGateAudioProcessor", e)
                 }
             }
 
@@ -159,6 +187,7 @@ public object AudioProcessorFactory {
  */
 public data class AudioProcessingSettings(
     val normalizeVolume: Boolean = true,
+    val speechCompressorLevel: SpeechCompressorLevel = SpeechCompressorLevel.Off,
     val volumeBoostLevel: VolumeBoostLevel = VolumeBoostLevel.Off,
     val drcLevel: DRCLevel = DRCLevel.Off,
     val speechEnhancer: Boolean = false,
@@ -179,6 +208,7 @@ public data class AudioProcessingSettings(
     val crossfadeDurationMs: Long = 0L,
     val equalizerEnabled: Boolean = false,
     val noiseSuppressionEnabled: Boolean = false,
+    val noiseGateLevel: NoiseGateLevel = NoiseGateLevel.Off,
     val reverbEnabled: Boolean = false,
     val echoEnabled: Boolean = false,
     val echoStrength: Float = 0.5f,
@@ -201,6 +231,7 @@ public data class AudioProcessingSettings(
         public fun defaults(): AudioProcessingSettings =
             AudioProcessingSettings(
                 normalizeVolume = true, // Enabled by default for consistent volume
+                speechCompressorLevel = SpeechCompressorLevel.Off,
                 volumeBoostLevel = VolumeBoostLevel.Off,
                 drcLevel = DRCLevel.Off,
                 speechEnhancer = false,
@@ -240,4 +271,24 @@ public enum class DRCLevel {
     Gentle, // Gentle compression for subtle effect
     Medium, // Medium compression for balanced effect
     Strong, // Strong compression for maximum effect
+}
+
+/**
+ * Speech Compressor intensity level enum.
+ */
+public enum class SpeechCompressorLevel {
+    Off,
+    Gentle, // Threshold -15 dB, gentle compression
+    Moderate, // Threshold -20 dB, moderate compression
+    Aggressive, // Threshold -25 dB, aggressive compression
+}
+
+/**
+ * Noise gate intensity level enum.
+ */
+public enum class NoiseGateLevel {
+    Off,
+    Light, // Subtle noise floor reduction
+    Medium, // Balanced noise reduction
+    Strong, // Aggressive noise reduction
 }
