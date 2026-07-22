@@ -267,6 +267,10 @@ public class SettingsViewModel
             skipSilenceMode: com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode? = null,
             crossfadeEnabled: Boolean? = null,
             crossfadeDurationMs: Long? = null,
+            singleClickAction: Int? = null,
+            doubleClickAction: Int? = null,
+            tripleClickAction: Int? = null,
+            longPressAction: Int? = null,
         ) {
             viewModelScope.launch {
                 settingsRepository.updateAudioSettings(
@@ -289,6 +293,10 @@ public class SettingsViewModel
                     skipSilenceMode = skipSilenceMode,
                     crossfadeEnabled = crossfadeEnabled,
                     crossfadeDurationMs = crossfadeDurationMs,
+                    singleClickAction = singleClickAction,
+                    doubleClickAction = doubleClickAction,
+                    tripleClickAction = tripleClickAction,
+                    longPressAction = longPressAction,
                 )
             }
         }

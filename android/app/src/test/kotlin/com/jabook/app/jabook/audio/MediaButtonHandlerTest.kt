@@ -38,19 +38,39 @@ class MediaButtonHandlerTest {
 
     @Test
     fun `onMediaButtonEvent returns true for HEADSETHOOK`() {
-        val result = handler.onMediaButtonEvent(KeyEvent.KEYCODE_HEADSETHOOK, {}, {}, {})
+        val result =
+            handler.onMediaButtonEvent(KeyEvent.KEYCODE_HEADSETHOOK, onSingleClick = {
+            }, onDoubleClick = {}, onTripleClick = {}, onLongPress = {})
         assertTrue(result)
     }
 
     @Test
     fun `onMediaButtonEvent returns true for PLAY_PAUSE`() {
-        val result = handler.onMediaButtonEvent(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, {}, {}, {})
+        val result =
+            handler.onMediaButtonEvent(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, onSingleClick = {
+            }, onDoubleClick = {}, onTripleClick = {}, onLongPress = {})
         assertTrue(result)
     }
 
     @Test
     fun `onMediaButtonEvent returns false for VOLUME_UP`() {
-        val result = handler.onMediaButtonEvent(KeyEvent.KEYCODE_VOLUME_UP, {}, {}, {})
+        val result =
+            handler.onMediaButtonEvent(KeyEvent.KEYCODE_VOLUME_UP, onSingleClick = {
+            }, onDoubleClick = {}, onTripleClick = {}, onLongPress = {})
         assertFalse(result)
+    }
+
+    @Test
+    fun `onMediaButtonEvent ACTION_UP returns true for HEADSETHOOK`() {
+        val result =
+            handler.onMediaButtonEvent(
+                KeyEvent.KEYCODE_HEADSETHOOK,
+                action = KeyEvent.ACTION_UP,
+                onSingleClick = {},
+                onDoubleClick = {},
+                onTripleClick = {},
+                onLongPress = {},
+            )
+        assertTrue(result)
     }
 }

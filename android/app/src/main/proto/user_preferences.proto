@@ -117,6 +117,13 @@ message UserPreferences {
 
   // Noise gate level: "Off", "Light", "Medium", "Strong"
   string noise_gate_level = 55;
+
+  // Media button mapping (TASK-PLAYER-18)
+  // Which action: PLAY_PAUSE = 0, NEXT_CHAPTER = 1, PREV_CHAPTER = 2, FORWARD_30S = 3, REWIND_10S = 4, BOOKMARK = 5
+  optional int32 single_click_action = 56;
+  optional int32 double_click_action = 57;
+  optional int32 triple_click_action = 58;
+  optional int32 long_press_action = 59;
 }
 
 message SleepTimerState {

@@ -154,6 +154,10 @@ private class LegacySettingsRepository(
         crossfadeEnabled: Boolean? = null,
         crossfadeDurationMs: Long? = null,
         noiseGateLevel: String? = null,
+        singleClickAction: Int? = null,
+        doubleClickAction: Int? = null,
+        tripleClickAction: Int? = null,
+        longPressAction: Int? = null,
     ) {
         dataStore.updateData { preferences ->
             val builder = preferences.toBuilder()
@@ -178,6 +182,10 @@ private class LegacySettingsRepository(
             if (crossfadeEnabled != null) builder.setCrossfadeEnabled(crossfadeEnabled)
             if (crossfadeDurationMs != null) builder.setCrossfadeDurationMs(crossfadeDurationMs)
             if (noiseGateLevel != null) builder.setNoiseGateLevel(noiseGateLevel)
+            if (singleClickAction != null) builder.setSingleClickAction(singleClickAction)
+            if (doubleClickAction != null) builder.setDoubleClickAction(doubleClickAction)
+            if (tripleClickAction != null) builder.setTripleClickAction(tripleClickAction)
+            if (longPressAction != null) builder.setLongPressAction(longPressAction)
             builder.build()
         }
     }
@@ -426,6 +434,10 @@ public interface SettingsRepository {
         crossfadeEnabled: Boolean? = null,
         crossfadeDurationMs: Long? = null,
         noiseGateLevel: String? = null,
+        singleClickAction: Int? = null,
+        doubleClickAction: Int? = null,
+        tripleClickAction: Int? = null,
+        longPressAction: Int? = null,
     )
 
     public suspend fun updateLanguage(languageCode: String)
@@ -580,6 +592,10 @@ public class ProtoSettingsRepository
             crossfadeEnabled: Boolean?,
             crossfadeDurationMs: Long?,
             noiseGateLevel: String?,
+            singleClickAction: Int?,
+            doubleClickAction: Int?,
+            tripleClickAction: Int?,
+            longPressAction: Int?,
         ) {
             dataStore.updateData { preferences ->
                 val builder = preferences.toBuilder()
@@ -604,6 +620,10 @@ public class ProtoSettingsRepository
                 crossfadeEnabled?.let { builder.setCrossfadeEnabled(it) }
                 crossfadeDurationMs?.let { builder.setCrossfadeDurationMs(it) }
                 noiseGateLevel?.let { builder.setNoiseGateLevel(it) }
+                singleClickAction?.let { builder.setSingleClickAction(it) }
+                doubleClickAction?.let { builder.setDoubleClickAction(it) }
+                tripleClickAction?.let { builder.setTripleClickAction(it) }
+                longPressAction?.let { builder.setLongPressAction(it) }
                 builder.build()
             }
         }

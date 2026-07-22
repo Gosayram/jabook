@@ -161,19 +161,22 @@ public class AudioPlayerLibrarySessionCallback(
 
         LogUtils.d("AudioPlayerService", "Got media key event: $keyEvent")
 
-        // Only handle ACTION_DOWN events to avoid duplicate handling
-        if (keyEvent.action != KeyEvent.ACTION_DOWN) {
-            return super.onMediaButtonEvent(session, controller, intent)
-        }
-
         when (keyEvent.keyCode) {
             KEYCODE_MEDIA_NEXT -> {
+                // Single-action keys: only handle ACTION_DOWN
+                if (keyEvent.action != KeyEvent.ACTION_DOWN) {
+                    return super.onMediaButtonEvent(session, controller, intent)
+                }
                 val forwardSeconds = service.mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
                 service.forward(forwardSeconds)
                 LogUtils.d("AudioPlayerService", "Media button: forward ${forwardSeconds}s")
                 return true
             }
             KEYCODE_MEDIA_PREVIOUS -> {
+                // Single-action keys: only handle ACTION_DOWN
+                if (keyEvent.action != KeyEvent.ACTION_DOWN) {
+                    return super.onMediaButtonEvent(session, controller, intent)
+                }
                 val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 10
                 service.rewind(rewindSeconds)
                 LogUtils.d("AudioPlayerService", "Media button: rewind ${rewindSeconds}s")
@@ -182,8 +185,10 @@ public class AudioPlayerLibrarySessionCallback(
             KeyEvent.KEYCODE_HEADSETHOOK, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
             KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE,
             -> {
+                val fwdSec = service.mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
                 mediaButtonHandler?.onMediaButtonEvent(
                     keyEvent.keyCode,
+                    action = keyEvent.action,
                     onSingleClick = {
                         if (service.isPlaying) service.pause() else service.play()
                         LogUtils.d("AudioPlayerService", "Media button: Single click (Play/Pause)")
@@ -195,6 +200,10 @@ public class AudioPlayerLibrarySessionCallback(
                     onTripleClick = {
                         service.previous()
                         LogUtils.d("AudioPlayerService", "Media button: Triple click (Previous)")
+                    },
+                    onLongPress = {
+                        service.forward(fwdSec)
+                        LogUtils.d("AudioPlayerService", "Media button: Long press (forward ${fwdSec}s)")
                     },
                 )
                 return true

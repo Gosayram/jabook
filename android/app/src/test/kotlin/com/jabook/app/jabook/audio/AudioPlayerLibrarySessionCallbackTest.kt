@@ -568,16 +568,21 @@ class AudioPlayerLibrarySessionCallbackTest {
         callback.onMediaButtonEvent(session, controller, playPauseIntent)
 
         val keyCodeCaptor = argumentCaptor<Int>()
+        val actionCaptor = argumentCaptor<Int>()
         val singleClickCaptor = argumentCaptor<() -> Unit>()
         val doubleClickCaptor = argumentCaptor<() -> Unit>()
         val tripleClickCaptor = argumentCaptor<() -> Unit>()
+        val longPressCaptor = argumentCaptor<() -> Unit>()
         verify(mediaButtonHandler).onMediaButtonEvent(
             keyCodeCaptor.capture(),
+            action = actionCaptor.capture(),
             onSingleClick = singleClickCaptor.capture(),
             onDoubleClick = doubleClickCaptor.capture(),
             onTripleClick = tripleClickCaptor.capture(),
+            onLongPress = longPressCaptor.capture(),
         )
         assertEquals(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, keyCodeCaptor.firstValue)
+        assertEquals(KeyEvent.ACTION_DOWN, actionCaptor.firstValue)
 
         whenever(service.isPlaying).thenReturn(false, true)
 
@@ -593,7 +598,7 @@ class AudioPlayerLibrarySessionCallbackTest {
     }
 
     @Test
-    fun `onMediaButtonEvent ignores ACTION_UP events`() {
+    fun `onMediaButtonEvent routes ACTION_UP to handler for long press detection`() {
         val actionUpIntent =
             Intent(Intent.ACTION_MEDIA_BUTTON).apply {
                 putExtra(
@@ -604,10 +609,12 @@ class AudioPlayerLibrarySessionCallbackTest {
 
         callback.onMediaButtonEvent(session, controller, actionUpIntent)
 
-        verify(mediaButtonHandler, never()).onMediaButtonEvent(any(), any(), any(), any())
+        verify(mediaButtonHandler).onMediaButtonEvent(any(), any(), any(), any(), any(), any())
+        // Should not trigger any action directly (handler decides based on timing)
         verify(service, never()).play()
         verify(service, never()).pause()
         verify(service, never()).next()
         verify(service, never()).previous()
+        verify(service, never()).forward(any())
     }
 }
