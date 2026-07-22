@@ -91,7 +91,7 @@ public class DefensiveEncodingHandler
             }
 
             if (cleanBytes.isEmpty()) {
-                logger.w { "⚠️ Empty byte array after BOM removal, returning invalid result" }
+                logger.w { "Empty byte array after BOM removal, returning invalid result" }
                 return DecodingResult.invalid()
             }
 
@@ -102,13 +102,13 @@ public class DefensiveEncodingHandler
                 if (result.isValid && !result.hasMojibake) {
                     val duration = System.currentTimeMillis() - startTime
                     logger.i {
-                        "✅ Decoded with header encoding '$headerEncoding' " +
+                        "Decoded with header encoding '$headerEncoding' " +
                             "(${result.text.length} chars, ${duration}ms)"
                     }
                     return result
                 } else {
                     logger.w {
-                        "⚠️ Header encoding '$headerEncoding' produced invalid/mojibake result, " +
+                        "Header encoding '$headerEncoding' produced invalid/mojibake result, " +
                             "trying alternatives"
                     }
                 }
@@ -121,7 +121,7 @@ public class DefensiveEncodingHandler
                 if (result.isValid && !result.hasMojibake) {
                     val duration = System.currentTimeMillis() - startTime
                     logger.i {
-                        "✅ Decoded with detected encoding '${detectedEncoding.name()}' " +
+                        "Decoded with detected encoding '${detectedEncoding.name()}' " +
                             "(${result.text.length} chars, ${duration}ms)"
                     }
                     return result
@@ -134,7 +134,7 @@ public class DefensiveEncodingHandler
                 if (result.isValid && !result.hasMojibake) {
                     val duration = System.currentTimeMillis() - startTime
                     logger.i {
-                        "✅ Decoded with fallback '${charset.name()}' " +
+                        "Decoded with fallback '${charset.name()}' " +
                             "(${result.text.length} chars, ${duration}ms)"
                     }
                     return result
@@ -153,13 +153,13 @@ public class DefensiveEncodingHandler
                         hasMojibake = hasMojibake,
                     )
                 } catch (e: Exception) {
-                    logger.e({ "❌ Emergency CP1251 fallback failed" }, e)
+                    logger.e({ "Emergency CP1251 fallback failed" }, e)
                     DecodingResult.invalid()
                 }
 
             val duration = System.currentTimeMillis() - startTime
             logger.w {
-                "⚠️ All decoding strategies failed, using emergency fallback " +
+                "All decoding strategies failed, using emergency fallback " +
                     "(confidence: ${emergencyResult.confidence}, ${duration}ms)"
             }
 
@@ -280,7 +280,7 @@ public class DefensiveEncodingHandler
                 val foundPatterns =
                     MOJIBAKE_PATTERNS.filter { pattern -> text.contains(pattern) }
                 logger.w {
-                    "🔍 Mojibake detected! Found patterns: $foundPatterns"
+                    "Mojibake detected! Found patterns: $foundPatterns"
                 }
             }
 

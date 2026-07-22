@@ -183,14 +183,14 @@ public class SearchViewModel
             val query = _searchQuery.value
             if (query.isBlank()) return
 
-            logger.d { "🔍 Starting online search for query: '$query'" }
+            logger.d { "Starting online search for query: '$query'" }
             viewModelScope.launch {
                 _uiState.value = SearchUiState.Loading
 
                 searchRutrackerUseCase(query).collect { result ->
                     when (result) {
                         is Result.Success -> {
-                            logger.i { "✅ Search successful: received ${result.data.size} results for query '$query'" }
+                            logger.i { "Search successful: received ${result.data.size} results for query '$query'" }
                             // Log details about results
                             if (result.data.isNotEmpty()) {
                                 val sample = result.data.take(3)
@@ -204,7 +204,7 @@ public class SearchViewModel
                                     }
                                 }
                             } else {
-                                logger.w { "⚠️ Search returned empty results for query '$query'" }
+                                logger.w { "Search returned empty results for query '$query'" }
                             }
                             rawOnlineResults.value = result.data
                             recalculateUiState()
@@ -215,14 +215,14 @@ public class SearchViewModel
                             val errorCause = result.error.cause
                             logger.e(
                                 errorCause,
-                                { "❌ Search failed for query '$query': $errorMessage" },
+                                { "Search failed for query '$query': $errorMessage" },
                             )
                             rawOnlineResults.value = emptyList()
                             _uiState.value = SearchUiState.Error(errorMessage)
                         }
                         is Result.Loading -> {
                             // Already in loading state
-                            logger.d { "⏳ Search in progress for query '$query'" }
+                            logger.d { "Search in progress for query '$query'" }
                         }
                     }
                 }
@@ -232,17 +232,17 @@ public class SearchViewModel
         private fun recalculateUiState() {
             val currentRaw = rawOnlineResults.value
             if (currentRaw.isEmpty() && _uiState.value !is SearchUiState.Success) {
-                logger.d { "⏭️ Skipping UI state recalculation: no raw results" }
+                logger.d { "Skipping UI state recalculation: no raw results" }
                 return
             }
 
             logger.d {
-                "🔄 Recalculating UI state: ${currentRaw.size} raw results, " +
+                "Recalculating UI state: ${currentRaw.size} raw results, " +
                     "filters=${_filters.value}, sortOrder=${_sortOrder.value}"
             }
             val filtered = applyFiltersAndSort(currentRaw)
             logger.d {
-                "✅ UI state updated: ${filtered.size} filtered results (from ${currentRaw.size} raw)"
+                "UI state updated: ${filtered.size} filtered results (from ${currentRaw.size} raw)"
             }
 
             _uiState.value =

@@ -64,7 +64,7 @@ public class ProxyAudioProcessor(
         }
         delegate = newDelegate
         val newName = newDelegate.javaClass.simpleName
-        LogUtils.d(TAG) { "Delegate swapped: $oldName → $newName" }
+        LogUtils.d(TAG) { "Delegate swapped: $oldName -> $newName" }
     }
 
     /**

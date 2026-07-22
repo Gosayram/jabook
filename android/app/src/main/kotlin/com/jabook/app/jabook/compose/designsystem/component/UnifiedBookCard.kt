@@ -107,7 +107,7 @@ public fun UnifiedBookCard(
         val hasEmptyId = book.id.isBlank()
         if (hasEmptyTitle || hasEmptyAuthor || hasEmptyId) {
             unifiedBookCardLogger.w {
-                "⚠️ Book card with invalid data: " +
+                "Book card with invalid data: " +
                     "id='${book.id.take(20)}', " +
                     "title=${if (hasEmptyTitle) "EMPTY" else "'${book.title.take(30)}'"}, " +
                     "author=${if (hasEmptyAuthor) "EMPTY" else "'${book.author.take(20)}'"}, " +

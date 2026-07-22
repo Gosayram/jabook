@@ -105,13 +105,13 @@ public fun UnifiedBooksView(
     // Log books for debugging
     androidx.compose.runtime.LaunchedEffect(books.size) {
         unifiedBooksViewLogger.d {
-            "📚 Rendering ${books.size} books in $displayMode mode"
+            "Rendering ${books.size} books in $displayMode mode"
         }
         if (books.isNotEmpty()) {
             val invalidBooks = books.filter { it.title.isBlank() || it.author.isBlank() || it.id.isBlank() }
             if (invalidBooks.isNotEmpty()) {
                 unifiedBooksViewLogger.w {
-                    "⚠️ Found ${invalidBooks.size} books with empty/invalid data out of ${books.size} total"
+                    "Found ${invalidBooks.size} books with empty/invalid data out of ${books.size} total"
                 }
                 invalidBooks.take(3).forEachIndexed { index, book ->
                     unifiedBooksViewLogger.w {
@@ -135,7 +135,7 @@ public fun UnifiedBooksView(
                 }
             }
         } else {
-            unifiedBooksViewLogger.w { "⚠️ Empty books list provided" }
+            unifiedBooksViewLogger.w { "Empty books list provided" }
         }
     }
 

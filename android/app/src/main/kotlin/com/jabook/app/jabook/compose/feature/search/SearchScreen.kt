@@ -638,7 +638,7 @@ private fun OnlineSearchResults(
     // Log results for debugging
     androidx.compose.runtime.LaunchedEffect(results.size) {
         searchScreenLogger.d {
-            "📊 OnlineSearchResults: ${results.size} results, ${favoriteIds.size} favorites"
+            "OnlineSearchResults: ${results.size} results, ${favoriteIds.size} favorites"
         }
         if (results.isNotEmpty()) {
             val sample = results.take(3)
@@ -655,7 +655,7 @@ private fun OnlineSearchResults(
             val invalidResults = results.filter { !it.isValid() }
             if (invalidResults.isNotEmpty()) {
                 searchScreenLogger.w {
-                    "⚠️ Found ${invalidResults.size} invalid results out of ${results.size}"
+                    "Found ${invalidResults.size} invalid results out of ${results.size}"
                 }
                 invalidResults.take(3).forEachIndexed { index, result ->
                     searchScreenLogger.w {
@@ -698,7 +698,7 @@ private fun OnlineSearchResults(
                 // Log if book has empty/invalid data
                 if (book.title.isBlank() || book.author.isBlank()) {
                     searchScreenLogger.w {
-                        "⚠️ Book[$index] has empty data: id='${book.id}', " +
+                        "Book[$index] has empty data: id='${book.id}', " +
                             "title='${book.title}', author='${book.author}'"
                     }
                 }
@@ -706,7 +706,7 @@ private fun OnlineSearchResults(
             }
 
         searchScreenLogger.d {
-            "✅ Converted ${results.size} results to ${booksFromResults.size} books"
+            "Converted ${results.size} results to ${booksFromResults.size} books"
         }
 
         com.jabook.app.jabook.compose.feature.library.UnifiedBooksView(

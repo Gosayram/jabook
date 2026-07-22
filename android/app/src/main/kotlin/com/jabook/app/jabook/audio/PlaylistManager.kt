@@ -538,7 +538,7 @@ internal class PlaylistManager(
 
         LogUtils.i(
             "AudioPlayerService",
-            "📥 Starting playlist load: totalTracks=$playlistSize, targetTrack=$initialTrackIndex, " +
+            "Starting playlist load: totalTracks=$playlistSize, targetTrack=$initialTrackIndex, " +
                 "targetPosition=${initialPosition}ms, strategy=$strategy",
         )
 
@@ -627,7 +627,7 @@ internal class PlaylistManager(
             val loadDuration = System.currentTimeMillis() - loadStartTime
             LogUtils.i(
                 "AudioPlayerService",
-                "✅ Synchronous playlist loaded: ${mediaItems.size} tracks in ${loadDuration}ms " +
+                "Synchronous playlist loaded: ${mediaItems.size} tracks in ${loadDuration}ms " +
                     "(startIndex=$startIndex, startPosition=${startPosition}ms)",
             )
 
@@ -770,7 +770,7 @@ internal class PlaylistManager(
                             try {
                                 LogUtils.d(
                                     "AudioPlayerService",
-                                    "📥 Loading track $index: $fileName (priority: $priority)",
+                                    "Loading track $index: $fileName (priority: $priority)",
                                 )
                                 val mediaSource =
                                     createMediaSourceForIndex(
@@ -857,7 +857,7 @@ internal class PlaylistManager(
                                         val loadDuration = System.currentTimeMillis() - loadStartTime
                                         LogUtils.i(
                                             "AudioPlayerService",
-                                            "✅ Loaded track $index: $fileName (${loadDuration}ms, priority: $priority, playlist size: ${activePlayer.mediaItemCount})",
+                                            "Loaded track $index: $fileName (${loadDuration}ms, priority: $priority, playlist size: ${activePlayer.mediaItemCount})",
                                         )
                                         // Update progress
                                         _loadProgress.update {
@@ -873,7 +873,7 @@ internal class PlaylistManager(
                                 val loadDuration = System.currentTimeMillis() - loadStartTime
                                 LogUtils.e(
                                     "AudioPlayerService",
-                                    "❌ Failed to load track $index: $fileName (${loadDuration}ms, priority: $priority): ${e.message}",
+                                    "Failed to load track $index: $fileName (${loadDuration}ms, priority: $priority): ${e.message}",
                                     e,
                                 )
                                 // Continue with other items - one failure shouldn't stop the rest
@@ -1129,7 +1129,7 @@ internal class PlaylistManager(
                     val duration = System.currentTimeMillis() - loadStartTime
                     LogUtils.i(
                         "AudioPlayerService",
-                        "✅ Playlist loaded: $currentCount tracks (expected $expectedCount, ${duration}ms)",
+                        "Playlist loaded: $currentCount tracks (expected $expectedCount, ${duration}ms)",
                     )
                 }
                 return terminalResult
@@ -1150,7 +1150,7 @@ internal class PlaylistManager(
         val duration = System.currentTimeMillis() - loadStartTime
         LogUtils.i(
             "AudioPlayerService",
-            "✅ Playlist confirmed loaded: $finalCount tracks (expected $expectedCount, ${duration}ms)",
+            "Playlist confirmed loaded: $finalCount tracks (expected $expectedCount, ${duration}ms)",
         )
         return true
     }
@@ -1591,7 +1591,7 @@ internal class PlaylistManager(
 
         // Preload in background to avoid blocking
         playerServiceScope.launch(mediaItemDispatcher) {
-            LogUtils.d("AudioPlayerService", "🔄 Preloading next track: $nextTrackIndex")
+            LogUtils.d("AudioPlayerService", "Preloading next track: $nextTrackIndex")
             val dataSourceFactory = SimpleMediaDataSourceFactory()
             val metadataSnapshot = currentMetadata
             val executionResult =
@@ -1615,7 +1615,7 @@ internal class PlaylistManager(
                 )
             when (executionResult) {
                 PlaylistPreloadExecutionResult.Attached -> {
-                    LogUtils.i("AudioPlayerService", "✅ Preloaded track $nextTrackIndex for smooth transition")
+                    LogUtils.i("AudioPlayerService", "Preloaded track $nextTrackIndex for smooth transition")
                 }
 
                 PlaylistPreloadExecutionResult.SkippedAlreadyAvailable -> {
@@ -1664,7 +1664,7 @@ internal class PlaylistManager(
 
             LogUtils.d(
                 "AudioPlayerService",
-                "🧹 Memory optimization: removing ${plan.removalIndicesDescending.size} distant tracks " +
+                "Memory optimization: removing ${plan.removalIndicesDescending.size} distant tracks " +
                     "(keeping window: ${plan.keepStartIndex}-${plan.keepEndIndex} around track $currentTrackIndex)",
             )
 
@@ -1682,7 +1682,7 @@ internal class PlaylistManager(
 
             LogUtils.i(
                 "AudioPlayerService",
-                "✅ Memory optimized: removed ${report.successfulRemovals}/${report.attemptedRemovals} tracks, " +
+                "Memory optimized: removed ${report.successfulRemovals}/${report.attemptedRemovals} tracks, " +
                     "keeping ${plan.keepEndIndex - plan.keepStartIndex + 1} tracks around current position",
             )
         }

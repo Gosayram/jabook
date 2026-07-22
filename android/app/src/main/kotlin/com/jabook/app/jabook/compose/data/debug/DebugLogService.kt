@@ -139,11 +139,11 @@ public class DebugLogService
 
                     val currentDate = Date()
                     val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                    logs.append("📅 Captured: ${dateFormatter.format(currentDate)}\n")
-                    logs.append("📦 Package: ${context.packageName}\n")
-                    logs.append("🔖 Version: ${getAppVersion()}\n\n")
+                    logs.append("Captured: ${dateFormatter.format(currentDate)}\n")
+                    logs.append("Package: ${context.packageName}\n")
+                    logs.append("Version: ${getAppVersion()}\n\n")
 
-                    logs.append("📱 DEVICE INFORMATION\n")
+                    logs.append("DEVICE INFORMATION\n")
                     logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
                     logs.append("Manufacturer: ${android.os.Build.MANUFACTURER}\n")
                     logs.append("Model: ${android.os.Build.MODEL}\n")
@@ -156,13 +156,13 @@ public class DebugLogService
                         "Android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})\n\n",
                     )
 
-                    logs.append("🖥️ DISPLAY & SCREEN\n")
+                    logs.append("DISPLAY & SCREEN\n")
                     logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
                     val displayMetrics = context.resources.displayMetrics
                     logs.append("Resolution: ${displayMetrics.widthPixels}×${displayMetrics.heightPixels}px\n")
                     logs.append("Density: ${displayMetrics.densityDpi}dpi (${displayMetrics.density}x)\n\n")
 
-                    logs.append("💾 MEMORY\n")
+                    logs.append("MEMORY\n")
                     logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
                     val activityManager =
                         context.getSystemService(
@@ -173,13 +173,13 @@ public class DebugLogService
                     logs.append("Total RAM: ${memInfo.totalMem / (1024 * 1024)}MB\n")
                     logs.append("Available: ${memInfo.availMem / (1024 * 1024)}MB\n\n")
 
-                    logs.append("⚙️ CPU ARCHITECTURE\n")
+                    logs.append("CPU ARCHITECTURE\n")
                     logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
                     logs.append("ABIs: ${android.os.Build.SUPPORTED_ABIS.joinToString(", ")}\n\n")
 
-                    logs.append("📋 SYSTEM LOGS (logcat)\n")
+                    logs.append("SYSTEM LOGS (logcat)\n")
                     logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-                    logs.append("⚠️  Note: Dates below use system format MM-DD HH:mm:ss\n")
+                    logs.append("Note: Dates below use system format MM-DD HH:mm:ss\n")
                     logs.append("    (MM-DD = Month-Day, not Day-Month)\n\n")
 
                     // Collect and filter logs
@@ -220,7 +220,7 @@ public class DebugLogService
                     // Add summary
                     logs.append("\n")
                     logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-                    logs.append("📊 LOG SUMMARY\n")
+                    logs.append("LOG SUMMARY\n")
                     logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
                     logs.append("Total lines processed: $totalLines\n")
                     logs.append("System logs filtered: $filteredLines\n")

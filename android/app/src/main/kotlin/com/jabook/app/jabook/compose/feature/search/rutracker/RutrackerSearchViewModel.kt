@@ -107,7 +107,7 @@ public class RutrackerSearchViewModel
                 return
             }
 
-            logger.d { "🔍 Starting search: query='$query', forumIds=$forumIds" }
+            logger.d { "Starting search: query='$query', forumIds=$forumIds" }
             viewModelScope.launch {
                 _searchState.value = SearchState.Loading
 
@@ -125,13 +125,13 @@ public class RutrackerSearchViewModel
                     result
                         .onSuccess { results ->
                             logger.d {
-                                "✅ Search results received: ${results.size} results " +
+                                "Search results received: ${results.size} results " +
                                     "(cached: $isCachedEmission, libraryUrls: ${libraryUrls.size})"
                             }
                             originalResults = results
                             val filtered = applyFiltersAndSort(results)
                             logger.d {
-                                "🔄 After filters/sort: ${filtered.size} results " +
+                                "After filters/sort: ${filtered.size} results " +
                                     "(from ${results.size} original)"
                             }
 
@@ -148,21 +148,21 @@ public class RutrackerSearchViewModel
                                 }
 
                             logger.d {
-                                "📊 UI results: ${uiResults.size} items, " +
+                                "UI results: ${uiResults.size} items, " +
                                     "${uiResults.count { it.isInLibrary }} in library"
                             }
 
                             _searchState.value =
                                 if (filtered.isEmpty()) {
                                     if (!isCachedEmission) {
-                                        logger.w { "⚠️ No results after filtering, setting Empty state" }
+                                        logger.w { "No results after filtering, setting Empty state" }
                                         SearchState.Empty
                                     } else {
-                                        logger.d { "⏭️ Keeping current state (cached empty)" }
+                                        logger.d { "Keeping current state (cached empty)" }
                                         _searchState.value
                                     }
                                 } else {
-                                    logger.d { "✅ Setting Success state with ${uiResults.size} results" }
+                                    logger.d { "Setting Success state with ${uiResults.size} results" }
                                     SearchState.Success(uiResults, isCached = isCachedEmission)
                                 }
 
@@ -176,7 +176,7 @@ public class RutrackerSearchViewModel
                             }
                         }.onFailure { error ->
                             logger.e(error) {
-                                "❌ Search failed for query '$query': ${error.message}"
+                                "Search failed for query '$query': ${error.message}"
                             }
                             val currentState = _searchState.value
                             if (currentState !is SearchState.Success) {
@@ -185,7 +185,7 @@ public class RutrackerSearchViewModel
                                         error.message,
                                     )
                             } else {
-                                logger.d { "⏭️ Keeping current Success state despite error" }
+                                logger.d { "Keeping current Success state despite error" }
                             }
                         }
                 }

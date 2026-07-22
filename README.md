@@ -32,7 +32,7 @@ A modern Android audiobook player with RuTracker integration, offline-first libr
 - Fully Compose UI with type-safe navigation and deep links (`magnet:`, `jabook://...`)
 - Native `AudioPlayerService` on Media3 (`MediaLibraryService`) with background playback
 - Torrent downloads via `libtorrent4j` with Room-backed queue/history
-- Offline-first data model: Room (`JabookDatabase`, schema v23) + Proto DataStore
+- Offline-first data model: Room (`JabookDatabase`, schema v25) + Proto DataStore
 - Separate high-performance RuTracker indexing tool: [`rutracker_parser/`](rutracker_parser/README.md)
 - Android flavors: `dev`, `stage`, `beta`, `prod`
 - Advanced audio processing pipeline: loudness normalization, dynamic range compression, equalizer, noise suppression, reverb, skip silence, speech enhancement
@@ -75,7 +75,7 @@ flowchart TB
         end
 
         subgraph Storage[Local Storage]
-            Room[(JabookDatabase v23\n 12 entities\n FTS5 books + topics)]
+            Room[(JabookDatabase v25\n 12 entities\n FTS5 books + topics)]
             Proto[(Proto DataStore)]
             FS[(File System)]
             Cache[(Media3 Cache)]
@@ -329,7 +329,7 @@ flowchart LR
 | UI | Jetpack Compose (BOM `2026.05.01`), Material3 Adaptive |
 | Architecture | MVVM + UseCase/Repository + Flow |
 | DI | Dagger Hilt 2.59.2 + KSP |
-| Storage | Room 2.8.4 (`JabookDatabase` v23), Proto DataStore 1.2.1 |
+| Storage | Room 2.8.4 (`JabookDatabase` v25), Proto DataStore 1.2.1 |
 | Audio | Media3 1.10.1 (ExoPlayer + Session + Notification) |
 | Audio Processing | 25+ processors (LUFS normalization, DRC, equalizer, reverb, noise suppression, speech enhancement) |
 | Network | OkHttp 5.3.2, Retrofit 3.0.0, Jsoup 1.22.2 |

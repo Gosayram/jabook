@@ -156,10 +156,10 @@ public class IndexingForegroundService : Service() {
                 updateNotification(currentProgress)
             }
             null -> {
-                LogUtils.w(TAG, "⚠️ onStartCommand called with null action")
+                LogUtils.w(TAG, "onStartCommand called with null action")
             }
             else -> {
-                LogUtils.w(TAG, "⚠️ Unknown action: ${intent.action}")
+                LogUtils.w(TAG, "Unknown action: ${intent.action}")
             }
         }
 
@@ -200,11 +200,11 @@ public class IndexingForegroundService : Service() {
             // Verify channel was created
             val createdChannel = notificationManager.getNotificationChannel(CHANNEL_ID)
             if (createdChannel != null) {
-                LogUtils.i(TAG, "✅ Notification channel created successfully: $CHANNEL_ID")
+                LogUtils.i(TAG, "Notification channel created successfully: $CHANNEL_ID")
                 LogUtils.i(TAG, "Channel importance: ${createdChannel.importance}")
                 LogUtils.i(TAG, "Channel can show badge: ${createdChannel.canShowBadge()}")
             } else {
-                LogUtils.e(TAG, "❌ Failed to create notification channel!")
+                LogUtils.e(TAG, "Failed to create notification channel!")
             }
         } else {
             LogUtils.i(TAG, "Android < O, notification channel not needed")
@@ -227,13 +227,13 @@ public class IndexingForegroundService : Service() {
             )
         when (outcome) {
             ForegroundStartOutcome.SUCCESS ->
-                LogUtils.i(TAG, "✅ Foreground service started successfully via policy")
+                LogUtils.i(TAG, "Foreground service started successfully via policy")
             ForegroundStartOutcome.DENIED_BY_SYSTEM -> {
-                LogUtils.e(TAG, "❌ Foreground service denied by system (Android 14+ permission issue)")
+                LogUtils.e(TAG, "Foreground service denied by system (Android 14+ permission issue)")
                 stopSelf()
             }
             ForegroundStartOutcome.FAILED -> {
-                LogUtils.e(TAG, "❌ Foreground service start failed unexpectedly")
+                LogUtils.e(TAG, "Foreground service start failed unexpectedly")
                 stopSelf()
             }
         }
@@ -411,14 +411,14 @@ public class IndexingForegroundService : Service() {
             // Check if notifications are enabled
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 if (!notificationManager.areNotificationsEnabled()) {
-                    LogUtils.w(TAG, "⚠️ Notifications are DISABLED by user in system settings!")
+                    LogUtils.w(TAG, "Notifications are DISABLED by user in system settings!")
                 }
             }
 
             notificationManager.notify(NOTIFICATION_ID, notification)
-            LogUtils.i(TAG, "✅ Notification posted successfully: ${progress::class.simpleName}")
+            LogUtils.i(TAG, "Notification posted successfully: ${progress::class.simpleName}")
         } catch (e: Exception) {
-            LogUtils.e(TAG, "❌ Failed to update notification", e)
+            LogUtils.e(TAG, "Failed to update notification", e)
         }
     }
 }

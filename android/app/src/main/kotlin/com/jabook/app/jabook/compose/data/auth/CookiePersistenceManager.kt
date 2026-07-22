@@ -73,9 +73,9 @@ public class CookiePersistenceManager
                             cookieHeader = cookieHeader,
                         ),
                     )
-                    logger.d { "✓ Cookies saved to database" }
+                    logger.d { "Cookies saved to database" }
                 } catch (e: Exception) {
-                    logger.e({ "✗ Failed to save to database" }, e)
+                    logger.e({ "Failed to save to database" }, e)
                 }
 
                 // Layer 2: Android WebView CookieManager
@@ -96,18 +96,18 @@ public class CookiePersistenceManager
                         cookieManager.setCookie(url, cookieString)
                     }
                     cookieManager.flush()
-                    logger.d { "✓ Cookies synced to WebView CookieManager" }
+                    logger.d { "Cookies synced to WebView CookieManager" }
                 } catch (e: Exception) {
-                    logger.e({ "✗ Failed to sync to WebView" }, e)
+                    logger.e({ "Failed to sync to WebView" }, e)
                 }
 
                 // Layer 3: SecureStorage (encrypted)
                 try {
                     // Note: Assuming SecureCredentialStorage has saveCookies method
                     // If not, we'll skip this layer or add the method
-                    logger.d { "◎ SecureStorage layer skipped (method not available)" }
+                    logger.d { "SecureStorage layer skipped (method not available)" }
                 } catch (e: Exception) {
-                    logger.e({ "✗ Failed to save to SecureStorage" }, e)
+                    logger.e({ "Failed to save to SecureStorage" }, e)
                 }
 
                 logger.i { "Multi-stage persist complete for $url" }
@@ -122,7 +122,7 @@ public class CookiePersistenceManager
                 // Layer 1: Try Database first (most reliable)
                 try {
                     database.cookiesDao().getCookies(url)?.let { entity ->
-                        logger.d { "✓ Cookies restored from database for $url" }
+                        logger.d { "Cookies restored from database for $url" }
                         return@withContext parseCookieHeader(url, entity.cookieHeader)
                     }
                 } catch (e: Exception) {
@@ -136,7 +136,7 @@ public class CookiePersistenceManager
                 val httpUrl = url.toHttpUrl()
                 val cookies = cookieJar.loadForRequest(httpUrl)
                 if (cookies.isNotEmpty()) {
-                    logger.d { "✓ Cookies restored from CookieJar for $url" }
+                    logger.d { "Cookies restored from CookieJar for $url" }
                     return@withContext cookies
                 }
 

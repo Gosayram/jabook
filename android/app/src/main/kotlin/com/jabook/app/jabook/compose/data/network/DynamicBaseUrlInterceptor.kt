@@ -66,7 +66,7 @@ public class DynamicBaseUrlInterceptor
                     .build()
 
             val requestStartTime = System.currentTimeMillis()
-            logger.d { "🔄 Redirecting ${originalUrl.host} → $currentMirror (${originalUrl.encodedPath})" }
+            logger.d { "Redirecting ${originalUrl.host} -> $currentMirror (${originalUrl.encodedPath})" }
 
             return try {
                 val response = chain.proceed(newRequest)
@@ -75,14 +75,14 @@ public class DynamicBaseUrlInterceptor
                 // Log successful requests (only for important endpoints)
                 if (response.isSuccessful && originalUrl.encodedPath.contains("search.php")) {
                     logger.d {
-                        "✅ Request succeeded: ${response.code} (${requestDuration}ms) - ${originalUrl.encodedPath}"
+                        "Request succeeded: ${response.code} (${requestDuration}ms) - ${originalUrl.encodedPath}"
                     }
                 }
 
                 // If auto-switch is enabled and request failed, try switching mirror
                 if (!response.isSuccessful && shouldTriggerAutoSwitch(response.code)) {
                     logger.w {
-                        "❌ Request failed: HTTP ${response.code} ${response.message} (${requestDuration}ms) - ${originalUrl.encodedPath}, checking auto-switch"
+                        "Request failed: HTTP ${response.code} ${response.message} (${requestDuration}ms) - ${originalUrl.encodedPath}, checking auto-switch"
                     }
 
                     // Check if auto-switch is enabled (blocking call, should be fast from cache)
@@ -92,7 +92,7 @@ public class DynamicBaseUrlInterceptor
                         }
 
                     if (autoSwitchEnabled) {
-                        logger.i { "🔄 Auto-switch enabled, attempting to find working mirror" }
+                        logger.i { "Auto-switch enabled, attempting to find working mirror" }
                         response.close() // Close failed response
 
                         val switchStartTime = System.currentTimeMillis()
@@ -118,19 +118,19 @@ public class DynamicBaseUrlInterceptor
                                     .build()
 
                             logger.i {
-                                "✅ Switched to mirror: $newMirror (took ${switchDuration}ms), retrying request: ${originalUrl.encodedPath}"
+                                "Switched to mirror: $newMirror (took ${switchDuration}ms), retrying request: ${originalUrl.encodedPath}"
                             }
                             val retryStartTime = System.currentTimeMillis()
                             val retryResponse = chain.proceed(retryRequest)
                             val retryDuration = System.currentTimeMillis() - retryStartTime
                             if (retryResponse.isSuccessful) {
                                 logger.i {
-                                    "✅ Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror"
+                                    "Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror"
                                 }
                             }
                             return retryResponse
                         } else {
-                            logger.w { "⚠️ Failed to switch to working mirror (took ${switchDuration}ms)" }
+                            logger.w { "Failed to switch to working mirror (took ${switchDuration}ms)" }
                         }
                     }
                 }
@@ -146,7 +146,7 @@ public class DynamicBaseUrlInterceptor
                 if (isCertificatePinningFailure) {
                     logger.e(
                         {
-                            "🚨 Certificate pinning validation failed for host ${newUrl.host}. " +
+                            "Certificate pinning validation failed for host ${newUrl.host}. " +
                                 "Blocking request to prevent MITM risk. User must review mirror trust."
                         },
                         e,
@@ -168,7 +168,7 @@ public class DynamicBaseUrlInterceptor
                         (e.message?.contains("No address associated with hostname", ignoreCase = true) == true)
 
                 logger.e({
-                    "❌ Request failed with exception: ${e.javaClass.simpleName} - ${e.message} (${requestDuration}ms) - ${originalUrl.encodedPath}"
+                    "Request failed with exception: ${e.javaClass.simpleName} - ${e.message} (${requestDuration}ms) - ${originalUrl.encodedPath}"
                 }, e)
 
                 // Check if auto-switch is enabled before attempting mirror switch
@@ -181,10 +181,10 @@ public class DynamicBaseUrlInterceptor
                     // Auto-switch is enabled - attempt to switch mirror for any error
                     if (isNetworkError) {
                         logger.i {
-                            "🔄 Network/DNS error detected (${e.javaClass.simpleName}), auto-switch enabled, attempting mirror switch"
+                            "Network/DNS error detected (${e.javaClass.simpleName}), auto-switch enabled, attempting mirror switch"
                         }
                     } else {
-                        logger.i { "🔄 Auto-switch enabled, attempting mirror switch for ${e.javaClass.simpleName}" }
+                        logger.i { "Auto-switch enabled, attempting mirror switch for ${e.javaClass.simpleName}" }
                     }
 
                     val switchStartTime = System.currentTimeMillis()
@@ -209,7 +209,7 @@ public class DynamicBaseUrlInterceptor
                                 .build()
 
                         logger.i {
-                            "✅ Switched to mirror: $newMirror (took ${switchDuration}ms), retrying after ${e.javaClass.simpleName}: ${originalUrl.encodedPath}"
+                            "Switched to mirror: $newMirror (took ${switchDuration}ms), retrying after ${e.javaClass.simpleName}: ${originalUrl.encodedPath}"
                         }
                         try {
                             val retryStartTime = System.currentTimeMillis()
@@ -217,24 +217,24 @@ public class DynamicBaseUrlInterceptor
                             val retryDuration = System.currentTimeMillis() - retryStartTime
                             if (retryResponse.isSuccessful) {
                                 logger.i {
-                                    "✅ Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror"
+                                    "Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror"
                                 }
                             }
                             return retryResponse
                         } catch (retryException: Exception) {
                             logger.e {
-                                "❌ Retry also failed with ${retryException.javaClass.simpleName}: ${retryException.message}"
+                                "Retry also failed with ${retryException.javaClass.simpleName}: ${retryException.message}"
                             }
                             throw retryException
                         }
                     } else {
-                        logger.w { "⚠️ Failed to switch to working mirror (took ${switchDuration}ms)" }
+                        logger.w { "Failed to switch to working mirror (took ${switchDuration}ms)" }
                     }
                 } else {
                     // Auto-switch is disabled - log but don't switch
                     if (isNetworkError) {
                         logger.w {
-                            "⚠️ Network/DNS error detected (${e.javaClass.simpleName}), but auto-switch is disabled. User must switch mirror manually."
+                            "Network/DNS error detected (${e.javaClass.simpleName}), but auto-switch is disabled. User must switch mirror manually."
                         }
                     } else {
                         logger.d {

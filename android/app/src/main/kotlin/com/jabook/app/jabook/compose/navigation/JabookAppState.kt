@@ -83,7 +83,7 @@ public class JabookAppState(
      * @param topLevelDestination The destination to navigate to
      */
     public fun navigateToTopLevelDestination(topLevelDestination: TopLevelDestination) {
-        navigationLogger.d { "🧭 Navigating to top-level destination: ${topLevelDestination.name}" }
+        navigationLogger.d { "Navigating to top-level destination: ${topLevelDestination.name}" }
         when (topLevelDestination) {
             TopLevelDestination.LIBRARY -> {
                 // For library, use dedicated function to ensure proper navigation
@@ -106,7 +106,7 @@ public class JabookAppState(
                         restoreState = true
                     }
                 navController.navigate(SettingsRoute, topLevelNavOptions)
-                navigationLogger.d { "✅ Navigated to Settings" }
+                navigationLogger.d { "Navigated to Settings" }
             }
         }
     }
@@ -118,7 +118,7 @@ public class JabookAppState(
      * Useful for returning to the main screen from anywhere in the app.
      */
     public fun navigateToLibrary() {
-        navigationLogger.d { "🧭 Navigating to Library (clearing back stack)" }
+        navigationLogger.d { "Navigating to Library (clearing back stack)" }
         navController.navigate(LibraryRoute) {
             // Clear the entire back stack INCLUDING the current destination
             popUpTo(navController.graph.findStartDestination().id) {
@@ -130,6 +130,6 @@ public class JabookAppState(
             // Don't restore state - fresh start
             restoreState = false
         }
-        navigationLogger.d { "✅ Navigated to Library" }
+        navigationLogger.d { "Navigated to Library" }
     }
 }

@@ -138,7 +138,7 @@ public object PlayerPerformanceLogger {
         }
 
         // Find bottlenecks (gaps > 100ms)
-        LogUtils.d(TAG, "⚠️ Bottlenecks (gaps > 100ms):")
+        LogUtils.d(TAG, "Bottlenecks (gaps > 100ms):")
         for (i in 1 until events.size) {
             val prev = events[i - 1]
             val curr = events[i]

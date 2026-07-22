@@ -58,7 +58,7 @@ internal class AudioOutputDeviceMonitor(
             override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
                 val newType = detectCurrentOutputType()
                 if (newType != currentOutputType) {
-                    LogUtils.d(TAG, "Audio device added, output changed: $currentOutputType → $newType")
+                    LogUtils.d(TAG, "Audio device added, output changed: $currentOutputType -> $newType")
                     currentOutputType = newType
                 }
             }
@@ -66,7 +66,7 @@ internal class AudioOutputDeviceMonitor(
             override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
                 val newType = detectCurrentOutputType()
                 if (newType != currentOutputType) {
-                    LogUtils.d(TAG, "Audio device removed, output changed: $currentOutputType → $newType")
+                    LogUtils.d(TAG, "Audio device removed, output changed: $currentOutputType -> $newType")
                     currentOutputType = newType
                 }
             }

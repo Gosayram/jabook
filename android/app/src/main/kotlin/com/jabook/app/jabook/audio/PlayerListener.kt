@@ -231,7 +231,7 @@ internal class PlayerListener(
             }
         LogUtils.i(
             "AudioPlayerService",
-            "🎵 Track switch: index=$currentIndex, reason=$reasonName, mediaId=${mediaItem?.mediaId ?: "unknown"}",
+            "Track switch: index=$currentIndex, reason=$reasonName, mediaId=${mediaItem?.mediaId ?: "unknown"}",
         )
 
         trackTransitionCoordinator.handleTrackTransitionEvent(currentIndex, "onMediaItemTransition")

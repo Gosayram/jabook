@@ -72,7 +72,7 @@ public fun JabookNavHost(
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(currentBackStackEntry?.destination?.route) {
         currentBackStackEntry?.destination?.route?.let { route ->
-            navigationLogger.d { "📍 Navigation: Current screen = $route" }
+            navigationLogger.d { "Navigation: Current screen = $route" }
         }
     }
 
@@ -437,7 +437,7 @@ public fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onTopicClick = { topicId ->
-                    navigationLogger.d { "🧭 Navigating to Topic: topicId=$topicId" }
+                    navigationLogger.d { "Navigating to Topic: topicId=$topicId" }
                     navController.navigate(TopicRoute(topicId = topicId))
                 },
             )

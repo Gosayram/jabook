@@ -207,7 +207,7 @@ public class RutrackerRepository
                     logger.d { "Mapping ${entities.size} entities to DTO..." }
                     val dtoResults = entities.map { it.toSearchResult() }
                     val dtoMapDuration = System.currentTimeMillis() - mapStartTime
-                    logger.d { "DTO mapping: ${entities.size} → ${dtoResults.size} in ${dtoMapDuration}ms" }
+                    logger.d { "DTO mapping: ${entities.size} -> ${dtoResults.size} in ${dtoMapDuration}ms" }
 
                     val domainMapStartTime = System.currentTimeMillis()
                     val domainResults = dtoResults.toDomainFromIndex()
@@ -217,7 +217,7 @@ public class RutrackerRepository
                     if (filteredCount > 0) {
                         logger.w {
                             "Validation filtered out $filteredCount results " +
-                                "(${dtoResults.size} DTO → ${domainResults.size} domain, ${domainMapDuration}ms)"
+                                "(${dtoResults.size} DTO -> ${domainResults.size} domain, ${domainMapDuration}ms)"
                         }
                         val filtered = dtoResults.toDomainFromIndex()
                         if (filtered.isEmpty() && dtoResults.isNotEmpty()) {
@@ -225,7 +225,7 @@ public class RutrackerRepository
                         }
                     } else {
                         logger.d {
-                            "Domain mapping: ${dtoResults.size} → ${domainResults.size} in ${domainMapDuration}ms (no filtering)"
+                            "Domain mapping: ${dtoResults.size} -> ${domainResults.size} in ${domainMapDuration}ms (no filtering)"
                         }
                     }
 
@@ -394,7 +394,7 @@ public class RutrackerRepository
             logger.log(opId, "Fetching from network: query='$query', forumIds=$forumIds")
             logger.log(opId, "Current mirror: $currentMirror")
             // === HTTP REQUEST LOGGING ===
-            logger.w { "🔍 === SEARCH REQUEST ===" }
+            logger.w { "=== SEARCH REQUEST ===" }
             logger.w { "Query: '$query'" }
             logger.w { "Mirror: $currentMirror" }
             if (forumIds != null) {
@@ -424,7 +424,7 @@ public class RutrackerRepository
                         404 -> RuTrackerError.NotFound
                         400 -> {
                             logger.w {
-                                "⚠️ HTTP 400 Bad Request for query '$query' - returning empty list instead of error"
+                                "HTTP 400 Bad Request for query '$query' - returning empty list instead of error"
                             }
                             // For bad request, return empty list instead of error
                             // This prevents showing confusing error to user
@@ -455,10 +455,10 @@ public class RutrackerRepository
             // Note: BrotliInterceptor removes "Content-Encoding: br" header after decompression,
             // so if we see it here, BrotliInterceptor didn't process it (shouldn't happen)
             val contentEncoding = headers["Content-Encoding"]
-            logger.w { "🔍 Content-Encoding: $contentEncoding" }
+            logger.w { "Content-Encoding: $contentEncoding" }
             if (contentEncoding != null && contentEncoding.contains("br", ignoreCase = true)) {
                 logger.w {
-                    "⚠️ WARNING: Content-Encoding still contains 'br' - BrotliInterceptor may not have processed it!"
+                    "WARNING: Content-Encoding still contains 'br' - BrotliInterceptor may not have processed it!"
                 }
             }
 
@@ -467,22 +467,22 @@ public class RutrackerRepository
             // Note: OkHttp BrotliInterceptor automatically decompresses Brotli responses
             // After decompression, we get raw bytes that need to be decoded with Windows-1251
             val rawBytes = response.body()?.bytes() ?: ByteArray(0)
-            logger.w { "📦 Response Size: ${rawBytes.size} bytes (should be decompressed if was Brotli)" }
+            logger.w { "Response Size: ${rawBytes.size} bytes (should be decompressed if was Brotli)" }
 
             // Check if bytes look like compressed data (Brotli magic bytes)
             if (rawBytes.isNotEmpty()) {
                 val firstBytes = rawBytes.take(4).toByteArray()
                 val hexPreview = firstBytes.joinToString(" ") { "%02x".format(it) }
-                logger.w { "🔍 First 4 bytes (hex): $hexPreview" }
+                logger.w { "First 4 bytes (hex): $hexPreview" }
 
                 // Brotli magic bytes: 0x81, 0x1B (or similar)
                 // Gzip magic bytes: 0x1F, 0x8B
                 val looksLikeBrotli = rawBytes[0] == 0x81.toByte() && rawBytes[1] == 0x1B.toByte()
                 val looksLikeGzip = rawBytes[0] == 0x1F.toByte() && rawBytes[1] == 0x8B.toByte()
-                logger.w { "🔍 Looks like Brotli: $looksLikeBrotli, Gzip: $looksLikeGzip" }
+                logger.w { "Looks like Brotli: $looksLikeBrotli, Gzip: $looksLikeGzip" }
 
                 if (looksLikeBrotli || looksLikeGzip) {
-                    logger.e { "⚠️ WARNING: Data appears to be compressed but OkHttp didn't decompress it!" }
+                    logger.e { "WARNING: Data appears to be compressed but OkHttp didn't decompress it!" }
                 }
 
                 // Check if bytes look like HTML (should start with < or whitespace before <)
@@ -493,12 +493,12 @@ public class RutrackerRepository
                             it == 0x09.toByte() ||
                             it == 0x0A.toByte()
                     }
-                logger.w { "🔍 Looks like HTML (contains '<' or whitespace): $startsWithHtml" }
+                logger.w { "Looks like HTML (contains '<' or whitespace): $startsWithHtml" }
 
                 // Try to see if it's valid Windows-1251 (Cyrillic range)
                 val sample = rawBytes.take(1000)
                 val hasCyrillicBytes = sample.any { it.toInt() and 0xFF in 0xC0..0xFF } // Windows-1251 Cyrillic range
-                logger.w { "🔍 Has potential Cyrillic bytes (0xC0-0xFF): $hasCyrillicBytes" }
+                logger.w { "Has potential Cyrillic bytes (0xC0-0xFF): $hasCyrillicBytes" }
             }
 
             // HTML preview (first 300 chars) - try both UTF-8 and Windows-1251
@@ -519,8 +519,8 @@ public class RutrackerRepository
                 } catch (e: Exception) {
                     "ERROR: ${e.message}"
                 }
-            logger.w { "📄 Response Start (UTF-8): $htmlPreviewUtf8..." }
-            logger.w { "📄 Response Start (CP1251): $htmlPreviewCp1251..." }
+            logger.w { "Response Start (UTF-8): $htmlPreviewUtf8..." }
+            logger.w { "Response Start (CP1251): $htmlPreviewCp1251..." }
 
             // Get Content-Type for encoding detection
             // Note: After BrotliInterceptor decompression, bytes are ready for charset decoding
@@ -531,17 +531,17 @@ public class RutrackerRepository
             return when (parsingResult) {
                 is ParsingResult.Success -> {
                     val dtoResults = parsingResult.data
-                    logger.d { "📊 Parsing success: ${dtoResults.size} DTO results for query '$query'" }
+                    logger.d { "Parsing success: ${dtoResults.size} DTO results for query '$query'" }
                     val domainResults = dtoResults.toDomain()
                     val filteredCount = dtoResults.size - domainResults.size
                     if (filteredCount > 0) {
                         logger.w {
-                            "⚠️ Filtered out $filteredCount invalid results during toDomain() conversion"
+                            "Filtered out $filteredCount invalid results during toDomain() conversion"
                         }
                     }
                     logger.d {
-                        "✅ Final domain results: ${domainResults.size} valid results " +
-                            "(${dtoResults.size} DTO → ${domainResults.size} domain)"
+                        "Final domain results: ${domainResults.size} valid results " +
+                            "(${dtoResults.size} DTO -> ${domainResults.size} domain)"
                     }
                     handleSuccess(query, forumIds, dtoResults) // Cache DTO models
                     val resultCount = domainResults.size
@@ -556,18 +556,18 @@ public class RutrackerRepository
                 is ParsingResult.PartialSuccess -> {
                     val dtoResults = parsingResult.data
                     logger.w {
-                        "📊 Partial parsing: ${dtoResults.size} DTO results, ${parsingResult.errors.size} errors for query '$query'"
+                        "Partial parsing: ${dtoResults.size} DTO results, ${parsingResult.errors.size} errors for query '$query'"
                     }
                     val domainResults = dtoResults.toDomain()
                     val filteredCount = dtoResults.size - domainResults.size
                     if (filteredCount > 0) {
                         logger.w {
-                            "⚠️ Filtered out $filteredCount invalid results during toDomain() conversion"
+                            "Filtered out $filteredCount invalid results during toDomain() conversion"
                         }
                     }
                     logger.d {
-                        "✅ Final domain results: ${domainResults.size} valid results " +
-                            "(${dtoResults.size} DTO → ${domainResults.size} domain)"
+                        "Final domain results: ${domainResults.size} valid results " +
+                            "(${dtoResults.size} DTO -> ${domainResults.size} domain)"
                     }
                     handleSuccess(query, forumIds, dtoResults) // Cache DTO models
                     val resultCount = domainResults.size
@@ -585,7 +585,7 @@ public class RutrackerRepository
                 is ParsingResult.Failure -> {
                     val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"
                     logger.e {
-                        "❌ Parsing failed for query '$query': ${parsingResult.errors.size} errors"
+                        "Parsing failed for query '$query': ${parsingResult.errors.size} errors"
                     }
                     parsingResult.errors.take(5).forEachIndexed { index, error ->
                         logger.e {
@@ -606,7 +606,7 @@ public class RutrackerRepository
                         }
 
                     if (isBadRequest) {
-                        logger.w { "⚠️ Bad request or validation error detected in parsing result for query '$query'" }
+                        logger.w { "Bad request or validation error detected in parsing result for query '$query'" }
                         logger.w { "   Returning empty list instead of error to prevent user confusion" }
                         logger.w { "   Error details: $errorMessage" }
                         // Return empty list instead of error for bad request
@@ -642,7 +642,7 @@ public class RutrackerRepository
                     val dbSaveStartTime = System.currentTimeMillis()
                     offlineSearchDao.saveSearchResults(query, entities)
                     val dbSaveDuration = System.currentTimeMillis() - dbSaveStartTime
-                    logger.d { "💾 Saved ${entities.size} results to DB cache (query: '$query', ${dbSaveDuration}ms)" }
+                    logger.d { "Saved ${entities.size} results to DB cache (query: '$query', ${dbSaveDuration}ms)" }
                 } catch (e: Exception) {
                     logger.e(
                         { "Failed to save to DB" },

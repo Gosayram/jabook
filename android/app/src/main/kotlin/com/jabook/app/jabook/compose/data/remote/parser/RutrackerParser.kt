@@ -251,7 +251,7 @@ public class RutrackerParser
                             results.add(result)
                             if (index < 3) {
                                 logger.d {
-                                    "✅ Row $index parsed: topicId=${result.topicId}, title='${result.title.take(
+                                    "Row $index parsed: topicId=${result.topicId}, title='${result.title.take(
                                         40,
                                     )}'"
                                 }
@@ -285,7 +285,7 @@ public class RutrackerParser
                                 val titleHtml = titleElement?.html()?.take(100) ?: ""
 
                                 logger.w {
-                                    "⚠️ Row $index failed to parse: tag=$rowTag, " +
+                                    "Row $index failed to parse: tag=$rowTag, " +
                                         "classes='$rowClasses', hasTitle=$hasTitle, " +
                                         "topicId='$finalTopicId', titleText='$titleText', " +
                                         "titleHtml='$titleHtml'"
@@ -307,7 +307,7 @@ public class RutrackerParser
                                 e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                                 else -> e.javaClass.simpleName
                             }
-                        logger.e({ "❌ Error parsing row $index: $errorDetails" }, e)
+                        logger.e({ "Error parsing row $index: $errorDetails" }, e)
                         errors.add(
                             ParsingError(
                                 field = "row_$index",
@@ -331,7 +331,7 @@ public class RutrackerParser
                         e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                         else -> e.javaClass.simpleName
                     }
-                logger.e({ "❌ Failed to parse search results: $errorDetails (HTML size: ${rawBytes.size} bytes)" }, e)
+                logger.e({ "Failed to parse search results: $errorDetails (HTML size: ${rawBytes.size} bytes)" }, e)
                 errors.add(
                     ParsingError(
                         field = "document",
@@ -434,7 +434,7 @@ public class RutrackerParser
                         // Check if we found tr elements or something else
                         val firstElement = found.firstOrNull()
                         if (firstElement == null) {
-                            logger.w { "  ⚠️ Found elements but first() returned null" }
+                            logger.w { "  Found elements but first() returned null" }
                             continue
                         }
                         val elementTag = firstElement.tagName()
@@ -443,7 +443,7 @@ public class RutrackerParser
                         // If we found td instead of tr, we need to find parent tr
                         val actualRows =
                             if (elementTag == "td") {
-                                logger.w { "  ⚠️ Selector found <td> instead of <tr>, looking for parent <tr>" }
+                                logger.w { "  Selector found <td> instead of <tr>, looking for parent <tr>" }
                                 found
                                     .mapNotNull { td ->
                                         td.parent()?.takeIf { parent -> parent.tagName() == "tr" }
@@ -477,10 +477,10 @@ public class RutrackerParser
                         if (validRows.isNotEmpty()) {
                             rows = org.jsoup.select.Elements(validRows)
                             successfulSelector = selector
-                            logger.d { "✅ Found ${rows.size} valid rows using selector: $selector" }
+                            logger.d { "Found ${rows.size} valid rows using selector: $selector" }
                             break
                         } else {
-                            logger.w { "  ⚠️ Selector '$selector' found ${actualRows.size} rows but none are valid" }
+                            logger.w { "  Selector '$selector' found ${actualRows.size} rows but none are valid" }
                         }
 
                         // If selected rows were all invalid, try next selector
@@ -551,7 +551,7 @@ public class RutrackerParser
                                 val topicId = row.attr(TOPIC_ID_ATTR).ifEmpty { row.attr("id") }
 
                                 logger.w {
-                                    "⚠️ Row $index failed to parse: tag=$rowTag, " +
+                                    "Row $index failed to parse: tag=$rowTag, " +
                                         "classes='$rowClasses', hasTitle=$hasTitle, topicId='$topicId'"
                                 }
 
@@ -571,7 +571,7 @@ public class RutrackerParser
                                 e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                                 else -> e.javaClass.simpleName
                             }
-                        logger.e({ "❌ Error parsing row $index: $errorDetails" }, e)
+                        logger.e({ "Error parsing row $index: $errorDetails" }, e)
                         errors.add(
                             ParsingError(
                                 field = "row_$index",
@@ -595,7 +595,7 @@ public class RutrackerParser
                         e.message != null -> "${e.javaClass.simpleName}: ${e.message}"
                         else -> e.javaClass.simpleName
                     }
-                logger.e({ "❌ Failed to parse forum page: $errorDetails (HTML size: ${rawBytes.size} bytes)" }, e)
+                logger.e({ "Failed to parse forum page: $errorDetails (HTML size: ${rawBytes.size} bytes)" }, e)
                 errors.add(
                     ParsingError(
                         field = "document",
@@ -649,7 +649,7 @@ public class RutrackerParser
                     }
                     is ParsingResult.Failure -> {
                         logger.e {
-                            "❌ Forum $forumId: parsing failed - ${result.errors.size} errors (${rawBytes.size} bytes)"
+                            "Forum $forumId: parsing failed - ${result.errors.size} errors (${rawBytes.size} bytes)"
                         }
                         result.errors.take(10).forEach { error ->
                             // Limit to first 10 errors to avoid log spam
@@ -780,7 +780,7 @@ public class RutrackerParser
                 }
 
                 if (rows.isEmpty()) {
-                    logger.w { "⚠️ NO ROWS FOUND with any selector! Running diagnostics..." }
+                    logger.w { "NO ROWS FOUND with any selector! Running diagnostics..." }
 
                     // === DIAGNOSTIC LOGGING ===
 
@@ -799,19 +799,19 @@ public class RutrackerParser
                             .text()
                             .contains("ошибка", ignoreCase = true)
 
-                    if (isLoginPage) logger.w { "❌ LOGIN PAGE DETECTED!" }
-                    if (isCaptchaPage) logger.w { "❌ CAPTCHA PAGE DETECTED!" }
-                    if (isErrorPage) logger.w { "❌ ERROR PAGE DETECTED!" }
+                    if (isLoginPage) logger.w { "LOGIN PAGE DETECTED!" }
+                    if (isCaptchaPage) logger.w { "CAPTCHA PAGE DETECTED!" }
+                    if (isErrorPage) logger.w { "ERROR PAGE DETECTED!" }
 
                     // 2. Log HTML structure
                     val tables = document.select("table")
-                    logger.w { "📊 Found ${tables.size} table(s)" }
+                    logger.w { "Found ${tables.size} table(s)" }
                     tables.take(5).forEachIndexed { i, table ->
                         logger.w { "  Table $i: class='${table.className()}' id='${table.id()}'" }
                     }
 
                     val allRows = document.select("tr")
-                    logger.w { "📋 Total tr elements: ${allRows.size}" }
+                    logger.w { "Total tr elements: ${allRows.size}" }
 
                     // Check each selector individually
                     ROW_SELECTORS.forEach { selector ->
@@ -827,16 +827,16 @@ public class RutrackerParser
 
                     // 3. Page metadata
                     val pageTitle = document.selectFirst("title")?.toStr() ?: "No title"
-                    logger.w { "📝 Page Title: $pageTitle" }
+                    logger.w { "Page Title: $pageTitle" }
 
                     // 4. HTML preview
                     val htmlPreview = html.take(500).replace(Regex("\\s+"), " ")
-                    logger.w { "📄 HTML Preview: $htmlPreview..." }
+                    logger.w { "HTML Preview: $htmlPreview..." }
 
                     // 5. Check for common page elements
                     val hasMainContent = document.select("#main_content, #page_content").isNotEmpty()
                     val hasForumTable = document.select(".forumline, .vf-table").isNotEmpty()
-                    logger.w { "🔍 Page elements: mainContent=$hasMainContent, forumTable=$hasForumTable" }
+                    logger.w { "Page elements: mainContent=$hasMainContent, forumTable=$hasForumTable" }
 
                     return emptyList()
                 }
@@ -850,18 +850,18 @@ public class RutrackerParser
                             results.add(result)
                             // Log first 3 successful results
                             if (idx < 3) {
-                                logger.d { "✓ Result $idx: ${result.title} by ${result.author}" }
+                                logger.d { "Result $idx: ${result.title} by ${result.author}" }
                             }
                         }
                     } catch (e: Exception) {
-                        logger.e({ "✗ Failed to parse row $idx" }, e)
+                        logger.e({ "Failed to parse row $idx" }, e)
                     }
                 }
 
-                logger.d { "✅ Successfully parsed ${results.size}/${rows.size} results" }
+                logger.d { "Successfully parsed ${results.size}/${rows.size} results" }
                 return results
             } catch (e: Exception) {
-                logger.e({ "❌ Failed to parse search results" }, e)
+                logger.e({ "Failed to parse search results" }, e)
                 return emptyList()
             }
         }
@@ -880,7 +880,7 @@ public class RutrackerParser
                             ?.substringAfter("t=")
                             ?.substringBefore("&")
                             ?: run {
-                                logger.d { "⚠️ No topicId found in row" }
+                                logger.d { "No topicId found in row" }
                                 return null
                             }
                     }
@@ -888,7 +888,7 @@ public class RutrackerParser
 
             if (topicId.isEmpty()) {
                 // Common for header rows or ads, detailed logging usually not needed unless debugging structure
-                logger.d { "⚠️ Empty topicId in row" }
+                logger.d { "Empty topicId in row" }
                 return null
             }
 
@@ -896,7 +896,7 @@ public class RutrackerParser
             val titleElement = row.selectFirst(TITLE_SELECTOR)
             if (titleElement == null) {
                 logger.w {
-                    "⚠️ No title element found for topic $topicId. " +
+                    "No title element found for topic $topicId. " +
                         "Row HTML: ${row.html().take(200)}"
                 }
                 return null
@@ -911,7 +911,7 @@ public class RutrackerParser
                 val finalTitle = titleFromHref ?: titleFromText ?: titleFromOwnText
                 if (finalTitle == null) {
                     logger.w {
-                        "⚠️ Empty title for topic $topicId: " +
+                        "Empty title for topic $topicId: " +
                             "href='${titleElement.attr("href")}', " +
                             "html='${titleElement.html().take(100)}', " +
                             "outerHtml='${titleElement.outerHtml().take(150)}'"

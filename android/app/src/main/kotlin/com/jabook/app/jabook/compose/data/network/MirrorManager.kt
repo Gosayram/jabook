@@ -219,7 +219,7 @@ public class MirrorManager
             val mirrors = _availableMirrors.value
             val currentIndex = mirrors.indexOf(currentDomain)
 
-            logger.i { "🔄 Attempting to switch from $currentDomain to next mirror" }
+            logger.i { "Attempting to switch from $currentDomain to next mirror" }
 
             // Try all mirrors starting from next one
             val mirrorsToTry =
@@ -234,20 +234,20 @@ public class MirrorManager
                 if (mirror == currentDomain) continue // Skip current
 
                 val healthCheckStart = System.currentTimeMillis()
-                logger.d { "🔍 Trying mirror: $mirror" }
+                logger.d { "Trying mirror: $mirror" }
 
                 if (checkMirrorHealth(mirror)) {
                     val healthCheckDuration = System.currentTimeMillis() - healthCheckStart
                     logger.i {
-                        "✅ Mirror $mirror is healthy (health check: ${healthCheckDuration}ms), switching and saving to settings..."
+                        "Mirror $mirror is healthy (health check: ${healthCheckDuration}ms), switching and saving to settings..."
                     }
                     setMirror(mirror) // This will save to settings via settingsRepository.updateSelectedMirror()
-                    logger.i { "✅ Successfully switched from $currentDomain to $mirror and saved to settings" }
+                    logger.i { "Successfully switched from $currentDomain to $mirror and saved to settings" }
                     return true
                 }
             }
 
-            logger.e { "❌ Failed to find any working mirror after trying ${availableMirrors.value.size} mirrors" }
+            logger.e { "Failed to find any working mirror after trying ${availableMirrors.value.size} mirrors" }
             return false
         }
 

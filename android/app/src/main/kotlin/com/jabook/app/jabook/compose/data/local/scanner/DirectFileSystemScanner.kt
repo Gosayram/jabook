@@ -83,7 +83,7 @@ public class DirectFileSystemScanner
                     _scanProgress.value = ScanProgress.Discovery(0)
 
                     // PHASE 1: FAST SCAN - No metadata parsing
-                    logger.i { "⚡ Phase 1: Fast scan (no metadata)" }
+                    logger.i { "Phase 1: Fast scan (no metadata)" }
                     val fastFiles = mutableListOf<FastFileInfo>()
                     for (path in customPaths) {
                         ensureActive() // Check for cancellation
@@ -127,24 +127,24 @@ public class DirectFileSystemScanner
                         }
                         if (filterResult.skippedCount > 0) {
                             logger.i {
-                                "⚡ Incremental: skipped ${filterResult.skippedCount} unchanged files in $path"
+                                "Incremental: skipped ${filterResult.skippedCount} unchanged files in $path"
                             }
                         }
                     }
 
                     val effectiveFiles = filteredFiles
                     logger.i {
-                        "⚡ Incremental scan: ${effectiveFiles.size}/$totalFiles files need processing"
+                        "Incremental scan: ${effectiveFiles.size}/$totalFiles files need processing"
                     }
 
                     // PHASE 2: GROUP by directory
                     val groupedByDir = effectiveFiles.groupBy { it.directory }
                     logger.i {
-                        "📚 Grouped into ${groupedByDir.size} books (by directory)"
+                        "Grouped into ${groupedByDir.size} books (by directory)"
                     }
 
                     // PHASE 3: Parse metadata for ALL files (Fix for missing duration)
-                    logger.i { "⚡ Phase 3: Parsing metadata (Full Scan)" }
+                    logger.i { "Phase 3: Parsing metadata (Full Scan)" }
 
                     val scannedBooks = mutableListOf<ScannedBook>()
                     var processedFilesCount = 0
@@ -364,7 +364,7 @@ public class DirectFileSystemScanner
                 val audioFiles = files.filter { it.isFile && it.isAudioFile() }
 
                 logger.d {
-                    "📁 Scanning: ${directory.name} (${audioFiles.size} audio files, ${subdirs.size} subdirs)"
+                    "Scanning: ${directory.name} (${audioFiles.size} audio files, ${subdirs.size} subdirs)"
                 }
 
                 // Process audio files in PARALLEL with rate limiting
@@ -382,14 +382,14 @@ public class DirectFileSystemScanner
                                             if (audioInfo != null) {
                                                 result.add(audioInfo) // Thread-safe add
                                                 logger.d {
-                                                    "✓ ${file.name} (album: ${audioInfo.album ?: "none"})"
+                                                    "${file.name} (album: ${audioInfo.album ?: "none"})"
                                                 }
                                             }
                                         } catch (e: CancellationException) {
                                             throw e
                                         } catch (e: Exception) {
                                             logger.w {
-                                                "✗ Failed: ${file.name} - ${e.message}"
+                                                "Failed: ${file.name} - ${e.message}"
                                             }
                                             // Continue scanning other files
                                         }
@@ -489,7 +489,7 @@ public class DirectFileSystemScanner
             val metadata = metadataCache.getOrParse(firstFileObj, metadataParser)
 
             logger.d {
-                "📖 Creating book from ${fastFiles.size} files, parsing only 1st: ${firstFile.displayName}"
+                "Creating book from ${fastFiles.size} files, parsing only 1st: ${firstFile.displayName}"
             }
 
             // Generate unique book ID

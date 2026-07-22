@@ -218,7 +218,7 @@ public class MediaStoreBookScanner
 
                     if (detectedEncoding != null) {
                         logger.d {
-                            "📖 Chapter encoding fix: '$rawTitle' -> '$fixedTitle' ($detectedEncoding)"
+                            "Chapter encoding fix: '$rawTitle' -> '$fixedTitle' ($detectedEncoding)"
                         }
                     }
 

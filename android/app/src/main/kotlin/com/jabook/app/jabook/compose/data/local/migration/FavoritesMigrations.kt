@@ -28,7 +28,7 @@ public val MIGRATION_6_7: Migration =
     object : Migration(6, 7) {
         override fun migrate(db: SupportSQLiteDatabase) {
             try {
-                logger.i { "🔄 Starting migration 6→7" }
+                logger.i { "Starting migration 6->7" }
                 val startTime = System.currentTimeMillis()
                 // Create favorites table
                 db.execSQL(
@@ -60,9 +60,9 @@ public val MIGRATION_6_7: Migration =
                         "ON favorites (added_to_favorites)",
                 )
                 val duration = System.currentTimeMillis() - startTime
-                logger.i { "✅ Migration 6→7 completed successfully (${duration}ms)" }
+                logger.i { "Migration 6->7 completed successfully (${duration}ms)" }
             } catch (e: Exception) {
-                logger.e({ "❌ Migration 6→7 failed: ${e.message}" }, e)
+                logger.e({ "Migration 6->7 failed: ${e.message}" }, e)
                 throw e
             }
         }

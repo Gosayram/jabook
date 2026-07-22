@@ -70,13 +70,13 @@ public object DatabaseModule {
         object : Migration(startVersion, endVersion) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 try {
-                    logger.i { "🔄 Starting migration $startVersion→$endVersion" }
+                    logger.i { "Starting migration $startVersion->$endVersion" }
                     val startTime = System.currentTimeMillis()
                     migrationBlock(db)
                     val duration = System.currentTimeMillis() - startTime
-                    logger.i { "✅ Migration $startVersion→$endVersion completed successfully (${duration}ms)" }
+                    logger.i { "Migration $startVersion->$endVersion completed successfully (${duration}ms)" }
                 } catch (e: Exception) {
-                    logger.e({ "❌ Migration $startVersion→$endVersion failed: ${e.message}" }, e)
+                    logger.e({ "Migration $startVersion->$endVersion failed: ${e.message}" }, e)
                     throw e
                 }
             }
@@ -391,7 +391,7 @@ public object DatabaseModule {
                 override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
                     super.onDestructiveMigration(db)
                     logger.e {
-                        "❌ CRITICAL: Destructive migration occurred - all data was lost! This should never happen in production."
+                        "CRITICAL: Destructive migration occurred - all data was lost! This should never happen in production."
                     }
                 }
             },

@@ -62,17 +62,17 @@ internal class PlayerErrorHandler(
         val bookId = getCurrentBookId() ?: "unknown"
         val bookName = metadata?.get("title") ?: "unknown"
 
-        LogUtils.e(TAG, "❌ Playback error: track=$currentIndex, mediaId=$mediaId, code=${error.errorCode}", error)
-        LogUtils.e(TAG, "❌ Error context: bookId=$bookId, bookName=$bookName, chapterIdx=$currentIndex")
+        LogUtils.e(TAG, "Playback error: track=$currentIndex, mediaId=$mediaId, code=${error.errorCode}", error)
+        LogUtils.e(TAG, "Error context: bookId=$bookId, bookName=$bookName, chapterIdx=$currentIndex")
 
         val cause = error.cause
         when {
             cause is HttpDataSource.InvalidResponseCodeException -> {
-                LogUtils.e(TAG, "❌ HTTP error: code=${cause.responseCode}, msg=${cause.responseMessage}")
-                if (!cause.headerFields.isEmpty()) LogUtils.e(TAG, "❌ HTTP headers: ${cause.headerFields}")
+                LogUtils.e(TAG, "HTTP error: code=${cause.responseCode}, msg=${cause.responseMessage}")
+                if (!cause.headerFields.isEmpty()) LogUtils.e(TAG, "HTTP headers: ${cause.headerFields}")
             }
-            cause is HttpDataSource.HttpDataSourceException -> LogUtils.e(TAG, "❌ HTTP data source error: type=${cause.type}")
-            cause is java.io.IOException -> LogUtils.e(TAG, "❌ IO error: ${cause.message}")
+            cause is HttpDataSource.HttpDataSourceException -> LogUtils.e(TAG, "HTTP data source error: type=${cause.type}")
+            cause is java.io.IOException -> LogUtils.e(TAG, "IO error: ${cause.message}")
         }
     }
 
@@ -122,7 +122,7 @@ internal class PlayerErrorHandler(
         val bookId = getCurrentBookId() ?: "unknown"
         val bookName = getCurrentMetadata()?.get("title") ?: "unknown"
 
-        LogUtils.e(TAG, "❌ $userMessage (track=$currentIndex/$totalTracks, retry=$retryCount/$maxRetries, book=$bookId)")
+        LogUtils.e(TAG, "$userMessage (track=$currentIndex/$totalTracks, retry=$retryCount/$maxRetries, book=$bookId)")
         scheduleNotificationUpdate()
     }
 
