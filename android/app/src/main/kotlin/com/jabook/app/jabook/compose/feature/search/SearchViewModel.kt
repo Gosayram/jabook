@@ -278,7 +278,6 @@ public class SearchViewModel
                             com.jabook.app.jabook.compose.domain.model.QualityFilter.HIGH -> bitrate >= 256
                             com.jabook.app.jabook.compose.domain.model.QualityFilter.STANDARD -> bitrate >= 128
                             com.jabook.app.jabook.compose.domain.model.QualityFilter.LOW -> bitrate in 1..<128
-                            else -> true
                         }
                     }
             }

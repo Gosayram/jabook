@@ -648,7 +648,7 @@ public fun PlayerScreen(
                             action = android.content.Intent.ACTION_SEND
                             putExtra(
                                 android.content.Intent.EXTRA_TEXT,
-                                state.book.title + " by " + (state.book.author ?: ""),
+                                state.book.title + " by " + state.book.author,
                             )
                             type = "text/plain"
                         }
@@ -1472,7 +1472,7 @@ private fun PlayerContent(
             verticalArrangement = Arrangement.spacedBy(itemSpacing),
         ) {
             // Author from metadata (above cover) - hidden on compact to save space
-            if (displayAuthor != null && !isCompact) {
+            if (!isCompact) {
                 item {
                     Text(
                         text = displayAuthor,
