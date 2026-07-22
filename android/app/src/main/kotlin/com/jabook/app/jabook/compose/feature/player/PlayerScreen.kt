@@ -312,6 +312,18 @@ public fun PlayerScreen(
     val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
     val currentOnNavigateToBook by rememberUpdatedState(onNavigateToBook)
 
+    // Sleep timer expiry haptic — double vibration when timer transitions from active to idle
+    val sleepTimerMode = (uiState as? PlayerState.Active)?.sleepTimerMode
+    var previousSleepTimerMode by remember { mutableStateOf(sleepTimerMode) }
+    LaunchedEffect(sleepTimerMode) {
+        val prev = previousSleepTimerMode
+        val curr = sleepTimerMode
+        previousSleepTimerMode = curr
+        if (prev != null && prev != PlayerSleepTimerMode.IDLE && curr == PlayerSleepTimerMode.IDLE) {
+            HapticManager.performDoubleVibration(context)
+        }
+    }
+
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->
             when (effect) {
@@ -1837,7 +1849,7 @@ private fun PlayerContent(
                                     chapters = state.chapters,
                                     progress = pressedProgress.coerceIn(0f, 1f),
                                 )
-                            HapticManager.performLongPress(hapticFeedback)
+                            HapticManager.performTap(hapticFeedback)
                             onAddBookmarkAtPosition(target.chapterIndex, target.chapterPositionMs) { createdBookmark ->
                                 if (createdBookmark != null) {
                                     showBookmarkMomentStamp = true

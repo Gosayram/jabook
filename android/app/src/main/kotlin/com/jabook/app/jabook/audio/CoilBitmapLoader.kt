@@ -25,6 +25,7 @@ import androidx.media3.session.BitmapLoader
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import coil3.size.Scale
 import coil3.toBitmap
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -78,6 +79,7 @@ public class CoilBitmapLoader(
                         .Builder(context)
                         .data(uri)
                         .size(maxArtworkWidth, maxArtworkHeight)
+                        .scale(Scale.FILL)
                         .build()
 
                 val result = loader.execute(request)
@@ -137,6 +139,7 @@ public class CoilBitmapLoader(
                         .Builder(context)
                         .data(safeData)
                         .size(maxArtworkWidth, maxArtworkHeight)
+                        .scale(Scale.FILL)
                         .build()
 
                 val result = loader.execute(request)

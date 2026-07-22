@@ -391,6 +391,9 @@
     <string name="equalizer_preset_night">Night</string>
     <string name="equalizer_preset_headphones">Headphones</string>
     <string name="equalizer_preset_car">Car</string>
+    <string name="equalizer_preset_male_narrator">Male Narrator</string>
+    <string name="equalizer_preset_female_narrator">Female Narrator</string>
+    <string name="equalizer_preset_car_mode">Car Mode</string>
     <string name="equalizer_five_band_title">5-band preview</string>
     <string name="equalizer_gain_db">%1$d dB</string>
     <string name="equalizer_point_tooltip">%1$s • %2$s</string>

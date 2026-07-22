@@ -53,11 +53,9 @@ internal class CrossfadeHandler(
         handler.removeCallbacks(monitorRunnable)
     }
 
-    private fun checkCrossfade() {
-        // Only if crossfade enabled
-        val settings = service.playerConfigurator?.audioProcessingSettings ?: return
-        if (!settings.isCrossfadeEnabled) return
+    private var prefetchedChapterIndex = -1
 
+    private fun checkCrossfade() {
         val currentPlayer = service.getActivePlayer()
         if (!currentPlayer.isPlaying) return
 
@@ -66,12 +64,41 @@ internal class CrossfadeHandler(
         if (duration == androidx.media3.common.C.TIME_UNSET) return
 
         val remaining = duration - position
-        val crossfadeDuration = settings.crossfadeDurationMs
 
-        // If within crossfade window AND next track not yet started
-        if (remaining <= crossfadeDuration && remaining > 0) {
-            triggerCrossfadeTransition()
+        if (remaining <= PREDICTIVE_PREFETCH_WINDOW_MS && remaining > 0) {
+            prefetchNextChapter()
         }
+
+        // Existing crossfade logic (wrapped in the settings check)
+        val settings = service.playerConfigurator?.audioProcessingSettings ?: return
+        if (settings.isCrossfadeEnabled) {
+            val crossfadeDuration = settings.crossfadeDurationMs
+            if (remaining <= crossfadeDuration && remaining > 0) {
+                triggerCrossfadeTransition()
+            }
+        }
+    }
+
+    private fun prefetchNextChapter() {
+        val currentPlayer = service.getActivePlayer()
+        val nextIndex = currentPlayer.currentMediaItemIndex + 1
+        if (nextIndex <= prefetchedChapterIndex) return
+        prefetchedChapterIndex = nextIndex
+
+        if (nextIndex >= currentPlayer.mediaItemCount) return
+
+        service.playerServiceScope.launch {
+            val nextSource = playlistManager.getNextMediaSource(currentPlayer.currentMediaItemIndex)
+            if (nextSource != null) {
+                withContext(Dispatchers.Main) {
+                    currentPlayer.addMediaSource(nextSource)
+                }
+            }
+        }
+    }
+
+    private companion object {
+        private const val PREDICTIVE_PREFETCH_WINDOW_MS = 30_000L
     }
 
     /**

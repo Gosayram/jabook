@@ -430,6 +430,9 @@ public fun AudioSettingsScreen(
                                             EqualizerPreset.NIGHT -> stringResource(R.string.equalizer_preset_night)
                                             EqualizerPreset.HEADPHONES -> stringResource(R.string.equalizer_preset_headphones)
                                             EqualizerPreset.CAR -> stringResource(R.string.equalizer_preset_car)
+                                            EqualizerPreset.MALE_NARRATOR -> stringResource(R.string.equalizer_preset_male_narrator)
+                                            EqualizerPreset.FEMALE_NARRATOR -> stringResource(R.string.equalizer_preset_female_narrator)
+                                            EqualizerPreset.CAR_MODE -> stringResource(R.string.equalizer_preset_car_mode)
                                         },
                                 )
                             },

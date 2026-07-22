@@ -34,6 +34,28 @@ public object HapticManager {
         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 
+    public fun performDoubleVibration(context: Context) {
+        val vibrator =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                context.getSystemService(VibratorManager::class.java)?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                context.getSystemService(Vibrator::class.java)
+            } ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(
+                VibrationEffect.createWaveform(
+                    longArrayOf(0, 30, 100, 30),
+                    intArrayOf(0, 180, 0, 180),
+                    -1,
+                ),
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(longArrayOf(0, 30, 100, 30), -1)
+        }
+    }
+
     public fun performGesture(hapticFeedback: HapticFeedback) {
         hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
     }

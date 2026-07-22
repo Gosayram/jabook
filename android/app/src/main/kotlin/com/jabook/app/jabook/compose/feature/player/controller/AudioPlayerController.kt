@@ -124,6 +124,9 @@ public class AudioPlayerController
         // Callback for chapter end handling (e.g., repeat logic)
         private var onChapterEndedCallback: (() -> Boolean)? = null
 
+        // Audio offload state — updated by both listeners
+        private var isAudioOffloaded = false
+
         private data class PendingLoadRequest(
             val requestId: Long,
             val filePaths: List<String>,
@@ -220,28 +223,22 @@ public class AudioPlayerController
          * state synchronization through MediaSession. Service layer handles business logic.
          */
         private val mediaControllerListener =
-            object : Player.Listener {
+            object : Player.Listener, ExoPlayer.AudioOffloadListener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    // Update UI state from MediaController (single source of truth)
                     _isPlaying.value = isPlaying
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     val controller = mediaController ?: return
-                    // Update duration from MediaController (single source of truth)
                     _duration.value = controller.duration.coerceAtLeast(0)
                     if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
-                        // Initial position update from MediaController
                         publishCurrentPosition(controller.currentPosition, force = true)
 
-                        // Handle chapter end for repeat logic (UI-level concern)
                         if (playbackState == Player.STATE_ENDED) {
                             val shouldRepeat = onChapterEndedCallback?.invoke() ?: false
                             if (shouldRepeat) {
-                                // Repeat current chapter by seeking to start
                                 val currentIndex = controller.currentMediaItemIndex
                                 controller.seekTo(currentIndex, 0)
-                                // Resume playback if it was playing
                                 if (controller.playWhenReady) {
                                     controller.play()
                                 }
@@ -256,7 +253,6 @@ public class AudioPlayerController
                     reason: Int,
                 ) {
                     val controller = mediaController ?: return
-                    // Update position and chapter index from MediaController (single source of truth)
                     publishCurrentPosition(controller.currentPosition)
                     _currentChapterIndex.value = controller.currentMediaItemIndex
                 }
@@ -266,7 +262,6 @@ public class AudioPlayerController
                     reason: Int,
                 ) {
                     val controller = mediaController ?: return
-                    // Update chapter index and duration from MediaController (single source of truth)
                     _currentChapterIndex.value = controller.currentMediaItemIndex
                     _duration.value = controller.duration.coerceAtLeast(0)
                     updateStats(controller)
@@ -281,6 +276,11 @@ public class AudioPlayerController
                     val controller = mediaController ?: return
                     updateStats(controller)
                 }
+
+                override fun onOffloadedPlayback(isOffloadedPlayback: Boolean) {
+                    this@AudioPlayerController.isAudioOffloaded = isOffloadedPlayback
+                    logger.d { "MediaController audio offload: $isOffloadedPlayback" }
+                }
             }
 
         /**
@@ -294,7 +294,7 @@ public class AudioPlayerController
          * double-updating the same StateFlows from two different player sources.
          */
         private val exoPlayerFallbackListener =
-            object : Player.Listener {
+            object : Player.Listener, ExoPlayer.AudioOffloadListener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     _isPlaying.value = isPlaying
                 }
@@ -330,6 +330,11 @@ public class AudioPlayerController
 
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
                     updateStats(exoPlayer)
+                }
+
+                override fun onOffloadedPlayback(isOffloadedPlayback: Boolean) {
+                    this@AudioPlayerController.isAudioOffloaded = isOffloadedPlayback
+                    logger.d { "ExoPlayer fallback audio offload: $isOffloadedPlayback" }
                 }
             }
 
@@ -1013,6 +1018,7 @@ public class AudioPlayerController
                     previousPositionMs = _currentPosition.value,
                     incomingPositionMs = sanitizedPositionMs,
                     force = force,
+                    isAudioOffloaded = isAudioOffloaded,
                 )
             ) {
                 return

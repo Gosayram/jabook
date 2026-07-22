@@ -127,7 +127,7 @@ public fun MiniPlayer(
 
     // Alpha fades primarily on vertical dismiss
     val dragProgress = (animatedOffsetY.coerceAtLeast(0f) / dismissThreshold).coerceIn(0f, 1f)
-    val alpha = 1f - (dragProgress * 0.5f)
+    val dragAlpha = 1f - (dragProgress * 0.5f)
 
     // Scale during drag
     val scale = 1f - (dragProgress * 0.05f)
@@ -143,9 +143,8 @@ public fun MiniPlayer(
                     translationY = animatedOffsetY
                     scaleX = scale
                     scaleY = scale
-                    alpha = alpha
-                }
-                .clickable(
+                    alpha = dragAlpha
+                }.clickable(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = {
