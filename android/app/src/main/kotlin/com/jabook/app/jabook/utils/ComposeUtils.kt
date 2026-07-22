@@ -22,7 +22,9 @@ import androidx.activity.SystemBarStyle
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import kotlinx.coroutines.job
 
 /**
@@ -52,10 +54,11 @@ import kotlinx.coroutines.job
  */
 @Composable
 public fun RunOnFirstComposition(block: () -> Unit) {
+    val currentBlock by rememberUpdatedState(block)
     LaunchedEffect(Unit) {
         coroutineContext.job.invokeOnCompletion { error ->
             if (error == null) {
-                block()
+                currentBlock()
             }
         }
     }

@@ -118,6 +118,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
@@ -308,6 +309,9 @@ public fun PlayerScreen(
     val notificationPermissionPlaybackHint = stringResource(R.string.notificationPermissionPlaybackHint)
     val audioVisualizerPermissionHint = stringResource(R.string.audioVisualizerPermissionHint)
 
+    val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
+    val currentOnNavigateToBook by rememberUpdatedState(onNavigateToBook)
+
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->
             when (effect) {
@@ -325,8 +329,8 @@ public fun PlayerScreen(
                         viewModel.dispatch(effect.actionIntent)
                     }
                 }
-                PlayerEffect.NavigateBack -> navigationClickGuard.run(onNavigateBack)
-                is PlayerEffect.NavigateToBook -> navigationClickGuard.run { onNavigateToBook(effect.bookId) }
+                PlayerEffect.NavigateBack -> navigationClickGuard.run(currentOnNavigateBack)
+                is PlayerEffect.NavigateToBook -> navigationClickGuard.run { currentOnNavigateToBook(effect.bookId) }
             }
         }
     }
