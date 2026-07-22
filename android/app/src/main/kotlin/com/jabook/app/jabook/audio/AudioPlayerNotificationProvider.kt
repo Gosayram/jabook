@@ -29,7 +29,11 @@ import androidx.media3.session.MediaSession
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.audio.AudioPlayerLibrarySessionCallback.Companion.CUSTOM_COMMAND_FORWARD
+import com.jabook.app.jabook.audio.AudioPlayerLibrarySessionCallback.Companion.CUSTOM_COMMAND_REWIND
 import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 /**
  * Custom MediaNotification.Provider to handle "Minimal Notification" mode.
@@ -98,16 +102,16 @@ public class AudioPlayerNotificationProvider(
         actionFactory: MediaNotification.ActionFactory,
         onNotificationChangedCallback: MediaNotification.Provider.Callback,
     ): MediaNotification {
-        // Use DefaultMediaNotificationProvider which handles MediaStyle automatically
-        // This ensures Quick Settings controls support (Android 11+) and SeekBar (Android 13+)
+        val filteredLayout = filterCustomLayout(customLayout)
         LogUtils.d(
             "AudioPlayerNotificationProvider",
-            "createNotification called. Session: ${mediaSession.token}",
+            "createNotification called. Session: ${mediaSession.token}, " +
+                "custom buttons: ${customLayout.size} -> filtered: ${filteredLayout.size}",
         )
         val mediaNotification =
             defaultProvider.createNotification(
                 mediaSession,
-                customLayout,
+                filteredLayout,
                 actionFactory,
                 onNotificationChangedCallback,
             )
@@ -120,6 +124,39 @@ public class AudioPlayerNotificationProvider(
         )
     }
 
+    private fun filterCustomLayout(customLayout: ImmutableList<CommandButton>): ImmutableList<CommandButton> {
+        if (customLayout.isEmpty()) return customLayout
+
+        val preferredSlots =
+            try {
+                val slots =
+                    runBlocking {
+                        service.settingsRepository.userPreferences
+                            .first()
+                            .notificationActionSlotsList
+                    }
+                if (slots.isEmpty()) null else slots.toSet()
+            } catch (_: Exception) {
+                null
+            }
+
+        if (preferredSlots == null) return customLayout
+
+        val filtered =
+            customLayout.filter { button ->
+                val customAction = button.sessionCommand?.customAction ?: return@filter true
+                slotIdForCustomAction(customAction)?.let { it in preferredSlots } ?: true
+            }
+        return ImmutableList.copyOf(filtered)
+    }
+
+    private fun slotIdForCustomAction(customAction: String): Int? =
+        when (customAction) {
+            CUSTOM_COMMAND_REWIND -> SLOT_REWIND_30
+            CUSTOM_COMMAND_FORWARD -> SLOT_FORWARD_30
+            else -> null
+        }
+
     override fun handleCustomCommand(
         session: MediaSession,
         action: String,
@@ -131,4 +168,15 @@ public class AudioPlayerNotificationProvider(
             NotificationHelper.CHANNEL_ID,
             service.getString(com.jabook.app.jabook.R.string.notification_channel_name),
         )
+
+    public companion object {
+        // Notification action slot IDs — must match proto enum values
+        public const val SLOT_REWIND_30: Int = 0
+        public const val SLOT_FORWARD_30: Int = 1
+        public const val SLOT_BOOKMARK: Int = 2
+        public const val SLOT_SLEEP_TIMER: Int = 3
+        public const val SLOT_SPEED: Int = 4
+        public const val SLOT_CHAPTER_PREV: Int = 5
+        public const val SLOT_CHAPTER_NEXT: Int = 6
+    }
 }

@@ -242,6 +242,7 @@ private class FakeSettingsRepository(
         doubleClickAction: Int?,
         tripleClickAction: Int?,
         longPressAction: Int?,
+        notificationActionSlots: List<Int>?,
     ) = Unit
 
     override suspend fun updateLanguage(languageCode: String) = Unit

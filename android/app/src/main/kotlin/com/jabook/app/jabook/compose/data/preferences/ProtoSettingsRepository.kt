@@ -158,6 +158,7 @@ private class LegacySettingsRepository(
         doubleClickAction: Int? = null,
         tripleClickAction: Int? = null,
         longPressAction: Int? = null,
+        notificationActionSlots: List<Int>? = null,
     ) {
         dataStore.updateData { preferences ->
             val builder = preferences.toBuilder()
@@ -186,6 +187,10 @@ private class LegacySettingsRepository(
             if (doubleClickAction != null) builder.setDoubleClickAction(doubleClickAction)
             if (tripleClickAction != null) builder.setTripleClickAction(tripleClickAction)
             if (longPressAction != null) builder.setLongPressAction(longPressAction)
+            if (notificationActionSlots != null) {
+                builder.clearNotificationActionSlots()
+                builder.addAllNotificationActionSlots(notificationActionSlots)
+            }
             builder.build()
         }
     }
@@ -438,6 +443,7 @@ public interface SettingsRepository {
         doubleClickAction: Int? = null,
         tripleClickAction: Int? = null,
         longPressAction: Int? = null,
+        notificationActionSlots: List<Int>? = null,
     )
 
     public suspend fun updateLanguage(languageCode: String)
@@ -596,6 +602,7 @@ public class ProtoSettingsRepository
             doubleClickAction: Int?,
             tripleClickAction: Int?,
             longPressAction: Int?,
+            notificationActionSlots: List<Int>?,
         ) {
             dataStore.updateData { preferences ->
                 val builder = preferences.toBuilder()
@@ -624,6 +631,10 @@ public class ProtoSettingsRepository
                 doubleClickAction?.let { builder.setDoubleClickAction(it) }
                 tripleClickAction?.let { builder.setTripleClickAction(it) }
                 longPressAction?.let { builder.setLongPressAction(it) }
+                notificationActionSlots?.let { slots ->
+                    builder.clearNotificationActionSlots()
+                    builder.addAllNotificationActionSlots(slots)
+                }
                 builder.build()
             }
         }

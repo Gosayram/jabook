@@ -124,6 +124,12 @@ message UserPreferences {
   optional int32 double_click_action = 57;
   optional int32 triple_click_action = 58;
   optional int32 long_press_action = 59;
+
+  // Notification custom action slots (TASK-PLAYER-19)
+  // Which actions to show in notification slots (max 5 on Android 13+).
+  // Values: REWIND_30 = 0, FORWARD_30 = 1, BOOKMARK = 2, SLEEP_TIMER = 3, SPEED = 4, CHAPTER_PREV = 5, CHAPTER_NEXT = 6
+  // Empty list = show all available custom buttons (current behavior).
+  repeated int32 notification_action_slots = 60;
 }
 
 message SleepTimerState {
