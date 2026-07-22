@@ -302,6 +302,7 @@ public fun JabookNavHost(
             deepLinks =
                 listOf(
                     androidx.navigation.navDeepLink<PlayerRoute>(basePath = "jabook://player"),
+                    androidx.navigation.navDeepLink<PlayerRoute>(basePath = "jabook://player/{bookId}/chapter/{chapterIndex}"),
                 ),
             // Disable exit animations to prevent blank screen on back navigation
             popExitTransition = {

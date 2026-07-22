@@ -330,6 +330,16 @@ private class LegacySettingsRepository(
         }
     }
 
+    public val bassBoostStrength: Flow<Int> =
+        userPreferences.map { it.bassBoostStrength }
+
+    public suspend fun updateBassBoostStrength(strength: Int) {
+        val safeStrength = strength.coerceIn(0, 100)
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setBassBoostStrength(safeStrength).build()
+        }
+    }
+
     /**
      * Update equalizer preset.
      */
@@ -447,6 +457,10 @@ public interface SettingsRepository {
     public suspend fun updateHapticsEnabled(enabled: Boolean)
 
     public suspend fun updateEqualizerPreset(preset: String)
+
+    public val bassBoostStrength: Flow<Int>
+
+    public suspend fun updateBassBoostStrength(strength: Int)
 
     public suspend fun updateOnboardingCompleted(completed: Boolean)
 
@@ -693,6 +707,16 @@ public class ProtoSettingsRepository
         override suspend fun updateHapticsEnabled(enabled: Boolean) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setHapticsEnabled(enabled).build()
+            }
+        }
+
+        override val bassBoostStrength: Flow<Int> =
+            userPreferences.map { it.bassBoostStrength }
+
+        override suspend fun updateBassBoostStrength(strength: Int) {
+            val safeStrength = strength.coerceIn(0, 100)
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setBassBoostStrength(safeStrength).build()
             }
         }
 

@@ -108,6 +108,9 @@ message UserPreferences {
 
   // Haptics enabled for seek and gesture vibration.
   bool haptics_enabled = 52;
+
+  // Bass boost strength (0-100, 0 = disabled).
+  int32 bass_boost_strength = 53;
 }
 
 message SleepTimerState {

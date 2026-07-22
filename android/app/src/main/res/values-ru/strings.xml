@@ -2609,6 +2609,9 @@
     <!-- Widget strings -->
     <string name="no_book_playing">Нет воспроизведения</string>
     <string name="widget_description">Быстрый доступ к управлению аудиоплеером</string>
+    <!-- Quick Settings Tile strings -->
+    <string name="quick_tile_playing">Воспроизводится</string>
+    <string name="quick_tile_paused">Пауза</string>
     <string name="notification_channel_description">Управление воспроизведением аудио</string>
     
     <!-- Переопределение канала Media3 по умолчанию -->

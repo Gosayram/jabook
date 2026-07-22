@@ -2617,6 +2617,9 @@
     <!-- Widget strings -->
     <string name="no_book_playing">No book playing</string>
     <string name="widget_description">Quick access to audio player controls</string>
+    <!-- Quick Settings Tile strings -->
+    <string name="quick_tile_playing">Playing</string>
+    <string name="quick_tile_paused">Paused</string>
     <string name="notification_channel_description">Audio playback controls</string>
     
     <!-- Media3 Default Channel Overrides -->

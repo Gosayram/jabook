@@ -81,6 +81,9 @@ internal class AudioServiceReleaseHandler(
         if (service.isPlaybackEnhancerServiceInitialized()) {
             service.playbackEnhancerService.release()
         }
+        if (service.isBassBoostManagerInitialized()) {
+            service.bassBoostManager.release()
+        }
 
         service.sleepTimerManager?.release()
         service.sleepTimerManager = null

@@ -108,6 +108,7 @@ public class PlayerViewModel
         // Get bookId from navigation arguments
         private val args = savedStateHandle.toRoute<PlayerRoute>()
         private val bookId = args.bookId
+        private val initialChapterIndexOverride = args.chapterIndex
 
         private val _effects =
             MutableSharedFlow<PlayerEffect>(
@@ -351,6 +352,8 @@ public class PlayerViewModel
                     val chapterIndex =
                         if (hasControllerStateForCurrentBook) {
                             controllerChapterIndex.coerceIn(0, maxChapterIndex)
+                        } else if (initialChapterIndexOverride > 0) {
+                            initialChapterIndexOverride.coerceIn(0, maxChapterIndex)
                         } else {
                             safeSavedChapterIndex
                         }
@@ -360,6 +363,8 @@ public class PlayerViewModel
                     val position =
                         if (hasControllerStateForCurrentBook) {
                             controllerPosition.coerceAtLeast(0L)
+                        } else if (initialChapterIndexOverride > 0) {
+                            0L
                         } else {
                             (bootstrapSnapshot?.positionMs ?: 0L).coerceAtLeast(0L)
                         }

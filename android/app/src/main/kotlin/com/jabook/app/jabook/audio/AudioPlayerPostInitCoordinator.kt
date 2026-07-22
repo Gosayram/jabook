@@ -38,6 +38,7 @@ internal class AudioPlayerPostInitCoordinator(
         setupNotificationProvider()
         setupAudioOutputManager()
         service.playbackEnhancerService.initialize()
+        service.bassBoostManager.initialize()
         initializeVisualizer()
     }
 

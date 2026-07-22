@@ -79,6 +79,9 @@ public class AudioPlayerService : MediaLibraryService() {
     public lateinit var playbackEnhancerService: PlaybackEnhancerService
 
     @Inject
+    public lateinit var bassBoostManager: com.jabook.app.jabook.audio.processors.BassBoostManager
+
+    @Inject
     public lateinit var audioPreferences: com.jabook.app.jabook.audio.data.local.datastore.AudioPreferences
 
     @Inject
@@ -388,6 +391,8 @@ public class AudioPlayerService : MediaLibraryService() {
     internal fun isAudioOutputManagerInitialized(): Boolean = ::audioOutputManager.isInitialized
 
     internal fun isPlaybackEnhancerServiceInitialized(): Boolean = ::playbackEnhancerService.isInitialized
+
+    internal fun isBassBoostManagerInitialized(): Boolean = ::bassBoostManager.isInitialized
 
     internal fun isAudioVisualizerStateBridgeInitialized(): Boolean = ::audioVisualizerStateBridge.isInitialized
 

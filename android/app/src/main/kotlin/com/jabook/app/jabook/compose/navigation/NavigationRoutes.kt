@@ -31,6 +31,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 public data class PlayerRoute(
     val bookId: String,
+    val chapterIndex: Int = 0,
 )
 
 /**
