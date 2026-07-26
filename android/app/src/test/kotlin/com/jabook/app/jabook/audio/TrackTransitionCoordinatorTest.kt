@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
-import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -22,7 +22,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.mockito.kotlin.mock
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for [TrackTransitionCoordinator].
@@ -30,6 +31,7 @@ import org.mockito.kotlin.mock
  * Tests cover track transition deduplication, pending deferred completion,
  * and edge cases (duplicate events within the dedup window, negative indices).
  */
+@RunWith(RobolectricTestRunner::class)
 class TrackTransitionCoordinatorTest {
     private var lastActualTrackIndex: Int = -1
 
@@ -45,7 +47,7 @@ class TrackTransitionCoordinatorTest {
 
     private fun createCoordinator(isPlaylistLoading: (() -> Boolean)? = null) =
         TrackTransitionCoordinator(
-            context = mock<Context>(),
+            context = ApplicationProvider.getApplicationContext(),
             isPlaylistLoading = isPlaylistLoading,
             updateActualTrackIndex = { lastActualTrackIndex = it },
         )

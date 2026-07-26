@@ -39,13 +39,17 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.robolectric.RobolectricTestRunner
+import java.io.File
 
+@RunWith(RobolectricTestRunner::class)
 @OptIn(ExperimentalCoroutinesApi::class)
 class TopicViewModelTest {
     private val rutrackerRepository: RutrackerRepository = mock()
@@ -378,6 +382,12 @@ class TopicViewModelTest {
         runTest {
             whenever(rutrackerRepository.getTopicDetails("12345"))
                 .thenReturn(Result.Error(AppError.DataError.NotFound))
+            val downloadsDir =
+                android.os.Environment.getExternalStoragePublicDirectory(
+                    android.os.Environment.DIRECTORY_DOWNLOADS,
+                )
+            downloadsDir?.mkdirs()
+            File(downloadsDir, "JabookAudio").mkdirs()
 
             whenever(
                 withAuthorisedCheckUseCase.invoke(anyOrNull(), any<suspend () -> Unit>()),

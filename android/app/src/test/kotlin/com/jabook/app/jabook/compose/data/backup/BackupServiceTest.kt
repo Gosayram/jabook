@@ -29,11 +29,14 @@ import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+import org.robolectric.RobolectricTestRunner
 import java.io.ByteArrayInputStream
 import java.lang.reflect.InvocationTargetException
 
+@RunWith(RobolectricTestRunner::class)
 class BackupServiceTest {
     private val json = Json { prettyPrint = true }
 
