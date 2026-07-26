@@ -21,6 +21,7 @@ import androidx.room.Query
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningDayStatEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningSessionEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Dao
 public interface ListeningSessionDao {
@@ -73,8 +74,13 @@ public interface ListeningSessionDao {
         ORDER BY day ASC
         """,
     )
-    public fun observeDayStats(
+    public fun observeDayStatsInternal(
         fromEpochMs: Long,
         toEpochMs: Long,
     ): Flow<List<ListeningDayStatEntity>>
+
+    public fun observeDayStats(
+        fromEpochMs: Long,
+        toEpochMs: Long,
+    ): Flow<List<ListeningDayStatEntity>> = observeDayStatsInternal(fromEpochMs, toEpochMs).distinctUntilChanged()
 }

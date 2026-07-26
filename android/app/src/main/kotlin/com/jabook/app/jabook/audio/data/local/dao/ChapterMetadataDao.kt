@@ -21,6 +21,7 @@ import androidx.room.Query
 import androidx.room.Transaction
 import com.jabook.app.jabook.audio.data.local.database.entity.ChapterMetadataEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * Data Access Object for chapter metadata.
@@ -31,13 +32,17 @@ public interface ChapterMetadataDao {
      * Gets all chapter metadata for a book.
      */
     @Query("SELECT * FROM chapter_metadata WHERE bookId = :bookId ORDER BY fileIndex ASC")
-    public fun getChapters(bookId: String): Flow<List<ChapterMetadataEntity>>
+    public fun getChaptersInternal(bookId: String): Flow<List<ChapterMetadataEntity>>
+
+    public fun getChapters(bookId: String): Flow<List<ChapterMetadataEntity>> = getChaptersInternal(bookId).distinctUntilChanged()
 
     /**
      * Gets a specific chapter by ID.
      */
     @Query("SELECT * FROM chapter_metadata WHERE id = :id")
-    public fun getChapter(id: String): Flow<ChapterMetadataEntity?>
+    public fun getChapterInternal(id: String): Flow<ChapterMetadataEntity?>
+
+    public fun getChapter(id: String): Flow<ChapterMetadataEntity?> = getChapterInternal(id).distinctUntilChanged()
 
     /**
      * Inserts or updates chapter metadata.

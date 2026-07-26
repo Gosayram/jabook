@@ -22,6 +22,7 @@ import androidx.room.Update
 import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * Data Access Object for chapters.
@@ -34,7 +35,10 @@ public interface ChaptersDao {
      * Observes all chapters for a specific book, ordered by chapter index.
      */
     @Query("SELECT * FROM chapters WHERE book_id = :bookId ORDER BY chapter_index ASC")
-    public fun getChaptersByBookIdFlow(bookId: String): Flow<List<ChapterEntity>>
+    public fun getChaptersByBookIdFlowInternal(bookId: String): Flow<List<ChapterEntity>>
+
+    public fun getChaptersByBookIdFlow(bookId: String): Flow<List<ChapterEntity>> =
+        getChaptersByBookIdFlowInternal(bookId).distinctUntilChanged()
 
     /**
      * Gets a single chapter by ID (one-shot).

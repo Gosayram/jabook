@@ -20,11 +20,14 @@ import androidx.room.Insert
 import androidx.room.Query
 import com.jabook.app.jabook.compose.data.local.entity.UserEqPresetEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Dao
 public interface UserEqPresetDao {
     @Query("SELECT * FROM user_eq_presets ORDER BY created_at DESC")
-    public fun getAll(): Flow<List<UserEqPresetEntity>>
+    public fun getAllInternal(): Flow<List<UserEqPresetEntity>>
+
+    public fun getAll(): Flow<List<UserEqPresetEntity>> = getAllInternal().distinctUntilChanged()
 
     @Insert
     public suspend fun insert(preset: UserEqPresetEntity)

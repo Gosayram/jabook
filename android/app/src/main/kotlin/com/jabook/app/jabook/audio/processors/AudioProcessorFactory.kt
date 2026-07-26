@@ -216,6 +216,7 @@ public data class AudioProcessingSettings(
     val echoStrength: Float = 0.5f,
     val echoDelayMs: Int = 500,
     val echoDecay: Float = 0.5f,
+    val preferredLanguageCode: String = "ru",
 ) {
     init {
         require(echoStrength in 0f..1f) { "echoStrength must be in [0, 1]" }

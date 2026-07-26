@@ -24,6 +24,7 @@ import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchQueryEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Dao
 public interface OfflineSearchDao {
@@ -160,7 +161,10 @@ public interface OfflineSearchDao {
      * Allows constructs like: (title LIKE %t1% OR author LIKE %t1%) AND (title LIKE %t2% OR author LIKE %t2%)
      */
     @androidx.room.RawQuery(observedEntities = [CachedTopicEntity::class])
-    public fun searchIndexedTopicsRaw(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<List<CachedTopicEntity>>
+    public fun searchIndexedTopicsRawInternal(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<List<CachedTopicEntity>>
+
+    public fun searchIndexedTopicsRaw(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<List<CachedTopicEntity>> =
+        searchIndexedTopicsRawInternal(query).distinctUntilChanged()
 
     /**
      * Update cover URL for a specific topic.

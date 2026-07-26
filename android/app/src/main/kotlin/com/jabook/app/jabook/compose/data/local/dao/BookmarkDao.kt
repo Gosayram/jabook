@@ -19,6 +19,7 @@ import androidx.room.Query
 import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.BookmarkEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * DAO for bookmarks table operations.
@@ -26,7 +27,9 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 public interface BookmarkDao {
     @Query("SELECT * FROM bookmarks WHERE book_id = :bookId ORDER BY position_ms ASC")
-    public fun getBookmarksForBook(bookId: String): Flow<List<BookmarkEntity>>
+    public fun getBookmarksForBookInternal(bookId: String): Flow<List<BookmarkEntity>>
+
+    public fun getBookmarksForBook(bookId: String): Flow<List<BookmarkEntity>> = getBookmarksForBookInternal(bookId).distinctUntilChanged()
 
     @Query("SELECT * FROM bookmarks WHERE book_id = :bookId ORDER BY position_ms ASC")
     public suspend fun getBookmarksForBookSync(bookId: String): List<BookmarkEntity>

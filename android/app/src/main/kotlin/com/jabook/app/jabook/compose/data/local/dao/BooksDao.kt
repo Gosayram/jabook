@@ -24,6 +24,7 @@ import androidx.sqlite.db.SupportSQLiteQuery
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * Data Access Object for books and chapters.
@@ -47,13 +48,17 @@ public interface BooksDao {
             added_date DESC
     """,
     )
-    public fun getAllBooksFlow(): Flow<List<BookEntity>>
+    public fun getAllBooksFlowInternal(): Flow<List<BookEntity>>
+
+    public fun getAllBooksFlow(): Flow<List<BookEntity>> = getAllBooksFlowInternal().distinctUntilChanged()
 
     /**
      * Get a single book by ID.
      */
     @Query("SELECT * FROM books WHERE id = :bookId")
-    public fun getBookFlow(bookId: String): Flow<BookEntity?>
+    public fun getBookFlowInternal(bookId: String): Flow<BookEntity?>
+
+    public fun getBookFlow(bookId: String): Flow<BookEntity?> = getBookFlowInternal(bookId).distinctUntilChanged()
 
     /**
      * Gets a book by ID (one-shot, not Flow).
@@ -71,13 +76,18 @@ public interface BooksDao {
      * Get all chapters for a book, ordered by chapter index.
      */
     @Query("SELECT * FROM chapters WHERE book_id = :bookId ORDER BY chapter_index ASC")
-    public fun getChaptersForBookFlow(bookId: String): Flow<List<ChapterEntity>>
+    public fun getChaptersForBookFlowInternal(bookId: String): Flow<List<ChapterEntity>>
+
+    public fun getChaptersForBookFlow(bookId: String): Flow<List<ChapterEntity>> =
+        getChaptersForBookFlowInternal(bookId).distinctUntilChanged()
 
     /**
      * Observes favorite books, ordered by title.
      */
     @Query("SELECT * FROM books WHERE is_favorite = 1 ORDER BY title ASC")
-    public fun getFavoriteBooksFlow(): Flow<List<BookEntity>>
+    public fun getFavoriteBooksFlowInternal(): Flow<List<BookEntity>>
+
+    public fun getFavoriteBooksFlow(): Flow<List<BookEntity>> = getFavoriteBooksFlowInternal().distinctUntilChanged()
 
     /**
      * Observes books by download status.
@@ -85,7 +95,10 @@ public interface BooksDao {
      * @param status Download status string (e.g., "DOWNLOADED", "DOWNLOADING")
      */
     @Query("SELECT * FROM books WHERE download_status = :status ORDER BY title ASC")
-    public fun getBooksByDownloadStatusFlow(status: String): Flow<List<BookEntity>>
+    public fun getBooksByDownloadStatusFlowInternal(status: String): Flow<List<BookEntity>>
+
+    public fun getBooksByDownloadStatusFlow(status: String): Flow<List<BookEntity>> =
+        getBooksByDownloadStatusFlowInternal(status).distinctUntilChanged()
 
     /**
      * Observes recently played books, ordered by last played date (most recent first).
@@ -100,7 +113,10 @@ public interface BooksDao {
         LIMIT :limit
         """,
     )
-    public fun getRecentlyPlayedBooksFlow(limit: Int = 10): Flow<List<BookEntity>>
+    public fun getRecentlyPlayedBooksFlowInternal(limit: Int = 10): Flow<List<BookEntity>>
+
+    public fun getRecentlyPlayedBooksFlow(limit: Int = 10): Flow<List<BookEntity>> =
+        getRecentlyPlayedBooksFlowInternal(limit).distinctUntilChanged()
 
     /**
      * Observes books that have been started but not completed.
@@ -112,7 +128,9 @@ public interface BooksDao {
         ORDER BY last_played_date DESC
         """,
     )
-    public fun getInProgressBooksFlow(): Flow<List<BookEntity>>
+    public fun getInProgressBooksFlowInternal(): Flow<List<BookEntity>>
+
+    public fun getInProgressBooksFlow(): Flow<List<BookEntity>> = getInProgressBooksFlowInternal().distinctUntilChanged()
 
     /**
      * Updates the favorite status of a book.
@@ -280,7 +298,9 @@ public interface BooksDao {
         ORDER BY title ASC
         """,
     )
-    public fun searchBooksFlow(query: String): Flow<List<BookEntity>>
+    public fun searchBooksFlowInternal(query: String): Flow<List<BookEntity>>
+
+    public fun searchBooksFlow(query: String): Flow<List<BookEntity>> = searchBooksFlowInternal(query).distinctUntilChanged()
 
     /**
      * Searches books by title or author with optional transliterated fallback query.
@@ -295,10 +315,15 @@ public interface BooksDao {
         ORDER BY title ASC
         """,
     )
-    public fun searchBooksFlowWithFallback(
+    public fun searchBooksFlowWithFallbackInternal(
         query: String,
         fallbackQuery: String,
     ): Flow<List<BookEntity>>
+
+    public fun searchBooksFlowWithFallback(
+        query: String,
+        fallbackQuery: String,
+    ): Flow<List<BookEntity>> = searchBooksFlowWithFallbackInternal(query, fallbackQuery).distinctUntilChanged()
 
     /**
      * Searches books via FTS5 index.
@@ -306,7 +331,10 @@ public interface BooksDao {
      * @param ftsQuery Query in SQLite FTS5 MATCH format
      */
     @RawQuery(observedEntities = [BookEntity::class])
-    public fun searchBooksByFtsFlow(query: SupportSQLiteQuery): Flow<List<BookEntity>>
+    public fun searchBooksByFtsFlowInternal(query: SupportSQLiteQuery): Flow<List<BookEntity>>
+
+    public fun searchBooksByFtsFlow(query: SupportSQLiteQuery): Flow<List<BookEntity>> =
+        searchBooksByFtsFlowInternal(query).distinctUntilChanged()
 
     /**
      * Updates per-book playback settings.
@@ -342,7 +370,10 @@ public interface BooksDao {
      * Finds a book by its source URL (e.g. RuTracker topic link).
      */
     @Query("SELECT * FROM books WHERE source_url = :sourceUrl LIMIT 1")
-    public fun getBookBySourceUrlFlow(sourceUrl: String): Flow<BookEntity?>
+    public fun getBookBySourceUrlFlowInternal(sourceUrl: String): Flow<BookEntity?>
+
+    public fun getBookBySourceUrlFlow(sourceUrl: String): Flow<BookEntity?> =
+        getBookBySourceUrlFlowInternal(sourceUrl).distinctUntilChanged()
 
     /**
      * Finds a book by its source URL (one-shot).

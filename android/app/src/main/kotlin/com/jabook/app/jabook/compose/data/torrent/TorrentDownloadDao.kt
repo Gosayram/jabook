@@ -21,6 +21,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * DAO for torrent downloads
@@ -31,7 +32,9 @@ public interface TorrentDownloadDao {
      * Get all downloads as Flow
      */
     @Query("SELECT * FROM torrent_downloads ORDER BY addedTime DESC")
-    public fun getAllFlow(): Flow<List<TorrentDownloadEntity>>
+    public fun getAllFlowInternal(): Flow<List<TorrentDownloadEntity>>
+
+    public fun getAllFlow(): Flow<List<TorrentDownloadEntity>> = getAllFlowInternal().distinctUntilChanged()
 
     /**
      * Get all downloads (one-time)
@@ -49,7 +52,9 @@ public interface TorrentDownloadDao {
      * Get download by hash as Flow
      */
     @Query("SELECT * FROM torrent_downloads WHERE hash = :hash")
-    public fun getByHashFlow(hash: String): Flow<TorrentDownloadEntity?>
+    public fun getByHashFlowInternal(hash: String): Flow<TorrentDownloadEntity?>
+
+    public fun getByHashFlow(hash: String): Flow<TorrentDownloadEntity?> = getByHashFlowInternal(hash).distinctUntilChanged()
 
     /**
      * Get completed downloads
@@ -67,7 +72,9 @@ public interface TorrentDownloadDao {
         ORDER BY addedTime DESC
         """,
     )
-    public fun getActiveFlow(): Flow<List<TorrentDownloadEntity>>
+    public fun getActiveFlowInternal(): Flow<List<TorrentDownloadEntity>>
+
+    public fun getActiveFlow(): Flow<List<TorrentDownloadEntity>> = getActiveFlowInternal().distinctUntilChanged()
 
     /**
      * Insert download

@@ -20,6 +20,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.jabook.app.jabook.audio.data.local.database.entity.PlaylistEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * Data Access Object for playlists.
@@ -30,7 +31,9 @@ public interface PlaylistDao {
      * Gets the playlist for a book.
      */
     @Query("SELECT * FROM playlists WHERE bookId = :bookId")
-    public fun getPlaylist(bookId: String): Flow<PlaylistEntity?>
+    public fun getPlaylistInternal(bookId: String): Flow<PlaylistEntity?>
+
+    public fun getPlaylist(bookId: String): Flow<PlaylistEntity?> = getPlaylistInternal(bookId).distinctUntilChanged()
 
     /**
      * Inserts or updates a playlist.
@@ -48,5 +51,7 @@ public interface PlaylistDao {
      * Gets all playlists.
      */
     @Query("SELECT * FROM playlists")
-    public fun getAllPlaylists(): Flow<List<PlaylistEntity>>
+    public fun getAllPlaylistsInternal(): Flow<List<PlaylistEntity>>
+
+    public fun getAllPlaylists(): Flow<List<PlaylistEntity>> = getAllPlaylistsInternal().distinctUntilChanged()
 }

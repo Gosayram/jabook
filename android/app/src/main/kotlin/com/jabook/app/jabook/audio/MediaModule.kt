@@ -348,6 +348,8 @@ public object MediaModule {
     private fun createAudioOffloadTrackSelectionParameters(): TrackSelectionParameters =
         TrackSelectionParameters
             .Builder()
+            .setMaxAudioBitrate(128_000)
+            .setPreferredAudioLanguage("ru")
             .setAudioOffloadPreferences(
                 TrackSelectionParameters
                     .AudioOffloadPreferences
@@ -383,6 +385,8 @@ public object MediaModule {
 
         return TrackSelectionParameters
             .Builder()
+            .setMaxAudioBitrate(128_000)
+            .setPreferredAudioLanguage(settings.preferredLanguageCode)
             .setAudioOffloadPreferences(
                 TrackSelectionParameters
                     .AudioOffloadPreferences
