@@ -19,6 +19,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 
 /**
@@ -41,6 +42,7 @@ public object NotificationHelper {
      *
      * @param context Application context
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     public fun createNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager =

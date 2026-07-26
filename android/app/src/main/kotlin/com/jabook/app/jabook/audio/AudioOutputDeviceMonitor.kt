@@ -19,6 +19,7 @@ import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
+import androidx.annotation.RequiresApi
 import com.jabook.app.jabook.util.LogUtils
 
 /**
@@ -77,6 +78,7 @@ internal class AudioOutputDeviceMonitor(
     /**
      * Starts monitoring audio device changes.
      */
+    @RequiresApi(Build.VERSION_CODES.M)
     fun register() {
         if (isRegistered) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -89,6 +91,7 @@ internal class AudioOutputDeviceMonitor(
     /**
      * Stops monitoring audio device changes.
      */
+    @RequiresApi(Build.VERSION_CODES.M)
     fun unregister() {
         if (!isRegistered) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -101,6 +104,7 @@ internal class AudioOutputDeviceMonitor(
     /**
      * Detects the current primary output device type.
      */
+    @RequiresApi(Build.VERSION_CODES.S)
     private fun detectCurrentOutputType(): OutputType {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
             return OutputType.SPEAKER // Default fallback

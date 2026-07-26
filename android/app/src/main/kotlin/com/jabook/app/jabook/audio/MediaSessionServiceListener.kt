@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio
 import android.content.Intent
 import android.os.Build
 import androidx.annotation.OptIn
+import androidx.annotation.RequiresApi
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSessionService
 import com.jabook.app.jabook.R
@@ -42,6 +43,7 @@ public class MediaSessionServiceListener(
      * - System tries to resume playback after app was killed
      * - Notification permission is not granted (Android 13+)
      */
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onForegroundServiceStartNotAllowedException() {
         LogUtils.w(
             "AudioPlayerService",

@@ -21,6 +21,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -2098,6 +2099,7 @@ private fun formatTimestamp(millis: Long): String =
     com.jabook.app.jabook.compose.util.DateTimeFormatter
         .formatGOST(millis)
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private fun openSystemLanguageSettings(context: Context) {
     val appLanguageIntent =
         Intent(Settings.ACTION_APP_LOCALE_SETTINGS).apply {

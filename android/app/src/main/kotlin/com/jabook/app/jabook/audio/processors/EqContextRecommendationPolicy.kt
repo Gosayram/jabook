@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio.processors
 import android.content.Context
 import android.media.AudioManager
 import android.os.Build
+import androidx.annotation.RequiresApi
 
 public enum class AudioOutputType {
     SPEAKER,
@@ -25,6 +26,7 @@ public enum class AudioOutputType {
     UNKNOWN,
 }
 
+@RequiresApi(Build.VERSION_CODES.M)
 public fun detectAudioOutputType(context: Context): AudioOutputType {
     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     if (audioManager.isBluetoothA2dpOn) return AudioOutputType.BLUETOOTH

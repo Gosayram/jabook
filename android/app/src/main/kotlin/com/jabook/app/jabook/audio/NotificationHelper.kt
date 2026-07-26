@@ -20,6 +20,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.ComposeMainActivity
@@ -95,6 +96,7 @@ internal class NotificationHelper(
      *
      * @param channelId Channel ID to ensure exists
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     internal fun ensureNotificationChannel(channelId: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {

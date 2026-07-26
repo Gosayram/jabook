@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import android.app.Service
 import android.content.Intent
+import androidx.annotation.RequiresApi
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.widget.PlayerWidgetProvider
 import com.jabook.app.jabook.widget.WidgetObservabilityPolicy
@@ -29,6 +30,7 @@ internal class ServiceIntentHandler(
     private val widgetActionDeduplicator: WidgetActionDeduplicator = WidgetActionDeduplicator(),
     private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
 ) {
+    @RequiresApi(android.os.Build.VERSION_CODES.N)
     public fun handleStartCommand(
         intent: Intent?,
         flags: Int,

@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import com.jabook.app.jabook.util.LogUtils
@@ -59,6 +60,7 @@ internal class UnloadManager(
      * Note: Position saving is handled by Media3PlayerService (Dart) which saves
      * periodically and on app lifecycle events. This method focuses on resource cleanup.
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     public fun unloadPlayerDueToInactivity() {
         LogUtils.i("AudioPlayerService", "Unloading player due to inactivity")
 

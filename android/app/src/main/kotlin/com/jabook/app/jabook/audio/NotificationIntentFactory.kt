@@ -18,6 +18,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.core.app.TaskStackBuilder
 import com.jabook.app.jabook.compose.ComposeMainActivity
 
@@ -35,6 +36,7 @@ internal class NotificationIntentFactory(
      * Used when the app task is active and an activity is in the fore or background.
      * Tapping the notification triggers a single top activity with deep link to PlayerScreen.
      */
+    @RequiresApi(Build.VERSION_CODES.M)
     fun getSingleTopActivity(): PendingIntent? {
         val immutableFlag =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -58,6 +60,7 @@ internal class NotificationIntentFactory(
      * Used when the service runs standalone as a foreground service (app dismissed from recents).
      * Creates proper back stack so pressing back doesn't land on home screen.
      */
+    @RequiresApi(Build.VERSION_CODES.M)
     fun getBackStackedActivity(): PendingIntent? {
         val immutableFlag =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

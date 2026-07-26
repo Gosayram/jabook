@@ -24,6 +24,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.audio.ForegroundServiceStartPolicy
 import com.jabook.app.jabook.audio.ForegroundStartOutcome
@@ -77,6 +78,7 @@ public class DownloadForegroundService : Service() {
         /**
          * Start the download service and add a magnet link.
          */
+        @RequiresApi(Build.VERSION_CODES.O)
         public fun startDownload(
             context: Context,
             magnetUri: String,
@@ -118,6 +120,7 @@ public class DownloadForegroundService : Service() {
     // Active downloads: infoHash -> magnetUri
     private val activeDownloads = mutableMapOf<String, String>()
 
+    @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -168,6 +171,7 @@ public class DownloadForegroundService : Service() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
@@ -352,6 +356,7 @@ public class DownloadForegroundService : Service() {
     /**
      * Create notification channel for Android O+.
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel =

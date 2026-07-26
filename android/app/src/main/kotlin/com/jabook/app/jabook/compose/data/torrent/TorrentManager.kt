@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.data.torrent
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
@@ -356,6 +357,7 @@ public class TorrentManager
             }
         }
 
+        @RequiresApi(android.os.Build.VERSION_CODES.O)
         private fun startDownloadService() {
             try {
                 val intent =

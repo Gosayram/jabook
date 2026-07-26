@@ -75,6 +75,7 @@ public class ForegroundServiceStartPolicy(
      * @param event          Human-readable label for log messages (e.g. "onCreate").
      * @return The outcome of the start attempt.
      */
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     public fun startForeground(
         service: Service,
         notificationId: Int,

@@ -21,6 +21,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.compose.ComposeMainActivity
 
@@ -34,6 +35,7 @@ public object DownloadNotificationHelper {
     /**
      * Create or update notification channel.
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     public fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel =

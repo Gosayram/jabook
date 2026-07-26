@@ -18,6 +18,7 @@ import android.content.Context
 import android.os.Build
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -95,6 +96,7 @@ public class PhoneCallListener(
      * Starts listening for phone call state changes.
      * Should be called when playback starts or service is created.
      */
+    @RequiresApi(Build.VERSION_CODES.S)
     public fun startListening() {
         if (isRegistered) {
             LogUtils.w("PhoneCallListener", "Already listening for phone calls")
@@ -150,6 +152,7 @@ public class PhoneCallListener(
      * Stops listening for phone call state changes.
      * Should be called when playback stops or service is destroyed.
      */
+    @RequiresApi(Build.VERSION_CODES.S)
     public fun stopListening() {
         if (!isRegistered) {
             return

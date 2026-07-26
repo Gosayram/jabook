@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,6 +37,7 @@ import dev.chrisbanes.haze.hazeSource
 /**
  * Premium animated background component using Shaders (Android 13+) or Gradient fallback.
  */
+@RequiresApi(Build.VERSION_CODES.S)
 @Composable
 public fun PremiumPlayerBackground(
     themeColors: PlayerThemeColors?,

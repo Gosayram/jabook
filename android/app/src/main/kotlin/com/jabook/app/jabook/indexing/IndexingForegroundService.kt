@@ -23,6 +23,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.ForegroundServiceStartPolicy
@@ -98,6 +99,7 @@ public class IndexingForegroundService : Service() {
          *
          * @param context Context needed to start the service
          */
+        @RequiresApi(Build.VERSION_CODES.O)
         public fun start(context: android.content.Context) {
             val intent =
                 Intent(context, IndexingForegroundService::class.java).apply {
@@ -179,6 +181,7 @@ public class IndexingForegroundService : Service() {
     /**
      * Creates notification channel for Android O+.
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             LogUtils.i(TAG, "Creating notification channel: $CHANNEL_ID")
@@ -402,6 +405,7 @@ public class IndexingForegroundService : Service() {
     /**
      * Updates notification with current progress.
      */
+    @RequiresApi(Build.VERSION_CODES.N)
     private fun updateNotification(progress: IndexingProgress) {
         try {
             LogUtils.d(TAG, "Updating notification for: ${progress::class.simpleName}")

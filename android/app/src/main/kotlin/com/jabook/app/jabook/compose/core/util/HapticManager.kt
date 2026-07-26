@@ -19,6 +19,7 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import androidx.annotation.RequiresApi
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 
@@ -34,6 +35,7 @@ public object HapticManager {
         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     public fun performDoubleVibration(context: Context) {
         val vibrator =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -60,6 +62,7 @@ public object HapticManager {
         hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
     }
 
+    @RequiresApi(Build.VERSION_CODES.S)
     public fun vibrateOnce(
         context: Context,
         durationMs: Long = 50L,

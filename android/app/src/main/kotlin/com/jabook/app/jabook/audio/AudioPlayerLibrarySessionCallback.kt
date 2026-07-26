@@ -20,6 +20,7 @@ import android.view.KeyEvent
 import android.view.KeyEvent.KEYCODE_MEDIA_NEXT
 import android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS
 import androidx.annotation.OptIn
+import androidx.annotation.RequiresApi
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -144,6 +145,7 @@ public class AudioPlayerLibrarySessionCallback(
      *
      * Inspired by lissen-android implementation for better hardware button support.
      */
+    @RequiresApi(android.os.Build.VERSION_CODES.TIRAMISU)
     override fun onMediaButtonEvent(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,

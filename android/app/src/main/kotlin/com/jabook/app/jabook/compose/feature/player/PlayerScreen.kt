@@ -20,6 +20,7 @@ import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.PowerManager
 import android.view.WindowManager
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -1793,6 +1794,7 @@ private fun PlayerLandscapeLayout(
     ExperimentalMaterial3Api::class,
     ExperimentalMaterial3WindowSizeClassApi::class,
 )
+@RequiresApi(android.os.Build.VERSION_CODES.S)
 @Composable
 private fun PlayerContent(
     state: PlayerState.Active,

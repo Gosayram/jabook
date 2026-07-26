@@ -21,6 +21,7 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.AudioManager
 import android.os.PowerManager
+import androidx.annotation.RequiresApi
 import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -131,6 +132,7 @@ public class AudioOutputManager
             // No-op
         }
 
+        @RequiresApi(android.os.Build.VERSION_CODES.S)
         private fun setAudioOutput(toEarpiece: Boolean) {
             if (toEarpiece) {
                 // Switch to Earpiece
