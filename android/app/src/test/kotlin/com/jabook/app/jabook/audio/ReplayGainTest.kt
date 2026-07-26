@@ -14,19 +14,16 @@
 
 package com.jabook.app.jabook.audio
 
+import android.content.Context
 import androidx.media3.common.Metadata
-import androidx.test.core.app.ApplicationProvider
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import org.robolectric.RobolectricTestRunner
 
-@RunWith(RobolectricTestRunner::class)
 class ReplayGainTest {
     private lateinit var playerListener: PlayerListener
     private lateinit var loudnessNormalizer: LoudnessNormalizer
@@ -38,7 +35,7 @@ class ReplayGainTest {
         // Create PlayerListener with mocks for dependencies
         playerListener =
             PlayerListener(
-                context = ApplicationProvider.getApplicationContext(),
+                context = mock<Context>(),
                 getActivePlayer = { mock() },
                 getIsBookCompleted = { false },
                 setIsBookCompleted = { },

@@ -22,12 +22,8 @@ import kotlinx.coroutines.flow.single
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
-import org.robolectric.RobolectricTestRunner
-
-@RunWith(RobolectricTestRunner::class)
 class ListeningStatsUseCaseTest {
     private val repository: ListeningSessionRepository = mock()
 

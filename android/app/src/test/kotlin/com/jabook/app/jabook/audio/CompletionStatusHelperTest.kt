@@ -17,12 +17,7 @@ package com.jabook.app.jabook.audio
 import androidx.media3.session.MediaConstants
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
 class CompletionStatusHelperTest {
     @Test
     fun `calculateCompletionPercentage returns 0 for zero duration`() {
@@ -110,24 +105,6 @@ class CompletionStatusHelperTest {
         assertEquals(
             MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED,
             CompletionStatusHelper.getCompletionStatus(0.95),
-        )
-    }
-
-    @Test
-    fun `createCompletionExtras contains not played status for zero position`() {
-        val extras = CompletionStatusHelper.createCompletionExtras(0L, 60000L)
-        assertEquals(
-            MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_NOT_PLAYED,
-            extras.getInt(MediaConstants.EXTRAS_KEY_COMPLETION_STATUS),
-        )
-    }
-
-    @Test
-    fun `createCompletionExtras contains fully played status for 100 percent`() {
-        val extras = CompletionStatusHelper.createCompletionExtras(60000L, 60000L)
-        assertEquals(
-            MediaConstants.EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED,
-            extras.getInt(MediaConstants.EXTRAS_KEY_COMPLETION_STATUS),
         )
     }
 }

@@ -28,6 +28,9 @@ import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for AudioFader.
+ *
+ * SKIPPED from pure-JUnit conversion: SUT uses android.animation.ValueAnimator,
+ * which is unavailable in plain JVM unit tests (stubbed android.jar returns null).
  */
 @RunWith(RobolectricTestRunner::class)
 class AudioFaderTest {

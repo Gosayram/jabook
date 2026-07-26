@@ -18,16 +18,12 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import org.robolectric.RobolectricTestRunner
-
-@RunWith(RobolectricTestRunner::class)
 class ServiceLifecycleManagerTest {
     private lateinit var service: AudioPlayerService
     private lateinit var player: ExoPlayer

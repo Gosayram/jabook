@@ -15,8 +15,6 @@
 package com.jabook.app.jabook.audio
 
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 import kotlin.test.assertEquals
 
 /**
@@ -26,7 +24,6 @@ import kotlin.test.assertEquals
  * require Android instrumentation or Robolectric with real SharedPreferences.
  * These tests focus on the data model behavior.
  */
-@RunWith(RobolectricTestRunner::class)
 class PlayCountTest {
     @Test
     fun `PlayerState playCount defaults to 0`() {

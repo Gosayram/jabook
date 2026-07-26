@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
-import android.media.AudioFormat
+import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
@@ -23,13 +23,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
 
-@RunWith(RobolectricTestRunner::class)
 class LoudnessNormalizerTest {
     private lateinit var normalizer: LoudnessNormalizer
 
@@ -40,7 +37,7 @@ class LoudnessNormalizerTest {
             AudioProcessor.AudioFormat(
                 44_100,
                 1,
-                AudioFormat.ENCODING_PCM_16BIT,
+                C.ENCODING_PCM_16BIT,
             ),
         )
     }
@@ -92,7 +89,7 @@ class LoudnessNormalizerTest {
             AudioProcessor.AudioFormat(
                 44_100,
                 1,
-                AudioFormat.ENCODING_PCM_FLOAT,
+                C.ENCODING_PCM_FLOAT,
             )
 
         normalizer.configure(format)
@@ -106,7 +103,7 @@ class LoudnessNormalizerTest {
             AudioProcessor.AudioFormat(
                 44_100,
                 0,
-                AudioFormat.ENCODING_PCM_16BIT,
+                C.ENCODING_PCM_16BIT,
             )
 
         normalizer.configure(format)

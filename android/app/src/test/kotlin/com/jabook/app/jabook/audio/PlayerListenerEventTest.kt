@@ -18,12 +18,10 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import org.robolectric.RobolectricTestRunner
 import kotlin.test.assertEquals
 
 /**
@@ -33,7 +31,6 @@ import kotlin.test.assertEquals
  * - onEvents() handles correct playback state changes
  * - Playback state changes are properly handled
  */
-@RunWith(RobolectricTestRunner::class)
 class PlayerListenerEventTest {
     @Test
     fun `PlayerListener can be instantiated with required parameters`() {

@@ -14,26 +14,35 @@
 
 package com.jabook.app.jabook.audio
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for ThrottledSeekHandler.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-@RunWith(RobolectricTestRunner::class)
 class ThrottledSeekHandlerTest {
+    private val testDispatcher = StandardTestDispatcher()
     private lateinit var handler: ThrottledSeekHandler
 
     @Before
     fun setup() {
+        Dispatchers.setMain(testDispatcher)
         handler = ThrottledSeekHandler()
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
     }
 
     // ============ Configuration Tests ============

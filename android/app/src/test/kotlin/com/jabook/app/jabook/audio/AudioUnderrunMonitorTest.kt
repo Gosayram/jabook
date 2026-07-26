@@ -19,12 +19,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
-import org.robolectric.RobolectricTestRunner
-
-@RunWith(RobolectricTestRunner::class)
 class AudioUnderrunMonitorTest {
     @Test
     fun `register and unregister manage analytics listener`() {

@@ -20,12 +20,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
-import org.robolectric.RobolectricTestRunner
 
-@RunWith(RobolectricTestRunner::class)
 class MetadataExtractionTest {
     private lateinit var parser: RutrackerParser
     private lateinit var mockDecoder: RutrackerSimpleDecoder

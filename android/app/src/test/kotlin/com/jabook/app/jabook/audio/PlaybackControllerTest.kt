@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.audio
 
-import android.net.Uri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
@@ -34,14 +33,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for PlaybackController.
@@ -56,7 +53,6 @@ import org.robolectric.RobolectricTestRunner
  * - Initial position application
  */
 @OptIn(ExperimentalCoroutinesApi::class)
-@RunWith(RobolectricTestRunner::class)
 class PlaybackControllerTest {
     private lateinit var exoPlayer: ExoPlayer
     private lateinit var playbackController: PlaybackController
@@ -462,7 +458,7 @@ class PlaybackControllerTest {
         whenever(exoPlayer.currentMediaItemIndex).thenReturn(0)
         whenever(exoPlayer.mediaItemCount).thenReturn(3)
         // Mock MediaItem with HTTP URI (always available, doesn't check file existence)
-        val mediaItem = MediaItem.fromUri(Uri.parse("https://example.com/track.mp3"))
+        val mediaItem = MediaItem.fromUri("https://example.com/track.mp3")
         whenever(exoPlayer.getMediaItemAt(any())).thenReturn(mediaItem)
 
         // When
@@ -483,7 +479,7 @@ class PlaybackControllerTest {
         whenever(exoPlayer.currentMediaItemIndex).thenReturn(1)
         whenever(exoPlayer.mediaItemCount).thenReturn(3)
         // Mock MediaItem with HTTP URI (always available, doesn't check file existence)
-        val mediaItem = MediaItem.fromUri(Uri.parse("https://example.com/track.mp3"))
+        val mediaItem = MediaItem.fromUri("https://example.com/track.mp3")
         whenever(exoPlayer.getMediaItemAt(any())).thenReturn(mediaItem)
 
         // When

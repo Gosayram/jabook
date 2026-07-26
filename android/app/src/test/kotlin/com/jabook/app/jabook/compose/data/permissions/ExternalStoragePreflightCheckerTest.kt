@@ -18,12 +18,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 import java.io.File
 import java.nio.file.Files
 
-@RunWith(RobolectricTestRunner::class)
 class ExternalStoragePreflightCheckerTest {
     @Test
     fun `checkDirectory fails for blank path`() {

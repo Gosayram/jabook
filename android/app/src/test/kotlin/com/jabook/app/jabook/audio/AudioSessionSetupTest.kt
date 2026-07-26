@@ -16,14 +16,10 @@ package com.jabook.app.jabook.audio
 
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import org.robolectric.RobolectricTestRunner
-
-@RunWith(RobolectricTestRunner::class)
 class AudioSessionSetupTest {
     @Test
     fun `initializeMediaSession returns early when session already exists`() {

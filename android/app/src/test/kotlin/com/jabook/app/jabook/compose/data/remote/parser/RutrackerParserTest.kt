@@ -24,12 +24,10 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
-import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for RutrackerParser.
@@ -41,12 +39,7 @@ import org.robolectric.RobolectricTestRunner
  * - Topic details parsing
  * - Title cleaning logic
  * - Error handling and partial results
- *
- * NOTE: These tests require Robolectric or Android test framework
- * to run successfully due to android.util.Log dependencies in RutrackerParser.
- * For now, they serve as documentation of expected behavior.
  */
-@RunWith(RobolectricTestRunner::class)
 class RutrackerParserTest {
     private lateinit var parser: RutrackerParser
     private lateinit var mockDecoder: RutrackerSimpleDecoder

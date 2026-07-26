@@ -14,23 +14,10 @@
 
 package com.jabook.app.jabook.compose.di
 
-import android.content.Context
-import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 
-@RunWith(RobolectricTestRunner::class)
 class DatabaseModuleMigrationSmokeTest {
-    private lateinit var context: Context
-
-    @Before
-    fun setUp() {
-        context = ApplicationProvider.getApplicationContext()
-    }
-
     @Test
     fun `migration contract includes 14 to 22 chain`() {
         val migrationPairs =

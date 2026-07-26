@@ -22,7 +22,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.anyInt
@@ -32,15 +31,12 @@ import org.mockito.Mockito.never
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
-import org.robolectric.RobolectricTestRunner
-
 /**
  * Unit tests for [BookCompletionCoordinator].
  *
  * Covers all completion sources (STATE_ENDED, DISCONTINUITY, POSITION_CHECK, etc.)
  * and verifies idempotency, index normalization, and side-effect correctness.
  */
-@RunWith(RobolectricTestRunner::class)
 class BookCompletionCoordinatorTest {
     private lateinit var coordinator: BookCompletionCoordinator
     private lateinit var player: Player
