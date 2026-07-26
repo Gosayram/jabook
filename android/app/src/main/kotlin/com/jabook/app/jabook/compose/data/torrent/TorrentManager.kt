@@ -445,7 +445,7 @@ public class TorrentManager
                         networkPausedTorrents.clear()
                         networkPausedTorrents.addAll(active)
 
-                        logger.i { "Pausing ${active.size} torrents due to WiFi-only restriction" }
+                        logger.i { "Pausing ${active.size} torrents (network restricted)" }
                         active.forEach { pauseTorrent(it) }
                         pausedByNetwork = true
 

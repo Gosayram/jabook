@@ -57,6 +57,7 @@ import org.libtorrent4j.alerts.TorrentFinishedAlert
 import org.libtorrent4j.alerts.TorrentLogAlert
 import org.libtorrent4j.swig.error_code
 import org.libtorrent4j.swig.libtorrent
+import org.libtorrent4j.swig.settings_pack
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -212,6 +213,15 @@ public class TorrentSessionManager
                         activeDownloads(4)
                         activeSeeds(4)
                         activeLimit(8)
+
+                        // Memory guardrails — prevent unbounded memory growth during long sessions
+                        sendBufferWatermark(1024 * 1024) // 1 MiB send buffer watermark
+                        activeDhtLimit(80) // cap DHT routing-table peers
+                        try {
+                            setInteger(settings_pack.int_types.max_out_request_queue.swigValue(), 100)
+                        } catch (_: NoSuchMethodError) {
+                            // older libtorrent4j versions lack max_out_request_queue — safe to skip
+                        }
                     }
 
                 val params = SessionParams(settings)

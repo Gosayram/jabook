@@ -76,6 +76,10 @@ internal class PlaybackContextHelper(
         CrashDiagnostics.setCustomKey("current_book_id", getCurrentBookId())
         CrashDiagnostics.setCustomKey("current_chapter_index", getPlaylistManager()?.actualTrackIndex?.toString() ?: "unknown")
         CrashDiagnostics.setCustomKey("is_offloaded", isAudioOffloaded().toString())
+        CrashDiagnostics.setCustomKey("is_playing", player.isPlaying.toString())
+        CrashDiagnostics.setCustomKey("position_ms", player.currentPosition.toString())
+        CrashDiagnostics.setCustomKey("duration_ms", player.duration.toString())
+        CrashDiagnostics.setCustomKey("buffered_ms", player.bufferedPosition.toString())
     }
 
     /** Resets book completion flag if book was completed. */

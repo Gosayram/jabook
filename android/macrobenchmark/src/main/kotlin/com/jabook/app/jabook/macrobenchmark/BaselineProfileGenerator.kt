@@ -14,11 +14,13 @@
 
 package com.jabook.app.jabook.macrobenchmark
 
+import android.util.Log
 import androidx.benchmark.macro.BaselineProfileMode
 import androidx.benchmark.macro.StartupMode
 import androidx.benchmark.macro.StartupTimingMetric
 import androidx.benchmark.macro.junit4.BaselineProfileRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Until
 import org.junit.Rule
@@ -31,14 +33,15 @@ class BaselineProfileGenerator {
     @get:Rule
     val rule = BaselineProfileRule()
 
-    companion object {
-        private const val TARGET_PACKAGE = "com.jabook.app.jabook.dev"
+    private val targetPackage: String by lazy {
+        InstrumentationRegistry.getInstrumentation().targetContext.packageName
     }
 
     @Test
     fun generateBaselineProfile() {
+        Log.d("BaselineProfile", "Generating profile for package: $targetPackage")
         rule.collect(
-            packageName = TARGET_PACKAGE,
+            packageName = targetPackage,
             includeInStartupProfile = true,
         ) {
             pressHome()
