@@ -210,6 +210,10 @@ private class FakeSettingsRepository(
 
     override val audioVisualizerMode: Flow<Int> = MutableStateFlow(0)
 
+    override val customEqBands: Flow<List<Int>> = MutableStateFlow(emptyList())
+
+    override suspend fun updateCustomEqBands(bands: List<Int>) = Unit
+
     override suspend fun updateAudioVisualizerMode(mode: Int) = Unit
 
     override suspend fun updateThemeMode(themeMode: ThemeMode) = Unit
