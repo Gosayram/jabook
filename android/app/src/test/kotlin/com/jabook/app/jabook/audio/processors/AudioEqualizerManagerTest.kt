@@ -28,7 +28,9 @@ import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.junit.runner.RunWith
 
+@RunWith(org.robolectric.RobolectricTestRunner::class)
 class AudioEqualizerManagerTest {
     @Test
     fun `initialize attaches equalizer and release unregisters listener`() {
