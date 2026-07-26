@@ -41,6 +41,7 @@ import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_23_24
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_24_25
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_25_26
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_26_27
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_28_29
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_6_7
 import com.jabook.app.jabook.compose.data.local.migration.createBooksFts5Index
 import com.jabook.app.jabook.compose.data.local.migration.createTopicsFts5Index
@@ -362,6 +363,7 @@ public object DatabaseModule {
             MIGRATION_25_26,
             MIGRATION_26_27,
             MIGRATION_27_28,
+            MIGRATION_28_29,
         )
 
     @Provides

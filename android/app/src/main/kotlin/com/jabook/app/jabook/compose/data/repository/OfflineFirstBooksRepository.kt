@@ -228,7 +228,7 @@ public class OfflineFirstBooksRepository
                         FROM books b
                         JOIN books_fts f ON b.rowid = f.rowid
                         WHERE books_fts MATCH ?
-                        ORDER BY bm25(books_fts) ASC
+                        ORDER BY bm25(books_fts, 10.0, 5.0, 1.0) ASC
                         """.trimIndent(),
                         arrayOf(ftsMatchQuery),
                     ),

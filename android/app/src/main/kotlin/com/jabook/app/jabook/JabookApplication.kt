@@ -22,6 +22,7 @@ import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
+import com.jabook.app.jabook.compose.data.local.JABOOK_DB_VERSION
 import com.jabook.app.jabook.compose.data.sync.SyncManager
 import com.jabook.app.jabook.compose.infrastructure.notification.NotificationHelper
 import com.jabook.app.jabook.crash.CrashDiagnostics
@@ -221,6 +222,7 @@ public class JabookApplication :
             versionName = BuildConfig.VERSION_NAME,
             versionCode = BuildConfig.VERSION_CODE.toLong(),
         )
+        CrashDiagnostics.setCustomKey("db_schema_version", JABOOK_DB_VERSION.toString())
     }
 
     /**

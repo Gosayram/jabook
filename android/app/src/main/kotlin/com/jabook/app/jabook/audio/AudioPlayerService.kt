@@ -311,6 +311,8 @@ public class AudioPlayerService : MediaLibraryService() {
             isSleepTimerEndOfChapter = { isSleepTimerEndOfChapter() },
             isSleepTimerEndOfTrack = { isSleepTimerEndOfTrack() },
             isSleepTimerActive = { isSleepTimerActive() },
+            getCurrentBookId = { currentGroupPath },
+            isAudioOffloaded = { isAudioVisualizerStateBridgeInitialized() && audioVisualizerStateBridge.isAudioOffloaded.value },
         )
 
     private val commandRouter: AudioServiceCommandRouter by lazy {

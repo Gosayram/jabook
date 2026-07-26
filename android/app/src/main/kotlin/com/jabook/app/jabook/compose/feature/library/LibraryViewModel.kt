@@ -24,6 +24,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.jabook.app.jabook.audio.domain.usecase.ListeningStatsUseCase
+import com.jabook.app.jabook.compose.core.SideEffect
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.data.repository.FavoritesRepository
@@ -46,12 +47,15 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -405,6 +409,12 @@ public class LibraryViewModel
         private val _scanState = MutableStateFlow<ScanState>(ScanState.Idle)
         public val scanState: StateFlow<ScanState> = _scanState
 
+        // One-shot UI events (scan result snackbars). Channel so each is consumed
+        // exactly once and buffered while the screen is detached — no loss across
+        // recomposition, unlike SharedFlow(replay = 0).
+        private val _sideEffects = Channel<SideEffect>(Channel.BUFFERED)
+        public val sideEffects: Flow<SideEffect> = _sideEffects.receiveAsFlow()
+
         // Track current scan work for cancellation
         private var currentScanWorkId: java.util.UUID? = null
 
@@ -422,6 +432,11 @@ public class LibraryViewModel
                             booksFound = 0,
                             noFoldersConfigured = true,
                         )
+                    emitSideEffect(
+                        SideEffect.ShowSnackbar(
+                            application.getString(com.jabook.app.jabook.R.string.noFoldersConfiguredPleaseAddInSettings),
+                        ),
+                    )
                     return@launch
                 }
 
@@ -451,12 +466,29 @@ public class LibraryViewModel
                             }
                             WorkInfo.State.SUCCEEDED -> {
                                 val count = workInfo.outputData.getInt("booksFound", 0)
+                                emitSideEffect(
+                                    SideEffect.ShowSnackbar(
+                                        if (count == 0) {
+                                            application.getString(com.jabook.app.jabook.R.string.scanCompleteNoBooks)
+                                        } else {
+                                            application.getString(
+                                                com.jabook.app.jabook.R.string.foundBooksMessage,
+                                                count,
+                                            )
+                                        },
+                                    ),
+                                )
                                 ScanState.Completed(count)
                             }
                             WorkInfo.State.FAILED -> {
                                 val error =
                                     workInfo.outputData.getString("error")
                                         ?: application.getString(com.jabook.app.jabook.R.string.libraryUnknownError)
+                                emitSideEffect(
+                                    SideEffect.ShowSnackbar(
+                                        application.getString(com.jabook.app.jabook.R.string.scanFailedMessage, error),
+                                    ),
+                                )
                                 ScanState.Failed(error)
                             }
                             else -> ScanState.Idle
@@ -472,6 +504,11 @@ public class LibraryViewModel
             workManager.cancelUniqueWork(LibraryScanWorker.WORK_NAME)
             currentScanWorkId = null
             _scanState.value = ScanState.Idle
+        }
+
+        // ponytail: trySend on BUFFERED(64); UNLIMITED if a burst is ever observed.
+        private fun emitSideEffect(effect: SideEffect) {
+            _sideEffects.trySend(effect)
         }
     }
 

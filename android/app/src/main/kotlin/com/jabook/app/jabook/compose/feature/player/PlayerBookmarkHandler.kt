@@ -46,6 +46,7 @@ internal class PlayerBookmarkHandler(
 
     fun addBookmarkAtCurrentPosition(noteText: String? = null) {
         val state = uiState.value as? PlayerState.Active ?: return
+        val chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds ?: 0L
         viewModelScope.launch {
             bookmarkRepository
                 .addBookmark(
@@ -53,6 +54,7 @@ internal class PlayerBookmarkHandler(
                     chapterIndex = state.currentChapterIndex,
                     positionMs = state.currentPosition,
                     noteText = noteText,
+                    chapterDurationMs = chapterDurationMs,
                 ).onFailure { error ->
                     logger.e({ "Failed to add bookmark" }, error)
                     reportError("Failed to add bookmark")
@@ -67,6 +69,11 @@ internal class PlayerBookmarkHandler(
         onCreated: (BookmarkItem?) -> Unit = {},
     ) {
         val state = uiState.value as? PlayerState.Active ?: return
+        val chapterDurationMs =
+            state.chapters
+                .getOrNull(chapterIndex)
+                ?.duration
+                ?.inWholeMilliseconds ?: 0L
         viewModelScope.launch {
             val result =
                 bookmarkRepository.addBookmark(
@@ -74,6 +81,7 @@ internal class PlayerBookmarkHandler(
                     chapterIndex = chapterIndex,
                     positionMs = positionMs,
                     noteText = noteText,
+                    chapterDurationMs = chapterDurationMs,
                 )
             result
                 .onSuccess { bookmark -> onCreated(bookmark) }

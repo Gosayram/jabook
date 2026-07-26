@@ -47,6 +47,9 @@ public data class BookmarkEntity(
     @ColumnInfo(name = "book_id") val bookId: String,
     @ColumnInfo(name = "chapter_index") val chapterIndex: Int,
     @ColumnInfo(name = "position_ms") val positionMs: Long,
+    // ponytail: normalized 0..1 position within the chapter; survives re-scan when absolute
+    // position_ms goes stale. 0 means "unknown"; fall back to chapter_index + position_ms.
+    @ColumnInfo(name = "normalized_position") val normalizedPosition: Float = 0f,
     @ColumnInfo(name = "note_text") val noteText: String? = null,
     @ColumnInfo(name = "note_audio_path") val noteAudioPath: String? = null,
     @ColumnInfo(name = "created_at") val createdAt: Long,
@@ -59,6 +62,7 @@ public fun BookmarkEntity.toBookmarkItem(): BookmarkItem =
         bookId = bookId,
         chapterIndex = chapterIndex,
         positionMs = positionMs,
+        normalizedPosition = normalizedPosition,
         noteText = noteText,
         noteAudioPath = noteAudioPath,
         createdAt = createdAt,
@@ -71,6 +75,7 @@ public fun BookmarkItem.toBookmarkEntity(): BookmarkEntity =
         bookId = bookId,
         chapterIndex = chapterIndex,
         positionMs = positionMs,
+        normalizedPosition = normalizedPosition,
         noteText = noteText,
         noteAudioPath = noteAudioPath,
         createdAt = createdAt,

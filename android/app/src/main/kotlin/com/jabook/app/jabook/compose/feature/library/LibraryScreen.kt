@@ -94,6 +94,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.SideEffect
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
@@ -114,6 +115,7 @@ import com.jabook.app.jabook.compose.feature.discovery.DiscoveryScreen
 import com.jabook.app.jabook.compose.feature.discovery.DiscoveryUiState
 import com.jabook.app.jabook.compose.feature.discovery.ListeningMood
 import com.jabook.app.jabook.compose.feature.onboarding.SpotlightOverlay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -178,10 +180,6 @@ public fun LibraryScreen(
     var hasShownStreakAchievement by rememberSaveable { mutableStateOf(false) }
 
     val storagePermissionText = stringResource(R.string.storagePermissionRequired)
-    val foundBooksMessageTemplate = stringResource(R.string.foundBooksMessage)
-    val scanFailedMessageTemplate = stringResource(R.string.scanFailedMessage)
-    val noFoldersConfiguredMessage = stringResource(R.string.noFoldersConfiguredPleaseAddInSettings)
-    val scanCompleteNoBooksMessage = stringResource(R.string.scanCompleteNoBooks)
     val coverUpdatedMessage = stringResource(R.string.coverUpdated)
     val coverUpdateFailedMessage = stringResource(R.string.coverUpdateFailed)
     val spotlightSkipText = stringResource(R.string.spotlightSkip)
@@ -242,28 +240,12 @@ public fun LibraryScreen(
             }
         }
 
-    // Observe scan state changes with enhanced feedback
-    androidx.compose.runtime.LaunchedEffect(scanState) {
-        when (val state = scanState) {
-            is ScanState.Completed -> {
-                val message =
-                    when {
-                        state.booksFound == 0 && state.noFoldersConfigured -> {
-                            noFoldersConfiguredMessage
-                        }
-                        state.booksFound == 0 -> {
-                            scanCompleteNoBooksMessage
-                        }
-                        else -> {
-                            foundBooksMessageTemplate.format(state.booksFound)
-                        }
-                    }
-                snackbarHostState.showSnackbar(message)
+    // One-shot UI side effects (scan result snackbars) — each consumed once.
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        viewModel.sideEffects.collect { effect ->
+            if (effect is SideEffect.ShowSnackbar) {
+                snackbarHostState.showSnackbar(effect.message)
             }
-            is ScanState.Failed -> {
-                snackbarHostState.showSnackbar(scanFailedMessageTemplate.format(state.error))
-            }
-            else -> {}
         }
     }
 

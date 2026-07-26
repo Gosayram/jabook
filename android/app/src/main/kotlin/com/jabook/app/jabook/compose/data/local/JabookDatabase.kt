@@ -43,6 +43,12 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadDao
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
 
 /**
+ * Current Jabook database schema version. Single source of truth for [Database]'s `version`
+ * and crash-diagnostics reporting. Bump together with a new [MIGRATION] and a changelog line.
+ */
+public const val JABOOK_DB_VERSION: Int = 29
+
+/**
  * The Room database for this app.
  *
  * Database version 2: Added new fields to BookEntity and ChapterEntity for
@@ -73,6 +79,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 26: Added lufs_value column to chapters table for per-chapter loudness normalization.
  * Database version 27: Added eq_preset_override column to books table for per-book EQ preset override.
  * Database version 28: Added user_eq_presets table for saved custom EQ presets.
+ * Database version 29: Added normalized_position column to bookmarks for re-scan-safe restore.
  */
 @Database(
     entities = [
@@ -90,7 +97,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         SearchQueryEntity::class,
         UserEqPresetEntity::class,
     ],
-    version = 28,
+    version = JABOOK_DB_VERSION,
     exportSchema = true, // Enable schema export for migration validation and debugging
 )
 public abstract class JabookDatabase : RoomDatabase() {

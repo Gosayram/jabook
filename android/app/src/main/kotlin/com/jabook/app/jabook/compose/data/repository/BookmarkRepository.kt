@@ -44,6 +44,7 @@ public class BookmarkRepository
             positionMs: Long,
             noteText: String? = null,
             noteAudioPath: String? = null,
+            chapterDurationMs: Long = 0L,
         ): Result<BookmarkItem> =
             withContext(Dispatchers.IO) {
                 try {
@@ -60,12 +61,20 @@ public class BookmarkRepository
                         )
                     }
                     val now = System.currentTimeMillis()
+                    val safePositionMs = positionMs.coerceAtLeast(0L)
+                    val normalizedPosition =
+                        if (chapterDurationMs > 0L) {
+                            (safePositionMs.toFloat() / chapterDurationMs.toFloat()).coerceIn(0f, 1f)
+                        } else {
+                            0f
+                        }
                     val bookmark =
                         BookmarkItem(
                             id = UUID.randomUUID().toString(),
                             bookId = bookId,
                             chapterIndex = chapterIndex.coerceAtLeast(0),
-                            positionMs = positionMs.coerceAtLeast(0L),
+                            positionMs = safePositionMs,
+                            normalizedPosition = normalizedPosition,
                             noteText = noteText?.takeIf { it.isNotBlank() },
                             noteAudioPath = noteAudioPath,
                             createdAt = now,

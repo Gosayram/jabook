@@ -48,11 +48,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -114,12 +112,8 @@ public class PlayerViewModel
         private val bookId = args.bookId
         private val initialChapterIndexOverride = args.chapterIndex
 
-        private val _effects =
-            MutableSharedFlow<PlayerEffect>(
-                replay = 0,
-                extraBufferCapacity = 16,
-            )
-        public val effects: PlayerEventFlowContract = _effects.asSharedFlow()
+        private val _effects = Channel<PlayerEffect>(Channel.BUFFERED)
+        public val effects: PlayerEventFlowContract = _effects.receiveAsFlow()
         private val commandChannel: Channel<PlayerCommand> = Channel(Channel.BUFFERED)
         private val commandFlow: PlayerCommandFlowContract = commandChannel.receiveAsFlow()
         private val commandExecutor =
@@ -1307,11 +1301,11 @@ public class PlayerViewModel
         }
 
         private fun emitEffect(effect: PlayerEffect) {
-            viewModelScope.launch {
-                runCatching { _effects.emit(effect) }
-                    .onFailure { error ->
-                        logger.w(error) { "Player effect emit failed: $effect" }
-                    }
+            // ponytail: trySend on BUFFERED(64) — holds events while UI is briefly
+            // detached; switch to UNLIMITED if a real burst is ever observed.
+            val result = _effects.trySend(effect)
+            if (result.isFailure) {
+                logger.w { "Player effect buffer full, dropped: $effect" }
             }
         }
 

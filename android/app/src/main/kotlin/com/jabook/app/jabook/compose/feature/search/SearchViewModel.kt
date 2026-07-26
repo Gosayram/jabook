@@ -208,6 +208,8 @@ public class SearchViewModel
                             }
                             rawOnlineResults.value = result.data
                             recalculateUiState()
+                            // ponytail: auto-save on successful search; trim handled in repo
+                            saveSearchToHistory(query, result.data.size)
                         }
                         is Result.Error -> {
                             // Get error message from typed error
