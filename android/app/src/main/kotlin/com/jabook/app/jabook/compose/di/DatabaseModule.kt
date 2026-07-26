@@ -51,6 +51,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
+import java.util.concurrent.Executors
 import javax.inject.Singleton
 
 @Module
@@ -420,7 +421,7 @@ public object DatabaseModule {
             },
         )
 
-        // Add query callback for logging in debug builds only
+        // Detect and log slow queries (>16ms) in debug builds only
         // Query callbacks have a small performance cost, so only enable in debug
         try {
             val isDebug =
@@ -430,12 +431,10 @@ public object DatabaseModule {
                     .get(null) as? Boolean ?: false
             if (isDebug) {
                 builder.setQueryCallback(
-                    Dispatchers.Unconfined,
                     RoomDatabase.QueryCallback { sqlQuery: String, bindArgs: List<Any?> ->
-                        logger.d {
-                            "Query: $sqlQuery | Args: ${bindArgs.joinToString(", ")}"
-                        }
+                        logger.d { "RoomSlowQuery: $sqlQuery" }
                     },
+                    Executors.newSingleThreadExecutor(),
                 )
             }
         } catch (e: Exception) {

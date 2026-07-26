@@ -707,7 +707,10 @@ public fun PlayerScreen(
                 onGoToBookClick = {
                     onNavigateToBook(state.book.id)
                 },
-                onBookmarksClick = { showBookmarkSheet = true },
+                onBookmarksClick = {
+                    HapticManager.performLongPress(hapticFeedback)
+                    showBookmarkSheet = true
+                },
                 onStatsClick = { showStatsOverlay = true },
                 onDismiss = { showOverflowMenu = false },
             )
@@ -1014,7 +1017,10 @@ public fun PlayerScreen(
                                                     }
                                                 }
                                             },
-                                            onSpeedClick = { showSpeedSheet = true },
+                                            onSpeedClick = {
+                                                HapticManager.performLongPress(hapticFeedback)
+                                                showSpeedSheet = true
+                                            },
                                             onHoldToBoostStart = {
                                                 HapticManager.performLongPress(hapticFeedback)
                                                 viewModel.startHoldToBoost(playbackSpeed)
@@ -1033,7 +1039,10 @@ public fun PlayerScreen(
                                                     viewModel.dispatch(PlayerIntent.ToggleChapterRepeat)
                                                 }
                                             },
-                                            onBookmarksClick = { showBookmarkSheet = true },
+                                            onBookmarksClick = {
+                                                HapticManager.performLongPress(hapticFeedback)
+                                                showBookmarkSheet = true
+                                            },
                                             onStatsClick = { showStatsOverlay = true },
                                             onAddBookmarkAtPosition = { chapterIndex, positionMs, onCreated ->
                                                 viewModel.addBookmarkAtPosition(
