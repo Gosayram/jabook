@@ -314,6 +314,12 @@ android {
         buildConfigField("boolean", "HAS_GOOGLE_SERVICES", hasGoogleServicesJson.toString())
     }
 
+    // Ponytail: strip unused locale resources for smaller APK.
+    // resourceConfigurations draws deprecated warning; localeFilters is the AGP 9+ replacement.
+    androidResources {
+        localeFilters += setOf("en", "ru")
+    }
+
     lint {
         checkDependencies = true
         abortOnError = true

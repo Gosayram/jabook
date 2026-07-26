@@ -57,6 +57,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,6 +97,8 @@ public fun AuthScreen(
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val currentView = LocalView.current
+    val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
+    val currentOnNavigateToWebView by rememberUpdatedState(onNavigateToWebView)
 
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -109,7 +112,7 @@ public fun AuthScreen(
     // Handle WebView Login Navigation
     LaunchedEffect(uiState.showWebViewLogin) {
         if (uiState.showWebViewLogin) {
-            navigationClickGuard.run { onNavigateToWebView(viewModel.getLoginUrl()) }
+            navigationClickGuard.run { currentOnNavigateToWebView(viewModel.getLoginUrl()) }
         }
     }
 
@@ -146,7 +149,7 @@ public fun AuthScreen(
 
     LaunchedEffect(authStatus) {
         if (authStatus is AuthStatus.Authenticated) {
-            navigationClickGuard.run { onNavigateBack() }
+            navigationClickGuard.run { currentOnNavigateBack() }
         }
     }
 

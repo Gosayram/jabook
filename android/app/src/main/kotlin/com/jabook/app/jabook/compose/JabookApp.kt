@@ -39,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -222,11 +223,12 @@ public fun JabookApp(
         val duration by miniPlayerViewModel.duration.collectAsStateWithLifecycle()
         val currentBook by miniPlayerViewModel.currentBook.collectAsStateWithLifecycle()
         val currentDestination = appState.currentDestination // Hoist to Composable scope
+        val currentOnPlayerScreenVisibilityChanged by rememberUpdatedState(onPlayerScreenVisibilityChanged)
 
         // Check if we're on the player screen - hide mini player in that case
         val isOnPlayerScreen = currentDestination?.route?.contains("player", ignoreCase = true) == true
         LaunchedEffect(isOnPlayerScreen) {
-            onPlayerScreenVisibilityChanged(isOnPlayerScreen)
+            currentOnPlayerScreenVisibilityChanged(isOnPlayerScreen)
         }
 
         // State for mini player visibility (can be hidden by swipe)

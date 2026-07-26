@@ -44,6 +44,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -75,10 +76,11 @@ public fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentOnFinish by rememberUpdatedState(onFinish)
 
     LaunchedEffect(uiState.isFinished) {
         if (uiState.isFinished) {
-            onFinish()
+            currentOnFinish()
         }
     }
 

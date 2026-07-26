@@ -18,6 +18,27 @@ module-graph: ## Generate module dependency graph (dot)
 check-module-graph: ## Verify module dependency graph baseline is up to date
 	@./scripts/check-module-graph.sh
 
+.PHONY: check-todos
+check-todos: ## Count and list TODO/FIXME/HACK/XXX comments in Kotlin sources
+	@echo "$(BOLD)TODO / FIXME / HACK / XXX Inventory$(RESET)"
+	@echo "$(DIM)========================================$(RESET)"
+	@echo ""
+	@COUNT=$$(grep -rn "TODO\|FIXME\|HACK\|XXX" android/app/src/main --include="*.kt" \
+		| grep -v "//.*noinspection" | wc -l | tr -d ' '); \
+	echo "  $(YELLOW)$$COUNT$(RESET) occurrences found in Kotlin sources"; \
+	echo ""; \
+	echo "$(BOLD)Breakdown by tag:$(RESET)"; \
+	for TAG in TODO FIXME HACK XXX; do \
+		C=$$(grep -rn "$$TAG" android/app/src/main --include="*.kt" \
+			| grep -v "//.*noinspection" | grep -c "$$TAG" || true); \
+		echo "  $$TAG: $$C"; \
+	done; \
+	echo ""; \
+	echo "$(BOLD)Detail:$(RESET)"; \
+	grep -rn "TODO\|FIXME\|HACK\|XXX" android/app/src/main --include="*.kt" \
+		| grep -v "//.*noinspection" || true
+	@echo ""
+
 .PHONY: check-copyright
 check-copyright: ## Check copyright headers in source files
 	@echo "Checking copyright headers..."

@@ -27,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -48,10 +49,11 @@ public fun MigrationScreen(
     viewModel: MigrationViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val currentOnMigrationComplete by rememberUpdatedState(onMigrationComplete)
 
     LaunchedEffect(state) {
         if (state is MigrationUiState.Success) {
-            onMigrationComplete()
+            currentOnMigrationComplete()
         }
     }
 
@@ -136,7 +138,7 @@ public fun MigrationScreen(
             is MigrationUiState.NotNeeded -> {
                 // Migration not needed, navigate immediately
                 LaunchedEffect(Unit) {
-                    onMigrationComplete()
+                    currentOnMigrationComplete()
                 }
             }
         }

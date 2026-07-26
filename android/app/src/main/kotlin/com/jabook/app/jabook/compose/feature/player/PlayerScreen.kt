@@ -1837,6 +1837,10 @@ private fun PlayerContent(
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
+    val currentOnHoldToBoostStart by rememberUpdatedState(onHoldToBoostStart)
+    val currentOnHoldToBoostEnd by rememberUpdatedState(onHoldToBoostEnd)
+    val currentOnInitializeVisualizer by rememberUpdatedState(onInitializeVisualizer)
+    val currentOnSetVisualizerEnabled by rememberUpdatedState(onSetVisualizerEnabled)
     // Get window size class for adaptive sizing
     val context = LocalContext.current
     val activity =
@@ -1900,11 +1904,11 @@ private fun PlayerContent(
             if (speedButtonPressed && !holdToBoostActivated) {
                 holdToBoostActivated = true
                 suppressNextSpeedClick = true
-                onHoldToBoostStart()
+                currentOnHoldToBoostStart()
             }
         } else if (holdToBoostActivated) {
             holdToBoostActivated = false
-            onHoldToBoostEnd()
+            currentOnHoldToBoostEnd()
         }
     }
     // Large spacing for major sections
@@ -2675,7 +2679,7 @@ private fun PlayerContent(
                     item {
                         LaunchedEffect(hasRecordAudioPermission) {
                             if (!hasRecordAudioPermission) {
-                                onSetVisualizerEnabled(false)
+                                currentOnSetVisualizerEnabled(false)
                             }
                         }
 
@@ -2683,10 +2687,10 @@ private fun PlayerContent(
                             // Initialize visualizer only after explicit permission grant
                             LaunchedEffect(state.isPlaying, hasRecordAudioPermission) {
                                 if (state.isPlaying) {
-                                    onInitializeVisualizer()
-                                    onSetVisualizerEnabled(true)
+                                    currentOnInitializeVisualizer()
+                                    currentOnSetVisualizerEnabled(true)
                                 } else {
-                                    onSetVisualizerEnabled(false)
+                                    currentOnSetVisualizerEnabled(false)
                                 }
                             }
 

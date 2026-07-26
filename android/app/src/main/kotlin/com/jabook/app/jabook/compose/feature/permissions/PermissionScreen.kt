@@ -45,6 +45,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,6 +72,7 @@ public fun PermissionScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val currentOnPermissionsGranted by rememberUpdatedState(onPermissionsGranted)
 
     // Refresh permissions on resume (e.g. returning from Settings)
     DisposableEffect(lifecycleOwner) {
@@ -88,7 +90,7 @@ public fun PermissionScreen(
 
     LaunchedEffect(uiState.hasStoragePermission) {
         if (uiState.hasStoragePermission) {
-            onPermissionsGranted()
+            currentOnPermissionsGranted()
         }
     }
 
