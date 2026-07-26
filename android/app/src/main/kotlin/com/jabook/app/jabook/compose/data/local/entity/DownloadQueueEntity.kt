@@ -14,12 +14,14 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
  * Download queue entry for persistent queue management.
  */
+@Keep
 @Entity(tableName = "download_queue")
 public data class DownloadQueueEntity(
     @PrimaryKey

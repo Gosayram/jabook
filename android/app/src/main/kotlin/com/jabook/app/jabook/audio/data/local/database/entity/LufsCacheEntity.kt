@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio.data.local.database.entity
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -30,6 +31,7 @@ import androidx.room.PrimaryKey
  *
  * P-02: LUFS cache with file-metadata-based invalidation.
  */
+@Keep
 @Entity(
     tableName = "lufs_cache",
     indices = [

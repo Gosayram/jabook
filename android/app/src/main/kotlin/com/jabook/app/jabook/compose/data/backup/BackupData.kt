@@ -14,12 +14,14 @@
 
 package com.jabook.app.jabook.compose.data.backup
 
+import androidx.annotation.Keep
 import kotlinx.serialization.Serializable
 
 /**
  * Data model for app backup/restore.
  * Contains all exportable data: settings, books, favorites, history.
  */
+@Keep
 @Serializable
 public data class BackupData(
     val version: String, // App version (e.g. "1.0.0")
@@ -40,6 +42,7 @@ public data class BackupData(
  * App settings backup.
  * Includes user preferences and proto settings.
  */
+@Keep
 @Serializable
 public data class AppSettings(
     // User Preferences
@@ -74,6 +77,7 @@ public data class AppSettings(
  * Book metadata backup.
  * Includes playback progress and basic info.
  */
+@Keep
 @Serializable
 public data class BookBackup(
     val id: String,
@@ -101,6 +105,7 @@ public data class BookBackup(
 /**
  * Scan path backup.
  */
+@Keep
 @Serializable
 public data class ScanPathBackup(
     val path: String,
@@ -110,6 +115,7 @@ public data class ScanPathBackup(
 /**
  * Search history backup.
  */
+@Keep
 @Serializable
 public data class SearchHistoryBackup(
     val query: String,
@@ -120,6 +126,7 @@ public data class SearchHistoryBackup(
 /**
  * Favorite book backup.
  */
+@Keep
 @Serializable
 public data class FavoriteBackup(
     val bookId: String,
@@ -154,6 +161,7 @@ public data class ImportStats(
  * App version and build information.
  * Added in v2.0.0 for better backup tracking.
  */
+@Keep
 @Serializable
 public data class AppInfo(
     val versionName: String, // e.g. "1.0.0"
@@ -169,6 +177,7 @@ public data class AppInfo(
  * Backup statistics and metadata.
  * Helps understand backup size and contents.
  */
+@Keep
 @Serializable
 public data class BackupStatistics(
     val totalBooks: Int = 0,

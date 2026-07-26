@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.network.model
 
+import androidx.annotation.Keep
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -23,6 +24,7 @@ import kotlinx.serialization.Serializable
  * Note: Rutracker returns HTML, so this is a simplified model.
  * Real implementation would need HTML parsing.
  */
+@Keep
 @Serializable
 public data class TopicSearchResponse(
     @SerialName("topics")
@@ -32,6 +34,7 @@ public data class TopicSearchResponse(
 /**
  * Search result topic item.
  */
+@Keep
 @Serializable
 public data class TopicItem(
     @SerialName("id")

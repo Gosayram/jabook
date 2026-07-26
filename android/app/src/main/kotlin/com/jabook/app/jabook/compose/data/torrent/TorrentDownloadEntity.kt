@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.torrent
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
@@ -24,6 +25,7 @@ import com.google.gson.reflect.TypeToken
 /**
  * Room entity for persisting torrent downloads
  */
+@Keep
 @Entity(tableName = "torrent_downloads")
 @TypeConverters(TorrentDownloadConverters::class)
 public class TorrentDownloadEntity(

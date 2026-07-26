@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
@@ -24,6 +25,7 @@ import com.jabook.app.jabook.compose.domain.model.FavoriteItem
  * Room entity for storing favorite audiobooks.
  * Favorites are audiobooks marked by users from search results for quick access.
  */
+@Keep
 @Entity(
     tableName = "favorites",
     indices = [Index(value = ["added_to_favorites"])],

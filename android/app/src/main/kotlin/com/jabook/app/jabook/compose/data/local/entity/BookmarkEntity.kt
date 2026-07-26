@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -26,6 +27,7 @@ import com.jabook.app.jabook.compose.domain.model.BookmarkItem
  *
  * Supports optional text note and optional short voice note file path.
  */
+@Keep
 @Entity(
     tableName = "bookmarks",
     foreignKeys = [

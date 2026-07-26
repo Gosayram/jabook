@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -35,6 +36,7 @@ import com.jabook.app.jabook.compose.data.remote.model.SearchResult
  * Fields NOT stored (retrieved on-demand):
  * - torrentUrl, coverUrl (retrieved via getTopicDetails())
  */
+@Keep
 @Entity(
     tableName = "cached_topics",
     indices = [

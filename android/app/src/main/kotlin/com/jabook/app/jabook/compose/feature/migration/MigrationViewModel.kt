@@ -81,9 +81,9 @@ public class MigrationViewModel
  * UI state for migration screen.
  */
 public sealed class MigrationUiState {
-    public object Checking : MigrationUiState()
+    public data object Checking : MigrationUiState()
 
-    public object Migrating : MigrationUiState()
+    public data object Migrating : MigrationUiState()
 
     public data class Success(
         val booksCount: Int,
@@ -94,5 +94,5 @@ public sealed class MigrationUiState {
         val message: String,
     ) : MigrationUiState()
 
-    public object NotNeeded : MigrationUiState()
+    public data object NotNeeded : MigrationUiState()
 }

@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
@@ -23,6 +24,7 @@ import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
  *
  * Stores information about completed, failed, or cancelled downloads.
  */
+@Keep
 @Entity(tableName = "download_history")
 public data class DownloadHistoryEntity(
     @PrimaryKey(autoGenerate = true)

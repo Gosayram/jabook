@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -21,6 +22,7 @@ import androidx.room.PrimaryKey
  * Entity for persisting authentication cookies in database.
  * Provides most reliable storage layer for session cookies.
  */
+@Keep
 @Entity(tableName = "cookies")
 public data class CookieEntity(
     @PrimaryKey

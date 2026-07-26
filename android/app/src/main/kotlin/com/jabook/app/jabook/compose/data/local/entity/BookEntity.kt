@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -41,6 +42,7 @@ import androidx.room.PrimaryKey
  * @property isFavorite Whether user has marked this book as favorite
  * @property sourceUrl Source URL where book was obtained from (e.g., rutracker link)
  */
+@Keep
 @Entity(
     tableName = "books",
     indices = [
@@ -130,6 +132,7 @@ public data class BookEntity(
  * @property isCompleted Whether this chapter has been fully played
  * @property isDownloaded Whether this chapter's audio file is downloaded locally
  */
+@Keep
 @Entity(
     tableName = "chapters",
     foreignKeys = [

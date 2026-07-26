@@ -14,11 +14,13 @@
 
 package com.jabook.app.jabook.audio.data.local.database.entity
 
+import androidx.annotation.Keep
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+@Keep
 @Entity(
     tableName = "listening_sessions",
     indices = [

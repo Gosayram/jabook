@@ -22,10 +22,10 @@ package com.jabook.app.jabook.audio
  */
 public sealed class SyncStatus {
     /** All data is synchronized. */
-    public object Synced : SyncStatus()
+    public data object Synced : SyncStatus()
 
     /** Synchronization is in progress. */
-    public object Syncing : SyncStatus()
+    public data object Syncing : SyncStatus()
 
     /** Operations queued for sync when online. */
     public data class Pending(
@@ -38,7 +38,7 @@ public sealed class SyncStatus {
     ) : SyncStatus()
 
     /** No sync configured (offline-only mode). */
-    public object Offline : SyncStatus()
+    public data object Offline : SyncStatus()
 
     /**
      * Whether the status indicates the user should be notified.

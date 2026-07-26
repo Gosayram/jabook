@@ -14,10 +14,12 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
+@Keep
 @Entity(tableName = "user_eq_presets")
 public data class UserEqPresetEntity(
     @PrimaryKey(autoGenerate = true)
