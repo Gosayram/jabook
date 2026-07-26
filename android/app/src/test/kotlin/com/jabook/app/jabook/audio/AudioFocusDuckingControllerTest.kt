@@ -27,6 +27,7 @@ import org.mockito.ArgumentMatchers.anyFloat
 import org.mockito.Mockito.doAnswer
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class AudioFocusDuckingControllerTest {
     @Test

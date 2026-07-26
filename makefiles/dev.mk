@@ -325,8 +325,8 @@ test-player: ## Run player feature unit tests (beta flavor)
 	exit $$EXIT_CODE
 
 .PHONY: test-coverage
-test-coverage: ## Generate test coverage report (JaCoCo)
-	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest :app:jacocoTestReport --no-daemon); \
+test-coverage: ## Generate test coverage report (JaCoCo, both flavors for full coverage)
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest :app:jacocoTestReport); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Test coverage report generated at android/app/build/reports/jacoco/jacocoTestReport/html/index.html"; \
@@ -338,7 +338,7 @@ test-coverage: ## Generate test coverage report (JaCoCo)
 .PHONY: test-coverage-verify
 test-coverage-verify: test-coverage ## Verify test coverage ≥ 85%
 	@echo "Verifying test coverage meets minimum threshold of 85%..."
-	@(cd android && ./gradlew :app:jacocoCoverageVerification --no-daemon); \
+	@(cd android && ./gradlew :app:jacocoCoverageVerification); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Test coverage meets minimum threshold of 85%"; \

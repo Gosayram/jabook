@@ -21,6 +21,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+
 class AudioUnderrunMonitorTest {
     @Test
     fun `register and unregister manage analytics listener`() {

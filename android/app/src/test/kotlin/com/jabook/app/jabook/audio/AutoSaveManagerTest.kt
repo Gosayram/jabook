@@ -26,6 +26,7 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+
 /**
  * Unit tests for AutoSaveManager.
  */

@@ -20,6 +20,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+
 class AudioSessionSetupTest {
     @Test
     fun `initializeMediaSession returns early when session already exists`() {

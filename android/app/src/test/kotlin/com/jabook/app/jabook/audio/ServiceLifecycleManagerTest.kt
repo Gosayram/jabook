@@ -24,6 +24,7 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+
 class ServiceLifecycleManagerTest {
     private lateinit var service: AudioPlayerService
     private lateinit var player: ExoPlayer

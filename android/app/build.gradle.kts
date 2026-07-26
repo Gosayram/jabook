@@ -410,7 +410,12 @@ tasks.withType<Test>().configureEach {
     timeout.set(Duration.ofMinutes(12))
     // ponytail: failFast via gradle property — fast local feedback, full CI report.
     // CI: -Ptest.failFast=false ; local default: true (fail on first error).
-    failFast = providers.gradleProperty("test.failFast").map { it.toBoolean() }.orElse(true)
+    failFast =
+        providers
+            .gradleProperty("test.failFast")
+            .map { it.toBoolean() }
+            .orElse(true)
+            .get()
     maxParallelForks = maxOf(1, Runtime.getRuntime().availableProcessors() / 2)
     forkEvery = 120
     // ponytail: heap tuning for forked test JVMs — Robolectric loads many classes,

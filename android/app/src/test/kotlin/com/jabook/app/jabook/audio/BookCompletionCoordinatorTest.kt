@@ -31,6 +31,7 @@ import org.mockito.Mockito.never
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
+
 /**
  * Unit tests for [BookCompletionCoordinator].
  *

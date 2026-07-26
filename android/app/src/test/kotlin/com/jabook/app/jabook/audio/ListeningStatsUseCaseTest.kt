@@ -24,6 +24,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+
 class ListeningStatsUseCaseTest {
     private val repository: ListeningSessionRepository = mock()
 
