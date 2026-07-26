@@ -123,10 +123,16 @@ public object PlayerReducer {
                     val maxIndex = state.chapters.lastIndex
                     val clampedIndex = intent.chapterIndex.coerceIn(0, maxIndex)
                     val selectedChapter = state.chapters[clampedIndex]
+                    val resumePosition =
+                        if (intent.positionMs > 0L) {
+                            intent.positionMs.coerceAtMost(selectedChapter.duration.inWholeMilliseconds)
+                        } else {
+                            0L
+                        }
                     state.copy(
                         currentChapterIndex = clampedIndex,
                         currentChapter = selectedChapter,
-                        currentPosition = 0L,
+                        currentPosition = resumePosition,
                     )
                 }
             }

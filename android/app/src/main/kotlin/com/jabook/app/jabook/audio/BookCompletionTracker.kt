@@ -56,11 +56,13 @@ internal class BookCompletionTracker(
     private val getCurrentBookId: () -> String?,
     private val markBookCompleted: ((String) -> Unit)?,
     private val scheduleNotificationUpdate: () -> Unit = {},
+    private val prepareNextChapter: ((Int) -> Unit)? = null,
 ) {
     private var positionCheckJob: Job? = null
     private var lastPosition: Long = -1L
     private var positionStoppedCount: Int = 0
     private var positionStoppedStartTime: Long = -1L
+    private var prefetchedNextIndex: Int = -1
 
     private val positionCheckIntervalMs: Long = 1000L
     private val positionStoppedThreshold: Int = 3
@@ -109,6 +111,17 @@ internal class BookCompletionTracker(
                         lastPosition = currentPosition
                     } else {
                         resetPositionTrackingState()
+                        // Predictive prefetch: prepare next chapter 30s before end
+                        if (duration != C.TIME_UNSET && duration > 0 && currentIndex >= 0) {
+                            val remaining = duration - currentPosition
+                            if (remaining <= 30_000L && remaining > 0) {
+                                val nextIndex = currentIndex + 1
+                                if (nextIndex < totalTracks && nextIndex != prefetchedNextIndex) {
+                                    prefetchedNextIndex = nextIndex
+                                    prepareNextChapter?.invoke(nextIndex)
+                                }
+                            }
+                        }
                     }
 
                     if (currentIndex >= totalTracks - 1 &&

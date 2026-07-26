@@ -130,6 +130,18 @@ message UserPreferences {
   // Values: REWIND_30 = 0, FORWARD_30 = 1, BOOKMARK = 2, SLEEP_TIMER = 3, SPEED = 4, CHAPTER_PREV = 5, CHAPTER_NEXT = 6
   // Empty list = show all available custom buttons (current behavior).
   repeated int32 notification_action_slots = 60;
+
+  // Visualizer display mode (TASK-PLAYER-29)
+  // 0=WAVEFORM, 1=BAR_CHART, 2=CIRCULAR, 3=MINIMAL
+  int32 audio_visualizer_mode = 61;
+
+  // Crossfade duration between different books (TASK-PLAYER-41)
+  // 0 = instant switch, 500 = smooth, 2000 = long
+  optional int64 crossfade_between_books_ms = 62;
+
+  // Custom EQ bands in millibels (TASK-EQ-12)
+  // 10 values, range -1200 to +1200, step 50
+  repeated int32 custom_eq_bands = 63;
 }
 
 message SleepTimerState {

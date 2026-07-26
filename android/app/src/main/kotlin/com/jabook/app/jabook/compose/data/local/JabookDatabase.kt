@@ -26,6 +26,7 @@ import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.dao.ScanPathDao
 import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
+import com.jabook.app.jabook.compose.data.local.dao.UserEqPresetDao
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.BookmarkEntity
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
@@ -37,6 +38,7 @@ import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchQueryEntity
+import com.jabook.app.jabook.compose.data.local.entity.UserEqPresetEntity
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadDao
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
 
@@ -69,6 +71,8 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 24: Added narrator column to books table for audiobook narrator information.
  * Database version 25: Rebuilt topics_fts as contentless FTS5 to reduce index size.
  * Database version 26: Added lufs_value column to chapters table for per-chapter loudness normalization.
+ * Database version 27: Added eq_preset_override column to books table for per-book EQ preset override.
+ * Database version 28: Added user_eq_presets table for saved custom EQ presets.
  */
 @Database(
     entities = [
@@ -84,8 +88,9 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         TorrentDownloadEntity::class,
         CachedTopicEntity::class,
         SearchQueryEntity::class,
+        UserEqPresetEntity::class,
     ],
-    version = 26,
+    version = 28,
     exportSchema = true, // Enable schema export for migration validation and debugging
 )
 public abstract class JabookDatabase : RoomDatabase() {
@@ -110,4 +115,6 @@ public abstract class JabookDatabase : RoomDatabase() {
     public abstract fun torrentDownloadDao(): TorrentDownloadDao
 
     public abstract fun offlineSearchDao(): OfflineSearchDao
+
+    public abstract fun userEqPresetDao(): UserEqPresetDao
 }

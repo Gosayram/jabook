@@ -263,6 +263,11 @@ public class AudioPlayerServiceInitializer(
                 getActivePlayer = { service.getActivePlayer() },
                 wasPlayingBeforeCall = { service.wasPlayingBeforeCall },
                 setWasPlayingBeforeCall = { value -> service.wasPlayingBeforeCall = value },
+                getCurrentBookId = { service.currentGroupPath },
+                getCurrentChapterIndex = { service.getActivePlayer().currentMediaItemIndex },
+                getCurrentPositionMs = { service.getActivePlayer().currentPosition },
+                autoBookmarkTrigger = service.autoBookmarkTrigger,
+                onCallEndedWithBookmark = { AudioPlayerService.phoneCallBookmarkCreated = true },
             )
 
         // Initialize MediaButtonHandler for multi-click headset support

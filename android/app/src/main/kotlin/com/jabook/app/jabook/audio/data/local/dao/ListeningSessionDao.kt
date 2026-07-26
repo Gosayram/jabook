@@ -53,6 +53,9 @@ public interface ListeningSessionDao {
         updatedAt: Long,
     ): Int
 
+    @Query("SELECT MAX(ended_at) FROM listening_sessions WHERE book_id = :bookId")
+    public suspend fun getLastListeningTimestamp(bookId: String): Long?
+
     @Query(
         """
         SELECT

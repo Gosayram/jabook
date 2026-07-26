@@ -14,16 +14,19 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
 import com.jabook.app.jabook.compose.feature.player.components.HypnoticBackground
@@ -88,7 +91,13 @@ public fun PremiumPlayerBackground(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .graphicsLayer(
+                        .then(
+                            if (Build.VERSION.SDK_INT >= 31) {
+                                Modifier.blur(radiusX = 40.dp, radiusY = 40.dp)
+                            } else {
+                                Modifier
+                            },
+                        ).graphicsLayer(
                             alpha = 0.28f,
                             scaleX = 1.1f,
                             scaleY = 1.1f,
@@ -97,21 +106,12 @@ public fun PremiumPlayerBackground(
             )
         }
 
-        // Scrim gradient for text legibility (stronger at top/bottom, transparent center)
+        // Scrim overlay for text legibility
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors =
-                                listOf(
-                                    Color.Black.copy(alpha = 0.5f), // Top: strong scrim for title
-                                    Color.Black.copy(alpha = 0.15f), // Middle: light over cover
-                                    Color.Black.copy(alpha = 0.4f), // Bottom: controls area
-                                ),
-                        ),
-                    ),
+                    .background(Color.Black.copy(alpha = 0.6f)),
         )
 
         content()

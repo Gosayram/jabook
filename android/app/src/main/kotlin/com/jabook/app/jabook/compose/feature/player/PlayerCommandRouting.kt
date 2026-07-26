@@ -36,6 +36,7 @@ internal sealed interface PlayerCommand {
 
     data class SkipToChapter(
         val chapterIndex: Int,
+        val positionMs: Long = 0L,
     ) : PlayerCommand
 
     data object InitializeVisualizer : PlayerCommand
@@ -88,7 +89,7 @@ internal class PlayerCommandExecutor(
     private val skipToNext: () -> Unit,
     private val skipToPrevious: () -> Unit,
     private val seekTo: (Long) -> Unit,
-    private val skipToChapter: (Int) -> Unit,
+    private val skipToChapter: (Int, Long) -> Unit,
     private val initializeVisualizer: () -> Unit,
     private val setVisualizerEnabled: (Boolean) -> Unit,
     private val setPlaybackSpeed: (Float) -> Unit,
@@ -118,7 +119,7 @@ internal class PlayerCommandExecutor(
             PlayerCommand.SkipToNext -> skipToNext()
             PlayerCommand.SkipToPrevious -> skipToPrevious()
             is PlayerCommand.SeekTo -> seekTo(command.positionMs)
-            is PlayerCommand.SkipToChapter -> skipToChapter(command.chapterIndex)
+            is PlayerCommand.SkipToChapter -> skipToChapter(command.chapterIndex, command.positionMs)
             PlayerCommand.InitializeVisualizer -> initializeVisualizer()
             is PlayerCommand.SetVisualizerEnabled -> setVisualizerEnabled(command.enabled)
             is PlayerCommand.SetPlaybackSpeed -> setPlaybackSpeed(command.speed)
@@ -332,7 +333,8 @@ internal object PlayerIntentCommandRouter {
             }
             is PlayerIntent.SelectChapter -> {
                 val reducedChapterIndex = (reducedState as? PlayerState.Active)?.currentChapterIndex ?: intent.chapterIndex
-                PlayerCommand.SkipToChapter(reducedChapterIndex)
+                val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: 0L
+                PlayerCommand.SkipToChapter(reducedChapterIndex, reducedPosition)
             }
             is PlayerIntent.SetPlaybackSpeed -> {
                 if (reducedState == currentState) {

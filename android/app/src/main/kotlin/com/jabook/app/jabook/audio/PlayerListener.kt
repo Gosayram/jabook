@@ -62,6 +62,7 @@ internal class PlayerListener(
     updateAudioVisualizer: ((Int) -> Unit)? = null,
     getCrossfadeHandler: (() -> CrossfadeHandler?)? = null,
     coroutineScope: kotlinx.coroutines.CoroutineScope? = null,
+    private val onIsPlayingChanged: ((Boolean) -> Unit)? = null,
 ) : Player.Listener {
     // --- Captured callbacks for direct use in listener overrides ---
     private val capturedActivePlayer: () -> ExoPlayer = getActivePlayer
@@ -88,6 +89,7 @@ internal class PlayerListener(
             saveCurrentPosition = { saveCurrentPosition() },
             getCurrentBookId = { getCurrentBookId?.invoke() },
             markBookCompleted = markBookCompleted,
+            prepareNextChapter = preloadNextTrack,
         )
 
     private val playerErrorHandler: PlayerErrorHandler =
@@ -102,6 +104,8 @@ internal class PlayerListener(
         PlayerMetadataHandler(
             context = context,
             setEmbeddedArtworkPath = setEmbeddedArtworkPath,
+            getActivePlayer = capturedActivePlayer,
+            scope = coroutineScope ?: kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default),
         )
 
     private val trackTransitionCoordinator: TrackTransitionCoordinator =
@@ -143,6 +147,7 @@ internal class PlayerListener(
             getCrossfadeHandler = getCrossfadeHandler,
             playerErrorHandler = playerErrorHandler,
             bookCompletionTracker = bookCompletionTracker,
+            onIsPlayingChanged = onIsPlayingChanged,
         )
 
     private val audioFocusDuckingController =

@@ -14,18 +14,22 @@
 
 package com.jabook.app.jabook.widget
 
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import android.widget.RemoteViews
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import androidx.palette.graphics.Palette
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
@@ -34,6 +38,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -64,12 +69,17 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
     private val updateJobRegistry = WidgetUpdateJobRegistry()
     private val debounceDelayMs = 300L
 
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        schedulePeriodicUpdate(context)
+    }
+
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray,
     ) {
-        // Update all widget instances
+        schedulePeriodicUpdate(context)
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)
         }
@@ -115,6 +125,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onDisabled(context: Context) {
+        cancelPeriodicUpdate(context)
         super.onDisabled(context)
         updateJobRegistry.cancelAll()
     }
@@ -359,11 +370,24 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             updateCoverImage(context, views, appWidgetId, artworkUri)
         }
 
+        // Get book ID from metadata or service
+        // For widget updates, we use async approach to avoid blocking
+        val currentBookId = mediaMetadata?.extras?.getString("bookId")
+
         // Update progress (if present in layout)
         val currentPosition = controller.currentPosition
         val duration = controller.duration
+        val chapterTitle = currentMediaItem?.mediaMetadata?.title?.toString()
         safeUpdateView(views, R.id.widget_progress) {
-            updateProgress(views, currentPosition, duration, widgetSize)
+            updateProgress(
+                context = context,
+                views = views,
+                currentPosition = currentPosition,
+                duration = duration,
+                widgetSize = widgetSize,
+                bookId = currentBookId,
+                chapterTitle = chapterTitle,
+            )
         }
 
         // Update play/pause button
@@ -383,10 +407,6 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             val repeatIcon = getRepeatIcon(context, repeatMode)
             views.setImageViewResource(R.id.widget_repeat, repeatIcon)
         }
-
-        // Get book ID from metadata or service
-        // For widget updates, we use async approach to avoid blocking
-        val currentBookId = mediaMetadata?.extras?.getString("bookId")
 
         // If not in metadata, we'll get it asynchronously via custom command
         // For now, use fallback to getInstance() for widget (widget updates are time-sensitive)
@@ -485,8 +505,17 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             }
 
             // Update progress (if present in layout)
+            val chapterTitle = playerState["currentChapterTitle"] as? String
             safeUpdateView(views, R.id.widget_progress) {
-                updateProgress(views, currentPosition, duration, widgetSize)
+                updateProgress(
+                    context = context,
+                    views = views,
+                    currentPosition = currentPosition,
+                    duration = duration,
+                    widgetSize = widgetSize,
+                    bookId = currentBookId,
+                    chapterTitle = chapterTitle,
+                )
             }
 
             // Update play/pause button
@@ -573,6 +602,10 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widget_time_total, "0:00")
         }
 
+        safeUpdateView(views, R.id.widget_chapter_title) {
+            views.setViewVisibility(R.id.widget_chapter_title, android.view.View.GONE)
+        }
+
         safeUpdateView(views, R.id.widget_repeat) {
             views.setImageViewResource(R.id.widget_repeat, getRepeatIcon(context, Player.REPEAT_MODE_OFF))
         }
@@ -599,18 +632,47 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
     /**
      * Updates progress bar and time labels.
+     * Progress bar shows book-level progress (across all chapters) when bookId is available.
+     * Time labels show chapter-level progress.
      */
     private fun updateProgress(
+        context: Context,
         views: RemoteViews,
         currentPosition: Long,
         duration: Long,
         widgetSize: WidgetSize,
+        bookId: String? = null,
+        chapterTitle: String? = null,
     ) {
-        if (duration > 0) {
-            val progress = ((currentPosition * 1000) / duration).toInt().coerceIn(0, 1000)
-            views.setProgressBar(R.id.widget_progress, 1000, progress, false)
-        } else {
-            views.setProgressBar(R.id.widget_progress, 1000, 0, false)
+        // Chapter title (large layout)
+        safeUpdateView(views, R.id.widget_chapter_title) {
+            if (!chapterTitle.isNullOrBlank()) {
+                views.setTextViewText(R.id.widget_chapter_title, chapterTitle)
+                views.setViewVisibility(R.id.widget_chapter_title, android.view.View.VISIBLE)
+            } else {
+                views.setViewVisibility(R.id.widget_chapter_title, android.view.View.GONE)
+            }
+        }
+
+        // Book-level progress bar
+        safeUpdateView(views, R.id.widget_progress) {
+            var bookProgress = 0f
+            if (bookId != null) {
+                val bp = getBookProgress(context, bookId)
+                if (bp != null) {
+                    bookProgress = bp.first.toFloat() / bp.second.toFloat()
+                }
+            }
+            if (bookProgress > 0f) {
+                val progress = (bookProgress * 1000).toInt().coerceIn(0, 1000)
+                views.setProgressBar(R.id.widget_progress, 1000, progress, false)
+            } else if (duration > 0) {
+                val progress = ((currentPosition * 1000) / duration).toInt().coerceIn(0, 1000)
+                views.setProgressBar(R.id.widget_progress, 1000, progress, false)
+            } else {
+                views.setProgressBar(R.id.widget_progress, 1000, 0, false)
+            }
+            applyDominantColorTint(views, context)
         }
 
         // Update time labels (if present in layout)
@@ -862,6 +924,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 val result = loader.execute(request)
                 if (result is SuccessResult) {
                     val bitmap = result.image.toBitmap()
+                    extractAndStoreDominantColor(context, bitmap)
                     val updatedViews =
                         RemoteViews(
                             context.packageName,
@@ -885,6 +948,64 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
      * Applies fallback cover loading strategy when Coil fails.
      * Tries URI-based loading for local content, then placeholder.
      */
+    private fun extractAndStoreDominantColor(
+        context: Context,
+        bitmap: Bitmap,
+    ) {
+        try {
+            val palette = Palette.from(bitmap).generate()
+            val color =
+                palette.vibrantSwatch?.rgb
+                    ?: palette.dominantSwatch?.rgb
+                    ?: palette.mutedSwatch?.rgb
+                    ?: return
+            storeDominantColor(context, color)
+        } catch (_: Exception) {
+            // Palette extraction is best-effort
+        }
+    }
+
+    // ponytail: direct DB access — no DI needed, 30s interval makes cost negligible
+    private fun getBookProgress(
+        context: Context,
+        bookId: String,
+    ): Pair<Long, Long>? {
+        return try {
+            val db =
+                androidx.room.Room
+                    .databaseBuilder(
+                        context.applicationContext,
+                        JabookDatabase::class.java,
+                        DATABASE_NAME,
+                    ).build()
+            val chapters = kotlinx.coroutines.runBlocking { db.chaptersDao().getChaptersByBookId(bookId) }
+            db.close()
+            if (chapters.isEmpty()) return null
+            val totalPosition = chapters.sumOf { if (it.isCompleted) it.duration else it.position.coerceAtMost(it.duration) }
+            val totalDuration = chapters.sumOf { it.duration }
+            if (totalDuration <= 0L) return null
+            Pair(totalPosition, totalDuration)
+        } catch (e: Exception) {
+            LogUtils.w("PlayerWidget", "Failed to query book progress", e)
+            null
+        }
+    }
+
+    private fun applyDominantColorTint(
+        views: RemoteViews,
+        context: Context,
+    ) {
+        val color = getDominantColor(context)
+        if (color != 0) {
+            views.setColorStateList(
+                R.id.widget_progress,
+                "setProgressTintList",
+                android.content.res.ColorStateList
+                    .valueOf(color),
+            )
+        }
+    }
+
     private fun applyCoverFallback(
         context: Context,
         views: RemoteViews,
@@ -916,6 +1037,13 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         public const val EXTRA_WIDGET_ACTION_CREATED_AT_MS: String =
             "com.jabook.app.jabook.EXTRA_WIDGET_ACTION_CREATED_AT_MS"
 
+        private const val ALARM_REQUEST_CODE = 0x1001
+        private const val UPDATE_INTERVAL_MS = 30000L
+        private const val PREFS_NAME = "widget_player_prefs"
+        private const val PREFS_KEY_DOMINANT_COLOR = "dominant_color"
+        private const val PREFS_KEY_BOOK_ID = "last_book_id"
+        private const val DATABASE_NAME = "jabook-database"
+
         /**
          * Requests widget update from anywhere in the app.
          */
@@ -926,6 +1054,87 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 }
             context.sendBroadcast(intent)
         }
+
+        /**
+         * Schedules periodic widget updates via AlarmManager (30s interval).
+         */
+        public fun schedulePeriodicUpdate(context: Context) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val intent =
+                Intent(context, PlayerWidgetProvider::class.java).apply {
+                    action = ACTION_UPDATE_WIDGET
+                }
+            val pendingIntent =
+                PendingIntent.getBroadcast(
+                    context,
+                    ALARM_REQUEST_CODE,
+                    intent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                )
+            alarmManager.setInexactRepeating(
+                AlarmManager.ELAPSED_REALTIME,
+                SystemClock.elapsedRealtime() + UPDATE_INTERVAL_MS,
+                UPDATE_INTERVAL_MS,
+                pendingIntent,
+            )
+        }
+
+        /**
+         * Cancels periodic widget updates.
+         */
+        public fun cancelPeriodicUpdate(context: Context) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val intent =
+                Intent(context, PlayerWidgetProvider::class.java).apply {
+                    action = ACTION_UPDATE_WIDGET
+                }
+            val pendingIntent =
+                PendingIntent.getBroadcast(
+                    context,
+                    ALARM_REQUEST_CODE,
+                    intent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                )
+            alarmManager.cancel(pendingIntent)
+        }
+
+        /**
+         * Stores the dominant color extracted from cover art.
+         */
+        public fun storeDominantColor(
+            context: Context,
+            color: Int,
+        ) {
+            context
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putInt(PREFS_KEY_DOMINANT_COLOR, color)
+                .apply()
+        }
+
+        /**
+         * Returns the stored dominant color, or 0 if not set.
+         */
+        public fun getDominantColor(context: Context): Int =
+            context
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getInt(PREFS_KEY_DOMINANT_COLOR, 0)
+
+        private fun storeLastBookId(
+            context: Context,
+            bookId: String,
+        ) {
+            context
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString(PREFS_KEY_BOOK_ID, bookId)
+                .apply()
+        }
+
+        private fun getLastBookId(context: Context): String? =
+            context
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(PREFS_KEY_BOOK_ID, null)
     }
 }
 

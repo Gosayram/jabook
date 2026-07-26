@@ -104,6 +104,7 @@
     <string name="decoder">Декодер</string>
     <string name="droppedFrames">Пропущенные кадры</string>
     <string name="enableVisualizer">Включить визуализатор</string>
+    <string name="audioOffload">Аппаратное декодирование</string>
 
     <string name="sleepTimerExtended">Таймер сна продлен на 5 минут</string>
     <string name="shakeToExtendEnabled">Встряхните чтобы продлить</string>
@@ -353,6 +354,9 @@
     <string name="equalizer_preset_title">Пресет</string>
     <string name="equalizer_preset_desc">Подстройка тембра речи под условия прослушивания</string>
     <string name="equalizer_preset_flat">Плоский</string>
+    <string name="equalizer_preset_flat_raw">Плоский (Raw)</string>
+    <string name="eq_recommendation_message">Рекомендуем пресет: %1$s</string>
+    <string name="eq_recommendation_apply">Применить</string>
     <string name="equalizer_preset_voice_clarity">Чёткость речи</string>
     <string name="equalizer_preset_night">Ночной</string>
     <string name="equalizer_preset_headphones">Наушники</string>
@@ -360,6 +364,15 @@
     <string name="equalizer_preset_male_narrator">Мужской диктор</string>
     <string name="equalizer_preset_female_narrator">Женский диктор</string>
     <string name="equalizer_preset_car_mode">Режим авто</string>
+    <string name="equalizer_preset_night_listening">Ночное прослушивание</string>
+    <string name="equalizer_preset_headphones_budget">Бюджетные наушники</string>
+    <string name="equalizer_preset_speaker_phone">Громкая связь</string>
+    <string name="equalizer_preset_custom">Пользовательский</string>
+    <string name="equalizer_custom_bands_title">Полосы EQ</string>
+    <string name="equalizer_save_preset">Сохранить как пресет</string>
+    <string name="equalizer_save_preset_dialog_title">Сохранить пресет EQ</string>
+    <string name="equalizer_save_preset_dialog_hint">Название пресета</string>
+    <string name="equalizer_save_preset_saved">Пресет сохранён</string>
     <string name="equalizer_five_band_title">5-полосный предпросмотр</string>
     <string name="equalizer_gain_db">%1$d дБ</string>
     <!-- EQ Presets -->
@@ -2136,6 +2149,7 @@
     <string name="timerLabel">Таймер</string>
     <!-- Метка скорости воспроизведения -->
     <string name="speedLabel">Скорость</string>
+    <string name="fineTuneSpeed">Точная настройка скорости</string>
     <string name="recentSpeedsTitle">Недавние скорости</string>
     <!-- Метка кнопки перемотки назад -->
     <string name="rewindButton">Назад</string>
@@ -2532,6 +2546,7 @@
     <string name="sleepTimerRepeatYesterday">Как вчера (%1$d мин)</string>
     <string name="sleepTimerStopsAt">Остановка в %1$s (через %2$s)</string>
     <string name="sleepTimerResumeHint">Таймер сна остановил воспроизведение. Продолжить с того же места.</string>
+    <string name="phoneCallBookmarkSnackbar">Добавили закладку — продолжить с того места?</string>
     <string name="stopAtSpecificTime">Остановить в конкретное время</string>
     <string name="stopAtSpecificTimeDesc">Выберите время по часам (например, 23:30)</string>
     <string name="currentMirror">Текущее зеркало</string>
@@ -3043,4 +3058,11 @@
     <string name="searchDiscoveryTitle">Подборки</string>
     <string name="searchGenreChipsTitle">Жанры</string>
     <string name="searchQualityChipsTitle">Качество</string>
+    <string name="mini_player_dismissed_undo">Воспроизведение остановлено</string>
+    <string name="mini_player_dismissed_resume">Возобновить</string>
+    <string name="resumeLongPauseTitle">Давно не слушали</string>
+    <string name="resumeLongPauseDescription">%1$s • %2$s — %3$d д. назад</string>
+    <string name="resumeLongPauseContinue">Продолжить</string>
+    <string name="resumeLongPauseRestartChapter">Начать главу сначала</string>
+    <string name="resumeLongPauseSelectChapter">Выбрать главу</string>
 </resources>

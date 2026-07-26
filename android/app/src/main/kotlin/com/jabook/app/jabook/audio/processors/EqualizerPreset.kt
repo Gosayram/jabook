@@ -34,11 +34,22 @@ public enum class EqualizerPreset(
     public val preampMillibels: Int = 0,
 ) {
     /**
-     * Flat — no EQ applied. All bands at 0 dB.
+     * Flat (Raw) — no EQ applied, no preamp. All bands at 0 dB.
+     * Legacy preset kept for backward compatibility.
+     */
+    FLAT_RAW(
+        displayName = "Flat (Raw)",
+        bandGainsMb = intArrayOf(0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+    ),
+
+    /**
+     * Flat — neutral EQ with -3dB headroom to prevent clipping
+     * when LUFS normalizer adds gain. All bands at 0 dB.
      */
     FLAT(
         displayName = "Flat",
         bandGainsMb = intArrayOf(0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+        preampMillibels = -300,
     ),
 
     /**
@@ -50,7 +61,7 @@ public enum class EqualizerPreset(
     VOICE_CLARITY(
         displayName = "Voice Clarity",
         bandGainsMb = intArrayOf(-300, -200, 0, -200, -150, 100, 250, 300, 150, 50),
-        preampMillibels = Int.MIN_VALUE + 1,
+        preampMillibels = -300,
     ),
 
     /**
@@ -95,7 +106,7 @@ public enum class EqualizerPreset(
     MALE_NARRATOR(
         displayName = "Male Narrator",
         bandGainsMb = intArrayOf(-400, -100, 150, -250, -200, 50, 200, 300, 100, 0),
-        preampMillibels = Int.MIN_VALUE + 1,
+        preampMillibels = -300,
     ),
 
     /**
@@ -108,7 +119,7 @@ public enum class EqualizerPreset(
     FEMALE_NARRATOR(
         displayName = "Female Narrator",
         bandGainsMb = intArrayOf(-500, -400, -200, -100, 0, 150, 300, 200, -100, -50),
-        preampMillibels = Int.MIN_VALUE + 1,
+        preampMillibels = -400,
     ),
 
     /**
@@ -119,8 +130,36 @@ public enum class EqualizerPreset(
      */
     CAR_MODE(
         displayName = "Car Mode",
-        bandGainsMb = intArrayOf(-200, -100, 0, -250, -200, 150, 300, 350, 200, 0),
-        preampMillibels = Int.MIN_VALUE + 1,
+        bandGainsMb = intArrayOf(-200, 200, 300, -300, -200, 100, 300, 400, 200, 100),
+        preampMillibels = -400,
+    ),
+
+    /**
+     * Night Listening — late-night listening at low volume.
+     * Cuts sub-bass (31–62Hz) to avoid disturbing others,
+     * boosts 125Hz for audible warmth, cuts 250–500Hz muddiness,
+     * boosts 1–4kHz for speech clarity at low volume,
+     * cuts 16kHz to reduce ear fatigue during extended listening.
+     */
+    NIGHT_LISTENING(
+        displayName = "Night Listening",
+        bandGainsMb = intArrayOf(-600, -400, 100, -100, -100, 200, 350, 250, -50, -200),
+        preampMillibels = -300,
+    ),
+    HEADPHONES_BUDGET(
+        displayName = "Budget Headphones",
+        bandGainsMb = intArrayOf(-400, -300, -200, -150, -100, 200, 350, 300, -100, -300),
+        preampMillibels = -300,
+    ),
+    SPEAKER_PHONE(
+        displayName = "Speaker Phone",
+        bandGainsMb = intArrayOf(-900, -800, -500, 300, 400, 300, -100, -200, -300, -600),
+        preampMillibels = -800,
+    ),
+    CUSTOM(
+        displayName = "Custom",
+        bandGainsMb = intArrayOf(0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+        preampMillibels = 0,
     ),
     ;
 

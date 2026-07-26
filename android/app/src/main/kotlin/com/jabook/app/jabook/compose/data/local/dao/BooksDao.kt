@@ -445,6 +445,30 @@ public interface BooksDao {
      */
     @Query("SELECT local_path FROM books WHERE id = :bookId LIMIT 1")
     public suspend fun getBookLocalPath(bookId: String): String?
+
+    /**
+     * Updates the per-book EQ preset override.
+     *
+     * When set, this overrides the global EQ preset for this specific book.
+     * Set to null to clear the override and use the global preset.
+     *
+     * @param bookId target book ID
+     * @param preset EQ preset name (e.g., "MALE_NARRATOR", "NIGHT_LISTENING"), or null to clear
+     */
+    @Query("UPDATE books SET eq_preset_override = :preset WHERE id = :bookId")
+    public suspend fun updateEqPresetOverride(
+        bookId: String,
+        preset: String?,
+    )
+
+    /**
+     * Returns the per-book EQ preset override, or null if not set.
+     *
+     * @param bookId target book ID
+     * @return preset name string, or null if using global default
+     */
+    @Query("SELECT eq_preset_override FROM books WHERE id = :bookId LIMIT 1")
+    public suspend fun getEqPresetOverride(bookId: String): String?
 }
 
 /**

@@ -15,7 +15,10 @@
 package com.jabook.app.jabook.audio
 
 import androidx.media3.common.Metadata
+import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
@@ -28,6 +31,8 @@ class PlayerMetadataHandlerTest {
         PlayerMetadataHandler(
             context = mock(),
             setEmbeddedArtworkPath = {},
+            getActivePlayer = { mock<ExoPlayer>() },
+            scope = CoroutineScope(Dispatchers.Default),
         )
 
     @Test

@@ -357,6 +357,15 @@ private class LegacySettingsRepository(
         }
     }
 
+    public val audioVisualizerMode: Flow<Int> =
+        userPreferences.map { it.audioVisualizerMode }
+
+    public suspend fun updateAudioVisualizerMode(mode: Int) {
+        dataStore.updateData { preferences ->
+            preferences.toBuilder().setAudioVisualizerMode(mode).build()
+        }
+    }
+
     /**
      * Update equalizer preset.
      */
@@ -485,6 +494,14 @@ public interface SettingsRepository {
     public val bassBoostStrength: Flow<Int>
 
     public suspend fun updateBassBoostStrength(strength: Int)
+
+    public val audioVisualizerMode: Flow<Int>
+
+    public suspend fun updateAudioVisualizerMode(mode: Int)
+
+    public val customEqBands: Flow<List<Int>>
+
+    public suspend fun updateCustomEqBands(bands: List<Int>)
 
     public suspend fun updateOnboardingCompleted(completed: Boolean)
 
@@ -761,9 +778,31 @@ public class ProtoSettingsRepository
             }
         }
 
+        override val audioVisualizerMode: Flow<Int> =
+            userPreferences.map { it.audioVisualizerMode }
+
+        override suspend fun updateAudioVisualizerMode(mode: Int) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setAudioVisualizerMode(mode).build()
+            }
+        }
+
         override suspend fun updateEqualizerPreset(preset: String) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setEqualizerPreset(preset).build()
+            }
+        }
+
+        override val customEqBands: Flow<List<Int>> =
+            userPreferences.map { it.customEqBandsList }
+
+        override suspend fun updateCustomEqBands(bands: List<Int>) {
+            dataStore.updateData { preferences ->
+                preferences
+                    .toBuilder()
+                    .clearCustomEqBands()
+                    .addAllCustomEqBands(bands)
+                    .build()
             }
         }
 

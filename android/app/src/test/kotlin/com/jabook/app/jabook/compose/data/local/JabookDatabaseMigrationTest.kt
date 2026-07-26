@@ -22,6 +22,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_20_21
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_21_22
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_22_23
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_26_27
 import com.jabook.app.jabook.compose.data.local.migration.createTopicsFts5Index
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -465,6 +466,60 @@ class JabookDatabaseMigrationTest {
         db.query("SELECT COUNT(*) FROM topics_fts WHERE topics_fts MATCH 'книга'").use {
             assertTrue(it.moveToFirst())
             assertEquals(1, it.getInt(0))
+        }
+    }
+
+    @Test
+    fun `migration 26 to 27 adds eq_preset_override column to books`() {
+        createBooksTable()
+        assertFalse(hasColumn("books", "eq_preset_override"))
+        db.execSQL(
+            "INSERT INTO books (id, title, author, description, added_date) VALUES ('b1', 'Test Book', 'Author', 'Desc', 1000)",
+        )
+
+        MIGRATION_26_27.migrate(db)
+
+        assertTrue(hasColumn("books", "eq_preset_override"))
+        val cursor =
+            db.query("SELECT eq_preset_override FROM books WHERE id = 'b1'")
+        cursor.use {
+            assertTrue(it.moveToFirst())
+            val idx = it.getColumnIndex("eq_preset_override")
+            assertTrue(it.isNull(idx))
+        }
+    }
+
+    @Test
+    fun `migration 26 to 27 is idempotent`() {
+        createBooksTable()
+
+        MIGRATION_26_27.migrate(db)
+        MIGRATION_26_27.migrate(db)
+
+        assertTrue(hasColumn("books", "eq_preset_override"))
+    }
+
+    @Test
+    fun `migration 26 to 27 version contract is correct`() {
+        assertEquals(26, MIGRATION_26_27.startVersion)
+        assertEquals(27, MIGRATION_26_27.endVersion)
+    }
+
+    @Test
+    fun `migration 26 to 27 preserves existing book data`() {
+        createBooksTable()
+        db.execSQL(
+            "INSERT INTO books (id, title, author, description, added_date) VALUES ('b1', 'Existing Book', 'Existing Author', 'A description', 1000)",
+        )
+
+        MIGRATION_26_27.migrate(db)
+
+        val cursor = db.query("SELECT id, title, author FROM books WHERE id = 'b1'")
+        cursor.use {
+            assertTrue(it.moveToFirst())
+            assertEquals("b1", it.getString(0))
+            assertEquals("Existing Book", it.getString(1))
+            assertEquals("Existing Author", it.getString(2))
         }
     }
 }

@@ -15,9 +15,12 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -38,8 +41,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.jabook.app.jabook.R
 
 public data class PlayerStats(
@@ -52,6 +53,7 @@ public data class PlayerStats(
     val decoderName: String = "Unknown",
     val droppedFrames: Int = 0,
     val isStreaming: Boolean = false,
+    val isAudioOffloaded: Boolean = false,
     val audioQuality: com.jabook.app.jabook.audio.AudioQualityInfo? = null,
 )
 
@@ -59,10 +61,15 @@ public data class PlayerStats(
 public fun StatsOverlay(
     stats: PlayerStats,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.75f))
+                .clickable(onClick = onDismiss),
+        contentAlignment = Alignment.Center,
     ) {
         Column(
             modifier =
@@ -71,7 +78,8 @@ public fun StatsOverlay(
                     .background(
                         color = Color.Black.copy(alpha = 0.85f),
                         shape = RoundedCornerShape(16.dp),
-                    ).padding(16.dp),
+                    ).clickable(onClick = { })
+                    .padding(16.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -131,6 +139,10 @@ public fun StatsOverlay(
                 value = if (stats.isStreaming) stats.bufferHealth + " (streaming)" else stats.bufferHealth + " (local)",
             )
             StatItem(label = stringResource(R.string.audioSessionId), value = stats.audioSessionId)
+            StatItem(
+                label = stringResource(R.string.audioOffload),
+                value = if (stats.isAudioOffloaded) "Active" else "Disabled",
+            )
 
             if (stats.droppedFrames > 0) {
                 StatItem(label = stringResource(R.string.droppedFrames), value = stats.droppedFrames.toString(), color = Color.Red)

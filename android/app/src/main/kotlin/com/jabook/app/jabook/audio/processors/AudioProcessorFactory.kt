@@ -206,6 +206,8 @@ public data class AudioProcessingSettings(
     val retainWindowMs: Int = DEFAULT_RETAIN_WINDOW_MS,
     val isCrossfadeEnabled: Boolean = false,
     val crossfadeDurationMs: Long = 0L,
+    /** Crossfade duration between different books (0 = instant). */
+    val crossfadeBetweenBooksMs: Long = 0L,
     val equalizerEnabled: Boolean = false,
     val noiseSuppressionEnabled: Boolean = false,
     val noiseGateLevel: NoiseGateLevel = NoiseGateLevel.Off,
@@ -243,6 +245,7 @@ public data class AudioProcessingSettings(
                 retainWindowMs = DEFAULT_RETAIN_WINDOW_MS,
                 isCrossfadeEnabled = false,
                 crossfadeDurationMs = 2000L,
+                crossfadeBetweenBooksMs = 500L,
             )
     }
 }

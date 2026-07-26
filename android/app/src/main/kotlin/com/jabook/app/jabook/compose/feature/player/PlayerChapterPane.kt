@@ -34,12 +34,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -64,7 +66,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.Chapter
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Side panel component for displaying book chapters on wide screens.
@@ -253,74 +254,90 @@ private fun ChapterListItem(
             },
         shape = RoundedCornerShape(12.dp),
     ) {
-        Row(
+        Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Chapter number badge
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color =
-                    if (isSelected) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.primaryContainer
-                    },
-            ) {
-                Text(
-                    text = "${index + 1}",
-                    style = MaterialTheme.typography.labelMedium,
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
                     color =
                         if (isSelected) {
-                            MaterialTheme.colorScheme.onPrimary
+                            MaterialTheme.colorScheme.primary
                         } else {
-                            MaterialTheme.colorScheme.onPrimaryContainer
+                            MaterialTheme.colorScheme.primaryContainer
                         },
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                )
+                ) {
+                    Text(
+                        text = "${index + 1}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color =
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text =
+                            com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
+                                chapter = chapter,
+                                index = index,
+                                localizedPrefix = stringResource(R.string.chapter_prefix),
+                                normalizeEnabled = normalizeEnabled,
+                            ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        color =
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.onSecondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = chapterProgressLabel(chapter),
+                        style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                if (chapter.isCompleted) {
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = stringResource(R.string.completed),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                } else if (isSelected) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Icon(
+                        imageVector = Icons.Filled.Equalizer,
+                        contentDescription = stringResource(R.string.currentlyPlaying),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Chapter info
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text =
-                        com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
-                            chapter = chapter,
-                            index = index,
-                            localizedPrefix = stringResource(R.string.chapter_prefix),
-                            normalizeEnabled = normalizeEnabled,
-                        ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color =
-                        if (isSelected) {
-                            MaterialTheme.colorScheme.onSecondaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = formatChapterDuration(chapter.duration.inWholeMilliseconds),
-                    style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            // Play indicator for current chapter
-            if (isSelected) {
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(
-                    imageVector = Icons.Filled.Equalizer,
-                    contentDescription = stringResource(R.string.currentlyPlaying),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp),
+            if (chapter.duration.inWholeMilliseconds > 0 && !chapter.isCompleted) {
+                Spacer(modifier = Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = { chapter.progress },
+                    modifier = Modifier.fillMaxWidth().padding(start = 44.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 )
             }
         }
@@ -328,19 +345,14 @@ private fun ChapterListItem(
 }
 
 /**
- * Formats a duration in milliseconds to a human-readable string.
- * Examples: "1h 23m", "45m", "12s"
+ * Formats a progress label for a chapter item.
+ * Completed: "1:15:00" (with checkmark icon alongside)
+ * Partial:   "37:20 / 1:15:00"
+ * Unstarted: "1:15:00"
  */
-@Composable
-private fun formatChapterDuration(millis: Long): String {
-    val duration = millis.milliseconds
-    val hours = duration.inWholeHours
-    val minutes = (duration.inWholeMinutes % 60)
-    val seconds = (duration.inWholeSeconds % 60)
-
-    return when {
-        hours > 0 -> stringResource(R.string.durationHoursMinutes, hours, minutes)
-        minutes > 0 -> stringResource(R.string.durationMinutes, minutes)
-        else -> stringResource(R.string.durationSeconds, seconds)
-    }
+private fun chapterProgressLabel(chapter: Chapter): String {
+    val total = PlayerTimeFormatter.formatDuration(chapter.duration.inWholeMilliseconds)
+    if (!chapter.isStarted || chapter.isCompleted) return total
+    val current = PlayerTimeFormatter.formatDuration(chapter.position.inWholeMilliseconds)
+    return "$current / $total"
 }

@@ -208,6 +208,10 @@ private class FakeSettingsRepository(
 
     override val bassBoostStrength: Flow<Int> = MutableStateFlow(0)
 
+    override val audioVisualizerMode: Flow<Int> = MutableStateFlow(0)
+
+    override suspend fun updateAudioVisualizerMode(mode: Int) = Unit
+
     override suspend fun updateThemeMode(themeMode: ThemeMode) = Unit
 
     override suspend fun updateDynamicColors(enabled: Boolean) = Unit

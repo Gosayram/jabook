@@ -27,6 +27,19 @@ import kotlinx.collections.immutable.ImmutableList
  * - ONCE: Repeat current chapter once, then play next
  * - INFINITE: Repeat current chapter infinitely
  */
+public enum class ABRepeatPhase {
+    INACTIVE,
+    A_SET,
+    ACTIVE,
+}
+
+@Immutable
+public data class ABRepeatState(
+    val pointA: Long = -1L,
+    val pointB: Long = -1L,
+    val phase: ABRepeatPhase = ABRepeatPhase.INACTIVE,
+)
+
 public enum class ChapterRepeatMode {
     OFF,
     ONCE,

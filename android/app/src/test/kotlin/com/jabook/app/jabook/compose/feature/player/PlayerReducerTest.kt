@@ -152,12 +152,12 @@ class PlayerReducerTest {
                 currentPosition = 42_000L,
             )
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.SelectChapter(chapterIndex = 99))
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.SelectChapter(chapterIndex = 99, positionMs = 5000L))
 
         require(reduced is PlayerState.Active)
         assertEquals(2, reduced.currentChapterIndex)
         assertEquals("c3", reduced.currentChapter?.id)
-        assertEquals(0L, reduced.currentPosition)
+        assertEquals(5000L.coerceAtMost(chapters[2].duration.inWholeMilliseconds), reduced.currentPosition)
     }
 
     @Test

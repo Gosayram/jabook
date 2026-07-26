@@ -111,7 +111,7 @@ class PlayerIntentCommandRouterTest {
                 reducedState = reducedState,
             )
 
-        assertEquals(PlayerCommand.SkipToChapter(2), command)
+        assertEquals(PlayerCommand.SkipToChapter(chapterIndex = 2, positionMs = 0L), command)
     }
 
     @Test

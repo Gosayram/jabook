@@ -35,7 +35,11 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.util.Locale
 import javax.inject.Inject
 
 /** Audio player service using Media3 ExoPlayer with Dagger Hilt DI. */
@@ -90,6 +94,9 @@ public class AudioPlayerService : MediaLibraryService() {
     // Audio fader for smooth volume transitions (P-14: fade out before sleep timer expiry)
     @Inject
     public lateinit var audioFader: AudioFader
+
+    @Inject
+    public lateinit var autoBookmarkTrigger: AutoBookmarkTrigger
 
     // AppDispatchers for testable coroutine dispatchers
     @Inject
@@ -206,6 +213,13 @@ public class AudioPlayerService : MediaLibraryService() {
         CoroutineScope(
             Dispatchers.Main + SupervisorJob() + loggingCoroutineExceptionHandler("AudioPlayerService"),
         )
+
+    private var chapterNotificationJob: Job? = null
+    private var notificationProviderRef: AudioPlayerNotificationProvider? = null
+
+    // ponytail: mutable field for notification subtitle override, stored on AudioPlayerNotificationProvider
+    @Volatile
+    internal var notificationSubtitleOverride: String? = null
 
     // MediaSession custom layout helper (extracted from service)
     /** Notification content intent factory (extracted from service). */
@@ -324,6 +338,12 @@ public class AudioPlayerService : MediaLibraryService() {
             getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE),
         )
 
+    internal fun consumePhoneCallBookmarkCreatedFlag(): Boolean {
+        val wasSet = phoneCallBookmarkCreated
+        if (wasSet) phoneCallBookmarkCreated = false
+        return wasSet
+    }
+
     // Limited dispatcher for MediaItem creation (max 16 parallel tasks)
     // Increased parallelism for faster loading on modern devices with fast storage
     // Modern devices can handle more concurrent I/O operations efficiently
@@ -331,6 +351,10 @@ public class AudioPlayerService : MediaLibraryService() {
     internal val mediaItemDispatcher = Dispatchers.IO.limitedParallelism(16)
 
     public companion object {
+        // TASK-PLAYER-40: set when auto-bookmark was created during a call
+        @Volatile
+        internal var phoneCallBookmarkCreated = false
+
         public const val ACTION_EXIT_APP: String = "com.jabook.app.jabook.audio.EXIT_APP"
 
         // Playback action constants (migrated from deprecated NotificationManager)
@@ -516,6 +540,24 @@ public class AudioPlayerService : MediaLibraryService() {
             bookLoudnessCompensator.applyCompensation(bookId, booksDao, playerServiceScope) { getActivePlayer() }
         }
 
+        // Crossfade to a different book if crossfade is enabled and currently playing
+        if (groupPath != null &&
+            groupPath != currentGroupPath &&
+            playerConfigurator?.audioProcessingSettings?.isCrossfadeEnabled == true &&
+            isPlaying &&
+            crossFadePlayer != null
+        ) {
+            performBookSwitchCrossfade(
+                filePaths = filePaths,
+                metadata = metadata,
+                initialTrackIndex = initialTrackIndex,
+                initialPosition = initialPosition,
+                groupPath = groupPath,
+                callback = callback,
+            )
+            return
+        }
+
         playlistManager?.setPlaylist(
             filePaths,
             metadata,
@@ -526,6 +568,107 @@ public class AudioPlayerService : MediaLibraryService() {
         ) ?: run {
             LogUtils.e("AudioPlayerService", "PlaylistManager not initialized")
             callback?.invoke(false, IllegalStateException("PlaylistManager not initialized"))
+        }
+    }
+
+    /**
+     * Crossfades from the current book to a new book using [CrossFadePlayer].
+     *
+     * 1. Creates the first MediaSource of the new book
+     * 2. Prepares it on CrossFadePlayer's next player
+     * 3. Starts crossfade
+     * 4. After completion, loads remaining tracks onto the current player
+     */
+    private fun performBookSwitchCrossfade(
+        filePaths: List<String>,
+        metadata: Map<String, String>?,
+        initialTrackIndex: Int?,
+        initialPosition: Long?,
+        groupPath: String?,
+        callback: ((Boolean, Exception?) -> Unit)?,
+    ) {
+        val settings =
+            playerConfigurator?.audioProcessingSettings ?: run {
+                playlistManager?.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback)
+                return
+            }
+        val cfp =
+            crossFadePlayer ?: run {
+                playlistManager?.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback)
+                return
+            }
+        val pm =
+            playlistManager ?: run {
+                callback?.invoke(false, IllegalStateException("PlaylistManager not initialized"))
+                return
+            }
+        val durationMs = settings.crossfadeBetweenBooksMs.coerceAtLeast(0L)
+
+        // Sort paths and normalize index like normal setPlaylist does
+        val sessionState = PlaylistSessionStatePolicy.buildSnapshot(filePaths, initialTrackIndex)
+        val sortedPaths = sessionState.sortedFilePaths
+        val normalizedIndex = sessionState.normalizedTrackIndex
+
+        playerServiceScope.launch {
+            val firstSource = pm.createMediaSource(sortedPaths, 0, metadata)
+            if (firstSource == null) {
+                LogUtils.w("AudioPlayerService", "Failed to create first MediaSource for book crossfade, falling back")
+                pm.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback)
+                return@launch
+            }
+
+            // Stop crossfadeHandler monitoring during the transition
+            crossfadeHandler?.stopMonitoring()
+
+            cfp.crossFadeDurationMs = durationMs
+            cfp.setNextMediaSource(firstSource)
+            cfp.startCrossFade {
+                // After crossfade completes:
+                // 1. Update PlaylistManager state with new book info
+                // 2. Load remaining tracks onto the current player
+                // 3. Seek to the requested track/position
+                playerServiceScope.launch(Dispatchers.Main) {
+                    try {
+                        pm.currentFilePaths = sortedPaths
+                        pm.currentMetadata = metadata
+                        pm.currentGroupPath = groupPath
+                        pm.actualTrackIndex = normalizedIndex
+                        pm.isBookCompleted = false
+                        pm.lastCompletedTrackIndex = -1
+
+                        // Add remaining tracks (index 1..n) to the CrossFadePlayer's current player
+                        val currentPlayer = getActivePlayer()
+                        val remainingIndices = if (sortedPaths.size > 1) (1 until sortedPaths.size) else emptyList()
+                        for (index in remainingIndices) {
+                            val source = pm.createMediaSource(sortedPaths, index, metadata)
+                            if (source != null) {
+                                currentPlayer.addMediaSource(index, source)
+                            }
+                        }
+
+                        // Seek to initial track/position
+                        val targetIndex = normalizedIndex
+                        val targetPosition = (initialPosition ?: 0L).coerceAtLeast(0L)
+                        if (targetIndex != 0 || targetPosition > 0L) {
+                            currentPlayer.seekTo(targetIndex, targetPosition)
+                        }
+
+                        LogUtils.i(
+                            "AudioPlayerService",
+                            "Book switch crossfade complete: ${filePaths.size} tracks, targetIndex=$targetIndex",
+                        )
+
+                        // Resume crossfade monitoring for chapter transitions
+                        crossfadeHandler?.startMonitoring()
+
+                        callback?.invoke(true, null)
+                    } catch (e: Exception) {
+                        LogUtils.e("AudioPlayerService", "Failed to complete book switch crossfade", e)
+                        // Fallback: load playlist normally
+                        pm.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback)
+                    }
+                }
+            }
         }
     }
 
@@ -654,6 +797,61 @@ public class AudioPlayerService : MediaLibraryService() {
         mediaSessionLayoutHelper.setInitialLayout()
     }
 
+    // ── Chapter progress notification subtitle ──────────────────────────────
+
+    private fun startChapterNotificationUpdates() {
+        stopChapterNotificationUpdates()
+        chapterNotificationJob =
+            playerServiceScope.launch {
+                while (true) {
+                    val player = getActivePlayer()
+                    if (!player.isPlaying) break
+
+                    val currentIndex = player.currentMediaItemIndex
+                    val totalTracks = player.mediaItemCount
+                    val currentPos = player.currentPosition
+                    val duration = player.duration
+
+                    if (duration > 0 && currentPos >= 0 && totalTracks > 0) {
+                        val remaining = (duration - currentPos).coerceAtLeast(0L)
+                        val timeStr = formatDuration(remaining)
+                        val subtitle = "Глава ${currentIndex + 1} из $totalTracks • $timeStr осталось в главе"
+                        notificationSubtitleOverride = subtitle
+                        notificationProviderRef?.invalidateNotification()
+                    }
+
+                    delay(5000)
+                }
+            }
+    }
+
+    private fun stopChapterNotificationUpdates() {
+        chapterNotificationJob?.cancel()
+        chapterNotificationJob = null
+    }
+
+    internal fun onPlaybackIsPlayingChanged(isPlaying: Boolean) {
+        if (isPlaying) {
+            startChapterNotificationUpdates()
+        } else {
+            stopChapterNotificationUpdates()
+        }
+    }
+
+    private fun formatDuration(ms: Long): String {
+        val totalSeconds = (ms / 1000).coerceAtLeast(0)
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+        return if (hours > 0) {
+            String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+
     public fun getCurrentPosition(): Long = commandRouter.getCurrentPosition()
 
     public fun getDuration(): Long = commandRouter.getDuration()
@@ -689,6 +887,9 @@ public class AudioPlayerService : MediaLibraryService() {
     @OptIn(UnstableApi::class)
     internal fun setNotificationProvider(provider: MediaNotification.Provider) {
         setMediaNotificationProvider(provider)
+        if (provider is AudioPlayerNotificationProvider) {
+            notificationProviderRef = provider
+        }
     }
 
     private fun cleanupExistingComponents() {

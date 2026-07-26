@@ -31,6 +31,7 @@ import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.compose.data.repository.UserEqPresetRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
@@ -70,6 +71,7 @@ public class SettingsViewModel
         private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
         private val workManager: WorkManager,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
+        private val userEqPresetRepository: UserEqPresetRepository,
         private val torrentManager: TorrentManager,
         private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
@@ -173,6 +175,13 @@ public class SettingsViewModel
                 initialValue =
                     com.jabook.app.jabook.compose.data.preferences
                         .UserPreferencesSerializer.defaultValue,
+            )
+
+        public val customEqBands: StateFlow<List<Int>> =
+            settingsRepository.customEqBands.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = List(10) { 0 },
             )
 
         // ===== Old preferences API (kept for compatibility) =====
@@ -313,6 +322,26 @@ public class SettingsViewModel
         public fun updateEqualizerPreset(presetName: String) {
             viewModelScope.launch {
                 settingsRepository.updateEqualizerPreset(presetName)
+            }
+        }
+
+        public fun updateCustomEqBands(bands: List<Int>) {
+            viewModelScope.launch {
+                settingsRepository.updateCustomEqBands(bands)
+            }
+        }
+
+        public fun saveEqPreset(
+            name: String,
+            bands: List<Int>,
+            preampMillibels: Int,
+        ) {
+            viewModelScope.launch {
+                userEqPresetRepository.savePreset(
+                    name = name,
+                    bands = bands,
+                    preampMillibels = preampMillibels,
+                )
             }
         }
 

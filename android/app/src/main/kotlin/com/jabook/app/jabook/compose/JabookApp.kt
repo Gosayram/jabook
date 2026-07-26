@@ -26,7 +26,9 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.rememberDrawerState
@@ -48,6 +50,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.navigation.JabookAppState
 import com.jabook.app.jabook.compose.navigation.JabookNavHost
 import com.jabook.app.jabook.compose.navigation.LibraryRoute
@@ -335,7 +338,22 @@ public fun JabookApp(
                                     // Navigate to player screen
                                     appState.navController.navigate(PlayerRoute(bookId = book.id))
                                 },
-                                onDismiss = { isMiniPlayerVisible = false },
+                                onDismiss = {
+                                    miniPlayerViewModel.pause()
+                                    isMiniPlayerVisible = false
+                                    scope.launch {
+                                        val result =
+                                            appState.snackbarHostState.showSnackbar(
+                                                message = context.getString(R.string.mini_player_dismissed_undo),
+                                                actionLabel = context.getString(R.string.mini_player_dismissed_resume),
+                                                duration = SnackbarDuration.Long,
+                                            )
+                                        if (result == SnackbarResult.ActionPerformed) {
+                                            miniPlayerViewModel.play()
+                                            isMiniPlayerVisible = true
+                                        }
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }

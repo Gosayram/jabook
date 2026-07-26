@@ -107,9 +107,11 @@ public fun SquigglySlider(
     thumbRadius: Dp = 10.dp,
     chapterMarkersFractions: List<Float> = emptyList(),
     bookmarkMarkersFractions: List<Float> = emptyList(),
+    abRepeatRange: Pair<Float, Float>? = null,
     waveformData: FloatArray = FloatArray(0),
     activeTrackColor: Color = MaterialTheme.colorScheme.primary,
     inactiveTrackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    abRepeatRangeColor: Color = activeTrackColor.copy(alpha = 0.35f),
     chapterMarkerColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
     bookmarkMarkerColor: Color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.9f),
     valueFormatter: ValueFormatter? = null,
@@ -251,6 +253,21 @@ public fun SquigglySlider(
                 strokeWidth = trackHeight.toPx(),
                 cap = StrokeCap.Round,
             )
+
+            // Draw AB repeat range overlay (highlighted segment between A and B)
+            if (abRepeatRange != null) {
+                val aX = width * abRepeatRange.first.coerceIn(0f, 1f)
+                val bX = width * abRepeatRange.second.coerceIn(0f, 1f)
+                if (aX >= 0f && bX > aX) {
+                    drawLine(
+                        color = abRepeatRangeColor,
+                        start = Offset(aX, centerY),
+                        end = Offset(bX, centerY),
+                        strokeWidth = trackHeight.toPx() * 2.5f,
+                        cap = StrokeCap.Round,
+                    )
+                }
+            }
 
             // Draw Active Track (Squiggly)
             if (activeWidth > 0) {

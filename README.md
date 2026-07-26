@@ -75,7 +75,7 @@ flowchart TB
         end
 
         subgraph Storage[Local Storage]
-            Room[(JabookDatabase v26\n 12 entities\n FTS5 books + topics)]
+            Room[(JabookDatabase v28\n 12 entities\n FTS5 books + topics)]
             Proto[(Proto DataStore)]
             FS[(File System)]
             Cache[(Media3 Cache)]

@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.content.res.Configuration
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.MediaRecorder
@@ -37,8 +38,10 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -48,6 +51,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -56,12 +60,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
@@ -76,6 +82,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Repeat
@@ -134,6 +141,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
@@ -165,6 +173,7 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.theme.GlassmorphismTokens
 import com.jabook.app.jabook.compose.core.theme.MotionTokens
+import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
 import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.ContrastPolicy
@@ -223,6 +232,7 @@ public interface AudioMetadataParserEntryPoint {
  * @param viewModel ViewModel provided by Hilt
  */
 @OptIn(
+    ExperimentalFoundationApi::class,
     ExperimentalMaterial3Api::class,
     ExperimentalMaterial3AdaptiveApi::class,
     ExperimentalMaterial3WindowSizeClassApi::class,
@@ -246,6 +256,9 @@ public fun PlayerScreen(
     val visualizerWaveformDataRaw by viewModel.visualizerWaveformData.collectAsStateWithLifecycle()
     val seekbarWaveformDataRaw by viewModel.seekbarWaveformData.collectAsStateWithLifecycle()
     val nextBookAutoplayState by viewModel.nextBookAutoplayState.collectAsStateWithLifecycle()
+    val visualizerMode by viewModel.visualizerMode.collectAsStateWithLifecycle()
+    val playerStats by viewModel.playerStats.collectAsStateWithLifecycle()
+    val abRepeatState by viewModel.abRepeatState.collectAsStateWithLifecycle()
 
     // Phased init (#59): defer heavy waveform data to avoid janky first frame
     var waveformReady by remember { mutableStateOf(false) }
@@ -256,8 +269,8 @@ public fun PlayerScreen(
     val emptyWaveform = remember { FloatArray(0) }
     val visualizerWaveformData = if (waveformReady) visualizerWaveformDataRaw else emptyWaveform
     val seekbarWaveformData = if (waveformReady) seekbarWaveformDataRaw else emptyWaveform
-    val hapticFeedback = LocalHapticFeedback.current
     val reduceMotion = rememberReduceMotion()
+    val hapticFeedback = LocalHapticFeedback.current
 
     val navigationClickGuard = remember { NavigationClickGuard() }
 
@@ -320,7 +333,9 @@ public fun PlayerScreen(
         val curr = sleepTimerMode
         previousSleepTimerMode = curr
         if (prev != null && prev != PlayerSleepTimerMode.IDLE && curr == PlayerSleepTimerMode.IDLE) {
-            HapticManager.performDoubleVibration(context)
+            HapticManager.performLongPress(hapticFeedback)
+            delay(100)
+            HapticManager.performLongPress(hapticFeedback)
         }
     }
 
@@ -565,6 +580,29 @@ public fun PlayerScreen(
         )
     }
 
+    // Resume after long pause sheet (TASK-PLAYER-38)
+    val resumeState by viewModel.resumeAfterLongPauseState.collectAsStateWithLifecycle()
+    if (resumeState != null) {
+        resumeState?.let { data ->
+            JabookModalBottomSheet(
+                onDismissRequest = { viewModel.dismissResumeAfterLongPause() },
+            ) {
+                ResumeAfterLongPauseSheet(
+                    chapterName = data.chapterName,
+                    chapterPosition = data.chapterPosition,
+                    daysAgo = data.daysAgo,
+                    onContinue = { viewModel.resumeAfterLongPauseContinue() },
+                    onRestartChapter = { viewModel.resumeAfterLongPauseRestartChapter() },
+                    onSelectChapter = {
+                        viewModel.resumeAfterLongPauseSelectChapter()
+                        showChapterSheet = true
+                    },
+                    onDismiss = { viewModel.dismissResumeAfterLongPause() },
+                )
+            }
+        }
+    }
+
     // Removed Chapter Selector Sheet - using adaptive pane instead
     if (showChapterSheet && uiState is PlayerState.Active) {
         val state = uiState as PlayerState.Active
@@ -669,15 +707,6 @@ public fun PlayerScreen(
         }
     }
 
-    // Stats for Nerds Overlay
-    if (showStatsOverlay) {
-        val stats by viewModel.playerStats.collectAsStateWithLifecycle()
-        StatsOverlay(
-            stats = stats,
-            onDismiss = { showStatsOverlay = false },
-        )
-    }
-
     // Bookmarks Sheet
     if (showBookmarkSheet && uiState is PlayerState.Active) {
         val state = uiState as PlayerState.Active
@@ -729,8 +758,14 @@ public fun PlayerScreen(
                                 }
                             },
                             actions = {
-                                androidx.compose.material3.IconButton(onClick = { showOverflowMenu = true }) {
-                                    androidx.compose.material3.Icon(
+                                IconButton(onClick = { showStatsOverlay = true }) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Info,
+                                        contentDescription = stringResource(R.string.statsForNerds),
+                                    )
+                                }
+                                IconButton(onClick = { showOverflowMenu = true }) {
+                                    Icon(
                                         imageVector = Icons.Filled.MoreVert,
                                         contentDescription = stringResource(R.string.playerOverflowMenu),
                                     )
@@ -750,7 +785,8 @@ public fun PlayerScreen(
                                 .onPreviewKeyEvent { keyEvent ->
                                     if (keyEvent.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                                     val shouldIgnoreShortcuts =
-                                        showSpeedSheet ||
+                                        showStatsOverlay ||
+                                            showSpeedSheet ||
                                             showSleepTimerSheet ||
                                             showAudioSettingsSheet ||
                                             showChapterSheet ||
@@ -878,8 +914,13 @@ public fun PlayerScreen(
                                             chapterRepeatMode = state.chapterRepeatMode,
                                             visualizerWaveformData = visualizerWaveformData,
                                             seekbarWaveformData = seekbarWaveformData,
-                                            onPlayPause = {
+                                            abRepeatState = abRepeatState,
+                                            onABRepeatClick = {
                                                 HapticManager.performTap(hapticFeedback)
+                                                viewModel.dispatch(PlayerIntent.ToggleABRepeat)
+                                            },
+                                            onPlayPause = {
+                                                HapticManager.performLongPress(hapticFeedback)
                                                 clickDebouncer.debounce {
                                                     viewModel.dispatch(PlayerIntent.TogglePlayPause)
                                                 }
@@ -1012,6 +1053,10 @@ public fun PlayerScreen(
                                             onSetVisualizerEnabled = { enabled ->
                                                 viewModel.dispatch(PlayerIntent.SetVisualizerEnabled(enabled))
                                             },
+                                            visualizerMode = visualizerMode,
+                                            onVisualizerModeCycle = {
+                                                viewModel.dispatch(PlayerIntent.CycleVisualizerMode)
+                                            },
                                             onBookmarkNoteSheetVisibilityChanged = { isBookmarkNoteSheetVisible = it },
                                             snackbarHostState = snackbarHostState,
                                             modifier = Modifier.hazeEffect(state = overlayHazeState),
@@ -1040,6 +1085,18 @@ public fun PlayerScreen(
                                     Modifier
                                         .align(Alignment.BottomCenter)
                                         .hazeEffect(state = overlayHazeState),
+                            )
+                        }
+
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = showStatsOverlay,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            StatsOverlay(
+                                stats = playerStats,
+                                onDismiss = { showStatsOverlay = false },
                             )
                         }
                     }
@@ -1228,22 +1285,23 @@ private fun NextBookCountdownCard(
     }
 }
 
-@OptIn(
-    androidx.compose.animation.ExperimentalSharedTransitionApi::class,
-    ExperimentalMaterial3Api::class,
-    ExperimentalMaterial3WindowSizeClassApi::class,
-)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PlayerContent(
+private fun PlayerLandscapeLayout(
     state: PlayerState.Active,
-    playbackSpeed: Float,
-    hazeState: HazeState?,
+    isCompact: Boolean,
+    showingLyrics: Boolean,
+    showLyrics: (Boolean) -> Unit,
     isVinylMode: Boolean,
-    sleepTimerState: com.jabook.app.jabook.compose.domain.model.SleepTimerState,
-    normalizeEnabled: Boolean,
-    chapterRepeatMode: ChapterRepeatMode,
-    visualizerWaveformData: FloatArray,
-    seekbarWaveformData: FloatArray,
+    swipeOffsetX: Float,
+    isSwiping: Boolean,
+    displayAuthor: String,
+    adaptiveOnSurface: androidx.compose.ui.graphics.Color,
+    adaptiveOnSurfaceVariant: androidx.compose.ui.graphics.Color,
+    themeColors: PlayerThemeColors?,
+    hasLyrics: Boolean,
+    abRepeatState: ABRepeatState,
+    onABRepeatClick: () -> Unit,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
@@ -1267,6 +1325,496 @@ private fun PlayerContent(
     onRequestRecordAudioPermission: () -> Unit,
     onInitializeVisualizer: () -> Unit,
     onSetVisualizerEnabled: (Boolean) -> Unit,
+    visualizerMode: Int,
+    onVisualizerModeCycle: () -> Unit,
+    onBookmarkNoteSheetVisibilityChanged: (Boolean) -> Unit,
+    onSwipeOpenChapterList: () -> Unit,
+    onSwipeNavigateBack: () -> Unit,
+    snackbarHostState: androidx.compose.material3.SnackbarHostState,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope?,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope?,
+) {
+    val seekScope = rememberCoroutineScope()
+    val hapticFeedback = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val chapterTimeline by remember(state.chapters, state.currentChapterIndex, state.currentPosition) {
+        derivedStateOf {
+            ChapterSeekbarPolicy.buildTimeline(
+                chapters = state.chapters,
+                currentChapterIndex = state.currentChapterIndex,
+                currentChapterPositionMs = state.currentPosition.coerceAtLeast(0L),
+            )
+        }
+    }
+    val bookmarkMarkersFractions by remember(state.bookmarks, state.chapters) {
+        derivedStateOf {
+            BookmarkMarkerPolicy.calculateBookmarkMarkerFractions(
+                bookmarks = state.bookmarks,
+                chapters = state.chapters,
+            )
+        }
+    }
+    val playerProgress by remember(chapterTimeline) { derivedStateOf { chapterTimeline.progress } }
+    var dragPosition by remember { mutableStateOf<Float?>(null) }
+    var pendingSeekPosition by remember { mutableStateOf<Float?>(null) }
+    var coalescedPlayerProgress by remember { mutableStateOf(playerProgress) }
+    var lastSliderHapticProgress by remember { mutableStateOf<Float?>(null) }
+    val isDragging by remember(dragPosition) { derivedStateOf { dragPosition != null } }
+    val displayedProgress by remember(coalescedPlayerProgress, dragPosition, pendingSeekPosition) {
+        derivedStateOf {
+            PlayerSliderStateMachinePolicy.displayedProgress(
+                liveProgress = coalescedPlayerProgress,
+                dragProgress = dragPosition,
+                pendingSeekProgress = pendingSeekPosition,
+            )
+        }
+    }
+    val abRepeatFractions by remember(abRepeatState, chapterTimeline.totalDurationMs) {
+        derivedStateOf {
+            if (abRepeatState.phase == ABRepeatPhase.ACTIVE && chapterTimeline.totalDurationMs > 0L) {
+                Pair(
+                    (abRepeatState.pointA.toFloat() / chapterTimeline.totalDurationMs.toFloat()).coerceIn(0f, 1f),
+                    (abRepeatState.pointB.toFloat() / chapterTimeline.totalDurationMs.toFloat()).coerceIn(0f, 1f),
+                )
+            } else {
+                null
+            }
+        }
+    }
+    val previewSeekTarget by remember(state.chapters, displayedProgress) {
+        derivedStateOf {
+            ChapterSeekbarPolicy.resolveSeekTarget(chapters = state.chapters, progress = displayedProgress)
+        }
+    }
+    val currentGlobalPositionMs by remember(
+        isDragging,
+        displayedProgress,
+        chapterTimeline.totalDurationMs,
+        chapterTimeline.globalPositionMs,
+    ) {
+        derivedStateOf {
+            if (isDragging && chapterTimeline.totalDurationMs > 0) {
+                (displayedProgress.coerceIn(0f, 1f) * chapterTimeline.totalDurationMs.toFloat()).toLong()
+            } else {
+                chapterTimeline.globalPositionMs
+            }
+        }
+    }
+
+    LaunchedEffect(playerProgress, chapterTimeline.totalDurationMs) {
+        coalescedPlayerProgress =
+            PlayerSliderStateMachinePolicy.coalesceLiveProgress(
+                previousProgress = coalescedPlayerProgress,
+                incomingProgress = playerProgress,
+                totalDurationMs = chapterTimeline.totalDurationMs,
+            )
+    }
+
+    LaunchedEffect(playerProgress, pendingSeekPosition, isDragging) {
+        if (!isDragging && pendingSeekPosition != null) {
+            val result =
+                SliderSeekSyncPolicy.resolveFromPlayerProgress(
+                    playerProgress = playerProgress,
+                    currentSliderPosition = pendingSeekPosition ?: playerProgress,
+                    isDragging = false,
+                    awaitingSeekSync = true,
+                )
+            if (!result.awaitingSeekSync) pendingSeekPosition = null
+        }
+    }
+
+    LaunchedEffect(chapterTimeline.totalDurationMs, state.currentChapterIndex) {
+        if (!isDragging) {
+            coalescedPlayerProgress = playerProgress
+            pendingSeekPosition = null
+        }
+    }
+
+    LaunchedEffect(pendingSeekPosition) {
+        if (pendingSeekPosition != null) {
+            delay(1500L)
+            pendingSeekPosition = null
+        }
+    }
+
+    val playbackPositionLabel = stringResource(R.string.playbackPositionLabel)
+    val sliderValueFormatter =
+        remember(chapterTimeline.totalDurationMs) {
+            ValueFormatter { progressValue: Float ->
+                val clamped = progressValue.coerceIn(0f, 1f)
+                formatDuration((chapterTimeline.totalDurationMs * clamped).toLong())
+            }
+        }
+    val seekBackwardActionLabel = stringResource(R.string.seekBackwardDescription, state.rewindInterval)
+    val seekForwardActionLabel = stringResource(R.string.seekForwardDescription, state.forwardInterval)
+
+    Row(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier.weight(0.4f).fillMaxHeight(),
+            contentAlignment = Alignment.Center,
+        ) {
+            val imageModifier =
+                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                    with(sharedTransitionScope) {
+                        Modifier.sharedElement(
+                            sharedContentState = rememberSharedContentState(key = "cover_${state.book.id}"),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                        )
+                    }
+                } else {
+                    Modifier
+                }
+            val imageRequest =
+                CoverUtils
+                    .createCoverImageRequest(
+                        book = state.book,
+                        context = context,
+                        placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
+                        errorColor = MaterialTheme.colorScheme.error,
+                        fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        cornerRadius = 16f,
+                    ).build()
+            val coverScale = 0.85f
+            AsyncImage(
+                model = imageRequest,
+                contentDescription = stringResource(R.string.playerCoverAccessibilityDescription, state.book.title, state.book.author),
+                contentScale = ContentScale.Crop,
+                modifier =
+                    imageModifier
+                        .fillMaxWidth(coverScale)
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .combinedClickable(
+                            onClick = { },
+                            onDoubleClick = onStatsClick,
+                        ),
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(0.6f).fillMaxHeight().padding(end = 16.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = state.book.title,
+                style = MaterialTheme.typography.titleLarge,
+                color = adaptiveOnSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            AssistChip(
+                onClick = onChapterClick,
+                label = { Text(text = stringResource(R.string.chapterOf, state.currentChapterIndex + 1, state.chapters.size)) },
+                modifier = Modifier.semantics { role = androidx.compose.ui.semantics.Role.Button },
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SquigglySlider(
+                value = displayedProgress,
+                onValueChange = { newProgress ->
+                    pendingSeekPosition = null
+                    val constrainedProgress = newProgress.coerceIn(0f, 1f)
+                    val shouldTriggerHaptic =
+                        lastSliderHapticProgress == null ||
+                            kotlin.math.abs(constrainedProgress - (lastSliderHapticProgress ?: constrainedProgress)) >= 0.05f
+                    if (shouldTriggerHaptic) {
+                        HapticManager.performTap(hapticFeedback)
+                        lastSliderHapticProgress = constrainedProgress
+                    }
+                    dragPosition = constrainedProgress
+                },
+                onValueChangeFinished = {
+                    val targetProgress = dragPosition ?: displayedProgress
+                    if (chapterTimeline.totalDurationMs > 0 && targetProgress.isFinite()) {
+                        val target =
+                            ChapterSeekbarPolicy.resolveSeekTarget(
+                                chapters = state.chapters,
+                                progress = targetProgress,
+                            )
+                        pendingSeekPosition = targetProgress
+                        if (target.chapterIndex != state.currentChapterIndex) {
+                            onSelectChapter(target.chapterIndex)
+                            seekScope.launch {
+                                delay(80L)
+                                onSeek(target.chapterPositionMs)
+                            }
+                        } else {
+                            onSeek(target.chapterPositionMs)
+                        }
+                    }
+                    dragPosition = null
+                    lastSliderHapticProgress = null
+                },
+                onLongPress = { pressedProgress ->
+                    if (chapterTimeline.totalDurationMs <= 0) return@SquigglySlider
+                    val target =
+                        ChapterSeekbarPolicy.resolveSeekTarget(
+                            chapters = state.chapters,
+                            progress = pressedProgress.coerceIn(0f, 1f),
+                        )
+                    HapticManager.performTap(hapticFeedback)
+                    onAddBookmarkAtPosition(target.chapterIndex, target.chapterPositionMs) { }
+                },
+                isPlaying = state.isPlaying,
+                chapterMarkersFractions = chapterTimeline.chapterMarkersFractions,
+                bookmarkMarkersFractions = bookmarkMarkersFractions,
+                abRepeatRange = abRepeatFractions,
+                waveformData = FloatArray(0),
+                activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(alpha = 0.24f),
+                valueFormatter = sliderValueFormatter,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .semantics {
+                            contentDescription = playbackPositionLabel
+                            progressBarRangeInfo = ProgressBarRangeInfo(displayedProgress, 0f..1f)
+                        },
+            )
+
+            val elapsedFormatted = formatDuration(currentGlobalPositionMs)
+            val totalFormatted = formatDuration(chapterTimeline.totalDurationMs)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = elapsedFormatted,
+                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                    color = adaptiveOnSurfaceVariant,
+                )
+                Text(
+                    text = totalFormatted,
+                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                    color = adaptiveOnSurfaceVariant,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircularIconButton(
+                    icon = Icons.Filled.SkipPrevious,
+                    contentDescription = stringResource(R.string.previousChapter),
+                    onClick = onSkipPrevious,
+                    modifier = Modifier.size(if (isCompact) 56.dp else 64.dp),
+                    size = if (isCompact) 40.dp else 48.dp,
+                )
+                CircularIconButton(
+                    icon = Icons.Filled.Replay,
+                    contentDescription = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
+                    onClick = onSeekBackward,
+                    modifier = Modifier.size(if (isCompact) 48.dp else 56.dp),
+                    size = if (isCompact) 32.dp else 40.dp,
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                val playPauseSize = if (isCompact) 72.dp else 80.dp
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(playPauseSize * 1.2f)) {
+                    FilledIconButton(
+                        onClick = onPlayPause,
+                        modifier = Modifier.fillMaxSize(),
+                        shape = CircleShape,
+                        colors =
+                            IconButtonDefaults.filledIconButtonColors(
+                                containerColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                                contentColor = themeColors?.onPrimaryColor ?: MaterialTheme.colorScheme.onPrimary,
+                            ),
+                    ) {
+                        Icon(
+                            imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription =
+                                if (state.isPlaying) {
+                                    stringResource(
+                                        R.string.pauseButton,
+                                    )
+                                } else {
+                                    stringResource(R.string.playButton)
+                                },
+                            modifier = Modifier.size(if (isCompact) 40.dp else 48.dp),
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                CircularIconButton(
+                    icon = Icons.Filled.FastForward,
+                    contentDescription = stringResource(R.string.seekForwardDescription, state.forwardInterval),
+                    onClick = onSeekForward,
+                    modifier = Modifier.size(if (isCompact) 48.dp else 56.dp),
+                    size = if (isCompact) 32.dp else 40.dp,
+                )
+                CircularIconButton(
+                    icon = Icons.Filled.SkipNext,
+                    contentDescription = stringResource(R.string.nextChapter),
+                    onClick = onSkipNext,
+                    modifier = Modifier.size(if (isCompact) 56.dp else 64.dp),
+                    size = if (isCompact) 40.dp else 48.dp,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            val controlButtonHeight = if (isCompact) 44.dp else 52.dp
+            val controlButtonIconSize = if (isCompact) 20.dp else 22.dp
+            val controlButtonTextSize = if (isCompact) 14.sp else 16.sp
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            ) {
+                FilledTonalButton(
+                    onClick = onSpeedClick,
+                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                ) {
+                    Icon(Icons.Filled.Speed, stringResource(R.string.playbackSpeedTitle), Modifier.size(controlButtonIconSize))
+                }
+                FilledTonalButton(
+                    onClick = onAudioSettingsClick,
+                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                ) {
+                    Icon(Icons.Filled.Tune, stringResource(R.string.audioSettingsTitle), Modifier.size(controlButtonIconSize))
+                }
+                FilledTonalButton(
+                    onClick = onChapterRepeatClick,
+                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                ) {
+                    when (state.chapterRepeatMode) {
+                        ChapterRepeatMode.INFINITE -> Text("∞", fontSize = 14.sp)
+                        ChapterRepeatMode.OFF ->
+                            Icon(
+                                Icons.Outlined.Repeat,
+                                stringResource(R.string.noRepeat),
+                                Modifier.size(controlButtonIconSize),
+                            )
+                        ChapterRepeatMode.ONCE ->
+                            Icon(
+                                Icons.Filled.RepeatOne,
+                                stringResource(R.string.repeatTrack),
+                                Modifier.size(controlButtonIconSize),
+                            )
+                    }
+                }
+                FilledTonalButton(
+                    onClick = onABRepeatClick,
+                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                    colors =
+                        ButtonDefaults.filledTonalButtonColors(
+                            containerColor =
+                                when (abRepeatState.phase) {
+                                    ABRepeatPhase.ACTIVE -> MaterialTheme.colorScheme.primaryContainer
+                                    ABRepeatPhase.A_SET -> MaterialTheme.colorScheme.tertiaryContainer
+                                    ABRepeatPhase.INACTIVE -> MaterialTheme.colorScheme.surfaceVariant
+                                },
+                        ),
+                ) {
+                    when (abRepeatState.phase) {
+                        ABRepeatPhase.INACTIVE ->
+                            Text(
+                                "A B",
+                                fontSize = controlButtonTextSize,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        ABRepeatPhase.A_SET ->
+                            Text(
+                                "A",
+                                fontSize = controlButtonTextSize,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            )
+                        ABRepeatPhase.ACTIVE ->
+                            Text(
+                                "A→B",
+                                fontSize = controlButtonTextSize,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            )
+                    }
+                }
+                FilledTonalButton(
+                    onClick = onSleepTimerClick,
+                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                ) {
+                    Icon(Icons.Outlined.Timer, stringResource(R.string.sleepTimer), Modifier.size(controlButtonIconSize))
+                }
+                FilledTonalButton(
+                    onClick = onBookmarksClick,
+                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                ) {
+                    Icon(
+                        if (state.bookmarks.isNotEmpty()) Icons.Filled.Bookmark else Icons.Outlined.Bookmark,
+                        stringResource(R.string.bookmarks),
+                        Modifier.size(controlButtonIconSize),
+                    )
+                }
+                if (hasLyrics) {
+                    FilledTonalButton(
+                        onClick = { showLyrics(!showingLyrics) },
+                        modifier = Modifier.weight(1f).height(controlButtonHeight),
+                    ) {
+                        Icon(
+                            if (showingLyrics) Icons.Filled.Description else Icons.Outlined.Description,
+                            stringResource(R.string.lyrics),
+                            Modifier.size(controlButtonIconSize),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(
+    ExperimentalFoundationApi::class,
+    androidx.compose.animation.ExperimentalSharedTransitionApi::class,
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3WindowSizeClassApi::class,
+)
+@Composable
+private fun PlayerContent(
+    state: PlayerState.Active,
+    playbackSpeed: Float,
+    hazeState: HazeState?,
+    isVinylMode: Boolean,
+    sleepTimerState: com.jabook.app.jabook.compose.domain.model.SleepTimerState,
+    normalizeEnabled: Boolean,
+    chapterRepeatMode: ChapterRepeatMode,
+    visualizerWaveformData: FloatArray,
+    seekbarWaveformData: FloatArray,
+    abRepeatState: ABRepeatState = ABRepeatState(),
+    onABRepeatClick: () -> Unit = {},
+    onPlayPause: () -> Unit,
+    onSkipNext: () -> Unit,
+    onSkipPrevious: () -> Unit,
+    onSeek: (Long) -> Unit,
+    onSeekForward: () -> Unit,
+    onSeekBackward: () -> Unit,
+    onSelectChapter: (Int) -> Unit,
+    onChapterClick: () -> Unit,
+    onSpeedClick: () -> Unit,
+    onHoldToBoostStart: () -> Unit,
+    onHoldToBoostEnd: () -> Unit,
+    onAudioSettingsClick: () -> Unit,
+    onSleepTimerClick: () -> Unit,
+    onChapterRepeatClick: () -> Unit,
+    onStatsClick: () -> Unit,
+    onBookmarksClick: () -> Unit,
+    onAddBookmarkAtPosition: (Int, Long, (com.jabook.app.jabook.compose.domain.model.BookmarkItem?) -> Unit) -> Unit,
+    onUpdateBookmark: (String, String?, String?) -> Unit,
+    onDeleteBookmark: (String) -> Unit,
+    hasRecordAudioPermission: Boolean,
+    onRequestRecordAudioPermission: () -> Unit,
+    onInitializeVisualizer: () -> Unit,
+    onSetVisualizerEnabled: (Boolean) -> Unit,
+    visualizerMode: Int,
+    onVisualizerModeCycle: () -> Unit,
     onBookmarkNoteSheetVisibilityChanged: (Boolean) -> Unit = {},
     snackbarHostState: androidx.compose.material3.SnackbarHostState,
     modifier: Modifier = Modifier,
@@ -1455,805 +2003,1129 @@ private fun PlayerContent(
             adaptiveOnSurface.copy(alpha = 0.82f)
         }
 
+    // Swipe gesture state
+    var swipeOffsetX by remember { mutableStateOf(0f) }
+    var isSwiping by remember { mutableStateOf(false) }
+
+    // Orientation-aware layout: landscape = Row (cover left, controls right)
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     // Main Content
     // We use a Box to contain the LazyColumn (and potential overlays like visualizer if moved, but visualizer is inside list)
     Box(modifier = modifier.fillMaxSize()) {
-        androidx.compose.foundation.lazy.LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding =
-                androidx.compose.foundation.layout
-                    .PaddingValues(
-                        start = contentPadding,
-                        end = contentPadding,
-                        top = if (isCompact) 0.dp else 8.dp,
-                        bottom = if (isCompact) 56.dp else 96.dp,
-                    ),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(itemSpacing),
-        ) {
-            // Author from metadata (above cover) - hidden on compact to save space
-            if (!isCompact) {
-                item {
-                    Text(
-                        text = displayAuthor,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = adaptiveOnSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = smallItemSpacing),
-                    )
-                }
-            }
-
-            // Spacer before cover
-            item {
-                Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
-            }
-
-            // Book cover
-            item {
-                val imageModifier =
-                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                        with(sharedTransitionScope) {
-                            Modifier.sharedElement(
-                                sharedContentState = rememberSharedContentState(key = "cover_${state.book.id}"),
-                                animatedVisibilityScope = animatedVisibilityScope,
-                            )
-                        }
-                    } else {
-                        Modifier
-                    }
-
-                val context = LocalContext.current
-                val imageRequest =
-                    CoverUtils
-                        .createCoverImageRequest(
-                            book = state.book,
-                            context = context,
-                            placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                            errorColor = MaterialTheme.colorScheme.error,
-                            fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                            cornerRadius = 16f, // 16dp rounded corners for player
-                        ).build()
-                val canToggleLyrics = hasLyrics
-                val toggleLyricsLabel = stringResource(R.string.toggleLyricsView)
-                val toggleLyricsStateDescription =
-                    if (showingLyrics) {
-                        stringResource(R.string.lyricsVisibleState)
-                    } else {
-                        stringResource(R.string.lyricsHiddenState)
-                    }
-
-                // Animated "breathing" effect for the cover
-                val infiniteTransition =
-                    androidx.compose.animation.core
-                        .rememberInfiniteTransition(label = "coverScale")
-                val scale by infiniteTransition.animateFloat(
-                    initialValue = 1f,
-                    targetValue = 1.03f,
-                    animationSpec =
-                        androidx.compose.animation.core.infiniteRepeatable(
-                            animation =
-                                androidx.compose.animation.core
-                                    .tween(4000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-                            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
+        if (isLandscape) {
+            PlayerLandscapeLayout(
+                state = state,
+                isCompact = isCompact,
+                showingLyrics = showingLyrics,
+                showLyrics = { showLyrics = it },
+                isVinylMode = isVinylMode,
+                swipeOffsetX = swipeOffsetX,
+                isSwiping = isSwiping,
+                displayAuthor = displayAuthor,
+                adaptiveOnSurface = adaptiveOnSurface,
+                adaptiveOnSurfaceVariant = adaptiveOnSurfaceVariant,
+                themeColors = themeColors,
+                hasLyrics = hasLyrics,
+                abRepeatState = abRepeatState,
+                onABRepeatClick = onABRepeatClick,
+                onPlayPause = onPlayPause,
+                onSkipNext = onSkipNext,
+                onSkipPrevious = onSkipPrevious,
+                onSeek = onSeek,
+                onSeekForward = onSeekForward,
+                onSeekBackward = onSeekBackward,
+                onSelectChapter = onSelectChapter,
+                onChapterClick = onChapterClick,
+                onSpeedClick = onSpeedClick,
+                onHoldToBoostStart = onHoldToBoostStart,
+                onHoldToBoostEnd = onHoldToBoostEnd,
+                onAudioSettingsClick = onAudioSettingsClick,
+                onSleepTimerClick = onSleepTimerClick,
+                onChapterRepeatClick = onChapterRepeatClick,
+                onStatsClick = onStatsClick,
+                onBookmarksClick = onBookmarksClick,
+                onAddBookmarkAtPosition = onAddBookmarkAtPosition,
+                onUpdateBookmark = onUpdateBookmark,
+                onDeleteBookmark = onDeleteBookmark,
+                hasRecordAudioPermission = hasRecordAudioPermission,
+                onRequestRecordAudioPermission = onRequestRecordAudioPermission,
+                onInitializeVisualizer = onInitializeVisualizer,
+                onSetVisualizerEnabled = onSetVisualizerEnabled,
+                visualizerMode = visualizerMode,
+                onVisualizerModeCycle = onVisualizerModeCycle,
+                onBookmarkNoteSheetVisibilityChanged = onBookmarkNoteSheetVisibilityChanged,
+                onSwipeOpenChapterList = {},
+                onSwipeNavigateBack = {},
+                snackbarHostState = snackbarHostState,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+        } else {
+            // Existing portrait layout
+            androidx.compose.foundation.lazy.LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding =
+                    androidx.compose.foundation.layout
+                        .PaddingValues(
+                            start = contentPadding,
+                            end = contentPadding,
+                            top = if (isCompact) 0.dp else 8.dp,
+                            bottom = if (isCompact) 56.dp else 96.dp,
                         ),
-                    label = "scale",
-                )
-
-                if (showingLyrics) {
-                    Box(
-                        modifier =
-                            imageModifier
-                                .fillMaxWidth(coverWidth)
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
-                    ) {
-                        LyricsView(
-                            lyrics = state.lyrics.orEmpty(),
-                            currentPosition = state.currentPosition,
-                            onSeek = onSeek,
-                        )
-                    }
-                } else if (isVinylMode) {
-                    VinylCover(
-                        imageRequest = imageRequest,
-                        isPlaying = state.isPlaying,
-                        modifier =
-                            imageModifier
-                                .fillMaxWidth(coverWidth)
-                                .semantics {
-                                    if (canToggleLyrics) {
-                                        role = androidx.compose.ui.semantics.Role.Button
-                                        contentDescription = toggleLyricsLabel
-                                        stateDescription = toggleLyricsStateDescription
-                                    }
-                                }.clickable(
-                                    enabled = canToggleLyrics,
-                                    onClickLabel = toggleLyricsLabel,
-                                ) {
-                                    if (canToggleLyrics) {
-                                        showLyrics = !showLyrics
-                                    }
-                                },
-                    )
-                } else {
-                    AsyncImage(
-                        model = imageRequest,
-                        contentDescription =
-                            stringResource(
-                                R.string.playerCoverAccessibilityDescription,
-                                state.book.title,
-                                state.book.author,
-                            ),
-                        modifier =
-                            imageModifier
-                                .fillMaxWidth(coverWidth)
-                                .aspectRatio(1f)
-                                .graphicsLayer {
-                                    scaleX = if (state.isPlaying) scale else 1f
-                                    scaleY = if (state.isPlaying) scale else 1f
-                                }.clip(RoundedCornerShape(24.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
-                                .semantics {
-                                    if (canToggleLyrics) {
-                                        role = androidx.compose.ui.semantics.Role.Button
-                                        stateDescription = toggleLyricsStateDescription
-                                    }
-                                }.clickable(
-                                    enabled = canToggleLyrics,
-                                    onClickLabel = toggleLyricsLabel,
-                                ) {
-                                    if (canToggleLyrics) {
-                                        showLyrics = !showLyrics
-                                    }
-                                },
-                        contentScale = ContentScale.Crop,
-                    )
-                }
-            }
-
-            // Spacer after cover
-            item {
-                Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
-            }
-
-            // Book info
-            item {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = if (isCompact) 8.dp else 0.dp),
-                ) {
-                    Text(
-                        text = state.book.title,
-                        style = if (isCompact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
-                        textAlign = TextAlign.Center,
-                        color = adaptiveOnSurface,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-
-            // Chapter chip (clickable, opens chapter sheet)
-            item {
-                androidx.compose.material3.AssistChip(
-                    onClick = onChapterClick,
-                    label = {
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(itemSpacing),
+            ) {
+                // Author from metadata (above cover) - hidden on compact to save space
+                if (!isCompact) {
+                    item {
                         Text(
-                            text =
-                                stringResource(
-                                    R.string.chapterOf,
-                                    state.currentChapterIndex + 1,
-                                    state.chapters.size,
-                                ),
-                        )
-                    },
-                    modifier = Modifier.semantics { role = androidx.compose.ui.semantics.Role.Button },
-                )
-            }
-
-            // Spacer after book title
-            item {
-                Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
-            }
-
-            // Progress section
-            item {
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = if (isCompact) 4.dp else 0.dp),
-                ) {
-                    val chapterTimeline by remember(state.chapters, state.currentChapterIndex, state.currentPosition) {
-                        derivedStateOf {
-                            ChapterSeekbarPolicy.buildTimeline(
-                                chapters = state.chapters,
-                                currentChapterIndex = state.currentChapterIndex,
-                                currentChapterPositionMs = state.currentPosition.coerceAtLeast(0L),
-                            )
-                        }
-                    }
-
-                    // Calculate bookmark marker fractions from bookmarks
-                    val bookmarkMarkersFractions by remember(
-                        state.bookmarks,
-                        state.chapters,
-                    ) {
-                        derivedStateOf {
-                            BookmarkMarkerPolicy.calculateBookmarkMarkerFractions(
-                                bookmarks = state.bookmarks,
-                                chapters = state.chapters,
-                            )
-                        }
-                    }
-                    val playerProgress by remember(chapterTimeline) {
-                        derivedStateOf {
-                            chapterTimeline.progress
-                        }
-                    }
-
-                    // Slider state-machine v2:
-                    // - livePosition = playerProgress (single source from player timeline)
-                    // - dragPosition = transient local drag value
-                    // - pendingSeekPosition = last user seek target until player converges
-                    var dragPosition by remember { mutableStateOf<Float?>(null) }
-                    var pendingSeekPosition by remember { mutableStateOf<Float?>(null) }
-                    var coalescedPlayerProgress by remember { mutableStateOf(playerProgress) }
-                    var lastSliderHapticProgress by remember { mutableStateOf<Float?>(null) }
-                    val isDragging by remember(dragPosition) { derivedStateOf { dragPosition != null } }
-                    val displayedProgress by remember(coalescedPlayerProgress, dragPosition, pendingSeekPosition) {
-                        derivedStateOf {
-                            PlayerSliderStateMachinePolicy.displayedProgress(
-                                liveProgress = coalescedPlayerProgress,
-                                dragProgress = dragPosition,
-                                pendingSeekProgress = pendingSeekPosition,
-                            )
-                        }
-                    }
-                    val previewSeekTarget by remember(state.chapters, displayedProgress) {
-                        derivedStateOf {
-                            ChapterSeekbarPolicy.resolveSeekTarget(
-                                chapters = state.chapters,
-                                progress = displayedProgress,
-                            )
-                        }
-                    }
-                    val currentGlobalPositionMs by remember(
-                        isDragging,
-                        displayedProgress,
-                        chapterTimeline.totalDurationMs,
-                        chapterTimeline.globalPositionMs,
-                    ) {
-                        derivedStateOf {
-                            if (isDragging && chapterTimeline.totalDurationMs > 0) {
-                                (
-                                    displayedProgress.coerceIn(
-                                        0f,
-                                        1f,
-                                    ) * chapterTimeline.totalDurationMs.toFloat()
-                                ).toLong()
-                            } else {
-                                chapterTimeline.globalPositionMs
-                            }
-                        }
-                    }
-
-                    // Coalesce rapid progress deltas to reduce jitter/recomposition pressure on slider.
-                    LaunchedEffect(playerProgress, chapterTimeline.totalDurationMs) {
-                        coalescedPlayerProgress =
-                            PlayerSliderStateMachinePolicy.coalesceLiveProgress(
-                                previousProgress = coalescedPlayerProgress,
-                                incomingProgress = playerProgress,
-                                totalDurationMs = chapterTimeline.totalDurationMs,
-                            )
-                    }
-
-                    // Keep pending seek state until player progress converges near user target
-                    // to avoid post-seek jump-back jitter.
-                    LaunchedEffect(playerProgress, pendingSeekPosition, isDragging) {
-                        if (!isDragging && pendingSeekPosition != null) {
-                            val result =
-                                SliderSeekSyncPolicy.resolveFromPlayerProgress(
-                                    playerProgress = playerProgress,
-                                    currentSliderPosition = pendingSeekPosition ?: playerProgress,
-                                    isDragging = false,
-                                    awaitingSeekSync = true,
-                                )
-                            if (!result.awaitingSeekSync) {
-                                pendingSeekPosition = null
-                            }
-                        }
-                    }
-
-                    // Reset stale drag-seek state on chapter/duration changes to avoid jump-back race
-                    // when player timeline is rebuilt after chapter switch.
-                    LaunchedEffect(chapterTimeline.totalDurationMs, state.currentChapterIndex) {
-                        if (!isDragging) {
-                            coalescedPlayerProgress = playerProgress
-                            pendingSeekPosition = null
-                        }
-                    }
-
-                    // Guard against stale pending seek flag if player progress update is delayed.
-                    LaunchedEffect(pendingSeekPosition) {
-                        if (pendingSeekPosition != null) {
-                            delay(1500L)
-                            pendingSeekPosition = null
-                        }
-                    }
-
-                    val playbackPositionLabel = stringResource(R.string.playbackPositionLabel)
-                    val sliderHaptic = LocalHapticFeedback.current
-                    val sliderValueFormatter =
-                        remember(chapterTimeline.totalDurationMs) {
-                            ValueFormatter { progressValue: Float ->
-                                val clamped = progressValue.coerceIn(0f, 1f)
-                                formatDuration((chapterTimeline.totalDurationMs * clamped).toLong())
-                            }
-                        }
-                    val seekBackwardActionLabel =
-                        stringResource(R.string.seekBackwardDescription, state.rewindInterval)
-                    val seekForwardActionLabel =
-                        stringResource(R.string.seekForwardDescription, state.forwardInterval)
-
-                    SquigglySlider(
-                        value = displayedProgress,
-                        onValueChange = { newProgress ->
-                            pendingSeekPosition = null
-                            val constrainedProgress = newProgress.coerceIn(0f, 1f)
-                            val shouldTriggerHaptic =
-                                lastSliderHapticProgress == null ||
-                                    kotlin.math.abs(constrainedProgress - (lastSliderHapticProgress ?: constrainedProgress)) >=
-                                    0.05f
-                            if (shouldTriggerHaptic) {
-                                HapticManager.performTap(sliderHaptic)
-                                lastSliderHapticProgress = constrainedProgress
-                            }
-                            dragPosition = constrainedProgress
-                        },
-                        onValueChangeFinished = {
-                            // Seek only when user finishes dragging
-                            val targetProgress = dragPosition ?: displayedProgress
-                            if (chapterTimeline.totalDurationMs > 0 && targetProgress.isFinite()) {
-                                val target =
-                                    ChapterSeekbarPolicy.resolveSeekTarget(
-                                        chapters = state.chapters,
-                                        progress = targetProgress,
-                                    )
-                                pendingSeekPosition = targetProgress
-                                if (target.chapterIndex != state.currentChapterIndex) {
-                                    onSelectChapter(target.chapterIndex)
-                                    seekScope.launch {
-                                        delay(80L)
-                                        onSeek(target.chapterPositionMs)
-                                    }
-                                } else {
-                                    onSeek(target.chapterPositionMs)
-                                }
-                            }
-                            dragPosition = null
-                            lastSliderHapticProgress = null
-                        },
-                        onLongPress = { pressedProgress ->
-                            if (chapterTimeline.totalDurationMs <= 0) return@SquigglySlider
-                            val target =
-                                ChapterSeekbarPolicy.resolveSeekTarget(
-                                    chapters = state.chapters,
-                                    progress = pressedProgress.coerceIn(0f, 1f),
-                                )
-                            HapticManager.performTap(hapticFeedback)
-                            onAddBookmarkAtPosition(target.chapterIndex, target.chapterPositionMs) { createdBookmark ->
-                                if (createdBookmark != null) {
-                                    showBookmarkMomentStamp = true
-                                    seekScope.launch {
-                                        delay(700L)
-                                        showBookmarkMomentStamp = false
-                                    }
-                                    seekScope.launch {
-                                        val result =
-                                            snackbarHostState.showSnackbar(
-                                                message = context.getString(R.string.bookmarkAddedMessage),
-                                                actionLabel = context.getString(R.string.undoAction),
-                                                duration = androidx.compose.material3.SnackbarDuration.Short,
-                                            )
-                                        if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
-                                            onDeleteBookmark(createdBookmark.id)
-                                            pendingBookmarkId = null
-                                            pendingBookmarkNote = ""
-                                            pendingBookmarkAudioPath = null
-                                            showBookmarkNoteSheet = false
-                                        }
-                                    }
-                                    pendingBookmarkId = createdBookmark.id
-                                    pendingBookmarkNote = createdBookmark.noteText.orEmpty()
-                                    pendingBookmarkAudioPath = createdBookmark.noteAudioPath
-                                    showBookmarkNoteSheet = true
-                                }
-                            }
-                        },
-                        isPlaying = state.isPlaying,
-                        chapterMarkersFractions = chapterTimeline.chapterMarkersFractions,
-                        bookmarkMarkersFractions = bookmarkMarkersFractions,
-                        waveformData = seekbarWaveformData,
-                        activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                        inactiveTrackColor =
-                            (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(
-                                alpha = 0.24f,
-                            ),
-                        valueFormatter = sliderValueFormatter,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .semantics {
-                                    contentDescription = playbackPositionLabel
-                                    val current = formatDuration(currentGlobalPositionMs)
-                                    val total = formatDuration(chapterTimeline.totalDurationMs)
-                                    stateDescription = "$current of $total"
-                                    progressBarRangeInfo = ProgressBarRangeInfo(displayedProgress, 0f..1f)
-                                    setProgress { targetProgress ->
-                                        if (chapterTimeline.totalDurationMs <= 0) return@setProgress false
-                                        val target =
-                                            ChapterSeekbarPolicy.resolveSeekTarget(
-                                                chapters = state.chapters,
-                                                progress = targetProgress.coerceIn(0f, 1f),
-                                            )
-                                        if (target.chapterIndex != state.currentChapterIndex) {
-                                            onSelectChapter(target.chapterIndex)
-                                            seekScope.launch {
-                                                delay(80L)
-                                                onSeek(target.chapterPositionMs)
-                                            }
-                                        } else {
-                                            onSeek(target.chapterPositionMs)
-                                        }
-                                        true
-                                    }
-                                    customActions =
-                                        listOf(
-                                            CustomAccessibilityAction(
-                                                label = seekBackwardActionLabel,
-                                            ) {
-                                                onSeekBackward()
-                                                true
-                                            },
-                                            CustomAccessibilityAction(
-                                                label = seekForwardActionLabel,
-                                            ) {
-                                                onSeekForward()
-                                                true
-                                            },
-                                        )
-                                },
-                    )
-
-                    androidx.compose.animation.AnimatedVisibility(
-                        visible = showBookmarkMomentStamp,
-                        enter = fadeIn() + scaleIn(initialScale = 0.6f),
-                        exit = fadeOut() + scaleOut(targetScale = 1.3f),
-                        modifier =
-                            Modifier
-                                .align(Alignment.CenterHorizontally)
-                                .padding(top = 4.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Bookmark,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-
-                    if (isDragging) {
-                        val previewTitle =
-                            state.chapters
-                                .getOrNull(previewSeekTarget.chapterIndex)
-                                ?.title
-                                .orEmpty()
-                        Text(
-                            text = "${previewSeekTarget.chapterIndex + 1}. $previewTitle",
-                            style = MaterialTheme.typography.labelMedium,
+                            text = displayAuthor,
+                            style = MaterialTheme.typography.bodyLarge,
                             color = adaptiveOnSurfaceVariant,
+                            textAlign = TextAlign.Center,
                             modifier =
                                 Modifier
-                                    .align(Alignment.CenterHorizontally)
-                                    .padding(bottom = 4.dp),
-                            maxLines = 1,
+                                    .fillMaxWidth()
+                                    .padding(bottom = smallItemSpacing),
+                        )
+                    }
+                }
+
+                // Spacer before cover
+                item {
+                    Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
+                }
+
+                // Book cover
+                item {
+                    val imageModifier =
+                        if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                            with(sharedTransitionScope) {
+                                Modifier.sharedElement(
+                                    sharedContentState = rememberSharedContentState(key = "cover_${state.book.id}"),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                )
+                            }
+                        } else {
+                            Modifier
+                        }
+
+                    val context = LocalContext.current
+                    val imageRequest =
+                        CoverUtils
+                            .createCoverImageRequest(
+                                book = state.book,
+                                context = context,
+                                placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
+                                errorColor = MaterialTheme.colorScheme.error,
+                                fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                cornerRadius = 16f, // 16dp rounded corners for player
+                            ).build()
+                    val canToggleLyrics = hasLyrics
+                    val toggleLyricsLabel = stringResource(R.string.toggleLyricsView)
+                    val toggleLyricsStateDescription =
+                        if (showingLyrics) {
+                            stringResource(R.string.lyricsVisibleState)
+                        } else {
+                            stringResource(R.string.lyricsHiddenState)
+                        }
+
+                    // Animated "breathing" effect for the cover
+                    val infiniteTransition =
+                        androidx.compose.animation.core
+                            .rememberInfiniteTransition(label = "coverScale")
+                    val scale by infiniteTransition.animateFloat(
+                        initialValue = 1f,
+                        targetValue = 1.03f,
+                        animationSpec =
+                            androidx.compose.animation.core.infiniteRepeatable(
+                                animation =
+                                    androidx.compose.animation.core
+                                        .tween(4000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
+                            ),
+                        label = "scale",
+                    )
+
+                    if (showingLyrics) {
+                        Box(
+                            modifier =
+                                imageModifier
+                                    .fillMaxWidth(coverWidth)
+                                    .aspectRatio(1f)
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
+                        ) {
+                            LyricsView(
+                                lyrics = state.lyrics.orEmpty(),
+                                currentPosition = state.currentPosition,
+                                onSeek = onSeek,
+                            )
+                        }
+                    } else if (isVinylMode) {
+                        VinylCover(
+                            imageRequest = imageRequest,
+                            isPlaying = state.isPlaying,
+                            modifier =
+                                imageModifier
+                                    .fillMaxWidth(coverWidth)
+                                    .semantics {
+                                        if (canToggleLyrics) {
+                                            role = androidx.compose.ui.semantics.Role.Button
+                                            contentDescription = toggleLyricsLabel
+                                            stateDescription = toggleLyricsStateDescription
+                                        }
+                                    }.clickable(
+                                        enabled = canToggleLyrics,
+                                        onClickLabel = toggleLyricsLabel,
+                                    ) {
+                                        if (canToggleLyrics) {
+                                            showLyrics = !showLyrics
+                                        }
+                                    },
+                        )
+                    } else {
+                        AsyncImage(
+                            model = imageRequest,
+                            contentDescription =
+                                stringResource(
+                                    R.string.playerCoverAccessibilityDescription,
+                                    state.book.title,
+                                    state.book.author,
+                                ),
+                            modifier =
+                                imageModifier
+                                    .fillMaxWidth(coverWidth)
+                                    .aspectRatio(1f)
+                                    .graphicsLayer {
+                                        scaleX = if (state.isPlaying) scale else 1f
+                                        scaleY = if (state.isPlaying) scale else 1f
+                                    }.clip(RoundedCornerShape(24.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                                    .semantics {
+                                        if (canToggleLyrics) {
+                                            role = androidx.compose.ui.semantics.Role.Button
+                                            stateDescription = toggleLyricsStateDescription
+                                        }
+                                    }.combinedClickable(
+                                        onClick = { if (canToggleLyrics) showLyrics = !showLyrics },
+                                        onDoubleClick = onStatsClick,
+                                        onClickLabel = toggleLyricsLabel,
+                                    ),
+                            contentScale = ContentScale.Crop,
+                        )
+                    }
+                }
+
+                // Spacer after cover
+                item {
+                    Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
+                }
+
+                // Book info
+                item {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = if (isCompact) 8.dp else 0.dp),
+                    ) {
+                        Text(
+                            text = state.book.title,
+                            style = if (isCompact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
+                            textAlign = TextAlign.Center,
+                            color = adaptiveOnSurface,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                }
 
-                    // Time labels (tabular figures so digits don't jump)
-                    val elapsedFormatted = formatDuration(currentGlobalPositionMs)
-                    val totalFormatted = formatDuration(chapterTimeline.totalDurationMs)
-                    val elapsedAccessibility = stringResource(R.string.elapsedTimeDescription, elapsedFormatted)
-                    val totalAccessibility = stringResource(R.string.totalDurationDescription, totalFormatted)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            text = elapsedFormatted,
-                            style =
-                                (if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall)
-                                    .copy(fontFeatureSettings = "tnum"),
-                            color = adaptiveOnSurfaceVariant,
-                            modifier = Modifier.semantics { contentDescription = elapsedAccessibility },
-                        )
+                // Chapter chip (clickable, opens chapter sheet)
+                item {
+                    androidx.compose.material3.AssistChip(
+                        onClick = onChapterClick,
+                        label = {
+                            Text(
+                                text =
+                                    stringResource(
+                                        R.string.chapterOf,
+                                        state.currentChapterIndex + 1,
+                                        state.chapters.size,
+                                    ),
+                            )
+                        },
+                        modifier = Modifier.semantics { role = androidx.compose.ui.semantics.Role.Button },
+                    )
+                }
 
-                        Text(
-                            text = totalFormatted,
-                            style =
-                                (if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall)
-                                    .copy(fontFeatureSettings = "tnum"),
-                            color = adaptiveOnSurfaceVariant,
-                            modifier = Modifier.semantics { contentDescription = totalAccessibility },
-                        )
-                    }
+                // Spacer after book title
+                item {
+                    Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
+                }
 
-// Smart Info (Chapter index & Time remaining)
-                    val chapterText =
-                        stringResource(
-                            R.string.chapterOf,
-                            state.currentChapterIndex + 1,
-                            state.chapters.size,
-                        )
-                    Row(
+                // Progress section
+                item {
+                    Column(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.Center,
+                                .padding(horizontal = if (isCompact) 4.dp else 0.dp),
                     ) {
-                        val remainingText by remember(
-                            chapterTimeline.totalDurationMs,
-                            currentGlobalPositionMs,
-                            state.playbackSpeed,
+                        val chapterTimeline by remember(state.chapters, state.currentChapterIndex, state.currentPosition) {
+                            derivedStateOf {
+                                ChapterSeekbarPolicy.buildTimeline(
+                                    chapters = state.chapters,
+                                    currentChapterIndex = state.currentChapterIndex,
+                                    currentChapterPositionMs = state.currentPosition.coerceAtLeast(0L),
+                                )
+                            }
+                        }
+
+                        // Calculate bookmark marker fractions from bookmarks
+                        val bookmarkMarkersFractions by remember(
+                            state.bookmarks,
+                            state.chapters,
                         ) {
                             derivedStateOf {
-                                val remainingMs = (chapterTimeline.totalDurationMs - currentGlobalPositionMs).coerceAtLeast(0L)
-                                val speed = state.playbackSpeed
-                                val realRemainingMs = if (speed > 0f) (remainingMs / speed).toLong() else remainingMs
-                                if (realRemainingMs > 0L) {
-                                    "-${UiFormatters.formatDurationCompact(realRemainingMs)}"
+                                BookmarkMarkerPolicy.calculateBookmarkMarkerFractions(
+                                    bookmarks = state.bookmarks,
+                                    chapters = state.chapters,
+                                )
+                            }
+                        }
+                        val abRepeatFractions by remember(abRepeatState, chapterTimeline.totalDurationMs) {
+                            derivedStateOf {
+                                if (abRepeatState.phase == ABRepeatPhase.ACTIVE && chapterTimeline.totalDurationMs > 0L) {
+                                    Pair(
+                                        (abRepeatState.pointA.toFloat() / chapterTimeline.totalDurationMs.toFloat()).coerceIn(0f, 1f),
+                                        (abRepeatState.pointB.toFloat() / chapterTimeline.totalDurationMs.toFloat()).coerceIn(0f, 1f),
+                                    )
                                 } else {
-                                    ""
+                                    null
+                                }
+                            }
+                        }
+                        val playerProgress by remember(chapterTimeline) {
+                            derivedStateOf {
+                                chapterTimeline.progress
+                            }
+                        }
+
+                        // Slider state-machine v2:
+                        // - livePosition = playerProgress (single source from player timeline)
+                        // - dragPosition = transient local drag value
+                        // - pendingSeekPosition = last user seek target until player converges
+                        var dragPosition by remember { mutableStateOf<Float?>(null) }
+                        var pendingSeekPosition by remember { mutableStateOf<Float?>(null) }
+                        var coalescedPlayerProgress by remember { mutableStateOf(playerProgress) }
+                        var lastSliderHapticProgress by remember { mutableStateOf<Float?>(null) }
+                        val isDragging by remember(dragPosition) { derivedStateOf { dragPosition != null } }
+                        val displayedProgress by remember(coalescedPlayerProgress, dragPosition, pendingSeekPosition) {
+                            derivedStateOf {
+                                PlayerSliderStateMachinePolicy.displayedProgress(
+                                    liveProgress = coalescedPlayerProgress,
+                                    dragProgress = dragPosition,
+                                    pendingSeekProgress = pendingSeekPosition,
+                                )
+                            }
+                        }
+                        val previewSeekTarget by remember(state.chapters, displayedProgress) {
+                            derivedStateOf {
+                                ChapterSeekbarPolicy.resolveSeekTarget(
+                                    chapters = state.chapters,
+                                    progress = displayedProgress,
+                                )
+                            }
+                        }
+                        val currentGlobalPositionMs by remember(
+                            isDragging,
+                            displayedProgress,
+                            chapterTimeline.totalDurationMs,
+                            chapterTimeline.globalPositionMs,
+                        ) {
+                            derivedStateOf {
+                                if (isDragging && chapterTimeline.totalDurationMs > 0) {
+                                    (
+                                        displayedProgress.coerceIn(
+                                            0f,
+                                            1f,
+                                        ) * chapterTimeline.totalDurationMs.toFloat()
+                                    ).toLong()
+                                } else {
+                                    chapterTimeline.globalPositionMs
                                 }
                             }
                         }
 
-                        Text(
-                            text = if (remainingText.isNotEmpty()) "$chapterText • $remainingText" else chapterText,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = adaptiveOnSurfaceVariant.copy(alpha = 0.86f),
-                        )
-                    }
-                }
-            }
+                        // Coalesce rapid progress deltas to reduce jitter/recomposition pressure on slider.
+                        LaunchedEffect(playerProgress, chapterTimeline.totalDurationMs) {
+                            coalescedPlayerProgress =
+                                PlayerSliderStateMachinePolicy.coalesceLiveProgress(
+                                    previousProgress = coalescedPlayerProgress,
+                                    incomingProgress = playerProgress,
+                                    totalDurationMs = chapterTimeline.totalDurationMs,
+                                )
+                        }
 
-            // Audio Visualizer - hidden on compact screens to save space
-            if (!isCompact) {
-                item {
-                    LaunchedEffect(hasRecordAudioPermission) {
-                        if (!hasRecordAudioPermission) {
-                            onSetVisualizerEnabled(false)
+                        // Keep pending seek state until player progress converges near user target
+                        // to avoid post-seek jump-back jitter.
+                        LaunchedEffect(playerProgress, pendingSeekPosition, isDragging) {
+                            if (!isDragging && pendingSeekPosition != null) {
+                                val result =
+                                    SliderSeekSyncPolicy.resolveFromPlayerProgress(
+                                        playerProgress = playerProgress,
+                                        currentSliderPosition = pendingSeekPosition ?: playerProgress,
+                                        isDragging = false,
+                                        awaitingSeekSync = true,
+                                    )
+                                if (!result.awaitingSeekSync) {
+                                    pendingSeekPosition = null
+                                }
+                            }
+                        }
+
+                        // Reset stale drag-seek state on chapter/duration changes to avoid jump-back race
+                        // when player timeline is rebuilt after chapter switch.
+                        LaunchedEffect(chapterTimeline.totalDurationMs, state.currentChapterIndex) {
+                            if (!isDragging) {
+                                coalescedPlayerProgress = playerProgress
+                                pendingSeekPosition = null
+                            }
+                        }
+
+                        // Guard against stale pending seek flag if player progress update is delayed.
+                        LaunchedEffect(pendingSeekPosition) {
+                            if (pendingSeekPosition != null) {
+                                delay(1500L)
+                                pendingSeekPosition = null
+                            }
+                        }
+
+                        val playbackPositionLabel = stringResource(R.string.playbackPositionLabel)
+                        val sliderHaptic = LocalHapticFeedback.current
+                        val sliderValueFormatter =
+                            remember(chapterTimeline.totalDurationMs) {
+                                ValueFormatter { progressValue: Float ->
+                                    val clamped = progressValue.coerceIn(0f, 1f)
+                                    formatDuration((chapterTimeline.totalDurationMs * clamped).toLong())
+                                }
+                            }
+                        val seekBackwardActionLabel =
+                            stringResource(R.string.seekBackwardDescription, state.rewindInterval)
+                        val seekForwardActionLabel =
+                            stringResource(R.string.seekForwardDescription, state.forwardInterval)
+
+                        SquigglySlider(
+                            value = displayedProgress,
+                            onValueChange = { newProgress ->
+                                pendingSeekPosition = null
+                                val constrainedProgress = newProgress.coerceIn(0f, 1f)
+                                val shouldTriggerHaptic =
+                                    lastSliderHapticProgress == null ||
+                                        kotlin.math.abs(constrainedProgress - (lastSliderHapticProgress ?: constrainedProgress)) >=
+                                        0.05f
+                                if (shouldTriggerHaptic) {
+                                    HapticManager.performTap(sliderHaptic)
+                                    lastSliderHapticProgress = constrainedProgress
+                                }
+                                dragPosition = constrainedProgress
+                            },
+                            onValueChangeFinished = {
+                                // Seek only when user finishes dragging
+                                val targetProgress = dragPosition ?: displayedProgress
+                                if (chapterTimeline.totalDurationMs > 0 && targetProgress.isFinite()) {
+                                    val target =
+                                        ChapterSeekbarPolicy.resolveSeekTarget(
+                                            chapters = state.chapters,
+                                            progress = targetProgress,
+                                        )
+                                    pendingSeekPosition = targetProgress
+                                    if (target.chapterIndex != state.currentChapterIndex) {
+                                        onSelectChapter(target.chapterIndex)
+                                        seekScope.launch {
+                                            delay(80L)
+                                            onSeek(target.chapterPositionMs)
+                                        }
+                                    } else {
+                                        onSeek(target.chapterPositionMs)
+                                    }
+                                }
+                                dragPosition = null
+                                lastSliderHapticProgress = null
+                            },
+                            onLongPress = { pressedProgress ->
+                                if (chapterTimeline.totalDurationMs <= 0) return@SquigglySlider
+                                val target =
+                                    ChapterSeekbarPolicy.resolveSeekTarget(
+                                        chapters = state.chapters,
+                                        progress = pressedProgress.coerceIn(0f, 1f),
+                                    )
+                                HapticManager.performTap(hapticFeedback)
+                                onAddBookmarkAtPosition(target.chapterIndex, target.chapterPositionMs) { createdBookmark ->
+                                    if (createdBookmark != null) {
+                                        showBookmarkMomentStamp = true
+                                        seekScope.launch {
+                                            delay(700L)
+                                            showBookmarkMomentStamp = false
+                                        }
+                                        seekScope.launch {
+                                            val result =
+                                                snackbarHostState.showSnackbar(
+                                                    message = context.getString(R.string.bookmarkAddedMessage),
+                                                    actionLabel = context.getString(R.string.undoAction),
+                                                    duration = androidx.compose.material3.SnackbarDuration.Short,
+                                                )
+                                            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                                onDeleteBookmark(createdBookmark.id)
+                                                pendingBookmarkId = null
+                                                pendingBookmarkNote = ""
+                                                pendingBookmarkAudioPath = null
+                                                showBookmarkNoteSheet = false
+                                            }
+                                        }
+                                        pendingBookmarkId = createdBookmark.id
+                                        pendingBookmarkNote = createdBookmark.noteText.orEmpty()
+                                        pendingBookmarkAudioPath = createdBookmark.noteAudioPath
+                                        showBookmarkNoteSheet = true
+                                    }
+                                }
+                            },
+                            isPlaying = state.isPlaying,
+                            chapterMarkersFractions = chapterTimeline.chapterMarkersFractions,
+                            bookmarkMarkersFractions = bookmarkMarkersFractions,
+                            abRepeatRange = abRepeatFractions,
+                            waveformData = seekbarWaveformData,
+                            activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor =
+                                (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(
+                                    alpha = 0.24f,
+                                ),
+                            valueFormatter = sliderValueFormatter,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .semantics {
+                                        contentDescription = playbackPositionLabel
+                                        val current = formatDuration(currentGlobalPositionMs)
+                                        val total = formatDuration(chapterTimeline.totalDurationMs)
+                                        stateDescription = "$current of $total"
+                                        progressBarRangeInfo = ProgressBarRangeInfo(displayedProgress, 0f..1f)
+                                        setProgress { targetProgress ->
+                                            if (chapterTimeline.totalDurationMs <= 0) return@setProgress false
+                                            val target =
+                                                ChapterSeekbarPolicy.resolveSeekTarget(
+                                                    chapters = state.chapters,
+                                                    progress = targetProgress.coerceIn(0f, 1f),
+                                                )
+                                            if (target.chapterIndex != state.currentChapterIndex) {
+                                                onSelectChapter(target.chapterIndex)
+                                                seekScope.launch {
+                                                    delay(80L)
+                                                    onSeek(target.chapterPositionMs)
+                                                }
+                                            } else {
+                                                onSeek(target.chapterPositionMs)
+                                            }
+                                            true
+                                        }
+                                        customActions =
+                                            listOf(
+                                                CustomAccessibilityAction(
+                                                    label = seekBackwardActionLabel,
+                                                ) {
+                                                    onSeekBackward()
+                                                    true
+                                                },
+                                                CustomAccessibilityAction(
+                                                    label = seekForwardActionLabel,
+                                                ) {
+                                                    onSeekForward()
+                                                    true
+                                                },
+                                            )
+                                    },
+                        )
+
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = showBookmarkMomentStamp,
+                            enter = fadeIn() + scaleIn(initialScale = 0.6f),
+                            exit = fadeOut() + scaleOut(targetScale = 1.3f),
+                            modifier =
+                                Modifier
+                                    .align(Alignment.CenterHorizontally)
+                                    .padding(top = 4.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Bookmark,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+
+                        if (isDragging) {
+                            val previewTitle =
+                                state.chapters
+                                    .getOrNull(previewSeekTarget.chapterIndex)
+                                    ?.title
+                                    .orEmpty()
+                            Text(
+                                text = "${previewSeekTarget.chapterIndex + 1}. $previewTitle",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = adaptiveOnSurfaceVariant,
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.CenterHorizontally)
+                                        .padding(bottom = 4.dp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+
+                        // Time labels (tabular figures so digits don't jump)
+                        val elapsedFormatted = formatDuration(currentGlobalPositionMs)
+                        val totalFormatted = formatDuration(chapterTimeline.totalDurationMs)
+                        val elapsedAccessibility = stringResource(R.string.elapsedTimeDescription, elapsedFormatted)
+                        val totalAccessibility = stringResource(R.string.totalDurationDescription, totalFormatted)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = elapsedFormatted,
+                                style =
+                                    (if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall)
+                                        .copy(fontFeatureSettings = "tnum"),
+                                color = adaptiveOnSurfaceVariant,
+                                modifier = Modifier.semantics { contentDescription = elapsedAccessibility },
+                            )
+
+                            Text(
+                                text = totalFormatted,
+                                style =
+                                    (if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall)
+                                        .copy(fontFeatureSettings = "tnum"),
+                                color = adaptiveOnSurfaceVariant,
+                                modifier = Modifier.semantics { contentDescription = totalAccessibility },
+                            )
+                        }
+
+// Smart Info (Chapter index & Time remaining)
+                        val chapterText =
+                            stringResource(
+                                R.string.chapterOf,
+                                state.currentChapterIndex + 1,
+                                state.chapters.size,
+                            )
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.Center,
+                        ) {
+                            val remainingText by remember(
+                                chapterTimeline.totalDurationMs,
+                                currentGlobalPositionMs,
+                                state.playbackSpeed,
+                            ) {
+                                derivedStateOf {
+                                    val remainingMs = (chapterTimeline.totalDurationMs - currentGlobalPositionMs).coerceAtLeast(0L)
+                                    val speed = state.playbackSpeed
+                                    val realRemainingMs = if (speed > 0f) (remainingMs / speed).toLong() else remainingMs
+                                    if (realRemainingMs > 0L) {
+                                        "-${UiFormatters.formatDurationCompact(realRemainingMs)}"
+                                    } else {
+                                        ""
+                                    }
+                                }
+                            }
+
+                            Text(
+                                text = if (remainingText.isNotEmpty()) "$chapterText • $remainingText" else chapterText,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = adaptiveOnSurfaceVariant.copy(alpha = 0.86f),
+                            )
                         }
                     }
+                }
 
-                    if (hasRecordAudioPermission) {
-                        // Initialize visualizer only after explicit permission grant
-                        LaunchedEffect(state.isPlaying, hasRecordAudioPermission) {
-                            if (state.isPlaying) {
-                                onInitializeVisualizer()
-                                onSetVisualizerEnabled(true)
-                            } else {
+                // Audio Visualizer - hidden on compact screens to save space
+                if (!isCompact) {
+                    item {
+                        LaunchedEffect(hasRecordAudioPermission) {
+                            if (!hasRecordAudioPermission) {
                                 onSetVisualizerEnabled(false)
                             }
                         }
 
-                        AudioVisualizer(
-                            waveformData = visualizerWaveformData,
-                            isPlaying = state.isPlaying,
-                            style = VisualizerStyle.CIRCULAR,
-                            height = 48.dp,
-                            primaryColor = state.themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                            secondaryColor =
-                                state.themeColors?.primaryColor?.copy(alpha = 0.5f)
-                                    ?: MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    } else {
-                        FilledTonalButton(
-                            onClick = onRequestRecordAudioPermission,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Tune,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 8.dp),
+                        if (hasRecordAudioPermission) {
+                            // Initialize visualizer only after explicit permission grant
+                            LaunchedEffect(state.isPlaying, hasRecordAudioPermission) {
+                                if (state.isPlaying) {
+                                    onInitializeVisualizer()
+                                    onSetVisualizerEnabled(true)
+                                } else {
+                                    onSetVisualizerEnabled(false)
+                                }
+                            }
+
+                            val style =
+                                when (visualizerMode) {
+                                    1 -> VisualizerStyle.BARS
+                                    2 -> VisualizerStyle.CIRCULAR
+                                    3 -> VisualizerStyle.MINIMAL
+                                    else -> VisualizerStyle.WAVEFORM
+                                }
+                            AudioVisualizer(
+                                waveformData = visualizerWaveformData,
+                                isPlaying = state.isPlaying,
+                                style = style,
+                                height = 48.dp,
+                                primaryColor = state.themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                                secondaryColor =
+                                    state.themeColors?.primaryColor?.copy(alpha = 0.5f)
+                                        ?: MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.fillMaxWidth(),
                             )
-                            Text(text = stringResource(R.string.enableVisualizer))
-                        }
-                    }
-                }
-            }
-
-            // Spacer before chapter button
-            item {
-                Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
-            }
-
-            // Current Chapter Button
-            item {
-                state.currentChapter?.let { chapter ->
-                    FilledTonalButton(
-                        onClick = onChapterClick,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth(if (isCompact) 0.98f else 0.95f)
-                                .wrapContentWidth(Alignment.CenterHorizontally)
-                                .height(if (isCompact) 44.dp else 52.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-                        colors =
-                            ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                contentColor = MaterialTheme.colorScheme.onSurface,
-                            ),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.SkipNext,
-                            contentDescription = null,
-                            modifier =
-                                Modifier
-                                    .size(if (isCompact) 18.dp else 20.dp)
-                                    .padding(end = if (isCompact) 6.dp else 8.dp),
-                        )
-                        Text(
-                            text =
-                                com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
-                                    chapter,
-                                    state.currentChapterIndex,
-                                    stringResource(R.string.chapter_prefix),
-                                    normalizeEnabled,
-                                ),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            fontSize = if (isCompact) 13.sp else 14.sp,
-                        )
-                    }
-                }
-            }
-
-            // Spacer before playback controls
-            item {
-                Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
-            }
-
-            // Playback controls
-            item {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = if (isCompact) smallItemSpacing else 0.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // Skip previous
-                    CircularIconButton(
-                        icon = Icons.Filled.SkipPrevious,
-                        contentDescription = stringResource(R.string.previousChapter),
-                        onClick = onSkipPrevious,
-                        modifier = Modifier.size(skipButtonSize),
-                        size = skipIconSize,
-                    )
-
-                    // Seek backward (10s)
-                    CircularIconButton(
-                        icon = Icons.Filled.Replay,
-                        contentDescription = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
-                        onClick = onSeekBackward,
-                        modifier = Modifier.size(seekButtonSize),
-                        size = seekIconSize,
-                    )
-
-                    Spacer(modifier = Modifier.width(16.dp))
-                    val playbackStateDescription =
-                        if (state.isPlaying) {
-                            stringResource(R.string.playbackStatePlaying)
                         } else {
-                            stringResource(R.string.playbackStatePaused)
+                            FilledTonalButton(
+                                onClick = onRequestRecordAudioPermission,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Tune,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(end = 8.dp),
+                                )
+                                Text(text = stringResource(R.string.enableVisualizer))
+                            }
                         }
+                    }
+                }
 
-                    // Play/Pause - Larger and more prominent
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier =
-                            Modifier
-                                .size(playPauseButtonSize * 1.2f)
-                                .graphicsLayer {
-                                    scaleX = playPauseButtonScale
-                                    scaleY = playPauseButtonScale
-                                },
-                    ) {
-                        FilledIconButton(
-                            onClick = onPlayPause,
+                // Spacer before chapter button
+                item {
+                    Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
+                }
+
+                // Current Chapter Button
+                item {
+                    state.currentChapter?.let { chapter ->
+                        FilledTonalButton(
+                            onClick = onChapterClick,
                             modifier =
                                 Modifier
-                                    .fillMaxSize()
-                                    .semantics {
-                                        stateDescription = playbackStateDescription
-                                    },
-                            shape = androidx.compose.foundation.shape.CircleShape,
+                                    .fillMaxWidth(if (isCompact) 0.98f else 0.95f)
+                                    .wrapContentWidth(Alignment.CenterHorizontally)
+                                    .height(if (isCompact) 44.dp else 52.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
                             colors =
-                                IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                                    contentColor = themeColors?.onPrimaryColor ?: MaterialTheme.colorScheme.onPrimary,
+                                ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    contentColor = MaterialTheme.colorScheme.onSurface,
                                 ),
                         ) {
                             Icon(
-                                imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                contentDescription =
-                                    if (state.isPlaying) {
-                                        stringResource(R.string.pauseButton)
-                                    } else {
-                                        stringResource(R.string.playButton)
-                                    },
+                                imageVector = Icons.Filled.SkipNext,
+                                contentDescription = null,
                                 modifier =
                                     Modifier
-                                        .size(playPauseIconSize * 1.2f)
-                                        .graphicsLayer {
-                                            scaleX = playPauseIconScale
-                                            scaleY = playPauseIconScale
-                                        },
+                                        .size(if (isCompact) 18.dp else 20.dp)
+                                        .padding(end = if (isCompact) 6.dp else 8.dp),
+                            )
+                            Text(
+                                text =
+                                    com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
+                                        chapter,
+                                        state.currentChapterIndex,
+                                        stringResource(R.string.chapter_prefix),
+                                        normalizeEnabled,
+                                    ),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                fontSize = if (isCompact) 13.sp else 14.sp,
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    // Seek forward (30s)
-                    CircularIconButton(
-                        icon = Icons.Filled.FastForward,
-                        contentDescription = stringResource(R.string.seekForwardDescription, state.forwardInterval),
-                        onClick = onSeekForward,
-                        modifier = Modifier.size(seekButtonSize),
-                        size = seekIconSize,
-                    )
-
-                    // Skip next
-                    CircularIconButton(
-                        icon = Icons.Filled.SkipNext,
-                        contentDescription = stringResource(R.string.nextChapter),
-                        onClick = onSkipNext,
-                        modifier = Modifier.size(skipButtonSize),
-                        size = skipIconSize,
-                    )
                 }
-            }
 
-            // Spacer before control buttons
-            item {
-                Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
-            }
+                // Spacer before playback controls
+                item {
+                    Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
+                }
 
-            // Control Buttons - Split into 2 rows for compact screens
-            item {
-                if (isCompact) {
-                    // Compact: Two rows for better ergonomics
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                // Playback controls
+                item {
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = if (isCompact) smallItemSpacing else 0.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // First row: Speed, EQ & Repeat
+                        // Skip previous
+                        CircularIconButton(
+                            icon = Icons.Filled.SkipPrevious,
+                            contentDescription = stringResource(R.string.previousChapter),
+                            onClick = onSkipPrevious,
+                            modifier = Modifier.size(skipButtonSize),
+                            size = skipIconSize,
+                        )
+
+                        // Seek backward (10s)
+                        CircularIconButton(
+                            icon = Icons.Filled.Replay,
+                            contentDescription = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
+                            onClick = onSeekBackward,
+                            modifier = Modifier.size(seekButtonSize),
+                            size = seekIconSize,
+                        )
+
+                        Spacer(modifier = Modifier.width(16.dp))
+                        val playbackStateDescription =
+                            if (state.isPlaying) {
+                                stringResource(R.string.playbackStatePlaying)
+                            } else {
+                                stringResource(R.string.playbackStatePaused)
+                            }
+
+                        // Play/Pause - Larger and more prominent
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier =
+                                Modifier
+                                    .size(playPauseButtonSize * 1.2f)
+                                    .graphicsLayer {
+                                        scaleX = playPauseButtonScale
+                                        scaleY = playPauseButtonScale
+                                    },
+                        ) {
+                            FilledIconButton(
+                                onClick = onPlayPause,
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .semantics {
+                                            stateDescription = playbackStateDescription
+                                        },
+                                shape = androidx.compose.foundation.shape.CircleShape,
+                                colors =
+                                    IconButtonDefaults.filledIconButtonColors(
+                                        containerColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                                        contentColor = themeColors?.onPrimaryColor ?: MaterialTheme.colorScheme.onPrimary,
+                                    ),
+                            ) {
+                                Icon(
+                                    imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                    contentDescription =
+                                        if (state.isPlaying) {
+                                            stringResource(R.string.pauseButton)
+                                        } else {
+                                            stringResource(R.string.playButton)
+                                        },
+                                    modifier =
+                                        Modifier
+                                            .size(playPauseIconSize * 1.2f)
+                                            .graphicsLayer {
+                                                scaleX = playPauseIconScale
+                                                scaleY = playPauseIconScale
+                                            },
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        // Seek forward (30s)
+                        CircularIconButton(
+                            icon = Icons.Filled.FastForward,
+                            contentDescription = stringResource(R.string.seekForwardDescription, state.forwardInterval),
+                            onClick = onSeekForward,
+                            modifier = Modifier.size(seekButtonSize),
+                            size = seekIconSize,
+                        )
+
+                        // Skip next
+                        CircularIconButton(
+                            icon = Icons.Filled.SkipNext,
+                            contentDescription = stringResource(R.string.nextChapter),
+                            onClick = onSkipNext,
+                            modifier = Modifier.size(skipButtonSize),
+                            size = skipIconSize,
+                        )
+                    }
+                }
+
+                // Spacer before control buttons
+                item {
+                    Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
+                }
+
+                // Control Buttons - Split into 2 rows for compact screens
+                item {
+                    if (isCompact) {
+                        // Compact: Two rows for better ergonomics
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            // First row: Speed, EQ & Repeat
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement =
+                                    Arrangement.spacedBy(
+                                        controlButtonSpacing,
+                                        Alignment.CenterHorizontally,
+                                    ),
+                            ) {
+                                // Playback Speed Button
+                                FilledTonalButton(
+                                    onClick = {
+                                        if (suppressNextSpeedClick) {
+                                            suppressNextSpeedClick = false
+                                        } else {
+                                            onSpeedClick()
+                                        }
+                                    },
+                                    interactionSource = speedButtonInteractionSource,
+                                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Speed,
+                                        contentDescription = stringResource(R.string.playbackSpeedTitle),
+                                        modifier = Modifier.size(controlButtonIconSize).padding(end = 4.dp),
+                                    )
+                                    Text(
+                                        text = playbackSpeedLabel,
+                                        fontSize = controlButtonTextSize,
+                                    )
+                                }
+
+                                // Audio Settings (EQ) Button
+                                FilledTonalButton(
+                                    onClick = onAudioSettingsClick,
+                                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Tune, // Or Equalizer if available
+                                        contentDescription = stringResource(R.string.audioSettingsTitle),
+                                        modifier = Modifier.size(controlButtonIconSize),
+                                    )
+                                }
+
+                                // Visualizer Mode Toggle
+                                FilledTonalButton(
+                                    onClick = onVisualizerModeCycle,
+                                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Visibility,
+                                        contentDescription = stringResource(R.string.enableVisualizer),
+                                        modifier = Modifier.size(controlButtonIconSize),
+                                    )
+                                }
+
+                                // Chapter Repeat Button
+                                FilledTonalButton(
+                                    onClick = onChapterRepeatClick,
+                                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                                    colors =
+                                        ButtonDefaults.filledTonalButtonColors(
+                                            containerColor =
+                                                when (chapterRepeatMode) {
+                                                    ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.surfaceVariant
+                                                    ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.primaryContainer
+                                                    ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.primaryContainer
+                                                },
+                                        ),
+                                ) {
+                                    when (chapterRepeatMode) {
+                                        ChapterRepeatMode.INFINITE ->
+                                            Text(
+                                                "∞",
+                                                fontSize = controlButtonTextSize,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            )
+                                        ChapterRepeatMode.OFF ->
+                                            Icon(
+                                                Icons.Outlined.Repeat,
+                                                stringResource(R.string.noRepeat),
+                                                Modifier.size(controlButtonIconSize),
+                                                MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        ChapterRepeatMode.ONCE ->
+                                            Icon(
+                                                Icons.Filled.RepeatOne,
+                                                stringResource(R.string.repeatTrack),
+                                                Modifier.size(controlButtonIconSize),
+                                                MaterialTheme.colorScheme.onPrimaryContainer,
+                                            )
+                                    }
+                                }
+                            }
+
+                            // Second row: Timer, AB Repeat, Bookmarks & Lyrics (if available)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement =
+                                    Arrangement.spacedBy(
+                                        controlButtonSpacing,
+                                        Alignment.CenterHorizontally,
+                                    ),
+                            ) {
+                                // Sleep Timer Button
+                                FilledTonalButton(
+                                    onClick = onSleepTimerClick,
+                                    modifier =
+                                        Modifier
+                                            .weight(1f)
+                                            .height(controlButtonHeight)
+                                            .semantics {
+                                                contentDescription = sleepTimerAccessibilityDescription
+                                            },
+                                ) {
+                                    Icon(
+                                        if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle) {
+                                            Icons.Outlined.Timer
+                                        } else {
+                                            Icons.Filled.Timer
+                                        },
+                                        stringResource(R.string.sleepTimer),
+                                        Modifier.size(controlButtonIconSize),
+                                    )
+                                    if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
+                                        val activeState = sleepTimerState
+                                        Text(
+                                            formatSleepTimerRemaining(activeState.remainingSeconds),
+                                            fontSize = controlButtonTextSize,
+                                        )
+                                    }
+                                }
+
+                                // AB Repeat Button
+                                FilledTonalButton(
+                                    onClick = onABRepeatClick,
+                                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                                    colors =
+                                        ButtonDefaults.filledTonalButtonColors(
+                                            containerColor =
+                                                when (abRepeatState.phase) {
+                                                    ABRepeatPhase.ACTIVE -> MaterialTheme.colorScheme.primaryContainer
+                                                    ABRepeatPhase.A_SET -> MaterialTheme.colorScheme.tertiaryContainer
+                                                    ABRepeatPhase.INACTIVE -> MaterialTheme.colorScheme.surfaceVariant
+                                                },
+                                        ),
+                                ) {
+                                    when (abRepeatState.phase) {
+                                        ABRepeatPhase.INACTIVE ->
+                                            Text(
+                                                "A B",
+                                                fontSize = controlButtonTextSize,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        ABRepeatPhase.A_SET ->
+                                            Text(
+                                                "A",
+                                                fontSize = controlButtonTextSize,
+                                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                            )
+                                        ABRepeatPhase.ACTIVE ->
+                                            Text(
+                                                "A→B",
+                                                fontSize = controlButtonTextSize,
+                                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                            )
+                                    }
+                                }
+
+                                // Bookmarks Button
+                                FilledTonalButton(
+                                    onClick = onBookmarksClick,
+                                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                                    colors =
+                                        ButtonDefaults.filledTonalButtonColors(
+                                            containerColor =
+                                                if (state.bookmarks.isNotEmpty()) {
+                                                    MaterialTheme.colorScheme.primaryContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.surfaceVariant
+                                                },
+                                            contentColor =
+                                                if (state.bookmarks.isNotEmpty()) {
+                                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                                },
+                                        ),
+                                ) {
+                                    Icon(
+                                        if (state.bookmarks.isNotEmpty()) {
+                                            Icons.Filled.Bookmark
+                                        } else {
+                                            Icons.Outlined.Bookmark
+                                        },
+                                        stringResource(R.string.bookmarks),
+                                        Modifier.size(controlButtonIconSize),
+                                    )
+                                    if (state.bookmarks.isNotEmpty()) {
+                                        Text(
+                                            text = stringResource(R.string.bookmarkCount, state.bookmarks.size),
+                                            fontSize = controlButtonTextSize,
+                                        )
+                                    }
+                                }
+
+                                // Lyrics Toggle Button
+                                if (hasLyrics) {
+                                    FilledTonalButton(
+                                        onClick = {
+                                            HapticManager.performTap(hapticFeedback)
+                                            showLyrics = !showLyrics
+                                        },
+                                        modifier = Modifier.weight(1f).height(controlButtonHeight),
+                                        colors =
+                                            ButtonDefaults.filledTonalButtonColors(
+                                                containerColor =
+                                                    if (showingLyrics) {
+                                                        MaterialTheme.colorScheme.primaryContainer
+                                                    } else {
+                                                        MaterialTheme.colorScheme.surfaceVariant
+                                                    },
+                                                contentColor =
+                                                    if (showingLyrics) {
+                                                        MaterialTheme.colorScheme.onPrimaryContainer
+                                                    } else {
+                                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                                    },
+                                            ),
+                                    ) {
+                                        Icon(
+                                            if (showingLyrics) {
+                                                Icons.Filled.Description
+                                            } else {
+                                                Icons.Outlined.Description
+                                            },
+                                            stringResource(R.string.lyrics),
+                                            Modifier.size(controlButtonIconSize),
+                                        )
+                                    }
+                                } else {
+                                    // Empty spacer to balance the row when no lyrics
+                                    Spacer(modifier = Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    } else {
+                        // Larger screens: Single row
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement =
@@ -2277,7 +3149,7 @@ private fun PlayerContent(
                                 Icon(
                                     imageVector = Icons.Filled.Speed,
                                     contentDescription = stringResource(R.string.playbackSpeedTitle),
-                                    modifier = Modifier.size(controlButtonIconSize).padding(end = 4.dp),
+                                    modifier = Modifier.size(controlButtonIconSize).padding(end = 8.dp),
                                 )
                                 Text(
                                     text = playbackSpeedLabel,
@@ -2291,8 +3163,20 @@ private fun PlayerContent(
                                 modifier = Modifier.weight(1f).height(controlButtonHeight),
                             ) {
                                 Icon(
-                                    imageVector = Icons.Filled.Tune, // Or Equalizer if available
+                                    imageVector = Icons.Filled.Tune,
                                     contentDescription = stringResource(R.string.audioSettingsTitle),
+                                    modifier = Modifier.size(controlButtonIconSize),
+                                )
+                            }
+
+                            // Visualizer Mode Toggle
+                            FilledTonalButton(
+                                onClick = onVisualizerModeCycle,
+                                modifier = Modifier.weight(1f).height(controlButtonHeight),
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Visibility,
+                                    contentDescription = stringResource(R.string.enableVisualizer),
                                     modifier = Modifier.size(controlButtonIconSize),
                                 )
                             }
@@ -2334,17 +3218,45 @@ private fun PlayerContent(
                                         )
                                 }
                             }
-                        }
 
-                        // Second row: Timer & Lyrics (if available)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement =
-                                Arrangement.spacedBy(
-                                    controlButtonSpacing,
-                                    Alignment.CenterHorizontally,
-                                ),
-                        ) {
+                            // AB Repeat Button
+                            FilledTonalButton(
+                                onClick = onABRepeatClick,
+                                modifier = Modifier.weight(1f).height(controlButtonHeight),
+                                colors =
+                                    ButtonDefaults.filledTonalButtonColors(
+                                        containerColor =
+                                            when (abRepeatState.phase) {
+                                                ABRepeatPhase.ACTIVE -> MaterialTheme.colorScheme.primaryContainer
+                                                ABRepeatPhase.A_SET -> MaterialTheme.colorScheme.tertiaryContainer
+                                                ABRepeatPhase.INACTIVE -> MaterialTheme.colorScheme.surfaceVariant
+                                            },
+                                    ),
+                            ) {
+                                when (abRepeatState.phase) {
+                                    ABRepeatPhase.INACTIVE ->
+                                        Text(
+                                            "A B",
+                                            fontSize = controlButtonTextSize,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    ABRepeatPhase.A_SET ->
+                                        Text(
+                                            "A",
+                                            fontSize = controlButtonTextSize,
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                        )
+                                    ABRepeatPhase.ACTIVE ->
+                                        Text(
+                                            "A→B",
+                                            fontSize = controlButtonTextSize,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                        )
+                                }
+                            }
+
                             // Sleep Timer Button
                             FilledTonalButton(
                                 onClick = onSleepTimerClick,
@@ -2369,43 +3281,6 @@ private fun PlayerContent(
                                     val activeState = sleepTimerState
                                     Text(
                                         formatSleepTimerRemaining(activeState.remainingSeconds),
-                                        fontSize = controlButtonTextSize,
-                                    )
-                                }
-                            }
-
-                            // Bookmarks Button
-                            FilledTonalButton(
-                                onClick = onBookmarksClick,
-                                modifier = Modifier.weight(1f).height(controlButtonHeight),
-                                colors =
-                                    ButtonDefaults.filledTonalButtonColors(
-                                        containerColor =
-                                            if (state.bookmarks.isNotEmpty()) {
-                                                MaterialTheme.colorScheme.primaryContainer
-                                            } else {
-                                                MaterialTheme.colorScheme.surfaceVariant
-                                            },
-                                        contentColor =
-                                            if (state.bookmarks.isNotEmpty()) {
-                                                MaterialTheme.colorScheme.onPrimaryContainer
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            },
-                                    ),
-                            ) {
-                                Icon(
-                                    if (state.bookmarks.isNotEmpty()) {
-                                        Icons.Filled.Bookmark
-                                    } else {
-                                        Icons.Outlined.Bookmark
-                                    },
-                                    stringResource(R.string.bookmarks),
-                                    Modifier.size(controlButtonIconSize),
-                                )
-                                if (state.bookmarks.isNotEmpty()) {
-                                    Text(
-                                        text = stringResource(R.string.bookmarkCount, state.bookmarks.size),
                                         fontSize = controlButtonTextSize,
                                     )
                                 }
@@ -2445,157 +3320,6 @@ private fun PlayerContent(
                                         Modifier.size(controlButtonIconSize),
                                     )
                                 }
-                            } else {
-                                // Empty spacer to balance the row when no lyrics
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-                } else {
-                    // Larger screens: Single row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement =
-                            Arrangement.spacedBy(
-                                controlButtonSpacing,
-                                Alignment.CenterHorizontally,
-                            ),
-                    ) {
-                        // Playback Speed Button
-                        FilledTonalButton(
-                            onClick = {
-                                if (suppressNextSpeedClick) {
-                                    suppressNextSpeedClick = false
-                                } else {
-                                    onSpeedClick()
-                                }
-                            },
-                            interactionSource = speedButtonInteractionSource,
-                            modifier = Modifier.weight(1f).height(controlButtonHeight),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Speed,
-                                contentDescription = stringResource(R.string.playbackSpeedTitle),
-                                modifier = Modifier.size(controlButtonIconSize).padding(end = 8.dp),
-                            )
-                            Text(
-                                text = playbackSpeedLabel,
-                                fontSize = controlButtonTextSize,
-                            )
-                        }
-
-                        // Audio Settings (EQ) Button
-                        FilledTonalButton(
-                            onClick = onAudioSettingsClick,
-                            modifier = Modifier.weight(1f).height(controlButtonHeight),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Tune,
-                                contentDescription = stringResource(R.string.audioSettingsTitle),
-                                modifier = Modifier.size(controlButtonIconSize),
-                            )
-                        }
-
-                        // Chapter Repeat Button
-                        FilledTonalButton(
-                            onClick = onChapterRepeatClick,
-                            modifier = Modifier.weight(1f).height(controlButtonHeight),
-                            colors =
-                                ButtonDefaults.filledTonalButtonColors(
-                                    containerColor =
-                                        when (chapterRepeatMode) {
-                                            ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.surfaceVariant
-                                            ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.primaryContainer
-                                            ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.primaryContainer
-                                        },
-                                ),
-                        ) {
-                            when (chapterRepeatMode) {
-                                ChapterRepeatMode.INFINITE ->
-                                    Text(
-                                        "∞",
-                                        fontSize = controlButtonTextSize,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    )
-                                ChapterRepeatMode.OFF ->
-                                    Icon(
-                                        Icons.Outlined.Repeat,
-                                        stringResource(R.string.noRepeat),
-                                        Modifier.size(controlButtonIconSize),
-                                        MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                ChapterRepeatMode.ONCE ->
-                                    Icon(
-                                        Icons.Filled.RepeatOne,
-                                        stringResource(R.string.repeatTrack),
-                                        Modifier.size(controlButtonIconSize),
-                                        MaterialTheme.colorScheme.onPrimaryContainer,
-                                    )
-                            }
-                        }
-
-                        // Sleep Timer Button
-                        FilledTonalButton(
-                            onClick = onSleepTimerClick,
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .height(controlButtonHeight)
-                                    .semantics {
-                                        contentDescription = sleepTimerAccessibilityDescription
-                                    },
-                        ) {
-                            Icon(
-                                if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle) {
-                                    Icons.Outlined.Timer
-                                } else {
-                                    Icons.Filled.Timer
-                                },
-                                stringResource(R.string.sleepTimer),
-                                Modifier.size(controlButtonIconSize),
-                            )
-                            if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
-                                val activeState = sleepTimerState
-                                Text(
-                                    formatSleepTimerRemaining(activeState.remainingSeconds),
-                                    fontSize = controlButtonTextSize,
-                                )
-                            }
-                        }
-
-                        // Lyrics Toggle Button
-                        if (hasLyrics) {
-                            FilledTonalButton(
-                                onClick = {
-                                    HapticManager.performTap(hapticFeedback)
-                                    showLyrics = !showLyrics
-                                },
-                                modifier = Modifier.weight(1f).height(controlButtonHeight),
-                                colors =
-                                    ButtonDefaults.filledTonalButtonColors(
-                                        containerColor =
-                                            if (showingLyrics) {
-                                                MaterialTheme.colorScheme.primaryContainer
-                                            } else {
-                                                MaterialTheme.colorScheme.surfaceVariant
-                                            },
-                                        contentColor =
-                                            if (showingLyrics) {
-                                                MaterialTheme.colorScheme.onPrimaryContainer
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            },
-                                    ),
-                            ) {
-                                Icon(
-                                    if (showingLyrics) {
-                                        Icons.Filled.Description
-                                    } else {
-                                        Icons.Outlined.Description
-                                    },
-                                    stringResource(R.string.lyrics),
-                                    Modifier.size(controlButtonIconSize),
-                                )
                             }
                         }
                     }

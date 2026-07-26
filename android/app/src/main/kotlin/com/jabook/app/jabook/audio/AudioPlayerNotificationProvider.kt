@@ -81,6 +81,10 @@ public class AudioPlayerNotificationProvider(
             }
         }
 
+    // Callback to request notification rebuild from outside
+    private var notificationCallback: MediaNotification.Provider.Callback? = null
+    private var lastNotification: MediaNotification? = null
+
     // Build the default provider with explicit channel configuration
     // Note: DefaultMediaNotificationProvider.Builder only supports setChannelId() in Media3
     // Small icon is configured via drawable resource override (media3_notification_small_icon.xml)
@@ -102,6 +106,7 @@ public class AudioPlayerNotificationProvider(
         actionFactory: MediaNotification.ActionFactory,
         onNotificationChangedCallback: MediaNotification.Provider.Callback,
     ): MediaNotification {
+        notificationCallback = onNotificationChangedCallback
         val filteredLayout = filterCustomLayout(customLayout)
         LogUtils.d(
             "AudioPlayerNotificationProvider",
@@ -117,11 +122,33 @@ public class AudioPlayerNotificationProvider(
             )
         LogUtils.d("AudioPlayerNotificationProvider", "Notification created: ${mediaNotification.notification}")
 
-        // Ensure we use consistently the same notification ID
-        return MediaNotification(
-            NotificationHelper.NOTIFICATION_ID,
-            mediaNotification.notification,
-        )
+        // Override subtitle with chapter progress if set
+        service.notificationSubtitleOverride?.let { subtitle ->
+            mediaNotification.notification.extras?.putString(
+                android.app.Notification.EXTRA_SUB_TEXT,
+                subtitle,
+            )
+        }
+
+        val result =
+            MediaNotification(
+                NotificationHelper.NOTIFICATION_ID,
+                mediaNotification.notification,
+            )
+        lastNotification = result
+        return result
+    }
+
+    /** Pushes notification with current subtitle override (for chapter progress updates). */
+    public fun invalidateNotification() {
+        val last = lastNotification ?: return
+        service.notificationSubtitleOverride?.let { subtitle ->
+            last.notification.extras?.putString(
+                android.app.Notification.EXTRA_SUB_TEXT,
+                subtitle,
+            )
+        }
+        notificationCallback?.onNotificationChanged(last)
     }
 
     private fun filterCustomLayout(customLayout: ImmutableList<CommandButton>): ImmutableList<CommandButton> {

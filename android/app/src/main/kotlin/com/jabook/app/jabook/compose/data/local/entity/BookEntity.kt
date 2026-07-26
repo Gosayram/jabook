@@ -109,6 +109,9 @@ public data class BookEntity(
     // Legacy field for backwards compatibility
     @ColumnInfo(name = "is_downloaded")
     val isDownloaded: Boolean = false,
+    // Per-book EQ preset override (null = use global preset)
+    @ColumnInfo(name = "eq_preset_override")
+    val eqPresetOverride: String? = null,
 )
 
 /**

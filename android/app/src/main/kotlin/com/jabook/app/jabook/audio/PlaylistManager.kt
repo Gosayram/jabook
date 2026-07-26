@@ -86,11 +86,11 @@ internal class PlaylistManager(
 
     // State managed by PlaylistManager
     var currentFilePaths: List<String>? = null
-        private set
+        internal set
     var currentMetadata: Map<String, String>? = null
-        private set
+        internal set
     var currentGroupPath: String? = null
-        private set
+        internal set
     internal var isPlaylistLoading = false
         internal set
     internal var currentLoadingPlaylist: List<String>? = null
@@ -1481,6 +1481,19 @@ internal class PlaylistManager(
         return ProgressiveMediaSource
             .Factory(sourceFactory)
             .createMediaSource(mediaItem)
+    }
+
+    /**
+     * Creates a MediaSource for a specific file path and index.
+     * Used by CrossFadePlayer for book-switch crossfade pre-loading.
+     */
+    public fun createMediaSource(
+        filePaths: List<String>,
+        index: Int,
+        metadata: Map<String, String>?,
+    ): MediaSource? {
+        if (index < 0 || index >= filePaths.size) return null
+        return createMediaSourceForIndex(filePaths, index, metadata, SimpleMediaDataSourceFactory())
     }
 
     /**

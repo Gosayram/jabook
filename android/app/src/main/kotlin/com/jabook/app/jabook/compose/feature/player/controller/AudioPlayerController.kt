@@ -185,9 +185,10 @@ public class AudioPlayerController
 
         private data class SkipToChapterCommand(
             private val chapterIndex: Int,
+            private val positionMs: Long,
         ) : PendingControllerCommand {
             override fun execute(controller: MediaController) {
-                controller.seekTo(chapterIndex, 0L)
+                controller.seekTo(chapterIndex, positionMs * 1000L)
             }
         }
 
@@ -416,6 +417,7 @@ public class AudioPlayerController
                     decoderName = "ExoPlayer Audio Decoder",
                     droppedFrames = 0,
                     isStreaming = isStreaming,
+                    isAudioOffloaded = isAudioOffloaded,
                 )
         }
 
@@ -963,12 +965,15 @@ public class AudioPlayerController
             }
         }
 
-        public fun skipToChapter(index: Int) {
+        public fun skipToChapter(
+            index: Int,
+            positionMs: Long = 0L,
+        ) {
             executeOrQueue(
                 commandName = "skipToChapter",
-                pendingCommand = SkipToChapterCommand(index),
+                pendingCommand = SkipToChapterCommand(index, positionMs),
             ) { controller ->
-                controller.seekTo(index, 0L)
+                controller.seekTo(index, positionMs * 1000L)
             }
         }
 

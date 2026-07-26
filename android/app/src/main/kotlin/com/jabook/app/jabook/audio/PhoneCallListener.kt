@@ -66,6 +66,11 @@ public class PhoneCallListener(
     private val getActivePlayer: () -> ExoPlayer,
     private val wasPlayingBeforeCall: () -> Boolean,
     private val setWasPlayingBeforeCall: (Boolean) -> Unit,
+    private val getCurrentBookId: () -> String? = { null },
+    private val getCurrentChapterIndex: () -> Int = { 0 },
+    private val getCurrentPositionMs: () -> Long = { 0L },
+    private val autoBookmarkTrigger: AutoBookmarkTrigger? = null,
+    private val onCallEndedWithBookmark: () -> Unit = {},
 ) {
     private val telephonyManager: TelephonyManager? =
         context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
@@ -202,10 +207,20 @@ public class PhoneCallListener(
 
         when (state) {
             TelephonyManager.CALL_STATE_RINGING -> {
-                // Incoming call - check if we're playing and save state
                 val player = getActivePlayer()
                 if (player.isPlaying) {
                     setWasPlayingBeforeCall(true)
+                    val bookId = getCurrentBookId()
+                    if (bookId != null) {
+                        scope.launch {
+                            autoBookmarkTrigger?.createAutoBookmark(
+                                bookId = bookId,
+                                positionMs = getCurrentPositionMs(),
+                                chapterIndex = getCurrentChapterIndex(),
+                                reason = AutoBookmarkTrigger.AutoBookmarkReason.PHONE_CALL_INTERRUPTED,
+                            )
+                        }
+                    }
                     LogUtils.i("PhoneCallListener", "Incoming call detected, saving playback state")
                 }
             }
@@ -219,35 +234,24 @@ public class PhoneCallListener(
                 }
             }
             TelephonyManager.CALL_STATE_IDLE -> {
-                // Call ended - resume playback if we were playing before
                 if (wasInCall && wasPlayingBeforeCall()) {
                     wasInCall = false
                     LogUtils.i("PhoneCallListener", "Call ended, attempting to resume playback")
 
-                    // Delay resume slightly to ensure audio focus is regained
                     scope.launch {
-                        delay(500L) // Small delay to ensure audio focus is ready
+                        delay(500L)
 
                         try {
                             val player = getActivePlayer()
-
-                            // Check if player is still valid and not completed
                             if (player.playbackState == Player.STATE_READY ||
                                 player.playbackState == Player.STATE_BUFFERING
                             ) {
-                                // Resume playback
                                 player.playWhenReady = true
                                 setWasPlayingBeforeCall(false)
-
-                                LogUtils.i(
-                                    "PhoneCallListener",
-                                    "Playback resumed after call ended",
-                                )
+                                onCallEndedWithBookmark()
+                                LogUtils.i("PhoneCallListener", "Playback resumed after call ended")
                             } else {
-                                LogUtils.w(
-                                    "PhoneCallListener",
-                                    "Cannot resume playback: player state=${player.playbackState}",
-                                )
+                                LogUtils.w("PhoneCallListener", "Cannot resume playback: player state=${player.playbackState}")
                                 setWasPlayingBeforeCall(false)
                             }
                         } catch (e: Exception) {
@@ -256,7 +260,6 @@ public class PhoneCallListener(
                         }
                     }
                 } else {
-                    // Call ended but we weren't playing before, or call wasn't active
                     wasInCall = false
                     if (!wasPlayingBeforeCall()) {
                         LogUtils.d("PhoneCallListener", "Call ended, but playback was not active before call")

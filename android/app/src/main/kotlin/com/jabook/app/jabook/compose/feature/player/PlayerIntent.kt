@@ -42,6 +42,7 @@ public sealed interface PlayerIntent {
 
     public data class SelectChapter(
         val chapterIndex: Int,
+        val positionMs: Long = 0L,
     ) : PlayerIntent
 
     public data object ToggleChapterRepeat : PlayerIntent
@@ -51,6 +52,8 @@ public sealed interface PlayerIntent {
     public data class SetVisualizerEnabled(
         val enabled: Boolean,
     ) : PlayerIntent
+
+    public data object CycleVisualizerMode : PlayerIntent
 
     public data class SetPlaybackSpeed(
         val speed: Float,
@@ -86,6 +89,15 @@ public sealed interface PlayerIntent {
         val normalizeVolume: Boolean? = null,
         val speechEnhancer: Boolean? = null,
         val autoVolumeLeveling: Boolean? = null,
+    ) : PlayerIntent
+
+    public data object ToggleABRepeat : PlayerIntent
+
+    /**
+     * Set global equalizer preset.
+     */
+    public data class SetEqualizerPreset(
+        val presetName: String,
     ) : PlayerIntent
 
     /**

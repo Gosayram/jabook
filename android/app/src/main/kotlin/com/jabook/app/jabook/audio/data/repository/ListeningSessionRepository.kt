@@ -67,6 +67,8 @@ public class ListeningSessionRepository
             )
         }
 
+        public suspend fun getLastListeningTimestamp(bookId: String): Long? = listeningSessionDao.getLastListeningTimestamp(bookId)
+
         public suspend fun getLatestActiveSession(): ListeningSessionEntity? = listeningSessionDao.getLatestActiveSession()
 
         public fun observeDayStats(

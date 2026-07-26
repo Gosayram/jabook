@@ -51,6 +51,7 @@ internal class PlaybackEventProcessor(
     private val getCrossfadeHandler: (() -> CrossfadeHandler?)?,
     private val playerErrorHandler: PlayerErrorHandler,
     private val bookCompletionTracker: BookCompletionTracker,
+    private val onIsPlayingChanged: ((Boolean) -> Unit)? = null,
 ) {
     /**
      * Processes all ExoPlayer events in a consolidated callback.
@@ -216,6 +217,8 @@ internal class PlaybackEventProcessor(
         } else {
             getCrossfadeHandler?.invoke()?.stopMonitoring()
         }
+
+        onIsPlayingChanged?.invoke(player.isPlaying)
     }
 
     private fun handleMediaItemTransition(player: Player) {

@@ -134,6 +134,7 @@ public class MediaSessionSettingsSync(
                             },
                         isCrossfadeEnabled = prefs.crossfadeEnabled,
                         crossfadeDurationMs = if (prefs.crossfadeDurationMs > 0) prefs.crossfadeDurationMs else 2000L,
+                        crossfadeBetweenBooksMs = prefs.crossfadeBetweenBooksMs.coerceAtLeast(0),
                         noiseGateLevel =
                             try {
                                 if (prefs.noiseGateLevel.isNotEmpty()) {

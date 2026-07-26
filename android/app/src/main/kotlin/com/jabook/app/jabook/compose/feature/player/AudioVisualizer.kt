@@ -48,6 +48,9 @@ public enum class VisualizerStyle {
 
     /** Circular visualization */
     CIRCULAR,
+
+    /** Thin line under seekbar (YouTube Music style) */
+    MINIMAL,
 }
 
 /**
@@ -108,6 +111,15 @@ public fun AudioVisualizer(
                     modifier
                         .fillMaxWidth()
                         .height(height),
+            )
+        VisualizerStyle.MINIMAL ->
+            MinimalVisualizer(
+                waveformData = waveformData,
+                color = primaryColor.copy(alpha = alpha),
+                modifier =
+                    modifier
+                        .fillMaxWidth()
+                        .height(4.dp),
             )
     }
 }
@@ -281,7 +293,7 @@ private fun CircularVisualizer(
                 )
 
                 // Reflection (inner bar or opacity variation)
-               /* drawRoundRect(
+                /* drawRoundRect(
                     color = color.copy(alpha = 0.3f),
                     topLeft = Offset(centerX - barWidth / 2, centerY - innerRadius + 2f),
                     size = androidx.compose.ui.geometry.Size(barWidth, barHeight * 0.3f), // Small reflection inside
@@ -289,5 +301,43 @@ private fun CircularVisualizer(
                 ) */
             }
         }
+    }
+}
+
+/**
+ * Minimal thin line visualization (YouTube Music style).
+ */
+@Composable
+private fun MinimalVisualizer(
+    waveformData: FloatArray,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(modifier = modifier) {
+        if (waveformData.isEmpty()) return@Canvas
+
+        val width = size.width
+        val height = size.height
+        val centerY = height / 2
+        val stepX = width / waveformData.size
+
+        val path =
+            Path().apply {
+                waveformData.forEachIndexed { index, amplitude ->
+                    val x = index * stepX
+                    val y = centerY - (amplitude * centerY * 0.6f)
+                    if (index == 0) {
+                        moveTo(x, y)
+                    } else {
+                        lineTo(x, y)
+                    }
+                }
+            }
+
+        drawPath(
+            path = path,
+            color = color,
+            style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round),
+        )
     }
 }

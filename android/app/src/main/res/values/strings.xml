@@ -102,6 +102,7 @@
     <string name="decoder">Decoder</string>
     <string name="droppedFrames">Dropped Frames</string>
     <string name="enableVisualizer">Enable visualizer</string>
+    <string name="audioOffload">Audio Offload</string>
 
     <string name="sleepTimerExtended">Sleep timer extended by 5 minutes</string>
     <string name="shakeToExtendEnabled">Shake to extend enabled</string>
@@ -387,6 +388,9 @@
     <string name="equalizer_preset_title">Preset</string>
     <string name="equalizer_preset_desc">Adjust speech timbre for your listening environment</string>
     <string name="equalizer_preset_flat">Flat</string>
+    <string name="equalizer_preset_flat_raw">Flat (Raw)</string>
+    <string name="eq_recommendation_message">Recommend preset: %1$s</string>
+    <string name="eq_recommendation_apply">Apply</string>
     <string name="equalizer_preset_voice_clarity">Voice clarity</string>
     <string name="equalizer_preset_night">Night</string>
     <string name="equalizer_preset_headphones">Headphones</string>
@@ -394,6 +398,15 @@
     <string name="equalizer_preset_male_narrator">Male Narrator</string>
     <string name="equalizer_preset_female_narrator">Female Narrator</string>
     <string name="equalizer_preset_car_mode">Car Mode</string>
+    <string name="equalizer_preset_night_listening">Night Listening</string>
+    <string name="equalizer_preset_headphones_budget">Budget Headphones</string>
+    <string name="equalizer_preset_speaker_phone">Speaker Phone</string>
+    <string name="equalizer_preset_custom">Custom</string>
+    <string name="equalizer_custom_bands_title">Custom EQ Bands</string>
+    <string name="equalizer_save_preset">Save as Preset</string>
+    <string name="equalizer_save_preset_dialog_title">Save EQ Preset</string>
+    <string name="equalizer_save_preset_dialog_hint">Preset name</string>
+    <string name="equalizer_save_preset_saved">Preset saved</string>
     <string name="equalizer_five_band_title">5-band preview</string>
     <string name="equalizer_gain_db">%1$d dB</string>
     <string name="equalizer_point_tooltip">%1$s • %2$s</string>
@@ -415,6 +428,7 @@
     <string name="autoVolumeLevelingDescription">Automatically adjust volume to maintain consistent level</string>
     <!-- Label for playback speed -->
     <string name="playbackSpeed">Playback speed</string>
+    <string name="fineTuneSpeed">Fine-tune speed</string>
     <string name="recentSpeedsTitle">Recent speeds</string>
     <!-- Label for skip duration -->
     <string name="skipDuration">Skip duration</string>
@@ -2539,6 +2553,7 @@
     <string name="sleepTimerRepeatYesterday">Same as yesterday (%1$d min)</string>
     <string name="sleepTimerStopsAt">Stops at %1$s (in %2$s)</string>
     <string name="sleepTimerResumeHint">Sleep timer paused playback. Continue from the same spot.</string>
+    <string name="phoneCallBookmarkSnackbar">Added a bookmark — continue from where you left off?</string>
     <string name="stopAtSpecificTime">Stop at specific time</string>
     <string name="stopAtSpecificTimeDesc">Choose clock time (for example, 23:30)</string>
     <string name="currentMirror">Current Mirror</string>
@@ -2997,4 +3012,15 @@
     <string name="searchDiscoveryTitle">Discover</string>
     <string name="searchGenreChipsTitle">Genres</string>
     <string name="searchQualityChipsTitle">Quality</string>
+
+    <!-- MiniPlayer swipe-to-dismiss (TASK-PLAYER-44) -->
+    <string name="mini_player_dismissed_undo">Воспроизведение остановлено</string>
+    <string name="mini_player_dismissed_resume">Возобновить</string>
+
+    <!-- Resume after long pause (TASK-PLAYER-38) -->
+    <string name="resumeLongPauseTitle">Давно не слушали</string>
+    <string name="resumeLongPauseDescription">%1$s • %2$s — %3$d д. назад</string>
+    <string name="resumeLongPauseContinue">Продолжить</string>
+    <string name="resumeLongPauseRestartChapter">Начать главу с начала</string>
+    <string name="resumeLongPauseSelectChapter">Выбрать главу</string>
 </resources>

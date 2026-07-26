@@ -27,6 +27,7 @@ import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
+import com.jabook.app.jabook.compose.data.local.dao.UserEqPresetDao
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_14_15
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_15_16
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_16_17
@@ -39,6 +40,7 @@ import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_22_23
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_23_24
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_24_25
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_25_26
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_26_27
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_6_7
 import com.jabook.app.jabook.compose.data.local.migration.createBooksFts5Index
 import com.jabook.app.jabook.compose.data.local.migration.createTopicsFts5Index
@@ -317,6 +319,21 @@ public object DatabaseModule {
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_seeders` ON `cached_topics` (`seeders`)")
         }
 
+    private val MIGRATION_27_28 =
+        createLoggedMigration(27, 28) { db ->
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `user_eq_presets` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `bands` TEXT NOT NULL,
+                    `preamp_millibels` INTEGER NOT NULL DEFAULT 0,
+                    `created_at` INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+        }
+
     internal val configuredMigrations: List<Migration> =
         listOf(
             MIGRATION_1_2,
@@ -343,6 +360,8 @@ public object DatabaseModule {
             MIGRATION_23_24,
             MIGRATION_24_25,
             MIGRATION_25_26,
+            MIGRATION_26_27,
+            MIGRATION_27_28,
         )
 
     @Provides
@@ -460,4 +479,7 @@ public object DatabaseModule {
     @Provides
     public fun provideTorrentDownloadDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.torrent.TorrentDownloadDao =
         database.torrentDownloadDao()
+
+    @Provides
+    public fun provideUserEqPresetDao(database: JabookDatabase): UserEqPresetDao = database.userEqPresetDao()
 }

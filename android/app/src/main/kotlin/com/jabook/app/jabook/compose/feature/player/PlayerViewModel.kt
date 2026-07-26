@@ -23,9 +23,12 @@ import coil3.SingletonImageLoader
 import coil3.request.allowHardware
 import coil3.toBitmap
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.HoldToBoostPolicy
 import com.jabook.app.jabook.audio.SleepTimerPersistence
+import com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
+import com.jabook.app.jabook.audio.processors.EqContextRecommendationPolicy
 import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -99,6 +102,7 @@ public class PlayerViewModel
         private val playbackPositionRepository: PlaybackPositionRepository,
         private val lyricsRepository: com.jabook.app.jabook.data.lyrics.LyricsRepository,
         private val audioVisualizerStateBridge: com.jabook.app.jabook.audio.AudioVisualizerStateBridge,
+        private val listeningSessionRepository: ListeningSessionRepository,
         private val loggerFactory: LoggerFactory,
         @param:ApplicationContext private val context: Context,
     ) : ViewModel() {
@@ -143,6 +147,14 @@ public class PlayerViewModel
         // Player Stats for Nerds
         public val playerStats: StateFlow<PlayerStats> = playerController.playerStats
         public val visualizerWaveformData: StateFlow<FloatArray> = audioVisualizerStateBridge.waveformData
+        public val isAudioOffloaded: StateFlow<Boolean> = audioVisualizerStateBridge.isAudioOffloaded
+        public val visualizerMode: StateFlow<Int> =
+            settingsRepository.audioVisualizerMode
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = 0,
+                )
         private val _seekbarWaveformData = MutableStateFlow(FloatArray(SEEKBAR_WAVEFORM_CACHE_SIZE))
         public val seekbarWaveformData: StateFlow<FloatArray> = _seekbarWaveformData.asStateFlow()
         public val bookmarks: StateFlow<List<BookmarkItem>> =
@@ -157,7 +169,9 @@ public class PlayerViewModel
         private var lastPersistedPlayerSnapshot: PlayerStateSnapshot? = null
         private var restoredBootstrapSnapshot: RestoredBootstrapSnapshot? = null
         private var hasShownSleepTimerResumeHint: Boolean = false
+        private var hasShownEqRecommendation: Boolean = false
         private var hasShownSmartResumeRecapHint: Boolean = false
+        private var hasShownResumeAfterLongPause: Boolean = false
         private var hasTriggeredSeriesAutoplay: Boolean = false
         private var autoplayDismissedUntilChapterChange: Boolean = false
         private var seriesAutoplayJob: Job? = null
@@ -165,8 +179,17 @@ public class PlayerViewModel
         private val _nextBookAutoplayState = MutableStateFlow<NextBookAutoplayState?>(null)
         public val nextBookAutoplayState: StateFlow<NextBookAutoplayState?> = _nextBookAutoplayState.asStateFlow()
 
+        // Resume after long pause dialog state (TASK-PLAYER-38)
+        private val _resumeAfterLongPauseState = MutableStateFlow<ResumeAfterLongPauseData?>(null)
+        public val resumeAfterLongPauseState: StateFlow<ResumeAfterLongPauseData?> =
+            _resumeAfterLongPauseState.asStateFlow()
+
         // Chapter repeat mode state
         private val chapterRepeatModeState = MutableStateFlow(ChapterRepeatMode.OFF)
+
+        // AB repeat state
+        private val _abRepeatState = MutableStateFlow(ABRepeatState())
+        public val abRepeatState: StateFlow<ABRepeatState> = _abRepeatState.asStateFlow()
 
         // Track if we've already repeated once (for ONCE mode)
         private var hasRepeatedOnce = false
@@ -183,9 +206,13 @@ public class PlayerViewModel
             restorePlaybackSpeedFromSnapshotIfNeeded()
             restoreSleepTimerModeFromSnapshotIfNeeded()
             observeSleepTimerResumeHint()
+            observePhoneCallBookmarkHint()
             observeSmartResumeSuggestion()
             observeHoldToBoostSpeedSetting()
+            observeResumeAfterLongPause()
             observeSeekbarWaveformCache()
+            observeABRepeatPosition()
+            observeEqRecommendation()
 
             viewModelScope.launch {
                 commandFlow.collect { command ->
@@ -788,7 +815,7 @@ public class PlayerViewModel
                 PlayerEffect.ShowSnackbar(
                     message = context.getString(R.string.playerChapterNavigationSnackbar, targetChapter),
                     actionLabel = context.getString(R.string.undoAction),
-                    actionIntent = PlayerIntent.SelectChapter(undoChapterIndex),
+                    actionIntent = PlayerIntent.SelectChapter(chapterIndex = undoChapterIndex),
                 ),
             )
         }
@@ -805,6 +832,42 @@ public class PlayerViewModel
                     if (targetMode == chapterRepeatModeState.value) return
                     chapterRepeatModeState.value = targetMode
                     hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
+                }
+                is PlayerIntent.CycleVisualizerMode -> {
+                    val currentMode = visualizerMode.value
+                    val nextMode = (currentMode + 1) % 4
+                    viewModelScope.launch {
+                        settingsRepository.updateAudioVisualizerMode(nextMode)
+                    }
+                }
+                PlayerIntent.ToggleABRepeat -> {
+                    val currentABState = _abRepeatState.value
+                    when (currentABState.phase) {
+                        ABRepeatPhase.INACTIVE -> {
+                            val position = (uiState.value as? PlayerState.Active)?.currentPosition ?: return
+                            _abRepeatState.value = ABRepeatState(pointA = position, phase = ABRepeatPhase.A_SET)
+                        }
+                        ABRepeatPhase.A_SET -> {
+                            val position = (uiState.value as? PlayerState.Active)?.currentPosition ?: return
+                            _abRepeatState.value =
+                                ABRepeatState(
+                                    pointA = currentABState.pointA,
+                                    pointB = position,
+                                    phase = ABRepeatPhase.ACTIVE,
+                                )
+                        }
+                        ABRepeatPhase.ACTIVE -> {
+                            _abRepeatState.value = ABRepeatState()
+                        }
+                    }
+                }
+                is PlayerIntent.SetEqualizerPreset -> {
+                    viewModelScope.launch {
+                        runCatching { settingsRepository.updateEqualizerPreset(intent.presetName) }
+                            .onFailure { error ->
+                                logger.w(error) { "Failed to update EQ preset" }
+                            }
+                    }
                 }
                 is PlayerIntent.ReportError -> {
                     val reason = (reducedState as? PlayerState.Error)?.message ?: intent.reason
@@ -914,9 +977,12 @@ public class PlayerViewModel
             playerController.skipToPrevious()
         }
 
-        public fun skipToChapter(chapterIndex: Int) {
-            logger.d { "Action: Skip to Chapter index $chapterIndex requested" }
-            playerController.skipToChapter(chapterIndex)
+        public fun skipToChapter(
+            chapterIndex: Int,
+            positionMs: Long = 0L,
+        ) {
+            logger.d { "Action: Skip to Chapter index $chapterIndex positionMs=$positionMs requested" }
+            playerController.skipToChapter(chapterIndex, positionMs)
             // Reset repeat flag when manually changing chapters
             onChapterChanged()
             // Always start playback when user selects a chapter from the chapter selector
@@ -1028,6 +1094,22 @@ public class PlayerViewModel
             }
         }
 
+        private fun observeABRepeatPosition() {
+            viewModelScope.launch {
+                combine(
+                    playerController.currentPosition,
+                    playerController.currentChapterIndex,
+                    _abRepeatState,
+                ) { position, chapterIndex, abState ->
+                    Triple(position, chapterIndex, abState)
+                }.collect { (position, chapterIndex, abState) ->
+                    if (abState.phase == ABRepeatPhase.ACTIVE && abState.pointB > 0L && position >= abState.pointB) {
+                        playerController.seekTo(abState.pointA)
+                    }
+                }
+            }
+        }
+
         public fun setPitchCorrectionEnabled(enabled: Boolean) {
             playerController.setPitchCorrectionEnabled(enabled)
         }
@@ -1099,6 +1181,12 @@ public class PlayerViewModel
         public fun cancelSleepTimer() {
             sleepTimerHandler.cancelSleepTimer()
         }
+
+        public data class ResumeAfterLongPauseData(
+            val chapterName: String,
+            val chapterPosition: String,
+            val daysAgo: Int,
+        )
 
         // P-92: Book and audio settings operations extracted to PlayerSettingsHandler
         private val settingsHandler =
@@ -1248,6 +1336,7 @@ public class PlayerViewModel
          */
         public fun onChapterChanged() {
             hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
+            _abRepeatState.value = ABRepeatState()
         }
 
         private fun restoreStateSnapshot() {
@@ -1356,6 +1445,19 @@ public class PlayerViewModel
             }
         }
 
+        private fun observePhoneCallBookmarkHint() {
+            viewModelScope.launch {
+                uiState.collect { state ->
+                    val activeState = state as? PlayerState.Active ?: return@collect
+                    if (!activeState.isPlaying) return@collect
+                    if (AudioPlayerService.phoneCallBookmarkCreated) {
+                        AudioPlayerService.phoneCallBookmarkCreated = false
+                        emitEffect(PlayerEffect.ShowSnackbar(context.getString(R.string.phoneCallBookmarkSnackbar)))
+                    }
+                }
+            }
+        }
+
         private fun observeSmartResumeSuggestion() {
             viewModelScope.launch {
                 uiState.collect { state ->
@@ -1378,6 +1480,79 @@ public class PlayerViewModel
             }
         }
 
+        private fun observeEqRecommendation() {
+            viewModelScope.launch {
+                uiState.collect { state ->
+                    val activeState = state as? PlayerState.Active ?: return@collect
+                    if (hasShownEqRecommendation) return@collect
+                    hasShownEqRecommendation = true
+
+                    val hourOfDay =
+                        java.util.Calendar
+                            .getInstance()
+                            .get(java.util.Calendar.HOUR_OF_DAY)
+                    val audioOutputType = EqContextRecommendationPolicy.detectAudioOutputType(context)
+                    val recommendation = EqContextRecommendationPolicy(context).recommend(hourOfDay, audioOutputType, null)
+                    if (recommendation != null) {
+                        emitEffect(
+                            PlayerEffect.ShowSnackbar(
+                                message = context.getString(R.string.eq_recommendation_message, recommendation.displayName),
+                                actionLabel = context.getString(R.string.eq_recommendation_apply),
+                                actionIntent = PlayerIntent.SetEqualizerPreset(recommendation.name),
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+
+        private fun observeResumeAfterLongPause() {
+            viewModelScope.launch {
+                uiState.collect { state ->
+                    val activeState = state as? PlayerState.Active ?: return@collect
+                    if (hasShownResumeAfterLongPause) return@collect
+                    val lastTimestamp = listeningSessionRepository.getLastListeningTimestamp(bookId) ?: return@collect
+                    val daysAgo = ((System.currentTimeMillis() - lastTimestamp) / 86_400_000L).toInt()
+                    if (daysAgo < 7) return@collect
+                    hasShownResumeAfterLongPause = true
+                    val chapter = activeState.currentChapter
+                    val chapterName = chapter?.title ?: (chapter?.displayNumber?.toString() ?: "—")
+                    val positionFormatted =
+                        com.jabook.app.jabook.compose.feature.player.PlayerTimeFormatter.formatDuration(
+                            activeState.currentPosition,
+                        )
+                    _resumeAfterLongPauseState.value =
+                        ResumeAfterLongPauseData(
+                            chapterName = chapterName,
+                            chapterPosition = positionFormatted,
+                            daysAgo = daysAgo,
+                        )
+                }
+            }
+        }
+
+        public fun dismissResumeAfterLongPause() {
+            _resumeAfterLongPauseState.value = null
+        }
+
+        public fun resumeAfterLongPauseContinue() {
+            _resumeAfterLongPauseState.value = null
+        }
+
+        public fun resumeAfterLongPauseRestartChapter() {
+            _resumeAfterLongPauseState.value = null
+            val state = uiState.value as? PlayerState.Active ?: return
+            playerController.skipToChapter(state.currentChapterIndex, 0L)
+            viewModelScope.launch {
+                delay(100L)
+                playerController.play()
+            }
+        }
+
+        public fun resumeAfterLongPauseSelectChapter() {
+            _resumeAfterLongPauseState.value = null
+        }
+
         private fun wasLastStoppedBySleepTimerFlagSet(): Boolean {
             val prefs = context.getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
             return prefs.getBoolean(SleepTimerPersistence.KEY_LAST_STOPPED_BY_SLEEP_TIMER, false)
@@ -1395,6 +1570,7 @@ public class PlayerViewModel
                 PlayerIntent.SeekBackward,
                 is PlayerIntent.SelectChapter,
                 PlayerIntent.ToggleChapterRepeat,
+                PlayerIntent.ToggleABRepeat,
                 PlayerIntent.InitializeVisualizer,
                 is PlayerIntent.SetVisualizerEnabled,
                 is PlayerIntent.SetPlaybackSpeed,
@@ -1407,8 +1583,10 @@ public class PlayerViewModel
                 PlayerIntent.ResetBookSeekSettings,
                 is PlayerIntent.UpdateAudioSettings,
                 -> true
+                is PlayerIntent.SetEqualizerPreset,
                 PlayerIntent.InitializePlayer,
                 is PlayerIntent.ReportError,
+                PlayerIntent.CycleVisualizerMode,
                 -> false
             }
 

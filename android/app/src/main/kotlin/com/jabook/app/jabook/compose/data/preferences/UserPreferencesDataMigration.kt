@@ -25,7 +25,7 @@ import androidx.datastore.core.DataMigration
  */
 public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
     public companion object {
-        public const val CURRENT_SCHEMA_VERSION: Int = 5
+        public const val CURRENT_SCHEMA_VERSION: Int = 6
     }
 
     override suspend fun shouldMigrate(currentData: UserPreferences): Boolean = currentData.schemaVersion < CURRENT_SCHEMA_VERSION
@@ -97,6 +97,14 @@ public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
                 }
             builder.holdToBoostSpeed = speed
             builder.schemaVersion = 5
+            migrated = builder.build()
+        }
+
+        // v6: audio visualizer mode default.
+        if (migrated.schemaVersion < 6) {
+            val builder = migrated.toBuilder()
+            builder.audioVisualizerMode = 0
+            builder.schemaVersion = 6
             migrated = builder.build()
         }
 

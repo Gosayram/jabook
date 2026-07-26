@@ -45,6 +45,7 @@ internal class PlayerConfigurator(
 
             override fun onOffloadedPlayback(isOffloadedPlayback: Boolean) {
                 service.audioVisualizerManager?.setSuspendedForAudioOffload(isOffloadedPlayback)
+                service.audioVisualizerStateBridge.updateIsAudioOffloaded(isOffloadedPlayback)
                 LogUtils.d(
                     "AudioPlayerService",
                     "Audio offload playback changed: isOffloadedPlayback=$isOffloadedPlayback",
@@ -156,6 +157,7 @@ internal class PlayerConfigurator(
                     },
                     getCrossfadeHandler = { service.crossfadeHandler },
                     coroutineScope = service.playerServiceScope, // Pass coroutine scope for debounce
+                    onIsPlayingChanged = { isPlaying -> service.onPlaybackIsPlayingChanged(isPlaying) },
                 )
 
             playerListener?.let {

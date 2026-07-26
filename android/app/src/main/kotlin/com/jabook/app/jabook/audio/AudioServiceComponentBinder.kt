@@ -182,6 +182,11 @@ internal object AudioServiceComponentBinder {
                 getActivePlayer = { service.getActivePlayer() },
                 wasPlayingBeforeCall = { service.wasPlayingBeforeCall },
                 setWasPlayingBeforeCall = { value -> service.wasPlayingBeforeCall = value },
+                getCurrentBookId = { service.currentGroupPath },
+                getCurrentChapterIndex = { service.getActivePlayer().currentMediaItemIndex },
+                getCurrentPositionMs = { service.getActivePlayer().currentPosition },
+                autoBookmarkTrigger = service.autoBookmarkTrigger,
+                onCallEndedWithBookmark = { AudioPlayerService.phoneCallBookmarkCreated = true },
             )
 
         service.mediaButtonHandler = MediaButtonHandler()
