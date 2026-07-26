@@ -532,15 +532,22 @@ public fun PlayerScreen(
         }
     }
 
-    // Handle back gesture - prioritize chapters pane, then screen exit
-    // Always intercept to ensure proper navigation handling
+    // Back priority chain. ModalBottomSheets and the rating Dialog register their
+    // own back handlers and win while shown. StatsOverlay is a plain
+    // AnimatedVisibility with no handler, so it must be dismissed here first.
+    // Then collapse the supporting chapters pane, then navigate back to library.
+    // androidx.activity.compose.BackHandler already participates in Android 14+
+    // predictive back; a finger-following pane animation would need
+    // PredictiveBackHandler + a progress-driven partial expand (skipped — ceiling).
     androidx.activity.compose.BackHandler {
-        if (scaffoldNavigator.canNavigateBack()) {
-            scope.launch {
-                scaffoldNavigator.navigateBack()
+        when {
+            showStatsOverlay -> showStatsOverlay = false
+            scaffoldNavigator.canNavigateBack() -> {
+                scope.launch {
+                    scaffoldNavigator.navigateBack()
+                }
             }
-        } else {
-            navigationClickGuard.run { onNavigateBack() }
+            else -> navigationClickGuard.run { currentOnNavigateBack() }
         }
     }
 
