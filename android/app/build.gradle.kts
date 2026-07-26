@@ -408,9 +408,19 @@ tasks.withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
 tasks.withType<Test>().configureEach {
     // Hard stop for hung test task in local and CI runs.
     timeout.set(Duration.ofMinutes(12))
-    failFast = true
+    // ponytail: failFast via gradle property — fast local feedback, full CI report.
+    // CI: -Ptest.failFast=false ; local default: true (fail on first error).
+    failFast = providers.gradleProperty("test.failFast").map { it.toBoolean() }.orElse(true)
     maxParallelForks = maxOf(1, Runtime.getRuntime().availableProcessors() / 2)
     forkEvery = 120
+    // ponytail: heap tuning for forked test JVMs — Robolectric loads many classes,
+    // ParallelGC is throughput-optimized for batch tests. 6 forks × 2GB = 12GB peak.
+    minHeapSize = "512m"
+    maxHeapSize = "2048m"
+    jvmArgs(
+        "-XX:+UseParallelGC",
+        "-XX:MaxMetaspaceSize=512m",
+    )
     testLogging {
         events("failed", "skipped")
     }

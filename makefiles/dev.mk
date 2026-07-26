@@ -251,9 +251,9 @@ hilt-graph-check: ## Validate Hilt dependency graph for beta/prod debug variants
 	exit $$EXIT_CODE
 
 .PHONY: test
-test: ## Run unit tests (developer profile: faster local feedback)
-	@echo "Running unit tests (developer profile)..."
-	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest --no-daemon); \
+test: ## Run unit tests (developer profile: faster local feedback, beta flavor only)
+	@echo "Running unit tests (developer profile, beta flavor only)..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Unit tests passed (developer profile)"; \
@@ -263,10 +263,10 @@ test: ## Run unit tests (developer profile: faster local feedback)
 	exit $$EXIT_CODE
 
 .PHONY: test-strict
-test-strict: ## Run unit tests with stricter execution limits (CI-friendly)
-	@echo "Running strict unit tests (single worker, no parallel)..."
+test-strict: ## Run unit tests with stricter execution limits (CI-friendly, all flavors)
+	@echo "Running strict unit tests (single worker, no parallel, both flavors)..."
 	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest \
-		--no-daemon --max-workers=1 --no-parallel); \
+		--max-workers=1 --no-parallel); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Strict unit tests passed"; \
@@ -279,13 +279,12 @@ test-strict: ## Run unit tests with stricter execution limits (CI-friendly)
 test-ci: test-strict ## CI unit test profile (alias of test-strict)
 
 .PHONY: test-audio
-test-audio: ## Run audio-focused unit tests (beta + prod)
-	@echo "Running audio-focused unit tests..."
-	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest \
+test-audio: ## Run audio-focused unit tests (beta flavor)
+	@echo "Running audio-focused unit tests (beta flavor)..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest \
 		--tests "com.jabook.app.jabook.audio.*" \
 		--tests "com.jabook.app.jabook.audio.*.*" \
-		--tests "com.jabook.app.jabook.download.*" \
-		--no-daemon); \
+		--tests "com.jabook.app.jabook.download.*"); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Audio-focused unit tests passed"; \
@@ -295,14 +294,13 @@ test-audio: ## Run audio-focused unit tests (beta + prod)
 	exit $$EXIT_CODE
 
 .PHONY: test-storage
-test-storage: ## Run storage/data-layer unit tests (beta + prod)
-	@echo "Running storage-focused unit tests..."
-	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest \
+test-storage: ## Run storage/data-layer unit tests (beta flavor)
+	@echo "Running storage-focused unit tests (beta flavor)..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest \
 		--tests "com.jabook.app.jabook.compose.data.local.*" \
 		--tests "com.jabook.app.jabook.compose.data.local.*.*" \
 		--tests "com.jabook.app.jabook.compose.data.repository.*" \
-		--tests "com.jabook.app.jabook.migration.*" \
-		--no-daemon); \
+		--tests "com.jabook.app.jabook.migration.*"); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Storage-focused unit tests passed"; \
@@ -312,13 +310,12 @@ test-storage: ## Run storage/data-layer unit tests (beta + prod)
 	exit $$EXIT_CODE
 
 .PHONY: test-player
-test-player: ## Run player feature unit tests (beta + prod)
-	@echo "Running player-focused unit tests..."
-	@(cd android && ./gradlew :app:testBetaDebugUnitTest :app:testProdDebugUnitTest \
+test-player: ## Run player feature unit tests (beta flavor)
+	@echo "Running player-focused unit tests (beta flavor)..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest \
 		--tests "com.jabook.app.jabook.compose.feature.player.*" \
 		--tests "com.jabook.app.jabook.compose.feature.player.*.*" \
-		--tests "com.jabook.app.jabook.audio.*" \
-		--no-daemon); \
+		--tests "com.jabook.app.jabook.audio.*"); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Player-focused unit tests passed"; \
