@@ -541,6 +541,7 @@ dependencies {
     // Add coroutines support for proper async handling
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.guava)
+    debugImplementation(libs.kotlinx.coroutines.debug)
     implementation(libs.kotlinx.collections.immutable)
 
     // Kotlinx serialization (required by Room 2.8.4+)

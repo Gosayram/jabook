@@ -118,8 +118,11 @@ public object NetworkModule {
                 .connectTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .readTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .writeTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .eventListenerFactory(networkTelemetryEventListenerFactory)
-                .build()
+                .apply {
+                    if (BuildConfig.DEBUG) {
+                        eventListenerFactory(networkTelemetryEventListenerFactory)
+                    }
+                }.build()
 
         return MirrorManager(settingsRepository, healthCheckClient, loggerFactory)
     }
@@ -162,7 +165,11 @@ public object NetworkModule {
             .cache(apiCache)
             .cookieJar(cookieJar)
             .certificatePinner(rutrackerCertificatePinner)
-            .eventListenerFactory(networkTelemetryEventListenerFactory)
+            .apply {
+                if (BuildConfig.DEBUG) {
+                    eventListenerFactory(networkTelemetryEventListenerFactory)
+                }
+            }
             // Interceptor order matters! They are called in order:
             // 1. BrotliInterceptor - MUST be first to add Accept-Encoding header (only if not already set)
             // 2. RutrackerHeadersInterceptor - Adds User-Agent, Accept, Accept-Language (NO Accept-Encoding!)

@@ -52,7 +52,6 @@ public class DirectFileSystemScanner
         private val encodingDetector: com.jabook.app.jabook.compose.data.local.parser.EncodingDetector,
         private val metadataCache: com.jabook.app.jabook.compose.data.local.parser.MetadataCache,
         private val loggerFactory: LoggerFactory,
-        private val incrementalScanPolicy: IncrementalScanPolicy,
     ) : LocalBookScanner {
         private val logger = loggerFactory.get("DirectFileSystemScanner")
 
@@ -117,7 +116,7 @@ public class DirectFileSystemScanner
                                     lastModified = it.lastModified,
                                 )
                             }
-                        val filterResult = incrementalScanPolicy.filterChangedFiles(scanInfos, lastTimestamp)
+                        val filterResult = IncrementalScanPolicy.filterChangedFiles(scanInfos, lastTimestamp)
                         if (filterResult.isFullScan) {
                             filteredFiles.addAll(filesForPath)
                         } else {
