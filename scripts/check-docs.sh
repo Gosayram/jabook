@@ -17,7 +17,11 @@ STATUS=0
 fail() { echo "❌ $*"; STATUS=1; }
 
 # --- Room DB schema version ---
-DB_VER="$(grep -Eo 'version = [0-9]+,' "$DB_FILE" | grep -Eo '[0-9]+' | head -1 || true)"
+DB_VER="$(
+  grep -Eo 'version = [0-9]+,' "$DB_FILE" | grep -Eo '[0-9]+' | head -1 ||
+  grep -Eo 'JABOOK_DB_VERSION[^0-9]+[0-9]+' "$DB_FILE" | grep -Eo '[0-9]+$' | head -1 ||
+  true
+)"
 if [[ -z "$DB_VER" ]]; then
     fail "Could not extract DB schema version from $DB_FILE"
 else

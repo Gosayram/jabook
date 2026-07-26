@@ -382,11 +382,11 @@ java {
 
 // REMOVED: afterEvaluate block for fixIntegrationTestPlugin - task no longer needed
 
-// Only enable R8 minification for prod release builds
+// Only enable R8 minification for prod and beta release builds
 androidComponents {
     beforeVariants { variant ->
         val flavor = variant.productFlavors.firstOrNull()?.second
-        if (flavor == "prod" && variant.buildType == "release") {
+        if ((flavor == "prod" || flavor == "beta") && variant.buildType == "release") {
             variant.isMinifyEnabled = true
         }
     }
