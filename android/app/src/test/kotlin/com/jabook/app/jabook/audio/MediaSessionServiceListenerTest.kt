@@ -41,6 +41,7 @@ import org.robolectric.annotation.Config
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class MediaSessionServiceListenerTest {
     @Mock
     private lateinit var service: AudioPlayerService

@@ -42,6 +42,7 @@ import org.robolectric.RobolectricTestRunner
 import kotlin.test.assertFailsWith
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class SyncWorkerTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val offlineSearchDao: OfflineSearchDao = mock()

@@ -52,6 +52,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class AudioPlayerLibrarySessionCallbackTest {
     private lateinit var callback: AudioPlayerLibrarySessionCallback
     private lateinit var service: AudioPlayerService

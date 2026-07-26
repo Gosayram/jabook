@@ -46,6 +46,7 @@ import org.robolectric.RobolectricTestRunner
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class GaplessPlaybackTest {
     private lateinit var context: Context
     private lateinit var exoPlayer: ExoPlayer

@@ -55,6 +55,7 @@ import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 @OptIn(ExperimentalCoroutinesApi::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class TorrentDownloadsViewModelTest {
     private val torrentManager: TorrentManager = mock()
     private val repository: TorrentDownloadRepository = mock()

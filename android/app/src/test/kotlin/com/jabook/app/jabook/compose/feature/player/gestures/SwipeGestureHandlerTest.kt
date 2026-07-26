@@ -30,6 +30,7 @@ import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class SwipeGestureHandlerTest {
     private lateinit var context: Context
     private lateinit var audioManager: AudioManager

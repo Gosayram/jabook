@@ -35,6 +35,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class JabookDatabaseMigrationTest {
     private lateinit var dbHelper: SupportSQLiteOpenHelper
     private lateinit var db: SupportSQLiteDatabase

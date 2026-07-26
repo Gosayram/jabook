@@ -41,6 +41,7 @@ import org.mockito.kotlin.mock
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class LibraryScanWorkerTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val booksDao: BooksDao = mock()

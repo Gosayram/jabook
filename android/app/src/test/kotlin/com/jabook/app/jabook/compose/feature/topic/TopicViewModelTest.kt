@@ -51,6 +51,7 @@ import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @OptIn(ExperimentalCoroutinesApi::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class TopicViewModelTest {
     private val rutrackerRepository: RutrackerRepository = mock()
     private val authRepository: AuthRepository = mock()

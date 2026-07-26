@@ -28,6 +28,7 @@ import org.robolectric.RobolectricTestRunner
 import android.graphics.Color as AndroidColor
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class DynamicThemeManagerTest {
     @Test
     fun `extractColors returns valid colors for a solid bitmap`() =

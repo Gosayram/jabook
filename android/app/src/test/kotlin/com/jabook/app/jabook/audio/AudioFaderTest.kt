@@ -33,6 +33,7 @@ import org.robolectric.RobolectricTestRunner
  * which is unavailable in plain JVM unit tests (stubbed android.jar returns null).
  */
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class AudioFaderTest {
     private lateinit var audioFader: AudioFader
     private lateinit var player: Player

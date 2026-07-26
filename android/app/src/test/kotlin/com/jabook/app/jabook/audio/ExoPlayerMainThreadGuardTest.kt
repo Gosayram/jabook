@@ -28,6 +28,7 @@ import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class ExoPlayerMainThreadGuardTest {
     private lateinit var player: Player
     private lateinit var mainHandler: Handler

@@ -37,6 +37,7 @@ import java.io.ByteArrayInputStream
 import java.lang.reflect.InvocationTargetException
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class BackupServiceTest {
     private val json = Json { prettyPrint = true }
 

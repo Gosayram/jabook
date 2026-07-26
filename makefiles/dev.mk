@@ -250,9 +250,42 @@ hilt-graph-check: ## Validate Hilt dependency graph for beta/prod debug variants
 	fi; \
 	exit $$EXIT_CODE
 
+.PHONY: test-fast
+test-fast: ## Run FAST unit tests only (excludes Robolectric/SlowTest, ~1 min)
+	@echo "Running FAST unit tests (excluding @SlowTest, beta flavor)..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest -Ptest.fast=true); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Fast unit tests passed"; \
+	else \
+		echo "❌ Fast unit tests failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
+.PHONY: test-slow
+test-slow: ## Run SLOW unit tests only (Robolectric/@SlowTest only, ~3-4 min)
+	@echo "Running SLOW unit tests (Robolectric/@SlowTest only, beta flavor)..."
+	@(cd android && ./gradlew :app:testBetaDebugUnitTest \
+		--tests "com.jabook.app.jabook.audio.*" \
+		--tests "com.jabook.app.jabook.compose.data.local.*" \
+		--tests "com.jabook.app.jabook.compose.data.auth.*" \
+		--tests "com.jabook.app.jabook.compose.data.backup.*" \
+		--tests "com.jabook.app.jabook.compose.data.permissions.*" \
+		--tests "com.jabook.app.jabook.compose.feature.topic.*" \
+		--tests "com.jabook.app.jabook.compose.feature.torrent.*" \
+		--tests "com.jabook.app.jabook.migration.*" \
+		--tests "com.jabook.app.jabook.widget.*"); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -eq 0 ]; then \
+		echo "✅ Slow unit tests passed"; \
+	else \
+		echo "❌ Slow unit tests failed with exit code $$EXIT_CODE"; \
+	fi; \
+	exit $$EXIT_CODE
+
 .PHONY: test
-test: ## Run unit tests (developer profile: faster local feedback, beta flavor only)
-	@echo "Running unit tests (developer profile, beta flavor only)..."
+test: ## Run ALL unit tests (developer profile: beta flavor only, ~5 min)
+	@echo "Running ALL unit tests (developer profile, beta flavor only)..."
 	@(cd android && ./gradlew :app:testBetaDebugUnitTest); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \

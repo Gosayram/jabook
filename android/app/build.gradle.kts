@@ -431,6 +431,20 @@ tasks.withType<Test>().configureEach {
     }
     systemProperty("kotlinx.coroutines.test.default_timeout", "30s")
 
+    // ponytail: test.fast=true excludes @Category(SlowTest) classes (Robolectric).
+    // `make test-fast` → ~1min (pure JVM); `make test` → ~5min (all).
+    val fastOnly =
+        providers
+            .gradleProperty("test.fast")
+            .orElse("false")
+            .get()
+            .toBoolean()
+    if (fastOnly) {
+        useJUnit {
+            excludeCategories("com.jabook.app.jabook.test.SlowTest")
+        }
+    }
+
     // Emit thread diagnostics when a test likely failed due to timeout/hang.
     // Note: tests run in forked JVMs (forkEvery=120, maxParallelForks>0), so this
     // dump captures the Gradle daemon's threads, not the test process. Useful as a

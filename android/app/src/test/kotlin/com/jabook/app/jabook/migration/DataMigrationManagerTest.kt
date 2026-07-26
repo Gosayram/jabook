@@ -40,6 +40,7 @@ import org.mockito.kotlin.whenever
 
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalCoroutinesApi::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class DataMigrationManagerTest {
     private lateinit var context: Context
     private lateinit var database: JabookDatabase

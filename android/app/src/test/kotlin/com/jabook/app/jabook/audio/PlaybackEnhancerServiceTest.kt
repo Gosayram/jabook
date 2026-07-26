@@ -32,6 +32,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33]) // LoudnessEnhancer requires API 19+
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class PlaybackEnhancerServiceTest {
     private lateinit var exoPlayer: ExoPlayer
     private lateinit var settingsRepository: ProtoSettingsRepository

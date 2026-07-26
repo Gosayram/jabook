@@ -37,6 +37,7 @@ import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class ChapterDetectionWorkerTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val chaptersDao: ChaptersDao = mock()

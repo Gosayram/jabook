@@ -21,6 +21,7 @@ import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class AudioPlayerServiceTeardownTest {
     @Test
     fun `onDestroy does not crash when visualizer bridge is not initialized`() {

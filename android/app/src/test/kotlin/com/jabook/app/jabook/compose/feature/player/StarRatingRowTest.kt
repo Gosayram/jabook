@@ -24,6 +24,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class StarRatingRowTest {
     @get:Rule
     val composeTestRule = createComposeRule()
