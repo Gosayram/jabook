@@ -24,6 +24,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import com.jabook.app.jabook.compose.data.local.JABOOK_DB_VERSION
 import com.jabook.app.jabook.compose.data.sync.SyncManager
+import com.jabook.app.jabook.compose.data.torrent.TorrentMemoryPressureGuard
 import com.jabook.app.jabook.compose.infrastructure.notification.NotificationHelper
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.diagnostics.AnrWatchdog
@@ -52,6 +53,13 @@ import javax.inject.Inject
 @InstallIn(SingletonComponent::class)
 public interface OkHttpClientEntryPoint {
     public fun okHttpClient(): OkHttpClient
+}
+
+/** Lazily obtains the native torrent memory guard only when Android reports memory pressure. */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+public interface TorrentMemoryPressureEntryPoint {
+    public fun torrentMemoryPressureGuard(): TorrentMemoryPressureGuard
 }
 
 @HiltAndroidApp
@@ -186,6 +194,20 @@ public class JabookApplication :
         }
 
         LogUtils.d("JabookApplication", "Application created with Hilt support")
+    }
+
+    public override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+
+        try {
+            EntryPointAccessors
+                .fromApplication(this, TorrentMemoryPressureEntryPoint::class.java)
+                .torrentMemoryPressureGuard()
+                .onTrimMemory(level)
+        } catch (e: Exception) {
+            // Memory trimming must never turn a native-library failure into a process crash.
+            LogUtils.e("JabookApplication", "Failed to guard torrent session during memory trim", e)
+        }
     }
 
     private fun checkAndShowCrashReport() {

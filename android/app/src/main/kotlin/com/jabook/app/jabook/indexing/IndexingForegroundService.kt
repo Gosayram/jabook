@@ -42,7 +42,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -70,6 +69,12 @@ public class IndexingForegroundService : Service() {
             SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("IndexingService"),
         )
     private var indexingJob: Job? = null
+    private val delayedStopCoordinator =
+        DelayedStopCoordinator(
+            scope = serviceScope,
+            delayMillis = AUTO_DISMISS_DELAY_MS,
+            onStop = ::stopSelf,
+        )
     private var currentProgress: IndexingProgress = IndexingProgress.Idle
     private var startTime: Long = 0L
 
@@ -174,6 +179,7 @@ public class IndexingForegroundService : Service() {
         super.onDestroy()
         instance = null
         indexingJob?.cancel()
+        delayedStopCoordinator.cancel()
         serviceScope.cancel()
         LogUtils.d(TAG, "Service destroyed")
     }
@@ -251,6 +257,10 @@ public class IndexingForegroundService : Service() {
             return
         }
 
+        // A completed prior run may have scheduled an auto-dismiss. Starting a
+        // new run must not let that stale timer stop this service.
+        delayedStopCoordinator.cancel()
+
         indexingJob =
             serviceScope.launch {
                 try {
@@ -270,8 +280,7 @@ public class IndexingForegroundService : Service() {
                         LogUtils.w(TAG, "Cannot start indexing: user is not authenticated")
                         currentProgress = IndexingProgress.Error("Требуется авторизация для индексации форумов")
                         updateNotification(currentProgress)
-                        delay(AUTO_DISMISS_DELAY_MS)
-                        stopSelf()
+                        delayedStopCoordinator.schedule()
                         return@launch
                     }
 
@@ -288,10 +297,7 @@ public class IndexingForegroundService : Service() {
 
                         // If completed or error, schedule auto-dismiss
                         if (progress is IndexingProgress.Completed || progress is IndexingProgress.Error) {
-                            serviceScope.launch {
-                                delay(AUTO_DISMISS_DELAY_MS)
-                                stopSelf()
-                            }
+                            delayedStopCoordinator.schedule()
                         }
                     }
                 } catch (e: CancellationException) {
@@ -300,8 +306,7 @@ public class IndexingForegroundService : Service() {
                     LogUtils.e(TAG, "Indexing failed", e)
                     currentProgress = IndexingProgress.Error(e.message ?: "Unknown error")
                     updateNotification(currentProgress)
-                    delay(AUTO_DISMISS_DELAY_MS)
-                    stopSelf()
+                    delayedStopCoordinator.schedule()
                 }
             }
     }

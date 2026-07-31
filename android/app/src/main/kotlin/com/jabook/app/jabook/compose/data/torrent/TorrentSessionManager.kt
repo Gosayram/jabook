@@ -87,6 +87,9 @@ public class TorrentSessionManager
         public val downloadsFlow: StateFlow<Map<String, TorrentDownload>> = _downloadsFlow.asStateFlow()
 
         private val sessionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        // Kept separate from sessionScope: stopSession() cancels alert processing, but must not
+        // cancel a state snapshot already requested by a memory-pressure callback.
+        private val statePersistenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         // Tracks pending SaveResumeDataAlerts so stopSession() can await them before shutting down.
         private var pendingResumeDataLatch: CountDownLatch? = null
@@ -94,6 +97,8 @@ public class TorrentSessionManager
         private companion object {
             private const val LIBRARY_SYNC_AFTER_TORRENT_WORK = "library_scan_after_torrent_finish"
             private const val LIBRARY_SYNC_TRIGGER_COOLDOWN_MS = 3_000L
+            private const val SESSION_STATE_DIRECTORY = "torrent"
+            private const val SESSION_STATE_FILE = "session.state"
         }
 
         private val alertListener =
@@ -224,7 +229,7 @@ public class TorrentSessionManager
                         }
                     }
 
-                val params = SessionParams(settings)
+                val params = createSessionParams(settings)
                 // Use SessionManager(false) like libretorrent - this prevents automatic alert listener
                 // which can cause NoSuchMethodError with some libtorrent4j versions
                 session =
@@ -545,6 +550,30 @@ public class TorrentSessionManager
         }
 
         /**
+         * Pauses libtorrent's native session and snapshots its session state when Android
+         * reports critical memory pressure. This is deliberately session-level: pausing
+         * individual handles leaves native networking and DHT buffers allocated.
+         *
+         * The operation is synchronized with other lifecycle work so a trim callback cannot
+         * race session shutdown or a second trim callback.
+         */
+        @Synchronized
+        public fun pauseForMemoryPressure() {
+            val activeSession = session ?: return
+
+            try {
+                activeSession.pause()
+                val state = activeSession.saveState()
+                statePersistenceScope.launch {
+                    persistSessionState(state)
+                }
+                logger.w { "Paused torrent session and saved native state after critical memory pressure" }
+            } catch (e: Exception) {
+                logger.e({ "Failed to guard torrent session after critical memory pressure" }, e)
+            }
+        }
+
+        /**
          * Get current download info
          */
         public fun getDownload(hash: String): TorrentDownload? = _downloadsFlow.value[hash]
@@ -556,6 +585,7 @@ public class TorrentSessionManager
          * downloads can be resumed on next session start without re-downloading
          * already-completed pieces.
          */
+        @Synchronized
         public fun stopSession() {
             try {
                 // Request resume data for all active handles before stopping.
@@ -587,6 +617,43 @@ public class TorrentSessionManager
                 logger.i { "Session stopped" }
             } catch (e: Exception) {
                 logger.e({ "Error stopping session" }, e)
+            }
+        }
+
+        @Synchronized
+        private fun persistSessionState(state: ByteArray) {
+            try {
+                val stateDirectory = File(context.filesDir, SESSION_STATE_DIRECTORY)
+                if (!stateDirectory.exists() && !stateDirectory.mkdirs()) {
+                    logger.w { "Unable to create torrent session state directory" }
+                    return
+                }
+
+                val stateFile = File(stateDirectory, SESSION_STATE_FILE)
+                val temporaryFile = File(stateDirectory, "$SESSION_STATE_FILE.tmp")
+                temporaryFile.outputStream().use { it.write(state) }
+                if (!temporaryFile.renameTo(stateFile)) {
+                    temporaryFile.copyTo(stateFile, overwrite = true)
+                    temporaryFile.delete()
+                }
+            } catch (e: Exception) {
+                logger.e({ "Failed to persist torrent session state" }, e)
+            }
+        }
+
+        private fun createSessionParams(settings: SettingsPack): SessionParams {
+            val stateFile = File(File(context.filesDir, SESSION_STATE_DIRECTORY), SESSION_STATE_FILE)
+            if (!stateFile.exists()) return SessionParams(settings)
+
+            return try {
+                SessionParams(stateFile.readBytes()).apply {
+                    // Current application limits take precedence over an older snapshot.
+                    setSettings(settings)
+                }
+            } catch (e: Exception) {
+                logger.w { "Ignoring invalid persisted torrent session state: ${e.message}" }
+                stateFile.delete()
+                SessionParams(settings)
             }
         }
 
