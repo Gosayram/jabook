@@ -23,6 +23,7 @@ import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_20_21
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_21_22
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_22_23
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_26_27
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_28_29
 import com.jabook.app.jabook.compose.data.local.migration.createTopicsFts5Index
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -522,5 +523,56 @@ class JabookDatabaseMigrationTest {
             assertEquals("Existing Book", it.getString(1))
             assertEquals("Existing Author", it.getString(2))
         }
+    }
+
+    @Test
+    fun `migration 28 to 29 preserves bookmarks and marks legacy normalized position as unknown`() {
+        createBooksTable()
+        createBookmarksTable()
+        db.execSQL(
+            """
+            INSERT INTO books (id, title, author, description, added_date)
+            VALUES ('b1', 'Existing Book', 'Author', 'Description', 1000)
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO bookmarks (id, book_id, chapter_index, position_ms, note_text, created_at, updated_at)
+            VALUES ('bookmark-1', 'b1', 3, 12500, 'Keep this note', 1000, 2000)
+            """.trimIndent(),
+        )
+
+        MIGRATION_28_29.migrate(db)
+
+        assertTrue(hasColumn("bookmarks", "normalized_position"))
+        db.query(
+            """
+            SELECT chapter_index, position_ms, normalized_position, note_text
+            FROM bookmarks WHERE id = 'bookmark-1'
+            """.trimIndent(),
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(3, cursor.getInt(0))
+            assertEquals(12500L, cursor.getLong(1))
+            assertEquals(0f, cursor.getFloat(2))
+            assertEquals("Keep this note", cursor.getString(3))
+        }
+    }
+
+    @Test
+    fun `migration 28 to 29 is idempotent`() {
+        createBooksTable()
+        createBookmarksTable()
+
+        MIGRATION_28_29.migrate(db)
+        MIGRATION_28_29.migrate(db)
+
+        assertTrue(hasColumn("bookmarks", "normalized_position"))
+    }
+
+    @Test
+    fun `migration 28 to 29 version contract is correct`() {
+        assertEquals(28, MIGRATION_28_29.startVersion)
+        assertEquals(29, MIGRATION_28_29.endVersion)
     }
 }

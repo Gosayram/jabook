@@ -83,6 +83,7 @@ public class AudioPlayerController
                 scope = scope,
             )
         private var mediaControllerFuture: ListenableFuture<MediaController>? = null
+        private var mediaControllerConnectionGeneration: Long = 0L
         private var mediaControllerRetryJob: Job? = null
         private var serviceInitRetryJob: Job? = null
         private var loadBookRetryJob: Job? = null
@@ -485,6 +486,7 @@ public class AudioPlayerController
                     MediaController.releaseFuture(future)
                 }
                 mediaControllerFuture = null
+                val connectionGeneration = nextMediaControllerConnectionGeneration()
 
                 val sessionToken =
                     SessionToken(
@@ -493,23 +495,29 @@ public class AudioPlayerController
                     )
                 logger.d { "SessionToken created: ${sessionToken.packageName}/${sessionToken.serviceName}" }
 
-                mediaControllerFuture =
+                val controllerFuture =
                     MediaController
                         .Builder(context, sessionToken)
                         .setApplicationLooper(context.mainLooper)
                         .buildAsync()
+                mediaControllerFuture = controllerFuture
 
                 logger.d { "MediaController.Builder.buildAsync() called, waiting for result..." }
 
-                mediaControllerFuture?.addListener(
+                controllerFuture.addListener(
                     {
                         try {
                             // Wait for controller with timeout
                             val controller =
-                                mediaControllerFuture?.get(
+                                controllerFuture.get(
                                     MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(),
                                     TimeUnit.SECONDS,
                                 )
+                            if (!isCurrentMediaControllerConnectionAttempt(connectionGeneration, controllerFuture)) {
+                                MediaController.releaseFuture(controllerFuture)
+                                logger.d { "Ignoring stale MediaController connection callback" }
+                                return@addListener
+                            }
                             mediaController?.let { existing ->
                                 if (existing !== controller) {
                                     existing.removeListener(mediaControllerListener)
@@ -541,6 +549,9 @@ public class AudioPlayerController
                                 throw IllegalStateException("MediaController is null after get()")
                             }
                         } catch (e: java.util.concurrent.TimeoutException) {
+                            if (!isCurrentMediaControllerConnectionAttempt(connectionGeneration, controllerFuture)) {
+                                return@addListener
+                            }
                             logger.w {
                                 "MediaController initialization timeout, retrying... (attempt $retryCount/$maxRetries)"
                             }
@@ -550,6 +561,9 @@ public class AudioPlayerController
                                 reason = "timeout",
                             )
                         } catch (e: Exception) {
+                            if (!isCurrentMediaControllerConnectionAttempt(connectionGeneration, controllerFuture)) {
+                                return@addListener
+                            }
                             logger.e(e) { "Exception in MediaController init: ${e.message}" }
                             logger.e(e) { "Error initializing MediaController" }
                             scheduleMediaControllerRetry(
@@ -571,6 +585,21 @@ public class AudioPlayerController
                 )
             }
         }
+
+        private fun nextMediaControllerConnectionGeneration(): Long {
+            mediaControllerConnectionGeneration =
+                MediaControllerConnectionAttemptPolicy.nextGeneration(mediaControllerConnectionGeneration)
+            return mediaControllerConnectionGeneration
+        }
+
+        private fun isCurrentMediaControllerConnectionAttempt(
+            connectionGeneration: Long,
+            controllerFuture: ListenableFuture<MediaController>,
+        ): Boolean =
+            MediaControllerConnectionAttemptPolicy.isCurrentAttempt(
+                activeGeneration = mediaControllerConnectionGeneration,
+                callbackGeneration = connectionGeneration,
+            ) && mediaControllerFuture === controllerFuture
 
         private fun scheduleMediaControllerRetry(
             nextRetryCount: Int,
@@ -1082,6 +1111,7 @@ public class AudioPlayerController
          * Should be called when controller is no longer needed.
          */
         public fun release() {
+            nextMediaControllerConnectionGeneration()
             mediaControllerRetryJob?.cancel()
             mediaControllerRetryJob = null
             serviceInitRetryJob?.cancel()
