@@ -23,6 +23,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -383,6 +384,8 @@ public class AudioPlayerServiceInitializer(
                     LogUtils.d("AudioPlayerService", "Restoring playback speed: ${savedSpeed}x")
                     service.exoPlayer.setPlaybackSpeed(savedSpeed)
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 LogUtils.e("AudioPlayerService", "Failed to restore playback speed", e)
             }

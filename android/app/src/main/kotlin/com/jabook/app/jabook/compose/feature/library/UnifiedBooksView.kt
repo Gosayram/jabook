@@ -38,12 +38,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
@@ -52,14 +55,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.rememberCoverPreloader
@@ -397,6 +404,8 @@ private fun SwipeableBookCard(
 
     val onDeleteBook = requireNotNull(actionsProvider.onDeleteBook)
     val dismissState = rememberSwipeToDismissBoxState()
+    val deleteConfirmation = remember(book.id) { BookDeletionConfirmationController() }
+    var showDeleteConfirmation by remember(book.id) { mutableStateOf(false) }
 
     LaunchedEffect(dismissState.currentValue, book.id) {
         when (dismissState.currentValue) {
@@ -406,7 +415,9 @@ private fun SwipeableBookCard(
             }
 
             SwipeToDismissBoxValue.EndToStart -> {
-                onDeleteBook(book.id)
+                if (deleteConfirmation.request(book.id) != null) {
+                    showDeleteConfirmation = true
+                }
                 dismissState.reset()
             }
 
@@ -471,6 +482,38 @@ private fun SwipeableBookCard(
             isSelectionMode = isSelectionMode,
             isSelected = isSelected,
             onToggleSelection = onToggleSelection,
+        )
+    }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = {
+                deleteConfirmation.dismiss()
+                showDeleteConfirmation = false
+            },
+            title = { Text(stringResource(R.string.deleteConfirmationTitle)) },
+            text = { Text(stringResource(R.string.deleteConfirmationMessage)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val bookId = deleteConfirmation.confirm() ?: return@TextButton
+                        showDeleteConfirmation = false
+                        onDeleteBook(bookId)
+                    },
+                ) {
+                    Text(stringResource(R.string.deleteButton))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        deleteConfirmation.dismiss()
+                        showDeleteConfirmation = false
+                    },
+                ) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
         )
     }
 }

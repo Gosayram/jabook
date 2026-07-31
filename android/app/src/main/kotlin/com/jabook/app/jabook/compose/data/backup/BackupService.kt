@@ -33,6 +33,7 @@ import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import com.jabook.app.jabook.compose.util.DateTimeFormatter
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -505,6 +506,7 @@ public class BackupService
                     val theme = AppTheme.valueOf(settings.theme)
                     userPreferencesRepository.setTheme(theme)
                 } catch (e: Exception) {
+                    rethrowIfCancellation(e)
                     // Ignore invalid theme enum
                 }
 
@@ -515,6 +517,7 @@ public class BackupService
                             .valueOf(settings.sortOrder)
                     userPreferencesRepository.setSortOrder(sortOrder)
                 } catch (e: Exception) {
+                    rethrowIfCancellation(e)
                     // Ignore invalid sort order enum, keep default
                 }
 
@@ -525,6 +528,7 @@ public class BackupService
                             .valueOf(settings.viewMode)
                     userPreferencesRepository.setViewMode(viewMode)
                 } catch (e: Exception) {
+                    rethrowIfCancellation(e)
                     // Ignore invalid view mode enum, keep default
                 }
 
@@ -538,6 +542,7 @@ public class BackupService
                             .valueOf(settings.font)
                     userPreferencesRepository.setFont(font)
                 } catch (e: Exception) {
+                    rethrowIfCancellation(e)
                     // Ignore invalid font enum, keep default
                 }
 
@@ -570,6 +575,7 @@ public class BackupService
 
                 logger.d { "All settings restored successfully" }
             } catch (e: Exception) {
+                rethrowIfCancellation(e)
                 logger.e({ "Failed to restore some settings" }, e)
                 // Don't throw, allow partial restore
             }
@@ -636,6 +642,7 @@ public class BackupService
                             ),
                         )
                     } catch (e: Exception) {
+                        rethrowIfCancellation(e)
                         logger.e({ "Failed to restore timestamps for ${backup.id}" }, e)
                     }
                 } else {
@@ -671,6 +678,7 @@ public class BackupService
                             ),
                         )
                     } catch (e: Exception) {
+                        rethrowIfCancellation(e)
                         logger.e({ "Failed to restore timestamps for new book ${backup.id}" }, e)
                     }
                 }
@@ -816,4 +824,8 @@ public class BackupService
          * Accepts v1.x.x (legacy) and v2.x.x (current) versions.
          */
         private fun isCompatibleVersion(version: String): Boolean = version.startsWith("1.") || version.startsWith("2.")
+
+        private fun rethrowIfCancellation(exception: Exception) {
+            if (exception is CancellationException) throw exception
+        }
     }

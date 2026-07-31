@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,7 +32,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -62,6 +68,10 @@ public fun BookActionsBottomSheet(
     sheetState: SheetState,
     onDismiss: () -> Unit,
 ) {
+    val onDeleteBook = actionsProvider.onDeleteBook
+    var showDeleteConfirmation by remember(book.id) { mutableStateOf(false) }
+    var deleteConfirmationConsumed by remember(book.id) { mutableStateOf(false) }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -119,7 +129,7 @@ public fun BookActionsBottomSheet(
             }
 
             // Delete action (with different styling)
-            actionsProvider.onDeleteBook?.let { onDelete ->
+            onDeleteBook?.let {
                 HorizontalDivider()
                 ListItem(
                     headlineContent = {
@@ -137,12 +147,38 @@ public fun BookActionsBottomSheet(
                     },
                     modifier =
                         Modifier.clickableWithoutRipple {
-                            onDelete(book.id)
-                            onDismiss()
+                            showDeleteConfirmation = true
+                            deleteConfirmationConsumed = false
                         },
                 )
             }
         }
+    }
+
+    if (showDeleteConfirmation && onDeleteBook != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text(stringResource(R.string.deleteConfirmationTitle)) },
+            text = { Text(stringResource(R.string.deleteConfirmationMessage)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (deleteConfirmationConsumed) return@TextButton
+                        deleteConfirmationConsumed = true
+                        showDeleteConfirmation = false
+                        onDeleteBook(book.id)
+                        onDismiss()
+                    },
+                ) {
+                    Text(stringResource(R.string.deleteButton))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 }
 

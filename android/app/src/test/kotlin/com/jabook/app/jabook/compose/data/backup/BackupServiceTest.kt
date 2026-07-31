@@ -24,12 +24,14 @@ import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -109,14 +111,44 @@ class BackupServiceTest {
         assertEquals(payload, decoded)
     }
 
+    @Test
+    fun `importFromFile propagates cancellation instead of continuing a partial restore`() {
+        val context: Context = mock()
+        val contentResolver: ContentResolver = mock()
+        whenever(context.contentResolver).thenReturn(contentResolver)
+        whenever(contentResolver.openInputStream(Uri.parse("content://jabook/backup")))
+            .thenReturn(ByteArrayInputStream(json.encodeToString(testBackupData()).toByteArray()))
+        val cancellation = CancellationException("Import cancelled")
+        val userPreferencesRepository: UserPreferencesRepository = mock()
+        kotlinx.coroutines.runBlocking {
+            doThrow(cancellation)
+                .whenever(userPreferencesRepository)
+                .setTheme(org.mockito.kotlin.any())
+        }
+
+        val service =
+            createService(
+                context = context,
+                backupRuntimeSecurity = mock(),
+                userPreferencesRepository = userPreferencesRepository,
+            )
+
+        assertThrows(CancellationException::class.java) {
+            kotlinx.coroutines.runBlocking {
+                service.importFromFile(Uri.parse("content://jabook/backup"))
+            }
+        }
+    }
+
     private fun createService(
         context: Context,
         backupRuntimeSecurity: BackupRuntimeSecurity,
+        userPreferencesRepository: UserPreferencesRepository = mock(),
     ): BackupService =
         BackupService(
             context = context,
             database = mock<JabookDatabase>(),
-            userPreferencesRepository = mock<UserPreferencesRepository>(),
+            userPreferencesRepository = userPreferencesRepository,
             protoSettingsRepository = mock<ProtoSettingsRepository>(),
             playerPersistenceManager = mock<PlayerPersistenceManager>(),
             mirrorManager = mock<MirrorManager>(),
