@@ -23,6 +23,19 @@ class UserPreferencesDataMigrationTest {
     private val migration = UserPreferencesDataMigration()
 
     @Test
+    fun `serializer default is a fully initialized latest schema`() {
+        val defaults = UserPreferencesSerializer.defaultValue
+
+        assertEquals(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION, defaults.schemaVersion)
+        assertEquals(1.0f, defaults.playbackSpeed)
+        assertEquals(15, defaults.rewindDurationSeconds)
+        assertEquals(30, defaults.forwardDurationSeconds)
+        assertEquals(ResumeRewindMode.SMART, defaults.resumeRewindMode)
+        assertEquals(2.5f, defaults.holdToBoostSpeed)
+        assertTrue(defaults.autoLoadCoversOnCellular)
+    }
+
+    @Test
     fun `shouldMigrate returns true for legacy schema`() =
         runTest {
             val legacy =

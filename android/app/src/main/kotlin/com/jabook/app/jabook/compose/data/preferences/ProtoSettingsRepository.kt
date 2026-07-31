@@ -858,7 +858,8 @@ public class ProtoSettingsRepository
 
         override suspend fun resetToDefaults() {
             dataStore.updateData {
-                UserPreferences.getDefaultInstance()
+                // Keep reset behavior consistent with a fresh installation and corruption recovery.
+                UserPreferencesSerializer.defaultValue
             }
         }
     }

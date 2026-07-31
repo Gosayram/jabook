@@ -47,9 +47,13 @@ public object AudioProcessorFactory {
      * 5. AutoVolumeLeveler (if enabled) - maintains consistent volume
      *
      * @param settings Audio processing settings
+     * @param outputFramesPerBuffer Device output buffer size, resolved outside the audio hot path.
      * @return Result containing list of AudioProcessors and optional LoudnessNormalizer
      */
-    public fun createProcessorChain(settings: AudioProcessingSettings): ProcessorChainResult {
+    public fun createProcessorChain(
+        settings: AudioProcessingSettings,
+        outputFramesPerBuffer: Int? = null,
+    ): ProcessorChainResult {
         val processors = mutableListOf<AudioProcessor>()
         var loudnessNormalizer: LoudnessNormalizer? = null
 
@@ -140,6 +144,7 @@ public object AudioProcessorFactory {
                             minSilenceDurationMs = settings.skipSilenceMinDurationMs,
                             mode = settings.skipSilenceMode,
                             retainWindowMs = settings.retainWindowMs,
+                            outputFramesPerBuffer = outputFramesPerBuffer,
                         )
                     processors.add(silenceSkippingProcessor)
 

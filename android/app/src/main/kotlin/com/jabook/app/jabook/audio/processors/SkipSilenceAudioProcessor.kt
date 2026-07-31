@@ -40,6 +40,7 @@ public class SkipSilenceAudioProcessor(
     minSilenceDurationMs: Int,
     private val mode: SkipSilenceMode = SkipSilenceMode.SKIP,
     retainWindowMs: Int = DEFAULT_RETAIN_WINDOW_MS,
+    private val outputFramesPerBuffer: Int? = null,
 ) : AudioProcessor {
     private val thresholdNormalized = silenceThresholdNormalized.coerceIn(0.0001f, 0.1f)
     private val minimumSilenceMs = minSilenceDurationMs.coerceIn(1, 2000)
@@ -79,7 +80,11 @@ public class SkipSilenceAudioProcessor(
         this.inputAudioFormat = inputAudioFormat
         outputAudioFormat = inputAudioFormat
         bytesPerFrame = (inputAudioFormat.channelCount * PCM_16_BIT_BYTES).coerceAtLeast(PCM_16_BIT_BYTES)
-        minSilenceFrames = (inputAudioFormat.sampleRate * minimumSilenceMs / 1000).coerceAtLeast(1)
+        minSilenceFrames =
+            SkipSilenceBufferPolicy.alignMinimumSilenceFrames(
+                configuredFrames = inputAudioFormat.sampleRate * minimumSilenceMs / 1000,
+                outputFramesPerBuffer = outputFramesPerBuffer,
+            )
         consecutiveSilentFrames = 0
         wasDroppingSilence = false
         inputBuffers.clear()

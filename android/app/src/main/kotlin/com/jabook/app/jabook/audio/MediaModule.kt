@@ -228,9 +228,10 @@ public object MediaModule {
         LogUtils.d("MediaModule", "Creating ExoPlayer with AudioProcessors...")
 
         // Create processor chain
+        val outputFramesPerBuffer = AudioOutputBufferInfo.outputFramesPerBuffer(context)
         val chainResult =
             com.jabook.app.jabook.audio.processors.AudioProcessorFactory
-                .createProcessorChain(settings)
+                .createProcessorChain(settings, outputFramesPerBuffer)
         val processors = chainResult.processors
 
         val extractorsFactory =

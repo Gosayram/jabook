@@ -351,6 +351,10 @@ public class FakeTorrentSession : TorrentSession {
         _downloadsFlow.value.keys.forEach { updateState(it, TorrentState.DOWNLOADING) }
     }
 
+    override fun pauseForMemoryPressure() {
+        pauseAll()
+    }
+
     override fun moveTorrentStorage(
         hash: String,
         newPath: String,

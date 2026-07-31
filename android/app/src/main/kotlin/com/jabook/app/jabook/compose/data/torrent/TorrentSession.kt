@@ -82,6 +82,14 @@ public interface TorrentSession {
     public fun resumeAll()
 
     /**
+     * Pause the native session and persist its state after critical memory pressure.
+     *
+     * This is distinct from [pauseAll]: it guards libtorrent's session-level native
+     * buffers and must be safe to call repeatedly from Android trim callbacks.
+     */
+    public fun pauseForMemoryPressure()
+
+    /**
      * Move torrent storage to a new path.
      *
      * @param hash Info-hash of the torrent.
