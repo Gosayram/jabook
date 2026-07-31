@@ -106,6 +106,10 @@ public class CacheManager
                         logger.e({ "Failed to clear Coil memory cache" }, e)
                     }
 
+                    // Disk cleanup does not affect this singleton. Clear it explicitly so a
+                    // subsequent search cannot surface results the user just asked to remove.
+                    rutrackerSearchCache.clear()
+
                     // Clear cache directories (includes Coil disk cache in image_cache/)
                     context.cacheDir.deleteRecursively()
                     context.externalCacheDir?.deleteRecursively()

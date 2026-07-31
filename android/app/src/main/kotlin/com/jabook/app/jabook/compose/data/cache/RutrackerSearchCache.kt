@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.data.cache
 
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
-import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -32,8 +31,11 @@ import javax.inject.Singleton
 public class RutrackerSearchCache
     @Inject
     constructor() {
-        // Cache storage: key -> CacheEntry
-        private val cache = ConcurrentHashMap<String, CacheEntry>()
+        private val lock = Any()
+
+        // Both structures are guarded by [lock]. Keeping their mutations together prevents an
+        // in-flight put/get from reviving an entry while a user-initiated cache clear is running.
+        private val cache = mutableMapOf<String, CacheEntry>()
 
         // Access order tracking for LRU
         private val accessOrder = mutableListOf<String>()
@@ -48,26 +50,23 @@ public class RutrackerSearchCache
         public fun get(
             query: String,
             forumIds: String? = null,
-        ): List<SearchResult>? {
+        ): List<SearchResult>? = synchronized(lock) {
             val key = generateKey(query, forumIds)
-            val entry = cache[key] ?: return null
-
-            // Check expiration
-            if (entry.isExpired()) {
-                cache.remove(key)
-                synchronized(accessOrder) {
+            val entry = cache[key]
+            when {
+                entry == null -> null
+                entry.isExpired() -> {
+                    cache.remove(key)
                     accessOrder.remove(key)
+                    null
                 }
-                return null
+                else -> {
+                    // Update access order
+                    accessOrder.remove(key)
+                    accessOrder.add(key)
+                    entry.results.toList()
+                }
             }
-
-            // Update access order
-            synchronized(accessOrder) {
-                accessOrder.remove(key)
-                accessOrder.add(key)
-            }
-
-            return entry.results
         }
 
         /**
@@ -81,21 +80,21 @@ public class RutrackerSearchCache
             query: String,
             forumIds: String?,
             results: List<SearchResult>,
-        ) {
+        ) = synchronized(lock) {
             // Don't cache empty results
-            if (results.isEmpty()) return
+            if (results.isNotEmpty()) {
+                val key = generateKey(query, forumIds)
+                val entry =
+                    CacheEntry(
+                        // The network/parser layer can reuse a mutable list. Retain a snapshot so a
+                        // later mutation cannot silently alter a cached result set.
+                        results = results.toList(),
+                        timestamp = System.currentTimeMillis(),
+                    )
 
-            val key = generateKey(query, forumIds)
-            val entry =
-                CacheEntry(
-                    results = results,
-                    timestamp = System.currentTimeMillis(),
-                )
+                cache[key] = entry
 
-            cache[key] = entry
-
-            // Update access order and evict if needed
-            synchronized(accessOrder) {
+                // Update access order and evict if needed
                 accessOrder.remove(key)
                 accessOrder.add(key)
 
@@ -110,37 +109,25 @@ public class RutrackerSearchCache
         /**
          * Clear all cached search results.
          */
-        public fun clear() {
+        public fun clear() = synchronized(lock) {
             cache.clear()
-            synchronized(accessOrder) {
-                accessOrder.clear()
-            }
+            accessOrder.clear()
         }
 
         /**
          * Get approximate cache size in bytes.
          */
-        public fun getCacheSize(): Long {
+        public fun getCacheSize(): Long = synchronized(lock) {
             // Rough estimation: each SearchResult ~500 bytes
-            // Synchronize access to cache to prevent concurrent modification
-            val resultsCount =
-                synchronized(cache) {
-                    cache.values.sumOf { it.results.size }
-                }
-            return resultsCount * AVERAGE_RESULT_SIZE_BYTES
+            cache.values.sumOf { it.results.size } * AVERAGE_RESULT_SIZE_BYTES
         }
 
         /**
          * Get cache statistics.
          */
-        public fun getStatistics(): CacheStatistics {
-            // Synchronize access to cache to prevent concurrent modification
-            val entries =
-                synchronized(cache) {
-                    cache.values.toList()
-                }
-
-            return CacheStatistics(
+        public fun getStatistics(): CacheStatistics = synchronized(lock) {
+            val entries = cache.values.toList()
+            CacheStatistics(
                 entriesCount = cache.size,
                 totalResults = entries.sumOf { it.results.size },
                 estimatedSize = getCacheSize(),
