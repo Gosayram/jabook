@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.data.torrent
 
-import android.content.ComponentCallbacks2
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -43,6 +42,11 @@ public class TorrentMemoryPressureGuard
         }
 
         private fun isCritical(level: Int): Boolean =
-            level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
-                level >= ComponentCallbacks2.TRIM_MEMORY_COMPLETE
+            level == TRIM_LEVEL_RUNNING_CRITICAL || level >= TRIM_LEVEL_COMPLETE
+
+        private companion object {
+            // Android memory trim levels are stable API values; the constants were deprecated in API 35.
+            private const val TRIM_LEVEL_RUNNING_CRITICAL = 15
+            private const val TRIM_LEVEL_COMPLETE = 80
+        }
     }

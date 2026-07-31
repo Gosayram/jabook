@@ -57,6 +57,7 @@ public class TorrentManager
         public val downloadsFlow: StateFlow<Map<String, TorrentDownload>>
             get() = session.downloadsFlow
 
+        @Volatile
         private var isInitialized = false
         private val scope =
             CoroutineScope(
@@ -66,6 +67,7 @@ public class TorrentManager
         /**
          * Initialize torrent system
          */
+        @Synchronized
         public fun initialize() {
             if (isInitialized) {
                 logger.w { "Already initialized" }
@@ -329,6 +331,7 @@ public class TorrentManager
         /**
          * Shutdown torrent system
          */
+        @Synchronized
         public fun shutdown() {
             try {
                 session.stopSession()
