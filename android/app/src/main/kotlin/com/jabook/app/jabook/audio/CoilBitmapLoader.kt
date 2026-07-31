@@ -81,7 +81,7 @@ public class CoilBitmapLoader(
                             .Builder(context)
                             .data(uri)
                             .size(maxArtworkWidth, maxArtworkHeight)
-                            .scale(Scale.FILL)
+                            .scale(Scale.FIT)
                             .build()
 
                     val result = loader.execute(request)
@@ -146,7 +146,7 @@ public class CoilBitmapLoader(
                         .Builder(context)
                         .data(safeData)
                         .size(maxArtworkWidth, maxArtworkHeight)
-                        .scale(Scale.FILL)
+                        .scale(Scale.FIT)
                         .build()
 
                 val result = loader.execute(request)
