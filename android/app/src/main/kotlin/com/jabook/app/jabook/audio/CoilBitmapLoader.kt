@@ -128,40 +128,40 @@ public class CoilBitmapLoader(
         val job =
             scope.launch {
                 try {
-                // Guard oversized artwork payloads early
-                val safeData = ArtworkPayloadPolicy.sanitizeArtworkData(data)
-                if (safeData == null) {
-                    LogUtils.w(
-                        "CoilBitmapLoader",
-                        "Artwork payload too large (${data.size} bytes), skipping decode",
-                    )
-                    future.setException(Exception("Artwork payload exceeds safe limit"))
-                    return@launch
-                }
-                LogUtils.d("CoilBitmapLoader", "Decoding bitmap from byte array: ${safeData.size} bytes")
+                    // Guard oversized artwork payloads early
+                    val safeData = ArtworkPayloadPolicy.sanitizeArtworkData(data)
+                    if (safeData == null) {
+                        LogUtils.w(
+                            "CoilBitmapLoader",
+                            "Artwork payload too large (${data.size} bytes), skipping decode",
+                        )
+                        future.setException(Exception("Artwork payload exceeds safe limit"))
+                        return@launch
+                    }
+                    LogUtils.d("CoilBitmapLoader", "Decoding bitmap from byte array: ${safeData.size} bytes")
 
-                val loader = SingletonImageLoader.get(context)
-                val request =
-                    ImageRequest
-                        .Builder(context)
-                        .data(safeData)
-                        .size(maxArtworkWidth, maxArtworkHeight)
-                        .scale(Scale.FIT)
-                        .build()
+                    val loader = SingletonImageLoader.get(context)
+                    val request =
+                        ImageRequest
+                            .Builder(context)
+                            .data(safeData)
+                            .size(maxArtworkWidth, maxArtworkHeight)
+                            .scale(Scale.FIT)
+                            .build()
 
-                val result = loader.execute(request)
+                    val result = loader.execute(request)
 
-                if (result is SuccessResult) {
-                    val bitmap = result.image.toBitmap()
-                    LogUtils.i(
-                        "CoilBitmapLoader",
-                        "Successfully decoded bitmap: ${bitmap.width}x${bitmap.height}",
-                    )
-                    future.set(bitmap)
-                } else {
-                    LogUtils.w("CoilBitmapLoader", "Coil failed to decode bitmap from byte array")
-                    future.setException(Exception("Failed to decode bitmap"))
-                }
+                    if (result is SuccessResult) {
+                        val bitmap = result.image.toBitmap()
+                        LogUtils.i(
+                            "CoilBitmapLoader",
+                            "Successfully decoded bitmap: ${bitmap.width}x${bitmap.height}",
+                        )
+                        future.set(bitmap)
+                    } else {
+                        LogUtils.w("CoilBitmapLoader", "Coil failed to decode bitmap from byte array")
+                        future.setException(Exception("Failed to decode bitmap"))
+                    }
                 } catch (e: CancellationException) {
                     future.cancel(false)
                     throw e
