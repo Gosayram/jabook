@@ -19,6 +19,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
 import com.jabook.app.jabook.compose.data.worker.WorkConstraintsPolicy
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -631,11 +632,9 @@ public class TorrentSessionManager
                 }
 
                 val stateFile = File(stateDirectory, SESSION_STATE_FILE)
-                val temporaryFile = File(stateDirectory, "$SESSION_STATE_FILE.tmp")
-                temporaryFile.outputStream().use { it.write(state) }
-                if (!temporaryFile.renameTo(stateFile)) {
-                    temporaryFile.copyTo(stateFile, overwrite = true)
-                    temporaryFile.delete()
+                AtomicFileWriter.writeAtomically(stateFile) { output ->
+                    output.write(state)
+                    state.size.toLong()
                 }
             } catch (e: Exception) {
                 logger.e({ "Failed to persist torrent session state" }, e)

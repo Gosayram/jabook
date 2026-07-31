@@ -557,6 +557,31 @@ class AudioPlayerLibrarySessionCallbackTest {
     }
 
     @Test
+    fun `onMediaButtonEvent routes explicit PLAY and PAUSE commands without toggling`() {
+        val playIntent =
+            Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                putExtra(
+                    Intent.EXTRA_KEY_EVENT,
+                    KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY),
+                )
+            }
+        val pauseIntent =
+            Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                putExtra(
+                    Intent.EXTRA_KEY_EVENT,
+                    KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE),
+                )
+            }
+
+        assertTrue(callback.onMediaButtonEvent(session, controller, playIntent))
+        assertTrue(callback.onMediaButtonEvent(session, controller, pauseIntent))
+
+        verify(service).play()
+        verify(service).pause()
+        verify(mediaButtonHandler, never()).onMediaButtonEvent(any(), any(), any(), any(), any(), any())
+    }
+
+    @Test
     fun `onMediaButtonEvent routes single double triple clicks to play pause next previous`() {
         val playPauseIntent =
             Intent(Intent.ACTION_MEDIA_BUTTON).apply {

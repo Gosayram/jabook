@@ -8,6 +8,7 @@ package com.jabook.app.jabook.compose.data.storage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
@@ -46,6 +47,27 @@ class AtomicFileWriterTest {
                 stream.write("new".toByteArray())
                 3L
             }
+        } finally {
+            target.delete()
+            dir.delete()
+        }
+    }
+
+    @Test
+    fun `writeAtomically keeps the previous state when writing the replacement fails`() {
+        val dir = Files.createTempDirectory("jabook-atomic-recovery-test").toFile()
+        val target = File(dir, "session.state")
+        target.writeText("last-known-good")
+
+        try {
+            AtomicFileWriter.writeAtomically(target) { stream ->
+                stream.write("incomplete".toByteArray())
+                throw java.io.IOException("Simulated write failure")
+            }
+            fail("Expected writeAtomically to throw")
+        } catch (_: java.io.IOException) {
+            assertEquals("last-known-good", target.readText())
+            assertFalse(File(dir, "session.state.tmp").exists())
         } finally {
             target.delete()
             dir.delete()

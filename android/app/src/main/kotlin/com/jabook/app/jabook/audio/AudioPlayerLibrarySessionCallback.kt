@@ -184,9 +184,19 @@ public class AudioPlayerLibrarySessionCallback(
                 LogUtils.d("AudioPlayerService", "Media button: rewind ${rewindSeconds}s")
                 return true
             }
-            KeyEvent.KEYCODE_HEADSETHOOK, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-            KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE,
-            -> {
+            KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                if (keyEvent.action == KeyEvent.ACTION_DOWN) {
+                    service.play()
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                if (keyEvent.action == KeyEvent.ACTION_DOWN) {
+                    service.pause()
+                }
+                return true
+            }
+            KeyEvent.KEYCODE_HEADSETHOOK, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
                 val fwdSec = service.mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
                 mediaButtonHandler?.onMediaButtonEvent(
                     keyEvent.keyCode,

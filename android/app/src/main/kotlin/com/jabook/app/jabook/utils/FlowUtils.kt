@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.utils
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.catch
@@ -81,4 +82,10 @@ public inline fun <T> Flow<T>.onStartWithCurrent(crossinline getCurrentValue: su
  *     .catchWithDefault(emptyList())
  * ```
  */
-public fun <T> Flow<T>.catchWithDefault(defaultValue: T): Flow<T> = catch { emit(defaultValue) }
+public fun <T> Flow<T>.catchWithDefault(defaultValue: T): Flow<T> =
+    catch { exception ->
+        if (exception is CancellationException) {
+            throw exception
+        }
+        emit(defaultValue)
+    }
