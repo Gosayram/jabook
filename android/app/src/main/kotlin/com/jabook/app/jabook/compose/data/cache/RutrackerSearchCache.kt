@@ -81,31 +81,32 @@ public class RutrackerSearchCache
             query: String,
             forumIds: String?,
             results: List<SearchResult>,
-        ): Unit = synchronized(lock) {
-            // Don't cache empty results
-            if (results.isNotEmpty()) {
-                val key = generateKey(query, forumIds)
-                val entry =
-                    CacheEntry(
-                        // The network/parser layer can reuse a mutable list. Retain a snapshot so a
-                        // later mutation cannot silently alter a cached result set.
-                        results = results.toList(),
-                        timestamp = System.currentTimeMillis(),
-                    )
+        ): Unit =
+            synchronized(lock) {
+                // Don't cache empty results
+                if (results.isNotEmpty()) {
+                    val key = generateKey(query, forumIds)
+                    val entry =
+                        CacheEntry(
+                            // The network/parser layer can reuse a mutable list. Retain a snapshot so a
+                            // later mutation cannot silently alter a cached result set.
+                            results = results.toList(),
+                            timestamp = System.currentTimeMillis(),
+                        )
 
-                cache[key] = entry
+                    cache[key] = entry
 
-                // Update access order and evict if needed
-                accessOrder.remove(key)
-                accessOrder.add(key)
+                    // Update access order and evict if needed
+                    accessOrder.remove(key)
+                    accessOrder.add(key)
 
-                // LRU eviction if over limit
-                while (accessOrder.size > MAX_CACHE_SIZE) {
-                    val oldestKey = accessOrder.removeAt(0)
-                    cache.remove(oldestKey)
+                    // LRU eviction if over limit
+                    while (accessOrder.size > MAX_CACHE_SIZE) {
+                        val oldestKey = accessOrder.removeAt(0)
+                        cache.remove(oldestKey)
+                    }
                 }
             }
-        }
 
         /**
          * Clear all cached search results.
