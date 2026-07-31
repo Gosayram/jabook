@@ -63,6 +63,7 @@ internal class ForegroundNotificationCoordinator(
      * @param event                     Human-readable label for log messages.
      * @return The [ForegroundStartResult] describing what happened.
      */
+    @Synchronized
     internal fun startWithFallback(
         service: Service,
         notificationId: Int,
@@ -125,6 +126,7 @@ internal class ForegroundNotificationCoordinator(
      * Legacy overload for call-sites that have not been migrated to pass [Service].
      * Uses the deprecated lambda-based approach without API 34+ type support.
      */
+    @Synchronized
     internal fun startWithFallback(
         notificationId: Int,
         primaryNotification: Notification,

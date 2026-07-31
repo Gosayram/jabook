@@ -54,6 +54,19 @@ public class StorageTransferWorkflow(
         sourcePath: String,
         targetPath: String,
         overwrite: Boolean,
+    ): StorageTransferWorkflowResult =
+        StorageTransferPathLocks.withLock(targetPath) {
+            transferFileLocked(
+                sourcePath = sourcePath,
+                targetPath = targetPath,
+                overwrite = overwrite,
+            )
+        }
+
+    private fun transferFileLocked(
+        sourcePath: String,
+        targetPath: String,
+        overwrite: Boolean,
     ): StorageTransferWorkflowResult {
         if (containsTraversalSegment(sourcePath) || containsTraversalSegment(targetPath)) {
             return StorageTransferWorkflowResult(
@@ -218,4 +231,24 @@ public class StorageTransferWorkflow(
     }
 
     private fun containsTraversalSegment(path: String): Boolean = path.replace('\\', '/').split('/').any { it == ".." }
+}
+
+/**
+ * Serializes transfers that target the same canonical path within this process.
+ *
+ * This closes the check-then-move race between concurrent migration requests while
+ * retaining a bounded lock set for long-running app processes.
+ */
+private object StorageTransferPathLocks {
+    private const val LOCK_STRIPES: Int = 64
+    private val locks: Array<Any> = Array(LOCK_STRIPES) { Any() }
+
+    fun <T> withLock(
+        targetPath: String,
+        block: () -> T,
+    ): T {
+        val normalizedPath = runCatching { File(targetPath).canonicalPath }.getOrElse { targetPath }
+        val lock = locks[Math.floorMod(normalizedPath.hashCode(), LOCK_STRIPES)]
+        return synchronized(lock, block)
+    }
 }

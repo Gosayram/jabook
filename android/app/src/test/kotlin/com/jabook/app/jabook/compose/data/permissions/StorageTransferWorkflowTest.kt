@@ -22,6 +22,9 @@ import org.junit.Assert.fail
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class StorageTransferWorkflowTest {
     private val checker = ExternalStoragePreflightChecker(hasFullStoragePermission = { true })
@@ -163,6 +166,53 @@ class StorageTransferWorkflowTest {
         source.delete()
         sourceDir.deleteRecursively()
         targetDir.deleteRecursively()
+    }
+
+    @Test
+    fun `concurrent non-overwriting transfers preserve first completed target`() {
+        val firstSource = createTempFileWithContent("first")
+        val secondSource = createTempFileWithContent("second")
+        val targetDir = Files.createTempDirectory("jabook-target").toFile()
+        val target = File(targetDir, "book.mp3")
+        val firstCopyStarted = CountDownLatch(1)
+        val allowFirstTransfer = CountDownLatch(1)
+        val firstWorkflow =
+            StorageTransferWorkflow(
+                preflightChecker = checker,
+                postCopyHook = {
+                    firstCopyStarted.countDown()
+                    check(allowFirstTransfer.await(5, TimeUnit.SECONDS))
+                },
+            )
+        val secondWorkflow = StorageTransferWorkflow(preflightChecker = checker)
+        val executor = Executors.newFixedThreadPool(2)
+
+        try {
+            val first =
+                executor.submit<StorageTransferWorkflowResult> {
+                    firstWorkflow.transferFile(firstSource.absolutePath, target.absolutePath, overwrite = false)
+                }
+            assertTrue(firstCopyStarted.await(5, TimeUnit.SECONDS))
+
+            val second =
+                executor.submit<StorageTransferWorkflowResult> {
+                    secondWorkflow.transferFile(secondSource.absolutePath, target.absolutePath, overwrite = false)
+                }
+            allowFirstTransfer.countDown()
+
+            assertTrue(first.get(5, TimeUnit.SECONDS).isSuccess)
+            assertEquals(
+                StorageTransferWorkflowFailureReason.TARGET_ALREADY_EXISTS,
+                second.get(5, TimeUnit.SECONDS).failureReason,
+            )
+            assertEquals("first", target.readText())
+        } finally {
+            allowFirstTransfer.countDown()
+            executor.shutdownNow()
+            firstSource.delete()
+            secondSource.delete()
+            targetDir.deleteRecursively()
+        }
     }
 
     private fun createTempFileWithContent(content: String): File {
