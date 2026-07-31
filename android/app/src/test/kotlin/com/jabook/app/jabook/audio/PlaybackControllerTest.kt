@@ -33,6 +33,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
@@ -364,6 +365,54 @@ class PlaybackControllerTest {
             // Should resume playback after delay (coroutine checks state and sets playWhenReady)
             // Note: playWhenReady is already true, so it may not be set again
             // The test verifies that seekTo was called and coroutine completed
+        }
+
+    @Test
+    fun `seekTo does not resume playback after a later pause command`() =
+        runTest(testDispatcher) {
+            var playWhenReady = true
+            whenever(exoPlayer.playWhenReady).thenAnswer { playWhenReady }
+            doAnswer { invocation ->
+                playWhenReady = invocation.arguments[0] as Boolean
+            }.whenever(exoPlayer).playWhenReady = any()
+
+            playbackController.seekTo(30_000L)
+            testScheduler.runCurrent()
+            playbackController.pause()
+            testScheduler.runCurrent()
+
+            advanceTimeBy(100L)
+            advanceUntilIdle()
+
+            verify(exoPlayer, never()).playWhenReady = true
+        }
+
+    @Test
+    fun `seekTo does not resume a player replaced before delayed callback`() =
+        runTest(testDispatcher) {
+            var activePlayer = exoPlayer
+            var playWhenReady = true
+            whenever(exoPlayer.playWhenReady).thenAnswer { playWhenReady }
+            doAnswer { invocation ->
+                playWhenReady = invocation.arguments[0] as Boolean
+            }.whenever(exoPlayer).playWhenReady = any()
+            playbackController =
+                PlaybackController(
+                    getActivePlayer = { activePlayer },
+                    playerServiceScope = testScope,
+                    resetInactivityTimer = { resetTimerCallCount++ },
+                    getResumeRewindSeconds = { 10 },
+                )
+
+            playbackController.seekTo(30_000L)
+            testScheduler.runCurrent()
+            playWhenReady = false
+            activePlayer = mock()
+
+            advanceTimeBy(100L)
+            advanceUntilIdle()
+
+            verify(exoPlayer, never()).playWhenReady = true
         }
 
     // ============ Speed Tests ============

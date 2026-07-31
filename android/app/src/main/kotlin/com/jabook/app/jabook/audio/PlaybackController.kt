@@ -23,6 +23,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Manages playback control operations (play, pause, stop, seek, etc.).
@@ -44,6 +45,7 @@ internal class PlaybackController(
      */
     private var lastPauseTime: Long = 0L
     private var suppressNextResumeRewind: Boolean = false
+    private val pendingResumeGeneration = AtomicLong(0L)
 
     /**
      * Marks pause cause as sleep timer expiry.
@@ -146,6 +148,7 @@ internal class PlaybackController(
      * Pauses playback.
      */
     public fun pause() {
+        invalidatePendingResume()
         playerServiceScope.launch {
             try {
                 val player = getActivePlayer()
@@ -179,6 +182,7 @@ internal class PlaybackController(
      * For full cleanup, use stopAndRelease() instead.
      */
     public fun stop() {
+        invalidatePendingResume()
         val player = getActivePlayer()
         try {
             LogUtils.d("AudioPlayerService", "stop() called, current playbackState: ${player.playbackState}")
@@ -208,6 +212,7 @@ internal class PlaybackController(
                 return
             }
 
+            val resumeGeneration = invalidatePendingResume()
             val playWhenReadyBeforeSeek = player.playWhenReady
             val duration = player.duration
             val seekPosition =
@@ -223,14 +228,7 @@ internal class PlaybackController(
             resetInactivityTimer()
 
             if (playWhenReadyBeforeSeek) {
-                playerServiceScope.launch {
-                    delay(100L)
-                    if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
-                        if (!player.playWhenReady) {
-                            player.playWhenReady = true
-                        }
-                    }
-                }
+                resumeAfterSeekIfStillCurrent(player, resumeGeneration)
             }
         } catch (e: Exception) {
             LogUtils.e("AudioPlayerService", "Failed to seek to position: $positionMs", e)
@@ -388,6 +386,7 @@ internal class PlaybackController(
     public fun seekToTrack(index: Int) {
         val player = getActivePlayer()
         if (index >= 0 && index < player.mediaItemCount) {
+            val resumeGeneration = invalidatePendingResume()
             val playWhenReadyBeforeSeek = player.playWhenReady
             player.seekTo(index, 0L)
 
@@ -395,14 +394,7 @@ internal class PlaybackController(
             resetInactivityTimer()
 
             if (playWhenReadyBeforeSeek) {
-                playerServiceScope.launch {
-                    delay(100L)
-                    if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
-                        if (!player.playWhenReady) {
-                            player.playWhenReady = true
-                        }
-                    }
-                }
+                resumeAfterSeekIfStillCurrent(player, resumeGeneration)
             }
         }
     }
@@ -433,6 +425,7 @@ internal class PlaybackController(
         }
 
         try {
+            val resumeGeneration = invalidatePendingResume()
             val playWhenReadyBeforeSeek = player.playWhenReady
             val adjustedPositionMs = ChapterSeekOffsetPolicy.adjust(positionMs)
             player.seekTo(trackIndex, adjustedPositionMs)
@@ -441,14 +434,7 @@ internal class PlaybackController(
             resetInactivityTimer()
 
             if (playWhenReadyBeforeSeek) {
-                playerServiceScope.launch {
-                    delay(100L)
-                    if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
-                        if (!player.playWhenReady) {
-                            player.playWhenReady = true
-                        }
-                    }
-                }
+                resumeAfterSeekIfStillCurrent(player, resumeGeneration)
             }
         } catch (e: Exception) {
             LogUtils.e(
@@ -492,6 +478,29 @@ internal class PlaybackController(
             )
             // Reset inactivity timer (user action)
             resetInactivityTimer()
+        }
+    }
+
+    private fun invalidatePendingResume(): Long = pendingResumeGeneration.incrementAndGet()
+
+    /**
+     * Resumes only the seek that scheduled this task. A later pause, stop, seek, or player swap
+     * invalidates the task so an old callback cannot restart playback.
+     */
+    private fun resumeAfterSeekIfStillCurrent(
+        player: ExoPlayer,
+        generation: Long,
+    ) {
+        playerServiceScope.launch {
+            delay(100L)
+            if (generation != pendingResumeGeneration.get() || getActivePlayer() !== player) {
+                return@launch
+            }
+            if (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_BUFFERING) {
+                if (!player.playWhenReady) {
+                    player.playWhenReady = true
+                }
+            }
         }
     }
 

@@ -31,8 +31,30 @@ import kotlinx.coroutines.runBlocking
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * Thread-safe in-memory cookie snapshot cache.
+ *
+ * OkHttp may invoke a [CookieJar] concurrently for requests on different dispatcher threads.
+ * Keeping snapshots prevents a response callback from exposing a mutable caller-owned list to
+ * another request while it is being read.
+ */
+internal class CookieMemoryCache {
+    private val entries = ConcurrentHashMap<String, List<Cookie>>()
+
+    fun store(host: String, cookies: List<Cookie>) {
+        entries[host] = cookies.toList()
+    }
+
+    fun load(host: String): List<Cookie>? = entries[host]?.toList()
+
+    fun clear() {
+        entries.clear()
+    }
+}
 
 /**
  * Persistent cookie jar that stores cookies in DataStore.
@@ -58,14 +80,14 @@ public class PersistentCookieJar
                 produceFile = { context.preferencesDataStoreFile(DATASTORE_NAME) },
             )
         }
-        private val cache = mutableMapOf<String, List<Cookie>>()
+        private val cache = CookieMemoryCache()
 
         override fun saveFromResponse(
             url: HttpUrl,
             cookies: List<Cookie>,
         ) {
             val host = url.host
-            cache[host] = cookies
+            cache.store(host, cookies)
 
             // Persist to DataStore
             runBlocking {
@@ -81,7 +103,7 @@ public class PersistentCookieJar
             val host = url.host
 
             // Try cache first
-            cache[host]?.let { return it }
+            cache.load(host)?.let { return it }
 
             // Load from DataStore
             val cookies =
@@ -97,7 +119,7 @@ public class PersistentCookieJar
                         .filter { cookie -> !cookie.hasExpired() }
                 }
 
-            cache[host] = cookies
+            cache.store(host, cookies)
             return cookies
         }
 
