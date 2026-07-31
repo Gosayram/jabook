@@ -43,7 +43,7 @@ import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEn
         ListeningSessionEntity::class,
         LufsCacheEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 public abstract class AudioDatabase : RoomDatabase() {
@@ -60,6 +60,6 @@ public abstract class AudioDatabase : RoomDatabase() {
     public abstract fun lufsCacheDao(): LufsCacheDao
 
     public companion object {
-        public const val SCHEMA_VERSION: Int = 4
+        public const val SCHEMA_VERSION: Int = 5
     }
 }

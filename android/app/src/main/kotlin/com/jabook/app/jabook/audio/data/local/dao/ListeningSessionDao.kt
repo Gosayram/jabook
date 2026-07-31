@@ -37,6 +37,18 @@ public interface ListeningSessionDao {
     @Query(
         """
         UPDATE listening_sessions
+        SET ended_at = :crashedAt,
+            position_end_ms = position_start_ms,
+            updated_at = :crashedAt,
+            is_crashed = 1
+        WHERE ended_at IS NULL
+        """,
+    )
+    public suspend fun closeOpenSessionsAsCrashed(crashedAt: Long): Int
+
+    @Query(
+        """
+        UPDATE listening_sessions
         SET ended_at = :endedAt,
             position_end_ms = :positionEndMs,
             speed_factor = :speedFactor,
@@ -69,7 +81,9 @@ public interface ListeningSessionDao {
             END), 0) AS contentTimeMs,
             COUNT(*) AS sessionsCount
         FROM listening_sessions
-        WHERE started_at >= :fromEpochMs AND started_at <= :toEpochMs
+        WHERE started_at >= :fromEpochMs
+            AND started_at <= :toEpochMs
+            AND is_crashed = 0
         GROUP BY day
         ORDER BY day ASC
         """,

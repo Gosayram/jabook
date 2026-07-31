@@ -48,6 +48,8 @@ public data class ListeningSessionEntity(
     val chapterIndex: Int,
     @ColumnInfo(name = "updated_at")
     val updatedAt: Long = System.currentTimeMillis(),
+    @ColumnInfo(name = "is_crashed")
+    val isCrashed: Boolean = false,
 )
 
 public data class ListeningDayStatEntity(

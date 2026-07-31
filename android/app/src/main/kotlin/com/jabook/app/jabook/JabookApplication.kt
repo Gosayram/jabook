@@ -22,6 +22,7 @@ import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
+import com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 import com.jabook.app.jabook.compose.data.local.JABOOK_DB_VERSION
 import com.jabook.app.jabook.compose.data.sync.SyncManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentMemoryPressureGuard
@@ -34,6 +35,9 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toPath
 import javax.inject.Inject
@@ -60,6 +64,13 @@ public interface OkHttpClientEntryPoint {
 @InstallIn(SingletonComponent::class)
 public interface TorrentMemoryPressureEntryPoint {
     public fun torrentMemoryPressureGuard(): TorrentMemoryPressureGuard
+}
+
+/** Provides session recovery without eagerly constructing the audio database during every start. */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+public interface ListeningSessionRecoveryEntryPoint {
+    public fun listeningSessionRepository(): ListeningSessionRepository
 }
 
 @HiltAndroidApp
@@ -128,6 +139,8 @@ public class JabookApplication :
             LogUtils.w("JabookApplication", "Previous session did not shut down cleanly")
             maybeEnterSafeMode()
         }
+
+        recoverOpenListeningSessions()
 
         // Clear safe mode after successful startup (crash-loop broken)
         val safeModePrefs = getSharedPreferences("jabook_crash_handler", MODE_PRIVATE)
@@ -207,6 +220,25 @@ public class JabookApplication :
         } catch (e: Exception) {
             // Memory trimming must never turn a native-library failure into a process crash.
             LogUtils.e("JabookApplication", "Failed to guard torrent session during memory trim", e)
+        }
+    }
+
+    private fun recoverOpenListeningSessions() {
+        CoroutineScope(Dispatchers.IO).launch {
+            val entryPoint =
+                EntryPointAccessors.fromApplication(
+                    this@JabookApplication,
+                    ListeningSessionRecoveryEntryPoint::class.java,
+                )
+            runCatching {
+                entryPoint.listeningSessionRepository().recoverOpenSessions()
+            }.onSuccess { closedSessions ->
+                if (closedSessions > 0) {
+                    LogUtils.w("JabookApplication", "Closed $closedSessions stale listening sessions")
+                }
+            }.onFailure { error ->
+                LogUtils.e("JabookApplication", "Failed to recover stale listening sessions", error)
+            }
         }
     }
 

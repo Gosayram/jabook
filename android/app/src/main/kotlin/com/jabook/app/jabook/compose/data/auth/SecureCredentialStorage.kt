@@ -199,7 +199,10 @@ public class SecureCredentialStorage
                 if (username.isNotBlank() && password.isNotBlank()) {
                     UserCredentials(username, password)
                 } else {
-                    clearCredentialsSafely()
+                    clearCredentialsSafely(
+                        expectedEncryptedUsername = encryptedUsername,
+                        expectedEncryptedPassword = encryptedPassword,
+                    )
                     null
                 }
             } catch (e: Exception) {
@@ -207,7 +210,10 @@ public class SecureCredentialStorage
                     stage = "decrypt_failed",
                     throwable = e,
                 )
-                clearCredentialsSafely()
+                clearCredentialsSafely(
+                    expectedEncryptedUsername = encryptedUsername,
+                    expectedEncryptedPassword = encryptedPassword,
+                )
                 null
             }
         }
@@ -236,9 +242,21 @@ public class SecureCredentialStorage
             return prefs[KEY_USERNAME] != null || prefs[KEY_PASSWORD] != null
         }
 
-        private suspend fun clearCredentialsSafely() {
+        private suspend fun clearCredentialsSafely(
+            expectedEncryptedUsername: String? = null,
+            expectedEncryptedPassword: String? = null,
+        ) {
             runCatching {
                 dataStore.edit { prefs ->
+                    if (
+                        expectedEncryptedUsername != null &&
+                        (
+                            prefs[KEY_USERNAME] != expectedEncryptedUsername ||
+                                prefs[KEY_PASSWORD] != expectedEncryptedPassword
+                        )
+                    ) {
+                        return@edit
+                    }
                     prefs.remove(KEY_USERNAME)
                     prefs.remove(KEY_PASSWORD)
                 }
