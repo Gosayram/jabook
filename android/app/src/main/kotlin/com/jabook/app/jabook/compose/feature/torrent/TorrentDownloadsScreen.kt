@@ -69,6 +69,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.UiFormatters
+import com.jabook.app.jabook.compose.data.permissions.PersistedTreeUriPermissionGuard
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
@@ -91,6 +92,24 @@ public fun TorrentDownloadsScreen(
 ) {
     // Get window size class for adaptive sizing
     val context = LocalContext.current
+    val persistedTreePermissionGuard =
+        remember(context) {
+            PersistedTreeUriPermissionGuard(
+                takePermission = { uri ->
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                            android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                    )
+                },
+                releasePermission = {},
+                isPermissionPersisted = { uri ->
+                    context.contentResolver.persistedUriPermissions.any {
+                        it.uri == uri && it.isReadPermission && it.isWritePermission
+                    }
+                },
+            )
+        }
     val activity =
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
@@ -117,11 +136,7 @@ public fun TorrentDownloadsScreen(
                 androidx.activity.result.contract.ActivityResultContracts
                     .OpenDocumentTree(),
         ) { uri ->
-            uri?.let {
-                val takeFlags =
-                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                        android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                context.contentResolver.takePersistableUriPermission(it, takeFlags)
+            uri?.takeIf(persistedTreePermissionGuard::take)?.let {
                 viewModel.updatePendingPathFromUri(it.toString())
             }
         }

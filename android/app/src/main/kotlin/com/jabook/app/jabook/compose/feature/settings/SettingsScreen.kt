@@ -101,6 +101,7 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.ScanProgress
+import com.jabook.app.jabook.compose.data.permissions.PersistedTreeUriPermissionGuard
 import kotlinx.coroutines.launch
 
 private object GitHubUrls {
@@ -137,6 +138,23 @@ public fun SettingsScreen(
 ) {
     // Get window size class for adaptive sizing
     val context = LocalContext.current
+    val persistedTreePermissionGuard =
+        remember(context) {
+            PersistedTreeUriPermissionGuard(
+                takePermission = { uri ->
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                    )
+                },
+                releasePermission = {},
+                isPermissionPersisted = { uri ->
+                    context.contentResolver.persistedUriPermissions.any {
+                        it.uri == uri && it.isReadPermission && it.isWritePermission
+                    }
+                },
+            )
+        }
     // Request notification permission for Android 13+
     val notificationPermissionLauncher =
         androidx.activity.compose.rememberLauncherForActivityResult(
@@ -832,11 +850,7 @@ public fun SettingsScreen(
                         androidx.activity.result.contract.ActivityResultContracts
                             .OpenDocumentTree(),
                 ) { uri ->
-                    uri?.let {
-                        val takeFlags =
-                            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                                android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                        context.contentResolver.takePersistableUriPermission(it, takeFlags)
+                    uri?.takeIf(persistedTreePermissionGuard::take)?.let {
                         viewModel.updateDownloadPath(it.toString())
                     }
                 }

@@ -111,8 +111,9 @@ public class AudioPlayerLibrarySessionCallback(
         val isAppController = isAppController(controller)
 
         if (isSystemController) {
-            // Automotive clients intentionally do not receive sleep timer commands.
-            val includeSleepTimerCommands = !session.isAutomotiveController(controller)
+            // Only the app's own controller can invoke state-changing sleep timer commands.
+            val includeSleepTimerCommands =
+                !session.isAutomotiveController(controller) && isAppController
             val availableCommands =
                 buildAvailableSessionCommands(
                     includeSleepTimerCommands = includeSleepTimerCommands,
@@ -127,10 +128,10 @@ public class AudioPlayerLibrarySessionCallback(
                 .build()
         }
 
-        // For regular app controllers, add custom commands but without custom buttons
+        // Regular controllers receive only non-privileged custom commands.
         val availableCommands =
             buildAvailableSessionCommands(
-                includeSleepTimerCommands = true,
+                includeSleepTimerCommands = isAppController,
                 includePrivilegedCommands = isAppController,
             )
 

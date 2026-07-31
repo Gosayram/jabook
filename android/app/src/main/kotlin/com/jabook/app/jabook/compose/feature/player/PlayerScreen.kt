@@ -1372,6 +1372,7 @@ private fun PlayerLandscapeLayout(
     val playerProgress by remember(chapterTimeline) { derivedStateOf { chapterTimeline.progress } }
     var dragPosition by remember { mutableStateOf<Float?>(null) }
     var pendingSeekPosition by remember { mutableStateOf<Float?>(null) }
+    var delayedSeekGeneration by remember { mutableStateOf(0L) }
     var coalescedPlayerProgress by remember { mutableStateOf(playerProgress) }
     var lastSliderHapticProgress by remember { mutableStateOf<Float?>(null) }
     val isDragging by remember(dragPosition) { derivedStateOf { dragPosition != null } }
@@ -1532,6 +1533,7 @@ private fun PlayerLandscapeLayout(
             SquigglySlider(
                 value = displayedProgress,
                 onValueChange = { newProgress ->
+                    delayedSeekGeneration++
                     pendingSeekPosition = null
                     val constrainedProgress = newProgress.coerceIn(0f, 1f)
                     val shouldTriggerHaptic =
@@ -1544,6 +1546,7 @@ private fun PlayerLandscapeLayout(
                     dragPosition = constrainedProgress
                 },
                 onValueChangeFinished = {
+                    val seekGeneration = ++delayedSeekGeneration
                     val targetProgress = dragPosition ?: displayedProgress
                     if (chapterTimeline.totalDurationMs > 0 && targetProgress.isFinite()) {
                         val target =
@@ -1556,7 +1559,14 @@ private fun PlayerLandscapeLayout(
                             onSelectChapter(target.chapterIndex)
                             seekScope.launch {
                                 delay(80L)
-                                onSeek(target.chapterPositionMs)
+                                if (
+                                    DelayedSliderSeekPolicy.shouldDispatch(
+                                        seekGeneration,
+                                        delayedSeekGeneration,
+                                    )
+                                ) {
+                                    onSeek(target.chapterPositionMs)
+                                }
                             }
                         } else {
                             onSeek(target.chapterPositionMs)
@@ -2341,6 +2351,7 @@ private fun PlayerContent(
                         // - pendingSeekPosition = last user seek target until player converges
                         var dragPosition by remember { mutableStateOf<Float?>(null) }
                         var pendingSeekPosition by remember { mutableStateOf<Float?>(null) }
+                        var delayedSeekGeneration by remember { mutableStateOf(0L) }
                         var coalescedPlayerProgress by remember { mutableStateOf(playerProgress) }
                         var lastSliderHapticProgress by remember { mutableStateOf<Float?>(null) }
                         val isDragging by remember(dragPosition) { derivedStateOf { dragPosition != null } }
@@ -2442,6 +2453,7 @@ private fun PlayerContent(
                         SquigglySlider(
                             value = displayedProgress,
                             onValueChange = { newProgress ->
+                                delayedSeekGeneration++
                                 pendingSeekPosition = null
                                 val constrainedProgress = newProgress.coerceIn(0f, 1f)
                                 val shouldTriggerHaptic =
@@ -2456,6 +2468,7 @@ private fun PlayerContent(
                             },
                             onValueChangeFinished = {
                                 // Seek only when user finishes dragging
+                                val seekGeneration = ++delayedSeekGeneration
                                 val targetProgress = dragPosition ?: displayedProgress
                                 if (chapterTimeline.totalDurationMs > 0 && targetProgress.isFinite()) {
                                     val target =
@@ -2468,7 +2481,14 @@ private fun PlayerContent(
                                         onSelectChapter(target.chapterIndex)
                                         seekScope.launch {
                                             delay(80L)
-                                            onSeek(target.chapterPositionMs)
+                                            if (
+                                                DelayedSliderSeekPolicy.shouldDispatch(
+                                                    seekGeneration,
+                                                    delayedSeekGeneration,
+                                                )
+                                            ) {
+                                                onSeek(target.chapterPositionMs)
+                                            }
                                         }
                                     } else {
                                         onSeek(target.chapterPositionMs)
@@ -2537,6 +2557,7 @@ private fun PlayerContent(
                                         progressBarRangeInfo = ProgressBarRangeInfo(displayedProgress, 0f..1f)
                                         setProgress { targetProgress ->
                                             if (chapterTimeline.totalDurationMs <= 0) return@setProgress false
+                                            val seekGeneration = ++delayedSeekGeneration
                                             val target =
                                                 ChapterSeekbarPolicy.resolveSeekTarget(
                                                     chapters = state.chapters,
@@ -2546,7 +2567,14 @@ private fun PlayerContent(
                                                 onSelectChapter(target.chapterIndex)
                                                 seekScope.launch {
                                                     delay(80L)
-                                                    onSeek(target.chapterPositionMs)
+                                                    if (
+                                                        DelayedSliderSeekPolicy.shouldDispatch(
+                                                            seekGeneration,
+                                                            delayedSeekGeneration,
+                                                        )
+                                                    ) {
+                                                        onSeek(target.chapterPositionMs)
+                                                    }
                                                 }
                                             } else {
                                                 onSeek(target.chapterPositionMs)

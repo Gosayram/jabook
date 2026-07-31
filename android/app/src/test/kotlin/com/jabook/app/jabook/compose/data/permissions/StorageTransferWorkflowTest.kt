@@ -21,7 +21,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import java.io.File
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.CopyOption
 import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -166,6 +169,29 @@ class StorageTransferWorkflowTest {
         source.delete()
         sourceDir.deleteRecursively()
         targetDir.deleteRecursively()
+    }
+
+    @Test
+    fun `move policy retries without atomic move when a removable filesystem does not support it`() {
+        val attemptedOptions = mutableListOf<Set<CopyOption>>()
+
+        StorageTransferMovePolicy.moveTempIntoPlace(
+            source = File("temp"),
+            target = File("target"),
+        ) { options ->
+            attemptedOptions += options.toSet()
+            if (StandardCopyOption.ATOMIC_MOVE in options) {
+                throw AtomicMoveNotSupportedException("temp", "target", "unsupported")
+            }
+        }
+
+        assertEquals(
+            listOf(
+                setOf(StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE),
+                setOf(StandardCopyOption.REPLACE_EXISTING),
+            ),
+            attemptedOptions,
+        )
     }
 
     @Test

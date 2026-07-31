@@ -162,6 +162,27 @@ class AudioPlayerLibrarySessionCallbackTest {
     }
 
     @Test
+    fun `onConnect excludes privileged commands for untrusted controller`() {
+        whenever(session.isMediaNotificationController(controller)).thenReturn(false)
+        whenever(session.isAutomotiveController(controller)).thenReturn(false)
+        whenever(session.isAutoCompanionController(controller)).thenReturn(false)
+        whenever(controller.packageName).thenReturn("com.example.untrusted")
+
+        val result = callback.onConnect(session, controller)
+
+        val sleepTimerCommand =
+            SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY)
+        val setPlaylistCommand =
+            SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_PLAYLIST, Bundle.EMPTY)
+        val rewindCommand =
+            SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_REWIND, Bundle.EMPTY)
+
+        assertTrue(!result.availableSessionCommands.contains(sleepTimerCommand))
+        assertTrue(!result.availableSessionCommands.contains(setPlaylistCommand))
+        assertTrue(result.availableSessionCommands.contains(rewindCommand))
+    }
+
+    @Test
     fun `onCustomCommand blocks automotive sleep timer command`() {
         whenever(session.isAutomotiveController(controller)).thenReturn(true)
         whenever(controller.packageName).thenReturn("com.android.car.media")

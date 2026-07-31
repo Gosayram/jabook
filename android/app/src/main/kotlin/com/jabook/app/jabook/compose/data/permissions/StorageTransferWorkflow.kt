@@ -16,6 +16,8 @@ package com.jabook.app.jabook.compose.data.permissions
 
 import kotlinx.coroutines.CancellationException
 import java.io.File
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.CopyOption
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.UUID
@@ -144,11 +146,9 @@ public class StorageTransferWorkflow(
                 )
             }
 
-            Files.move(
-                tempTarget.toPath(),
-                targetFile.toPath(),
-                StandardCopyOption.REPLACE_EXISTING,
-                StandardCopyOption.ATOMIC_MOVE,
+            StorageTransferMovePolicy.moveTempIntoPlace(
+                source = tempTarget,
+                target = targetFile,
             )
 
             val integrity =
@@ -231,6 +231,25 @@ public class StorageTransferWorkflow(
     }
 
     private fun containsTraversalSegment(path: String): Boolean = path.replace('\\', '/').split('/').any { it == ".." }
+}
+
+/**
+ * Moves a fully written temporary file into place. FAT/exFAT volumes do not
+ * support atomic renames, but the previous target has already been moved to a
+ * backup, so a replace-only move retains rollback safety there.
+ */
+internal object StorageTransferMovePolicy {
+    fun moveTempIntoPlace(
+        source: File,
+        target: File,
+        move: (Array<CopyOption>) -> Unit = { options -> Files.move(source.toPath(), target.toPath(), *options) },
+    ) {
+        try {
+            move(arrayOf(StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE))
+        } catch (_: AtomicMoveNotSupportedException) {
+            move(arrayOf(StandardCopyOption.REPLACE_EXISTING))
+        }
+    }
 }
 
 /**
