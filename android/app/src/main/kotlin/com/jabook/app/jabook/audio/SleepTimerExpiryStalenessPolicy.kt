@@ -20,6 +20,5 @@ internal object SleepTimerExpiryStalenessPolicy {
         activeGeneration: Long,
         callbackGeneration: Long,
         activeMode: SleepTimerMode,
-    ): Boolean =
-        activeGeneration == callbackGeneration && activeMode == SleepTimerMode.FIXED_DURATION
+    ): Boolean = activeGeneration == callbackGeneration && activeMode == SleepTimerMode.FIXED_DURATION
 }

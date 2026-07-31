@@ -66,7 +66,10 @@ class AuthInterceptorTest {
         verifyNoMoreInteractions(chain)
     }
 
-    private fun response(request: Request, code: Int): Response =
+    private fun response(
+        request: Request,
+        code: Int,
+    ): Response =
         Response
             .Builder()
             .request(request)

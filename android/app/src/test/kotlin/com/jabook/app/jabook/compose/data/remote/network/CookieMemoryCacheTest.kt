@@ -43,8 +43,12 @@ class CookieMemoryCacheTest {
         assertNull(cache.load("rutracker.org"))
     }
 
-    private fun cookie(name: String, value: String): Cookie =
-        Cookie.Builder()
+    private fun cookie(
+        name: String,
+        value: String,
+    ): Cookie =
+        Cookie
+            .Builder()
             .name(name)
             .value(value)
             .domain("rutracker.org")

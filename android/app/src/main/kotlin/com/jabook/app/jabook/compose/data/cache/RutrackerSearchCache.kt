@@ -50,24 +50,25 @@ public class RutrackerSearchCache
         public fun get(
             query: String,
             forumIds: String? = null,
-        ): List<SearchResult>? = synchronized(lock) {
-            val key = generateKey(query, forumIds)
-            val entry = cache[key]
-            when {
-                entry == null -> null
-                entry.isExpired() -> {
-                    cache.remove(key)
-                    accessOrder.remove(key)
-                    null
-                }
-                else -> {
-                    // Update access order
-                    accessOrder.remove(key)
-                    accessOrder.add(key)
-                    entry.results.toList()
+        ): List<SearchResult>? =
+            synchronized(lock) {
+                val key = generateKey(query, forumIds)
+                val entry = cache[key]
+                when {
+                    entry == null -> null
+                    entry.isExpired() -> {
+                        cache.remove(key)
+                        accessOrder.remove(key)
+                        null
+                    }
+                    else -> {
+                        // Update access order
+                        accessOrder.remove(key)
+                        accessOrder.add(key)
+                        entry.results.toList()
+                    }
                 }
             }
-        }
 
         /**
          * Store search results in cache.
@@ -80,7 +81,7 @@ public class RutrackerSearchCache
             query: String,
             forumIds: String?,
             results: List<SearchResult>,
-        ) = synchronized(lock) {
+        ): Unit = synchronized(lock) {
             // Don't cache empty results
             if (results.isNotEmpty()) {
                 val key = generateKey(query, forumIds)
@@ -109,32 +110,35 @@ public class RutrackerSearchCache
         /**
          * Clear all cached search results.
          */
-        public fun clear() = synchronized(lock) {
-            cache.clear()
-            accessOrder.clear()
-        }
+        public fun clear(): Unit =
+            synchronized(lock) {
+                cache.clear()
+                accessOrder.clear()
+            }
 
         /**
          * Get approximate cache size in bytes.
          */
-        public fun getCacheSize(): Long = synchronized(lock) {
-            // Rough estimation: each SearchResult ~500 bytes
-            cache.values.sumOf { it.results.size } * AVERAGE_RESULT_SIZE_BYTES
-        }
+        public fun getCacheSize(): Long =
+            synchronized(lock) {
+                // Rough estimation: each SearchResult ~500 bytes
+                cache.values.sumOf { it.results.size } * AVERAGE_RESULT_SIZE_BYTES
+            }
 
         /**
          * Get cache statistics.
          */
-        public fun getStatistics(): CacheStatistics = synchronized(lock) {
-            val entries = cache.values.toList()
-            CacheStatistics(
-                entriesCount = cache.size,
-                totalResults = entries.sumOf { it.results.size },
-                estimatedSize = getCacheSize(),
-                oldestEntry = entries.minOfOrNull { it.timestamp } ?: 0L,
-                newestEntry = entries.maxOfOrNull { it.timestamp } ?: 0L,
-            )
-        }
+        public fun getStatistics(): CacheStatistics =
+            synchronized(lock) {
+                val entries = cache.values.toList()
+                CacheStatistics(
+                    entriesCount = cache.size,
+                    totalResults = entries.sumOf { it.results.size },
+                    estimatedSize = getCacheSize(),
+                    oldestEntry = entries.minOfOrNull { it.timestamp } ?: 0L,
+                    newestEntry = entries.maxOfOrNull { it.timestamp } ?: 0L,
+                )
+            }
 
         /**
          * Generate cache key from query and filters.

@@ -45,7 +45,10 @@ import javax.inject.Singleton
 internal class CookieMemoryCache {
     private val entries = ConcurrentHashMap<String, List<Cookie>>()
 
-    fun store(host: String, cookies: List<Cookie>) {
+    fun store(
+        host: String,
+        cookies: List<Cookie>,
+    ) {
         entries[host] = cookies.toList()
     }
 
