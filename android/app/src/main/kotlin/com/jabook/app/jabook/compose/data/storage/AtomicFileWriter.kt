@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.storage
 
+import kotlinx.coroutines.CancellationException
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -113,6 +114,7 @@ public object AtomicFileWriter {
         } catch (e: Exception) {
             // Cleanup temp file on any failure
             tempFile.delete()
+            if (e is CancellationException) throw e
             if (e is IOException) throw e
             throw IOException("Atomic write failed for ${targetFile.absolutePath}", e)
         }

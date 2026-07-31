@@ -5,8 +5,10 @@
 
 package com.jabook.app.jabook.compose.data.storage
 
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -68,6 +70,28 @@ class AtomicFileWriterTest {
         } catch (_: java.io.IOException) {
             assertEquals("last-known-good", target.readText())
             assertFalse(File(dir, "session.state.tmp").exists())
+        } finally {
+            target.delete()
+            dir.delete()
+        }
+    }
+
+    @Test
+    fun `writeAtomically propagates cancellation and removes the incomplete temp file`() {
+        val dir = Files.createTempDirectory("jabook-atomic-cancellation-test").toFile()
+        val target = File(dir, "backup.json")
+        val cancellation = CancellationException("Export cancelled")
+
+        try {
+            AtomicFileWriter.writeAtomically(target) { stream ->
+                stream.write("partial".toByteArray())
+                throw cancellation
+            }
+            fail("Expected writeAtomically to throw")
+        } catch (actual: CancellationException) {
+            assertSame(cancellation, actual)
+            assertFalse(target.exists())
+            assertFalse(File(dir, "backup.json.tmp").exists())
         } finally {
             target.delete()
             dir.delete()
