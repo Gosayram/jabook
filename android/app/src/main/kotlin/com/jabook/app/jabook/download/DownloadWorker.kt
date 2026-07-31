@@ -27,6 +27,9 @@ import com.jabook.app.jabook.util.LogUtils
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
 
 /**
  * WorkManager-based worker for background torrent downloads.
@@ -112,72 +115,59 @@ public class DownloadWorker
         private suspend fun monitorDownloadProgress(
             infoHash: String,
             bookTitle: String,
-        ): Result {
-            var result: Result? = null
+        ): Result =
+            torrentManager
+                .getDownloadProgress(infoHash)
+                .map { download ->
+                    setProgress(
+                        workDataOf(
+                            KEY_PROGRESS to (download.progress * 100).toInt(),
+                            KEY_STATE to download.state.name,
+                            KEY_DOWNLOAD_RATE to download.downloadSpeed.toLong(),
+                            KEY_NUM_PEERS to download.numPeers,
+                        ),
+                    )
 
-            torrentManager.getDownloadProgress(infoHash).collect { download ->
-                // Update progress
-                setProgress(
-                    workDataOf(
-                        KEY_PROGRESS to (download.progress * 100).toInt(),
-                        KEY_STATE to download.state.name,
-                        KEY_DOWNLOAD_RATE to download.downloadSpeed.toLong(),
-                        KEY_NUM_PEERS to download.numPeers,
-                    ),
-                )
+                    LogUtils.d(
+                        TAG,
+                        "Progress: ${(download.progress * 100).toInt()}% - ${download.state} - " +
+                            "${download.downloadSpeed / 1024}KB/s - ${download.numPeers} peers",
+                    )
 
-                LogUtils.d(
-                    TAG,
-                    "Progress: ${(download.progress * 100).toInt()}% - ${download.state} - " +
-                        "${download.downloadSpeed / 1024}KB/s - ${download.numPeers} peers",
-                )
-
-                // Check if download is complete
-                when (download.state) {
-                    TorrentState.COMPLETED -> {
-                        LogUtils.i(TAG, "Download completed: $bookTitle")
-                        LogUtils.i(TAG, "Download worker success stopReason=${runCatching { stopReason }.getOrDefault(-1)}")
-                        result =
+                    when (download.state) {
+                        TorrentState.COMPLETED -> {
+                            LogUtils.i(TAG, "Download completed: $bookTitle")
+                            LogUtils.i(
+                                TAG,
+                                "Download worker success stopReason=${runCatching { stopReason }.getOrDefault(-1)}",
+                            )
                             Result.success(
                                 workDataOf(
                                     KEY_INFO_HASH to infoHash,
                                     KEY_FINAL_PATH to inputData.getString(KEY_SAVE_PATH),
                                 ),
                             )
-                    }
-                    TorrentState.ERROR -> {
-                        LogUtils.e(TAG, "Download failed: $bookTitle")
-                        CrashDiagnostics.reportNonFatal(
-                            tag = "download_worker_torrent_error",
-                            throwable = IllegalStateException("Torrent entered ERROR state"),
-                            attributes =
-                                mapOf(
-                                    "attempt" to (runAttemptCount + 1),
-                                    "stop_reason" to runCatching { stopReason }.getOrDefault(-1),
-                                    "book_title" to bookTitle,
-                                    "info_hash" to infoHash,
-                                ),
-                        )
-                        result =
-                            Result.failure(
-                                workDataOf(
-                                    "error" to "Torrent download failed",
-                                ),
+                        }
+                        TorrentState.ERROR -> {
+                            LogUtils.e(TAG, "Download failed: $bookTitle")
+                            CrashDiagnostics.reportNonFatal(
+                                tag = "download_worker_torrent_error",
+                                throwable = IllegalStateException("Torrent entered ERROR state"),
+                                attributes =
+                                    mapOf(
+                                        "attempt" to (runAttemptCount + 1),
+                                        "stop_reason" to runCatching { stopReason }.getOrDefault(-1),
+                                        "book_title" to bookTitle,
+                                        "info_hash" to infoHash,
+                                    ),
                             )
+                            Result.failure(workDataOf("error" to "Torrent download failed"))
+                        }
+                        else -> null
                     }
-                    else -> {
-                        // Continue monitoring
-                    }
-                }
-            }
-
-            // Return result or default failure if flow completed
-            return result ?: Result.failure(
-                workDataOf(
-                    "error" to "Download monitoring stopped unexpectedly",
-                ),
-            )
-        }
+                }.filterNotNull()
+                .firstOrNull()
+                ?: Result.failure(workDataOf("error" to "Download monitoring stopped unexpectedly"))
 
         /**
          * Provide foreground service info for long-running work.

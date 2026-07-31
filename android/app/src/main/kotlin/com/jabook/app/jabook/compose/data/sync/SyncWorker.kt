@@ -183,6 +183,8 @@ public class SyncWorker
                             }
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e({ "Failed to sync metadata for topic $topicId" }, e)
                 }
@@ -242,6 +244,8 @@ public class SyncWorker
                         booksDao.updateCoverPath(book.id, coverFile.absolutePath)
                         logger.i { "Downloaded cover for ${book.title}" }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e({ "Failed to download cover for ${book.title}" }, e)
                 }

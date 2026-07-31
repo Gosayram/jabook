@@ -29,6 +29,8 @@ import com.jabook.app.jabook.compose.data.network.NetworkType
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
 import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
+import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.flowOf
@@ -100,6 +102,28 @@ class SyncWorkerTest {
             whenever(torrentDownloadRepository.getAll()).thenReturn(emptyList())
             whenever(booksDao.getAllBooks()).thenReturn(emptyList())
             whenever(offlineSearchDao.clearOldCache(org.mockito.kotlin.any())).thenThrow(CancellationException("cancelled"))
+
+            assertFailsWith<CancellationException> {
+                buildWorker(runAttemptCount = 0).doWork()
+            }
+        }
+
+    @Test
+    fun `doWork propagates cancellation from a per-download metadata request`() =
+        runTest {
+            whenever(torrentDownloadRepository.getAll()).thenReturn(
+                listOf(
+                    TorrentDownload(
+                        hash = "hash-1",
+                        name = "Book",
+                        state = TorrentState.DOWNLOADING,
+                        topicId = "topic-1",
+                    ),
+                ),
+            )
+            whenever(rutrackerRepository.getTopicDetails("topic-1")).thenThrow(
+                CancellationException("cancelled"),
+            )
 
             assertFailsWith<CancellationException> {
                 buildWorker(runAttemptCount = 0).doWork()

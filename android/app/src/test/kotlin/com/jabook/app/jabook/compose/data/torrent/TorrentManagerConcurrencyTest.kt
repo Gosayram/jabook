@@ -66,7 +66,6 @@ class TorrentManagerConcurrencyTest {
             assertTrue(initializationStarted.await(1, TimeUnit.SECONDS))
             val second = executor.submit { manager.initialize() }
 
-            Thread.sleep(100)
             assertEquals("A second caller must wait for the in-progress initialization", 1, initializationCalls.get())
 
             allowInitializationToFinish.countDown()
