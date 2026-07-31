@@ -19,6 +19,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.core.app.ApplicationProvider
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_17_18
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_20_21
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_21_22
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_22_23
@@ -241,6 +242,11 @@ class JabookDatabaseMigrationTest {
         cursor.use { return it.moveToFirst() }
     }
 
+    private fun hasIndex(name: String): Boolean {
+        val cursor = db.query("SELECT name FROM sqlite_master WHERE type='index' AND name='$name'")
+        cursor.use { return it.moveToFirst() }
+    }
+
     private fun isFts5Available(): Boolean {
         try {
             val cursor = db.query("PRAGMA compile_options")
@@ -253,6 +259,31 @@ class JabookDatabaseMigrationTest {
             return true
         }
         return false
+    }
+
+    @Test
+    fun `migration 17 to 18 creates last played index for recent book queries`() {
+        createBooksTable()
+        db.execSQL(
+            """
+            CREATE TABLE chapters (
+                id TEXT PRIMARY KEY NOT NULL,
+                book_id TEXT NOT NULL,
+                chapter_index INTEGER NOT NULL
+            )
+            """.trimIndent(),
+        )
+        assertFalse(hasIndex("index_books_last_played_date"))
+
+        MIGRATION_17_18.migrate(db)
+
+        assertTrue(hasIndex("index_books_last_played_date"))
+    }
+
+    @Test
+    fun `migration 17 to 18 version contract is correct`() {
+        assertEquals(17, MIGRATION_17_18.startVersion)
+        assertEquals(18, MIGRATION_17_18.endVersion)
     }
 
     @Test
