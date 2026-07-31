@@ -41,8 +41,7 @@ public class TorrentMemoryPressureGuard
             return true
         }
 
-        private fun isCritical(level: Int): Boolean =
-            level == TRIM_LEVEL_RUNNING_CRITICAL || level >= TRIM_LEVEL_COMPLETE
+        private fun isCritical(level: Int): Boolean = level == TRIM_LEVEL_RUNNING_CRITICAL || level >= TRIM_LEVEL_COMPLETE
 
         private companion object {
             // Android memory trim levels are stable API values; the constants were deprecated in API 35.

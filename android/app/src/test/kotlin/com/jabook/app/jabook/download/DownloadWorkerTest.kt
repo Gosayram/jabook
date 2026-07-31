@@ -79,7 +79,8 @@ class DownloadWorkerTest {
             }
 
         val inputData =
-            Data.Builder()
+            Data
+                .Builder()
                 .putString(DownloadWorker.KEY_MAGNET_URI, "magnet:?xt=urn:btih:hash-1")
                 .putString(DownloadWorker.KEY_SAVE_PATH, "/books")
                 .putString(DownloadWorker.KEY_BOOK_TITLE, "Book")

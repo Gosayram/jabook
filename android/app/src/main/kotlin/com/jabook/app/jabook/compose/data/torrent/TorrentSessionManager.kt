@@ -87,6 +87,7 @@ public class TorrentSessionManager
         public val downloadsFlow: StateFlow<Map<String, TorrentDownload>> = _downloadsFlow.asStateFlow()
 
         private val sessionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
         // Kept separate from sessionScope: stopSession() cancels alert processing, but must not
         // cancel a state snapshot already requested by a memory-pressure callback.
         private val statePersistenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

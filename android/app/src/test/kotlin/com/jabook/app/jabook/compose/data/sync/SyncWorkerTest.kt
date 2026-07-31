@@ -30,8 +30,8 @@ import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
 import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
-import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
+import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest

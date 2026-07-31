@@ -545,18 +545,19 @@ class JabookDatabaseMigrationTest {
         MIGRATION_28_29.migrate(db)
 
         assertTrue(hasColumn("bookmarks", "normalized_position"))
-        db.query(
-            """
-            SELECT chapter_index, position_ms, normalized_position, note_text
-            FROM bookmarks WHERE id = 'bookmark-1'
-            """.trimIndent(),
-        ).use { cursor ->
-            assertTrue(cursor.moveToFirst())
-            assertEquals(3, cursor.getInt(0))
-            assertEquals(12500L, cursor.getLong(1))
-            assertEquals(0f, cursor.getFloat(2))
-            assertEquals("Keep this note", cursor.getString(3))
-        }
+        db
+            .query(
+                """
+                SELECT chapter_index, position_ms, normalized_position, note_text
+                FROM bookmarks WHERE id = 'bookmark-1'
+                """.trimIndent(),
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(3, cursor.getInt(0))
+                assertEquals(12500L, cursor.getLong(1))
+                assertEquals(0f, cursor.getFloat(2))
+                assertEquals("Keep this note", cursor.getString(3))
+            }
     }
 
     @Test

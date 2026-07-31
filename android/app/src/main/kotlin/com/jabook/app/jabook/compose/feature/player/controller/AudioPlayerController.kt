@@ -599,7 +599,8 @@ public class AudioPlayerController
             MediaControllerConnectionAttemptPolicy.isCurrentAttempt(
                 activeGeneration = mediaControllerConnectionGeneration,
                 callbackGeneration = connectionGeneration,
-            ) && mediaControllerFuture === controllerFuture
+            ) &&
+                mediaControllerFuture === controllerFuture
 
         private fun scheduleMediaControllerRetry(
             nextRetryCount: Int,

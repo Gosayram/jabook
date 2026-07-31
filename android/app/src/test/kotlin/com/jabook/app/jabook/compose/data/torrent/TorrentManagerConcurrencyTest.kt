@@ -21,15 +21,15 @@ import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import io.mockk.every
 import io.mockk.mockk
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class TorrentManagerConcurrencyTest {
     @Test
