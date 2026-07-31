@@ -31,6 +31,7 @@ internal class CrossfadeHandler(
     private val handler = Handler(Looper.getMainLooper())
     private val checkIntervalMs = 500L
     private var isMonitoring = false
+    private var monitoringGeneration = 0L
 
     private val monitorRunnable =
         object : Runnable {
@@ -44,12 +45,14 @@ internal class CrossfadeHandler(
 
     public fun startMonitoring() {
         if (isMonitoring) return
+        monitoringGeneration += 1L
         isMonitoring = true
         handler.post(monitorRunnable)
     }
 
     public fun stopMonitoring() {
         isMonitoring = false
+        monitoringGeneration += 1L
         handler.removeCallbacks(monitorRunnable)
     }
 
@@ -81,16 +84,21 @@ internal class CrossfadeHandler(
 
     private fun prefetchNextChapter() {
         val currentPlayer = service.getActivePlayer()
-        val nextIndex = currentPlayer.currentMediaItemIndex + 1
+        val currentChapterIndex = currentPlayer.currentMediaItemIndex
+        val nextIndex = currentChapterIndex + 1
         if (nextIndex <= prefetchedChapterIndex) return
         prefetchedChapterIndex = nextIndex
 
         if (nextIndex >= currentPlayer.mediaItemCount) return
 
+        val requestGeneration = monitoringGeneration
         service.playerServiceScope.launch {
-            val nextSource = playlistManager.getNextMediaSource(currentPlayer.currentMediaItemIndex)
+            val nextSource = playlistManager.getNextMediaSource(currentChapterIndex)
             if (nextSource != null) {
                 withContext(Dispatchers.Main) {
+                    if (!isCurrentRequest(requestGeneration, currentPlayer, currentChapterIndex)) {
+                        return@withContext
+                    }
                     currentPlayer.addMediaSource(nextSource)
                 }
             }
@@ -106,16 +114,37 @@ internal class CrossfadeHandler(
      * Prepares next track on secondary player and starts crossfade.
      */
     public fun triggerCrossfadeTransition() {
+        val currentPlayer = service.getActivePlayer()
+        val currentChapterIndex = currentPlayer.currentMediaItemIndex
+        val requestGeneration = monitoringGeneration
         service.playerServiceScope.launch {
-            val currentPlayer = service.getActivePlayer()
-            val nextSource = playlistManager.getNextMediaSource(currentPlayer.currentMediaItemIndex)
+            val nextSource = playlistManager.getNextMediaSource(currentChapterIndex)
 
             if (nextSource != null) {
                 withContext(Dispatchers.Main) {
+                    if (!isCurrentRequest(requestGeneration, currentPlayer, currentChapterIndex)) {
+                        return@withContext
+                    }
                     crossFadePlayer.setNextMediaSource(nextSource)
                     crossFadePlayer.startCrossFade()
                 }
             }
         }
+    }
+
+    private fun isCurrentRequest(
+        requestGeneration: Long,
+        requestPlayer: Any,
+        requestChapterIndex: Int,
+    ): Boolean {
+        val activePlayer = service.getActivePlayer()
+        return CrossfadeRequestStalenessPolicy.isCurrent(
+            activeGeneration = monitoringGeneration,
+            requestGeneration = requestGeneration,
+            activePlayer = activePlayer,
+            requestPlayer = requestPlayer,
+            activeChapterIndex = activePlayer.currentMediaItemIndex,
+            requestChapterIndex = requestChapterIndex,
+        )
     }
 }

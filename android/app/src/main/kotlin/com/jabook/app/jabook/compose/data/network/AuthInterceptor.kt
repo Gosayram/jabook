@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.network
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response
@@ -58,12 +59,11 @@ public class AuthInterceptor
 
             if (sessionExpired) {
                 logger.w { "Session expired detected (code=${response.code}, url=${response.request.url})" }
-                response.close() // Close original response
 
                 // Try to re-authenticate with stored credentials
                 // Note: runBlocking is used here because interceptors are synchronous
                 // This should be fast as it only reads from local storage
-                val retryResponse: Response? =
+                val reauthenticated =
                     runBlocking {
                         try {
                             val credentials = authRepository.get().getStoredCredentials()
@@ -73,30 +73,33 @@ public class AuthInterceptor
                                 val loginResult = authRepository.get().login(credentials)
                                 if (loginResult.isSuccess) {
                                     logger.i { "Automatic re-authentication successful" }
-
-                                    // Retry original request with new session
-                                    chain.proceed(request.newBuilder().build())
+                                    true
                                 } else {
                                     logger.e { "Automatic re-authentication failed: ${loginResult.exceptionOrNull()}" }
-                                    null
+                                    false
                                 }
                             } else {
                                 logger.w { "No stored credentials available for re-authentication" }
-                                null
+                                false
                             }
                         } catch (e: Exception) {
+                            if (e is CancellationException) {
+                                throw e
+                            }
                             logger.e({ "Error during automatic re-authentication" }, e)
-                            null
+                            false
                         }
                     }
 
-                // If re-authentication succeeded, return the retry response
-                if (retryResponse != null) {
-                    return retryResponse
+                if (reauthenticated) {
+                    response.close()
+                    // Retry original request with the refreshed session.
+                    return chain.proceed(request.newBuilder().build())
                 }
 
-                // If re-authentication failed, return the error response
-                return chain.proceed(request)
+                // Preserve the original response when re-authentication fails. Retrying it
+                // would duplicate potentially non-idempotent requests without a new session.
+                return response
             }
 
             return response
