@@ -26,6 +26,8 @@ import org.junit.Test
 import org.mockito.ArgumentMatchers.anyFloat
 import org.mockito.Mockito.doAnswer
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -75,6 +77,22 @@ class AudioFocusDuckingControllerTest {
             controller.onPlaybackSuppressionReasonChanged(Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS)
 
             assertEquals(0.1f, currentVolume(), 0.0001f)
+        }
+
+    @Test
+    fun `transient audio focus duck lowers volume without pausing playback`() =
+        runTest {
+            val (player, currentVolume) = createPlayer(initialVolume = 1.0f)
+            val controller =
+                AudioFocusDuckingController(
+                    getActivePlayer = { player },
+                    scope = TestScope(StandardTestDispatcher(testScheduler)),
+                )
+
+            controller.onPlaybackSuppressionReasonChanged(Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS)
+
+            assertEquals(0.2f, currentVolume(), 0.0001f)
+            verify(player, never()).pause()
         }
 
     @Test

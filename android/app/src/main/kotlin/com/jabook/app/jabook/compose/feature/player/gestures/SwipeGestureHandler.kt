@@ -100,6 +100,8 @@ public class SwipeGestureHandler(
      * @return New volume level (0 to maxVolume)
      */
     public fun adjustVolume(delta: Float): Int {
+        if (audioManager.isVolumeFixed) return currentVolume
+
         // Invert: swipe up increases volume
         val volumeChange = (-delta * maxVolume * 0.5f).roundToInt()
         val newVolume = (currentVolume + volumeChange).coerceIn(0, maxVolume)

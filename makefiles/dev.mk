@@ -107,7 +107,7 @@ update-logging-baseline: ## Update logging direct‑usage baseline file
 	fi
 	@echo "✅ Baseline updated: scripts/logging-direct-usage-baseline.txt"
 
-lint-kotlin: ## Lint Kotlin code (ktlint + detekt check + dependency verification)
+lint-kotlin: audit-main-thread-queries ## Lint Kotlin code (ktlint + detekt check + dependency verification)
 	@echo "Linting Kotlin code with ktlint + detekt..."
 	@echo "Checking coroutine test discipline (no Thread.sleep in unit tests)..."
 	@if command -v rg >/dev/null 2>&1; then \
@@ -210,6 +210,10 @@ lint-kotlin: ## Lint Kotlin code (ktlint + detekt check + dependency verificatio
 .PHONY: check-i18n-keys
 check-i18n-keys: ## Verify base values keys are present in values-ru
 	@./scripts/check-i18n-keys.sh
+
+.PHONY: audit-main-thread-queries
+audit-main-thread-queries: ## Forbid Room allowMainThreadQueries in app sources and tests
+	@./scripts/check-no-main-thread-room-queries.sh
 
 .PHONY: check-docs
 check-docs: ## Verify README/AGENTS/.kotlin-version match code versions (DB + Kotlin)

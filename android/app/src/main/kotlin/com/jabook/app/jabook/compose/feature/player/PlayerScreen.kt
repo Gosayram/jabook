@@ -810,20 +810,18 @@ public fun PlayerScreen(
                                         Key.DirectionUp -> {
                                             val audioManager =
                                                 context.getSystemService(android.content.Context.AUDIO_SERVICE) as? AudioManager
-                                            audioManager?.adjustStreamVolume(
-                                                AudioManager.STREAM_MUSIC,
-                                                AudioManager.ADJUST_RAISE,
-                                                AudioManager.FLAG_SHOW_UI,
+                                            audioManager?.adjustMusicVolumeIfMutable(
+                                                direction = AudioManager.ADJUST_RAISE,
+                                                flags = AudioManager.FLAG_SHOW_UI,
                                             )
                                             true
                                         }
                                         Key.DirectionDown -> {
                                             val audioManager =
                                                 context.getSystemService(android.content.Context.AUDIO_SERVICE) as? AudioManager
-                                            audioManager?.adjustStreamVolume(
-                                                AudioManager.STREAM_MUSIC,
-                                                AudioManager.ADJUST_LOWER,
-                                                AudioManager.FLAG_SHOW_UI,
+                                            audioManager?.adjustMusicVolumeIfMutable(
+                                                direction = AudioManager.ADJUST_LOWER,
+                                                flags = AudioManager.FLAG_SHOW_UI,
                                             )
                                             true
                                         }

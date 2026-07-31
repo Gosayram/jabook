@@ -25,6 +25,7 @@ import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -89,6 +90,16 @@ class SwipeGestureHandlerTest {
         whenever(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)).thenReturn(50)
         val lowVolume = handler.adjustVolume(0.2f)
         assertEquals(40, lowVolume)
+    }
+
+    @Test
+    fun `adjustVolume leaves fixed-volume outputs unchanged`() {
+        whenever(audioManager.isVolumeFixed).thenReturn(true)
+
+        val volume = handler.adjustVolume(-0.2f)
+
+        assertEquals(50, volume)
+        verify(audioManager, never()).setStreamVolume(any(), any(), any())
     }
 
     @Test
