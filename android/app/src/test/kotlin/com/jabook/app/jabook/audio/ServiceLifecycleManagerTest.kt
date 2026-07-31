@@ -16,6 +16,9 @@ package com.jabook.app.jabook.audio
 
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.doThrow
@@ -29,13 +32,16 @@ class ServiceLifecycleManagerTest {
     private lateinit var service: AudioPlayerService
     private lateinit var player: ExoPlayer
     private lateinit var manager: ServiceLifecycleManager
+    private lateinit var serviceScope: CoroutineScope
 
     @Before
     fun setUp() {
         service = mock()
         player = mock()
+        serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
 
         whenever(service.getActivePlayer()).thenReturn(player)
+        whenever(service.playerServiceScope).thenReturn(serviceScope)
         manager = ServiceLifecycleManager(service)
     }
 
@@ -97,5 +103,13 @@ class ServiceLifecycleManagerTest {
         verify(service, times(1)).saveCurrentPosition()
         verify(service, times(1)).finishListeningSessionIfActive("task_removed")
         verify(service, times(1)).stopSelf()
+    }
+
+    @Test
+    fun `onDestroy saves position and closes listening session before runtime teardown`() {
+        manager.onDestroy()
+
+        verify(service, times(1)).saveCurrentPosition()
+        verify(service, times(1)).finishListeningSessionIfActive("on_destroy")
     }
 }

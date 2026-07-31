@@ -899,9 +899,9 @@ public class AudioPlayerService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
-        releaseHandler.releaseRuntimeComponents(cancelServiceScopeChildren = true)
-        // Delegate to lifecycle manager
+        // Persist the active player's position before releaseHandler can release a custom player.
         lifecycleManager?.onDestroy()
+        releaseHandler.releaseRuntimeComponents(cancelServiceScopeChildren = true)
         super.onDestroy()
     }
 

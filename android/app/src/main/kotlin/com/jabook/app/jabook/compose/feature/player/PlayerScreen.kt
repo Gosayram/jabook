@@ -505,7 +505,7 @@ public fun PlayerScreen(
         }
     }
 
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    val requestNotificationPermissionForPlayback: () -> Unit = {
         val notificationPermissionGranted =
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                 androidx.core.content.ContextCompat
@@ -517,7 +517,7 @@ public fun PlayerScreen(
                 true
             }
         val permissionsToRequest =
-            PlayerPermissionPolicy.entryPermissionsToRequest(
+            PlayerPermissionPolicy.playbackPermissionsToRequest(
                 sdkInt = android.os.Build.VERSION.SDK_INT,
                 isNotificationPermissionGranted = notificationPermissionGranted,
             )
@@ -528,7 +528,7 @@ public fun PlayerScreen(
             }
 
         if (permissionsMissing.isNotEmpty()) {
-            playerScreenLogger.d { "Requesting permissions: $permissionsMissing" }
+            playerScreenLogger.d { "Requesting playback permissions: $permissionsMissing" }
             notificationPermissionsLauncher.launch(permissionsMissing.toTypedArray())
         }
     }
@@ -930,6 +930,7 @@ public fun PlayerScreen(
                                             },
                                             onPlayPause = {
                                                 HapticManager.performLongPress(hapticFeedback)
+                                                requestNotificationPermissionForPlayback()
                                                 clickDebouncer.debounce {
                                                     viewModel.dispatch(PlayerIntent.TogglePlayPause)
                                                 }

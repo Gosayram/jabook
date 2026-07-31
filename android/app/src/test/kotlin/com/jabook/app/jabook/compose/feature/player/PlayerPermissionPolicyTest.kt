@@ -22,9 +22,9 @@ import org.junit.Test
 
 class PlayerPermissionPolicyTest {
     @Test
-    fun `entryPermissionsToRequest requests notification on android 13 plus when not granted`() {
+    fun `playbackPermissionsToRequest requests notification on android 13 plus when not granted`() {
         val result =
-            PlayerPermissionPolicy.entryPermissionsToRequest(
+            PlayerPermissionPolicy.playbackPermissionsToRequest(
                 sdkInt = Build.VERSION_CODES.TIRAMISU,
                 isNotificationPermissionGranted = false,
             )
@@ -33,9 +33,9 @@ class PlayerPermissionPolicyTest {
     }
 
     @Test
-    fun `entryPermissionsToRequest returns empty when notification already granted`() {
+    fun `playbackPermissionsToRequest returns empty when notification already granted`() {
         val result =
-            PlayerPermissionPolicy.entryPermissionsToRequest(
+            PlayerPermissionPolicy.playbackPermissionsToRequest(
                 sdkInt = Build.VERSION_CODES.TIRAMISU,
                 isNotificationPermissionGranted = true,
             )
@@ -44,9 +44,9 @@ class PlayerPermissionPolicyTest {
     }
 
     @Test
-    fun `entryPermissionsToRequest never includes record audio`() {
+    fun `playbackPermissionsToRequest never includes record audio`() {
         val result =
-            PlayerPermissionPolicy.entryPermissionsToRequest(
+            PlayerPermissionPolicy.playbackPermissionsToRequest(
                 sdkInt = Build.VERSION_CODES.TIRAMISU,
                 isNotificationPermissionGranted = false,
             )
@@ -55,9 +55,9 @@ class PlayerPermissionPolicyTest {
     }
 
     @Test
-    fun `entryPermissionsToRequest returns empty below android 13`() {
+    fun `playbackPermissionsToRequest returns empty below android 13`() {
         val result =
-            PlayerPermissionPolicy.entryPermissionsToRequest(
+            PlayerPermissionPolicy.playbackPermissionsToRequest(
                 sdkInt = Build.VERSION_CODES.S_V2,
                 isNotificationPermissionGranted = false,
             )

@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.navigation.DeepLinkDispatchPolicy
 import com.jabook.app.jabook.compose.navigation.JabookAppState
 import com.jabook.app.jabook.compose.navigation.JabookNavHost
 import com.jabook.app.jabook.compose.navigation.LibraryRoute
@@ -155,7 +156,8 @@ public fun JabookApp(
     // Handle deep links when intent changes
     androidx.compose.runtime.LaunchedEffect(intent) {
         if (intent != null) {
-            if (intent.getBooleanExtra("navigate_to_player", false)) {
+            val isCustomPlayerIntent = intent.getBooleanExtra("navigate_to_player", false)
+            if (isCustomPlayerIntent) {
                 // Check if book_id is passed for direct navigation
                 val bookId = intent.getStringExtra("book_id")
 
@@ -169,7 +171,9 @@ public fun JabookApp(
                 }
             }
 
-            appState.navController.handleDeepLink(intent)
+            if (DeepLinkDispatchPolicy.shouldDelegateToNavController(isCustomPlayerIntent)) {
+                appState.navController.handleDeepLink(intent)
+            }
         }
     }
 
