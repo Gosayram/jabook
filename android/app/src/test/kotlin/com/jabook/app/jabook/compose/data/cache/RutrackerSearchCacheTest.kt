@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.data.cache
 import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class RutrackerSearchCacheTest {
@@ -47,8 +48,11 @@ class RutrackerSearchCacheTest {
     fun `get returns snapshot that cannot corrupt cached entry`() {
         cache.put("query", null, mutableListOf(result("1")))
 
-        val receivedResults = cache.get("query") as MutableList<SearchResult>
-        receivedResults.clear()
+        val receivedResults = cache.get("query") ?: error("Expected cached results")
+
+        assertThrows(UnsupportedOperationException::class.java) {
+            (receivedResults as MutableList<*>).clear()
+        }
 
         assertEquals(listOf(result("1")), cache.get("query"))
     }

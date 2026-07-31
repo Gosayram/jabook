@@ -52,6 +52,24 @@ class LoudnessNormalizerTest {
     }
 
     @Test
+    fun `silent buffer keeps unity gain for following audio`() {
+        normalizer.queueInput(pcm16Buffer(0, 0, 0, 0))
+
+        val silentOutput = normalizer.getOutput().order(ByteOrder.nativeOrder())
+
+        assertEquals(0, silentOutput.short.toInt())
+        assertEquals(0, silentOutput.short.toInt())
+        assertEquals(0, silentOutput.short.toInt())
+        assertEquals(0, silentOutput.short.toInt())
+
+        normalizer.queueInput(pcm16Buffer(1_000))
+
+        val audibleOutput = normalizer.getOutput().order(ByteOrder.nativeOrder())
+
+        assertTrue(audibleOutput.short.toInt() > 0)
+    }
+
+    @Test
     fun `flush clears queued buffers`() {
         normalizer.queueInput(pcm16Buffer(1200, -700))
         normalizer.flush()

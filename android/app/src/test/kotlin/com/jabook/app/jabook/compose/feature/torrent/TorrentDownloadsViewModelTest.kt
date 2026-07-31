@@ -160,7 +160,7 @@ class TorrentDownloadsViewModelTest {
                     Triple(false, NetworkType.WIFI, false),
                     Triple(false, NetworkType.ETHERNET, false),
                     Triple(false, NetworkType.CELLULAR, false),
-                    Triple(false, NetworkType.NONE, false),
+                    Triple(false, NetworkType.NONE, true),
                     Triple(false, NetworkType.UNKNOWN, false),
                     Triple(true, NetworkType.WIFI, false),
                     Triple(true, NetworkType.ETHERNET, false),

@@ -62,7 +62,7 @@ class AuthInterceptorTest {
         assertSame(expiredResponse, result)
         verify(chain).request()
         verify(chain).proceed(request)
-        verify(authRepository).getStoredCredentials()
+        kotlinx.coroutines.runBlocking { verify(authRepository).getStoredCredentials() }
         verifyNoMoreInteractions(chain)
     }
 

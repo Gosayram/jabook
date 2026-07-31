@@ -14,18 +14,18 @@
 
 package com.jabook.app.jabook.compose.data.torrent
 
-import android.content.Context
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
-import io.mockk.every
-import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -34,27 +34,27 @@ import java.util.concurrent.atomic.AtomicInteger
 class TorrentManagerConcurrencyTest {
     @Test
     fun `concurrent initialization initializes native session once`() {
-        val session = mockk<TorrentSession>()
+        val session = mock<TorrentSession>()
         val downloads = MutableStateFlow<Map<String, TorrentDownload>>(emptyMap())
         val initializationStarted = CountDownLatch(1)
         val allowInitializationToFinish = CountDownLatch(1)
         val initializationCalls = AtomicInteger(0)
-        every { session.downloadsFlow } returns downloads
-        every { session.initSession() } answers {
+        whenever(session.downloadsFlow).thenReturn(downloads)
+        doAnswer {
             initializationCalls.incrementAndGet()
             initializationStarted.countDown()
             allowInitializationToFinish.await(1, TimeUnit.SECONDS)
-        }
+        }.whenever(session).initSession()
 
-        val settingsRepository = mockk<SettingsRepository>()
-        every { settingsRepository.userPreferences } returns emptyFlow()
-        val networkMonitor = mockk<NetworkMonitor>()
-        every { networkMonitor.networkType } returns emptyFlow()
+        val settingsRepository = mock<SettingsRepository>()
+        whenever(settingsRepository.userPreferences).thenReturn(emptyFlow())
+        val networkMonitor = mock<NetworkMonitor>()
+        whenever(networkMonitor.networkType).thenReturn(emptyFlow())
         val manager =
             TorrentManager(
-                context = mockk<Context>(relaxed = true),
+                context = mock(),
                 session = session,
-                repository = mockk(relaxed = true),
+                repository = mock(),
                 settingsRepository = settingsRepository,
                 networkMonitor = networkMonitor,
                 loggerFactory = noOpLoggerFactory(),
@@ -78,7 +78,7 @@ class TorrentManagerConcurrencyTest {
     }
 
     private fun noOpLoggerFactory(): LoggerFactory {
-        val logger = mockk<Logger>(relaxed = true)
+        val logger = mock<Logger>()
         return object : LoggerFactory {
             override fun get(tag: String): Logger = logger
 

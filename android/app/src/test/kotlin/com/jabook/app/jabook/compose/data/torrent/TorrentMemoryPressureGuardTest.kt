@@ -67,7 +67,7 @@ class TorrentMemoryPressureGuardTest {
     }
 }
 
-private class RecordingTorrentSession : FakeTorrentSession() {
+private class RecordingTorrentSession : TorrentSession by FakeTorrentSession() {
     var memoryPressurePauseCount: Int = 0
         private set
 

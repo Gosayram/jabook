@@ -23,6 +23,7 @@ import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.NetworkTelemetryEventListenerFactory
 import com.jabook.app.jabook.compose.data.network.RutrackerCertificatePinningPolicy
+import com.jabook.app.jabook.compose.data.network.RutrackerConnectionPoolPolicy
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
@@ -100,19 +101,17 @@ public object NetworkModule {
     @Provides
     @Singleton
     public fun provideMirrorManager(
-        @ApplicationContext context: Context,
         settingsRepository: SettingsRepository,
         cookieJar: PersistentCookieJar,
         loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory,
         networkTelemetryEventListenerFactory: NetworkTelemetryEventListenerFactory,
     ): MirrorManager {
         // Lightweight OkHttpClient for health checks only
-        val healthCache = Cache(context.cacheDir.resolve("rutracker_health"), HTTP_CACHE_SIZE_BYTES)
         val healthCheckClient =
             OkHttpClient
                 .Builder()
                 .cookieJar(cookieJar)
-                .cache(healthCache)
+                .connectionPool(RutrackerConnectionPoolPolicy.create())
                 .certificatePinner(rutrackerCertificatePinner)
                 .callTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .connectTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -163,6 +162,7 @@ public object NetworkModule {
             .Builder()
             .dns(dohDns)
             .cache(apiCache)
+            .connectionPool(RutrackerConnectionPoolPolicy.create())
             .cookieJar(cookieJar)
             .certificatePinner(rutrackerCertificatePinner)
             .apply {

@@ -432,8 +432,15 @@ tasks.withType<Test>().configureEach {
         "-XX:+UseParallelGC",
         "-XX:MaxMetaspaceSize=512m",
     )
+    val logStartedTests =
+        providers
+            .gradleProperty("test.logStarted")
+            .map(String::toBoolean)
+            .orElse(false)
+            .get()
     testLogging {
         events("failed", "skipped")
+        if (logStartedTests) events("started")
     }
     systemProperty("kotlinx.coroutines.test.default_timeout", "30s")
 
