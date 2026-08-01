@@ -86,6 +86,11 @@ public class JabookApplication :
     /** ANR watchdog — active only in debug/beta builds via LogUtils gating. */
     private val anrWatchdog: AnrWatchdog = AnrWatchdog()
 
+    private val criticalMemoryTrimHandler =
+        CriticalMemoryTrimHandler {
+            SingletonImageLoader.get(this).memoryCache?.clear()
+        }
+
     public override val workManagerConfiguration: androidx.work.Configuration
         get() =
             androidx.work.Configuration
@@ -211,6 +216,12 @@ public class JabookApplication :
 
     public override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
+
+        try {
+            criticalMemoryTrimHandler.onTrimMemory(level)
+        } catch (e: Exception) {
+            LogUtils.e("JabookApplication", "Failed to clear heap caches during memory trim", e)
+        }
 
         try {
             EntryPointAccessors

@@ -25,7 +25,7 @@ import androidx.datastore.core.DataMigration
  */
 public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
     public companion object {
-        public const val CURRENT_SCHEMA_VERSION: Int = 6
+        public const val CURRENT_SCHEMA_VERSION: Int = 7
     }
 
     override suspend fun shouldMigrate(currentData: UserPreferences): Boolean = currentData.schemaVersion < CURRENT_SCHEMA_VERSION
@@ -105,6 +105,14 @@ public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
             val builder = migrated.toBuilder()
             builder.audioVisualizerMode = 0
             builder.schemaVersion = 6
+            migrated = builder.build()
+        }
+
+        // v7: match the app-wide haptics default for existing Proto stores.
+        if (migrated.schemaVersion < 7) {
+            val builder = migrated.toBuilder()
+            builder.hapticsEnabled = true
+            builder.schemaVersion = 7
             migrated = builder.build()
         }
 
