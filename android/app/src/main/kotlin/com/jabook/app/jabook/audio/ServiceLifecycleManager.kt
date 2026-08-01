@@ -51,7 +51,7 @@ internal class ServiceLifecycleManager(
                 player.playbackState == Player.STATE_ENDED
             ) {
                 LogUtils.i("AudioPlayerService", "Stopping service onTaskRemoved because not playing")
-                service.finishListeningSessionIfActive(reason = "task_removed")
+                finishListeningSession(reason = "task_removed")
                 // CRITICAL: Explicitly cancel notification to prevent it from getting stuck
                 // This mimics the behavior of Rhythm and other well-behaved players
                 ServiceCompat.stopForeground(service, ServiceCompat.STOP_FOREGROUND_REMOVE)
@@ -67,6 +67,7 @@ internal class ServiceLifecycleManager(
                 attributes = mapOf("service" to "AudioPlayerService"),
             )
             // Safety: stop service if we can't check player state
+            finishListeningSession(reason = "task_removed")
             service.stopSelf()
         }
     }
@@ -84,7 +85,6 @@ internal class ServiceLifecycleManager(
         try {
             LogUtils.d("AudioPlayerService", "Saving position before service destruction")
             service.saveCurrentPosition()
-            service.finishListeningSessionIfActive(reason = "on_destroy")
         } catch (e: Exception) {
             LogUtils.w("AudioPlayerService", "Failed to save position in onDestroy", e)
             CrashDiagnostics.reportNonFatal(
@@ -93,6 +93,8 @@ internal class ServiceLifecycleManager(
                 attributes = mapOf("service" to "AudioPlayerService"),
             )
         }
+
+        finishListeningSession(reason = "on_destroy")
 
         // Sleep timer is automatically managed by SuspendableCountDownTimer
 
@@ -173,6 +175,8 @@ internal class ServiceLifecycleManager(
     public fun stopAndCleanup() {
         LogUtils.d("AudioPlayerService", "stopAndCleanup() called")
 
+        finishListeningSession(reason = "stop_and_cleanup")
+
         // Clear duration cache to free memory
         service.durationManager.clearCache()
 
@@ -211,6 +215,19 @@ internal class ServiceLifecycleManager(
                 attributes = mapOf("service" to "AudioPlayerService"),
             )
             ErrorHandler.handleGeneralError("AudioPlayerService", e, "Stop and cleanup execution")
+        }
+    }
+
+    private fun finishListeningSession(reason: String) {
+        try {
+            service.finishListeningSessionIfActive(reason)
+        } catch (e: Exception) {
+            LogUtils.w("AudioPlayerService", "Failed to finish listening session reason=$reason", e)
+            CrashDiagnostics.reportNonFatal(
+                tag = "service_finish_listening_session_failed",
+                throwable = e,
+                attributes = mapOf("service" to "AudioPlayerService", "reason" to reason),
+            )
         }
     }
 }

@@ -33,15 +33,18 @@ class ServiceLifecycleManagerTest {
     private lateinit var player: ExoPlayer
     private lateinit var manager: ServiceLifecycleManager
     private lateinit var serviceScope: CoroutineScope
+    private lateinit var durationManager: DurationManager
 
     @Before
     fun setUp() {
         service = mock()
         player = mock()
+        durationManager = mock()
         serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
 
         whenever(service.getActivePlayer()).thenReturn(player)
         whenever(service.playerServiceScope).thenReturn(serviceScope)
+        whenever(service.durationManager).thenReturn(durationManager)
         manager = ServiceLifecycleManager(service)
     }
 
@@ -88,8 +91,8 @@ class ServiceLifecycleManagerTest {
         manager.onTaskRemoved()
 
         verify(service, times(1)).saveCurrentPosition()
+        verify(service, times(1)).finishListeningSessionIfActive("task_removed")
         verify(service, times(1)).stopSelf()
-        verify(service, never()).finishListeningSessionIfActive("task_removed")
     }
 
     @Test
@@ -111,5 +114,23 @@ class ServiceLifecycleManagerTest {
 
         verify(service, times(1)).saveCurrentPosition()
         verify(service, times(1)).finishListeningSessionIfActive("on_destroy")
+    }
+
+    @Test
+    fun `onDestroy closes listening session when saving position fails`() {
+        doThrow(RuntimeException("save failed")).whenever(service).saveCurrentPosition()
+
+        manager.onDestroy()
+
+        verify(service, times(1)).saveCurrentPosition()
+        verify(service, times(1)).finishListeningSessionIfActive("on_destroy")
+    }
+
+    @Test
+    fun `stopAndCleanup closes listening session before releasing player resources`() {
+        manager.stopAndCleanup()
+
+        verify(service, times(1)).finishListeningSessionIfActive("stop_and_cleanup")
+        verify(player, times(1)).stop()
     }
 }

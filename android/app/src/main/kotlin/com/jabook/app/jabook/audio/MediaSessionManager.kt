@@ -109,10 +109,13 @@ public class MediaSessionManager(
                         "lastPlayWhenReady=$lastPlayWhenReady, playbackState=${player.playbackState}",
                 )
 
-                // Only call callbacks if the change was triggered by user action
-                // PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST = 1 means user explicitly requested play/pause
-                // This happens when user clicks button in Quick Settings, notification, or lockscreen
-                if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST) {
+                // User commands and involuntary playback pauses must both close an active
+                // listening session. Other non-user transitions are informational only.
+                if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST ||
+                    (!playWhenReady &&
+                        (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS ||
+                            reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY))
+                ) {
                     if (playWhenReady && !lastPlayWhenReady) {
                         // User requested play via MediaSession (Quick Settings, notification, etc.)
                         LogUtils.i(

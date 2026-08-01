@@ -285,6 +285,8 @@ public class RutrackerRepository
                         withContext(Dispatchers.IO) {
                             try {
                                 offlineSearchDao.getTopicCount()
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (e: Exception) {
                                 0
                             }
