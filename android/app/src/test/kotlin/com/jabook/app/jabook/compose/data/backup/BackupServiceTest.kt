@@ -167,10 +167,9 @@ class BackupServiceTest {
                 .inMemoryDatabaseBuilder(
                     ApplicationProvider.getApplicationContext(),
                     JabookDatabase::class.java,
-                ).allowMainThreadQueries()
-                .build()
+                ).build()
         val playerPersistenceManager: PlayerPersistenceManager = mock()
-        kotlinx.coroutines.runBlocking {
+        kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
             doThrow(CancellationException("Import cancelled"))
                 .whenever(playerPersistenceManager)
                 .savePlayerState(org.mockito.kotlin.any())
@@ -186,12 +185,20 @@ class BackupServiceTest {
                 )
 
             assertThrows(CancellationException::class.java) {
-                kotlinx.coroutines.runBlocking {
+                kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
                     service.importFromFile(Uri.parse("content://jabook/backup"))
                 }
             }
 
-            assertTrue(kotlinx.coroutines.runBlocking { database.booksDao().getAllBooksFlow().first().isEmpty() })
+            assertTrue(
+                kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                    database
+                        .booksDao()
+                        .getAllBooksFlow()
+                        .first()
+                        .isEmpty()
+                },
+            )
         } finally {
             database.close()
         }

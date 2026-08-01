@@ -590,96 +590,98 @@ public class BackupService
         ) {
             val dao = database.booksDao()
 
-            books.forEach { backup ->
-                val existing = dao.getBookById(backup.id)
-                if (existing != null) {
-                    val localTimestamp = existing.lastPlayedDate ?: existing.addedDate
-                    val incomingTimestamp =
-                        backup.lastPlayedTimestamp
-                            .takeIf { it > 0 }
-                            ?.toLong()
-                            ?: backup.addedDate.toLong()
-                    val shouldApplyIncoming =
-                        ConflictResolutionResolver.shouldUseIncoming(
-                            policy = policy,
-                            localExists = true,
-                            localTimestamp = localTimestamp,
-                            incomingTimestamp = incomingTimestamp,
-                        )
-
-                    if (!shouldApplyIncoming) {
-                        return@forEach
-                    }
-
-                    // Update existing book
-                    dao.updatePlaybackProgress(
-                        bookId = backup.id,
-                        position = backup.lastPosition.toLong(),
-                        progress = backup.totalProgress,
-                        chapterIndex = 0,
-                        timestamp =
+            database.withTransaction {
+                books.forEach { backup ->
+                    val existing = dao.getBookById(backup.id)
+                    if (existing != null) {
+                        val localTimestamp = existing.lastPlayedDate ?: existing.addedDate
+                        val incomingTimestamp =
                             backup.lastPlayedTimestamp
-                                .takeIf {
-                                    it > 0
-                                }?.toLong() ?: System.currentTimeMillis(),
-                    )
-                    dao.updateBookSettings(
-                        bookId = backup.id,
-                        rewindDuration = backup.rewindDuration,
-                        forwardDuration = backup.forwardDuration,
-                    )
+                                .takeIf { it > 0 }
+                                ?.toLong()
+                                ?: backup.addedDate.toLong()
+                        val shouldApplyIncoming =
+                            ConflictResolutionResolver.shouldUseIncoming(
+                                policy = policy,
+                                localExists = true,
+                                localTimestamp = localTimestamp,
+                                incomingTimestamp = incomingTimestamp,
+                            )
 
-                    // Restore timestamps to PlayerPersistence
-                    try {
-                        playerPersistenceManager.savePlayerState(
-                            com.jabook.app.jabook.audio.PlayerState(
-                                bookId = backup.id,
-                                positionMs = backup.lastPosition.toLong(),
-                                durationMs = backup.duration.toLong(),
-                                filePaths = emptyList(),
-                                lastPlayedTimestamp = backup.lastPlayedTimestamp.toLong(),
-                                completedTimestamp = backup.completedTimestamp.toLong(),
-                            ),
+                        if (!shouldApplyIncoming) {
+                            return@forEach
+                        }
+
+                        // Update existing book
+                        dao.updatePlaybackProgress(
+                            bookId = backup.id,
+                            position = backup.lastPosition.toLong(),
+                            progress = backup.totalProgress,
+                            chapterIndex = 0,
+                            timestamp =
+                                backup.lastPlayedTimestamp
+                                    .takeIf {
+                                        it > 0
+                                    }?.toLong() ?: System.currentTimeMillis(),
                         )
-                    } catch (e: Exception) {
-                        rethrowIfCancellation(e)
-                        logger.e({ "Failed to restore timestamps for ${backup.id}" }, e)
-                    }
-                } else {
-                    // Insert new book (stub for history)
-                    dao.insertBook(
-                        BookEntity(
-                            id = backup.id,
-                            title = backup.title,
-                            author = backup.author,
-                            coverUrl = backup.coverPath,
-                            description = null,
-                            totalDuration = backup.duration.toLong(),
-                            currentPosition = backup.lastPosition.toLong(),
-                            totalProgress = backup.totalProgress,
-                            downloadStatus = "NOT_DOWNLOADED",
-                            addedDate = backup.addedDate.toLong(),
+                        dao.updateBookSettings(
+                            bookId = backup.id,
                             rewindDuration = backup.rewindDuration,
                             forwardDuration = backup.forwardDuration,
-                            isFavorite = false,
-                        ),
-                    )
+                        )
 
-                    // Restore timestamps for new book too
-                    try {
-                        playerPersistenceManager.savePlayerState(
-                            com.jabook.app.jabook.audio.PlayerState(
-                                bookId = backup.id,
-                                positionMs = backup.lastPosition.toLong(),
-                                durationMs = backup.duration.toLong(),
-                                filePaths = emptyList(),
-                                lastPlayedTimestamp = backup.lastPlayedTimestamp.toLong(),
-                                completedTimestamp = backup.completedTimestamp.toLong(),
+                        // Restore timestamps to PlayerPersistence
+                        try {
+                            playerPersistenceManager.savePlayerState(
+                                com.jabook.app.jabook.audio.PlayerState(
+                                    bookId = backup.id,
+                                    positionMs = backup.lastPosition.toLong(),
+                                    durationMs = backup.duration.toLong(),
+                                    filePaths = emptyList(),
+                                    lastPlayedTimestamp = backup.lastPlayedTimestamp.toLong(),
+                                    completedTimestamp = backup.completedTimestamp.toLong(),
+                                ),
+                            )
+                        } catch (e: Exception) {
+                            rethrowIfCancellation(e)
+                            logger.e({ "Failed to restore timestamps for ${backup.id}" }, e)
+                        }
+                    } else {
+                        // Insert new book (stub for history)
+                        dao.insertBook(
+                            BookEntity(
+                                id = backup.id,
+                                title = backup.title,
+                                author = backup.author,
+                                coverUrl = backup.coverPath,
+                                description = null,
+                                totalDuration = backup.duration.toLong(),
+                                currentPosition = backup.lastPosition.toLong(),
+                                totalProgress = backup.totalProgress,
+                                downloadStatus = "NOT_DOWNLOADED",
+                                addedDate = backup.addedDate.toLong(),
+                                rewindDuration = backup.rewindDuration,
+                                forwardDuration = backup.forwardDuration,
+                                isFavorite = false,
                             ),
                         )
-                    } catch (e: Exception) {
-                        rethrowIfCancellation(e)
-                        logger.e({ "Failed to restore timestamps for new book ${backup.id}" }, e)
+
+                        // Restore timestamps for new book too
+                        try {
+                            playerPersistenceManager.savePlayerState(
+                                com.jabook.app.jabook.audio.PlayerState(
+                                    bookId = backup.id,
+                                    positionMs = backup.lastPosition.toLong(),
+                                    durationMs = backup.duration.toLong(),
+                                    filePaths = emptyList(),
+                                    lastPlayedTimestamp = backup.lastPlayedTimestamp.toLong(),
+                                    completedTimestamp = backup.completedTimestamp.toLong(),
+                                ),
+                            )
+                        } catch (e: Exception) {
+                            rethrowIfCancellation(e)
+                            logger.e({ "Failed to restore timestamps for new book ${backup.id}" }, e)
+                        }
                     }
                 }
             }
@@ -695,46 +697,48 @@ public class BackupService
             val bookDao = database.booksDao()
             val favoriteDao = database.favoriteDao()
 
-            favorites.forEach { fav ->
-                val existing = favoriteDao.getFavoriteById(fav.bookId)
-                val localTimestamp =
-                    existing?.addedToFavorites?.let { dateStr ->
-                        runCatching { DateTimeFormatter.parseISO8601ToMillis(dateStr) }.getOrNull()
-                    } ?: 0L
-                val shouldApplyIncoming =
-                    ConflictResolutionResolver.shouldUseIncoming(
-                        policy = policy,
-                        localExists = existing != null,
-                        localTimestamp = localTimestamp,
-                        incomingTimestamp = fav.addedDate,
+            database.withTransaction {
+                favorites.forEach { fav ->
+                    val existing = favoriteDao.getFavoriteById(fav.bookId)
+                    val localTimestamp =
+                        existing?.addedToFavorites?.let { dateStr ->
+                            runCatching { DateTimeFormatter.parseISO8601ToMillis(dateStr) }.getOrNull()
+                        } ?: 0L
+                    val shouldApplyIncoming =
+                        ConflictResolutionResolver.shouldUseIncoming(
+                            policy = policy,
+                            localExists = existing != null,
+                            localTimestamp = localTimestamp,
+                            incomingTimestamp = fav.addedDate,
+                        )
+                    if (!shouldApplyIncoming) {
+                        return@forEach
+                    }
+
+                    // 1. Mark as favorite in BooksDao (if exists as a book)
+                    bookDao.updateFavoriteStatus(fav.bookId, true)
+
+                    // 2. Insert into FavoriteDao (for remote/search results)
+                    val addedDateStr = DateTimeFormatter.formatISO8601(fav.addedDate)
+                    favoriteDao.insertFavorite(
+                        com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity(
+                            topicId = fav.bookId,
+                            title = fav.title,
+                            author = fav.author,
+                            category = fav.category,
+                            size = fav.size,
+                            magnetUrl = fav.magnetUrl,
+                            coverUrl = fav.coverUrl,
+                            performer = fav.performer,
+                            genres = fav.genres,
+                            addedDate = addedDateStr,
+                            addedToFavorites = addedDateStr, // Use addedDate as fallback
+                            duration = fav.duration,
+                            bitrate = fav.bitrate,
+                            audioCodec = fav.audioCodec,
+                        ),
                     )
-                if (!shouldApplyIncoming) {
-                    return@forEach
                 }
-
-                // 1. Mark as favorite in BooksDao (if exists as a book)
-                bookDao.updateFavoriteStatus(fav.bookId, true)
-
-                // 2. Insert into FavoriteDao (for remote/search results)
-                val addedDateStr = DateTimeFormatter.formatISO8601(fav.addedDate)
-                favoriteDao.insertFavorite(
-                    com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity(
-                        topicId = fav.bookId,
-                        title = fav.title,
-                        author = fav.author,
-                        category = fav.category,
-                        size = fav.size,
-                        magnetUrl = fav.magnetUrl,
-                        coverUrl = fav.coverUrl,
-                        performer = fav.performer,
-                        genres = fav.genres,
-                        addedDate = addedDateStr,
-                        addedToFavorites = addedDateStr, // Use addedDate as fallback
-                        duration = fav.duration,
-                        bitrate = fav.bitrate,
-                        audioCodec = fav.audioCodec,
-                    ),
-                )
             }
         }
 
