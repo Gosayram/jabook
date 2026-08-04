@@ -23,15 +23,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertSame
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.clearInvocations
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -118,6 +122,24 @@ class CrossfadeTest {
 
         assertNotNull(callbackPlayer)
         assertNotEquals(playerA, callbackPlayer)
+    }
+
+    @Test
+    fun `pause cancels active crossfade without swapping players`() {
+        val activeBefore = crossFadePlayer.getActivePlayer()
+        var playerChanged = false
+        crossFadePlayer.onPlayerChanged = { playerChanged = true }
+
+        crossFadePlayer.startCrossFade()
+        testScope.advanceTimeBy(50)
+        clearInvocations(playerA, playerB)
+        crossFadePlayer.pause()
+        testScope.advanceUntilIdle()
+
+        assertSame(activeBefore, crossFadePlayer.getActivePlayer())
+        assertFalse(playerChanged)
+        verify(playerA).volume = 1f
+        verify(playerB).volume = 1f
     }
 
     @Test

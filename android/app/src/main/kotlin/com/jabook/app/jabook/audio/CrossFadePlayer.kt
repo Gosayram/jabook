@@ -96,6 +96,8 @@ public class CrossFadePlayer(
     public fun pause() {
         currentPlayer.pause()
         nextPlayer.pause()
+        currentPlayer.volume = 1f
+        nextPlayer.volume = 1f
         crossfadeJob?.cancel()
         crossfadeJob = null
         isCrossFading = false

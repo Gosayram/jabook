@@ -64,7 +64,7 @@ public fun JabookNavHost(
     // Predictive back handler for Android 13+ (targetSdk 36)
     // Uses PredictiveBackHandler for predictive back gesture with preview animation
     val canNavigateBack = navController.previousBackStackEntry != null
-    androidx.activity.compose.PredictiveBackHandler(onBack = {
+    androidx.activity.compose.PredictiveBackHandler(enabled = canNavigateBack, onBack = {
         navController.popBackStack()
     })
 

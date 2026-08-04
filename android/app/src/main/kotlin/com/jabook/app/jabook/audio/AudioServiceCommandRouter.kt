@@ -30,6 +30,7 @@ import com.jabook.app.jabook.util.LogUtils
  * @param getPlayerStateHelper provider for PlayerStateHelper
  * @param getUnloadManager provider for UnloadManager
  * @param getActivePlayer provider for active ExoPlayer instance
+ * @param getCrossFadePlayer provider for active crossfade controller
  * @param getPlaybackLifecycleActions provider for PlaybackLifecycleActions side effects
  * @param resetBookCompletionIfNeeded resets book completion flag if needed
  * @param updateCrashPlaybackContext updates crash diagnostics context
@@ -41,6 +42,7 @@ internal class AudioServiceCommandRouter(
     private val getPlayerStateHelper: () -> PlayerStateHelper?,
     private val getUnloadManager: () -> UnloadManager?,
     private val getActivePlayer: () -> androidx.media3.exoplayer.ExoPlayer,
+    private val getCrossFadePlayer: () -> CrossFadePlayer?,
     private val getPlaybackLifecycleActions: () -> PlaybackLifecycleActions,
     private val resetBookCompletionIfNeeded: (String) -> Unit,
     private val updateCrashPlaybackContext: () -> Unit,
@@ -57,6 +59,7 @@ internal class AudioServiceCommandRouter(
     }
 
     fun pause() {
+        getCrossFadePlayer()?.pause()
         getPlaybackController()?.pause() ?: run {
             LogUtils.e(TAG, "PlaybackController not initialized")
             return

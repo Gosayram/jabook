@@ -323,6 +323,7 @@ public class AudioPlayerService : MediaLibraryService() {
             getPlayerStateHelper = { playerStateHelper },
             getUnloadManager = { unloadManager },
             getActivePlayer = { getActivePlayer() },
+            getCrossFadePlayer = { crossFadePlayer },
             getPlaybackLifecycleActions = { playbackLifecycleActions },
             resetBookCompletionIfNeeded = { resetBookCompletionIfNeeded(it) },
             updateCrashPlaybackContext = { updateCrashPlaybackContext() },
