@@ -151,12 +151,12 @@ public class AuthRepositoryImpl
 
         override suspend fun login(credentials: UserCredentials): Result<Boolean> {
             // Check if login is already in progress
-            if (loginMutex.isLocked) {
+            if (!loginMutex.tryLock()) {
                 logger.w { "Login already in progress, ignoring duplicate request" }
                 return Result.failure(IllegalStateException("Login already in progress"))
             }
 
-            return loginMutex.withLock {
+            return try {
                 try {
                     val operationId: String = "login_${System.currentTimeMillis()}"
                     logger.d { "[$operationId] Login attempt started" }
@@ -173,7 +173,7 @@ public class AuthRepositoryImpl
                                         AuthStatus.Error(
                                             "Таймаут при проверке авторизации. Возможно, провайдер блокирует соединение.",
                                         )
-                                    return@withLock Result.failure(Exception("Authentication validation timeout"))
+                                    return Result.failure(Exception("Authentication validation timeout"))
                                 } catch (e: CancellationException) {
                                     throw e
                                 } catch (e: Exception) {
@@ -222,6 +222,8 @@ public class AuthRepositoryImpl
                     _authStatus.value = AuthStatus.Error(e.message ?: "Unknown error")
                     Result.failure(e)
                 }
+            } finally {
+                loginMutex.unlock()
             }
         }
 
@@ -231,12 +233,12 @@ public class AuthRepositoryImpl
             captchaData: CaptchaData,
         ): Result<Boolean> {
             // Check if login is already in progress
-            if (loginMutex.isLocked) {
+            if (!loginMutex.tryLock()) {
                 logger.w { "Captcha login already in progress, ignoring duplicate request" }
                 return Result.failure(IllegalStateException("Login already in progress"))
             }
 
-            return loginMutex.withLock {
+            return try {
                 try {
                     val operationId: String = "login_captcha_${System.currentTimeMillis()}"
                     logger.d { "[$operationId] Captcha login attempt started" }
@@ -283,13 +285,17 @@ public class AuthRepositoryImpl
                     logger.e({ "Captcha login exception" }, e)
                     Result.failure(e)
                 }
+            } finally {
+                loginMutex.unlock()
             }
         }
 
         override suspend fun logout() {
-            cookieJar.clear()
-            secureStorage.clearCredentials()
-            _authStatus.value = AuthStatus.Unauthenticated
+            loginMutex.withLock {
+                cookieJar.clear()
+                secureStorage.clearCredentials()
+                _authStatus.value = AuthStatus.Unauthenticated
+            }
         }
 
         override suspend fun isLoggedIn(): Boolean {
