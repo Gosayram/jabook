@@ -46,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -133,6 +134,10 @@ public fun MiniPlayer(
     val scale = 1f - (dragProgress * 0.05f)
 
     val interactionSource = remember { MutableInteractionSource() }
+    val currentOnDismiss by rememberUpdatedState(onDismiss)
+    val currentOnMiniPlayerClick by rememberUpdatedState(onMiniPlayerClick)
+    val currentOnNextClick by rememberUpdatedState(onNextClick)
+    val currentOnPreviousClick by rememberUpdatedState(onPreviousClick)
 
     Surface(
         modifier =
@@ -165,10 +170,10 @@ public fun MiniPlayer(
                                 if (absX > horizontalThreshold) {
                                     if (offsetX > 0) {
                                         // Swiped Right -> Previous
-                                        onPreviousClick()
+                                        currentOnPreviousClick()
                                     } else {
                                         // Swiped Left -> Next
-                                        onNextClick()
+                                        currentOnNextClick()
                                     }
                                     // Snap back after trigger (or maybe animate out? For now snap back like Spotify)
                                     offsetX = 0f
@@ -180,10 +185,10 @@ public fun MiniPlayer(
                                 // Vertical Swipe
                                 if (offsetY > dismissThreshold) {
                                     // Swiped Down -> Dismiss
-                                    onDismiss()
+                                    currentOnDismiss()
                                 } else if (offsetY < -dismissThreshold) {
                                     // Swiped Up -> Open
-                                    onMiniPlayerClick()
+                                    currentOnMiniPlayerClick()
                                     offsetY = 0f
                                 } else {
                                     offsetY = 0f
