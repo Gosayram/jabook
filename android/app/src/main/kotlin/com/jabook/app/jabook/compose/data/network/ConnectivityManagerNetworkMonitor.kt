@@ -60,7 +60,7 @@ public class ConnectivityManagerNetworkMonitor
                             network: Network,
                             networkCapabilities: NetworkCapabilities,
                         ) {
-                            trySend(getNetworkType(network))
+                            trySend(networkTypeForCapabilities(networkCapabilities))
                         }
                     }
 
@@ -90,14 +90,15 @@ public class ConnectivityManagerNetworkMonitor
                 .map { it != NetworkType.NONE }
                 .distinctUntilChanged()
 
-        private fun getNetworkType(network: Network): NetworkType {
-            val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return NetworkType.NONE
+        private fun getNetworkType(network: Network): NetworkType =
+            networkTypeForCapabilities(connectivityManager.getNetworkCapabilities(network))
+    }
 
-            return when {
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> NetworkType.WIFI
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> NetworkType.CELLULAR
-                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> NetworkType.ETHERNET
-                else -> NetworkType.UNKNOWN
-            }
-        }
+internal fun networkTypeForCapabilities(capabilities: NetworkCapabilities?): NetworkType =
+    when {
+        capabilities == null || !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) -> NetworkType.NONE
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> NetworkType.WIFI
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> NetworkType.CELLULAR
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> NetworkType.ETHERNET
+        else -> NetworkType.UNKNOWN
     }
