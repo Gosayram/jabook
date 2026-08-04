@@ -33,6 +33,8 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -108,6 +110,7 @@ public class IndexingWorker
                 logger.i { "Starting indexing worker (attempt=$runAttemptCount)" }
 
                 var errorOccurred = false
+                val progressMutex = Mutex()
 
                 try {
                     setForeground(getForegroundInfo())
@@ -126,22 +129,26 @@ public class IndexingWorker
                                     } else {
                                         0
                                     }
-                                setProgressAsync(
-                                    Data
-                                        .Builder()
-                                        .putInt(KEY_PROGRESS_PERCENT, percent)
-                                        .putString(KEY_PROGRESS_MESSAGE, progress.currentForum)
-                                        .build(),
-                                ).get()
+                                progressMutex.withLock {
+                                    setProgress(
+                                        Data
+                                            .Builder()
+                                            .putInt(KEY_PROGRESS_PERCENT, percent)
+                                            .putString(KEY_PROGRESS_MESSAGE, progress.currentForum)
+                                            .build(),
+                                    )
+                                }
                             }
                             is IndexingProgress.Completed -> {
-                                setProgressAsync(
-                                    Data
-                                        .Builder()
-                                        .putInt(KEY_PROGRESS_PERCENT, 100)
-                                        .putLong(KEY_TOPICS_INDEXED, progress.totalTopics.toLong())
-                                        .build(),
-                                ).get()
+                                progressMutex.withLock {
+                                    setProgress(
+                                        Data
+                                            .Builder()
+                                            .putInt(KEY_PROGRESS_PERCENT, 100)
+                                            .putLong(KEY_TOPICS_INDEXED, progress.totalTopics.toLong())
+                                            .build(),
+                                    )
+                                }
                             }
                             is IndexingProgress.Error -> {
                                 errorOccurred = true

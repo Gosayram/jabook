@@ -152,7 +152,7 @@ public class ForumIndexer
         public suspend fun indexForums(
             forumIds: String,
             preloadCovers: Boolean = true,
-            onProgress: ((IndexingProgress) -> Unit)? = null,
+            onProgress: (suspend (IndexingProgress) -> Unit)? = null,
         ): Int =
             withContext(Dispatchers.IO) {
                 val startTime = System.currentTimeMillis()
@@ -361,7 +361,7 @@ public class ForumIndexer
         private suspend fun indexForum(
             forumId: String,
             indexVersion: Int,
-            onProgress: ((page: Int, topicsInForum: Int) -> Unit)? = null,
+            onProgress: (suspend (page: Int, topicsInForum: Int) -> Unit)? = null,
         ): Pair<Int, List<String>> {
             var totalTopics: Int = 0
             var page: Int = 0
