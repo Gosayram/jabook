@@ -114,9 +114,10 @@ internal class PlayerMetadataHandler(
         if (artworkUri != null) {
             LogUtils.d("AudioPlayerService", "Artwork URI available: $artworkUri")
             setEmbeddedArtworkPath(null)
+            val artworkRequestMediaId = getActivePlayer().currentMediaItem?.mediaId ?: return
             // Load and set upscaled artwork data for lock screen (Android 13+)
             scope.launch(Dispatchers.IO) {
-                loadAndSetLockScreenArtwork(artworkUri)
+                loadAndSetLockScreenArtwork(artworkUri, artworkRequestMediaId)
             }
         } else if (hasArtworkData) {
             LogUtils.d("AudioPlayerService", "Embedded artwork data available: ${artworkData.size} bytes")
@@ -148,7 +149,10 @@ internal class PlayerMetadataHandler(
         }
     }
 
-    private suspend fun loadAndSetLockScreenArtwork(artworkUri: Uri) {
+    private suspend fun loadAndSetLockScreenArtwork(
+        artworkUri: Uri,
+        artworkRequestMediaId: String,
+    ) {
         try {
             val loader = SingletonImageLoader.get(context)
             val request =
@@ -165,6 +169,7 @@ internal class PlayerMetadataHandler(
 
                 val player = getActivePlayer()
                 val currentItem = player.currentMediaItem ?: return
+                if (!ArtworkRequestStalenessPolicy.isCurrent(artworkRequestMediaId, currentItem.mediaId)) return
                 val currentIndex = player.currentMediaItemIndex
                 if (currentIndex < 0) return
 

@@ -124,4 +124,33 @@ class ChapterDetectionWorkSchedulerTest {
         )
         assertEquals(1, requestCaptor.allValues.size)
     }
+
+    @Test
+    fun `enqueue replaces pending work when the file signature changes`() {
+        scheduler.enqueue(
+            bookId = "book-1",
+            filePath = "/books/book1/chapter.mp3",
+            fileIndex = 1,
+            durationMs = 10_000L,
+            fileLastModifiedMs = 5L,
+        )
+        scheduler.enqueue(
+            bookId = "book-1",
+            filePath = "/books/book1/chapter.mp3",
+            fileIndex = 1,
+            durationMs = 10_000L,
+            fileLastModifiedMs = 6L,
+        )
+
+        verify(workManager).enqueueUniqueWork(
+            eq("${ChapterDetectionWorker.WORK_NAME_PREFIX}_book-1_1"),
+            eq(ExistingWorkPolicy.KEEP),
+            any<OneTimeWorkRequest>(),
+        )
+        verify(workManager).enqueueUniqueWork(
+            eq("${ChapterDetectionWorker.WORK_NAME_PREFIX}_book-1_1"),
+            eq(ExistingWorkPolicy.REPLACE),
+            any<OneTimeWorkRequest>(),
+        )
+    }
 }

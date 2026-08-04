@@ -98,10 +98,14 @@ public class ChapterDetectionWorkScheduler
                         ),
                     ).build()
 
-            // Keep currently running/enqueued work to avoid churn during frequent re-scans.
-            // A new request with the same unique work name will wait until current work
-            // completes instead of replacing it mid-flight.
-            workManager.enqueueUniqueWork(workName, ExistingWorkPolicy.KEEP, request)
+            val previousSignature = enqueueHistory[workName]?.signature
+            val policy =
+                if (previousSignature == null || previousSignature == signature) {
+                    ExistingWorkPolicy.KEEP
+                } else {
+                    ExistingWorkPolicy.REPLACE
+                }
+            workManager.enqueueUniqueWork(workName, policy, request)
             enqueueHistory[workName] =
                 ChapterDetectionEnqueueGuardPolicy.EnqueueRecord(
                     signature = signature,
