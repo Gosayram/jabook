@@ -263,6 +263,11 @@ public fun WebViewScreen(
                     // Update WebView if needed
                     webView = view
                 },
+                onRelease = { view ->
+                    view.stopLoading()
+                    view.destroy()
+                    if (webView === view) webView = null
+                },
                 modifier = Modifier.fillMaxSize(),
             )
         }

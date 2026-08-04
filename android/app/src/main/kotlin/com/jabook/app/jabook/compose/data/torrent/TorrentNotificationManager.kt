@@ -167,13 +167,6 @@ public class TorrentNotificationManager
             notificationManager.cancel(notificationId)
         }
 
-        /**
-         * Update all notifications
-         */
-        public fun updateAllNotifications() {
-            // Will be called by service when needed
-        }
-
         private fun getProgressText(download: TorrentDownload): String =
             buildString {
                 append("↓ ${formatSpeed(download.downloadSpeed.toLong())}")

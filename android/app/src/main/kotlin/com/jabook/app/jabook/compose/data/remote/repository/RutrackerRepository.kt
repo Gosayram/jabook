@@ -388,6 +388,8 @@ public class RutrackerRepository
                 } else {
                     Result.failure(result.exceptionOrNull() ?: Exception("Unknown error"))
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Result.failure(e)
             }
@@ -450,13 +452,9 @@ public class RutrackerRepository
             // Log important headers
             val headers = response.headers()
             logger.w { "Headers:" }
-            listOf("content-type", "content-encoding", "content-length", "location", "set-cookie").forEach { name ->
+            listOf("content-type", "content-encoding", "content-length", "location").forEach { name ->
                 headers[name]?.let { value ->
-                    if (name == "set-cookie") {
-                        logger.w { "  $name: ${value.take(50)}..." }
-                    } else {
-                        logger.w { "  $name: $value" }
-                    }
+                    logger.w { "  $name: $value" }
                 }
             }
 
@@ -509,27 +507,6 @@ public class RutrackerRepository
                 val hasCyrillicBytes = sample.any { it.toInt() and 0xFF in 0xC0..0xFF } // Windows-1251 Cyrillic range
                 logger.w { "Has potential Cyrillic bytes (0xC0-0xFF): $hasCyrillicBytes" }
             }
-
-            // HTML preview (first 300 chars) - try both UTF-8 and Windows-1251
-            val htmlPreviewUtf8 =
-                try {
-                    String(rawBytes.take(300).toByteArray(), Charsets.UTF_8)
-                        .replace(Regex("\\s+"), " ")
-                } catch (e: Exception) {
-                    "ERROR: ${e.message}"
-                }
-            val htmlPreviewCp1251 =
-                try {
-                    String(
-                        rawBytes.take(300).toByteArray(),
-                        java.nio.charset.Charset
-                            .forName("windows-1251"),
-                    ).replace(Regex("\\s+"), " ")
-                } catch (e: Exception) {
-                    "ERROR: ${e.message}"
-                }
-            logger.w { "Response Start (UTF-8): $htmlPreviewUtf8..." }
-            logger.w { "Response Start (CP1251): $htmlPreviewCp1251..." }
 
             // Get Content-Type for encoding detection
             // Note: After BrotliInterceptor decompression, bytes are ready for charset decoding
@@ -738,6 +715,8 @@ public class RutrackerRepository
                     } catch (e: java.io.IOException) {
                         logger.logError(operationId, "Network I/O error", e)
                         Result.failure(RuTrackerError.NoConnection)
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         logger.logError(operationId, "Topic details error", e)
                         Result.failure(RuTrackerError.Unknown(e.message))

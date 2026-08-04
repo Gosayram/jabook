@@ -80,13 +80,11 @@ public class TorrentActionReceiver : BroadcastReceiver() {
 
             ACTION_PAUSE_ALL -> {
                 torrentManager.pauseAll()
-                notificationManager.updateAllNotifications()
                 logger.i { "Paused all torrents" }
             }
 
             ACTION_RESUME_ALL -> {
                 torrentManager.resumeAll()
-                notificationManager.updateAllNotifications()
                 logger.i { "Resumed all torrents" }
             }
         }
