@@ -422,10 +422,11 @@ tasks.withType<Test>().configureEach {
             .map { it.toBoolean() }
             .orElse(true)
             .get()
-    maxParallelForks = maxOf(1, Runtime.getRuntime().availableProcessors() / 2)
+    // Robolectric's native runtime mounts a shared ZIP filesystem; parallel forks race there.
+    // ponytail: one worker until Robolectric provides isolated native-runtime initialization.
+    maxParallelForks = 1
     forkEvery = 120
-    // ponytail: heap tuning for forked test JVMs — Robolectric loads many classes,
-    // ParallelGC is throughput-optimized for batch tests. 6 forks × 2GB = 12GB peak.
+    // ponytail: Robolectric loads many classes; keep the single test JVM well provisioned.
     minHeapSize = "512m"
     maxHeapSize = "2048m"
     jvmArgs(
