@@ -14,13 +14,11 @@
 
 package com.jabook.app.jabook.compose.data.auth
 
-import android.content.Context
 import android.webkit.CookieManager
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
 import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Cookie
@@ -29,28 +27,24 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Multi-stage cookie persistence manager.
- * Based on Flutter's 4-layer approach:
+ * Cookie persistence manager.
+ * Persists cookies to the database, WebView and runtime cookie jar.
  * 1. Database (Room) - most reliable
  * 2. WebView CookieManager - for WebView integration
- * 3. SecureStorage - encrypted persistence
- * 4. PersistentCookieJar - runtime cache
+ * 3. PersistentCookieJar - runtime cache
  */
 @Singleton
 public class CookiePersistenceManager
     @Inject
     constructor(
-        @param:ApplicationContext private val context: Context,
         private val database: JabookDatabase,
-        private val secureStorage: SecureCredentialStorage,
         private val cookieJar: PersistentCookieJar,
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("CookiePersistence")
 
         /**
-         * Persist cookies using all 4 layers.
-         * Follows Flutter's multi-stage persistence strategy.
+         * Persist cookies to every implemented storage layer.
          */
         public suspend fun persistCookiesMultiStage(url: String): Unit =
             withContext(Dispatchers.IO) {
@@ -101,47 +95,7 @@ public class CookiePersistenceManager
                     logger.e({ "Failed to sync to WebView" }, e)
                 }
 
-                // Layer 3: SecureStorage (encrypted)
-                try {
-                    // Note: Assuming SecureCredentialStorage has saveCookies method
-                    // If not, we'll skip this layer or add the method
-                    logger.d { "SecureStorage layer skipped (method not available)" }
-                } catch (e: Exception) {
-                    logger.e({ "Failed to save to SecureStorage" }, e)
-                }
-
                 logger.i { "Multi-stage persist complete for $url" }
-            }
-
-        /**
-         * Restore cookies from any available source.
-         * Tries layers in order: Database → SecureStorage → CookieJar
-         */
-        public suspend fun restoreCookiesFromAnySource(url: String): List<Cookie> =
-            withContext(Dispatchers.IO) {
-                // Layer 1: Try Database first (most reliable)
-                try {
-                    database.cookiesDao().getCookies(url)?.let { entity ->
-                        logger.d { "Cookies restored from database for $url" }
-                        return@withContext parseCookieHeader(url, entity.cookieHeader)
-                    }
-                } catch (e: Exception) {
-                    logger.e({ "Failed to restore from database" }, e)
-                }
-
-                // Layer 2: WebView CookieManager (skipped in favor of direct Database/CookieJar)
-                // SecureCredentialStorage is for username/password only, not cookies
-
-                // Layer 3: Fallback to CookieJar (runtime cache)
-                val httpUrl = url.toHttpUrl()
-                val cookies = cookieJar.loadForRequest(httpUrl)
-                if (cookies.isNotEmpty()) {
-                    logger.d { "Cookies restored from CookieJar for $url" }
-                    return@withContext cookies
-                }
-
-                logger.w { "No cookies found in any layer for $url" }
-                emptyList()
             }
 
         /**
@@ -170,35 +124,6 @@ public class CookiePersistenceManager
                     }
                 } catch (e: Exception) {
                     logger.e({ "Failed to sync from WebView" }, e)
-                }
-            }
-
-        /**
-         * Clear cookies from all layers.
-         */
-        public suspend fun clearAllCookies(): Unit =
-            withContext(Dispatchers.IO) {
-                try {
-                    // Clear database
-                    database.cookiesDao().clearAllCookies()
-                    logger.d { "Cleared database cookies" }
-
-                    // Clear WebView
-                    try {
-                        CookieManager.getInstance().removeAllCookies(null)
-                        CookieManager.getInstance().flush()
-                        logger.d { "Cleared WebView cookies" }
-                    } catch (e: Exception) {
-                        logger.e({ "Failed to clear WebView cookies" }, e)
-                    }
-
-                    // Clear CookieJar
-                    cookieJar.clear()
-                    logger.d { "Cleared CookieJar" }
-
-                    logger.i { "All cookies cleared from all layers" }
-                } catch (e: Exception) {
-                    logger.e({ "Failed to clear cookies" }, e)
                 }
             }
 

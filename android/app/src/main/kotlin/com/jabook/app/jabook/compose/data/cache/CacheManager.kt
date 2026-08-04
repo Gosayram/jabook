@@ -154,7 +154,6 @@ public class CacheManager
             withContext(Dispatchers.IO) {
                 try {
                     database.offlineSearchDao().deleteAllTopics()
-                    database.offlineSearchDao().deleteAllMappings()
                     logger.d { "Topic cache cleared successfully" }
                     true
                 } catch (e: Exception) {

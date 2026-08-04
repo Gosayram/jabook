@@ -906,7 +906,6 @@ public fun PlayerScreen(
                                     // Click debouncer for preventing double clicks (inspired by Easybook)
                                     val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300)
 
-                                    // Removed GestureOverlay as per user request to disable brightness/volume/seek swipes
                                     PremiumPlayerBackground(
                                         themeColors = state.themeColors,
                                         coverImageModel = CoverUtils.getCoverModel(state.book, context),

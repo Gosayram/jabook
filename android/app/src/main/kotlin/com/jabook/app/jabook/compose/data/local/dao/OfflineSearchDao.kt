@@ -108,12 +108,6 @@ public interface OfflineSearchDao {
     public suspend fun deleteAllTopics()
 
     /**
-     * Delete all search query mappings.
-     */
-    @Query("DELETE FROM search_query_map")
-    public suspend fun deleteAllMappings()
-
-    /**
      * Get count of cached topics.
      */
     @Query("SELECT COUNT(*) FROM cached_topics")

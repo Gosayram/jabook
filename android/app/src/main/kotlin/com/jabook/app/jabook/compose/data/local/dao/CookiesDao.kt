@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Query
 import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
 
@@ -31,28 +30,4 @@ public interface CookiesDao {
      */
     @Upsert
     public suspend fun saveCookies(cookie: CookieEntity)
-
-    /**
-     * Get cookies for a specific URL.
-     */
-    @Query("SELECT * FROM cookies WHERE url = :url LIMIT 1")
-    public suspend fun getCookies(url: String): CookieEntity?
-
-    /**
-     * Get all cookies (for backup/debugging).
-     */
-    @Query("SELECT * FROM cookies")
-    public suspend fun getAllCookies(): List<CookieEntity>
-
-    /**
-     * Clear all cookies.
-     */
-    @Query("DELETE FROM cookies")
-    public suspend fun clearAllCookies()
-
-    /**
-     * Clear cookies for a specific URL.
-     */
-    @Query("DELETE FROM cookies WHERE url = :url")
-    public suspend fun clearCookies(url: String)
 }

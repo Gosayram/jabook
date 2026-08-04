@@ -140,8 +140,6 @@ public class CoverLoader
                         scheduleRetry(topicId)
                     }
                 } else {
-                    // If Rutracker failed (e.g. no cover), check Flibusta (To Be Implemented)
-                    checkFlibusta(topicId)
                     scheduleRetry(topicId)
                 }
             } catch (e: CancellationException) {
@@ -170,11 +168,6 @@ public class CoverLoader
                     }
                 }
             }
-        }
-
-        private fun checkFlibusta(topicId: String) {
-            // TODO: Implement fallback to Flibusta
-            // FlibustaCoverProvider.fetch(topicId)
         }
 
         internal fun shutdown() {

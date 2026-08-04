@@ -639,7 +639,7 @@ public class PlayerViewModel
             audioPath: String,
         ): ImmutableList<com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine>? {
             try {
-                // Use the repository to get lyrics (includes fallback to demo lyrics)
+                // Sidecar lyrics are optional.
                 val lyrics = lyricsRepository.getLyrics(audioPath)
                 return if (lyrics.isNotEmpty()) lyrics.toImmutableList() else null
             } catch (e: Exception) {

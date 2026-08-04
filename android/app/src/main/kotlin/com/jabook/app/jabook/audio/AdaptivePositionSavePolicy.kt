@@ -27,7 +27,7 @@ package com.jabook.app.jabook.audio
  * - At 3x: 10 000ms (10 seconds)
  * - At 4x:  7 500ms (7.5 seconds)
  *
- * Combined with edge-based intervals from [PositionSaver]:
+ * Combined with edge-based intervals from [PeriodicPositionSaver]:
  * - Near start/end (first/last 10%): always use [edgeIntervalMs]
  * - In the middle: use speed-adapted interval
  *

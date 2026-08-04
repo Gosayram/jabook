@@ -32,7 +32,7 @@ import javax.inject.Inject
  * - [AudioPlayerService.onTaskRemoved]
  * - Before process death signals
  *
- * For normal periodic saving, use [PositionSaver] or [AutoSaveManager] instead.
+ * For normal periodic saving, use [PeriodicPositionSaver] instead.
  *
  * @param positionRepository Room-backed repository for playback positions
  */

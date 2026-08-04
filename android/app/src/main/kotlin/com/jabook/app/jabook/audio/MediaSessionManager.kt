@@ -112,9 +112,13 @@ public class MediaSessionManager(
                 // User commands and involuntary playback pauses must both close an active
                 // listening session. Other non-user transitions are informational only.
                 if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST ||
-                    (!playWhenReady &&
-                        (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS ||
-                            reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY))
+                    (
+                        !playWhenReady &&
+                            (
+                                reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS ||
+                                    reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY
+                            )
+                    )
                 ) {
                     if (playWhenReady && !lastPlayWhenReady) {
                         // User requested play via MediaSession (Quick Settings, notification, etc.)

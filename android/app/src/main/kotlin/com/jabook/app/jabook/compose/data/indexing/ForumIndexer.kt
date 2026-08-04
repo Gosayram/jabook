@@ -697,7 +697,6 @@ public class ForumIndexer
         public suspend fun clearIndex(): Unit =
             withContext(Dispatchers.IO) {
                 offlineSearchDao.deleteAllTopics()
-                offlineSearchDao.deleteAllMappings()
                 logger.i { "Index cleared" }
             }
 

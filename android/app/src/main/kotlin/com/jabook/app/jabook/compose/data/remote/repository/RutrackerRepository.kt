@@ -126,6 +126,8 @@ public class RutrackerRepository
                             )
                             Result.success(emptyList())
                         }
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         logger.logError(operationId, "Indexed search failed", e)
                         Result.success(emptyList()) // Return empty instead of error
@@ -170,6 +172,8 @@ public class RutrackerRepository
                             offlineSearchDao.searchIndexedTopicsFtsRaw(
                                 androidx.sqlite.db.SimpleSQLiteQuery(ftsSql, arrayOf<Any>(ftsQuery)),
                             )
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
                             logger.w { "FTS5 search failed, falling back to LIKE: ${e.message}" }
                             offlineSearchDao.searchIndexedTopics(query, limit)
@@ -219,8 +223,7 @@ public class RutrackerRepository
                             "Validation filtered out $filteredCount results " +
                                 "(${dtoResults.size} DTO -> ${domainResults.size} domain, ${domainMapDuration}ms)"
                         }
-                        val filtered = dtoResults.toDomainFromIndex()
-                        if (filtered.isEmpty() && dtoResults.isNotEmpty()) {
+                        if (domainResults.isEmpty() && dtoResults.isNotEmpty()) {
                             logger.e { "ALL results filtered out! First DTO: ${dtoResults.first()}" }
                         }
                     } else {
@@ -236,6 +239,8 @@ public class RutrackerRepository
                     }
 
                     domainResults
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e(
                         { "Indexed search EXCEPTION for query '$query': ${e.message}" },
@@ -317,6 +322,8 @@ public class RutrackerRepository
                                     offlineSearchDao.searchIndexedTopicsFtsRaw(
                                         androidx.sqlite.db.SimpleSQLiteQuery(ftsSql, arrayOf<Any>(ftsQuery)),
                                     )
+                                } catch (e: CancellationException) {
+                                    throw e
                                 } catch (e: Exception) {
                                     logger.w { "FTS5 flow search failed, falling back to LIKE: ${e.message}" }
                                     val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
@@ -645,6 +652,8 @@ public class RutrackerRepository
                     offlineSearchDao.saveSearchResults(query, entities)
                     val dbSaveDuration = System.currentTimeMillis() - dbSaveStartTime
                     logger.d { "Saved ${entities.size} results to DB cache (query: '$query', ${dbSaveDuration}ms)" }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e(
                         { "Failed to save to DB" },
