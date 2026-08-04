@@ -31,6 +31,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.mock
@@ -305,6 +306,32 @@ class SleepTimerManagerTest {
             val pausedFlag = timerPrefs().getBoolean(SleepTimerPersistence.KEY_PAUSED, true)
             assertTrue(!pausedFlag)
             assertNotNull(manager.getSleepTimerRemainingSeconds())
+        }
+
+    @Test
+    fun `cancelling timer removes listener from player that registered it`() =
+        runTest(testDispatcher) {
+            val initialPlayer = mock<ExoPlayer>()
+            val replacementPlayer = mock<ExoPlayer>()
+            whenever(initialPlayer.isPlaying).thenReturn(false)
+            whenever(replacementPlayer.isPlaying).thenReturn(false)
+            var activePlayer = initialPlayer
+
+            val manager =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { activePlayer },
+                    sendBroadcast = {},
+                )
+
+            manager.setSleepTimerMinutes(1)
+            activePlayer = replacementPlayer
+            manager.cancelSleepTimer()
+
+            verify(initialPlayer).removeListener(any())
+            verify(replacementPlayer, never()).removeListener(any())
         }
 
     private fun timerPrefs() = context.getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)

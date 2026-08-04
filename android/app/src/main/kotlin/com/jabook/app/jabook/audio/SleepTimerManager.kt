@@ -291,6 +291,7 @@ internal class SleepTimerManager(
      * Inspired by lissen-android: timer pauses when playback pauses and resumes when playback resumes.
      */
     private var playerListener: Player.Listener? = null
+    private var playerListenerTarget: ExoPlayer? = null
 
     private fun setupPlayerListener() {
         removePlayerListener() // Remove existing listener if any
@@ -328,6 +329,7 @@ internal class SleepTimerManager(
             }
 
         player.addListener(playerListener!!)
+        playerListenerTarget = player
     }
 
     /**
@@ -335,10 +337,10 @@ internal class SleepTimerManager(
      */
     private fun removePlayerListener() {
         playerListener?.let {
-            val player = getActivePlayer()
-            player.removeListener(it)
-            playerListener = null
+            playerListenerTarget?.removeListener(it)
         }
+        playerListener = null
+        playerListenerTarget = null
     }
 
     private fun setupShakeListener() {
