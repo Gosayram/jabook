@@ -1501,7 +1501,7 @@ private fun PlayerLandscapeLayout(
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(24.dp))
                         .combinedClickable(
-                            onClick = { },
+                            onClick = { if (hasLyrics) showLyrics(!showingLyrics) },
                             onDoubleClick = onStatsClick,
                         ),
             )

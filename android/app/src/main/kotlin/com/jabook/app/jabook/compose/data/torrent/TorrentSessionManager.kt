@@ -30,6 +30,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.libtorrent4j.AddTorrentParams
 import org.libtorrent4j.AlertListener
@@ -87,7 +88,7 @@ public class TorrentSessionManager
         private val _downloadsFlow = MutableStateFlow<Map<String, TorrentDownload>>(emptyMap())
         public val downloadsFlow: StateFlow<Map<String, TorrentDownload>> = _downloadsFlow.asStateFlow()
 
-        private val sessionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private var sessionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         // Kept separate from sessionScope: stopSession() cancels alert processing, but must not
         // cancel a state snapshot already requested by a memory-pressure callback.
@@ -172,6 +173,9 @@ public class TorrentSessionManager
             if (session != null) {
                 logger.w { "Session already initialized" }
                 return
+            }
+            if (!sessionScope.isActive) {
+                sessionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
             }
 
             try {

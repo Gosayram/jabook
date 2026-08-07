@@ -25,6 +25,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.util.concurrent.CountDownLatch
@@ -77,6 +78,31 @@ class TorrentManagerConcurrencyTest {
             allowInitializationToFinish.countDown()
             executor.shutdownNow()
         }
+    }
+
+    @Test
+    fun `initialization after shutdown restores active downloads again`() {
+        val session = mock<TorrentSession>()
+        whenever(session.downloadsFlow).thenReturn(MutableStateFlow(emptyMap()))
+        val settingsRepository = mock<SettingsRepository>()
+        whenever(settingsRepository.userPreferences).thenReturn(emptyFlow())
+        val networkMonitor = mock<NetworkMonitor>()
+        whenever(networkMonitor.networkType).thenReturn(emptyFlow())
+        val manager =
+            TorrentManager(
+                context = mock(),
+                session = session,
+                repository = mock(),
+                settingsRepository = settingsRepository,
+                networkMonitor = networkMonitor,
+                loggerFactory = noOpLoggerFactory(),
+            )
+
+        manager.initialize()
+        manager.shutdown()
+        manager.initialize()
+
+        verify(session, times(2)).restoreActiveDownloads()
     }
 
     private fun noOpLoggerFactory(): LoggerFactory {

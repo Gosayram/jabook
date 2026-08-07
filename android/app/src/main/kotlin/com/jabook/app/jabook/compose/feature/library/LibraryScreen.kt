@@ -145,6 +145,7 @@ public fun LibraryScreen(
     onNavigateToFavorites: () -> Unit = {},
     onNavigateToAudioSettings: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToAuth: () -> Unit = {},
     onFirstMeaningfulContentDrawn: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
@@ -165,6 +166,7 @@ public fun LibraryScreen(
     val safeNavigateToSearch = dropUnlessResumed { navigationClickGuard.run(onNavigateToSearch) }
     val safeNavigateToDownloads = dropUnlessResumed { navigationClickGuard.run(onNavigateToDownloads) }
     val safeNavigateToSettings = dropUnlessResumed { navigationClickGuard.run(onNavigateToSettings) }
+    val safeNavigateToAuth = dropUnlessResumed { navigationClickGuard.run(onNavigateToAuth) }
     var activeQuickFilter by remember { mutableStateOf(LibraryQuickFilter.ALL) }
     var showSortBottomSheet by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -323,7 +325,7 @@ public fun LibraryScreen(
                                     }
 
                                     // Account/avatar entry
-                                    IconButton(onClick = safeNavigateToSettings) {
+                                    IconButton(onClick = safeNavigateToAuth) {
                                         Icon(
                                             imageVector = Icons.Filled.Person,
                                             contentDescription = stringResource(R.string.account),

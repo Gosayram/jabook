@@ -283,6 +283,9 @@ public fun JabookNavHost(
                 onNavigateToSettings = {
                     navController.navigate(SettingsRoute)
                 },
+                onNavigateToAuth = {
+                    navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute)
+                },
                 onFirstMeaningfulContentDrawn = onFirstMeaningfulContentDrawn,
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = this,
