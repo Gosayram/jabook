@@ -140,6 +140,11 @@ public fun WebViewScreen(
                                     viewModel.completeLogin { isLoggedIn ->
                                         isCapturingSession = false
                                         if (isLoggedIn) {
+                                            Toast.makeText(
+                                                context,
+                                                R.string.loginSuccessMessage,
+                                                Toast.LENGTH_SHORT,
+                                            ).show()
                                             safeNavigateBack()
                                         } else {
                                             Toast
