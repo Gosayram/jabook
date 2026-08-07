@@ -152,15 +152,7 @@ public class RutrackerRepository
         ): List<RutrackerSearchResult> =
             withContext(Dispatchers.IO) {
                 try {
-                    val searchStartTime = System.currentTimeMillis()
-                    val currentMirror = mirrorManager.getCurrentMirrorDomain()
-                    logger.i { "=== INDEXED SEARCH START ===" }
-                    logger.i { "Input query: '$query', limit: $limit" }
-                    logger.i { "Current mirror: $currentMirror" }
-
                     val ftsQuery = toFtsQuery(query)
-                    logger.d { "FTS5 query: '$ftsQuery' (from raw: '$query')" }
-
                     val entities =
                         try {
                             val ftsSql =
@@ -178,65 +170,9 @@ public class RutrackerRepository
                             logger.w { "FTS5 search failed, falling back to LIKE: ${e.message}" }
                             offlineSearchDao.searchIndexedTopics(query, limit)
                         }
-                    val dbDuration = System.currentTimeMillis() - searchStartTime
-
-                    logger.i { "DB query completed: ${entities.size} entities returned in ${dbDuration}ms" }
-
-                    // Diagnostic: if no results, check why
-                    if (entities.isEmpty()) {
-                        logger.w { "Zero results from DB - running diagnostics..." }
-                        val totalTopics = offlineSearchDao.getTopicCount()
-                        val topicsWithCategory = offlineSearchDao.getTopicsWithNonEmptyCategory()
-                        logger.w { "Total topics in DB: $totalTopics" }
-                        logger.w { "Topics with non-empty category: $topicsWithCategory" }
-                        logger.w { "Topics filtered by category constraint: ${totalTopics - topicsWithCategory}" }
-
-                        val sampleTopics = offlineSearchDao.getSampleTopics(5)
-                        sampleTopics.forEachIndexed { i, topic ->
-                            logger.d { "Sample[$i]: title='${topic.title.take(40)}', category='${topic.category}'" }
-                        }
-                    }
-
-                    entities.take(3).forEachIndexed { i, entity ->
-                        logger.d {
-                            "Result[$i]: id=${entity.topicId}, " +
-                                "title='${entity.title.take(40)}', " +
-                                "author='${entity.author.take(20)}', " +
-                                "category='${entity.category}', " +
-                                "seeders=${entity.seeders}"
-                        }
-                    }
-
-                    val mapStartTime = System.currentTimeMillis()
-                    logger.d { "Mapping ${entities.size} entities to DTO..." }
                     val dtoResults = entities.map { it.toSearchResult() }
-                    val dtoMapDuration = System.currentTimeMillis() - mapStartTime
-                    logger.d { "DTO mapping: ${entities.size} -> ${dtoResults.size} in ${dtoMapDuration}ms" }
-
-                    val domainMapStartTime = System.currentTimeMillis()
                     val domainResults = dtoResults.toDomainFromIndex()
-                    val domainMapDuration = System.currentTimeMillis() - domainMapStartTime
-
-                    val filteredCount = dtoResults.size - domainResults.size
-                    if (filteredCount > 0) {
-                        logger.w {
-                            "Validation filtered out $filteredCount results " +
-                                "(${dtoResults.size} DTO -> ${domainResults.size} domain, ${domainMapDuration}ms)"
-                        }
-                        if (domainResults.isEmpty() && dtoResults.isNotEmpty()) {
-                            logger.e { "ALL results filtered out! First DTO: ${dtoResults.first()}" }
-                        }
-                    } else {
-                        logger.d {
-                            "Domain mapping: ${dtoResults.size} -> ${domainResults.size} in ${domainMapDuration}ms (no filtering)"
-                        }
-                    }
-
-                    val totalDuration = System.currentTimeMillis() - searchStartTime
-                    logger.i {
-                        "=== SEARCH COMPLETE === Query: '$query' | Results: ${domainResults.size} | " +
-                            "Total: ${totalDuration}ms (DB: ${dbDuration}ms, DTO map: ${dtoMapDuration}ms, Domain map: ${domainMapDuration}ms)"
-                    }
+                    logger.d { "Indexed search: ${entities.size} candidates, ${domainResults.size} results" }
 
                     domainResults
                 } catch (e: CancellationException) {
@@ -246,7 +182,6 @@ public class RutrackerRepository
                         { "Indexed search EXCEPTION for query '$query': ${e.message}" },
                         e,
                     )
-                    logger.e { "Exception type: ${e.javaClass.simpleName}, stack trace below" }
                     emptyList()
                 }
             }

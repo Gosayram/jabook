@@ -16,14 +16,12 @@ package com.jabook.app.jabook.compose.data.repository
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
-import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
 import com.jabook.app.jabook.compose.data.network.ConnectivityAwareRequestScheduler
 import com.jabook.app.jabook.compose.data.network.ParserVersionPolicy
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomainFromIndex
-import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.compose.domain.model.AppError
 import com.jabook.app.jabook.compose.domain.model.Result
@@ -34,8 +32,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -69,18 +65,6 @@ public interface RutrackerRepository {
      * @return Result with topic details
      */
     public suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails, AppError>
-
-    /**
-     * Login to Rutracker.
-     *
-     * @param username Username
-     * @param password Password
-     * @return Result indicating success or failure
-     */
-    public suspend fun login(
-        username: String,
-        password: String,
-    ): Result<Unit, AppError>
 
     /**
      * Get topic details at a specific page.
@@ -211,19 +195,6 @@ public class RutrackerRepositoryImpl
                 Result.Error(e.toAppError())
             }
 
-        private suspend fun saveResultsToDb(
-            query: String,
-            results: List<SearchResult>,
-        ) {
-            try {
-                offlineSearchDao.saveSearchResults(query, results.map { it.toCachedTopicEntity() })
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                logger.e(e) { "Failed to save results" }
-            }
-        }
-
         override suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails, AppError> {
             return try {
                 if (!connectivityScheduler.awaitOnline("getTopicDetails")) {
@@ -273,39 +244,6 @@ public class RutrackerRepositoryImpl
                         AppError.ParsingError.Generic("Topic details failed validation"),
                     )
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Result.Error(e.toAppError())
-            }
-        }
-
-        override suspend fun login(
-            username: String,
-            password: String,
-        ): Result<Unit, AppError> {
-            return try {
-                if (!connectivityScheduler.awaitOnline("login")) {
-                    return Result.Error(AppError.NetworkError.NoConnection)
-                }
-                // Create form-url-encoded request body with CP1251 encoding
-                val formBody: String = "login_username=$username&login_password=$password&login=%C2%F5%EE%E4"
-                val requestBody =
-                    formBody
-                        .toByteArray(charset("windows-1251"))
-                        .toRequestBody("application/x-www-form-urlencoded; charset=windows-1251".toMediaType())
-
-                val response = api.login(requestBody)
-
-                if (!response.isSuccessful) {
-                    return Result.Error(
-                        AppError.NetworkError.Generic("Login failed: HTTP ${response.code()}"),
-                    )
-                }
-
-                // Check if login was successful by checking cookies or response content
-                // Rutracker sets session cookies on successful login
-                Result.Success(Unit)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
