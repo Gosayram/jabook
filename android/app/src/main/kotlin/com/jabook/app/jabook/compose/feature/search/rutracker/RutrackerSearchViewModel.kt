@@ -113,6 +113,7 @@ public class RutrackerSearchViewModel
 
             logger.d { "Starting search: query='$query', forumIds=$forumIds" }
             searchJob?.cancel()
+            originalResults = emptyList()
             searchJob =
                 viewModelScope.launch {
                     _searchState.value = SearchState.Loading

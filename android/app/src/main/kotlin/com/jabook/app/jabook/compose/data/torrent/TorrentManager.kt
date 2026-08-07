@@ -76,6 +76,7 @@ public class TorrentManager
 
             try {
                 session.initSession()
+                session.restoreActiveDownloads()
                 isInitialized = true
                 logger.i { "TorrentManager initialized" }
 

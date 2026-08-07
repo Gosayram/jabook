@@ -45,7 +45,6 @@ import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material.icons.outlined.GridView
@@ -513,13 +512,6 @@ public fun LibraryScreen(
                                                                     Icon(
                                                                         imageVector = Icons.Filled.Clear,
                                                                         contentDescription = stringResource(R.string.clearSearch),
-                                                                    )
-                                                                }
-                                                            } else if (searchBarExpanded) {
-                                                                IconButton(onClick = { /* TODO: open filter sheet */ }) {
-                                                                    Icon(
-                                                                        imageVector = Icons.Filled.Tune,
-                                                                        contentDescription = stringResource(R.string.filterLibraryTooltip),
                                                                     )
                                                                 }
                                                             }

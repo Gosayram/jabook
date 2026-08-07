@@ -42,6 +42,7 @@ class RutrackerSearchViewModelTest {
     private val repository: RutrackerRepository = mock()
     private val booksRepository: BooksRepository = mock()
     private val coverLoader: CoverLoader = mock()
+    private val coverEvents = MutableSharedFlow<CoverLoader.CoverLoadedEvent>()
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var viewModel: RutrackerSearchViewModel
 
@@ -49,7 +50,7 @@ class RutrackerSearchViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         whenever(booksRepository.getAllBooks()).thenReturn(flowOf(emptyList()))
-        whenever(coverLoader.coverLoadedEvents).thenReturn(MutableSharedFlow())
+        whenever(coverLoader.coverLoadedEvents).thenReturn(coverEvents)
         viewModel = RutrackerSearchViewModel(repository, booksRepository, coverLoader, NoOpLoggerFactory)
     }
 
@@ -97,6 +98,26 @@ class RutrackerSearchViewModelTest {
                     .single()
                     .result.topicId,
             )
+        }
+
+    @Test
+    fun `cover event from old results does not replace a new loading search`() =
+        runTest {
+            val first = MutableSharedFlow<Result<List<RutrackerSearchResult>>>(replay = 1)
+            val second = MutableSharedFlow<Result<List<RutrackerSearchResult>>>()
+            whenever(repository.searchAudiobooksFlow(eq("first"), any())).thenReturn(first)
+            whenever(repository.searchAudiobooksFlow(eq("second"), any())).thenReturn(second)
+
+            viewModel.search("first")
+            testDispatcher.scheduler.runCurrent()
+            first.emit(Result.success(listOf(searchResult("first"))))
+            testDispatcher.scheduler.runCurrent()
+            viewModel.search("second")
+            testDispatcher.scheduler.runCurrent()
+            coverEvents.emit(CoverLoader.CoverLoadedEvent("first", "https://example.com/cover.jpg"))
+            testDispatcher.scheduler.runCurrent()
+
+            assertTrue(viewModel.searchState.value is SearchState.Loading)
         }
 
     private fun searchResult(topicId: String): RutrackerSearchResult =

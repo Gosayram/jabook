@@ -25,6 +25,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -33,7 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class TorrentManagerConcurrencyTest {
     @Test
-    fun `concurrent initialization initializes native session once`() {
+    fun `concurrent initialization restores active downloads once`() {
         val session = mock<TorrentSession>()
         val downloads = MutableStateFlow<Map<String, TorrentDownload>>(emptyMap())
         val initializationStarted = CountDownLatch(1)
@@ -71,6 +72,7 @@ class TorrentManagerConcurrencyTest {
             allowInitializationToFinish.countDown()
             first.get(1, TimeUnit.SECONDS)
             second.get(1, TimeUnit.SECONDS)
+            verify(session).restoreActiveDownloads()
         } finally {
             allowInitializationToFinish.countDown()
             executor.shutdownNow()

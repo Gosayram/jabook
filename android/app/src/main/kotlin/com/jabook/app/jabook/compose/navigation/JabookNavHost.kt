@@ -280,6 +280,9 @@ public fun JabookNavHost(
                 onNavigateToAudioSettings = {
                     navController.navigate(AudioSettingsRoute)
                 },
+                onNavigateToSettings = {
+                    navController.navigate(SettingsRoute)
+                },
                 onFirstMeaningfulContentDrawn = onFirstMeaningfulContentDrawn,
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = this,
