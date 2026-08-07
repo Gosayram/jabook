@@ -314,9 +314,9 @@ public fun LibraryScreen(
                                         scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
                                     ),
                                 actions = {
-                                    // Theme toggle
+                                    // Theme settings
                                     val isDark = androidx.compose.foundation.isSystemInDarkTheme()
-                                    IconButton(onClick = { /* Theme follows system */ }) {
+                                    IconButton(onClick = safeNavigateToSettings) {
                                         Icon(
                                             imageVector = if (isDark) Icons.Filled.WbSunny else Icons.Filled.NightsStay,
                                             contentDescription = stringResource(R.string.darkMode),

@@ -262,7 +262,7 @@ public fun JabookApp(
                         scope.launch { drawerState.close() }
                     },
                     onNavigateToAbout = {
-                        // TODO: Navigate to About
+                        appState.navController.navigate(com.jabook.app.jabook.compose.navigation.SettingsRoute)
                         scope.launch { drawerState.close() }
                     },
                 )
