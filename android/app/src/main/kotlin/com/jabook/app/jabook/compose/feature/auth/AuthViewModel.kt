@@ -108,13 +108,7 @@ public class AuthViewModel
                                 )
                             }
                         } else {
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    error = e.message ?: "Unknown error",
-                                    showWebViewLogin = true,
-                                )
-                            }
+                            requestTrustedWebViewLogin(e.message ?: "Unknown error")
                         }
                     }
             }
@@ -131,7 +125,16 @@ public class AuthViewModel
         }
 
         public fun requestWebViewLogin() {
-            _uiState.update { it.copy(showWebViewLogin = true) }
+            requestTrustedWebViewLogin()
+        }
+
+        private fun requestTrustedWebViewLogin(error: String? = null) {
+            viewModelScope.launch {
+                if (mirrorManager.currentMirror.value !in MirrorManager.DEFAULT_MIRRORS) {
+                    mirrorManager.setMirror(MirrorManager.DEFAULT_MIRRORS.first())
+                }
+                _uiState.update { it.copy(isLoading = false, error = error, showWebViewLogin = true) }
+            }
         }
 
         public fun consumeWebViewLoginRequest() {

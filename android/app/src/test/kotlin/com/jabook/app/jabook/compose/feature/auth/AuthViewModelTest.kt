@@ -52,6 +52,7 @@ class AuthViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         whenever(authRepository.authStatus).thenReturn(authStatusFlow)
+        whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow(MirrorManager.DEFAULT_MIRRORS.first()))
         viewModel = AuthViewModel(authRepository, mirrorManager)
     }
 
@@ -128,6 +129,18 @@ class AuthViewModelTest {
 
         assertEquals(false, viewModel.uiState.value.showWebViewLogin)
     }
+
+    @Test
+    fun `webview fallback replaces an untrusted mirror`() =
+        runTest {
+            whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("custom.example"))
+
+            viewModel.requestWebViewLogin()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            verify(mirrorManager).setMirror(MirrorManager.DEFAULT_MIRRORS.first())
+            assertEquals(true, viewModel.uiState.value.showWebViewLogin)
+        }
 
     @Test
     fun `login failure with captcha updates state`() =
