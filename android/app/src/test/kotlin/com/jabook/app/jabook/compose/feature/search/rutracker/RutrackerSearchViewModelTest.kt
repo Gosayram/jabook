@@ -1,0 +1,73 @@
+// Copyright 2026 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.jabook.app.jabook.compose.feature.search.rutracker
+
+import com.jabook.app.jabook.compose.core.logger.NoOpLoggerFactory
+import com.jabook.app.jabook.compose.data.remote.RuTrackerError
+import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class RutrackerSearchViewModelTest {
+    private val repository: RutrackerRepository = mock()
+    private val booksRepository: BooksRepository = mock()
+    private val coverLoader: CoverLoader = mock()
+    private val testDispatcher = StandardTestDispatcher()
+    private lateinit var viewModel: RutrackerSearchViewModel
+
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+        whenever(booksRepository.getAllBooks()).thenReturn(flowOf(emptyList()))
+        whenever(coverLoader.coverLoadedEvents).thenReturn(MutableSharedFlow())
+        viewModel = RutrackerSearchViewModel(repository, booksRepository, coverLoader, NoOpLoggerFactory)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `failed remote search is shown as an error instead of empty results`() =
+        runTest {
+            whenever(repository.searchAudiobooksFlow(any(), any())).thenReturn(
+                flowOf(Result.failure(RuTrackerError.BadRequest)),
+            )
+
+            viewModel.search("query")
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val state = viewModel.searchState.value
+            assertTrue(state is SearchState.Error)
+            assertEquals(RuTrackerError.BadRequest.message, (state as SearchState.Error).message)
+        }
+}

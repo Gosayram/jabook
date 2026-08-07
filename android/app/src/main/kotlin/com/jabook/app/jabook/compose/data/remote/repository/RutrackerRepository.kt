@@ -283,19 +283,17 @@ public class RutrackerRepository
                     val refreshed = fetchFromNetwork(query, forumIds)
                     if (refreshed.isSuccess) {
                         emitIfChanged(refreshed.getOrDefault(emptyList()))
-                    } else {
-                        if (lastEmitted.isEmpty()) {
-                            emit(Result.success(emptyList()))
-                        }
+                    } else if (lastEmitted.isEmpty()) {
+                        emit(Result.failure(refreshed.exceptionOrNull() ?: RuTrackerError.Unknown()))
                     }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    emit(Result.success(emptyList()))
+                    emit(Result.failure(e))
                 }
             }.catch { e ->
                 if (e is CancellationException) throw e
-                emit(Result.success(emptyList()))
+                emit(Result.failure(e))
             }
 
         /**
@@ -368,15 +366,7 @@ public class RutrackerRepository
                         401 -> RuTrackerError.Unauthorized
                         403 -> RuTrackerError.Forbidden
                         404 -> RuTrackerError.NotFound
-                        400 -> {
-                            logger.w {
-                                "HTTP 400 Bad Request for query '$query' - returning empty list instead of error"
-                            }
-                            // For bad request, return empty list instead of error
-                            // This prevents showing confusing error to user
-                            if (operationId == null) logger.endOperation(opId, success = false)
-                            return Result.success(emptyList())
-                        }
+                        400 -> RuTrackerError.BadRequest
                         else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
                     }
                 logger.logError(opId, "Request failed: ${error.message}", error)
@@ -518,32 +508,10 @@ public class RutrackerRepository
                         logger.e { "  ... and ${parsingResult.errors.size - 5} more errors" }
                     }
 
-                    // Check if it's a bad request or validation error
-                    val isBadRequest =
-                        parsingResult.errors.any {
-                            it.reason.contains("Bad request", ignoreCase = true) ||
-                                it.reason.contains("BadRequest", ignoreCase = true) ||
-                                it.reason.contains("Content validation failed", ignoreCase = true)
-                        }
-
-                    if (isBadRequest) {
-                        logger.w { "Bad request or validation error detected in parsing result for query '$query'" }
-                        logger.w { "   Returning empty list instead of error to prevent user confusion" }
-                        logger.w { "   Error details: $errorMessage" }
-                        // Return empty list instead of error for bad request
-                        // This prevents showing "bad request" error to user when it's just an empty/invalid result
-                        if (operationId ==
-                            null
-                        ) {
-                            logger.endOperation(opId, success = false, "Bad request - returning empty")
-                        }
-                        Result.success(emptyList())
-                    } else {
-                        val error = RuTrackerError.ParsingError(errorMessage)
-                        logger.logError(opId, "Parsing failed: $errorMessage", error)
-                        if (operationId == null) logger.endOperation(opId, success = false, errorMessage)
-                        Result.failure(error)
-                    }
+                    val error = RuTrackerError.ParsingError(errorMessage)
+                    logger.logError(opId, "Parsing failed: $errorMessage", error)
+                    if (operationId == null) logger.endOperation(opId, success = false, errorMessage)
+                    Result.failure(error)
                 }
             }
         }
