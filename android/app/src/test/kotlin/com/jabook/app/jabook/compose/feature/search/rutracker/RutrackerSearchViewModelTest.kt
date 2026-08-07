@@ -18,6 +18,7 @@ import com.jabook.app.jabook.compose.core.logger.NoOpLoggerFactory
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -32,6 +33,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
@@ -70,4 +72,43 @@ class RutrackerSearchViewModelTest {
             assertTrue(state is SearchState.Error)
             assertEquals(RuTrackerError.BadRequest.message, (state as SearchState.Error).message)
         }
+
+    @Test
+    fun `new search cancels the previous search`() =
+        runTest {
+            val first = MutableSharedFlow<Result<List<RutrackerSearchResult>>>(replay = 1)
+            val second = MutableSharedFlow<Result<List<RutrackerSearchResult>>>(replay = 1)
+            whenever(repository.searchAudiobooksFlow(eq("first"), any())).thenReturn(first)
+            whenever(repository.searchAudiobooksFlow(eq("second"), any())).thenReturn(second)
+
+            viewModel.search("first")
+            testDispatcher.scheduler.runCurrent()
+            viewModel.search("second")
+            testDispatcher.scheduler.runCurrent()
+            second.emit(Result.success(listOf(searchResult("second"))))
+            testDispatcher.scheduler.runCurrent()
+            first.emit(Result.success(listOf(searchResult("first"))))
+            testDispatcher.scheduler.runCurrent()
+
+            val state = viewModel.searchState.value as SearchState.Success
+            assertEquals(
+                "second",
+                state.results
+                    .single()
+                    .result.topicId,
+            )
+        }
+
+    private fun searchResult(topicId: String): RutrackerSearchResult =
+        RutrackerSearchResult(
+            topicId = topicId,
+            title = topicId,
+            author = "author",
+            category = "category",
+            size = "1 MB",
+            seeders = 1,
+            leechers = 0,
+            magnetUrl = null,
+            torrentUrl = "https://example.com/$topicId.torrent",
+        )
 }
