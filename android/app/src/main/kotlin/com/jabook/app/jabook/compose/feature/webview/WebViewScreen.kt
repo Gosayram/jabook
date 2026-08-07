@@ -19,6 +19,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,6 +45,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -81,6 +84,7 @@ public fun WebViewScreen(
     modifier: Modifier = Modifier,
     viewModel: WebViewViewModel = hiltViewModel(),
 ) {
+    val context = LocalContext.current
     // Decode URL from navigation argument
     val url =
         remember(route.url) {
@@ -95,6 +99,7 @@ public fun WebViewScreen(
     var isLoading by remember { mutableStateOf(false) }
     var loadingProgress by remember { mutableFloatStateOf(0f) }
     var canGoBack by remember { mutableStateOf(false) }
+    var isCapturingSession by remember { mutableStateOf(false) }
 
     // Handle back button - navigate in WebView if possible
     BackHandler(enabled = canGoBack) {
@@ -127,6 +132,29 @@ public fun WebViewScreen(
                         }
                     },
                     actions = {
+                        if (route.isAuthentication) {
+                            TextButton(
+                                enabled = !isCapturingSession,
+                                onClick = {
+                                    isCapturingSession = true
+                                    viewModel.completeLogin { isLoggedIn ->
+                                        isCapturingSession = false
+                                        if (isLoggedIn) {
+                                            safeNavigateBack()
+                                        } else {
+                                            Toast
+                                                .makeText(
+                                                    context,
+                                                    R.string.webViewLoginFailed,
+                                                    Toast.LENGTH_SHORT,
+                                                ).show()
+                                        }
+                                    }
+                                },
+                            ) {
+                                Text(stringResource(R.string.done))
+                            }
+                        }
                         IconButton(onClick = safeNavigateBack) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
@@ -188,9 +216,6 @@ public fun WebViewScreen(
                                     loadingProgress = 1f
                                     pageTitle = view?.title ?: ""
                                     canGoBack = view?.canGoBack() ?: false
-
-                                    // Sync cookies if on relevant domain
-                                    url?.let { viewModel.onPageFinished(it) }
                                 }
 
                                 override fun shouldOverrideUrlLoading(
@@ -203,6 +228,10 @@ public fun WebViewScreen(
                                     if (requestUrl?.startsWith("magnet:") == true) {
                                         onMagnetLinkDetected?.invoke(requestUrl)
                                         return true // Don't load in WebView
+                                    }
+
+                                    if (route.isAuthentication && !viewModel.isTrustedAuthenticationUrl(requestUrl.orEmpty())) {
+                                        return true
                                     }
 
                                     return false // Let WebView handle other URLs
@@ -230,6 +259,10 @@ public fun WebViewScreen(
                         settings.apply {
                             javaScriptEnabled = true
                             domStorageEnabled = true
+                            allowFileAccess = false
+                            allowContentAccess = false
+                            mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                            safeBrowsingEnabled = true
                             // databaseEnabled is deprecated
                             setSupportZoom(true)
                             builtInZoomControls = true
@@ -243,13 +276,15 @@ public fun WebViewScreen(
                                 "Mozilla/5.0 (Linux; Android $androidVersion; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.106 Mobile Safari/537.36"
                         }
 
-                        // Accept third-party cookies for better compatibility
+                        // Authentication stays first-party; third-party cookies are not needed.
                         android.webkit.CookieManager
                             .getInstance()
-                            .setAcceptThirdPartyCookies(this, true)
+                            .setAcceptThirdPartyCookies(this, false)
 
                         // Load the URL
-                        if (url.isNotEmpty()) {
+                        if (route.isAuthentication && !viewModel.isTrustedAuthenticationUrl(url)) {
+                            safeNavigateBack()
+                        } else if (url.isNotEmpty()) {
                             loadUrl(url)
                         } else {
                             // Fallback to login page using current mirror

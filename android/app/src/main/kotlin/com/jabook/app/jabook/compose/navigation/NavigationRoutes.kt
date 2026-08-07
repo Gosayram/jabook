@@ -42,6 +42,7 @@ public data class PlayerRoute(
 @Serializable
 public data class WebViewRoute(
     val url: String,
+    val isAuthentication: Boolean = false,
 )
 
 /**

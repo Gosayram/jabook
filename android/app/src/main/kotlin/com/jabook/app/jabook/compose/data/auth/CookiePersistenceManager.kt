@@ -16,8 +16,6 @@ package com.jabook.app.jabook.compose.data.auth
 
 import android.webkit.CookieManager
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.data.local.JabookDatabase
-import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
 import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -28,16 +26,12 @@ import javax.inject.Singleton
 
 /**
  * Cookie persistence manager.
- * Persists cookies to the database, WebView and runtime cookie jar.
- * 1. Database (Room) - most reliable
- * 2. WebView CookieManager - for WebView integration
- * 3. PersistentCookieJar - runtime cache
+ * Synchronizes cookies between the encrypted native jar and WebView.
  */
 @Singleton
 public class CookiePersistenceManager
     @Inject
     constructor(
-        private val database: JabookDatabase,
         private val cookieJar: PersistentCookieJar,
         private val loggerFactory: LoggerFactory,
     ) {
@@ -56,23 +50,9 @@ public class CookiePersistenceManager
                     return@withContext
                 }
 
-                val cookieHeader = cookies.joinToString("; ") { "${it.name}=${it.value}" }
                 logger.d { "Persisting ${cookies.size} cookies for $url" }
 
-                // Layer 1: Database (most reliable)
-                try {
-                    database.cookiesDao().saveCookies(
-                        CookieEntity(
-                            url = url,
-                            cookieHeader = cookieHeader,
-                        ),
-                    )
-                    logger.d { "Cookies saved to database" }
-                } catch (e: Exception) {
-                    logger.e({ "Failed to save to database" }, e)
-                }
-
-                // Layer 2: Android WebView CookieManager
+                // Sync the encrypted native jar into WebView when needed.
                 try {
                     val cookieManager = CookieManager.getInstance()
                     cookieManager.setAcceptCookie(true)
@@ -109,7 +89,12 @@ public class CookiePersistenceManager
                     val cookieString = cookieManager.getCookie(url)
 
                     if (!cookieString.isNullOrBlank()) {
-                        val cookies = parseCookieHeader(url, cookieString)
+                        val cookies = parseCookieHeader(url, cookieString).filter { it.name == SESSION_COOKIE }
+
+                        if (cookies.isEmpty()) {
+                            logger.d { "No RuTracker session cookie in WebView" }
+                            return@withContext
+                        }
 
                         // Save to CookieJar
                         val httpUrl = url.toHttpUrl()
@@ -160,5 +145,9 @@ public class CookiePersistenceManager
             }
 
             return cookies
+        }
+
+        private companion object {
+            const val SESSION_COOKIE = "bb_session"
         }
     }

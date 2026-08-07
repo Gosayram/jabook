@@ -1495,6 +1495,8 @@
     <!-- Button to skip -->
     <string name="skip">Skip</string>
     <string name="save">Save</string>
+    <string name="done">Done</string>
+    <string name="webViewLoginFailed">RuTracker did not confirm the login. Complete the sign-in and try again.</string>
     <string name="bookmarkNoteSheetTitle">Bookmark note</string>
     <string name="bookmarkNoteSheetLabel">Note</string>
     <string name="bookmarkNoteSheetPlaceholder">Add a quick note for this bookmark</string>

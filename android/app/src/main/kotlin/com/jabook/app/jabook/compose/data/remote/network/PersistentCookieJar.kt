@@ -15,12 +15,17 @@
 package com.jabook.app.jabook.compose.data.remote.network
 
 import android.content.Context
+import android.util.Base64
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
+import com.google.crypto.tink.Aead
+import com.google.crypto.tink.aead.AeadConfig
+import com.google.crypto.tink.aead.AesGcmKeyManager
+import com.google.crypto.tink.integration.android.AndroidKeysetManager
 import com.jabook.app.jabook.core.datastore.DataStoreCorruptionPolicy
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -74,6 +79,10 @@ public class PersistentCookieJar
         public companion object {
             private const val DATASTORE_NAME = "cookies"
             private const val COOKIE_SEPARATOR = "||"
+            private const val ENCRYPTED_PREFIX = "v1:"
+            private const val KEYSET_NAME = "cookies_keyset"
+            private const val PREFERENCE_FILE = "cookies_keyset_prefs"
+            private const val MASTER_KEY_URI = "android-keystore://cookies_master_key"
         }
 
         private val dataStore: DataStore<Preferences> by lazy {
@@ -84,6 +93,19 @@ public class PersistentCookieJar
             )
         }
         private val cache = CookieMemoryCache()
+        private val aead: Aead? by lazy {
+            runCatching {
+                AeadConfig.register()
+                AndroidKeysetManager
+                    .Builder()
+                    .withSharedPref(context, KEYSET_NAME, PREFERENCE_FILE)
+                    .withKeyTemplate(AesGcmKeyManager.aes256GcmTemplate())
+                    .withMasterKeyUri(MASTER_KEY_URI)
+                    .build()
+                    .keysetHandle
+                    .getPrimitive(Aead::class.java)
+            }.getOrNull()
+        }
 
         override fun saveFromResponse(
             url: HttpUrl,
@@ -92,12 +114,14 @@ public class PersistentCookieJar
             val host = url.host
             cache.store(host, cookies)
 
-            // Persist to DataStore
+            val serialized = cookies.joinToString(COOKIE_SEPARATOR) { serializeCookie(it) }
+            val encrypted = encrypt(serialized)
+
+            // Persist session material only with a Keystore-backed AEAD.
             runBlocking {
                 dataStore.edit { prefs ->
                     val key = stringPreferencesKey(host)
-                    val serialized = cookies.joinToString(COOKIE_SEPARATOR) { serializeCookie(it) }
-                    prefs[key] = serialized
+                    if (encrypted == null) prefs.remove(key) else prefs[key] = encrypted
                 }
             }
         }
@@ -113,8 +137,8 @@ public class PersistentCookieJar
                 runBlocking {
                     val prefs = dataStore.data.first()
                     val key = stringPreferencesKey(host)
-                    val serialized: String? = prefs[key]
-                    if (serialized == null) return@runBlocking emptyList<Cookie>()
+                    val encrypted: String = prefs[key] ?: return@runBlocking emptyList<Cookie>()
+                    val serialized = decrypt(encrypted) ?: return@runBlocking emptyList<Cookie>()
 
                     serialized
                         .split(COOKIE_SEPARATOR)
@@ -198,5 +222,19 @@ public class PersistentCookieJar
         private fun Cookie.hasExpired(): Boolean {
             if (expiresAt == Long.MIN_VALUE) return false
             return expiresAt < System.currentTimeMillis()
+        }
+
+        private fun encrypt(value: String): String? =
+            runCatching {
+                val encrypted = checkNotNull(aead).encrypt(value.toByteArray(), null)
+                ENCRYPTED_PREFIX + Base64.encodeToString(encrypted, Base64.NO_WRAP)
+            }.getOrNull()
+
+        private fun decrypt(value: String): String? {
+            if (!value.startsWith(ENCRYPTED_PREFIX)) return null
+            return runCatching {
+                val encrypted = Base64.decode(value.removePrefix(ENCRYPTED_PREFIX), Base64.NO_WRAP)
+                checkNotNull(aead).decrypt(encrypted, null).decodeToString()
+            }.getOrNull()
         }
     }

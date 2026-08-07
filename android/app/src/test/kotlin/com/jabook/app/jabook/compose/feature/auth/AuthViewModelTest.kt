@@ -116,6 +116,7 @@ class AuthViewModelTest {
 
             assertEquals(errorMsg, viewModel.uiState.value.error)
             assertEquals(false, viewModel.uiState.value.isLoading)
+            assertEquals(true, viewModel.uiState.value.showWebViewLogin)
             verify(authRepository, never()).saveCredentials(any())
         }
 

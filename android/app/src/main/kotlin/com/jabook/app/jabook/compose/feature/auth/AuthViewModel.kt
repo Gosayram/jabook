@@ -108,7 +108,13 @@ public class AuthViewModel
                                 )
                             }
                         } else {
-                            _uiState.update { it.copy(isLoading = false, error = e.message ?: "Unknown error") }
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = e.message ?: "Unknown error",
+                                    showWebViewLogin = true,
+                                )
+                            }
                         }
                     }
             }
@@ -126,15 +132,6 @@ public class AuthViewModel
 
         public fun requestWebViewLogin() {
             _uiState.update { it.copy(showWebViewLogin = true) }
-        }
-
-        public fun onWebViewLoginCompleted() {
-            _uiState.update { it.copy(showWebViewLogin = false) }
-            viewModelScope.launch {
-                // Sync cookies from WebView and refresh status
-                authRepository.syncCookiesFromWebView()
-                authRepository.isLoggedIn()
-            }
         }
 
         /**

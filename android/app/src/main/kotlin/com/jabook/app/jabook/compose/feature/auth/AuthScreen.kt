@@ -73,9 +73,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
@@ -93,7 +90,6 @@ public fun AuthScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val lifecycleOwner = LocalLifecycleOwner.current
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val currentView = LocalView.current
@@ -122,22 +118,6 @@ public fun AuthScreen(
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         onDispose {
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        }
-    }
-
-    // Sync cookies on Resume (returning from WebView)
-    DisposableEffect(lifecycleOwner) {
-        val observer =
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) {
-                    if (uiState.showWebViewLogin) {
-                        viewModel.onWebViewLoginCompleted()
-                    }
-                }
-            }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 

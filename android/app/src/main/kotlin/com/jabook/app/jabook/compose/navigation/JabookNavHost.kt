@@ -404,7 +404,7 @@ public fun JabookNavHost(
                 onNavigateToWebView = { url ->
                     navController.navigate(
                         com.jabook.app.jabook.compose.navigation
-                            .WebViewRoute(url),
+                            .WebViewRoute(url, isAuthentication = true),
                     )
                 },
             )

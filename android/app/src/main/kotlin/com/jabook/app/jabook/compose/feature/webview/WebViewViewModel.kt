@@ -20,6 +20,7 @@ import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import javax.inject.Inject
 
 @HiltViewModel
@@ -29,18 +30,23 @@ public class WebViewViewModel
         private val authRepository: AuthRepository,
         private val mirrorManager: MirrorManager,
     ) : ViewModel() {
-        /**
-         * Called when a page finishes loading in WebView.
-         * Syncs cookies from WebView to Native storage.
-         */
-        public fun onPageFinished(url: String) {
-            if (url.isBlank()) return
+        /** Only first-party, HTTPS RuTracker pages may participate in login. */
+        public fun isTrustedAuthenticationUrl(url: String): Boolean {
+            val parsed = url.toHttpUrlOrNull() ?: return false
+            return (
+                parsed.isHttps &&
+                    parsed.port == 443 &&
+                    parsed.username.isEmpty() &&
+                    parsed.password.isEmpty() &&
+                    parsed.host in TRUSTED_AUTH_HOSTS
+            )
+        }
 
-            // We only care about syncing if it's a relevant domain,
-            // but AuthRepository.syncCookiesFromWebView checks the base URL internally or uses CookieManager for the specific API URL.
-            // It's safe to call it.
+        /** Captures and validates the session only after the user explicitly confirms login. */
+        public fun completeLogin(onComplete: (Boolean) -> Unit) {
             viewModelScope.launch {
                 authRepository.syncCookiesFromWebView()
+                onComplete(authRepository.isLoggedIn())
             }
         }
 
@@ -50,5 +56,18 @@ public class WebViewViewModel
         public fun getLoginUrl(): String {
             val baseUrl = mirrorManager.getBaseUrl()
             return "$baseUrl/forum/login.php"
+        }
+
+        private companion object {
+            val TRUSTED_AUTH_HOSTS =
+                setOf(
+                    "rutracker.org",
+                    "rutracker.net",
+                    "rutracker.me",
+                    "rutracker.nl",
+                    "rutracker.ru",
+                    "rutracker.lib",
+                    "rutracker.info",
+                )
         }
     }

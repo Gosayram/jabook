@@ -98,17 +98,9 @@ public class AuthRepositoryImpl
 
                 if (isValid) {
                     val stored = secureStorage.getCredentials()
-                    // CRITICAL: Only show authenticated if we have stored credentials with username
-                    // If no credentials stored, user is not actually authenticated
-                    if (stored != null && stored.username.isNotBlank()) {
-                        _authStatus.value = AuthStatus.Authenticated(stored.username)
-                        syncCookiesToWebView()
-                    } else {
-                        // Session cookie exists but no stored credentials - invalid state
-                        logger.w { "Session cookie exists but no stored credentials - clearing session" }
-                        cookieJar.clear()
-                        _authStatus.value = AuthStatus.Unauthenticated
-                    }
+                    // WebView login deliberately never exposes or stores the entered password.
+                    // A server-validated session is sufficient to be authenticated.
+                    _authStatus.value = AuthStatus.Authenticated(stored?.username?.takeIf { it.isNotBlank() } ?: "RuTracker")
                 } else {
                     // Cookies present but invalid (expired or guest mode)
                     logger.d { "Session expired or invalid, attempting re-login if credentials exist" }
