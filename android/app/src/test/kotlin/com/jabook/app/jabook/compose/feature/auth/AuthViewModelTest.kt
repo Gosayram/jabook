@@ -121,6 +121,15 @@ class AuthViewModelTest {
         }
 
     @Test
+    fun `webview login request is consumed after navigation`() {
+        viewModel.requestWebViewLogin()
+        assertEquals(true, viewModel.uiState.value.showWebViewLogin)
+        viewModel.consumeWebViewLoginRequest()
+
+        assertEquals(false, viewModel.uiState.value.showWebViewLogin)
+    }
+
+    @Test
     fun `login failure with captcha updates state`() =
         runTest {
             val captchaData = CaptchaData("http://url", "test-sid")

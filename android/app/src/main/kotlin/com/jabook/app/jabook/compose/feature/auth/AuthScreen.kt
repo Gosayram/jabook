@@ -108,6 +108,7 @@ public fun AuthScreen(
     // Handle WebView Login Navigation
     LaunchedEffect(uiState.showWebViewLogin) {
         if (uiState.showWebViewLogin) {
+            viewModel.consumeWebViewLoginRequest()
             navigationClickGuard.run { currentOnNavigateToWebView(viewModel.getLoginUrl()) }
         }
     }

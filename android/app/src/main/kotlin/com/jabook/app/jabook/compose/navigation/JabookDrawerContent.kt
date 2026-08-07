@@ -51,6 +51,7 @@ public fun JabookDrawerContent(
     currentDestination: NavDestination?,
     onNavigateToDestination: (TopLevelDestination) -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToAuth: () -> Unit,
     onNavigateToAbout: () -> Unit,
     accountProfile: AccountProfile = AccountProfile("Guest User", "guest@jabook.app"), // TODO: Real user data
     modifier: Modifier = Modifier,
@@ -62,7 +63,7 @@ public fun JabookDrawerContent(
         // Sticky Header
         AccountHeader(
             selectedAccount = accountProfile,
-            onAccountClick = { /* TODO: Account switching */ },
+            onAccountClick = onNavigateToAuth,
         )
 
         // Scrollable Content

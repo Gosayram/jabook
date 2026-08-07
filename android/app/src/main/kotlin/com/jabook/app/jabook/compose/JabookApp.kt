@@ -261,6 +261,10 @@ public fun JabookApp(
                         appState.navController.navigate(com.jabook.app.jabook.compose.navigation.SettingsRoute)
                         scope.launch { drawerState.close() }
                     },
+                    onNavigateToAuth = {
+                        appState.navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute)
+                        scope.launch { drawerState.close() }
+                    },
                     onNavigateToAbout = {
                         appState.navController.navigate(com.jabook.app.jabook.compose.navigation.SettingsRoute)
                         scope.launch { drawerState.close() }

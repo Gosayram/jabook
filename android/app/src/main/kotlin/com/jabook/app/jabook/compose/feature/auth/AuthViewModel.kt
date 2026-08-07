@@ -134,6 +134,10 @@ public class AuthViewModel
             _uiState.update { it.copy(showWebViewLogin = true) }
         }
 
+        public fun consumeWebViewLoginRequest() {
+            _uiState.update { it.copy(showWebViewLogin = false) }
+        }
+
         /**
          * Get login URL using current mirror.
          */
