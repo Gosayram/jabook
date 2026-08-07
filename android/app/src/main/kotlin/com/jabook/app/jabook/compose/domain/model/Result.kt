@@ -63,16 +63,6 @@ public sealed interface Result<out T, out E : AppError> {
 public typealias AppResult<T> = Result<T, AppError>
 
 /**
- * Legacy Result type for backward compatibility.
- * @deprecated Use Result<T> instead
- */
-@Deprecated(
-    message = "Use Result<T> instead",
-    replaceWith = ReplaceWith("Result<T>"),
-)
-public typealias LegacyResult<T> = AppResult<T>
-
-/**
  * Maps a successful result to a new type.
  *
  * If the result is Error or Loading, it's passed through unchanged.

@@ -67,7 +67,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
-import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.rememberCoverPreloader
 import com.jabook.app.jabook.compose.core.util.rememberCoverPreloaderForGrid
@@ -76,11 +75,6 @@ import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
 import kotlinx.coroutines.launch
-
-/**
- * Logger for UnifiedBooksView Composable functions.
- */
-private val unifiedBooksViewLogger by lazy { LoggerFactoryImpl().get("UnifiedBooksView") }
 
 /**
  * Unified books view that displays books in either grid or list layout.
@@ -109,43 +103,6 @@ public fun UnifiedBooksView(
     selectedIds: Set<String> = emptySet(),
     onToggleSelection: ((String) -> Unit)? = null,
 ) {
-    // Log books for debugging
-    androidx.compose.runtime.LaunchedEffect(books.size) {
-        unifiedBooksViewLogger.d {
-            "Rendering ${books.size} books in $displayMode mode"
-        }
-        if (books.isNotEmpty()) {
-            val invalidBooks = books.filter { it.title.isBlank() || it.author.isBlank() || it.id.isBlank() }
-            if (invalidBooks.isNotEmpty()) {
-                unifiedBooksViewLogger.w {
-                    "Found ${invalidBooks.size} books with empty/invalid data out of ${books.size} total"
-                }
-                invalidBooks.take(3).forEachIndexed { index, book ->
-                    unifiedBooksViewLogger.w {
-                        "  Invalid[$index]: id='${book.id.take(20)}', " +
-                            "title='${book.title.take(30)}', " +
-                            "author='${book.author.take(20)}', " +
-                            "coverUrl=${if (book.coverUrl.isNullOrBlank()) "null/empty" else "present"}"
-                    }
-                }
-            }
-            // Log sample of valid books
-            val validBooks = books.filter { it.title.isNotBlank() && it.author.isNotBlank() && it.id.isNotBlank() }
-            if (validBooks.isNotEmpty()) {
-                val sample = validBooks.take(2)
-                sample.forEachIndexed { index, book ->
-                    unifiedBooksViewLogger.d {
-                        "  Valid[$index]: id='${book.id.take(20)}', " +
-                            "title='${book.title.take(40)}', " +
-                            "author='${book.author.take(30)}'"
-                    }
-                }
-            }
-        } else {
-            unifiedBooksViewLogger.w { "Empty books list provided" }
-        }
-    }
-
     // Get WindowSizeClass from parameter or calculate from LocalContext
     val context = LocalContext.current
     val effectiveWindowSizeClass =
