@@ -89,7 +89,7 @@ androidxTestUiautomator = "2.4.0"
 
 # Testing
 junit = "4.13.2"
-kotlinTest = "2.3.21"
+kotlinTest = "2.4.0"
 mockito = "5.23.0"
 mockitoKotlin = "6.3.0"
 kotlinxCoroutinesTest = "1.11.0"
