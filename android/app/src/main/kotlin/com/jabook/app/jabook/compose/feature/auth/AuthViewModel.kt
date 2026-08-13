@@ -23,7 +23,6 @@ import com.jabook.app.jabook.compose.domain.model.CaptchaData
 import com.jabook.app.jabook.compose.domain.model.UserCredentials
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.repository.CaptchaRequiredException
-import com.jabook.app.jabook.compose.feature.webview.WebViewViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -137,16 +136,11 @@ public class AuthViewModel
             _uiState.update { it.copy(showWebViewLogin = false) }
         }
 
-        /**
-         * Get login URL using current mirror.
-         */
-        public fun getLoginUrl(): String {
-            val baseUrl = mirrorManager.getBaseUrl()
-            val loginUrl = "$baseUrl/forum/login.php"
-            return if (WebViewViewModel.isTrustedAuthenticationUrl(loginUrl)) {
-                loginUrl
-            } else {
-                "https://${MirrorManager.DEFAULT_MIRRORS.first()}/forum/login.php"
+        /** Uses one trusted origin for the WebView, cookie jar, and API validation. */
+        public suspend fun prepareWebViewLogin(): String {
+            if (mirrorManager.currentMirror.value !in MirrorManager.DEFAULT_MIRRORS) {
+                mirrorManager.setMirror(MirrorManager.DEFAULT_MIRRORS.first())
             }
+            return "${mirrorManager.getBaseUrl()}/forum/login.php"
         }
     }

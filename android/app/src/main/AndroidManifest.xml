@@ -244,13 +244,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- Download foreground service -->
-        <service
-            android:name=".download.DownloadForegroundService"
-            android:exported="false"
-            android:foregroundServiceType="dataSync">
-        </service>
-
         <!-- Torrent download foreground service -->
         <service
             android:name=".compose.data.torrent.TorrentDownloadService"
