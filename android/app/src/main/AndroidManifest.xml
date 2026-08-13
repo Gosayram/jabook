@@ -41,10 +41,6 @@
     <!-- On Android 12 and below, notifications work without explicit permission -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- SCHEDULE_EXACT_ALARM: Required for exact alarm scheduling (background downloads, etc) -->
-    <!-- Android 12+ (API 31+) requires this for WorkManager and AlarmManager exact alarms -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-
     <!-- VIBRATE: Allows notifications to vibrate -->
     <uses-permission android:name="android.permission.VIBRATE" />
 

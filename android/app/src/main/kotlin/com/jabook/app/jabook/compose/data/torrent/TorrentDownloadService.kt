@@ -156,8 +156,17 @@ public class TorrentDownloadService : Service() {
         if (outcome == ForegroundStartOutcome.SUCCESS) {
             acquireWakeLock()
         } else {
-            logger.e { "startForeground() failed with outcome=$outcome, service may be killed" }
+            logger.e { "startForeground() failed with outcome=$outcome; stopping service" }
+            stopSelf()
         }
+    }
+
+    override fun onTimeout(
+        startId: Int,
+        fgsType: Int,
+    ) {
+        logger.w { "Foreground service timed out (type=$fgsType); stopping download service" }
+        stopSelf(startId)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -253,7 +262,8 @@ public class TorrentDownloadService : Service() {
                 "torrent-updateForegroundType",
             )
         if (outcome != ForegroundStartOutcome.SUCCESS) {
-            logger.e { "Failed to update foreground service type outcome=$outcome type=$serviceType" }
+            logger.e { "Failed to update foreground service type outcome=$outcome type=$serviceType; stopping service" }
+            stopSelf()
         } else {
             logger.i { "Updated foreground service type to $serviceType (streaming=$hasStreamingWork)" }
         }
