@@ -24,14 +24,14 @@ import kotlin.time.Duration.Companion.seconds
 
 class ChapterNavigationIntentPolicyTest {
     @Test
-    fun `resolve converts skip next to previous chapter when tap is near chapter start`() {
+    fun `resolve keeps skip next unchanged when tap is near chapter start`() {
         val state = activeState(currentChapterIndex = 1, currentPositionMs = 2_000L)
 
         val decision = ChapterNavigationIntentPolicy.resolve(intent = PlayerIntent.SkipNext, state = state)
 
-        assertEquals(PlayerIntent.SelectChapter(0), decision.intent)
-        assertEquals(1, decision.movedToChapterDisplayIndex)
-        assertEquals(1, decision.undoChapterIndex)
+        assertEquals(PlayerIntent.SkipNext, decision.intent)
+        assertEquals(null, decision.movedToChapterDisplayIndex)
+        assertEquals(null, decision.undoChapterIndex)
     }
 
     @Test

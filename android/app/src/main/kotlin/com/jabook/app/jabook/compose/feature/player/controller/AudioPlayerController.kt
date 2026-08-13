@@ -189,7 +189,7 @@ public class AudioPlayerController
             private val positionMs: Long,
         ) : PendingControllerCommand {
             override fun execute(controller: MediaController) {
-                controller.seekTo(chapterIndex, positionMs * 1000L)
+                controller.seekTo(chapterIndex, positionMs)
             }
         }
 
@@ -1003,7 +1003,7 @@ public class AudioPlayerController
                 commandName = "skipToChapter",
                 pendingCommand = SkipToChapterCommand(index, positionMs),
             ) { controller ->
-                controller.seekTo(index, positionMs * 1000L)
+                controller.seekTo(index, positionMs)
             }
         }
 

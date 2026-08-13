@@ -50,6 +50,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -204,6 +205,20 @@ public fun PlayerChapterPane(
                         }
                 }
             }
+
+        LaunchedEffect(currentChapterIndex, filteredChapters) {
+            val targetIndex = filteredChapters.indexOfFirst { it.first == currentChapterIndex }
+            if (targetIndex < 0) return@LaunchedEffect
+
+            val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
+            val firstVisible = visibleItems.firstOrNull()?.index ?: 0
+            val lastVisible = visibleItems.lastOrNull()?.index ?: firstVisible
+            when (ChapterAutoScrollPolicy.resolve(targetIndex, firstVisible, lastVisible)) {
+                ChapterAutoScrollPolicy.ScrollAction.NONE -> Unit
+                ChapterAutoScrollPolicy.ScrollAction.ANIMATE -> lazyListState.animateScrollToItem(targetIndex)
+                ChapterAutoScrollPolicy.ScrollAction.SNAP -> lazyListState.scrollToItem(targetIndex)
+            }
+        }
 
         // Chapter list
         LazyColumn(

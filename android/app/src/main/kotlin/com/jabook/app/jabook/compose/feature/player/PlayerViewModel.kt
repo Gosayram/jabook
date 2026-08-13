@@ -948,9 +948,10 @@ public class PlayerViewModel
             val state = uiState.value as? PlayerState.Active
             // If bookmark is in a different chapter, we need to seek to that chapter first
             if (state?.currentChapterIndex != bookmark.chapterIndex) {
-                playerController.skipToChapter(bookmark.chapterIndex)
+                playerController.skipToChapter(bookmark.chapterIndex, bookmark.positionMs)
+                return
             }
-            // Then seek to the bookmark position within the chapter
+            // The current chapter can be seeked directly.
             seekTo(bookmark.positionMs)
         }
 

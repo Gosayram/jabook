@@ -115,6 +115,18 @@ class PlayerIntentCommandRouterTest {
     }
 
     @Test
+    fun `routePlaybackIntent keeps the requested chapter position in milliseconds`() {
+        val command =
+            PlayerIntentCommandRouter.routePlaybackIntent(
+                intent = PlayerIntent.SelectChapter(chapterIndex = 2, positionMs = 42_000L),
+                currentState = activeState(currentChapterIndex = 0),
+                reducedState = activeState(currentChapterIndex = 2, currentPosition = 42_000L),
+            )
+
+        assertEquals(PlayerCommand.SkipToChapter(chapterIndex = 2, positionMs = 42_000L), command)
+    }
+
+    @Test
     fun `routePlaybackIntent maps playback speed only when reduced state changed`() {
         val unchanged = activeState(playbackSpeed = 1.5f)
         val changed = unchanged.copy(playbackSpeed = 1.75f)

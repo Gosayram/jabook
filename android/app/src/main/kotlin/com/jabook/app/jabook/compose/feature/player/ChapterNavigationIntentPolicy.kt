@@ -19,25 +19,20 @@ package com.jabook.app.jabook.compose.feature.player
  *
  * Primary UX goals:
  * - Near chapter end, "next" should deterministically move to the next chapter.
- * - Near chapter start, accidental "next" tap is interpreted as "previous chapter".
  */
 internal object ChapterNavigationIntentPolicy {
     private const val DEFAULT_NEAR_END_THRESHOLD_MS: Long = 5_000L
-    private const val DEFAULT_NEAR_START_THRESHOLD_MS: Long = 3_000L
 
     fun resolve(
         intent: PlayerIntent,
         state: PlayerState.Active,
         nearEndThresholdMs: Long = DEFAULT_NEAR_END_THRESHOLD_MS,
-        nearStartThresholdMs: Long = DEFAULT_NEAR_START_THRESHOLD_MS,
     ): ChapterNavigationDecision {
         if (intent != PlayerIntent.SkipNext) return ChapterNavigationDecision(intent = intent)
         if (state.chapters.isEmpty()) return ChapterNavigationDecision(intent = intent)
 
         val currentIndex = state.currentChapterIndex.coerceIn(0, state.chapters.lastIndex)
-        val canMovePrev = currentIndex > 0
         val canMoveNext = currentIndex < state.chapters.lastIndex
-        val nearStart = state.currentPosition <= nearStartThresholdMs
         val chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds
         val nearEnd =
             chapterDurationMs != null &&
@@ -46,7 +41,6 @@ internal object ChapterNavigationIntentPolicy {
 
         val targetIndex =
             when {
-                nearStart && canMovePrev -> currentIndex - 1
                 nearEnd && canMoveNext -> currentIndex + 1
                 else -> null
             } ?: return ChapterNavigationDecision(intent = intent)
