@@ -300,7 +300,6 @@
     <string name="themeAmoled">AMOLED / Чистый черный</string>
     <string name="themePreviewTitle">Живой предпросмотр</string>
     <string name="themePreviewBookTitle">Превью мини-плеера</string>
-    <string name="vinylMode">Режим винила</string>
     <string name="lyrics">Текст песни</string>
     <string name="toggleLyricsView">Переключить отображение текста</string>
     <string name="lyricsVisibleState">Текст отображается</string>
@@ -2602,12 +2601,6 @@
     <string name="dataSizeLabel">Данные: %1$s</string>
     <string name="totalSizeLabel">Итого: %1$s</string>
     <string name="cacheClearErrorMessage">Ошибка очистки кэша: %1$s</string>
-    <!-- Настройки книги -->
-    <string name="overrideBookSettings">Настройки книги</string>
-    <!-- Использовать общие настройки -->
-    <string name="useGlobalSettings">Использовать общие настройки</string>
-    <!-- Свои настройки -->
-    <string name="customSettings">Свои настройки</string>
     <!-- Добавить папку -->
     <string name="addFolder">Добавить папку</string>
     <!-- Управление папками для сканирования аудиокниг -->

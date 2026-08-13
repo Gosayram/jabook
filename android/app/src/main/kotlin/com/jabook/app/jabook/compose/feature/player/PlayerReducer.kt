@@ -51,7 +51,9 @@ public object PlayerReducer {
             ChapterRepeatMode.INFINITE -> ChapterEndReduction(shouldRepeat = true, hasRepeatedOnce = hasRepeatedOnce)
         }
 
-    public fun reduceChapterChanged(): Boolean = false
+    /** A one-time chapter repeat is consumed by a repeat or any chapter transition. */
+    public fun clearOneTimeChapterRepeat(mode: ChapterRepeatMode): ChapterRepeatMode =
+        if (mode == ChapterRepeatMode.ONCE) ChapterRepeatMode.OFF else mode
 
     /** Native repeat-one remains active only for the infinite chapter-repeat mode. */
     public fun shouldKeepNativeChapterRepeat(mode: ChapterRepeatMode): Boolean = mode == ChapterRepeatMode.INFINITE

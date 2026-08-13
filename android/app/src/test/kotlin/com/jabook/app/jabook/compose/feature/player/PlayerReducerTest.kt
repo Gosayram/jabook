@@ -426,8 +426,15 @@ class PlayerReducerTest {
     }
 
     @Test
-    fun `reduceChapterChanged resets repeat flag`() {
-        assertFalse(PlayerReducer.reduceChapterChanged())
+    fun `one-time repeat is cleared while infinite repeat survives a chapter transition`() {
+        assertEquals(
+            ChapterRepeatMode.OFF,
+            PlayerReducer.clearOneTimeChapterRepeat(ChapterRepeatMode.ONCE),
+        )
+        assertEquals(
+            ChapterRepeatMode.INFINITE,
+            PlayerReducer.clearOneTimeChapterRepeat(ChapterRepeatMode.INFINITE),
+        )
     }
 
     @Test

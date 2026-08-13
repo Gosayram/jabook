@@ -320,7 +320,6 @@
     <string name="themeAmoled">AMOLED / Pure Black</string>
     <string name="themePreviewTitle">Live preview</string>
     <string name="themePreviewBookTitle">Mini player preview</string>
-    <string name="vinylMode">Vinyl Mode</string>
     <string name="lyrics">Lyrics</string>
     <string name="toggleLyricsView">Toggle lyrics view</string>
     <string name="lyricsVisibleState">Lyrics visible</string>
@@ -2613,12 +2612,6 @@
     <string name="dataSizeLabel">Data: %1$s</string>
     <string name="totalSizeLabel">Total: %1$s</string>
     <string name="cacheClearErrorMessage">Error clearing cache: %1$s</string>
-    <!-- Override book settings title -->
-    <string name="overrideBookSettings">Override book settings</string>
-    <!-- Use global settings option -->
-    <string name="useGlobalSettings">Use global settings</string>
-    <!-- Custom settings option -->
-    <string name="customSettings">Custom settings</string>
     <!-- Add Folder -->
     <string name="addFolder">Add Folder</string>
     <!-- Manage folders to scan for audiobooks -->

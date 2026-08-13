@@ -841,7 +841,7 @@ public class PlayerViewModel
                     val targetMode = (reducedState as? PlayerState.Active)?.chapterRepeatMode ?: return
                     if (targetMode == chapterRepeatModeState.value) return
                     chapterRepeatModeState.value = targetMode
-                    hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
+                    hasRepeatedOnce = false
                     playerController.setRepeatMode(
                         if (targetMode == ChapterRepeatMode.OFF) Player.REPEAT_MODE_OFF else Player.REPEAT_MODE_ONE,
                     )
@@ -1368,6 +1368,7 @@ public class PlayerViewModel
                 ChapterRepeatMode.INFINITE -> PlayerReducer.shouldKeepNativeChapterRepeat(mode)
                 ChapterRepeatMode.ONCE -> {
                     hasRepeatedOnce = true
+                    chapterRepeatModeState.value = PlayerReducer.clearOneTimeChapterRepeat(mode)
                     false
                 }
                 ChapterRepeatMode.OFF -> false
@@ -1378,7 +1379,12 @@ public class PlayerViewModel
          * Reset repeat flag when chapter changes manually.
          */
         public fun onChapterChanged() {
-            hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
+            hasRepeatedOnce = false
+            val nextRepeatMode = PlayerReducer.clearOneTimeChapterRepeat(chapterRepeatModeState.value)
+            if (nextRepeatMode != chapterRepeatModeState.value) {
+                chapterRepeatModeState.value = nextRepeatMode
+                playerController.setRepeatMode(Player.REPEAT_MODE_OFF)
+            }
             _abRepeatState.value = ABRepeatState()
         }
 

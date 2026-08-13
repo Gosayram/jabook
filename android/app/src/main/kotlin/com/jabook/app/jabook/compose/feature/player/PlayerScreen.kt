@@ -63,7 +63,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -98,15 +97,12 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
@@ -146,11 +142,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.progressBarRangeInfo
@@ -169,7 +163,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
@@ -294,8 +287,6 @@ public fun PlayerScreen(
     var showSleepTimerSheet by remember { mutableStateOf(false) }
     var showAudioSettingsSheet by remember { mutableStateOf(false) }
     var showChapterSheet by remember { mutableStateOf(false) }
-    // Legacy settings sheet (if unused, we might want to consolidate or remove)
-    var showSettingsSheet by remember { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showStatsOverlay by remember { mutableStateOf(false) }
     var isBookmarkNoteSheetVisible by remember { mutableStateOf(false) }
@@ -635,26 +626,6 @@ public fun PlayerScreen(
         }
     }
 
-    // Player Settings Sheet (Book Specific)
-    if (showSettingsSheet && uiState is PlayerState.Active) {
-        val state = uiState as PlayerState.Active
-        PlayerSettingsSheet(
-            book = state.book,
-            onUpdateSettings = { rewindSeconds, forwardSeconds ->
-                viewModel.dispatch(
-                    PlayerIntent.UpdateBookSeekSettings(
-                        rewindSeconds = rewindSeconds,
-                        forwardSeconds = forwardSeconds,
-                    ),
-                )
-            },
-            onResetSettings = { viewModel.dispatch(PlayerIntent.ResetBookSeekSettings) },
-            onDismiss = { showSettingsSheet = false },
-            isVinylMode = isVinylMode,
-            onVinylModeChange = { isVinylMode = it },
-        )
-    }
-
     // Audio Enhancements Sheet
     if (showAudioSettingsSheet) {
         AudioSettingsSheet(
@@ -806,7 +777,6 @@ public fun PlayerScreen(
                                             showSleepTimerSheet ||
                                             showAudioSettingsSheet ||
                                             showChapterSheet ||
-                                            showSettingsSheet ||
                                             isBookmarkNoteSheetVisible ||
                                             showOverflowMenu
                                     if (shouldIgnoreShortcuts) return@onPreviewKeyEvent false
@@ -3581,194 +3551,6 @@ private fun PlayerContent(
                         Text(text = stringResource(R.string.save))
                     }
                 }
-            }
-        }
-    }
-}
-
-/**
- * Settings sheet for player screen.
- *
- * Allows users to configure:
- * - Playback speed
- * - Sleep timer
- * - Vinyl mode
- *
- * @param book The book being played
- * @param onUpdateSettings Callback when settings are updated (speed, sleep timer)
- * @param onResetSettings Callback to reset settings to defaults
- * @param onDismiss Callback when sheet is dismissed
- * @param isVinylMode Current vinyl mode state
- * @param onVinylModeChange Callback when vinyl mode is toggled
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-public fun PlayerSettingsSheet(
-    book: com.jabook.app.jabook.compose.domain.model.Book,
-    onUpdateSettings: (Int?, Int?) -> Unit,
-    onResetSettings: () -> Unit,
-    onDismiss: () -> Unit,
-    isVinylMode: Boolean,
-    onVinylModeChange: (Boolean) -> Unit,
-) {
-    JabookModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.overrideBookSettings),
-                style = MaterialTheme.typography.headlineSmall,
-            )
-
-            // Switch: Use Global / Custom
-            var useGlobal by remember {
-                mutableStateOf(book.rewindDuration == null && book.forwardDuration == null)
-            }
-
-            // Local state for sliders (init from book or default 10/30 if null)
-            var rewindSeconds by remember { mutableStateOf((book.rewindDuration ?: 10).toFloat()) }
-            var forwardSeconds by remember { mutableStateOf((book.forwardDuration ?: 30).toFloat()) }
-
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .semantics { role = Role.Switch }
-                        .toggleable(
-                            value = useGlobal,
-                            onValueChange = {
-                                useGlobal = it
-                                if (it) {
-                                    onResetSettings()
-                                } else {
-                                    onUpdateSettings(rewindSeconds.toInt(), forwardSeconds.toInt())
-                                }
-                            },
-                            role = Role.Switch,
-                        ),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.useGlobalSettings),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                androidx.compose.material3.Switch(
-                    checked = useGlobal,
-                    onCheckedChange = null,
-                )
-            }
-
-            if (!useGlobal) {
-                HorizontalDivider()
-
-                Text(
-                    text = stringResource(R.string.customSettings),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-
-                // Rewind Slider
-                Text(
-                    text = stringResource(R.string.rewindDurationTitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Slider(
-                        value = rewindSeconds,
-                        onValueChange = {
-                            rewindSeconds = it
-                            onUpdateSettings(rewindSeconds.toInt(), forwardSeconds.toInt())
-                        },
-                        valueRange = 5f..60f,
-                        steps = 10,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text =
-                            pluralStringResource(
-                                R.plurals.durationSecondsFull,
-                                rewindSeconds.toInt(),
-                                rewindSeconds.toInt(),
-                            ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.width(48.dp),
-                        textAlign = TextAlign.End,
-                    )
-                }
-
-                // Forward Slider
-                Text(
-                    text = stringResource(R.string.forwardDurationTitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Slider(
-                        value = forwardSeconds,
-                        onValueChange = {
-                            forwardSeconds = it
-                            onUpdateSettings(rewindSeconds.toInt(), forwardSeconds.toInt())
-                        },
-                        valueRange = 5f..60f,
-                        steps = 10,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text =
-                            pluralStringResource(
-                                R.plurals.durationSecondsFull,
-                                forwardSeconds.toInt(),
-                                forwardSeconds.toInt(),
-                            ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.width(48.dp),
-                        textAlign = TextAlign.End,
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            HorizontalDivider()
-
-            // Vinyl Mode Toggle
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp)
-                        .semantics { role = Role.Switch }
-                        .toggleable(
-                            value = isVinylMode,
-                            onValueChange = onVinylModeChange,
-                            role = Role.Switch,
-                        ),
-            ) {
-                Text(
-                    text = stringResource(R.string.vinylMode),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                Switch(
-                    checked = isVinylMode,
-                    onCheckedChange = null,
-                )
-            }
-        }
-
-        if (BuildConfig.DEBUG) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.TopEnd,
-            ) {
-                DebugRecompositionCounter(
-                    modifier = Modifier.padding(top = 8.dp, end = 8.dp),
-                )
             }
         }
     }

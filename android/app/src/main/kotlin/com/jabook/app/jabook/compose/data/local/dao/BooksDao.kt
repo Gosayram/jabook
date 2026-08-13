@@ -278,6 +278,7 @@ public interface BooksDao {
 
             val currentChapterIndex = getBookById(scannedBook.id)?.currentChapterIndex
             indexMapping[currentChapterIndex]?.let { updateCurrentChapterIndex(scannedBook.id, it) }
+                ?: resetPlaybackProgress(scannedBook.id)
             indexMapping.forEach { (oldIndex, _) ->
                 updateBookmarkChapterIndex(scannedBook.id, oldIndex, -oldIndex - 1)
             }
@@ -329,6 +330,11 @@ public interface BooksDao {
         bookId: String,
         chapterIndex: Int,
     )
+
+    @Query(
+        "UPDATE books SET current_position = 0, total_progress = 0, current_chapter_index = 0 WHERE id = :bookId",
+    )
+    public suspend fun resetPlaybackProgress(bookId: String)
 
     @Query("UPDATE bookmarks SET chapter_index = :newIndex WHERE book_id = :bookId AND chapter_index = :oldIndex")
     public suspend fun updateBookmarkChapterIndex(

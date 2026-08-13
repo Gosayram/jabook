@@ -189,6 +189,52 @@ class BooksDaoScanUpsertTest {
             )
         }
 
+    @Test
+    fun `scan resets playback when the current chapter no longer exists`() =
+        runBlocking {
+            booksDao.insertBook(
+                BookEntity(
+                    id = "book",
+                    title = "Book",
+                    author = "Author",
+                    coverUrl = null,
+                    description = null,
+                    totalDuration = 1_000L,
+                    currentPosition = 123L,
+                    totalProgress = 0.4f,
+                    currentChapterIndex = 2,
+                    addedDate = 1L,
+                ),
+            )
+            chaptersDao.insertAll(
+                listOf(
+                    ChapterEntity("first", "book", "First", 0, 0, 500L, "first.mp3"),
+                    ChapterEntity("current", "book", "Current", 2, 2, 500L, "current.mp3"),
+                ),
+            )
+
+            booksDao.upsertScannedBooksWithChapters(
+                books =
+                    listOf(
+                        BookEntity(
+                            id = "book",
+                            title = "Book",
+                            author = "Author",
+                            coverUrl = null,
+                            description = null,
+                            totalDuration = 500L,
+                            addedDate = 1L,
+                        ),
+                    ),
+                chapters = listOf(ChapterEntity("first-new", "book", "First", 0, 0, 500L, "first.mp3")),
+            )
+
+            val book = requireNotNull(booksDao.getBookById("book"))
+            assertEquals(0L, book.currentPosition)
+            assertEquals(0f, book.totalProgress, 0f)
+            assertEquals(0, book.currentChapterIndex)
+        }
+
     private fun bookmark(
         id: String,
         chapterIndex: Int,
