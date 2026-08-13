@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio
 import android.content.Context
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.test.core.app.ApplicationProvider
@@ -64,6 +65,7 @@ class CrossfadeTest {
         playerB = mock()
         whenever(playerA.audioAttributes).thenReturn(AudioAttributes.DEFAULT)
         whenever(playerB.audioAttributes).thenReturn(AudioAttributes.DEFAULT)
+        whenever(playerA.playbackParameters).thenReturn(PlaybackParameters.DEFAULT)
 
         // Mock factory to return our mocks
         var callCount = 0
@@ -137,6 +139,15 @@ class CrossfadeTest {
 
         verify(playerA).setAudioAttributes(AudioAttributes.DEFAULT, false)
         verify(playerB).setAudioAttributes(AudioAttributes.DEFAULT, true)
+    }
+
+    @Test
+    fun `crossfade preserves playback speed on the incoming player`() {
+        whenever(playerA.playbackParameters).thenReturn(PlaybackParameters(1.5f))
+
+        crossFadePlayer.startCrossFade()
+
+        verify(playerB).setPlaybackSpeed(1.5f)
     }
 
     @Test

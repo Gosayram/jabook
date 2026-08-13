@@ -85,12 +85,12 @@ internal class CrossfadeHandler(
 
     private fun prefetchNextChapter() {
         val currentPlayer = service.getActivePlayer()
-        val currentChapterIndex = currentPlayer.currentMediaItemIndex
+        val currentChapterIndex = playlistManager.actualTrackIndex
         val nextIndex = currentChapterIndex + 1
         if (nextIndex <= prefetchedChapterIndex) return
         prefetchedChapterIndex = nextIndex
 
-        if (nextIndex >= currentPlayer.mediaItemCount) return
+        if (nextIndex >= (playlistManager.currentFilePaths?.size ?: 0)) return
 
         val requestGeneration = monitoringGeneration
         service.playerServiceScope.launch {
@@ -100,7 +100,11 @@ internal class CrossfadeHandler(
                     if (!isCurrentRequest(requestGeneration, currentPlayer, currentChapterIndex)) {
                         return@withContext
                     }
-                    currentPlayer.addMediaSource(nextSource)
+                    if (isCrossfadeEnabled()) {
+                        crossFadePlayer.setNextMediaSource(nextSource)
+                    } else {
+                        currentPlayer.addMediaSource(nextSource)
+                    }
                 }
             }
         }
@@ -116,7 +120,7 @@ internal class CrossfadeHandler(
      */
     public fun triggerCrossfadeTransition() {
         val currentPlayer = service.getActivePlayer()
-        val currentChapterIndex = currentPlayer.currentMediaItemIndex
+        val currentChapterIndex = playlistManager.actualTrackIndex
         val requestGeneration = monitoringGeneration
         service.playerServiceScope.launch {
             val nextSource = playlistManager.getNextMediaSource(currentChapterIndex)
@@ -127,11 +131,17 @@ internal class CrossfadeHandler(
                         return@withContext
                     }
                     crossFadePlayer.setNextMediaSource(nextSource)
-                    crossFadePlayer.startCrossFade()
+                    crossFadePlayer.startCrossFade {
+                        if (playlistManager.actualTrackIndex == currentChapterIndex) {
+                            playlistManager.actualTrackIndex = currentChapterIndex + 1
+                        }
+                    }
                 }
             }
         }
     }
+
+    private fun isCrossfadeEnabled(): Boolean = service.playerConfigurator?.audioProcessingSettings?.isCrossfadeEnabled == true
 
     private fun isCurrentRequest(
         requestGeneration: Long,
@@ -144,8 +154,8 @@ internal class CrossfadeHandler(
             requestGeneration = requestGeneration,
             activePlayer = activePlayer,
             requestPlayer = requestPlayer,
-            activeChapterIndex = activePlayer.currentMediaItemIndex,
-            requestChapterIndex = requestChapterIndex,
+            activePlaylistIndex = playlistManager.actualTrackIndex,
+            requestPlaylistIndex = requestChapterIndex,
         )
     }
 }

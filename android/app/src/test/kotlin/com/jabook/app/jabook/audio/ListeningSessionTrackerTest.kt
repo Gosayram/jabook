@@ -111,6 +111,43 @@ class ListeningSessionTrackerTest {
         }
 
     @Test
+    fun `onPlaybackStopped closes a session that is still starting`() =
+        runTest(dispatcher) {
+            whenever(
+                repository.startSession(
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                ),
+            ).thenReturn("session-1")
+
+            val tracker =
+                ListeningSessionTracker(
+                    repository = repository,
+                    scope = scope,
+                    ioDispatcher = dispatcher,
+                    getCurrentBookId = { "book-1" },
+                    getCurrentPositionMs = { 45_000L },
+                    getCurrentSpeed = { 1.5f },
+                    getCurrentChapterIndex = { 4 },
+                )
+
+            tracker.onPlaybackStarted()
+            tracker.onPlaybackStopped("pause")
+            scope.advanceUntilIdle()
+
+            verify(repository).finishSession(
+                sessionId = eq("session-1"),
+                positionEndMs = eq(45_000L),
+                speedFactor = eq(1.5f),
+                chapterIndex = eq(4),
+                endedAt = any(),
+            )
+        }
+
+    @Test
     fun `onPlaybackStarted ignores blank book id`() =
         runTest(dispatcher) {
             val tracker =

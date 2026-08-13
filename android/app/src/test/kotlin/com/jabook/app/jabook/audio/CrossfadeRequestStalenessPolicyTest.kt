@@ -29,8 +29,8 @@ class CrossfadeRequestStalenessPolicyTest {
                 requestGeneration = 7L,
                 activePlayer = player,
                 requestPlayer = player,
-                activeChapterIndex = 4,
-                requestChapterIndex = 4,
+                activePlaylistIndex = 4,
+                requestPlaylistIndex = 4,
             ),
         )
     }
@@ -45,8 +45,8 @@ class CrossfadeRequestStalenessPolicyTest {
                 requestGeneration = 7L,
                 activePlayer = player,
                 requestPlayer = player,
-                activeChapterIndex = 4,
-                requestChapterIndex = 4,
+                activePlaylistIndex = 4,
+                requestPlaylistIndex = 4,
             ),
         )
     }
@@ -59,8 +59,8 @@ class CrossfadeRequestStalenessPolicyTest {
                 requestGeneration = 7L,
                 activePlayer = Any(),
                 requestPlayer = Any(),
-                activeChapterIndex = 4,
-                requestChapterIndex = 4,
+                activePlaylistIndex = 4,
+                requestPlaylistIndex = 4,
             ),
         )
     }
@@ -75,8 +75,40 @@ class CrossfadeRequestStalenessPolicyTest {
                 requestGeneration = 7L,
                 activePlayer = player,
                 requestPlayer = player,
-                activeChapterIndex = 5,
-                requestChapterIndex = 4,
+                activePlaylistIndex = 5,
+                requestPlaylistIndex = 4,
+            ),
+        )
+    }
+
+    @Test
+    fun `accepts the next absolute chapter after a crossfade player resets to local index zero`() {
+        val playerAfterSwap = Any()
+
+        assertTrue(
+            CrossfadeRequestStalenessPolicy.isCurrent(
+                activeGeneration = 7L,
+                requestGeneration = 7L,
+                activePlayer = playerAfterSwap,
+                requestPlayer = playerAfterSwap,
+                activePlaylistIndex = 2,
+                requestPlaylistIndex = 2,
+            ),
+        )
+    }
+
+    @Test
+    fun `rejects a result from before the crossfade advanced the absolute chapter`() {
+        val playerAfterSwap = Any()
+
+        assertFalse(
+            CrossfadeRequestStalenessPolicy.isCurrent(
+                activeGeneration = 7L,
+                requestGeneration = 7L,
+                activePlayer = playerAfterSwap,
+                requestPlayer = playerAfterSwap,
+                activePlaylistIndex = 2,
+                requestPlaylistIndex = 1,
             ),
         )
     }

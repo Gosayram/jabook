@@ -21,10 +21,10 @@ internal object CrossfadeRequestStalenessPolicy {
         requestGeneration: Long,
         activePlayer: Any,
         requestPlayer: Any,
-        activeChapterIndex: Int,
-        requestChapterIndex: Int,
+        activePlaylistIndex: Int,
+        requestPlaylistIndex: Int,
     ): Boolean =
         activeGeneration == requestGeneration &&
             activePlayer === requestPlayer &&
-            activeChapterIndex == requestChapterIndex
+            activePlaylistIndex == requestPlaylistIndex
 }

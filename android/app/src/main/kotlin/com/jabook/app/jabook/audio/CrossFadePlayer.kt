@@ -140,6 +140,7 @@ public class CrossFadePlayer(
         // Ensure starting volumes
         fadingOutPlayer.volume = 1f
         fadingInPlayer.volume = 0f
+        fadingInPlayer.setPlaybackSpeed(fadingOutPlayer.playbackParameters.speed)
 
         // Start the next player
         fadingInPlayer.play()

@@ -36,9 +36,11 @@ internal class ListeningSessionTracker(
     private var activeSessionId: String? = null
     private var activeBookId: String? = null
     private var isStartingSession: Boolean = false
+    private var pendingStopReason: String? = null
 
     public fun onPlaybackStarted() {
         val bookId = getCurrentBookId()?.takeIf { it.isNotBlank() } ?: return
+        pendingStopReason = null
         if ((activeSessionId != null || isStartingSession) && activeBookId == bookId) {
             return
         }
@@ -62,16 +64,22 @@ internal class ListeningSessionTracker(
                 activeSessionId = sessionId
                 activeBookId = bookId
                 isStartingSession = false
+                pendingStopReason?.let(::finishActiveSession)
             }.onFailure { error ->
                 activeSessionId = null
                 activeBookId = null
                 isStartingSession = false
+                pendingStopReason = null
                 LogUtils.e("ListeningSessionTracker", "Failed to start listening session for book=$bookId", error)
             }
         }
     }
 
     public fun onPlaybackStopped(reason: String) {
+        if (isStartingSession) {
+            pendingStopReason = reason
+            return
+        }
         finishActiveSession(reason)
     }
 
@@ -80,6 +88,7 @@ internal class ListeningSessionTracker(
         activeSessionId = null
         activeBookId = null
         isStartingSession = false
+        pendingStopReason = null
 
         scope.launch(ioDispatcher) {
             runCatching {
