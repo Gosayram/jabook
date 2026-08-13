@@ -120,13 +120,28 @@ class RutrackerSearchViewModelTest {
             assertTrue(viewModel.searchState.value is SearchState.Loading)
         }
 
-    private fun searchResult(topicId: String): RutrackerSearchResult =
+    @Test
+    fun `size sorting parses whitespace between the value and unit`() =
+        runTest {
+            whenever(repository.searchAudiobooksFlow(any(), any())).thenReturn(
+                flowOf(Result.success(listOf(searchResult("large", "1 GB"), searchResult("small", "500 MB")))),
+            )
+
+            viewModel.updateSortOrder(RutrackerSortOrder.SIZE_ASC)
+            viewModel.search("query")
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val state = viewModel.searchState.value as SearchState.Success
+            assertEquals("small", state.results.first().result.topicId)
+        }
+
+    private fun searchResult(topicId: String, size: String = "1 MB"): RutrackerSearchResult =
         RutrackerSearchResult(
             topicId = topicId,
             title = topicId,
             author = "author",
             category = "category",
-            size = "1 MB",
+            size = size,
             seeders = 1,
             leechers = 0,
             magnetUrl = null,

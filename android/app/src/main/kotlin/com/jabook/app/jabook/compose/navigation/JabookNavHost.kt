@@ -328,7 +328,7 @@ public fun JabookNavHost(
         ) { backStackEntry ->
             PlayerScreen(
                 onNavigateBack = {
-                    appState.navigateToLibrary()
+                    navController.popBackStack()
                 },
                 onNavigateToBook = { bookId ->
                     navController.navigate(PlayerRoute(bookId = bookId))
