@@ -121,7 +121,8 @@ public class DataMigrationManager
                             id = bookId,
                             title = title,
                             author = artist ?: "Unknown",
-                            coverUrl = metadataJson?.optString("coverPath"), // Local path usually
+                            coverUrl = null,
+                            coverPath = metadataJson?.optNormalizedString("coverPath"),
                             description = null,
                             totalDuration = 0L, // Unknown until scan
                             currentPosition = currentPosition,

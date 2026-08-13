@@ -19,7 +19,6 @@ import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.PowerManager
-import android.view.WindowManager
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
@@ -180,6 +179,7 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.ContrastPolicy
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.core.util.HapticManager
+import com.jabook.app.jabook.compose.core.util.SecureWindowFlag
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
@@ -403,14 +403,11 @@ public fun PlayerScreen(
         }
     }
 
-    // FLAG_SECURE: Prevent screenshots and screen recording on PlayerScreen
-    // Protects copyrighted audiobook content
     DisposableEffect(Unit) {
         val activity = context as? android.app.Activity
-        val window = activity?.window
-        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        val release = activity?.window?.let(SecureWindowFlag::acquire)
         onDispose {
-            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            release?.invoke()
         }
     }
 

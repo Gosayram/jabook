@@ -37,6 +37,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.MediaControllerConstants
@@ -99,7 +100,6 @@ public class ComposeMainActivity : ComponentActivity() {
                 "auth",
                 "migration",
                 "rutracker",
-                "debug",
             )
         internal val ALLOWED_JABOOK_PATH_PREFIXES =
             listOf(
@@ -113,14 +113,17 @@ public class ComposeMainActivity : ComponentActivity() {
                 "/auth",
                 "/migration",
                 "/rutracker",
-                "/debug",
             )
 
-        internal fun isAllowedJabookDeepLink(uri: Uri): Boolean {
+        internal fun isAllowedJabookDeepLink(
+            uri: Uri,
+            isDebugBuild: Boolean = BuildConfig.DEBUG,
+        ): Boolean {
             if (uri.scheme != "jabook") return false
             val host = uri.host?.lowercase().orEmpty()
             val path = uri.path.orEmpty()
-            return host in ALLOWED_JABOOK_HOSTS ||
+            return (isDebugBuild && (host == "debug" || path.startsWith("/debug", ignoreCase = true))) ||
+                host in ALLOWED_JABOOK_HOSTS ||
                 ALLOWED_JABOOK_PATH_PREFIXES.any { prefix -> path.startsWith(prefix, ignoreCase = true) }
         }
     }

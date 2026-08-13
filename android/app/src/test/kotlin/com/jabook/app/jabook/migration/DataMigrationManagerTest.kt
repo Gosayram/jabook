@@ -21,16 +21,20 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.scanner.BookIdentifier
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -220,6 +224,28 @@ class DataMigrationManagerTest {
             assertTrue(failure.rollbackReport?.attempted == true)
             assertTrue(failure.rollbackReport?.succeeded == true)
             verify(booksDao).deleteById("rollback-id")
+        }
+
+    @Test
+    fun `migrateFromFlutter stores legacy local cover as cover path`() =
+        runTest {
+            whenever(sharedPreferences.getString("flutter.player_state", null)).thenReturn(
+                """
+                {
+                    "groupPath": "/storage/emulated/0/Audiobooks/MyBook",
+                    "metadata": { "coverPath": "/storage/emulated/0/Audiobooks/MyBook/cover.jpg" }
+                }
+                """.trimIndent(),
+            )
+            whenever(context.filesDir).thenReturn(java.io.File(System.getProperty("java.io.tmpdir")))
+
+            val result = migrationManager.migrateFromFlutter()
+            val book = argumentCaptor<BookEntity>()
+
+            assertTrue(result is MigrationResult.Success)
+            verify(booksDao).insertBook(book.capture())
+            assertEquals("/storage/emulated/0/Audiobooks/MyBook/cover.jpg", book.firstValue.coverPath)
+            assertNull(book.firstValue.coverUrl)
         }
 
     @Test

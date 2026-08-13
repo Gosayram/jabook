@@ -44,7 +44,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -722,6 +721,7 @@ internal class PlaylistManager(
             activeLoadingJob?.cancel()
             activeLoadingJob =
                 playerServiceScope.launch(mediaItemDispatcher) {
+                    var completed = false
                     try {
                         if (!isLoadGenerationActive(loadGeneration)) {
                             LogUtils.d(
@@ -735,42 +735,23 @@ internal class PlaylistManager(
                             "Starting async MediaItems loading (previous job cancelled if existed)",
                         )
                         val remainingIndices = filePaths.indices.filter { it != firstTrackIndex }
-                        val totalItems = filePaths.size
                         LogUtils.d(
                             "AudioPlayerService",
-                            "Loading ${remainingIndices.size} remaining MediaItems asynchronously in parallel",
+                            "Loading ${remainingIndices.size} remaining MediaItems in queue order",
                         )
+                        var loadedCount = 1
 
-                        val loadPriorityPlan =
-                            PlaylistAsyncLoadPriorityPolicy.buildPlan(
-                                remainingIndices = remainingIndices,
-                                firstTrackIndex = firstTrackIndex,
-                            )
-
-                        LogUtils.d(
-                            "AudioPlayerService",
-                            "Loading priority: ${loadPriorityPlan.criticalPrevious.size} previous (target-2 to target-1), " +
-                                "${loadPriorityPlan.criticalNext.size} next (target+1 to target+2), ${loadPriorityPlan.otherIndices.size} others",
-                        )
-
-                        // Mutex to synchronize addMediaSource calls and ensure correct order
-                        val addMutex = Mutex()
-                        // Track which indices have been added to ensure we add in order
-                        // First track is already added, so mark it as added
-                        val addedIndices = mutableSetOf<Int>(firstTrackIndex)
-
-                        // Helper function to load a single MediaItem in parallel
-                        suspend fun loadMediaItem(
-                            index: Int,
-                            priority: String,
-                        ) {
+                        // Sources are built off the main thread, but inserted serially. Inserting a
+                        // later index before its predecessor can fail and silently drop a chapter.
+                        for (index in remainingIndices) {
+                            if (!isLoadGenerationActive(loadGeneration)) return@launch
                             val loadStartTime = System.currentTimeMillis()
                             val filePath = filePaths[index]
                             val fileName = filePath.substringAfterLast('/')
                             try {
                                 LogUtils.d(
                                     "AudioPlayerService",
-                                    "Loading track $index: $fileName (priority: $priority)",
+                                    "Loading track $index: $fileName",
                                 )
                                 val mediaSource =
                                     createMediaSourceForIndex(
@@ -780,125 +761,42 @@ internal class PlaylistManager(
                                         dataSourceFactory,
                                     )
 
-                                // Wait for all previous indices to be added before adding this one
-                                // CRITICAL: We must wait for all previous indices to be in addedIndices
-                                // This ensures that ExoPlayer has all previous items before we add the next one
-                                val orderedInsertWaitDecision = PlaylistOrderedInsertWaitPolicy.decide()
-                                var waitAttempts = 0
-                                while (
-                                    PlaylistOrderedInsertWaitPolicy.shouldContinueWaiting(
-                                        waitAttempts = waitAttempts,
-                                        maxAttempts = orderedInsertWaitDecision.maxAttempts,
-                                    )
-                                ) {
-                                    val allPreviousAdded =
-                                        addMutex.withLock {
-                                            // Check if all previous indices (except firstTrackIndex) are in addedIndices
-                                            PlaylistOrderedInsertWaitPolicy.areAllPreviousIndicesAdded(
-                                                index = index,
-                                                firstTrackIndex = firstTrackIndex,
-                                                addedIndices = addedIndices,
-                                            )
-                                        }
-                                    if (allPreviousAdded) {
-                                        break
-                                    }
-                                    delay(orderedInsertWaitDecision.delayMs)
-                                    waitAttempts++
-                                }
-
-                                // Add to player with synchronization to maintain order
                                 withContext(dispatchers.main) {
-                                    addMutex.withLock {
-                                        if (!isLoadGenerationActive(loadGeneration)) return@withContext
-                                        val activePlayer = getActivePlayer()
-                                        val currentCount = activePlayer.mediaItemCount
-
-                                        var existingPathAtIndex: String? = null
-                                        if (currentCount > index) {
-                                            try {
-                                                existingPathAtIndex =
-                                                    activePlayer
-                                                        .getMediaItemAt(index)
-                                                        .localConfiguration
-                                                        ?.uri
-                                                        ?.path
-                                            } catch (_: IndexOutOfBoundsException) {
-                                                // Index might be out of bounds, continue with add.
-                                            }
-                                        }
-                                        val dedupDecision =
-                                            PlaylistAddDedupPolicy.decide(
-                                                index = index,
-                                                expectedPath = filePaths[index],
-                                                addedIndices = addedIndices,
-                                                currentPlayerItemCount = currentCount,
-                                                existingPathAtIndex = existingPathAtIndex,
-                                            )
-                                        if (dedupDecision.shouldMarkAdded) {
-                                            addedIndices.add(index)
-                                        }
-                                        if (dedupDecision.shouldSkipAdd) {
-                                            val reason =
-                                                when (dedupDecision.reason) {
-                                                    PlaylistAddDedupReason.ALREADY_MARKED_ADDED -> "already added"
-                                                    PlaylistAddDedupReason.PLAYER_ALREADY_HAS_EXPECTED_ITEM -> "already exists in player"
-                                                    PlaylistAddDedupReason.PROCEED -> "skip"
-                                                }
-                                            LogUtils.w(
-                                                "AudioPlayerService",
-                                                "MediaItem at index $index $reason, skipping duplicate",
-                                            )
-                                            return@withContext
-                                        }
-
-// All checks passed, add the MediaItem
-                                        activePlayer.addMediaSource(index, mediaSource)
-                                        addedIndices.add(index)
-                                        val loadDuration = System.currentTimeMillis() - loadStartTime
-                                        LogUtils.i(
-                                            "AudioPlayerService",
-                                            "Loaded track $index: $fileName (${loadDuration}ms, priority: $priority, playlist size: ${activePlayer.mediaItemCount})",
+                                    if (!isLoadGenerationActive(loadGeneration)) return@withContext
+                                    val activePlayer = getActivePlayer()
+                                    activePlayer.addMediaSource(index, mediaSource)
+                                    loadedCount++
+                                    val loadDuration = System.currentTimeMillis() - loadStartTime
+                                    LogUtils.i(
+                                        "AudioPlayerService",
+                                        "Loaded track $index: $fileName (${loadDuration}ms, playlist size: ${activePlayer.mediaItemCount})",
+                                    )
+                                    _loadProgress.update {
+                                        PlaylistLoadProgress(
+                                            loadedCount,
+                                            filePaths.size,
+                                            PlaylistLoadProgress.Phase.LOADING_CRITICAL,
                                         )
-                                        // Update progress
-                                        _loadProgress.update {
-                                            PlaylistLoadProgress(
-                                                addedIndices.size,
-                                                filePaths.size,
-                                                PlaylistLoadProgress.Phase.LOADING_CRITICAL,
-                                            )
-                                        }
                                     }
                                 }
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (e: Exception) {
                                 val loadDuration = System.currentTimeMillis() - loadStartTime
                                 LogUtils.e(
                                     "AudioPlayerService",
-                                    "Failed to load track $index: $fileName (${loadDuration}ms, priority: $priority): ${e.message}",
+                                    "Failed to load track $index: $fileName (${loadDuration}ms): ${e.message}",
                                     e,
                                 )
-                                // Continue with other items - one failure shouldn't stop the rest
+                                // Preserve a valid index-to-chapter mapping instead of appending later tracks.
+                                return@launch
                             }
                         }
-
-                        // Load all tracks in parallel using launch for each
-                        // The dispatcher will limit parallelism to 16 concurrent tasks
-                        // Order: critical previous, critical next, then others
-                        val allIndices = loadPriorityPlan.orderedIndices
-                        val jobs =
-                            allIndices.map { index ->
-                                val priority = PlaylistAsyncLoadPriorityPolicy.priorityLabelFor(index, loadPriorityPlan)
-                                launch(mediaItemDispatcher) {
-                                    loadMediaItem(index, priority)
-                                }
-                            }
-                        jobs.joinAll()
+                        completed = true
 
                         LogUtils.i(
                             "AudioPlayerService",
-                            "All ${filePaths.size} MediaItems scheduled for parallel loading " +
-                                "(critical previous: ${loadPriorityPlan.criticalPrevious.size}, " +
-                                "critical next: ${loadPriorityPlan.criticalNext.size}, others: ${loadPriorityPlan.otherIndices.size})",
+                            "All ${filePaths.size} MediaItems loaded in queue order",
                         )
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         LogUtils.d("AudioPlayerService", "MediaItems loading job cancelled")
@@ -910,7 +808,7 @@ internal class PlaylistManager(
                         val isCurrentGeneration = isLoadGenerationActive(loadGeneration)
                         val asyncInitialPositionDecision =
                             PlaylistAsyncInitialPositionPolicy.decide(
-                                isCurrentGeneration = isCurrentGeneration,
+                                isCurrentGeneration = isCurrentGeneration && completed,
                                 initialTrackIndex = initialTrackIndex,
                                 initialPositionMs = initialPosition,
                             )
@@ -937,7 +835,7 @@ internal class PlaylistManager(
                             activeLoadingJob = null
                         }
                         // Mark loading as complete (only if still current generation)
-                        if (isLoadGenerationActive(loadGeneration)) {
+                        if (isLoadGenerationActive(loadGeneration) && completed) {
                             _loadProgress.update { PlaylistLoadProgress(filePaths.size, filePaths.size, PlaylistLoadProgress.Phase.DONE) }
                         }
                     }

@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.feature.webview
 
 import android.graphics.Bitmap
-import android.view.WindowManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -60,6 +59,7 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.util.SecureWindowFlag
 import com.jabook.app.jabook.compose.navigation.WebViewRoute
 import com.jabook.app.jabook.utils.componentActivity
 import java.net.URLDecoder
@@ -109,15 +109,14 @@ public fun WebViewScreen(
     var isCapturingSession by remember { mutableStateOf(false) }
 
     DisposableEffect(currentView, route.isAuthentication) {
-        if (route.isAuthentication) {
-            currentView.context.componentActivity.window
-                .addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        }
-        onDispose {
+        val release =
             if (route.isAuthentication) {
-                currentView.context.componentActivity.window
-                    .clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                SecureWindowFlag.acquire(currentView.context.componentActivity.window)
+            } else {
+                null
             }
+        onDispose {
+            release?.invoke()
         }
     }
 

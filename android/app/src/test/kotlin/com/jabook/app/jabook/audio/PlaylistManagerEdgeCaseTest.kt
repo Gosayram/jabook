@@ -40,6 +40,7 @@ import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
@@ -146,6 +147,11 @@ class PlaylistManagerEdgeCaseTest {
             verify(exoPlayer).addMediaSource(eq(0), any())
             verify(exoPlayer).prepare()
             verify(exoPlayer, never()).setMediaItems(any(), any<Int>(), any<Long>())
+
+            val orderedAdds = inOrder(exoPlayer)
+            largePlaylist.indices.forEach { index ->
+                orderedAdds.verify(exoPlayer).addMediaSource(eq(index), any())
+            }
         }
 
     @Test

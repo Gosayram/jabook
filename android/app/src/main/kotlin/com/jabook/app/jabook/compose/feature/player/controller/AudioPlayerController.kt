@@ -856,13 +856,12 @@ public class AudioPlayerController
 
                         // Handle seeking if needed (e.g. user clicked a specific chapter)
                         // Only seek if significantly different to allow resume logic to work
-                        if (request.initialChapterIndex != controller.currentMediaItemIndex) {
-                            controller.seekTo(request.initialChapterIndex, 0L)
-                        }
-                        if (request.initialPosition > 0L &&
-                            Math.abs(controller.currentPosition - request.initialPosition) > 1000L
-                        ) {
-                            controller.seekTo(request.initialPosition)
+                        val chapterChanged = request.initialChapterIndex != controller.currentMediaItemIndex
+                        val positionChanged =
+                            request.initialPosition > 0L &&
+                                Math.abs(controller.currentPosition - request.initialPosition) > 1000L
+                        if (chapterChanged || positionChanged) {
+                            controller.seekTo(request.initialChapterIndex, request.initialPosition)
                         }
 
                         if (request.autoPlay && !controller.isPlaying) {

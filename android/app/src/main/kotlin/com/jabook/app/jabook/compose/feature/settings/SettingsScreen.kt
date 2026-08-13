@@ -94,6 +94,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
@@ -1468,18 +1469,19 @@ public fun SettingsScreen(
                 },
             )
 
-            // Developer Tools Section
-            SettingsSection(
-                title = stringResource(R.string.developer),
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-            )
+            if (BuildConfig.DEBUG) {
+                SettingsSection(
+                    title = stringResource(R.string.developer),
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                )
 
-            SettingsItem(
-                title = stringResource(R.string.debugToolsTitle),
-                subtitle = stringResource(R.string.viewLogsTestMirrorsCheckCache),
-                onClick = { safeNavigateToDebug() },
-            )
+                SettingsItem(
+                    title = stringResource(R.string.debugToolsTitle),
+                    subtitle = stringResource(R.string.viewLogsTestMirrorsCheckCache),
+                    onClick = { safeNavigateToDebug() },
+                )
+            }
 
             Spacer(modifier = Modifier.height(itemSpacing))
         }

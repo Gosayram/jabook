@@ -27,6 +27,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.feature.favorites.FavoritesScreen
@@ -495,18 +496,20 @@ public fun JabookNavHost(
             )
         }
 
-        // Debug screen - shows debug tools and logs
-        composable<DebugRoute>(
-            deepLinks =
-                listOf(
-                    androidx.navigation.navDeepLink { uriPattern = "jabook://debug" },
-                ),
-        ) {
-            com.jabook.app.jabook.compose.feature.debug.DebugScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
-                },
-            )
+        if (BuildConfig.DEBUG) {
+            // Debug tools are intentionally unavailable from production builds.
+            composable<DebugRoute>(
+                deepLinks =
+                    listOf(
+                        androidx.navigation.navDeepLink { uriPattern = "jabook://debug" },
+                    ),
+            ) {
+                com.jabook.app.jabook.compose.feature.debug.DebugScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    },
+                )
+            }
         }
 
         // Topic details screen - shows RuTracker topic information

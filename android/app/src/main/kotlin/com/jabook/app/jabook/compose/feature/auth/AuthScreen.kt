@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.feature.auth
 
-import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -77,6 +76,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.util.SecureWindowFlag
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
 import com.jabook.app.jabook.utils.componentActivity
@@ -117,9 +117,9 @@ public fun AuthScreen(
     // Protect credentials screen from screenshots/recording while it is visible.
     DisposableEffect(currentView) {
         val window = currentView.context.componentActivity.window
-        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        val release = SecureWindowFlag.acquire(window)
         onDispose {
-            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            release()
         }
     }
 
