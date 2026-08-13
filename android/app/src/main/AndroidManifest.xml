@@ -247,6 +247,12 @@
             android:exported="false"
             android:foregroundServiceType="dataSync|mediaPlayback" />
 
+        <!-- WorkManager uses this service while IndexingWorker runs in the foreground. -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
+
         <!-- Torrent notification action receiver -->
         <receiver
             android:name=".compose.receiver.TorrentActionReceiver"
