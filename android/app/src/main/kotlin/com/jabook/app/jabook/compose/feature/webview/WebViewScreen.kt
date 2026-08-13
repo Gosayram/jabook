@@ -210,6 +210,11 @@ public fun WebViewScreen(
                                         onMagnetLinkDetected?.invoke(url)
                                         // Prevent WebView from loading magnet link
                                         view?.stopLoading()
+                                    } else if (
+                                        route.isAuthentication &&
+                                        !viewModel.isTrustedAuthenticationUrl(url.orEmpty())
+                                    ) {
+                                        view?.stopLoading()
                                     }
                                 }
 

@@ -44,6 +44,7 @@ import com.jabook.app.jabook.audio.MediaControllerExtensions
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.torrent.MagnetUriValidationPolicy
+import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -74,6 +75,9 @@ public class ComposeMainActivity : ComponentActivity() {
 
     @Inject
     public lateinit var settingsRepository: SettingsRepository
+
+    @Inject
+    public lateinit var torrentManager: TorrentManager
 
     private val logger by lazy { loggerFactory.get("ComposeMainActivity") }
 
@@ -220,22 +224,14 @@ public class ComposeMainActivity : ComponentActivity() {
         // Get default save path (app-specific storage)
         val savePath = "${getExternalFilesDir(null)}/JabookAudio/downloads"
 
-        // Start download service
-        com.jabook.app.jabook.download.DownloadForegroundService.startDownload(
-            context = this,
-            magnetUri = magnetUrl,
-            savePath = savePath,
-        )
+        lifecycleScope.launch {
+            runCatching { torrentManager.addMagnetLink(magnetUrl, savePath) }
+                .onSuccess {
+                    Toast.makeText(this@ComposeMainActivity, getString(R.string.downloadStarted), Toast.LENGTH_SHORT).show()
+                }.onFailure { logger.e({ "Failed to start torrent download" }, it) }
+        }
 
         logger.i { "Started torrent download: $magnetUrl" }
-
-        // Show feedback
-        android.widget.Toast
-            .makeText(
-                this,
-                getString(R.string.downloadStarted),
-                android.widget.Toast.LENGTH_SHORT,
-            ).show()
 
         // Navigate to downloads screen by creating a deep link intent
         // that JabookApp will handle
