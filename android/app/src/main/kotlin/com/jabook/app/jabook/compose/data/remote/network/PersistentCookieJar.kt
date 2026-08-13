@@ -96,6 +96,7 @@ public class PersistentCookieJar
         private val aead: Aead? by lazy {
             runCatching {
                 AeadConfig.register()
+                @Suppress("DEPRECATION")
                 AndroidKeysetManager
                     .Builder()
                     .withSharedPref(context, KEYSET_NAME, PREFERENCE_FILE)

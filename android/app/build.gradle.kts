@@ -432,6 +432,11 @@ tasks.withType<Test>().configureEach {
     jvmArgs(
         "-XX:+UseParallelGC",
         "-XX:MaxMetaspaceSize=512m",
+        // Robolectric/JNA use JNI. Declare it explicitly on JDK 25 instead of
+        // relying on the deprecated permissive native-access mode.
+        "--enable-native-access=ALL-UNNAMED",
+        // Robolectric appends to the bootstrap classpath, where CDS cannot be used.
+        "-Xshare:off",
     )
     val logStartedTests =
         providers

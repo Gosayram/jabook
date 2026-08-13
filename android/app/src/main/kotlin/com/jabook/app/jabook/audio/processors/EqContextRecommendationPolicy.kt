@@ -29,22 +29,18 @@ public enum class AudioOutputType {
 @RequiresApi(Build.VERSION_CODES.M)
 public fun detectAudioOutputType(context: Context): AudioOutputType {
     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    if (audioManager.isBluetoothA2dpOn) return AudioOutputType.BLUETOOTH
-    if (audioManager.isWiredHeadsetOn) return AudioOutputType.WIRED
-    if (Build.VERSION.SDK_INT >= 23) {
-        val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-        for (device in devices) {
-            if (device.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-                device.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-            ) {
-                return AudioOutputType.BLUETOOTH
-            }
-            if (device.type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
-                device.type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-                device.type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET
-            ) {
-                return AudioOutputType.WIRED
-            }
+    val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+    for (device in devices) {
+        if (device.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+            device.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+        ) {
+            return AudioOutputType.BLUETOOTH
+        }
+        if (device.type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+            device.type == android.media.AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+            device.type == android.media.AudioDeviceInfo.TYPE_USB_HEADSET
+        ) {
+            return AudioOutputType.WIRED
         }
     }
     return AudioOutputType.SPEAKER
