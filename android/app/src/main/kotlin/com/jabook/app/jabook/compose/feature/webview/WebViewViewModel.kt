@@ -31,15 +31,30 @@ public class WebViewViewModel
         private val mirrorManager: MirrorManager,
     ) : ViewModel() {
         /** Only first-party, HTTPS RuTracker pages may participate in login. */
-        public fun isTrustedAuthenticationUrl(url: String): Boolean {
-            val parsed = url.toHttpUrlOrNull() ?: return false
-            return (
-                parsed.isHttps &&
-                    parsed.port == 443 &&
-                    parsed.username.isEmpty() &&
-                    parsed.password.isEmpty() &&
-                    parsed.host in TRUSTED_AUTH_HOSTS
-            )
+        public fun isTrustedAuthenticationUrl(url: String): Boolean = Companion.isTrustedAuthenticationUrl(url)
+
+        public companion object {
+            public fun isTrustedAuthenticationUrl(url: String): Boolean {
+                val parsed = url.toHttpUrlOrNull() ?: return false
+                return (
+                    parsed.isHttps &&
+                        parsed.port == 443 &&
+                        parsed.username.isEmpty() &&
+                        parsed.password.isEmpty() &&
+                        parsed.host in TRUSTED_AUTH_HOSTS
+                )
+            }
+
+            private val TRUSTED_AUTH_HOSTS =
+                setOf(
+                    "rutracker.org",
+                    "rutracker.net",
+                    "rutracker.me",
+                    "rutracker.nl",
+                    "rutracker.ru",
+                    "rutracker.lib",
+                    "rutracker.info",
+                )
         }
 
         /** Captures and validates the session only after the user explicitly confirms login. */
@@ -56,18 +71,5 @@ public class WebViewViewModel
         public fun getLoginUrl(): String {
             val baseUrl = mirrorManager.getBaseUrl()
             return "$baseUrl/forum/login.php"
-        }
-
-        private companion object {
-            val TRUSTED_AUTH_HOSTS =
-                setOf(
-                    "rutracker.org",
-                    "rutracker.net",
-                    "rutracker.me",
-                    "rutracker.nl",
-                    "rutracker.ru",
-                    "rutracker.lib",
-                    "rutracker.info",
-                )
         }
     }

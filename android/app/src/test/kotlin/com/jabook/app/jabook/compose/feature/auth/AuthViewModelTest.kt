@@ -52,7 +52,6 @@ class AuthViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         whenever(authRepository.authStatus).thenReturn(authStatusFlow)
-        whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow(MirrorManager.DEFAULT_MIRRORS.first()))
         viewModel = AuthViewModel(authRepository, mirrorManager)
     }
 
@@ -131,15 +130,22 @@ class AuthViewModelTest {
     }
 
     @Test
-    fun `webview fallback replaces an untrusted mirror`() =
+    fun `webview fallback uses a canonical URL for an untrusted mirror`() =
         runTest {
-            whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("custom.example"))
+            whenever(mirrorManager.getBaseUrl()).thenReturn("https://custom.example")
 
-            viewModel.requestWebViewLogin()
-            testDispatcher.scheduler.advanceUntilIdle()
+            assertEquals(
+                "https://rutracker.org/forum/login.php",
+                viewModel.getLoginUrl(),
+            )
+        }
 
-            verify(mirrorManager).setMirror(MirrorManager.DEFAULT_MIRRORS.first())
-            assertEquals(true, viewModel.uiState.value.showWebViewLogin)
+    @Test
+    fun `webview fallback keeps a trusted mirror`() =
+        runTest {
+            whenever(mirrorManager.getBaseUrl()).thenReturn("https://rutracker.net")
+
+            assertEquals("https://rutracker.net/forum/login.php", viewModel.getLoginUrl())
         }
 
     @Test
