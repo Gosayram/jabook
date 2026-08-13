@@ -208,41 +208,45 @@ public class TopicViewModel
 
             viewModelScope.launch {
                 _isLoadingMoreComments.value = true
+                try {
+                    when (val result = rutrackerRepository.getTopicDetailsPage(topicId, pageToLoad)) {
+                        is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
+                            // Preload avatars for new comments
+                            avatarPreloader.preloadAvatars(context, result.data.comments)
 
-                val result = rutrackerRepository.getTopicDetailsPage(topicId, pageToLoad)
+                            // Add older comments to the end of the list
+                            // Comments on each page are oldest-to-newest naturally, so we reverse them
+                            // to maintain newest-to-oldest order in the combined list
+                            val reversedPageComments = result.data.comments.reversed()
+                            loadedComments.addAll(reversedPageComments)
 
-                when (result) {
-                    is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
-                        // Preload avatars for new comments
-                        avatarPreloader.preloadAvatars(context, result.data.comments)
+                            // Update pagination state
+                            nextPageToLoad = if (pageToLoad > 1) pageToLoad - 1 else null
 
-                        // Add older comments to the end of the list
-                        // Comments on each page are oldest-to-newest naturally, so we reverse them
-                        // to maintain newest-to-oldest order in the combined list
-                        val reversedPageComments = result.data.comments.reversed()
-                        loadedComments.addAll(reversedPageComments)
-
-                        // Update pagination state
-                        nextPageToLoad = if (pageToLoad > 1) pageToLoad - 1 else null
-
-                        // Update UI state with all comments
-                        _uiState.value =
-                            TopicUiState.Success(
-                                details.copy(
-                                    comments = loadedComments.toList(),
-                                    currentPage = currentLoadedPage, // Keep original page (last page)
-                                ),
-                            )
+                            // Update UI state with all comments
+                            _uiState.value =
+                                TopicUiState.Success(
+                                    details.copy(
+                                        comments = loadedComments.toList(),
+                                        currentPage = currentLoadedPage, // Keep original page (last page)
+                                    ),
+                                )
+                        }
+                        is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
+                            _message.value = result.error.message
+                        }
+                        is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
+                            // Ignore
+                        }
                     }
-                    is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
-                        _message.value = result.error.message
-                    }
-                    is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
-                        // Ignore
-                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logger.e({ "Failed to load more comments" }, e)
+                    _message.value = e.message
+                } finally {
+                    _isLoadingMoreComments.value = false
                 }
-
-                _isLoadingMoreComments.value = false
             }
         }
 
@@ -254,33 +258,38 @@ public class TopicViewModel
                     _isRefreshing.value = true
                 }
 
-                val result = rutrackerRepository.getTopicDetails(topicId)
+                try {
+                    when (val result = rutrackerRepository.getTopicDetails(topicId)) {
+                        is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
+                            // Preload avatars for comments (offline support)
+                            avatarPreloader.preloadAvatars(context, result.data.comments)
 
-                when (result) {
-                    is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
-                        // Preload avatars for comments (offline support)
-                        avatarPreloader.preloadAvatars(context, result.data.comments)
-
-                        _uiState.value =
-                            TopicUiState.Success(
-                                result.data.copy(
-                                    comments = result.data.comments.reversed(), // Sort comments newest first
-                                ),
-                            )
-                    }
-                    is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
-                        if (!silent) {
-                            _uiState.value = TopicUiState.Error(result.error.message)
-                        } else {
-                            _message.value = result.error.message
+                            _uiState.value =
+                                TopicUiState.Success(
+                                    result.data.copy(
+                                        comments = result.data.comments.reversed(), // Sort comments newest first
+                                    ),
+                                )
+                        }
+                        is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
+                            if (!silent) {
+                                _uiState.value = TopicUiState.Error(result.error.message)
+                            } else {
+                                _message.value = result.error.message
+                            }
+                        }
+                        is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
+                            // Ignore loading state during silent refresh
                         }
                     }
-                    is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
-                        // Ignore loading state during silent refresh
-                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logger.e({ "Failed to refresh topic details" }, e)
+                    if (silent) _message.value = e.message else _uiState.value = TopicUiState.Error(e.message ?: "Unknown error")
+                } finally {
+                    _isRefreshing.value = false
                 }
-
-                _isRefreshing.value = false
             }
         }
 

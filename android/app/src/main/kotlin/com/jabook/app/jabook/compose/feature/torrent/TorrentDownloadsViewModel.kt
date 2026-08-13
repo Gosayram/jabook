@@ -332,8 +332,10 @@ public class TorrentDownloadsViewModel
 
                 try {
                     checkNetworkAndWarn()
-                    torrentManager.addTorrent(magnetLink, path)
-                    _pendingMagnetLink.value = null
+                    torrentManager
+                        .addTorrent(magnetLink, path)
+                        .onSuccess { _pendingMagnetLink.value = null }
+                        .onFailure { _snackbarEvent.send("Failed to add torrent: ${it.message}") }
                 } catch (e: Exception) {
                     _snackbarEvent.send("Failed to add torrent: ${e.message}")
                 }

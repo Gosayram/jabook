@@ -61,6 +61,7 @@ public class TorrentDownloadService : Service() {
             SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("TorrentDownloadService"),
         )
     private var wakeLock: PowerManager.WakeLock? = null
+    private var hasObservedActiveDownload: Boolean = false
 
     private val foregroundStartPolicy =
         ForegroundServiceStartPolicy(
@@ -217,7 +218,9 @@ public class TorrentDownloadService : Service() {
                 updateNotifications(downloads)
 
                 // Completed and paused entries stay in the manager for history.
-                if (downloads.values.none(TorrentDownload::isActive)) {
+                val hasActiveDownloads = downloads.values.any(TorrentDownload::isActive)
+                hasObservedActiveDownload = hasObservedActiveDownload || hasActiveDownloads
+                if (hasObservedActiveDownload && !hasActiveDownloads) {
                     logger.i { "No active downloads, stopping service" }
                     stopSelf()
                 }
