@@ -945,14 +945,20 @@ public class PlayerViewModel
         }
 
         public fun seekToBookmark(bookmark: BookmarkItem) {
-            val state = uiState.value as? PlayerState.Active
+            val state = uiState.value as? PlayerState.Active ?: return
+            val targetChapter = state.chapters.getOrNull(bookmark.chapterIndex) ?: return
+            val targetPositionMs =
+                PlayerIntentGuardPolicy.clampSeekPosition(
+                    requestedPositionMs = bookmark.resolvePositionMs(targetChapter.duration.inWholeMilliseconds),
+                    chapterDurationMs = targetChapter.duration.inWholeMilliseconds,
+                )
             // If bookmark is in a different chapter, we need to seek to that chapter first
-            if (state?.currentChapterIndex != bookmark.chapterIndex) {
-                playerController.skipToChapter(bookmark.chapterIndex, bookmark.positionMs)
+            if (state.currentChapterIndex != bookmark.chapterIndex) {
+                playerController.skipToChapter(bookmark.chapterIndex, targetPositionMs)
                 return
             }
             // The current chapter can be seeked directly.
-            seekTo(bookmark.positionMs)
+            seekTo(targetPositionMs)
         }
 
         public fun toggleFavorite() {

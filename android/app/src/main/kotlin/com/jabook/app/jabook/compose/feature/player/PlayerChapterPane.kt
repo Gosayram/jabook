@@ -228,6 +228,16 @@ public fun PlayerChapterPane(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(8.dp),
         ) {
+            if (filteredChapters.isEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(R.string.noChaptersFoundInSearch),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    )
+                }
+            }
             items(
                 count = filteredChapters.size,
                 key = { index -> filteredChapters[index].second.id },
