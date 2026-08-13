@@ -89,7 +89,7 @@ public class CookiePersistenceManager
                     val cookieString = cookieManager.getCookie(url)
 
                     if (!cookieString.isNullOrBlank()) {
-                        val cookies = parseCookieHeader(url, cookieString).filter { it.name == SESSION_COOKIE }
+                        val cookies = listOfNotNull(captureWebViewSessionCookie(url, cookieString))
 
                         if (cookies.isEmpty()) {
                             logger.d { "No RuTracker session cookie in WebView" }
@@ -100,9 +100,6 @@ public class CookiePersistenceManager
                         val httpUrl = url.toHttpUrl()
                         cookieJar.saveFromResponse(httpUrl, cookies)
 
-                        // Persist to all layers
-                        persistCookiesMultiStage(url)
-
                         logger.i { "Synced ${cookies.size} cookies from WebView for $url" }
                     } else {
                         logger.d { "No cookies in WebView for $url" }
@@ -111,43 +108,34 @@ public class CookiePersistenceManager
                     logger.e({ "Failed to sync from WebView" }, e)
                 }
             }
-
-        /**
-         * Parse cookie header string into list of Cookie objects.
-         */
-        private fun parseCookieHeader(
-            url: String,
-            cookieHeader: String,
-        ): List<Cookie> {
-            val cookies = mutableListOf<Cookie>()
-            val httpUrl = url.toHttpUrl()
-
-            cookieHeader.split(";").forEach { pair ->
-                val parts = pair.trim().split("=", limit = 2)
-                if (parts.size == 2) {
-                    val name = parts[0].trim()
-                    val value = parts[1].trim()
-
-                    try {
-                        val cookie =
-                            Cookie
-                                .Builder()
-                                .name(name)
-                                .value(value)
-                                .domain(httpUrl.host)
-                                .path("/")
-                                .build()
-                        cookies.add(cookie)
-                    } catch (e: Exception) {
-                        logger.e({ "Failed to parse cookie: $name=$value" }, e)
-                    }
-                }
-            }
-
-            return cookies
-        }
-
-        private companion object {
-            const val SESSION_COOKIE = "bb_session"
-        }
     }
+
+internal fun captureWebViewSessionCookie(
+    url: String,
+    cookieHeader: String,
+): Cookie? {
+    val httpUrl = url.toHttpUrl()
+    val value =
+        cookieHeader
+            .split(";")
+            .map { it.trim().split("=", limit = 2) }
+            .firstOrNull { it.size == 2 && it[0].trim() == RUTRACKER_SESSION_COOKIE }
+            ?.get(1)
+            ?.trim()
+            .orEmpty()
+    if (value.isEmpty()) return null
+
+    return runCatching {
+        Cookie
+            .Builder()
+            .name(RUTRACKER_SESSION_COOKIE)
+            .value(value)
+            .hostOnlyDomain(httpUrl.host)
+            .path("/")
+            .secure()
+            .httpOnly()
+            .build()
+    }.getOrNull()
+}
+
+private const val RUTRACKER_SESSION_COOKIE = "bb_session"

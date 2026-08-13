@@ -59,6 +59,8 @@ class WebViewViewModelTest {
             "https://rutracker.org:8443/forum/login.php",
             "https://user:password@rutracker.org/forum/login.php",
             "https://evilrutracker.org/forum/login.php",
+            "https://rutracker.ru/forum/login.php",
+            "https://rutracker.info/forum/login.php",
             "file:///android_asset/login.html",
             "javascript:alert(1)",
         ).forEach { url -> assertFalse(url, viewModel.isTrustedAuthenticationUrl(url)) }
@@ -75,5 +77,18 @@ class WebViewViewModelTest {
 
             verify(authRepository).syncCookiesFromWebView()
             assertTrue(result == true)
+        }
+
+    @Test
+    fun `complete login reports failure when session validation throws`() =
+        runTest {
+            whenever(authRepository.isLoggedIn()).thenThrow(IllegalStateException("network failure"))
+            var result: Boolean? = null
+
+            viewModel.completeLogin { result = it }
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            verify(authRepository).syncCookiesFromWebView()
+            assertFalse(result == true)
         }
 }

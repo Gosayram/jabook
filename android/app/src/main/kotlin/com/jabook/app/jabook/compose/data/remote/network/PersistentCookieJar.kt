@@ -137,12 +137,15 @@ public class PersistentCookieJar
 
         override fun loadForRequest(url: HttpUrl): List<Cookie> {
             val host = url.host
+            val nowMillis = System.currentTimeMillis()
 
             // Try cache first
-            cache.load(host)?.let { return it }
+            cache.load(host)?.let { cachedCookies ->
+                return cachedCookies.filter { !it.hasExpiredAt(nowMillis) && it.matches(url) }
+            }
 
             // Load from DataStore
-            val cookies =
+            val storedCookies =
                 runBlocking {
                     val prefs = dataStore.data.first()
                     val key = stringPreferencesKey(host)
@@ -152,11 +155,11 @@ public class PersistentCookieJar
                     serialized
                         .split(COOKIE_SEPARATOR)
                         .mapNotNull { cookieString -> deserializeCookie(cookieString) }
-                        .filter { cookie -> !cookie.hasExpiredAt(System.currentTimeMillis()) }
+                        .filter { cookie -> !cookie.hasExpiredAt(nowMillis) }
                 }
 
-            cache.store(host, cookies)
-            return cookies
+            cache.store(host, storedCookies)
+            return storedCookies.filter { it.matches(url) }
         }
 
         /**

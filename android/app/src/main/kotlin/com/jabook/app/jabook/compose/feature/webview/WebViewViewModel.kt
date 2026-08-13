@@ -19,6 +19,7 @@ import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import javax.inject.Inject
@@ -45,23 +46,22 @@ public class WebViewViewModel
                 )
             }
 
-            private val TRUSTED_AUTH_HOSTS =
-                setOf(
-                    "rutracker.org",
-                    "rutracker.net",
-                    "rutracker.me",
-                    "rutracker.nl",
-                    "rutracker.ru",
-                    "rutracker.lib",
-                    "rutracker.info",
-                )
+            private val TRUSTED_AUTH_HOSTS = MirrorManager.DEFAULT_MIRRORS.toSet()
         }
 
         /** Captures and validates the session only after the user explicitly confirms login. */
         public fun completeLogin(onComplete: (Boolean) -> Unit) {
             viewModelScope.launch {
-                authRepository.syncCookiesFromWebView()
-                onComplete(authRepository.isLoggedIn())
+                val isLoggedIn =
+                    try {
+                        authRepository.syncCookiesFromWebView()
+                        authRepository.isLoggedIn()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        false
+                    }
+                onComplete(isLoggedIn)
             }
         }
 
