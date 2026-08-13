@@ -3060,6 +3060,8 @@
     <string name="searchQualityChipsTitle">Качество</string>
     <string name="mini_player_dismissed_undo">Воспроизведение остановлено</string>
     <string name="mini_player_dismissed_resume">Возобновить</string>
+    <string name="done">Готово</string>
+    <string name="webViewLoginFailed">RuTracker не подтвердил вход. Завершите авторизацию и повторите попытку.</string>
     <string name="resumeLongPauseTitle">Давно не слушали</string>
     <string name="resumeLongPauseDescription">%1$s • %2$s — %3$d д. назад</string>
     <string name="resumeLongPauseContinue">Продолжить</string>

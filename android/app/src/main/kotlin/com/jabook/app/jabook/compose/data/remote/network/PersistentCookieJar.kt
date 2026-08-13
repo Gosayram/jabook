@@ -112,16 +112,25 @@ public class PersistentCookieJar
             cookies: List<Cookie>,
         ) {
             val host = url.host
-            cache.store(host, cookies)
-
-            val serialized = cookies.joinToString(COOKIE_SEPARATOR) { serializeCookie(it) }
-            val encrypted = encrypt(serialized)
 
             // Persist session material only with a Keystore-backed AEAD.
             runBlocking {
                 dataStore.edit { prefs ->
                     val key = stringPreferencesKey(host)
+                    val existingCookies =
+                        prefs[key]
+                            ?.let(::decrypt)
+                            ?.split(COOKIE_SEPARATOR)
+                            ?.mapNotNull(::deserializeCookie)
+                            .orEmpty()
+                    val mergedCookies = mergeCookies(existingCookies, cookies, System.currentTimeMillis())
+                    val encrypted =
+                        mergedCookies
+                            .takeIf { it.isNotEmpty() }
+                            ?.joinToString(COOKIE_SEPARATOR, transform = ::serializeCookie)
+                            ?.let(::encrypt)
                     if (encrypted == null) prefs.remove(key) else prefs[key] = encrypted
+                    cache.store(host, mergedCookies)
                 }
             }
         }
@@ -143,7 +152,7 @@ public class PersistentCookieJar
                     serialized
                         .split(COOKIE_SEPARATOR)
                         .mapNotNull { cookieString -> deserializeCookie(cookieString) }
-                        .filter { cookie -> !cookie.hasExpired() }
+                        .filter { cookie -> !cookie.hasExpiredAt(System.currentTimeMillis()) }
                 }
 
             cache.store(host, cookies)
@@ -219,11 +228,6 @@ public class PersistentCookieJar
             }
         }
 
-        private fun Cookie.hasExpired(): Boolean {
-            if (expiresAt == Long.MIN_VALUE) return false
-            return expiresAt < System.currentTimeMillis()
-        }
-
         private fun encrypt(value: String): String? =
             runCatching {
                 val encrypted = checkNotNull(aead).encrypt(value.toByteArray(), null)
@@ -238,3 +242,17 @@ public class PersistentCookieJar
             }.getOrNull()
         }
     }
+
+internal fun mergeCookies(
+    existing: List<Cookie>,
+    incoming: List<Cookie>,
+    nowMillis: Long,
+): List<Cookie> {
+    val replacements = incoming.associateBy(::cookieIdentity)
+    return (existing.filterNot { cookieIdentity(it) in replacements } + replacements.values)
+        .filterNot { it.hasExpiredAt(nowMillis) }
+}
+
+private fun cookieIdentity(cookie: Cookie): Triple<String, String, String> = Triple(cookie.name, cookie.domain, cookie.path)
+
+private fun Cookie.hasExpiredAt(nowMillis: Long): Boolean = expiresAt != Long.MIN_VALUE && expiresAt <= nowMillis

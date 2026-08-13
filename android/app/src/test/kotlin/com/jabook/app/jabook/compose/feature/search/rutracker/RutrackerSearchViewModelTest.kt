@@ -132,10 +132,18 @@ class RutrackerSearchViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             val state = viewModel.searchState.value as SearchState.Success
-            assertEquals("small", state.results.first().result.topicId)
+            assertEquals(
+                "small",
+                state.results
+                    .first()
+                    .result.topicId,
+            )
         }
 
-    private fun searchResult(topicId: String, size: String = "1 MB"): RutrackerSearchResult =
+    private fun searchResult(
+        topicId: String,
+        size: String = "1 MB",
+    ): RutrackerSearchResult =
         RutrackerSearchResult(
             topicId = topicId,
             title = topicId,
