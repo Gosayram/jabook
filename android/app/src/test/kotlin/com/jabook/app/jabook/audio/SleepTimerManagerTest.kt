@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
+import android.content.Intent
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.test.core.app.ApplicationProvider
 import com.jabook.app.jabook.compose.data.preferences.SleepTimerState
@@ -60,6 +61,26 @@ class SleepTimerManagerTest {
         timerPrefs().edit().clear().apply()
         Dispatchers.resetMain()
     }
+
+    @Test
+    fun `notifyTimerExpired broadcasts the player expiry action`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            var broadcast: Intent? = null
+            val manager =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = { broadcast = it },
+                )
+
+            manager.notifyTimerExpired()
+
+            assertEquals(SleepTimerManager.ACTION_SLEEP_TIMER_EXPIRED, broadcast?.action)
+            assertEquals(context.packageName, broadcast?.`package`)
+        }
 
     @Test
     fun `restoreTimerState keeps paused remaining time after process death`() =

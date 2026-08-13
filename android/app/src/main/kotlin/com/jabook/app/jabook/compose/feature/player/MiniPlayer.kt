@@ -56,6 +56,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -138,6 +141,7 @@ public fun MiniPlayer(
     val currentOnMiniPlayerClick by rememberUpdatedState(onMiniPlayerClick)
     val currentOnNextClick by rememberUpdatedState(onNextClick)
     val currentOnPreviousClick by rememberUpdatedState(onPreviousClick)
+    val dismissActionLabel = stringResource(R.string.dismissAction)
 
     Surface(
         modifier =
@@ -149,6 +153,14 @@ public fun MiniPlayer(
                     scaleX = scale
                     scaleY = scale
                     alpha = dragAlpha
+                }.semantics {
+                    customActions =
+                        listOf(
+                            CustomAccessibilityAction(dismissActionLabel) {
+                                currentOnDismiss()
+                                true
+                            },
+                        )
                 }.clickable(
                     interactionSource = interactionSource,
                     indication = null,

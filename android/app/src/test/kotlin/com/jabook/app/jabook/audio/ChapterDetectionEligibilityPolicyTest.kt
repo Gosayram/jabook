@@ -16,14 +16,13 @@ package com.jabook.app.jabook.audio
 
 import org.junit.Test
 import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 class ChapterDetectionEligibilityPolicyTest {
     private val minDuration = ChapterDetectionEligibilityPolicy.MIN_ELIGIBLE_DURATION_MS
 
     @Test
-    fun `returns true when all conditions met - exactly 10 minutes`() {
-        assertTrue(
+    fun `returns false until player supports detected segment offsets`() {
+        assertFalse(
             ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
                 chapterCount = 1,
                 filePath = "/valid/path.mp3",

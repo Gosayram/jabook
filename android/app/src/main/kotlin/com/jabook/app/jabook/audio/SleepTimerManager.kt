@@ -288,6 +288,11 @@ internal class SleepTimerManager(
         saveTimerState()
     }
 
+    /** Publishes the same expiry signal for chapter/track based timers. */
+    internal fun notifyTimerExpired() {
+        sendTimerExpiredEvent()
+    }
+
     /**
      * Sets up player listener for pause/resume timer functionality.
      *

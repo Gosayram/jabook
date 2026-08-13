@@ -24,8 +24,9 @@ internal object ChapterDetectionEligibilityPolicy {
         chapterCount: Int,
         filePath: String,
         durationMs: Long,
-    ): Boolean =
-        chapterCount == 1 &&
-            filePath.isNotBlank() &&
-            durationMs >= MIN_ELIGIBLE_DURATION_MS
+    ): Boolean {
+        // ponytail: Media3 currently plays every ChapterEntity from file offset 0; enable once
+        // detected segments are represented by clipping configuration rather than duplicate files.
+        return false
+    }
 }

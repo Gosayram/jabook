@@ -19,21 +19,13 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.jabook.app.jabook.audio.ChapterDetectionPolicy
-import com.jabook.app.jabook.audio.ChapterDetectionResultPolicy
-import com.jabook.app.jabook.audio.ChapterSignalExtractor
-import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
-import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * WorkManager job that detects chapter boundaries from silence and persists
- * synthetic chapter metadata for single-file audiobooks.
+ * Compatibility worker for already-enqueued chapter detection requests.
  */
 @HiltWorker
 public class ChapterDetectionWorker
@@ -41,12 +33,7 @@ public class ChapterDetectionWorker
     constructor(
         @Assisted appContext: Context,
         @Assisted params: WorkerParameters,
-        private val chapterSignalExtractor: ChapterSignalExtractor,
-        private val chaptersDao: ChaptersDao,
-        loggerFactory: LoggerFactory,
     ) : CoroutineWorker(appContext, params) {
-        private val logger = loggerFactory.get("ChapterDetectionWorker")
-
         override suspend fun doWork(): Result =
             withContext(Dispatchers.IO) {
                 val bookId = inputData.getString(KEY_BOOK_ID).orEmpty()
@@ -63,102 +50,11 @@ public class ChapterDetectionWorker
                     )
                 }
 
-                try {
-                    val rmsDbValues =
-                        chapterSignalExtractor.extractRmsDb(
-                            filePath = filePath,
-                            windowStepMs = ChapterDetectionPolicy.DEFAULT_WINDOW_STEP_MS,
-                        )
-
-                    if (rmsDbValues.isEmpty()) {
-                        return@withContext Result.failure(
-                            workDataOf(
-                                KEY_RESULT_CHAPTERS_COUNT to 0,
-                                KEY_RESULT_SIGNAL_WINDOWS to 0,
-                                KEY_RESULT_ERROR to "empty_signal",
-                            ),
-                        )
-                    }
-
-                    val rawCandidates =
-                        ChapterDetectionPolicy.detectCandidates(
-                            rmsDbValues = rmsDbValues,
-                        )
-                    val candidates = ChapterDetectionResultPolicy.normalizeCandidates(rawCandidates)
-                    val chapters =
-                        synthesizeChapters(
-                            bookId = bookId,
-                            filePath = filePath,
-                            fileIndex = fileIndex,
-                            totalDurationMs = totalDurationMs,
-                            boundariesMs = candidates.map { it.startMs },
-                        )
-
-                    val existingCount = chaptersDao.getTotalCount(bookId)
-                    if (existingCount > 1) {
-                        logger.d {
-                            "Skip auto-chapter persistence for multi-file book=$bookId (chapters=$existingCount)"
-                        }
-                        return@withContext Result.success(
-                            workDataOf(
-                                KEY_RESULT_CHAPTERS_COUNT to 0,
-                                KEY_RESULT_SIGNAL_WINDOWS to rmsDbValues.size,
-                            ),
-                        )
-                    }
-                    chaptersDao.deleteByBookId(bookId)
-                    chaptersDao.insertAll(chapters)
-                    Result.success(
-                        workDataOf(
-                            KEY_RESULT_CHAPTERS_COUNT to chapters.size,
-                            KEY_RESULT_SIGNAL_WINDOWS to rmsDbValues.size,
-                        ),
-                    )
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    logger.e({ "Chapter detection failed for book=$bookId" }, e)
-                    Result.failure(
-                        workDataOf(
-                            KEY_RESULT_CHAPTERS_COUNT to 0,
-                            KEY_RESULT_ERROR to (e.message ?: "unknown"),
-                        ),
-                    )
-                }
+                // Existing queued work must not create duplicate ChapterEntity rows for one file.
+                // The player has no segment-offset support yet, so keeping the scanner's one file =
+                // one chapter representation is the only playback-safe fallback.
+                Result.success()
             }
-
-        private fun synthesizeChapters(
-            bookId: String,
-            filePath: String,
-            fileIndex: Int,
-            totalDurationMs: Long,
-            boundariesMs: List<Long>,
-        ): List<ChapterEntity> {
-            val starts =
-                (listOf(0L) + boundariesMs)
-                    .map { it.coerceIn(0L, totalDurationMs) }
-                    .filter { it < totalDurationMs || it == 0L }
-                    .distinct()
-                    .sorted()
-            if (starts.isEmpty()) return emptyList()
-
-            return starts.mapIndexed { chapterIndex, startMs ->
-                val nextStartMs = starts.getOrNull(chapterIndex + 1)
-                val endTime = nextStartMs ?: totalDurationMs
-                ChapterEntity(
-                    id = "${bookId}_auto_$chapterIndex",
-                    bookId = bookId,
-                    title = "Auto Chapter ${chapterIndex + 1}",
-                    chapterIndex = chapterIndex,
-                    fileIndex = fileIndex,
-                    duration = (endTime - startMs).coerceAtLeast(0L),
-                    fileUrl = filePath,
-                    position = 0L,
-                    isCompleted = false,
-                    isDownloaded = true,
-                )
-            }
-        }
 
         public companion object {
             public const val WORK_NAME_PREFIX: String = "chapter_detection"

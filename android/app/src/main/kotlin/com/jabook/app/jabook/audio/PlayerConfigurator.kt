@@ -117,7 +117,7 @@ internal class PlayerConfigurator(
                     getSleepTimerEndOfChapter = { service.sleepTimerManager?.sleepTimerEndOfChapter ?: false },
                     getSleepTimerEndOfTrack = { service.sleepTimerManager?.sleepTimerEndOfTrack ?: false },
                     cancelSleepTimer = { service.sleepTimerManager?.cancelSleepTimer() },
-                    sendTimerExpiredEvent = { /* Handled by SleepTimerManager */ },
+                    sendTimerExpiredEvent = { service.sleepTimerManager?.notifyTimerExpired() },
                     markSleepTimerPause = {
                         service.playbackController?.markSleepTimerPause()
                         service.markStoppedBySleepTimer()
