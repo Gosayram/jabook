@@ -84,6 +84,8 @@ internal class CrossfadeHandler(
     }
 
     private fun prefetchNextChapter() {
+        if (!isCrossfadeEnabled()) return
+
         val currentPlayer = service.getActivePlayer()
         val currentChapterIndex = playlistManager.actualTrackIndex
         val nextIndex = currentChapterIndex + 1
@@ -100,11 +102,7 @@ internal class CrossfadeHandler(
                     if (!isCurrentRequest(requestGeneration, currentPlayer, currentChapterIndex)) {
                         return@withContext
                     }
-                    if (isCrossfadeEnabled()) {
-                        crossFadePlayer.setNextMediaSource(nextSource)
-                    } else {
-                        currentPlayer.addMediaSource(nextSource)
-                    }
+                    crossFadePlayer.setNextMediaSource(nextSource)
                 }
             }
         }

@@ -276,6 +276,7 @@ internal class PlayerListener(
 
     fun release() {
         bookCompletionTracker.stopPositionCheck()
+        playerErrorHandler.cancelPendingRetry()
         audioFocusDuckingController.release()
     }
 }

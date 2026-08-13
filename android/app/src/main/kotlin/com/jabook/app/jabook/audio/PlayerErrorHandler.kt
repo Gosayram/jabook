@@ -43,6 +43,8 @@ internal class PlayerErrorHandler(
 ) {
     private var retryCount = 0
     private var skipCount = 0
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var pendingRetry: Runnable? = null
     private val maxRetries = 3
     private val maxSkips = 5
     private val retryDelayMs = 2000L
@@ -51,6 +53,13 @@ internal class PlayerErrorHandler(
     fun resetCounts() {
         retryCount = 0
         skipCount = 0
+        cancelPendingRetry()
+    }
+
+    /** Cancels a retry that no longer belongs to the current playback. */
+    fun cancelPendingRetry() {
+        pendingRetry?.let(mainHandler::removeCallbacks)
+        pendingRetry = null
     }
 
     /** Logs detailed error context (HTTP, IO, book/track info). */
@@ -97,12 +106,22 @@ internal class PlayerErrorHandler(
                     retryCount++
                     LogUtils.w(TAG, "${resolution.userMessage} ($retryCount/$maxRetries)")
                     val backoffDelay = retryDelayMs * retryCount
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        val player = getActivePlayer()
-                        player.prepare()
-                        player.playWhenReady = true
-                        LogUtils.d(TAG, "Retry $retryCount after error (delay: ${backoffDelay}ms)")
-                    }, backoffDelay)
+                    val failedPlayer = getActivePlayer()
+                    val failedMediaId = failedPlayer.currentMediaItem?.mediaId
+                    cancelPendingRetry()
+                    pendingRetry =
+                        Runnable {
+                            pendingRetry = null
+                            if (getActivePlayer() !== failedPlayer ||
+                                !failedPlayer.playWhenReady ||
+                                failedPlayer.currentMediaItem?.mediaId != failedMediaId
+                            ) {
+                                return@Runnable
+                            }
+                            failedPlayer.prepare()
+                            LogUtils.d(TAG, "Retry $retryCount after error (delay: ${backoffDelay}ms)")
+                        }
+                    mainHandler.postDelayed(requireNotNull(pendingRetry), backoffDelay)
                     return
                 }
                 PlaybackRecoveryAction.SKIP_TRACK -> {

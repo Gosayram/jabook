@@ -26,10 +26,17 @@ internal object PlaylistSessionStatePolicy {
     ): PlaylistSessionStateSnapshot {
         val sortedPaths = sortFilesByNumericPrefix(filePaths)
         val normalizedTrackIndex =
-            if (sortedPaths.isEmpty()) {
+            if (filePaths.isEmpty()) {
                 0
             } else {
-                initialTrackIndex?.coerceIn(0, sortedPaths.size - 1) ?: 0
+                initialTrackIndex
+                    ?.coerceIn(0, filePaths.lastIndex)
+                    ?.let { sourceIndex ->
+                        val selectedPath = filePaths[sourceIndex]
+                        sortedPaths.indexOf(selectedPath) + filePaths.take(sourceIndex).count { it == selectedPath }
+                    }
+                    ?.takeIf { it >= 0 }
+                    ?: 0
             }
         return PlaylistSessionStateSnapshot(
             sortedFilePaths = sortedPaths,

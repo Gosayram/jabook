@@ -443,7 +443,7 @@ internal class PlaylistManager(
             preparePlaybackOptimizedInternal(
                 filePaths = sortedFilePaths,
                 metadata = metadata,
-                initialTrackIndex = initialTrackIndex,
+                initialTrackIndex = sessionState.normalizedTrackIndex,
                 initialPosition = initialPosition,
                 loadGeneration = loadGeneration,
             )
@@ -457,7 +457,7 @@ internal class PlaylistManager(
             // Apply initial position if needed (in background, non-blocking).
             val initialPositionDecision =
                 PlaylistInitialPositionPolicy.decidePostPrepare(
-                    requestedTrackIndex = initialTrackIndex,
+                    requestedTrackIndex = sessionState.normalizedTrackIndex,
                     requestedPositionMs = initialPosition,
                     playlistSize = filePaths.size,
                 )
@@ -469,7 +469,7 @@ internal class PlaylistManager(
                 )
                 playerServiceScope.launch {
                     playbackController.applyInitialPosition(
-                        requireNotNull(initialTrackIndex),
+                        sessionState.normalizedTrackIndex,
                         requireNotNull(initialPosition),
                         filePaths.size,
                     )

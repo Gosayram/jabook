@@ -221,6 +221,7 @@ class PlayerListenerEventTest {
         whenever(player.playbackState).thenReturn(Player.STATE_IDLE)
         whenever(player.playerError).thenReturn(error)
         whenever(player.currentMediaItemIndex).thenReturn(0)
+        whenever(player.playWhenReady).thenReturn(true)
 
         val listener =
             PlayerListener(
@@ -244,5 +245,41 @@ class PlayerListenerEventTest {
         ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
 
         verify(player).prepare()
+    }
+
+    @Test
+    fun `retry is cancelled when playback is paused before its delay`() {
+        val context: android.content.Context = mock()
+        val player: ExoPlayer = mock()
+        val error =
+            ExoPlaybackException.createForSource(
+                java.io.IOException("Network failed"),
+                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+            )
+        whenever(player.currentMediaItemIndex).thenReturn(0)
+        whenever(player.playWhenReady).thenReturn(true)
+
+        val listener =
+            PlayerListener(
+                context = context,
+                getActivePlayer = { player },
+                getIsBookCompleted = { false },
+                setIsBookCompleted = { },
+                getSleepTimerEndOfChapter = { false },
+                getSleepTimerEndOfTrack = { false },
+                cancelSleepTimer = { },
+                sendTimerExpiredEvent = { },
+                saveCurrentPosition = { },
+                getEmbeddedArtworkPath = { null },
+                setEmbeddedArtworkPath = { },
+                getCurrentMetadata = { null },
+                getActualPlaylistSize = { 1 },
+            )
+
+        listener.onPlayerError(error)
+        whenever(player.playWhenReady).thenReturn(false)
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
+        verify(player, never()).prepare()
     }
 }

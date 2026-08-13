@@ -31,6 +31,28 @@ class PlaylistSessionStatePolicyTest {
     }
 
     @Test
+    fun `buildSnapshot keeps the selected source chapter after sorting`() {
+        val snapshot =
+            PlaylistSessionStatePolicy.buildSnapshot(
+                filePaths = listOf("/b/10.mp3", "/b/2.mp3", "/b/01.mp3"),
+                initialTrackIndex = 0,
+            )
+
+        assertEquals(2, snapshot.normalizedTrackIndex)
+    }
+
+    @Test
+    fun `buildSnapshot keeps the selected occurrence of a repeated source`() {
+        val snapshot =
+            PlaylistSessionStatePolicy.buildSnapshot(
+                filePaths = listOf("/b/10.mp3", "/b/10.mp3", "/b/01.mp3"),
+                initialTrackIndex = 1,
+            )
+
+        assertEquals(2, snapshot.normalizedTrackIndex)
+    }
+
+    @Test
     fun `buildSnapshot clamps out-of-range initial index`() {
         val low =
             PlaylistSessionStatePolicy.buildSnapshot(
