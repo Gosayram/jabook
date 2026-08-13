@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.data.torrent
 
-import android.content.ComponentCallbacks2
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -26,7 +25,7 @@ class TorrentMemoryPressureGuardTest {
         val session = RecordingTorrentSession()
         val guard = TorrentMemoryPressureGuard(session)
 
-        val handled = guard.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW)
+        val handled = guard.onTrimMemory(TRIM_LEVEL_RUNNING_LOW)
 
         assertFalse(handled)
         assertEquals(0, session.memoryPressurePauseCount)
@@ -37,7 +36,7 @@ class TorrentMemoryPressureGuardTest {
         val session = RecordingTorrentSession()
         val guard = TorrentMemoryPressureGuard(session)
 
-        val handled = guard.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL)
+        val handled = guard.onTrimMemory(TRIM_LEVEL_RUNNING_CRITICAL)
 
         assertTrue(handled)
         assertEquals(1, session.memoryPressurePauseCount)
@@ -48,7 +47,7 @@ class TorrentMemoryPressureGuardTest {
         val session = RecordingTorrentSession()
         val guard = TorrentMemoryPressureGuard(session)
 
-        val handled = guard.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
+        val handled = guard.onTrimMemory(TRIM_LEVEL_COMPLETE)
 
         assertTrue(handled)
         assertEquals(1, session.memoryPressurePauseCount)
@@ -60,10 +59,16 @@ class TorrentMemoryPressureGuardTest {
         val guard = TorrentMemoryPressureGuard(session)
 
         repeat(2) {
-            assertTrue(guard.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL))
+            assertTrue(guard.onTrimMemory(TRIM_LEVEL_RUNNING_CRITICAL))
         }
 
         assertEquals(2, session.memoryPressurePauseCount)
+    }
+
+    private companion object {
+        const val TRIM_LEVEL_RUNNING_LOW = 10
+        const val TRIM_LEVEL_RUNNING_CRITICAL = 15
+        const val TRIM_LEVEL_COMPLETE = 80
     }
 }
 

@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook
 
-import android.content.ComponentCallbacks2
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -26,7 +25,7 @@ class CriticalMemoryTrimHandlerTest {
         var cacheClearCount = 0
         val handler = CriticalMemoryTrimHandler { cacheClearCount++ }
 
-        val handled = handler.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW)
+        val handled = handler.onTrimMemory(TRIM_LEVEL_RUNNING_LOW)
 
         assertFalse(handled)
         assertEquals(0, cacheClearCount)
@@ -37,7 +36,7 @@ class CriticalMemoryTrimHandlerTest {
         var cacheClearCount = 0
         val handler = CriticalMemoryTrimHandler { cacheClearCount++ }
 
-        val handled = handler.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL)
+        val handled = handler.onTrimMemory(TRIM_LEVEL_RUNNING_CRITICAL)
 
         assertTrue(handled)
         assertEquals(1, cacheClearCount)
@@ -48,9 +47,15 @@ class CriticalMemoryTrimHandlerTest {
         var cacheClearCount = 0
         val handler = CriticalMemoryTrimHandler { cacheClearCount++ }
 
-        val handled = handler.onTrimMemory(ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
+        val handled = handler.onTrimMemory(TRIM_LEVEL_COMPLETE)
 
         assertTrue(handled)
         assertEquals(1, cacheClearCount)
+    }
+
+    private companion object {
+        const val TRIM_LEVEL_RUNNING_LOW = 10
+        const val TRIM_LEVEL_RUNNING_CRITICAL = 15
+        const val TRIM_LEVEL_COMPLETE = 80
     }
 }

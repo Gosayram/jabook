@@ -295,9 +295,10 @@ class PlayerStatsTest {
                 audioQuality = quality,
             )
         assertEquals(quality, stats.audioQuality)
-        assertEquals("FLAC", stats.audioQuality!!.format)
-        assertEquals(876, stats.audioQuality!!.bitrateKbps)
-        assertTrue(stats.audioQuality!!.isLossless)
+        val actualQuality = requireNotNull(stats.audioQuality)
+        assertEquals("FLAC", actualQuality.format)
+        assertEquals(876, actualQuality.bitrateKbps)
+        assertTrue(actualQuality.isLossless)
     }
 
     @Test
