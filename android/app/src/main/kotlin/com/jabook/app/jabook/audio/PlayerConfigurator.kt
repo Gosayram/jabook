@@ -272,7 +272,12 @@ internal class PlayerConfigurator(
                 customExoPlayer = null
 
                 // Create new ExoPlayer with processors
-                customExoPlayer = MediaModule.createExoPlayerWithProcessors(service, settings)
+                customExoPlayer =
+                    MediaModule.createExoPlayerWithProcessors(
+                        context = service,
+                        settings = settings,
+                        processorChain = chainResult,
+                    )
                 registerAudioOffloadListener(customExoPlayer)
 
                 // Copy listener from singleton player (using instance from this class)

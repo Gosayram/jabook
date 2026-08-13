@@ -238,10 +238,15 @@ internal class PlaybackController(
     /**
      * Sets playback speed.
      *
-     * @param speed Playback speed (0.5x to 2.0x)
+     * @param speed Playback speed (0.5x to 4.0x)
      */
     public fun setSpeed(speed: Float) {
-        getActivePlayer().setPlaybackSpeed(speed)
+        val safeSpeed =
+            speed
+                .takeIf(Float::isFinite)
+                ?.coerceIn(SetPlaylistCommand.MIN_SPEED, SetPlaylistCommand.MAX_SPEED)
+                ?: 1f
+        getActivePlayer().setPlaybackSpeed(safeSpeed)
         // Reset inactivity timer (user action)
         resetInactivityTimer()
     }

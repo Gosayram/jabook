@@ -374,7 +374,7 @@ public class AudioPlayerServiceInitializer(
                 val savedSpeed = service.audioPreferences.playbackSpeed.first()
                 withContext(Dispatchers.Main) {
                     LogUtils.d("AudioPlayerService", "Restoring playback speed: ${savedSpeed}x")
-                    service.exoPlayer.setPlaybackSpeed(savedSpeed)
+                    service.setSpeed(savedSpeed)
                 }
             } catch (e: CancellationException) {
                 throw e

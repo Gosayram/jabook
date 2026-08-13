@@ -90,7 +90,9 @@ internal class ListeningSessionTracker(
         isStartingSession = false
         pendingStopReason = null
 
-        scope.launch(ioDispatcher) {
+        // Service teardown cancels its scope immediately after requesting the final
+        // session update, so the close must outlive that cancellation.
+        scope.launch(ioDispatcher + kotlinx.coroutines.NonCancellable) {
             runCatching {
                 repository.finishSession(
                     sessionId = sessionId,

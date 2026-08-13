@@ -16,6 +16,8 @@ package com.jabook.app.jabook.audio
 
 import com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -137,6 +139,45 @@ class ListeningSessionTrackerTest {
             tracker.onPlaybackStarted()
             tracker.onPlaybackStopped("pause")
             scope.advanceUntilIdle()
+
+            verify(repository).finishSession(
+                sessionId = eq("session-1"),
+                positionEndMs = eq(45_000L),
+                speedFactor = eq(1.5f),
+                chapterIndex = eq(4),
+                endedAt = any(),
+            )
+        }
+
+    @Test
+    fun `session close survives service scope cancellation`() =
+        runTest(dispatcher) {
+            whenever(
+                repository.startSession(
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                ),
+            ).thenReturn("session-1")
+            val serviceScope = kotlinx.coroutines.CoroutineScope(SupervisorJob() + dispatcher)
+            val tracker =
+                ListeningSessionTracker(
+                    repository = repository,
+                    scope = serviceScope,
+                    ioDispatcher = dispatcher,
+                    getCurrentBookId = { "book-1" },
+                    getCurrentPositionMs = { 45_000L },
+                    getCurrentSpeed = { 1.5f },
+                    getCurrentChapterIndex = { 4 },
+                )
+
+            tracker.onPlaybackStarted()
+            advanceUntilIdle()
+            tracker.onPlaybackStopped("on_destroy")
+            serviceScope.cancel()
+            advanceUntilIdle()
 
             verify(repository).finishSession(
                 sessionId = eq("session-1"),

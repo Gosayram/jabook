@@ -32,6 +32,7 @@ import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.room.RoomDatabase
 import com.jabook.app.jabook.audio.data.local.database.migration.AudioDatabaseMigrations
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
+import com.jabook.app.jabook.audio.processors.AudioProcessorFactory
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.PerformanceClass
 import com.jabook.app.jabook.utils.PerformanceUtils
@@ -222,17 +223,17 @@ public object MediaModule {
     public fun createExoPlayerWithProcessors(
         context: Context,
         settings: AudioProcessingSettings,
+        processorChain: AudioProcessorFactory.ProcessorChainResult =
+            AudioProcessorFactory.createProcessorChain(
+                settings,
+                AudioOutputBufferInfo.outputFramesPerBuffer(context),
+            ),
     ): ExoPlayer {
         val initStart = System.currentTimeMillis()
 
         LogUtils.d("MediaModule", "Creating ExoPlayer with AudioProcessors...")
 
-        // Create processor chain
-        val outputFramesPerBuffer = AudioOutputBufferInfo.outputFramesPerBuffer(context)
-        val chainResult =
-            com.jabook.app.jabook.audio.processors.AudioProcessorFactory
-                .createProcessorChain(settings, outputFramesPerBuffer)
-        val processors = chainResult.processors
+        val processors = processorChain.processors
 
         val extractorsFactory =
             DefaultExtractorsFactory()
@@ -296,7 +297,11 @@ public object MediaModule {
                         if (!com.jabook.app.jabook.crash.GlobalExceptionHandler
                                 .isSafeMode(context)
                         ) {
-                            it.trackSelectionParameters = createTrackSelectionParameters(settings)
+                            it.trackSelectionParameters =
+                                createTrackSelectionParameters(
+                                    settings = settings,
+                                    hasProcessors = processors.isNotEmpty(),
+                                )
                         } else {
                             LogUtils.w("MediaModule", "Safe mode: skipping audio offload for processor player")
                         }
@@ -367,12 +372,10 @@ public object MediaModule {
      * Gapless is enabled only when offload is disabled AND crossfade is disabled.
      */
     @OptIn(UnstableApi::class)
-    public fun createTrackSelectionParameters(settings: AudioProcessingSettings): TrackSelectionParameters {
-        val hasProcessors =
-            com.jabook.app.jabook.audio.processors.AudioProcessorFactory
-                .createProcessorChain(settings)
-                .processors
-                .isNotEmpty()
+    public fun createTrackSelectionParameters(
+        settings: AudioProcessingSettings,
+        hasProcessors: Boolean = AudioProcessorFactory.createProcessorChain(settings).processors.isNotEmpty(),
+    ): TrackSelectionParameters {
         val isCrossfadeEnabled = settings.isCrossfadeEnabled
 
         // Gapless requires: offload disabled OR no custom processors, AND no crossfade

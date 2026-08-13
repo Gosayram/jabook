@@ -431,6 +431,16 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun `setSpeed normalizes invalid and out-of-range values`() {
+        playbackController.setSpeed(Float.NaN)
+        playbackController.setSpeed(5f)
+
+        verify(exoPlayer).setPlaybackSpeed(1f)
+        verify(exoPlayer).setPlaybackSpeed(SetPlaylistCommand.MAX_SPEED)
+        assertEquals(2, resetTimerCallCount)
+    }
+
+    @Test
     fun `getSpeed returns current player speed`() {
         // Given
         val expectedSpeed = 1.25f

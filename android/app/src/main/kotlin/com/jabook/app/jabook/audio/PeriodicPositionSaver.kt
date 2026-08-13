@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -39,6 +40,7 @@ internal class PeriodicPositionSaver(
     private val getActivePlayer: () -> androidx.media3.exoplayer.ExoPlayer,
     private val getCurrentBookId: () -> String?,
     private val intervalMs: Long = 5_000L,
+    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
 ) {
     private var saveJob: Job? = null
 
@@ -65,7 +67,9 @@ internal class PeriodicPositionSaver(
         val player = getActivePlayer()
         val bookId = getCurrentBookId()
         if (player.mediaItemCount > 0 && !bookId.isNullOrBlank()) {
-            scope.launch(Dispatchers.IO) {
+            // The service cancels its scope immediately after onDestroy. This final
+            // database write must survive that cancellation to retain progress.
+            scope.launch(ioDispatcher + NonCancellable) {
                 repository.savePosition(
                     bookId = bookId,
                     trackIndex = player.currentMediaItemIndex,

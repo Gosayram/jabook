@@ -143,8 +143,6 @@ internal class PlaybackEventProcessor(
             val error = player.playerError
             if (error != null) {
                 LogUtils.e("AudioPlayerService", "Playback error: ${error.message}", error)
-                playerErrorHandler.logErrorContext(error)
-                playerErrorHandler.handlePlayerError(error)
             }
         }
     }

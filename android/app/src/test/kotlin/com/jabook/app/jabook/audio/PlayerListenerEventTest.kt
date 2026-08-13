@@ -14,14 +14,20 @@
 
 package com.jabook.app.jabook.audio
 
+import androidx.media3.common.FlagSet
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.shadows.ShadowLooper
 import kotlin.test.assertEquals
 
 /**
@@ -31,6 +37,7 @@ import kotlin.test.assertEquals
  * - onEvents() handles correct playback state changes
  * - Playback state changes are properly handled
  */
+@RunWith(RobolectricTestRunner::class)
 class PlayerListenerEventTest {
     @Test
     fun `PlayerListener can be instantiated with required parameters`() {
@@ -199,5 +206,43 @@ class PlayerListenerEventTest {
         assertEquals(0, savedPositionCalls)
         assertEquals(0, markSleepTimerPauseCalls)
         verify(player, never()).playWhenReady = false
+    }
+
+    @Test
+    fun `idle event does not schedule a second retry after player error callback`() {
+        val context: android.content.Context = mock()
+        val player: ExoPlayer = mock()
+        val error =
+            ExoPlaybackException.createForSource(
+                java.io.IOException("Network failed"),
+                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+            )
+        val events = Player.Events(FlagSet.Builder().add(Player.EVENT_PLAYBACK_STATE_CHANGED).build())
+        whenever(player.playbackState).thenReturn(Player.STATE_IDLE)
+        whenever(player.playerError).thenReturn(error)
+        whenever(player.currentMediaItemIndex).thenReturn(0)
+
+        val listener =
+            PlayerListener(
+                context = context,
+                getActivePlayer = { player },
+                getIsBookCompleted = { false },
+                setIsBookCompleted = { },
+                getSleepTimerEndOfChapter = { false },
+                getSleepTimerEndOfTrack = { false },
+                cancelSleepTimer = { },
+                sendTimerExpiredEvent = { },
+                saveCurrentPosition = { },
+                getEmbeddedArtworkPath = { null },
+                setEmbeddedArtworkPath = { },
+                getCurrentMetadata = { null },
+                getActualPlaylistSize = { 1 },
+            )
+
+        listener.onPlayerError(error)
+        listener.onEvents(player, events)
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
+        verify(player).prepare()
     }
 }
