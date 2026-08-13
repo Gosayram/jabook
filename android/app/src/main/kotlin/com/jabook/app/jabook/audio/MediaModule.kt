@@ -223,6 +223,7 @@ public object MediaModule {
     public fun createExoPlayerWithProcessors(
         context: Context,
         settings: AudioProcessingSettings,
+        handleAudioFocus: Boolean = true,
         processorChain: AudioProcessorFactory.ProcessorChainResult =
             AudioProcessorFactory.createProcessorChain(
                 settings,
@@ -280,7 +281,7 @@ public object MediaModule {
                                 .setUsage(C.USAGE_MEDIA)
                                 .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
                                 .build(),
-                            true,
+                            handleAudioFocus,
                         )
 
                 if (processors.isNotEmpty()) {

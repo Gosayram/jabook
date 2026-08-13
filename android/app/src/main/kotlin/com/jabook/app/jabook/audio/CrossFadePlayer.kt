@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import androidx.annotation.OptIn
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MediaSource
@@ -121,6 +122,37 @@ public class CrossFadePlayer(
         pendingPreloadRequest = null
         playerA.release()
         playerB.release()
+    }
+
+    /**
+     * Rebuilds both players with a new renderer configuration while keeping the active playback.
+     */
+    public fun recreatePlayers(
+        factory: (Context, handleAudioFocus: Boolean) -> ExoPlayer,
+        sourcePlayer: Player = currentPlayer,
+    ) {
+        val activeState = PlayerStateTransfer.savePlayerState(sourcePlayer)
+        val oldPlayerA = playerA
+        val oldPlayerB = playerB
+
+        sourcePlayer.pause()
+
+        transitionGeneration += 1L
+        crossfadeJob?.cancel()
+        crossfadeJob = null
+        isCrossFading = false
+        crossFadeOutPlayer = null
+        pendingPreloadRequest = null
+
+        playerA = factory(context, true)
+        playerB = factory(context, false)
+        currentPlayer = playerA
+        nextPlayer = playerB
+
+        restoreActiveState(activeState)
+        oldPlayerA.release()
+        oldPlayerB.release()
+        onPlayerChanged?.invoke(currentPlayer)
     }
 
 /**
@@ -233,6 +265,18 @@ public class CrossFadePlayer(
         currentPlayer = nextPlayer
         nextPlayer = temp
         onPlayerChanged?.invoke(currentPlayer)
+    }
+
+    private fun restoreActiveState(state: PlayerStateTransfer.SavedPlayerState) {
+        if (state.mediaItems.isNotEmpty()) {
+            PlayerStateTransfer.restorePlayerState(currentPlayer, state)
+            return
+        }
+
+        currentPlayer.shuffleModeEnabled = state.shuffleModeEnabled
+        currentPlayer.repeatMode = state.repeatMode
+        currentPlayer.setPlaybackSpeed(state.playbackSpeed)
+        currentPlayer.playWhenReady = state.playWhenReady
     }
 
     /**

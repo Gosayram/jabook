@@ -71,6 +71,8 @@ internal class PlayerConfigurator(
      */
     var loudnessNormalizer: LoudnessNormalizer? = null
 
+    private val loudnessNormalizers = mutableMapOf<ExoPlayer, LoudnessNormalizer?>()
+
     /**
      * Audio underrun monitor (BP-13.1).
      * Tracks AudioTrack underruns via AnalyticsListener and reports bursts.
@@ -258,50 +260,69 @@ internal class PlayerConfigurator(
                 )
             }
 
-            // If processors are needed, create custom ExoPlayer
-            if (processors.isNotEmpty()) {
-                // Release old custom player if exists
-                playerListener?.let { listener ->
-                    if (playerListenerTarget === customExoPlayer) {
-                        customExoPlayer?.removeListener(listener)
-                        playerListenerTarget = null
-                    }
-                }
-                unregisterAudioOffloadListener(customExoPlayer)
-                customExoPlayer?.release()
-                customExoPlayer = null
+            val crossFadePlayer = service.crossFadePlayer
+            if (settings.isCrossfadeEnabled && crossFadePlayer != null) {
+                val normalizers = mutableMapOf<ExoPlayer, LoudnessNormalizer?>()
+                var firstChain: AudioProcessorFactory.ProcessorChainResult? = chainResult
 
-                // Create new ExoPlayer with processors
-                customExoPlayer =
-                    MediaModule.createExoPlayerWithProcessors(
-                        context = service,
-                        settings = settings,
-                        processorChain = chainResult,
-                    )
-                registerAudioOffloadListener(customExoPlayer)
-
-                // Copy listener from singleton player (using instance from this class)
-                playerListener?.let {
-                    it.loudnessNormalizer = loudnessNormalizer // Update listener with new normalizer
-                }
-
-                LogUtils.i(
-                    "AudioPlayerService",
-                    "Created custom ExoPlayer with ${processors.size} AudioProcessors",
+                crossFadePlayer.recreatePlayers(
+                    factory = { context, handleAudioFocus ->
+                        val chain = firstChain ?: AudioProcessorFactory.createProcessorChain(settings)
+                        firstChain = null
+                        MediaModule
+                            .createExoPlayerWithProcessors(
+                                context = context,
+                                settings = settings,
+                                handleAudioFocus = handleAudioFocus,
+                                processorChain = chain,
+                            ).also { player ->
+                                normalizers[player] = chain.loudnessNormalizer
+                            }
+                    },
+                    sourcePlayer = activePlayer,
                 )
+                releaseCustomExoPlayer()
+                loudnessNormalizers.clear()
+                loudnessNormalizers.putAll(normalizers)
+                loudnessNormalizer = loudnessNormalizers[crossFadePlayer.getActivePlayer()]
+                playerListener?.loudnessNormalizer = loudnessNormalizer
+                LogUtils.i("AudioPlayerService", "Recreated crossfade players with AudioProcessors")
             } else {
-                // No processors needed, release custom player if exists
-                playerListener?.let { listener ->
-                    if (playerListenerTarget === customExoPlayer) {
-                        customExoPlayer?.removeListener(listener)
-                        playerListenerTarget = null
-                    }
+                if (crossFadePlayer?.getActivePlayer() === activePlayer) {
+                    crossFadePlayer.pause()
                 }
-                unregisterAudioOffloadListener(customExoPlayer)
-                customExoPlayer?.release()
-                customExoPlayer = null
-                registerAudioOffloadListener(service.exoPlayer)
-                LogUtils.d("AudioPlayerService", "No processors needed, using singleton ExoPlayer")
+
+                if (processors.isNotEmpty()) {
+                    releaseCustomExoPlayer()
+
+                    // Create new ExoPlayer with processors
+                    customExoPlayer =
+                        MediaModule.createExoPlayerWithProcessors(
+                            context = service,
+                            settings = settings,
+                            processorChain = chainResult,
+                        )
+                    loudnessNormalizers.clear()
+                    loudnessNormalizers[customExoPlayer!!] = loudnessNormalizer
+                    registerAudioOffloadListener(customExoPlayer)
+
+                    // Copy listener from singleton player (using instance from this class)
+                    playerListener?.let {
+                        it.loudnessNormalizer = loudnessNormalizer // Update listener with new normalizer
+                    }
+
+                    LogUtils.i(
+                        "AudioPlayerService",
+                        "Created custom ExoPlayer with ${processors.size} AudioProcessors",
+                    )
+                } else {
+                    releaseCustomExoPlayer()
+                    loudnessNormalizers.clear()
+                    loudnessNormalizer = null
+                    playerListener?.loudnessNormalizer = null
+                    registerAudioOffloadListener(service.exoPlayer)
+                    LogUtils.d("AudioPlayerService", "No processors needed, using singleton ExoPlayer")
+                }
             }
 
             // NotificationManager removed - MediaSession handles notification updates automatically
@@ -460,6 +481,20 @@ internal class PlayerConfigurator(
         underrunMonitor = AudioUnderrunMonitor(activePlayer).also { it.register() }
         registerAudioOffloadListener(activePlayer)
         playerListenerTarget = activePlayer
+        playerListener?.loudnessNormalizer = loudnessNormalizers[activePlayer]
+    }
+
+    private fun releaseCustomExoPlayer() {
+        playerListener?.let { listener ->
+            if (playerListenerTarget === customExoPlayer) {
+                customExoPlayer?.removeListener(listener)
+                playerListenerTarget = null
+            }
+        }
+        unregisterAudioOffloadListener(customExoPlayer)
+        loudnessNormalizers.remove(customExoPlayer)
+        customExoPlayer?.release()
+        customExoPlayer = null
     }
 
     private fun registerAudioOffloadListener(player: ExoPlayer?) {

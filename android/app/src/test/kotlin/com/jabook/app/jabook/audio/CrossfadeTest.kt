@@ -38,6 +38,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.clearInvocations
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
@@ -228,5 +229,59 @@ class CrossfadeTest {
 
         verify(playerA, never()).setMediaItem(first)
         verify(playerA).setMediaItem(second)
+    }
+
+    @Test
+    fun `recreate players preserves active playback state`() {
+        val mediaItem = MediaItem.fromUri("file://current.mp3")
+        val replacementActive = mock<ExoPlayer>()
+        val replacementNext = mock<ExoPlayer>()
+        whenever(playerA.mediaItemCount).thenReturn(1)
+        whenever(playerA.getMediaItemAt(0)).thenReturn(mediaItem)
+        whenever(playerA.currentMediaItemIndex).thenReturn(0)
+        whenever(playerA.currentPosition).thenReturn(1_234L)
+        whenever(playerA.playWhenReady).thenReturn(true)
+        whenever(playerA.playbackParameters).thenReturn(PlaybackParameters(1.5f))
+        whenever(playerA.shuffleModeEnabled).thenReturn(true)
+        whenever(playerA.repeatMode).thenReturn(2)
+
+        crossFadePlayer.recreatePlayers(
+            factory = { _, handleAudioFocus -> if (handleAudioFocus) replacementActive else replacementNext },
+        )
+
+        assertSame(replacementActive, crossFadePlayer.getActivePlayer())
+        assertSame(replacementNext, crossFadePlayer.getNextPlayer())
+        verify(replacementActive).setMediaItems(eq(listOf(mediaItem)), eq(0), eq(1_234L))
+        verify(replacementActive).setPlaybackSpeed(1.5f)
+        verify(replacementActive).playWhenReady = true
+        verify(replacementActive).prepare()
+        verify(playerA).release()
+        verify(playerB).release()
+    }
+
+    @Test
+    fun `recreate players transfers an external active player`() {
+        val sourcePlayer = mock<ExoPlayer>()
+        val mediaItem = MediaItem.fromUri("file://external.mp3")
+        val replacementActive = mock<ExoPlayer>()
+        val replacementNext = mock<ExoPlayer>()
+        whenever(sourcePlayer.mediaItemCount).thenReturn(1)
+        whenever(sourcePlayer.getMediaItemAt(0)).thenReturn(mediaItem)
+        whenever(sourcePlayer.currentMediaItemIndex).thenReturn(0)
+        whenever(sourcePlayer.currentPosition).thenReturn(456L)
+        whenever(sourcePlayer.playWhenReady).thenReturn(false)
+        whenever(sourcePlayer.playbackParameters).thenReturn(PlaybackParameters.DEFAULT)
+        whenever(sourcePlayer.shuffleModeEnabled).thenReturn(false)
+        whenever(sourcePlayer.repeatMode).thenReturn(0)
+
+        crossFadePlayer.recreatePlayers(
+            factory = { _, handleAudioFocus -> if (handleAudioFocus) replacementActive else replacementNext },
+            sourcePlayer = sourcePlayer,
+        )
+
+        verify(replacementActive).setMediaItems(eq(listOf(mediaItem)), eq(0), eq(456L))
+        verify(replacementActive).prepare()
+        verify(sourcePlayer, never()).release()
+        verify(sourcePlayer).pause()
     }
 }
