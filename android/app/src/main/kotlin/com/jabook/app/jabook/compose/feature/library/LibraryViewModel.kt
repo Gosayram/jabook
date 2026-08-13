@@ -47,6 +47,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -417,90 +418,95 @@ public class LibraryViewModel
 
         // Track current scan work for cancellation
         private var currentScanWorkId: java.util.UUID? = null
+        private var scanObservationJob: Job? = null
 
         /**
          * Start library scan for local audiobooks.
          */
         public fun startLibraryScan() {
-            viewModelScope.launch {
-                // Check if scan folders are configured
-                val scanFolders = scanPathDao.getAllPathsList()
-                if (scanFolders.isEmpty()) {
-                    // No folders configured - skip scan and show completion with flag
-                    _scanState.value =
-                        ScanState.Completed(
-                            booksFound = 0,
-                            noFoldersConfigured = true,
+            scanObservationJob?.cancel()
+            scanObservationJob =
+                viewModelScope.launch {
+                    // Check if scan folders are configured
+                    val scanFolders = scanPathDao.getAllPathsList()
+                    if (scanFolders.isEmpty()) {
+                        // No folders configured - skip scan and show completion with flag
+                        _scanState.value =
+                            ScanState.Completed(
+                                booksFound = 0,
+                                noFoldersConfigured = true,
+                            )
+                        emitSideEffect(
+                            SideEffect.ShowSnackbar(
+                                application.getString(com.jabook.app.jabook.R.string.noFoldersConfiguredPleaseAddInSettings),
+                            ),
                         )
-                    emitSideEffect(
-                        SideEffect.ShowSnackbar(
-                            application.getString(com.jabook.app.jabook.R.string.noFoldersConfiguredPleaseAddInSettings),
-                        ),
+                        return@launch
+                    }
+
+                    // Folders configured - proceed with scan
+                    val scanRequest =
+                        OneTimeWorkRequestBuilder<LibraryScanWorker>()
+                            .setConstraints(WorkConstraintsPolicy.libraryScan())
+                            .build()
+
+                    // Track work ID for cancellation
+                    currentScanWorkId = scanRequest.id
+                    workManager.enqueueUniqueWork(
+                        LibraryScanWorker.WORK_NAME,
+                        ExistingWorkPolicy.REPLACE,
+                        scanRequest,
                     )
-                    return@launch
+
+                    // Observe work progress
+                    workManager.getWorkInfoByIdFlow(scanRequest.id).collect { workInfo ->
+                        _scanState.value =
+                            when (workInfo?.state) {
+                                WorkInfo.State.RUNNING -> {
+                                    val status =
+                                        workInfo.progress.getString("status")
+                                            ?: application.getString(com.jabook.app.jabook.R.string.scanningLibrary)
+                                    ScanState.Scanning(status)
+                                }
+                                WorkInfo.State.SUCCEEDED -> {
+                                    val count = workInfo.outputData.getInt("booksFound", 0)
+                                    emitSideEffect(
+                                        SideEffect.ShowSnackbar(
+                                            if (count == 0) {
+                                                application.getString(com.jabook.app.jabook.R.string.scanCompleteNoBooks)
+                                            } else {
+                                                application.getString(
+                                                    com.jabook.app.jabook.R.string.foundBooksMessage,
+                                                    count,
+                                                )
+                                            },
+                                        ),
+                                    )
+                                    ScanState.Completed(count)
+                                }
+                                WorkInfo.State.FAILED -> {
+                                    val error =
+                                        workInfo.outputData.getString("error")
+                                            ?: application.getString(com.jabook.app.jabook.R.string.libraryUnknownError)
+                                    emitSideEffect(
+                                        SideEffect.ShowSnackbar(
+                                            application.getString(com.jabook.app.jabook.R.string.scanFailedMessage, error),
+                                        ),
+                                    )
+                                    ScanState.Failed(error)
+                                }
+                                else -> ScanState.Idle
+                            }
+                    }
                 }
-
-                // Folders configured - proceed with scan
-                val scanRequest =
-                    OneTimeWorkRequestBuilder<LibraryScanWorker>()
-                        .setConstraints(WorkConstraintsPolicy.libraryScan())
-                        .build()
-
-                // Track work ID for cancellation
-                currentScanWorkId = scanRequest.id
-                workManager.enqueueUniqueWork(
-                    LibraryScanWorker.WORK_NAME,
-                    ExistingWorkPolicy.REPLACE,
-                    scanRequest,
-                )
-
-                // Observe work progress
-                workManager.getWorkInfoByIdFlow(scanRequest.id).collect { workInfo ->
-                    _scanState.value =
-                        when (workInfo?.state) {
-                            WorkInfo.State.RUNNING -> {
-                                val status =
-                                    workInfo.progress.getString("status")
-                                        ?: application.getString(com.jabook.app.jabook.R.string.scanningLibrary)
-                                ScanState.Scanning(status)
-                            }
-                            WorkInfo.State.SUCCEEDED -> {
-                                val count = workInfo.outputData.getInt("booksFound", 0)
-                                emitSideEffect(
-                                    SideEffect.ShowSnackbar(
-                                        if (count == 0) {
-                                            application.getString(com.jabook.app.jabook.R.string.scanCompleteNoBooks)
-                                        } else {
-                                            application.getString(
-                                                com.jabook.app.jabook.R.string.foundBooksMessage,
-                                                count,
-                                            )
-                                        },
-                                    ),
-                                )
-                                ScanState.Completed(count)
-                            }
-                            WorkInfo.State.FAILED -> {
-                                val error =
-                                    workInfo.outputData.getString("error")
-                                        ?: application.getString(com.jabook.app.jabook.R.string.libraryUnknownError)
-                                emitSideEffect(
-                                    SideEffect.ShowSnackbar(
-                                        application.getString(com.jabook.app.jabook.R.string.scanFailedMessage, error),
-                                    ),
-                                )
-                                ScanState.Failed(error)
-                            }
-                            else -> ScanState.Idle
-                        }
-                }
-            }
         }
 
         /**
          * Cancel the currently running library scan.
          */
         public fun cancelLibraryScan() {
+            scanObservationJob?.cancel()
+            scanObservationJob = null
             workManager.cancelUniqueWork(LibraryScanWorker.WORK_NAME)
             currentScanWorkId = null
             _scanState.value = ScanState.Idle
