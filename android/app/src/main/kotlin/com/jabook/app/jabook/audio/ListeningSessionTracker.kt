@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +38,7 @@ internal class ListeningSessionTracker(
     private var activeBookId: String? = null
     private var isStartingSession: Boolean = false
     private var pendingStopReason: String? = null
+    private var sessionGeneration: Long = 0L
 
     public fun onPlaybackStarted() {
         val bookId = getCurrentBookId()?.takeIf { it.isNotBlank() } ?: return
@@ -49,27 +51,48 @@ internal class ListeningSessionTracker(
             finishActiveSession(reason = "book_switched")
         }
 
+        val generation = ++sessionGeneration
+        val positionStartMs = getCurrentPositionMs()
+        val speedFactor = getCurrentSpeed()
+        val chapterIndex = getCurrentChapterIndex()
         isStartingSession = true
         activeBookId = bookId
 
         scope.launch(ioDispatcher) {
-            runCatching {
-                repository.startSession(
-                    bookId = bookId,
-                    positionStartMs = getCurrentPositionMs(),
-                    speedFactor = getCurrentSpeed(),
-                    chapterIndex = getCurrentChapterIndex(),
-                )
-            }.onSuccess { sessionId ->
-                activeSessionId = sessionId
-                activeBookId = bookId
-                isStartingSession = false
-                pendingStopReason?.let(::finishActiveSession)
-            }.onFailure { error ->
-                activeSessionId = null
-                activeBookId = null
-                isStartingSession = false
-                pendingStopReason = null
+            try {
+                val sessionId =
+                    repository.startSession(
+                        bookId = bookId,
+                        positionStartMs = positionStartMs,
+                        speedFactor = speedFactor,
+                        chapterIndex = chapterIndex,
+                    )
+                if (generation != sessionGeneration || activeBookId != bookId) {
+                    try {
+                        repository.finishSession(
+                            sessionId = sessionId,
+                            positionEndMs = positionStartMs,
+                            speedFactor = speedFactor,
+                            chapterIndex = chapterIndex,
+                        )
+                    } catch (error: Exception) {
+                        if (error is CancellationException) throw error
+                        LogUtils.e("ListeningSessionTracker", "Failed to discard stale session for book=$bookId", error)
+                    }
+                } else {
+                    activeSessionId = sessionId
+                    activeBookId = bookId
+                    isStartingSession = false
+                    pendingStopReason?.let(::finishActiveSession)
+                }
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                if (generation == sessionGeneration && activeBookId == bookId) {
+                    activeSessionId = null
+                    activeBookId = null
+                    isStartingSession = false
+                    pendingStopReason = null
+                }
                 LogUtils.e("ListeningSessionTracker", "Failed to start listening session for book=$bookId", error)
             }
         }
@@ -93,14 +116,15 @@ internal class ListeningSessionTracker(
         // Service teardown cancels its scope immediately after requesting the final
         // session update, so the close must outlive that cancellation.
         scope.launch(ioDispatcher + kotlinx.coroutines.NonCancellable) {
-            runCatching {
+            try {
                 repository.finishSession(
                     sessionId = sessionId,
                     positionEndMs = getCurrentPositionMs(),
                     speedFactor = getCurrentSpeed(),
                     chapterIndex = getCurrentChapterIndex(),
                 )
-            }.onFailure { error ->
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
                 LogUtils.e("ListeningSessionTracker", "Failed to finish listening session reason=$reason", error)
             }
         }

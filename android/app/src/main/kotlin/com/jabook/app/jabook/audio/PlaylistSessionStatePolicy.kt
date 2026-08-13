@@ -34,13 +34,28 @@ internal object PlaylistSessionStatePolicy {
                     ?.let { sourceIndex ->
                         val selectedPath = filePaths[sourceIndex]
                         sortedPaths.indexOf(selectedPath) + filePaths.take(sourceIndex).count { it == selectedPath }
-                    }
-                    ?.takeIf { it >= 0 }
+                    }?.takeIf { it >= 0 }
                     ?: 0
             }
         return PlaylistSessionStateSnapshot(
             sortedFilePaths = sortedPaths,
             normalizedTrackIndex = normalizedTrackIndex,
         )
+    }
+
+    /**
+     * Returns the source indices to add after preloading [selectedIndex] for a book-switch
+     * crossfade. Sources before it are reversed because they are inserted at timeline index 0.
+     */
+    internal fun crossfadeRemainingSourceIndices(
+        playlistSize: Int,
+        selectedIndex: Int,
+    ): List<Int> {
+        if (playlistSize <= 1) return emptyList()
+        val normalizedIndex = selectedIndex.coerceIn(0, playlistSize - 1)
+        return buildList(playlistSize - 1) {
+            for (index in normalizedIndex - 1 downTo 0) add(index)
+            for (index in normalizedIndex + 1 until playlistSize) add(index)
+        }
     }
 }

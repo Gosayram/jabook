@@ -80,4 +80,15 @@ class PlaylistSessionStatePolicyTest {
         assertEquals(emptyList<String>(), snapshot.sortedFilePaths)
         assertEquals(0, snapshot.normalizedTrackIndex)
     }
+
+    @Test
+    fun `crossfade remaining sources preserve the selected chapter timeline position`() {
+        assertEquals(
+            listOf(1, 0, 3, 4),
+            PlaylistSessionStatePolicy.crossfadeRemainingSourceIndices(
+                playlistSize = 5,
+                selectedIndex = 2,
+            ),
+        )
+    }
 }

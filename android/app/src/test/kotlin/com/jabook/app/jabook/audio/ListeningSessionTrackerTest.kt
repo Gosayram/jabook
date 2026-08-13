@@ -213,4 +213,42 @@ class ListeningSessionTrackerTest {
                 any(),
             )
         }
+
+    @Test
+    fun `late session creation for replaced book is closed`() =
+        runTest(dispatcher) {
+            whenever(
+                repository.startSession(
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                ),
+            ).thenAnswer { invocation -> "session-${invocation.getArgument<String>(0)}" }
+            var bookId = "book-a"
+            val tracker =
+                ListeningSessionTracker(
+                    repository = repository,
+                    scope = scope,
+                    ioDispatcher = dispatcher,
+                    getCurrentBookId = { bookId },
+                    getCurrentPositionMs = { 10_000L },
+                    getCurrentSpeed = { 1f },
+                    getCurrentChapterIndex = { 0 },
+                )
+
+            tracker.onPlaybackStarted()
+            bookId = "book-b"
+            tracker.onPlaybackStarted()
+            scope.advanceUntilIdle()
+
+            verify(repository).finishSession(
+                sessionId = eq("session-book-a"),
+                positionEndMs = eq(10_000L),
+                speedFactor = eq(1f),
+                chapterIndex = eq(0),
+                endedAt = any(),
+            )
+        }
 }

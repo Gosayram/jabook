@@ -634,7 +634,7 @@ public class AudioPlayerService : MediaLibraryService() {
         val normalizedIndex = sessionState.normalizedTrackIndex
 
         playerServiceScope.launch {
-            val firstSource = pm.createMediaSource(sortedPaths, 0, metadata)
+            val firstSource = pm.createMediaSource(sortedPaths, normalizedIndex, metadata)
             if (firstSource == null) {
                 LogUtils.w("AudioPlayerService", "Failed to create first MediaSource for book crossfade, falling back")
                 pm.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback)
@@ -654,6 +654,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
             cfp.crossFadeDurationMs = durationMs
             cfp.setNextMediaSource(firstSource)
+            cfp.getNextPlayer().seekTo((initialPosition ?: 0L).coerceAtLeast(0L))
             cfp.startCrossFade {
                 // After crossfade completes:
                 // 1. Update PlaylistManager state with new book info
@@ -668,26 +669,23 @@ public class AudioPlayerService : MediaLibraryService() {
                         pm.isBookCompleted = false
                         pm.lastCompletedTrackIndex = -1
 
-                        // Add remaining tracks (index 1..n) to the CrossFadePlayer's current player
+                        // The selected source was preloaded. Insert preceding sources in reverse so it
+                        // remains at its intended timeline index, then append following sources.
                         val currentPlayer = getActivePlayer()
-                        val remainingIndices = if (sortedPaths.size > 1) (1 until sortedPaths.size) else emptyList()
-                        for (index in remainingIndices) {
+                        for (index in PlaylistSessionStatePolicy.crossfadeRemainingSourceIndices(sortedPaths.size, normalizedIndex)) {
                             val source = pm.createMediaSource(sortedPaths, index, metadata)
                             if (source != null) {
-                                currentPlayer.addMediaSource(index, source)
+                                if (index < normalizedIndex) {
+                                    currentPlayer.addMediaSource(0, source)
+                                } else {
+                                    currentPlayer.addMediaSource(source)
+                                }
                             }
-                        }
-
-                        // Seek to initial track/position
-                        val targetIndex = normalizedIndex
-                        val targetPosition = (initialPosition ?: 0L).coerceAtLeast(0L)
-                        if (targetIndex != 0 || targetPosition > 0L) {
-                            currentPlayer.seekTo(targetIndex, targetPosition)
                         }
 
                         LogUtils.i(
                             "AudioPlayerService",
-                            "Book switch crossfade complete: ${filePaths.size} tracks, targetIndex=$targetIndex",
+                            "Book switch crossfade complete: ${filePaths.size} tracks, targetIndex=$normalizedIndex",
                         )
 
                         // Resume crossfade monitoring for chapter transitions
