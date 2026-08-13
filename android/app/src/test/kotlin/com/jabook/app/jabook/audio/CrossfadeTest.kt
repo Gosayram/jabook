@@ -121,6 +121,16 @@ class CrossfadeTest {
     }
 
     @Test
+    fun `Prepare next queue keeps the requested absolute chapter index`() {
+        val sources = listOf(mock<MediaSource>(), mock<MediaSource>(), mock<MediaSource>())
+
+        crossFadePlayer.setNextMediaSources(sources, startIndex = 2)
+
+        verify(playerB).setMediaSources(sources, 2, 0L)
+        verify(playerB).prepare()
+    }
+
+    @Test
     fun `onPlayerChanged callback fired after crossfade`() {
         var callbackPlayer: ExoPlayer? = null
         crossFadePlayer.onPlayerChanged = { callbackPlayer = it }

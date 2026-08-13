@@ -356,6 +356,8 @@ public class PlayerViewModel
 
                 if (book == null) {
                     PlayerState.Error("Book not found")
+                } else if (chapters.isEmpty()) {
+                    PlayerState.Error(context.getString(R.string.noChaptersFoundInSearch))
                 } else {
                     // Calculate effective seek intervals
                     // Priority: Book Override -> Global Setting -> Hardcoded Default
@@ -1059,6 +1061,7 @@ public class PlayerViewModel
                         dispatch(PlayerIntent.ReportError("Failed to update playback speed"))
                     }
             }
+            if (!rememberForBook) return
             viewModelScope.launch {
                 runCatching {
                     val activeState = uiState.value as? PlayerState.Active
@@ -1076,7 +1079,6 @@ public class PlayerViewModel
                     logger.w(error) { "Failed to persist per-book playback speed preference" }
                 }
             }
-            if (rememberForBook) return
             viewModelScope.launch {
                 runCatching { userPreferencesRepository.setPlaybackSpeed(clampedSpeed) }
                     .onFailure { error ->
@@ -1273,6 +1275,13 @@ public class PlayerViewModel
         public fun initializePlayer() {
             val state = uiState.value
             val isControllerBoundToCurrentBook = playerController.currentBookId.value == bookId
+
+            // The service can already be bound after returning to the player screen.
+            // Its callbacks still belong to this ViewModel in that case.
+            playerController.setOnChapterEndedCallback { onChapterEnded() }
+            playerController.setOnChapterRepeatedCallback { onChapterRepeated() }
+            playerController.setOnChapterChangedCallback { onChapterChanged() }
+
             if (state is PlayerState.Active && !isControllerBoundToCurrentBook) {
                 val filePaths = state.chapters.mapNotNull { it.fileUrl }
                 if (filePaths.isNotEmpty()) {
@@ -1283,17 +1292,6 @@ public class PlayerViewModel
 
                     logger.d {
                         "Initializing player: chapter=$initialChapterIndex, position=${initialPosition}ms"
-                    }
-
-                    // Set callback for chapter end handling (repeat logic)
-                    playerController.setOnChapterEndedCallback {
-                        onChapterEnded()
-                    }
-                    playerController.setOnChapterRepeatedCallback {
-                        onChapterRepeated()
-                    }
-                    playerController.setOnChapterChangedCallback {
-                        onChapterChanged()
                     }
 
                     playerController.loadBook(

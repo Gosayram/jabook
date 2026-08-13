@@ -110,6 +110,7 @@ class BooksDaoScanUpsertTest {
             )
             bookmarkDao.upsertBookmark(bookmark(id = "first-bookmark", chapterIndex = 0))
             bookmarkDao.upsertBookmark(bookmark(id = "second-bookmark", chapterIndex = 2))
+            bookmarkDao.upsertBookmark(bookmark(id = "obsolete-bookmark", chapterIndex = 4))
 
             booksDao.upsertScannedBooksWithChapters(
                 books =
@@ -158,6 +159,16 @@ class BooksDaoScanUpsertTest {
                             fileUrl = "second.mp3",
                             isDownloaded = true,
                         ),
+                        ChapterEntity(
+                            id = "replacement-chapter",
+                            bookId = "book",
+                            title = "Replacement chapter",
+                            chapterIndex = 4,
+                            fileIndex = 4,
+                            duration = 1_000L,
+                            fileUrl = "replacement.mp3",
+                            isDownloaded = true,
+                        ),
                     ),
             )
 
@@ -181,7 +192,7 @@ class BooksDaoScanUpsertTest {
             assertEquals(123L, chapter.position)
             assertTrue(chapter.isCompleted)
             assertEquals(-18.0, chapter.lufsValue ?: 0.0, 0.0)
-            assertEquals(3, chaptersDao.getChaptersByBookId("book").size)
+            assertEquals(4, chaptersDao.getChaptersByBookId("book").size)
             assertEquals(null, chaptersDao.getChapterById("obsolete-chapter"))
             assertEquals(
                 listOf(1, 3),

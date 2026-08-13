@@ -87,6 +87,21 @@ public class CrossFadePlayer(
     }
 
     /**
+     * Prepares the next player with the complete queue at [startIndex].
+     *
+     * Keeping the full queue here makes the incoming player's Media3 index remain the absolute
+     * chapter index after the player swap.
+     */
+    public fun setNextMediaSources(
+        mediaSources: List<MediaSource>,
+        startIndex: Int,
+    ) {
+        if (isCrossFading) return
+        nextPlayer.setMediaSources(mediaSources, startIndex, 0L)
+        nextPlayer.prepare()
+    }
+
+    /**
      * Starts playback on the current player.
      */
     public fun play() {

@@ -24,4 +24,11 @@ class LoadBookRequestPolicyTest {
         assertTrue(LoadBookRequestPolicy.isCurrent(activeRequestId = 2L, requestId = 2L))
         assertFalse(LoadBookRequestPolicy.isCurrent(activeRequestId = 2L, requestId = 1L))
     }
+
+    @Test
+    fun `book binding requires a successful current playlist load`() {
+        assertTrue(LoadBookRequestPolicy.shouldCommitBook(activeRequestId = 2L, requestId = 2L, loaded = true))
+        assertFalse(LoadBookRequestPolicy.shouldCommitBook(activeRequestId = 2L, requestId = 2L, loaded = false))
+        assertFalse(LoadBookRequestPolicy.shouldCommitBook(activeRequestId = 2L, requestId = 1L, loaded = true))
+    }
 }

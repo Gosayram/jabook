@@ -909,10 +909,6 @@ public class AudioPlayerController
                 _isPlaying.value = false
             }
 
-            // Update current book ID
-            _currentBookId.value = request.bookId
-            chapterLoudnessPolicy.onBookChanged(request.bookId)
-
             // Use MediaController for all operations including setPlaylist
             val controller = mediaController
             if (controller == null) {
@@ -973,6 +969,7 @@ public class AudioPlayerController
                         if (request.autoPlay && !controller.isPlaying) {
                             controller.play()
                         }
+                        publishLoadedBook(request.bookId)
                         pendingLoadRequest = null
                         loadBookRetryAttempts = 0
                         return@launch
@@ -995,15 +992,23 @@ public class AudioPlayerController
                         withContext(Dispatchers.IO) {
                             future.get(30, TimeUnit.SECONDS)
                         }
-                    if (!isCurrentLoadRequest(request)) return@launch
-                    if (result.resultCode == SessionResult.RESULT_SUCCESS && request.autoPlay) {
-                        controller.play()
-                    } else if (result.resultCode != SessionResult.RESULT_SUCCESS) {
+                    val loaded = result.resultCode == SessionResult.RESULT_SUCCESS
+                    if (!LoadBookRequestPolicy.shouldCommitBook(
+                            activeRequestId = nextLoadRequestId,
+                            requestId = request.requestId,
+                            loaded = loaded,
+                        )
+                    ) {
+                        if (!isCurrentLoadRequest(request)) return@launch
                         logger.e {
                             "setPlaylist failed with code: ${result.resultCode}"
                         }
                         scheduleLoadBookRetry(request, "result=${result.resultCode}")
                         return@launch
+                    }
+                    publishLoadedBook(request.bookId)
+                    if (request.autoPlay) {
+                        controller.play()
                     }
                     pendingLoadRequest = null
                     loadBookRetryAttempts = 0
@@ -1067,6 +1072,11 @@ public class AudioPlayerController
                 activeRequestId = nextLoadRequestId,
                 requestId = request.requestId,
             )
+
+        private fun publishLoadedBook(bookId: String?) {
+            _currentBookId.value = bookId
+            chapterLoudnessPolicy.onBookChanged(bookId)
+        }
 
         public fun play() {
             executeOrQueue(

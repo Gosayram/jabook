@@ -119,19 +119,26 @@ internal class CrossfadeHandler(
     public fun triggerCrossfadeTransition() {
         val currentPlayer = service.getActivePlayer()
         val currentChapterIndex = playlistManager.actualTrackIndex
+        val nextChapterIndex = currentChapterIndex + 1
+        val paths = playlistManager.currentFilePaths ?: return
+        if (nextChapterIndex !in paths.indices) return
+        val metadata = playlistManager.currentMetadata
         val requestGeneration = monitoringGeneration
         service.playerServiceScope.launch {
-            val nextSource = playlistManager.getNextMediaSource(currentChapterIndex)
+            val sources =
+                paths.mapIndexedNotNull { index, _ ->
+                    playlistManager.createMediaSource(paths, index, metadata)
+                }
 
-            if (nextSource != null) {
+            if (sources.size == paths.size) {
                 withContext(Dispatchers.Main) {
                     if (!isCurrentRequest(requestGeneration, currentPlayer, currentChapterIndex)) {
                         return@withContext
                     }
-                    crossFadePlayer.setNextMediaSource(nextSource)
+                    crossFadePlayer.setNextMediaSources(sources, nextChapterIndex)
                     crossFadePlayer.startCrossFade {
                         if (playlistManager.actualTrackIndex == currentChapterIndex) {
-                            playlistManager.actualTrackIndex = currentChapterIndex + 1
+                            playlistManager.actualTrackIndex = nextChapterIndex
                         }
                     }
                 }

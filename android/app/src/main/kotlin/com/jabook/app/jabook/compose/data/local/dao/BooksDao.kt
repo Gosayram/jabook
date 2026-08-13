@@ -261,6 +261,10 @@ public interface BooksDao {
                     .mapNotNull { existing ->
                         newIndexByFileUrl[existing.fileUrl]?.let { newIndex -> existing.chapterIndex to newIndex }
                     }.toMap()
+            val obsoleteChapterIndexes =
+                existingChapters
+                    .filter { it.fileUrl !in newIndexByFileUrl }
+                    .map(ChapterEntity::chapterIndex)
             val mergedChapters =
                 scannedChapters.map { scanned ->
                     existingByFileUrl[scanned.fileUrl]?.let { existing ->
@@ -275,6 +279,10 @@ public interface BooksDao {
 
             deleteScannedChapters(scannedBook.id)
             insertScannedChapters(mergedChapters)
+
+            if (obsoleteChapterIndexes.isNotEmpty()) {
+                deleteBookmarksForChapterIndexes(scannedBook.id, obsoleteChapterIndexes)
+            }
 
             val currentChapterIndex = getBookById(scannedBook.id)?.currentChapterIndex
             indexMapping[currentChapterIndex]?.let { updateCurrentChapterIndex(scannedBook.id, it) }
@@ -341,6 +349,12 @@ public interface BooksDao {
         bookId: String,
         oldIndex: Int,
         newIndex: Int,
+    )
+
+    @Query("DELETE FROM bookmarks WHERE book_id = :bookId AND chapter_index IN (:chapterIndexes)")
+    public suspend fun deleteBookmarksForChapterIndexes(
+        bookId: String,
+        chapterIndexes: List<Int>,
     )
 
     /**

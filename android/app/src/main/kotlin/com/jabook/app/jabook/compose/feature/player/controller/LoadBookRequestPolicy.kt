@@ -19,4 +19,10 @@ internal object LoadBookRequestPolicy {
         activeRequestId: Long,
         requestId: Long,
     ): Boolean = activeRequestId == requestId
+
+    internal fun shouldCommitBook(
+        activeRequestId: Long,
+        requestId: Long,
+        loaded: Boolean,
+    ): Boolean = loaded && isCurrent(activeRequestId, requestId)
 }
