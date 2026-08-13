@@ -225,6 +225,8 @@ public fun JabookApp(
         val isPlaying by miniPlayerViewModel.isPlaying.collectAsStateWithLifecycle()
         val currentPosition by miniPlayerViewModel.currentPosition.collectAsStateWithLifecycle()
         val duration by miniPlayerViewModel.duration.collectAsStateWithLifecycle()
+        val hasNextChapter by miniPlayerViewModel.hasNextChapter.collectAsStateWithLifecycle()
+        val hasPreviousChapter by miniPlayerViewModel.hasPreviousChapter.collectAsStateWithLifecycle()
         val currentBook by miniPlayerViewModel.currentBook.collectAsStateWithLifecycle()
         val currentDestination = appState.currentDestination // Hoist to Composable scope
         val currentOnPlayerScreenVisibilityChanged by rememberUpdatedState(onPlayerScreenVisibilityChanged)
@@ -350,6 +352,8 @@ public fun JabookApp(
                                 onPlayPauseClick = { miniPlayerViewModel.togglePlayPause() },
                                 onNextClick = { miniPlayerViewModel.skipToNext() },
                                 onPreviousClick = { miniPlayerViewModel.skipToPrevious() },
+                                hasNextChapter = hasNextChapter,
+                                hasPreviousChapter = hasPreviousChapter,
                                 onMiniPlayerClick = {
                                     // Navigate to player screen
                                     appState.navController.navigate(PlayerRoute(bookId = book.id))

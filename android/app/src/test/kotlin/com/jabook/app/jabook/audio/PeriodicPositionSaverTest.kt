@@ -23,6 +23,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -45,6 +46,7 @@ class PeriodicPositionSaverTest {
             PeriodicPositionSaver(
                 scope = serviceScope,
                 repository = repository,
+                updateCanonicalProgress = { _, _, _ -> },
                 getActivePlayer = { player },
                 getCurrentBookId = { "book-1" },
                 ioDispatcher = dispatcher,
@@ -70,6 +72,7 @@ class PeriodicPositionSaverTest {
             PeriodicPositionSaver(
                 scope = CoroutineScope(SupervisorJob() + dispatcher),
                 repository = repository,
+                updateCanonicalProgress = { _, _, _ -> },
                 getActivePlayer = { player },
                 getCurrentBookId = { "book-1" },
                 ioDispatcher = dispatcher,
@@ -79,5 +82,31 @@ class PeriodicPositionSaverTest {
             advanceUntilIdle()
 
             verify(repository).savePosition(eq("book-1"), eq(2), eq(45_000L))
+        }
+
+    @Test
+    fun `save updates canonical book and chapter progress with captured playback state`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val player: ExoPlayer = mock()
+            val repository: PlaybackPositionRepository = mock()
+            var canonicalSave: Triple<String, Long, Int>? = null
+            whenever(player.mediaItemCount).thenReturn(1)
+            whenever(player.currentMediaItemIndex).thenReturn(2)
+            whenever(player.currentPosition).thenReturn(45_000L)
+
+            PeriodicPositionSaver(
+                scope = CoroutineScope(SupervisorJob() + dispatcher),
+                repository = repository,
+                updateCanonicalProgress = { bookId, position, chapterIndex ->
+                    canonicalSave = Triple(bookId, position, chapterIndex)
+                },
+                getActivePlayer = { player },
+                getCurrentBookId = { "book-1" },
+                ioDispatcher = dispatcher,
+            ).save()
+            advanceUntilIdle()
+
+            assertEquals(Triple("book-1", 45_000L, 2), canonicalSave)
         }
 }

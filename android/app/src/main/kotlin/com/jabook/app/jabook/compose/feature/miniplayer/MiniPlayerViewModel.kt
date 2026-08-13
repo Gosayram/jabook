@@ -63,6 +63,12 @@ public class MiniPlayerViewModel
          */
         public val currentChapterIndex: StateFlow<Int> = audioPlayerController.currentChapterIndex
 
+        /** Whether the current playlist has a following chapter that can be selected. */
+        public val hasNextChapter: StateFlow<Boolean> = audioPlayerController.hasNextChapter
+
+        /** Whether the current playlist has a preceding chapter that can be selected. */
+        public val hasPreviousChapter: StateFlow<Boolean> = audioPlayerController.hasPreviousChapter
+
         /**
          * Current book being played (from PlayerPersistenceManager + BooksRepository).
          * This is the last played book from persistence.

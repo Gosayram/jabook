@@ -322,6 +322,13 @@ public class OfflineFirstBooksRepository
                 chapterIndex = chapterIndex,
                 timestamp = System.currentTimeMillis(),
             )
+            chaptersDao.getChapterByIndex(bookId, chapterIndex)?.let { chapter ->
+                chaptersDao.updateChapterProgress(
+                    chapterId = chapter.id,
+                    position = position.coerceIn(0L, chapter.duration),
+                    isCompleted = position >= chapter.duration,
+                )
+            }
         }
 
         override suspend fun updateDownloadProgress(

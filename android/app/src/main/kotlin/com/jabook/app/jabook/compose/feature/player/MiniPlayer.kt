@@ -106,6 +106,8 @@ public fun MiniPlayer(
     onMiniPlayerClick: () -> Unit,
     onNextClick: () -> Unit = {},
     onPreviousClick: () -> Unit = {},
+    hasNextChapter: Boolean = true,
+    hasPreviousChapter: Boolean = true,
     onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -182,10 +184,10 @@ public fun MiniPlayer(
                                 if (absX > horizontalThreshold) {
                                     if (offsetX > 0) {
                                         // Swiped Right -> Previous
-                                        currentOnPreviousClick()
+                                        if (hasPreviousChapter) currentOnPreviousClick()
                                     } else {
                                         // Swiped Left -> Next
-                                        currentOnNextClick()
+                                        if (hasNextChapter) currentOnNextClick()
                                     }
                                     // Snap back after trigger (or maybe animate out? For now snap back like Spotify)
                                     offsetX = 0f
@@ -284,6 +286,7 @@ public fun MiniPlayer(
                     contentDescription = stringResource(R.string.previousChapter),
                     onClick = onPreviousClick,
                     style = CircularIconButtonStyle.DEFAULT,
+                    enabled = hasPreviousChapter,
                     size = 24.dp,
                 )
 
@@ -311,6 +314,7 @@ public fun MiniPlayer(
                     contentDescription = stringResource(R.string.nextChapter),
                     onClick = onNextClick,
                     style = CircularIconButtonStyle.DEFAULT,
+                    enabled = hasNextChapter,
                     size = 24.dp,
                 )
             }
@@ -358,6 +362,8 @@ public fun AnimatedMiniPlayer(
     onMiniPlayerClick: () -> Unit,
     onNextClick: () -> Unit = {},
     onPreviousClick: () -> Unit = {},
+    hasNextChapter: Boolean = true,
+    hasPreviousChapter: Boolean = true,
     onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -398,6 +404,8 @@ public fun AnimatedMiniPlayer(
             onMiniPlayerClick = onMiniPlayerClick,
             onNextClick = onNextClick,
             onPreviousClick = onPreviousClick,
+            hasNextChapter = hasNextChapter,
+            hasPreviousChapter = hasPreviousChapter,
             onDismiss = onDismiss,
         )
     }

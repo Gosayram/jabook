@@ -111,6 +111,12 @@ public class AudioPlayerController
         private val _currentChapterIndex = MutableStateFlow(0)
         public val currentChapterIndex: StateFlow<Int> = _currentChapterIndex.asStateFlow()
 
+        private val _hasNextChapter = MutableStateFlow(false)
+        public val hasNextChapter: StateFlow<Boolean> = _hasNextChapter.asStateFlow()
+
+        private val _hasPreviousChapter = MutableStateFlow(false)
+        public val hasPreviousChapter: StateFlow<Boolean> = _hasPreviousChapter.asStateFlow()
+
         // Pitch Correction State
         private val _pitchCorrectionEnabled = MutableStateFlow(true)
         public val pitchCorrectionEnabled: StateFlow<Boolean> = _pitchCorrectionEnabled.asStateFlow()
@@ -290,6 +296,7 @@ public class AudioPlayerController
                     val controller = mediaController ?: return
                     publishCurrentPosition(controller.currentPosition)
                     _currentChapterIndex.value = controller.currentMediaItemIndex
+                    updateChapterNavigation(controller)
                 }
 
                 override fun onMediaItemTransition(
@@ -306,6 +313,7 @@ public class AudioPlayerController
                         Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> onChapterChangedCallback?.invoke()
                     }
                     _currentChapterIndex.value = controller.currentMediaItemIndex
+                    updateChapterNavigation(controller)
                     _duration.value = controller.duration.coerceAtLeast(0)
                     updateStats(controller)
                     chapterLoudnessPolicy.onChapterTransition(controller.currentMediaItemIndex)
@@ -315,7 +323,14 @@ public class AudioPlayerController
                     timeline: Timeline,
                     reason: Int,
                 ) {
-                    mediaController?.let(::applyPendingChapterSeekIfAvailable)
+                    mediaController?.let { controller ->
+                        updateChapterNavigation(controller)
+                        applyPendingChapterSeekIfAvailable(controller)
+                    }
+                }
+
+                override fun onAvailableCommandsChanged(availableCommands: Player.Commands) {
+                    mediaController?.let(::updateChapterNavigation)
                 }
 
                 override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
@@ -364,6 +379,7 @@ public class AudioPlayerController
                 ) {
                     publishCurrentPosition(exoPlayer.currentPosition)
                     _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
+                    updateChapterNavigation(exoPlayer)
                 }
 
                 override fun onMediaItemTransition(
@@ -379,6 +395,7 @@ public class AudioPlayerController
                         Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> onChapterChangedCallback?.invoke()
                     }
                     _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
+                    updateChapterNavigation(exoPlayer)
                     _duration.value = exoPlayer.duration.coerceAtLeast(0)
                     updateStats(exoPlayer)
                     chapterLoudnessPolicy.onChapterTransition(exoPlayer.currentMediaItemIndex)
@@ -386,6 +403,17 @@ public class AudioPlayerController
 
                 override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                     updateStats(exoPlayer)
+                }
+
+                override fun onTimelineChanged(
+                    timeline: Timeline,
+                    reason: Int,
+                ) {
+                    updateChapterNavigation(exoPlayer)
+                }
+
+                override fun onAvailableCommandsChanged(availableCommands: Player.Commands) {
+                    updateChapterNavigation(exoPlayer)
                 }
 
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -582,6 +610,7 @@ public class AudioPlayerController
                                 publishCurrentPosition(ctrl.currentPosition, force = true)
                                 _duration.value = ctrl.duration.coerceAtLeast(0)
                                 _currentChapterIndex.value = ctrl.currentMediaItemIndex
+                                updateChapterNavigation(ctrl)
                                 updateStats(ctrl)
                                 _connectionState.value = ConnectionState.CONNECTED
                                 mediaControllerRetryJob?.cancel()
@@ -1182,6 +1211,15 @@ public class AudioPlayerController
             }
         }
 
+        private fun updateChapterNavigation(player: Player) {
+            _hasNextChapter.value =
+                player.hasNextMediaItem() &&
+                player.isCommandAvailable(Player.COMMAND_SEEK_TO_NEXT)
+            _hasPreviousChapter.value =
+                player.hasPreviousMediaItem() &&
+                player.isCommandAvailable(Player.COMMAND_SEEK_TO_PREVIOUS)
+        }
+
         private fun startPositionUpdates() {
             if (positionUpdateJob?.isActive == true) return
             positionUpdateJob =
@@ -1255,6 +1293,8 @@ public class AudioPlayerController
             mediaController?.removeListener(mediaControllerListener)
             mediaController?.release()
             mediaController = null
+            _hasNextChapter.value = false
+            _hasPreviousChapter.value = false
             mediaControllerFuture?.let {
                 MediaController.releaseFuture(it)
             }

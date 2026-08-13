@@ -74,6 +74,10 @@ public class AudioPlayerService : MediaLibraryService() {
         com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 
     @Inject
+    public lateinit var updatePlaybackProgressUseCase:
+        com.jabook.app.jabook.compose.domain.usecase.player.UpdatePlaybackProgressUseCase
+
+    @Inject
     internal lateinit var crashSafePositionWriter: CrashSafePositionWriter
 
     @Inject
@@ -265,6 +269,10 @@ public class AudioPlayerService : MediaLibraryService() {
         PeriodicPositionSaver(
             scope = playerServiceScope,
             repository = playbackPositionRepository,
+            updateCanonicalProgress = { bookId, position, chapterIndex ->
+                updatePlaybackProgressUseCase(bookId, position, chapterIndex)
+                Unit
+            },
             getActivePlayer = { getActivePlayer() },
             getCurrentBookId = { currentGroupPath },
         )
@@ -737,6 +745,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     /** Persists the final position before a terminal lifecycle event can kill this process. */
     internal fun saveCurrentPositionSynchronously() {
+        periodicPositionSaver.save()
         if (!::crashSafePositionWriter.isInitialized) {
             LogUtils.w("AudioPlayerService", "Crash-safe position writer is not initialized")
             return

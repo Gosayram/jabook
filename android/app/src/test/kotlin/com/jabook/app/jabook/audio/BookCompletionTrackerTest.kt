@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import androidx.media3.common.Player
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -25,6 +26,7 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class BookCompletionTrackerTest {
     @Test
     fun `does not complete a book three minutes before the last chapter ends`() =
@@ -53,6 +55,38 @@ class BookCompletionTrackerTest {
 
             tracker.startPositionCheck()
             testScheduler.runCurrent()
+
+            verify(player, never()).pause()
+            tracker.release()
+        }
+
+    @Test
+    fun `does not complete while the last chapter is still playing near EOF`() =
+        runTest {
+            val player: Player = mock()
+            whenever(player.playbackState).thenReturn(Player.STATE_READY)
+            whenever(player.currentMediaItemIndex).thenReturn(0)
+            whenever(player.isPlaying).thenReturn(true)
+            whenever(player.currentPosition).thenReturn(358_000L)
+            whenever(player.duration).thenReturn(360_000L)
+            val scope = TestScope(StandardTestDispatcher(testScheduler))
+            val tracker =
+                BookCompletionTracker(
+                    context = mock<Context>(),
+                    scope = scope,
+                    getActivePlayer = { player },
+                    getIsBookCompleted = { false },
+                    setIsBookCompleted = { },
+                    getActualPlaylistSize = { 1 },
+                    getLastCompletedTrackIndex = { -1 },
+                    setLastCompletedTrackIndex = { },
+                    saveCurrentPosition = { },
+                    getCurrentBookId = { null },
+                    markBookCompleted = null,
+                )
+
+            tracker.startPositionCheck()
+            testScheduler.advanceTimeBy(5_000L)
 
             verify(player, never()).pause()
             tracker.release()

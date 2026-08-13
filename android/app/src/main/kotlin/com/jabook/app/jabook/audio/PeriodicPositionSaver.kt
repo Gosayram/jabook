@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 internal class PeriodicPositionSaver(
     private val scope: CoroutineScope,
     private val repository: com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository,
+    private val updateCanonicalProgress: suspend (bookId: String, position: Long, chapterIndex: Int) -> Unit,
     private val getActivePlayer: () -> androidx.media3.exoplayer.ExoPlayer,
     private val getCurrentBookId: () -> String?,
     private val intervalMs: Long = 5_000L,
@@ -77,6 +78,7 @@ internal class PeriodicPositionSaver(
                     trackIndex = trackIndex,
                     position = position,
                 )
+                updateCanonicalProgress(bookId, position, trackIndex)
             }
         }
     }

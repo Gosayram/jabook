@@ -90,13 +90,11 @@ internal class BookCompletionTracker(
 
                     if (currentIndex >= totalTracks - 1) {
                         if (duration != C.TIME_UNSET && duration > 0) {
-                            if (currentPosition >= duration) {
-                                handleBookCompletion(player, currentIndex)
-                                break
-                            }
-                            if (duration - currentPosition <= eofThresholdMs) {
-                                handleBookCompletion(player, currentIndex)
-                                break
+                            if (!player.isPlaying) {
+                                if (currentPosition >= duration || duration - currentPosition <= eofThresholdMs) {
+                                    handleBookCompletion(player, currentIndex)
+                                    break
+                                }
                             }
                         }
                         if (checkPositionStopped(player, currentPosition, duration, eofThresholdMs)) {
@@ -204,6 +202,11 @@ internal class BookCompletionTracker(
         duration: Long,
         eofThresholdMs: Long,
     ): Boolean {
+        if (player.isPlaying) {
+            positionStoppedCount = 0
+            positionStoppedStartTime = -1L
+            return false
+        }
         if (lastPosition < 0 || currentPosition != lastPosition) {
             positionStoppedCount = 0
             positionStoppedStartTime = -1L
@@ -211,10 +214,9 @@ internal class BookCompletionTracker(
         }
         val currentTime = System.currentTimeMillis()
         if (positionStoppedStartTime < 0) positionStoppedStartTime = currentTime
-        val wasPlayingRecently = player.isPlaying || player.playWhenReady
         val isNearEnd = duration != C.TIME_UNSET && duration > 0 && currentPosition >= duration - (eofThresholdMs * 2)
         val stoppedTimeMs = currentTime - positionStoppedStartTime
-        if (wasPlayingRecently || isNearEnd || stoppedTimeMs >= maxPositionStoppedTimeMs) {
+        if (isNearEnd || stoppedTimeMs >= maxPositionStoppedTimeMs) {
             positionStoppedCount++
             return positionStoppedCount >= positionStoppedThreshold || stoppedTimeMs >= maxPositionStoppedTimeMs
         }
