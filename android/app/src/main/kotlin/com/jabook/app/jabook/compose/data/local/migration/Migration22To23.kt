@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.migration
 
+import android.database.sqlite.SQLiteException
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
@@ -43,15 +44,20 @@ public val MIGRATION_22_23: Migration =
 public fun createTopicsFts5Index(db: SupportSQLiteDatabase) {
     val indexAlreadyExists = db.hasTable("topics_fts")
 
-    db.execSQL(
-        """
-        CREATE VIRTUAL TABLE IF NOT EXISTS topics_fts USING fts5(
-            title, author,
-            content='',
-            tokenize = "unicode61 remove_diacritics 2"
+    try {
+        db.execSQL(
+            """
+            CREATE VIRTUAL TABLE IF NOT EXISTS topics_fts USING fts5(
+                title, author,
+                content='',
+                tokenize = "unicode61 remove_diacritics 2"
+            )
+            """.trimIndent(),
         )
-        """.trimIndent(),
-    )
+    } catch (error: SQLiteException) {
+        if (error.isMissingFts5Module()) return
+        throw error
+    }
 
     db.execSQL(
         """
@@ -102,6 +108,8 @@ public fun createTopicsFts5Index(db: SupportSQLiteDatabase) {
         )
     }
 }
+
+internal fun SQLiteException.isMissingFts5Module(): Boolean = message?.contains("no such module: fts5", ignoreCase = true) == true
 
 private fun SupportSQLiteDatabase.hasTable(tableName: String): Boolean =
     query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", arrayOf(tableName)).use {

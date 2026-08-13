@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.local
 
 import android.content.Context
+import android.database.sqlite.SQLiteException
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
@@ -26,6 +27,7 @@ import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_22_23
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_26_27
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_28_29
 import com.jabook.app.jabook.compose.data.local.migration.createTopicsFts5Index
+import com.jabook.app.jabook.compose.data.local.migration.isMissingFts5Module
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -483,6 +485,12 @@ class JabookDatabaseMigrationTest {
     fun `migration 22 to 23 version contract is correct`() {
         assertEquals(22, MIGRATION_22_23.startVersion)
         assertEquals(23, MIGRATION_22_23.endVersion)
+    }
+
+    @Test
+    fun `topics FTS setup skips only an unavailable FTS5 module`() {
+        assertTrue(SQLiteException("no such module: fts5").isMissingFts5Module())
+        assertFalse(SQLiteException("database is locked").isMissingFts5Module())
     }
 
     @Test
