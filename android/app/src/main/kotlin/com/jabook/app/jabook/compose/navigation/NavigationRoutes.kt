@@ -31,7 +31,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 public data class PlayerRoute(
     val bookId: String,
-    val chapterIndex: Int = 0,
+    /** Null resumes playback; a value, including zero, starts that chapter. */
+    val chapterIndex: Int? = null,
 )
 
 /**

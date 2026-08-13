@@ -241,9 +241,12 @@ internal class PlayerListener(
 
         trackTransitionCoordinator.handleTrackTransitionEvent(currentIndex, "onMediaItemTransition")
 
-        // Sleep timer "end of chapter" on auto transition
+        // A repeated item also reached its end; do not let repeat-one bypass the timer.
         if ((capturedSleepTimerEndOfChapter() || capturedSleepTimerEndOfTrack()) &&
-            reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
+            (
+                reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
+                    reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
+            )
         ) {
             LogUtils.d("AudioPlayerService", "Sleep timer expired (end of chapter on auto transition)")
             capturedMarkSleepTimerPause()

@@ -394,7 +394,7 @@ public class PlayerViewModel
                     val chapterIndex =
                         if (hasControllerStateForCurrentBook) {
                             controllerChapterIndex.coerceIn(0, maxChapterIndex)
-                        } else if (initialChapterIndexOverride > 0) {
+                        } else if (initialChapterIndexOverride != null) {
                             initialChapterIndexOverride.coerceIn(0, maxChapterIndex)
                         } else {
                             safeSavedChapterIndex
@@ -405,7 +405,7 @@ public class PlayerViewModel
                     val position =
                         if (hasControllerStateForCurrentBook) {
                             controllerPosition.coerceAtLeast(0L)
-                        } else if (initialChapterIndexOverride > 0) {
+                        } else if (initialChapterIndexOverride != null) {
                             0L
                         } else {
                             (bootstrapSnapshot?.positionMs ?: 0L).coerceAtLeast(0L)

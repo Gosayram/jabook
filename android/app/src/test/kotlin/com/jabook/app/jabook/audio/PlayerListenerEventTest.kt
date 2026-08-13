@@ -168,6 +168,43 @@ class PlayerListenerEventTest {
     }
 
     @Test
+    fun `onMediaItemTransition expires sleep timer on repeated chapter`() {
+        val context: android.content.Context = mock()
+        val player: ExoPlayer = mock()
+        whenever(player.currentMediaItemIndex).thenReturn(2)
+        var savedPositionCalls = 0
+        var cancelSleepTimerCalls = 0
+        var timerExpiredCalls = 0
+
+        val listener =
+            PlayerListener(
+                context = context,
+                getActivePlayer = { player },
+                getIsBookCompleted = { false },
+                setIsBookCompleted = { },
+                getSleepTimerEndOfChapter = { true },
+                getSleepTimerEndOfTrack = { false },
+                cancelSleepTimer = { cancelSleepTimerCalls++ },
+                sendTimerExpiredEvent = { timerExpiredCalls++ },
+                saveCurrentPosition = { savedPositionCalls++ },
+                getEmbeddedArtworkPath = { null },
+                setEmbeddedArtworkPath = { },
+                getCurrentMetadata = { null },
+                getActualPlaylistSize = { 10 },
+            )
+
+        listener.onMediaItemTransition(
+            MediaItem.Builder().setMediaId("chapter-3").build(),
+            Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT,
+        )
+
+        assertEquals(1, savedPositionCalls)
+        assertEquals(1, cancelSleepTimerCalls)
+        assertEquals(1, timerExpiredCalls)
+        verify(player).playWhenReady = false
+    }
+
+    @Test
     fun `onMediaItemTransition does not save position for manual transition with sleep timer`() {
         val context: android.content.Context = mock()
         val player: ExoPlayer = mock()

@@ -67,7 +67,6 @@ internal class BookCompletionTracker(
     private val positionCheckIntervalMs: Long = 1000L
     private val positionStoppedThreshold: Int = 3
     private val maxPositionStoppedTimeMs: Long = 10_000L
-    private val smartCompletionThresholdMs: Long = 180_000L
 
     /** Starts periodic position checking for book completion detection. */
     fun startPositionCheck() {
@@ -94,12 +93,7 @@ internal class BookCompletionTracker(
                                 handleBookCompletion(player, currentIndex)
                                 break
                             }
-                            val remaining = duration - currentPosition
-                            if (remaining in (eofThresholdMs + 1)..smartCompletionThresholdMs) {
-                                handleBookCompletion(player, currentIndex)
-                                break
-                            }
-                            if (remaining <= eofThresholdMs) {
+                            if (duration - currentPosition <= eofThresholdMs) {
                                 handleBookCompletion(player, currentIndex)
                                 break
                             }
