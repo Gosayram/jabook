@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MediaSource
@@ -40,6 +41,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLooper
 
@@ -60,6 +62,8 @@ class CrossfadeTest {
         context = ApplicationProvider.getApplicationContext()
         playerA = mock()
         playerB = mock()
+        whenever(playerA.audioAttributes).thenReturn(AudioAttributes.DEFAULT)
+        whenever(playerB.audioAttributes).thenReturn(AudioAttributes.DEFAULT)
 
         // Mock factory to return our mocks
         var callCount = 0
@@ -123,6 +127,16 @@ class CrossfadeTest {
 
         assertNotNull(callbackPlayer)
         assertNotEquals(playerA, callbackPlayer)
+    }
+
+    @Test
+    fun `crossfade transfers audio focus to the active player`() {
+        crossFadePlayer.startCrossFade()
+
+        testScope.advanceUntilIdle()
+
+        verify(playerA).setAudioAttributes(AudioAttributes.DEFAULT, false)
+        verify(playerB).setAudioAttributes(AudioAttributes.DEFAULT, true)
     }
 
     @Test

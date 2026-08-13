@@ -46,6 +46,7 @@ public class AudioPlayerServiceInitializer(
 
     @OptIn(UnstableApi::class)
     public fun initialize() {
+        service.lifecycleManager = ServiceLifecycleManager(service)
         initializeCrossFadePlayer()
         LogUtils.i("AudioPlayerService", "Initializing service components...")
 
@@ -515,6 +516,8 @@ public class AudioPlayerServiceInitializer(
                 MediaSessionManager(
                     service,
                     service.getActivePlayer(),
+                    playCallback = service::onMediaSessionPlaybackStarted,
+                    pauseCallback = service::onMediaSessionPlaybackPaused,
                 )
 
             // Legacy NotificationManager is NO LONGER NEEDED for Media3 system notifications

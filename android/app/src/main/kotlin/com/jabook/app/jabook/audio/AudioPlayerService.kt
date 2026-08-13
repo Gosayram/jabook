@@ -712,6 +712,16 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun stop(): Unit = commandRouter.stop()
 
+    /** Applies lifecycle side effects after MediaSession changes the player directly. */
+    internal fun onMediaSessionPlaybackStarted() {
+        playbackLifecycleActions.onPlay()
+    }
+
+    /** Applies lifecycle side effects after MediaSession pauses the player directly. */
+    internal fun onMediaSessionPlaybackPaused() {
+        playbackLifecycleActions.onPause()
+    }
+
     internal fun savePositionToRepository() {
         periodicPositionSaver.save()
     }

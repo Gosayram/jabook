@@ -42,6 +42,17 @@ class AudioPlayerServiceTeardownTest {
     }
 
     @Test
+    fun `onTaskRemoved delegates to initialized lifecycle manager`() {
+        val service = Robolectric.buildService(AudioPlayerService::class.java).get()
+        val lifecycleManager: ServiceLifecycleManager = mock()
+        service.lifecycleManager = lifecycleManager
+
+        service.onTaskRemoved(Intent("test"))
+
+        verify(lifecycleManager).onTaskRemoved()
+    }
+
+    @Test
     fun `release removes audio output listener`() {
         val service = Robolectric.buildService(AudioPlayerService::class.java).get()
         val player: ExoPlayer = mock()

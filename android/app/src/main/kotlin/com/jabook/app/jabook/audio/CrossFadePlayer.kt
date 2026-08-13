@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MediaSource
 import com.jabook.app.jabook.util.LogUtils
@@ -38,6 +40,7 @@ import kotlinx.coroutines.launch
  * Note: This requires manual playlist management (queueing one track at a time)
  * rather than ExoPlayer's ConcatenatingMediaSource.
  */
+@OptIn(UnstableApi::class)
 public class CrossFadePlayer(
     private val context: Context,
     private val playerFactory: (Context, handleAudioFocus: Boolean) -> ExoPlayer,
@@ -163,6 +166,10 @@ public class CrossFadePlayer(
                         fadingOutPlayer.volume = 1f
                         fadingOutPlayer.seekTo(0)
                         fadingOutPlayer.clearMediaItems()
+
+                        // Only the player that survives the transition may own audio focus.
+                        fadingOutPlayer.setAudioAttributes(fadingOutPlayer.audioAttributes, false)
+                        fadingInPlayer.setAudioAttributes(fadingInPlayer.audioAttributes, true)
 
                         // Swap players
                         swapPlayers()

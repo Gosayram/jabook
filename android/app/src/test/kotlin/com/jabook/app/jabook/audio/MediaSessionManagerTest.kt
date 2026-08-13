@@ -176,8 +176,7 @@ class MediaSessionManagerTest {
         )
 
         // Then
-        // Note: Callback is invoked, but we can't directly verify it without exposing state
-        // This test verifies the listener is set up correctly
+        assertEquals(true, playCallbackInvoked)
     }
 
     @Test
@@ -199,8 +198,7 @@ class MediaSessionManagerTest {
         )
 
         // Then
-        // Note: Callback is invoked, but we can't directly verify it without exposing state
-        // This test verifies the listener is set up correctly
+        assertEquals(true, pauseCallbackInvoked)
     }
 
     @Test

@@ -196,13 +196,17 @@ internal class PlayerConfigurator(
     @androidx.annotation.OptIn(UnstableApi::class)
     public fun configureExoPlayer(settings: AudioProcessingSettings) {
         try {
-            // Store settings
-            this.audioProcessingSettings = settings
+            // Snapshot before changing routing: enabling crossfade makes PlayerFacade
+            // resolve the initially empty CrossFadePlayer instead of the current player.
+            val activePlayer = service.getActivePlayer()
 
             // Create processor chain
             val chainResult = AudioProcessorFactory.createProcessorChain(settings)
             val processors = chainResult.processors
             loudnessNormalizer = chainResult.loudnessNormalizer
+
+            // Publish the new routing only after the current player was captured.
+            this.audioProcessingSettings = settings
 
             LogUtils.d(
                 "AudioPlayerService",
@@ -218,7 +222,6 @@ internal class PlayerConfigurator(
 
             // Save current playback state before recreating player
             // BUT only if playlist is not currently loading (prevent saving stale state)
-            val activePlayer = service.getActivePlayer()
             val wasPlaying = activePlayer.isPlaying
             val currentIndex = activePlayer.currentMediaItemIndex
             val currentPosition = activePlayer.currentPosition
