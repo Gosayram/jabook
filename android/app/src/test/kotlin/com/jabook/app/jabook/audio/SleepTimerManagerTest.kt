@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio
 import android.content.Context
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.test.core.app.ApplicationProvider
+import com.jabook.app.jabook.compose.data.preferences.SleepTimerState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -206,6 +207,48 @@ class SleepTimerManagerTest {
 
             assertTrue(manager.isSleepTimerActive())
             assertEquals(null, manager.getSleepTimerRemainingSeconds())
+        }
+
+    @Test
+    fun `restoreFromDataStoreState keeps end of chapter timer active`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+            val manager =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+
+            manager.restoreFromDataStoreState(
+                SleepTimerState.newBuilder().setMode(SleepTimerMode.CHAPTER_END.name).build(),
+            )
+
+            assertTrue(manager.isSleepTimerActive())
+            assertTrue(manager.sleepTimerEndOfChapter)
+        }
+
+    @Test
+    fun `setSleepTimerMinutes with non-positive duration clears prior timer`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+            val manager =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+            manager.setSleepTimerEndOfTrack()
+
+            manager.setSleepTimerMinutes(0)
+
+            assertTrue(!manager.isSleepTimerActive())
         }
 
     @Test

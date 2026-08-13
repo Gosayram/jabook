@@ -124,11 +124,14 @@ internal class SleepTimerManager(
      * @param minutes Timer duration in minutes
      */
     public fun setSleepTimerMinutes(minutes: Int) {
+        if (minutes <= 0) {
+            cancelSleepTimer()
+            return
+        }
         stopTimer() // Stop existing timer if any
         val callbackGeneration = timerGeneration.get()
 
         val totalMillis = minutes * 60 * 1000L
-        if (totalMillis <= 0L) return
 
         sleepTimerEndTime = System.currentTimeMillis() + totalMillis
         sleepTimerMode = SleepTimerMode.FIXED_DURATION
@@ -499,20 +502,8 @@ internal class SleepTimerManager(
     }
 
     /** Restore sleep timer state from DataStore SleepTimerState proto. */
-    private fun restoreFromDataStoreState(dataStoreState: com.jabook.app.jabook.compose.data.preferences.SleepTimerState) {
+    internal fun restoreFromDataStoreState(dataStoreState: com.jabook.app.jabook.compose.data.preferences.SleepTimerState) {
         val mode = enumValueOfOrNull(dataStoreState.mode) ?: SleepTimerMode.NONE
-        val nowMillis = System.currentTimeMillis()
-        val remainingMillis =
-            when {
-                dataStoreState.isPaused && dataStoreState.pausedRemainingMs > 0L -> dataStoreState.pausedRemainingMs
-                else -> (dataStoreState.endTimeEpochMs - nowMillis).coerceAtLeast(0L)
-            }
-
-        if (remainingMillis <= 0L || mode == SleepTimerMode.NONE) {
-            clearRuntimeState()
-            return
-        }
-
         when (mode) {
             SleepTimerMode.CHAPTER_END -> {
                 sleepTimerEndTime = 0
@@ -521,6 +512,7 @@ internal class SleepTimerManager(
                 fixedTimerPausedRemainingMillis = null
                 _sleepTimerRemainingSeconds = null
                 LogUtils.d("AudioPlayerService", "Sleep timer restored: end of chapter mode")
+                return
             }
             SleepTimerMode.TRACK_END -> {
                 sleepTimerEndTime = 0
@@ -529,17 +521,30 @@ internal class SleepTimerManager(
                 fixedTimerPausedRemainingMillis = null
                 _sleepTimerRemainingSeconds = null
                 LogUtils.d("AudioPlayerService", "Sleep timer restored: end of track mode")
-            }
-            SleepTimerMode.FIXED_DURATION -> {
-                restoreFixedDurationTimer(
-                    remainingMillis = remainingMillis,
-                    paused = dataStoreState.isPaused,
-                )
+                return
             }
             SleepTimerMode.NONE -> {
                 clearRuntimeState()
+                return
             }
+            SleepTimerMode.FIXED_DURATION -> Unit
         }
+        val nowMillis = System.currentTimeMillis()
+        val remainingMillis =
+            when {
+                dataStoreState.isPaused && dataStoreState.pausedRemainingMs > 0L -> dataStoreState.pausedRemainingMs
+                else -> (dataStoreState.endTimeEpochMs - nowMillis).coerceAtLeast(0L)
+            }
+
+        if (remainingMillis <= 0L) {
+            clearRuntimeState()
+            return
+        }
+
+        restoreFixedDurationTimer(
+            remainingMillis = remainingMillis,
+            paused = dataStoreState.isPaused,
+        )
     }
 
     /** Restore sleep timer state from SharedPreferences (legacy fallback). */

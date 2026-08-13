@@ -61,6 +61,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -260,6 +262,7 @@ private fun ChapterListItem(
         modifier =
             modifier
                 .fillMaxWidth()
+                .semantics { selected = isSelected }
                 .padding(vertical = 4.dp),
         color =
             if (isSelected) {
