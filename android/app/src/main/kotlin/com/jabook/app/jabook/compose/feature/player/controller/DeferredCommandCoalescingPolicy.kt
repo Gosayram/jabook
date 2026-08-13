@@ -19,6 +19,7 @@ internal enum class DeferredCommandType {
     SEEK,
     SKIP,
     SPEED,
+    REPEAT_MODE,
     VISUALIZER_ENABLED,
     VISUALIZER_INITIALIZE,
 }
@@ -33,6 +34,7 @@ internal object DeferredCommandCoalescingPolicy {
             DeferredCommandType.SEEK -> existing == DeferredCommandType.SEEK
             DeferredCommandType.SKIP -> existing == DeferredCommandType.SKIP
             DeferredCommandType.SPEED -> existing == DeferredCommandType.SPEED
+            DeferredCommandType.REPEAT_MODE -> existing == DeferredCommandType.REPEAT_MODE
             DeferredCommandType.VISUALIZER_ENABLED -> existing == DeferredCommandType.VISUALIZER_ENABLED
             DeferredCommandType.VISUALIZER_INITIALIZE -> false
         }

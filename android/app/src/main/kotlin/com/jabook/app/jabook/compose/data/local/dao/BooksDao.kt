@@ -249,17 +249,41 @@ public interface BooksDao {
                 localPath = book.localPath,
             )
         }
-        insertScannedChapters(chapters)
-        chapters.forEach { chapter ->
-            updateScannedChapter(
-                id = chapter.id,
-                title = chapter.title,
-                chapterIndex = chapter.chapterIndex,
-                fileIndex = chapter.fileIndex,
-                duration = chapter.duration,
-                fileUrl = chapter.fileUrl,
-                isDownloaded = chapter.isDownloaded,
-            )
+
+        val chaptersByBook = chapters.groupBy(ChapterEntity::bookId)
+        books.forEach { scannedBook ->
+            val existingChapters = getChaptersForScan(scannedBook.id)
+            val existingByFileUrl = existingChapters.filter { !it.fileUrl.isNullOrBlank() }.associateBy { it.fileUrl }
+            val scannedChapters = chaptersByBook[scannedBook.id].orEmpty()
+            val newIndexByFileUrl = scannedChapters.filter { !it.fileUrl.isNullOrBlank() }.associate { it.fileUrl to it.chapterIndex }
+            val indexMapping =
+                existingChapters
+                    .mapNotNull { existing ->
+                        newIndexByFileUrl[existing.fileUrl]?.let { newIndex -> existing.chapterIndex to newIndex }
+                    }.toMap()
+            val mergedChapters =
+                scannedChapters.map { scanned ->
+                    existingByFileUrl[scanned.fileUrl]?.let { existing ->
+                        scanned.copy(
+                            id = existing.id,
+                            position = existing.position,
+                            isCompleted = existing.isCompleted,
+                            lufsValue = existing.lufsValue,
+                        )
+                    } ?: scanned
+                }
+
+            deleteScannedChapters(scannedBook.id)
+            insertScannedChapters(mergedChapters)
+
+            val currentChapterIndex = getBookById(scannedBook.id)?.currentChapterIndex
+            indexMapping[currentChapterIndex]?.let { updateCurrentChapterIndex(scannedBook.id, it) }
+            indexMapping.forEach { (oldIndex, _) ->
+                updateBookmarkChapterIndex(scannedBook.id, oldIndex, -oldIndex - 1)
+            }
+            indexMapping.forEach { (oldIndex, newIndex) ->
+                updateBookmarkChapterIndex(scannedBook.id, -oldIndex - 1, newIndex)
+            }
         }
     }
 
@@ -293,25 +317,24 @@ public interface BooksDao {
     public suspend fun insertScannedChapters(chapters: List<ChapterEntity>)
 
     @Query(
-        """
-        UPDATE chapters
-        SET title = :title,
-            chapter_index = :chapterIndex,
-            file_index = :fileIndex,
-            duration = :duration,
-            file_url = :fileUrl,
-            is_downloaded = :isDownloaded
-        WHERE id = :id
-        """,
+        "SELECT * FROM chapters WHERE book_id = :bookId",
     )
-    public suspend fun updateScannedChapter(
-        id: String,
-        title: String,
+    public suspend fun getChaptersForScan(bookId: String): List<ChapterEntity>
+
+    @Query("DELETE FROM chapters WHERE book_id = :bookId")
+    public suspend fun deleteScannedChapters(bookId: String)
+
+    @Query("UPDATE books SET current_chapter_index = :chapterIndex WHERE id = :bookId")
+    public suspend fun updateCurrentChapterIndex(
+        bookId: String,
         chapterIndex: Int,
-        fileIndex: Int,
-        duration: Long,
-        fileUrl: String?,
-        isDownloaded: Boolean,
+    )
+
+    @Query("UPDATE bookmarks SET chapter_index = :newIndex WHERE book_id = :bookId AND chapter_index = :oldIndex")
+    public suspend fun updateBookmarkChapterIndex(
+        bookId: String,
+        oldIndex: Int,
+        newIndex: Int,
     )
 
     /**

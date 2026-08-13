@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -39,14 +38,13 @@ import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 
 /**
- * Player overflow menu bottom sheet with share, favorite, go-to-book, and statistics actions.
+ * Player overflow menu bottom sheet with share, favorite, bookmarks, and statistics actions.
  */
 @Composable
 public fun PlayerOverflowMenuSheet(
     isFavorite: Boolean,
     onShareClick: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onGoToBookClick: () -> Unit,
     onBookmarksClick: () -> Unit,
     onStatsClick: () -> Unit,
     onDismiss: () -> Unit,
@@ -74,15 +72,6 @@ public fun PlayerOverflowMenuSheet(
             iconTint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
             onClick = {
                 onToggleFavorite()
-                onDismiss()
-            },
-        )
-
-        OverflowMenuItem(
-            icon = Icons.Default.Book,
-            titleRes = R.string.playerGoToBook,
-            onClick = {
-                onGoToBookClick()
                 onDismiss()
             },
         )

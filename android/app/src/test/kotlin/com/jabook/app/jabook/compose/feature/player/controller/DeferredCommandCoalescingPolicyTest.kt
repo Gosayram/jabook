@@ -62,6 +62,22 @@ class DeferredCommandCoalescingPolicyTest {
     }
 
     @Test
+    fun `repeat mode replaces only repeat mode`() {
+        assertTrue(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.REPEAT_MODE,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+        assertFalse(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.SPEED,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+    }
+
+    @Test
     fun `visualizer initialize does not remove existing commands`() {
         assertFalse(
             DeferredCommandCoalescingPolicy.shouldRemoveExisting(

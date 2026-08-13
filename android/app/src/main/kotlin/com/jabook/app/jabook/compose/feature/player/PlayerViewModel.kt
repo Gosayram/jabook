@@ -18,6 +18,7 @@ import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.Player
 import androidx.navigation.toRoute
 import coil3.SingletonImageLoader
 import coil3.request.allowHardware
@@ -841,6 +842,9 @@ public class PlayerViewModel
                     if (targetMode == chapterRepeatModeState.value) return
                     chapterRepeatModeState.value = targetMode
                     hasRepeatedOnce = PlayerReducer.reduceChapterChanged()
+                    playerController.setRepeatMode(
+                        if (targetMode == ChapterRepeatMode.OFF) Player.REPEAT_MODE_OFF else Player.REPEAT_MODE_ONE,
+                    )
                 }
                 is PlayerIntent.CycleVisualizerMode -> {
                     val currentMode = visualizerMode.value
@@ -1285,6 +1289,12 @@ public class PlayerViewModel
                     playerController.setOnChapterEndedCallback {
                         onChapterEnded()
                     }
+                    playerController.setOnChapterRepeatedCallback {
+                        onChapterRepeated()
+                    }
+                    playerController.setOnChapterChangedCallback {
+                        onChapterChanged()
+                    }
 
                     playerController.loadBook(
                         filePaths = filePaths,
@@ -1351,6 +1361,19 @@ public class PlayerViewModel
             return reduction.shouldRepeat
         }
 
+        /** Returns whether native repeat-one should remain enabled after a completed repeat. */
+        public fun onChapterRepeated(): Boolean {
+            val mode = chapterRepeatModeState.value
+            return when (mode) {
+                ChapterRepeatMode.INFINITE -> PlayerReducer.shouldKeepNativeChapterRepeat(mode)
+                ChapterRepeatMode.ONCE -> {
+                    hasRepeatedOnce = true
+                    false
+                }
+                ChapterRepeatMode.OFF -> false
+            }
+        }
+
         /**
          * Reset repeat flag when chapter changes manually.
          */
@@ -1404,6 +1427,8 @@ public class PlayerViewModel
                         sleepTimerMode = restoredSleepMode,
                         hasRestoredSpeed = restoredSpeed > 0f,
                     )
+                restorePlaybackSpeedFromSnapshotIfNeeded()
+                restoreSleepTimerModeFromSnapshotIfNeeded()
                 logger.d {
                     "Restored player snapshot from DataStore: chapter=$restoredChapterIndex, " +
                         "position=${restoredPosition}ms, speed=$restoredSpeed, sleepMode=$restoredSleepMode"

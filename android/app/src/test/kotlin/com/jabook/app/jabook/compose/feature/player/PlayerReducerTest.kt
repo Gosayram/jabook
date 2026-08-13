@@ -431,6 +431,13 @@ class PlayerReducerTest {
     }
 
     @Test
+    fun `only infinite chapter repeat keeps native repeat-one enabled`() {
+        assertFalse(PlayerReducer.shouldKeepNativeChapterRepeat(ChapterRepeatMode.OFF))
+        assertFalse(PlayerReducer.shouldKeepNativeChapterRepeat(ChapterRepeatMode.ONCE))
+        assertTrue(PlayerReducer.shouldKeepNativeChapterRepeat(ChapterRepeatMode.INFINITE))
+    }
+
+    @Test
     fun `reduce is deterministic for same input`() {
         val state = activeStateTemplate().copy(currentPosition = 12_345L, playbackSpeed = 1.25f)
         val intent = PlayerIntent.SeekForward

@@ -41,6 +41,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.UUID
 import com.jabook.app.jabook.compose.domain.model.Result as DomainResult
 
 /**
@@ -260,7 +261,7 @@ public class LibraryScanWorker
                                         chapterEntities.addAll(
                                             book.chapters.map { chapter ->
                                                 ChapterEntity(
-                                                    id = "$bookId-chapter-${chapter.index}",
+                                                    id = "$bookId-chapter-${UUID.nameUUIDFromBytes(chapter.filePath.toByteArray())}",
                                                     bookId = bookId,
                                                     title = chapter.title,
                                                     chapterIndex = chapter.index,

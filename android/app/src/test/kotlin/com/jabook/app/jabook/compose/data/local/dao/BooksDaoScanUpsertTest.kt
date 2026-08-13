@@ -18,6 +18,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
+import com.jabook.app.jabook.compose.data.local.entity.BookmarkEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -33,6 +34,7 @@ class BooksDaoScanUpsertTest {
     private lateinit var database: JabookDatabase
     private lateinit var booksDao: BooksDao
     private lateinit var chaptersDao: ChaptersDao
+    private lateinit var bookmarkDao: BookmarkDao
 
     @Before
     fun setUp() {
@@ -44,6 +46,7 @@ class BooksDaoScanUpsertTest {
                 ).build()
         booksDao = database.booksDao()
         chaptersDao = database.chaptersDao()
+        bookmarkDao = database.bookmarkDao()
     }
 
     @After
@@ -71,20 +74,42 @@ class BooksDaoScanUpsertTest {
                     preferredSpeed = 1.5f,
                 ),
             )
-            chaptersDao.insertChapter(
-                ChapterEntity(
-                    id = "chapter",
-                    bookId = "book",
-                    title = "Old chapter",
-                    chapterIndex = 0,
-                    fileIndex = 0,
-                    duration = 500L,
-                    fileUrl = "old.mp3",
-                    position = 123L,
-                    isCompleted = true,
-                    lufsValue = -18.0,
+            chaptersDao.insertAll(
+                listOf(
+                    ChapterEntity(
+                        id = "first-chapter",
+                        bookId = "book",
+                        title = "First old chapter",
+                        chapterIndex = 0,
+                        fileIndex = 0,
+                        duration = 500L,
+                        fileUrl = "first.mp3",
+                    ),
+                    ChapterEntity(
+                        id = "second-chapter",
+                        bookId = "book",
+                        title = "Second old chapter",
+                        chapterIndex = 2,
+                        fileIndex = 2,
+                        duration = 500L,
+                        fileUrl = "second.mp3",
+                        position = 123L,
+                        isCompleted = true,
+                        lufsValue = -18.0,
+                    ),
+                    ChapterEntity(
+                        id = "obsolete-chapter",
+                        bookId = "book",
+                        title = "Obsolete chapter",
+                        chapterIndex = 4,
+                        fileIndex = 4,
+                        duration = 500L,
+                        fileUrl = "obsolete.mp3",
+                    ),
                 ),
             )
+            bookmarkDao.upsertBookmark(bookmark(id = "first-bookmark", chapterIndex = 0))
+            bookmarkDao.upsertBookmark(bookmark(id = "second-bookmark", chapterIndex = 2))
 
             booksDao.upsertScannedBooksWithChapters(
                 books =
@@ -104,37 +129,76 @@ class BooksDaoScanUpsertTest {
                 chapters =
                     listOf(
                         ChapterEntity(
-                            id = "chapter",
+                            id = "new-chapter",
                             bookId = "book",
-                            title = "New chapter",
+                            title = "New first chapter",
+                            chapterIndex = 0,
+                            fileIndex = 0,
+                            duration = 1_000L,
+                            fileUrl = "new.mp3",
+                            isDownloaded = true,
+                        ),
+                        ChapterEntity(
+                            id = "shifted-first-chapter",
+                            bookId = "book",
+                            title = "First chapter",
                             chapterIndex = 1,
                             fileIndex = 1,
                             duration = 1_000L,
-                            fileUrl = "new.mp3",
+                            fileUrl = "first.mp3",
+                            isDownloaded = true,
+                        ),
+                        ChapterEntity(
+                            id = "shifted-second-chapter",
+                            bookId = "book",
+                            title = "Second chapter",
+                            chapterIndex = 3,
+                            fileIndex = 3,
+                            duration = 1_000L,
+                            fileUrl = "second.mp3",
                             isDownloaded = true,
                         ),
                     ),
             )
 
             val book = requireNotNull(booksDao.getBookById("book"))
-            val chapter = requireNotNull(chaptersDao.getChapterById("chapter"))
+            val chapter = requireNotNull(chaptersDao.getChapterById("second-chapter"))
 
             assertEquals("New title", book.title)
             assertEquals(1_000L, book.totalDuration)
             assertEquals(123L, book.currentPosition)
             assertEquals(0.4f, book.totalProgress, 0f)
-            assertEquals(2, book.currentChapterIndex)
+            assertEquals(3, book.currentChapterIndex)
             assertEquals("cover", book.coverUrl)
             assertEquals("description", book.description)
             assertEquals(10L, book.addedDate)
             assertEquals(20L, book.lastPlayedDate)
             assertTrue(book.isFavorite)
             assertEquals(1.5f, requireNotNull(book.preferredSpeed), 0f)
-            assertEquals("New chapter", chapter.title)
-            assertEquals(1, chapter.chapterIndex)
-            assertEquals("new.mp3", chapter.fileUrl)
+            assertEquals("Second chapter", chapter.title)
+            assertEquals(3, chapter.chapterIndex)
+            assertEquals("second.mp3", chapter.fileUrl)
             assertEquals(123L, chapter.position)
             assertTrue(chapter.isCompleted)
             assertEquals(-18.0, chapter.lufsValue ?: 0.0, 0.0)
+            assertEquals(3, chaptersDao.getChaptersByBookId("book").size)
+            assertEquals(null, chaptersDao.getChapterById("obsolete-chapter"))
+            assertEquals(
+                listOf(1, 3),
+                bookmarkDao.getBookmarksForBookSync("book").map { it.chapterIndex },
+            )
         }
+
+    private fun bookmark(
+        id: String,
+        chapterIndex: Int,
+    ): BookmarkEntity =
+        BookmarkEntity(
+            id = id,
+            bookId = "book",
+            chapterIndex = chapterIndex,
+            positionMs = 100L,
+            createdAt = 1L,
+            updatedAt = 1L,
+        )
 }

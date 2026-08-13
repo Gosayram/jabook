@@ -82,7 +82,6 @@ import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
@@ -90,7 +89,6 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Repeat
-import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ButtonDefaults
@@ -298,9 +296,6 @@ public fun PlayerScreen(
     var showChapterSheet by remember { mutableStateOf(false) }
     // Legacy settings sheet (if unused, we might want to consolidate or remove)
     var showSettingsSheet by remember { mutableStateOf(false) }
-    var showRatingDialog by remember { mutableStateOf(false) }
-    var selectedRating by remember { mutableIntStateOf(0) }
-    var ratedBookId by remember { mutableStateOf<String?>(null) }
     var showOverflowMenu by remember { mutableStateOf(false) }
     var showStatsOverlay by remember { mutableStateOf(false) }
     var isBookmarkNoteSheetVisible by remember { mutableStateOf(false) }
@@ -364,14 +359,6 @@ public fun PlayerScreen(
                 PlayerEffect.NavigateBack -> navigationClickGuard.run(currentOnNavigateBack)
                 is PlayerEffect.NavigateToBook -> navigationClickGuard.run { currentOnNavigateToBook(effect.bookId) }
             }
-        }
-    }
-
-    val completedBookId = (uiState as? PlayerState.Active)?.book?.takeIf { it.isCompleted }?.id
-    LaunchedEffect(completedBookId) {
-        if (completedBookId != null && ratedBookId != completedBookId && !showRatingDialog) {
-            selectedRating = 0
-            showRatingDialog = true
         }
     }
 
@@ -724,9 +711,6 @@ public fun PlayerScreen(
                 onToggleFavorite = {
                     viewModel.toggleFavorite()
                 },
-                onGoToBookClick = {
-                    onNavigateToBook(state.book.id)
-                },
                 onBookmarksClick = {
                     HapticManager.performLongPress(hapticFeedback)
                     showBookmarkSheet = true
@@ -823,7 +807,6 @@ public fun PlayerScreen(
                                             showAudioSettingsSheet ||
                                             showChapterSheet ||
                                             showSettingsSheet ||
-                                            showRatingDialog ||
                                             isBookmarkNoteSheetVisible ||
                                             showOverflowMenu
                                     if (shouldIgnoreShortcuts) return@onPreviewKeyEvent false
@@ -1166,77 +1149,6 @@ public fun PlayerScreen(
             }
         },
         modifier = modifier.background(MaterialTheme.colorScheme.background),
-    )
-
-    if (showRatingDialog) {
-        RatingDialog(
-            selectedRating = selectedRating,
-            onDismiss = {
-                ratedBookId = (uiState as? PlayerState.Active)?.book?.id
-                selectedRating = 0
-                showRatingDialog = false
-            },
-            onRate = { rating ->
-                selectedRating = rating
-                ratedBookId = (uiState as? PlayerState.Active)?.book?.id
-                showRatingDialog = false
-                scope.launch {
-                    snackbarHostState.showSnackbar(
-                        message = context.getString(R.string.rateCompletedBookThanks, rating),
-                    )
-                }
-            },
-        )
-    }
-}
-
-@Composable
-internal fun StarRatingRow(
-    selected: Int,
-    onRate: (Int) -> Unit,
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        (1..5).forEach { star ->
-            IconButton(
-                onClick = { onRate(star) },
-                modifier = Modifier.size(44.dp),
-            ) {
-                Icon(
-                    imageVector = if (star <= selected) Icons.Filled.Star else Icons.Outlined.StarOutline,
-                    contentDescription = stringResource(R.string.rateCompletedBookStar, star),
-                    tint =
-                        if (star <= selected) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    modifier = Modifier.size(if (star <= selected) 32.dp else 28.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-internal fun RatingDialog(
-    selectedRating: Int,
-    onDismiss: () -> Unit,
-    onRate: (Int) -> Unit,
-) {
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(R.string.rateCompletedBookTitle)) },
-        text = {
-            StarRatingRow(
-                selected = selectedRating,
-                onRate = onRate,
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(R.string.laterAction))
-            }
-        },
     )
 }
 

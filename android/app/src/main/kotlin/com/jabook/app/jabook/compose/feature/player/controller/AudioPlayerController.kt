@@ -137,6 +137,8 @@ public class AudioPlayerController
 
         // Callback for chapter end handling (e.g., repeat logic)
         private var onChapterEndedCallback: (() -> Boolean)? = null
+        private var onChapterRepeatedCallback: (() -> Boolean)? = null
+        private var onChapterChangedCallback: (() -> Unit)? = null
 
         // Audio offload state — updated by both listeners
         private var isAudioOffloaded = false
@@ -210,6 +212,14 @@ public class AudioPlayerController
             }
         }
 
+        private data class SetRepeatModeCommand(
+            private val repeatMode: Int,
+        ) : PendingControllerCommand {
+            override fun execute(controller: MediaController) {
+                controller.repeatMode = repeatMode
+            }
+        }
+
         private data object InitializeVisualizerCommand : PendingControllerCommand {
             override fun execute(controller: MediaController) {
                 MediaControllerExtensions.initializeVisualizer(controller)
@@ -230,6 +240,16 @@ public class AudioPlayerController
          */
         public fun setOnChapterEndedCallback(callback: (() -> Boolean)?) {
             onChapterEndedCallback = callback
+        }
+
+        /** Invoked after Media3 repeats the current item; returns whether to keep repeat-one on. */
+        public fun setOnChapterRepeatedCallback(callback: (() -> Boolean)?) {
+            onChapterRepeatedCallback = callback
+        }
+
+        /** Invoked when Media3 advances to a different chapter without repeating it. */
+        public fun setOnChapterChangedCallback(callback: (() -> Unit)?) {
+            onChapterChangedCallback = callback
         }
 
         /**
@@ -277,6 +297,14 @@ public class AudioPlayerController
                     reason: Int,
                 ) {
                     val controller = mediaController ?: return
+                    when (reason) {
+                        Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> {
+                            if (onChapterRepeatedCallback?.invoke() != true) {
+                                controller.repeatMode = Player.REPEAT_MODE_OFF
+                            }
+                        }
+                        Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> onChapterChangedCallback?.invoke()
+                    }
                     _currentChapterIndex.value = controller.currentMediaItemIndex
                     _duration.value = controller.duration.coerceAtLeast(0)
                     updateStats(controller)
@@ -342,6 +370,14 @@ public class AudioPlayerController
                     mediaItem: MediaItem?,
                     reason: Int,
                 ) {
+                    when (reason) {
+                        Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> {
+                            if (onChapterRepeatedCallback?.invoke() != true) {
+                                exoPlayer.repeatMode = Player.REPEAT_MODE_OFF
+                            }
+                        }
+                        Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> onChapterChangedCallback?.invoke()
+                    }
                     _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
                     _duration.value = exoPlayer.duration.coerceAtLeast(0)
                     updateStats(exoPlayer)
@@ -694,6 +730,8 @@ public class AudioPlayerController
                 -> DeferredCommandType.SKIP
 
                 is SetPlaybackSpeedCommand -> DeferredCommandType.SPEED
+
+                is SetRepeatModeCommand -> DeferredCommandType.REPEAT_MODE
 
                 is SetVisualizerEnabledCommand -> DeferredCommandType.VISUALIZER_ENABLED
 
@@ -1073,6 +1111,15 @@ public class AudioPlayerController
                     speed = speed,
                     pitchCorrectionEnabled = pitchCorrectionEnabled,
                 )
+            }
+        }
+
+        public fun setRepeatMode(repeatMode: Int) {
+            executeOrQueue(
+                commandName = "setRepeatMode",
+                pendingCommand = SetRepeatModeCommand(repeatMode),
+            ) { controller ->
+                controller.repeatMode = repeatMode
             }
         }
 

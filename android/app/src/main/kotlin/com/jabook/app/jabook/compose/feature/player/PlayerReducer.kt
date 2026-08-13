@@ -53,6 +53,9 @@ public object PlayerReducer {
 
     public fun reduceChapterChanged(): Boolean = false
 
+    /** Native repeat-one remains active only for the infinite chapter-repeat mode. */
+    public fun shouldKeepNativeChapterRepeat(mode: ChapterRepeatMode): Boolean = mode == ChapterRepeatMode.INFINITE
+
     private fun reduceLoading(
         state: PlayerState,
         intent: PlayerIntent,

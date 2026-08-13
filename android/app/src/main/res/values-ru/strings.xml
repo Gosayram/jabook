@@ -2734,9 +2734,6 @@
     <string name="yearRecapDaysLabel">Активных дней</string>
     <string name="yearRecapSessionsLabel">Сессий</string>
     <string name="yearRecapTopAuthorLabel">Чаще всего слушали автора</string>
-    <string name="rateCompletedBookTitle">Как оцените эту книгу?</string>
-    <string name="rateCompletedBookThanks">Спасибо! Ваша оценка: %1$d/5.</string>
-    <string name="rateCompletedBookStar">%1$d звёзд</string>
     <string name="laterAction">Позже</string>
     <string name="continueSeriesLabel">Продолжить серию</string>
     <string name="playNowAction">Слушать сейчас</string>
@@ -3024,7 +3021,6 @@
     <string name="settingsDesktopMode">Большой</string>
     <string name="settingsDesktopModeDesc">Большой экран · список-детали</string>
     <string name="desktopSelectBookHint">Выберите книгу для просмотра деталей</string>
-    <string name="playerGoToBook">Перейти к книге</string>
     <string name="playerShare">Поделиться</string>
     <string name="playerStatistics">Статистика</string>
     <string name="playerOverflowMenu">Дополнительно</string>

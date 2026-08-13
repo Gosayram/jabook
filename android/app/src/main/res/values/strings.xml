@@ -2746,9 +2746,6 @@
     <string name="yearRecapDaysLabel">Active days</string>
     <string name="yearRecapSessionsLabel">Sessions</string>
     <string name="yearRecapTopAuthorLabel">Most listened author</string>
-    <string name="rateCompletedBookTitle">How would you rate this book?</string>
-    <string name="rateCompletedBookThanks">Thanks! You rated this book %1$d/5.</string>
-    <string name="rateCompletedBookStar">%1$d stars</string>
     <string name="laterAction">Later</string>
     <string name="minutesLabel">minutes</string>
     <string name="booksLabel">books</string>
@@ -2951,7 +2948,6 @@
     </plurals>
     <!-- Player overflow menu strings -->
     <string name="playerShare">Share</string>
-    <string name="playerGoToBook">Go to book</string>
     <string name="playerStatistics">Statistics</string>
     <string name="playerOverflowMenu">More options</string>
     <string name="desktopSelectBookHint">Select a book to view details</string>
