@@ -111,7 +111,7 @@ class LibraryScanWorkerTest {
 
     private fun successfulScanner(book: ScannedBook): LocalBookScanner =
         object : LocalBookScanner {
-            override val scanProgress: StateFlow<ScanProgress> = MutableStateFlow(ScanProgress.Completed(1))
+            override val scanProgress: StateFlow<ScanProgress> = MutableStateFlow(ScanProgress.Completed(1, 0L))
 
             override suspend fun scanAudiobooks(): Result<List<ScannedBook>, AppError> = Result.Success(listOf(book))
         }

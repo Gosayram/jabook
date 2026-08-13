@@ -665,7 +665,7 @@ public class AudioPlayerService : MediaLibraryService() {
                 // 3. Seek to the requested track/position
                 playerServiceScope.launch(Dispatchers.Main) {
                     try {
-                        pm.currentFilePaths = sortedPaths
+                        pm.currentFilePaths = playlistPaths
                         pm.currentMetadata = metadata
                         pm.currentGroupPath = groupPath
                         pm.actualTrackIndex = normalizedIndex
@@ -675,8 +675,8 @@ public class AudioPlayerService : MediaLibraryService() {
                         // The selected source was preloaded. Insert preceding sources in reverse so it
                         // remains at its intended timeline index, then append following sources.
                         val currentPlayer = getActivePlayer()
-                        for (index in PlaylistSessionStatePolicy.crossfadeRemainingSourceIndices(sortedPaths.size, normalizedIndex)) {
-                            val source = pm.createMediaSource(sortedPaths, index, metadata)
+                        for (index in PlaylistSessionStatePolicy.crossfadeRemainingSourceIndices(playlistPaths.size, normalizedIndex)) {
+                            val source = pm.createMediaSource(playlistPaths, index, metadata)
                             if (source != null) {
                                 if (index < normalizedIndex) {
                                     currentPlayer.addMediaSource(0, source)
