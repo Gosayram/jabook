@@ -109,42 +109,14 @@ public class MediaSessionManager(
                         "lastPlayWhenReady=$lastPlayWhenReady, playbackState=${player.playbackState}",
                 )
 
-                // User commands and involuntary playback pauses must both close an active
-                // listening session. Other non-user transitions are informational only.
-                if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST ||
-                    (
-                        !playWhenReady &&
-                            (
-                                reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS ||
-                                    reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY
-                            )
-                    )
-                ) {
-                    if (playWhenReady && !lastPlayWhenReady) {
-                        // User requested play via MediaSession (Quick Settings, notification, etc.)
-                        LogUtils.i(
-                            "MediaSessionManager",
-                            "Play command detected from MediaSession (USER_REQUEST), calling playCallback",
-                        )
+                if (playWhenReady != lastPlayWhenReady) {
+                    if (playWhenReady) {
+                        LogUtils.i("MediaSessionManager", "Playback started ($reasonText), calling playCallback")
                         playCallback?.invoke()
-                    } else if (!playWhenReady && lastPlayWhenReady) {
-                        // User requested pause via MediaSession (Quick Settings, notification, etc.)
-                        LogUtils.i(
-                            "MediaSessionManager",
-                            "Pause command detected from MediaSession (USER_REQUEST), calling pauseCallback",
-                        )
-                        pauseCallback?.invoke()
                     } else {
-                        LogUtils.d(
-                            "MediaSessionManager",
-                            "PlayWhenReady changed but no callback needed: playWhenReady=$playWhenReady, lastPlayWhenReady=$lastPlayWhenReady",
-                        )
+                        LogUtils.i("MediaSessionManager", "Playback paused ($reasonText), calling pauseCallback")
+                        pauseCallback?.invoke()
                     }
-                } else {
-                    LogUtils.d(
-                        "MediaSessionManager",
-                        "PlayWhenReady changed but not from user request (reason=$reasonText), skipping callbacks",
-                    )
                 }
                 lastPlayWhenReady = playWhenReady
             }

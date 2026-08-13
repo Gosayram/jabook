@@ -34,6 +34,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -167,6 +168,17 @@ class CrossfadeTest {
         assertFalse(playerChanged)
         verify(playerA).volume = 1f
         verify(playerB).volume = 1f
+    }
+
+    @Test
+    fun `transition state is cleared when crossfade is cancelled`() {
+        crossFadePlayer.startCrossFade()
+
+        assertTrue(crossFadePlayer.isTransitionRunning())
+
+        crossFadePlayer.pause()
+
+        assertFalse(crossFadePlayer.isTransitionRunning())
     }
 
     @Test

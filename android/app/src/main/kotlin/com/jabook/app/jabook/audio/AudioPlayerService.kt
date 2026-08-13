@@ -641,6 +641,14 @@ public class AudioPlayerService : MediaLibraryService() {
                 return@launch
             }
 
+            // A newer explicit book selection must not be left as an unobserved preload.
+            // Cancel the old transition and let PlaylistManager apply the latest selection.
+            if (cfp.isTransitionRunning()) {
+                cfp.pause()
+                pm.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback)
+                return@launch
+            }
+
             // Stop crossfadeHandler monitoring during the transition
             crossfadeHandler?.stopMonitoring()
 

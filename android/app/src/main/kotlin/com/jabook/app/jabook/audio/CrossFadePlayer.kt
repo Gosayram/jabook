@@ -286,4 +286,7 @@ public class CrossFadePlayer(
     public fun getActivePlayer(): ExoPlayer = currentPlayer
 
     public fun getNextPlayer(): ExoPlayer = nextPlayer
+
+    /** Returns whether a transition is currently using both players. */
+    public fun isTransitionRunning(): Boolean = isCrossFading
 }

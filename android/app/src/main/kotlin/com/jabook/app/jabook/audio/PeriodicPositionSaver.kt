@@ -67,13 +67,15 @@ internal class PeriodicPositionSaver(
         val player = getActivePlayer()
         val bookId = getCurrentBookId()
         if (player.mediaItemCount > 0 && !bookId.isNullOrBlank()) {
+            val trackIndex = player.currentMediaItemIndex
+            val position = player.currentPosition
             // The service cancels its scope immediately after onDestroy. This final
             // database write must survive that cancellation to retain progress.
             scope.launch(ioDispatcher + NonCancellable) {
                 repository.savePosition(
                     bookId = bookId,
-                    trackIndex = player.currentMediaItemIndex,
-                    position = player.currentPosition,
+                    trackIndex = trackIndex,
+                    position = position,
                 )
             }
         }

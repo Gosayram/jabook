@@ -227,6 +227,18 @@ class MediaSessionManagerTest {
     }
 
     @Test
+    fun `onPlayWhenReadyChanged starts tracking for remote playback command`() {
+        val listenerCaptor = argumentCaptor<Player.Listener>()
+        verify(exoPlayer).addListener(listenerCaptor.capture())
+        val listener = listenerCaptor.firstValue
+
+        whenever(exoPlayer.playWhenReady).thenReturn(true)
+        listener.onPlayWhenReadyChanged(true, Player.PLAY_WHEN_READY_CHANGE_REASON_REMOTE)
+
+        assertEquals(true, playCallbackInvoked)
+    }
+
+    @Test
     fun `onPlayWhenReadyChanged does not trigger callbacks when state does not change`() {
         // Given
         val listenerCaptor = argumentCaptor<Player.Listener>()

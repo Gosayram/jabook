@@ -54,4 +54,30 @@ class PeriodicPositionSaverTest {
 
             verify(repository).savePosition(eq("book-1"), eq(2), eq(45_000L))
         }
+
+    @Test
+    fun `save keeps the position captured before asynchronous persistence`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val player: ExoPlayer = mock()
+            val repository: PlaybackPositionRepository = mock()
+            var trackIndex = 2
+            var position = 45_000L
+            whenever(player.mediaItemCount).thenReturn(1)
+            whenever(player.currentMediaItemIndex).thenAnswer { trackIndex }
+            whenever(player.currentPosition).thenAnswer { position }
+
+            PeriodicPositionSaver(
+                scope = CoroutineScope(SupervisorJob() + dispatcher),
+                repository = repository,
+                getActivePlayer = { player },
+                getCurrentBookId = { "book-1" },
+                ioDispatcher = dispatcher,
+            ).save()
+            trackIndex = 3
+            position = 60_000L
+            advanceUntilIdle()
+
+            verify(repository).savePosition(eq("book-1"), eq(2), eq(45_000L))
+        }
 }
