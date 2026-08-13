@@ -198,7 +198,6 @@ class MirrorDomainValidationPolicyTest {
 
     @Test
     fun `rutracker in path does not cause false negative for warning`() {
-        // "rutracker.nl" contains "rutracker" — no warning
         val result = MirrorDomainValidationPolicy.validate("rutracker.nl")
         assertTrue(result.isValid)
         assertFalse(result.isWarning)

@@ -46,8 +46,7 @@ public object MirrorDomainValidationPolicy {
      * Domains not matching any of these trigger a [isWarning] flag so the UI
      * can ask for explicit user confirmation.
      */
-    public val KNOWN_RUTRACKER_KEYWORDS: List<String> =
-        listOf("rutracker")
+    public val KNOWN_RUTRACKER_KEYWORDS: List<String> = listOf("rutracker")
 
     /**
      * Validates and sanitizes a raw user-supplied mirror input.
@@ -132,19 +131,12 @@ public object MirrorDomainValidationPolicy {
             )
         }
 
-        // Check if it looks like a known rutracker mirror
-        val looksLikeRutracker =
-            KNOWN_RUTRACKER_KEYWORDS.any { keyword -> domain.contains(keyword, ignoreCase = true) }
+        val looksLikeRutracker = KNOWN_RUTRACKER_KEYWORDS.any { keyword -> domain.contains(keyword, ignoreCase = true) }
 
         return ValidationResult(
             sanitizedDomain = domain,
             isWarning = !looksLikeRutracker,
-            rejectionReason =
-                if (!looksLikeRutracker) {
-                    "Domain does not appear to be a RuTracker mirror"
-                } else {
-                    null
-                },
+            rejectionReason = if (!looksLikeRutracker) "Domain does not appear to be a RuTracker mirror" else null,
         )
     }
 

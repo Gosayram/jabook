@@ -84,7 +84,7 @@ public class RutrackerAuthService
 
             return withContext(Dispatchers.IO) {
                 try {
-                    logger.log(operationId, "Authentication started for user: ${credentials.username}")
+                    logger.log(operationId, "Authentication started")
 
                     // Step 1: Encode credentials to CP1251
                     val encodeStart = System.currentTimeMillis()

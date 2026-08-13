@@ -137,6 +137,17 @@ public object DatabaseModule {
         }
 
     /**
+     * Database migration from version 3 to version 4.
+     *
+     * The historical schema version changed without table changes; Room still requires this
+     * transition to upgrade installed version-3 databases.
+     */
+    private val MIGRATION_3_4 =
+        createLoggedMigration(3, 4) {
+            // No schema changes.
+        }
+
+    /**
      * Database migration from version 4 to version 5.
      *
      * Adds download_queue table for persistent download queue management.
@@ -340,6 +351,7 @@ public object DatabaseModule {
         listOf(
             MIGRATION_1_2,
             MIGRATION_2_3,
+            MIGRATION_3_4,
             MIGRATION_4_5,
             MIGRATION_5_6,
             MIGRATION_6_7,

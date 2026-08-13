@@ -73,20 +73,13 @@ public object NetworkModule {
     /**
      * Provide logging interceptor.
      *
-     * Note: Level.BODY logs request/response bodies which may contain sensitive data.
-     * For production, consider using Level.BASIC or Level.HEADERS instead.
-     * Level.BODY is useful for debugging network issues.
+     * Request bodies can contain credentials, so logging is limited to request metadata.
      */
     @Provides
     @Singleton
     public fun provideLoggingInterceptor(): HttpLoggingInterceptor =
         HttpLoggingInterceptor().apply {
-            level =
-                if (BuildConfig.DEBUG) {
-                    HttpLoggingInterceptor.Level.BODY
-                } else {
-                    HttpLoggingInterceptor.Level.BASIC
-                }
+            level = HttpLoggingInterceptor.Level.BASIC
             redactHeader("Authorization")
             redactHeader("Cookie")
             redactHeader("Set-Cookie")

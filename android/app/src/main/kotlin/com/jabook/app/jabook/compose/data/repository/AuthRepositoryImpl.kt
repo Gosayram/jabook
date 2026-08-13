@@ -142,6 +142,7 @@ public class AuthRepositoryImpl
         }
 
         override suspend fun login(credentials: UserCredentials): Result<Boolean> {
+            useTrustedAuthenticationMirror()
             // Check if login is already in progress
             if (!loginMutex.tryLock()) {
                 logger.w { "Login already in progress, ignoring duplicate request" }
@@ -224,6 +225,7 @@ public class AuthRepositoryImpl
             captchaCode: String,
             captchaData: CaptchaData,
         ): Result<Boolean> {
+            useTrustedAuthenticationMirror()
             // Check if login is already in progress
             if (!loginMutex.tryLock()) {
                 logger.w { "Captcha login already in progress, ignoring duplicate request" }
@@ -286,7 +288,14 @@ public class AuthRepositoryImpl
             loginMutex.withLock {
                 cookieJar.clear()
                 secureStorage.clearCredentials()
+                cookiePersistence.clearWebViewSession(rutrackerUrl.toString())
                 _authStatus.value = AuthStatus.Unauthenticated
+            }
+        }
+
+        private suspend fun useTrustedAuthenticationMirror() {
+            if (mirrorManager.currentMirror.value !in MirrorManager.DEFAULT_MIRRORS) {
+                mirrorManager.setMirror(MirrorManager.DEFAULT_MIRRORS.first())
             }
         }
 

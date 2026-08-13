@@ -70,6 +70,20 @@ class AuthRepositoryImplTest {
             verify(cookieJar, atLeastOnce()).clear()
         }
 
+    @Test
+    fun `login switches an untrusted mirror before sending credentials`() =
+        runTest {
+            whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("evil.example"))
+            whenever(authService.login(any())).thenReturn(RutrackerAuthService.AuthResult.Error("failed"))
+
+            repository().login(
+                com.jabook.app.jabook.compose.domain.model
+                    .UserCredentials("user", "password"),
+            )
+
+            verify(mirrorManager).setMirror(MirrorManager.DEFAULT_MIRRORS.first())
+        }
+
     private fun repository() =
         AuthRepositoryImpl(
             authService = authService,

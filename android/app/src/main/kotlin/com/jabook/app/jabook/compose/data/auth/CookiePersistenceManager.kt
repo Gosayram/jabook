@@ -108,6 +108,16 @@ public class CookiePersistenceManager
                     logger.e({ "Failed to sync from WebView" }, e)
                 }
             }
+
+        /** Removes the only session cookie that the fallback flow can import. */
+        public suspend fun clearWebViewSession(url: String): Unit =
+            withContext(Dispatchers.IO) {
+                val host = url.toHttpUrl().host
+                val cookieManager = CookieManager.getInstance()
+                cookieManager.setCookie(url, "$RUTRACKER_SESSION_COOKIE=; Max-Age=0; Path=/; Secure; HttpOnly")
+                cookieManager.setCookie(url, "$RUTRACKER_SESSION_COOKIE=; Max-Age=0; Domain=$host; Path=/; Secure; HttpOnly")
+                cookieManager.flush()
+            }
     }
 
 internal fun captureWebViewSessionCookie(
