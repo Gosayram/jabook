@@ -27,6 +27,7 @@ import com.jabook.app.jabook.compose.domain.model.Chapter
 import com.jabook.app.jabook.compose.navigation.TorrentDetailsRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -61,7 +62,7 @@ public class TorrentDetailsViewModel
         public val isBuffering: StateFlow<Boolean> = streamingMonitor.isBuffering
 
         private val _navigationEvent = Channel<String>(Channel.BUFFERED)
-        public val navigationEvent = _navigationEvent.receiveAsFlow()
+        public val navigationEvent: Flow<String> = _navigationEvent.receiveAsFlow()
 
         public fun playFile(file: com.jabook.app.jabook.compose.data.torrent.TorrentFile) {
             viewModelScope.launch {
@@ -134,7 +135,7 @@ public class TorrentDetailsViewModel
                 booksRepository.addBooks(listOf(book to listOf(chapter)))
 
                 // 6. Navigate
-                _navigationEvent.emit(bookId)
+                _navigationEvent.send(bookId)
             }
         }
 
