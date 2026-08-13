@@ -173,7 +173,8 @@ public class PlayerViewModel
                 )
 
         private var lastPersistedPlayerSnapshot: PlayerStateSnapshot? = null
-        private var restoredBootstrapSnapshot: RestoredBootstrapSnapshot? = null
+        private val restoredBootstrapSnapshot = MutableStateFlow<RestoredBootstrapSnapshot?>(null)
+        private val isPlaybackRestoreReady = MutableStateFlow(false)
         private var hasShownSleepTimerResumeHint: Boolean = false
         private var hasShownEqRecommendation: Boolean = false
         private var hasShownSmartResumeRecapHint: Boolean = false
@@ -234,12 +235,16 @@ public class PlayerViewModel
             // - Other system events
             viewModelScope.launch {
                 try {
-                    val positionResult = playbackPositionRepository.getPosition(bookId).first().toTypedResult()
+                    val positionResult =
+                        playbackPositionRepository
+                            .getPosition(bookId)
+                            .firstTerminalResult()
+                            .toTypedResult()
                     when (positionResult) {
                         is TypedResult.Success -> {
                             positionResult.data?.let { entity ->
-                                val currentSnapshot = restoredBootstrapSnapshot
-                                restoredBootstrapSnapshot =
+                                val currentSnapshot = restoredBootstrapSnapshot.value
+                                restoredBootstrapSnapshot.value =
                                     RestoredBootstrapSnapshot(
                                         positionMs = entity.position.coerceAtLeast(0L),
                                         chapterIndex = entity.trackIndex.coerceAtLeast(0),
@@ -257,12 +262,12 @@ public class PlayerViewModel
                                 "Failed to restore position: ${positionResult.error.message}"
                             }
                         }
-                        is TypedResult.Loading -> {
-                            // Loading state, will be updated when ready
-                        }
+                        is TypedResult.Loading -> Unit
                     }
                 } catch (e: Exception) {
                     logger.e({ "Error restoring position from database" }, e)
+                } finally {
+                    isPlaybackRestoreReady.value = true
                 }
             }
 
@@ -336,7 +341,11 @@ public class PlayerViewModel
                 userPreferencesRepository.userData.map { it.playbackSpeed },
                 sleepTimerRepository.timerState,
                 chapterRepeatModeState,
+                restoredBootstrapSnapshot,
+                isPlaybackRestoreReady,
             ) { args ->
+                val isRestoreReady = args[11] as Boolean
+                if (!isRestoreReady) return@combine PlayerState.Loading
                 val book = args[0] as? Book
 
                 @Suppress("UNCHECKED_CAST")
@@ -375,7 +384,7 @@ public class PlayerViewModel
                         }
 
                     val maxChapterIndex = (chapters.size - 1).coerceAtLeast(0)
-                    val bootstrapSnapshot = restoredBootstrapSnapshot
+                    val bootstrapSnapshot = args[10] as RestoredBootstrapSnapshot?
                     val safeSavedChapterIndex = (bootstrapSnapshot?.chapterIndex ?: 0).coerceIn(0, maxChapterIndex)
                     val isControllerBoundToCurrentBook = controllerBookId == bookId
                     // Once controller is bound to this book, it is the single source of truth
@@ -1278,7 +1287,7 @@ public class PlayerViewModel
                         bookId = bookId,
                     )
 
-                    val shouldSkipHierarchicalSpeedApply = restoredBootstrapSnapshot?.hasRestoredSpeed ?: false
+                    val shouldSkipHierarchicalSpeedApply = restoredBootstrapSnapshot.value?.hasRestoredSpeed ?: false
                     if (!shouldSkipHierarchicalSpeedApply) {
                         viewModelScope.launch {
                             runCatching {
@@ -1354,7 +1363,7 @@ public class PlayerViewModel
             val restoredChapterIndex = (savedStateHandle[STATE_SNAPSHOT_CHAPTER_INDEX] ?: 0).coerceAtLeast(0)
             val restoredSpeed = (savedStateHandle[STATE_SNAPSHOT_PLAYBACK_SPEED] ?: 1.0f).coerceAtLeast(0f)
             val restoredSleepMode = savedStateHandle[STATE_SNAPSHOT_SLEEP_MODE] ?: PlayerStateSnapshotPolicy.MODE_IDLE
-            restoredBootstrapSnapshot =
+            restoredBootstrapSnapshot.value =
                 RestoredBootstrapSnapshot(
                     positionMs = restoredPosition,
                     chapterIndex = restoredChapterIndex,
@@ -1371,15 +1380,19 @@ public class PlayerViewModel
 
         private fun restoreStateSnapshotFromDataStore() {
             viewModelScope.launch {
-                val existingSnapshot = restoredBootstrapSnapshot
+                val existingSnapshot = restoredBootstrapSnapshot.value
                 if ((existingSnapshot?.chapterIndex ?: 0) > 0 || (existingSnapshot?.positionMs ?: 0L) > 0L) return@launch
                 val snapshot = settingsRepository.playerStateSnapshot.first() ?: return@launch
+                val restoredWhileReading = restoredBootstrapSnapshot.value
+                if ((restoredWhileReading?.chapterIndex ?: 0) > 0 || (restoredWhileReading?.positionMs ?: 0L) > 0L) {
+                    return@launch
+                }
                 if (snapshot.bookId != bookId) return@launch
                 val restoredPosition = snapshot.positionMs.coerceAtLeast(0L)
                 val restoredChapterIndex = snapshot.chapterIndex.coerceAtLeast(0)
                 val restoredSpeed = snapshot.playbackSpeed.coerceAtLeast(0f)
                 val restoredSleepMode = snapshot.sleepTimerMode.ifBlank { PlayerStateSnapshotPolicy.MODE_IDLE }
-                restoredBootstrapSnapshot =
+                restoredBootstrapSnapshot.value =
                     RestoredBootstrapSnapshot(
                         positionMs = restoredPosition,
                         chapterIndex = restoredChapterIndex,
@@ -1396,7 +1409,7 @@ public class PlayerViewModel
 
         private fun restorePlaybackSpeedFromSnapshotIfNeeded() {
             viewModelScope.launch {
-                val bootstrapSnapshot = restoredBootstrapSnapshot ?: return@launch
+                val bootstrapSnapshot = restoredBootstrapSnapshot.value ?: return@launch
                 if (bootstrapSnapshot.playbackSpeed <= 0f) return@launch
                 runCatching {
                     val currentSpeed = userPreferencesRepository.userData.first().playbackSpeed
@@ -1411,7 +1424,7 @@ public class PlayerViewModel
 
         private fun restoreSleepTimerModeFromSnapshotIfNeeded() {
             viewModelScope.launch {
-                val bootstrapSnapshot = restoredBootstrapSnapshot ?: return@launch
+                val bootstrapSnapshot = restoredBootstrapSnapshot.value ?: return@launch
                 when (bootstrapSnapshot.sleepTimerMode) {
                     PlayerStateSnapshotPolicy.MODE_END_OF_CHAPTER -> {
                         if (PlayerIntentGuardPolicy.shouldStartEndOfChapter(sleepTimerState.value)) {

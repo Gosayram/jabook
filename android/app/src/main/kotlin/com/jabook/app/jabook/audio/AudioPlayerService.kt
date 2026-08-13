@@ -227,7 +227,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     // MediaSession custom layout helper (extracted from service)
     /** Notification content intent factory (extracted from service). */
-    internal val notificationIntentFactory = NotificationIntentFactory(this)
+    internal val notificationIntentFactory = NotificationIntentFactory(this) { currentGroupPath }
 
     internal val mediaSessionLayoutHelper =
         MediaSessionLayoutHelper(this, playerServiceScope) { mediaSession }

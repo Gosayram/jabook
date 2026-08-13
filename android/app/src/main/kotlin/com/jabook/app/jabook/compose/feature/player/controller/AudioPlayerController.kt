@@ -21,6 +21,7 @@ import androidx.core.content.ContextCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionResult
@@ -92,6 +93,7 @@ public class AudioPlayerController
         private var exoFallbackListenerAttached = false
         private val pendingCommands = ArrayDeque<PendingControllerCommand>()
         private var pendingLoadRequest: PendingLoadRequest? = null
+        private var pendingChapterSeek: SkipToChapterCommand? = null
         private val maxPendingCommands = 64
         private var loadBookRetryAttempts: Int = 0
         private var nextLoadRequestId: Long = 0L
@@ -187,8 +189,8 @@ public class AudioPlayerController
         }
 
         private data class SkipToChapterCommand(
-            private val chapterIndex: Int,
-            private val positionMs: Long,
+            val chapterIndex: Int,
+            val positionMs: Long,
         ) : PendingControllerCommand {
             override fun execute(controller: MediaController) {
                 controller.seekTo(chapterIndex, positionMs)
@@ -279,6 +281,13 @@ public class AudioPlayerController
                     _duration.value = controller.duration.coerceAtLeast(0)
                     updateStats(controller)
                     chapterLoudnessPolicy.onChapterTransition(controller.currentMediaItemIndex)
+                }
+
+                override fun onTimelineChanged(
+                    timeline: Timeline,
+                    reason: Int,
+                ) {
+                    mediaController?.let(::applyPendingChapterSeekIfAvailable)
                 }
 
                 override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
@@ -701,11 +710,35 @@ public class AudioPlayerController
             while (pendingCommands.isNotEmpty()) {
                 val command = pendingCommands.removeFirst()
                 try {
-                    command.execute(controller)
+                    if (command is SkipToChapterCommand) {
+                        seekToChapterWhenAvailable(controller, command)
+                    } else {
+                        command.execute(controller)
+                    }
                 } catch (e: Exception) {
                     logger.e(e) { "Failed to execute queued MediaController command" }
                 }
             }
+        }
+
+        private fun seekToChapterWhenAvailable(
+            controller: MediaController,
+            command: SkipToChapterCommand,
+        ) {
+            if (ChapterSeekAvailabilityPolicy.isAvailable(command.chapterIndex, controller.mediaItemCount)) {
+                pendingChapterSeek = null
+                command.execute(controller)
+            } else {
+                pendingChapterSeek = command
+                logger.d {
+                    "Deferring chapter ${command.chapterIndex} seek until playlist contains it " +
+                        "(items=${controller.mediaItemCount})"
+                }
+            }
+        }
+
+        private fun applyPendingChapterSeekIfAvailable(controller: MediaController) {
+            pendingChapterSeek?.let { seekToChapterWhenAvailable(controller, it) }
         }
 
         private fun executeOrQueue(
@@ -764,6 +797,7 @@ public class AudioPlayerController
             metadata: Map<String, String>? = null,
             bookId: String? = null,
         ) {
+            pendingChapterSeek = null
             val request =
                 PendingLoadRequest(
                     requestId = nextRequestId(),
@@ -1016,11 +1050,12 @@ public class AudioPlayerController
             index: Int,
             positionMs: Long = 0L,
         ) {
+            val command = SkipToChapterCommand(index, positionMs)
             executeOrQueue(
                 commandName = "skipToChapter",
-                pendingCommand = SkipToChapterCommand(index, positionMs),
+                pendingCommand = command,
             ) { controller ->
-                controller.seekTo(index, positionMs)
+                seekToChapterWhenAvailable(controller, command)
             }
         }
 
@@ -1165,6 +1200,7 @@ public class AudioPlayerController
             positionUpdateJob?.cancel()
             positionUpdateJob = null
             pendingLoadRequest = null
+            pendingChapterSeek = null
             loadBookRetryAttempts = 0
             pendingCommands.clear()
 

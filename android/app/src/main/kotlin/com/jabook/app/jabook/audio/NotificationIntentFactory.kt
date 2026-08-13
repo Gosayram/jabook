@@ -22,6 +22,18 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.TaskStackBuilder
 import com.jabook.app.jabook.compose.ComposeMainActivity
 
+internal fun playerNotificationUri(bookId: String?): android.net.Uri? =
+    bookId
+        ?.takeIf(String::isNotBlank)
+        ?.let {
+            android.net.Uri
+                .Builder()
+                .scheme("jabook")
+                .authority("player")
+                .appendPath(it)
+                .build()
+        }
+
 /**
  * Creates notification content intents for the audio player service.
  *
@@ -30,6 +42,7 @@ import com.jabook.app.jabook.compose.ComposeMainActivity
  */
 internal class NotificationIntentFactory(
     private val context: Context,
+    private val currentBookId: () -> String?,
 ) {
     /**
      * Returns the single top activity PendingIntent.
@@ -47,10 +60,7 @@ internal class NotificationIntentFactory(
         return PendingIntent.getActivity(
             context,
             0,
-            Intent(context, ComposeMainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                data = android.net.Uri.parse("jabook://player")
-            },
+            playerActivityIntent(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             immutableFlag or PendingIntent.FLAG_UPDATE_CURRENT,
         )
     }
@@ -70,9 +80,15 @@ internal class NotificationIntentFactory(
             }
         return TaskStackBuilder.create(context).run {
             addNextIntent(
-                Intent(context, ComposeMainActivity::class.java),
+                playerActivityIntent(),
             )
             getPendingIntent(0, immutableFlag or PendingIntent.FLAG_UPDATE_CURRENT)
         }
     }
+
+    private fun playerActivityIntent(flags: Int = 0): Intent =
+        Intent(context, ComposeMainActivity::class.java).apply {
+            this.flags = flags
+            data = playerNotificationUri(currentBookId())
+        }
 }

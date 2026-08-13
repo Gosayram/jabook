@@ -15,6 +15,11 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import com.jabook.app.jabook.audio.core.result.Result as AudioResult
+
+internal suspend fun <T> Flow<AudioResult<T>>.firstTerminalResult(): AudioResult<T> = first { it !is AudioResult.Loading }
 
 /**
  * Serializable snapshot of player screen state for process-death restore.

@@ -17,12 +17,30 @@ package com.jabook.app.jabook.compose.feature.player
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.jabook.app.jabook.audio.core.result.Result as AudioResult
 
 class PlayerStateSnapshotPolicyTest {
+    @Test
+    fun `firstTerminalResult waits past loading for restored position`() =
+        runTest {
+            val restored =
+                flowOf(
+                    AudioResult.Loading,
+                    AudioResult.Success(PlaybackRestore(positionMs = 42_000L, chapterIndex = 3)),
+                ).firstTerminalResult()
+
+            assertEquals(
+                AudioResult.Success(PlaybackRestore(positionMs = 42_000L, chapterIndex = 3)),
+                restored,
+            )
+        }
+
     @Test
     fun `capture stores clamped active state values`() {
         val activeState =
@@ -113,3 +131,8 @@ class PlayerStateSnapshotPolicyTest {
         assertTrue(PlayerStateSnapshotPolicy.shouldPersistSnapshot(base, differentChapter))
     }
 }
+
+private data class PlaybackRestore(
+    val positionMs: Long,
+    val chapterIndex: Int,
+)
