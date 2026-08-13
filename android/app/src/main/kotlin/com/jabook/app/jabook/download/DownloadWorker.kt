@@ -76,10 +76,10 @@ public class DownloadWorker
             val stopReasonAtStart = runCatching { stopReason }.getOrDefault(-1)
 
             LogUtils.i(TAG, "Starting download: $bookTitle (attempt=$attempt, stopReason=$stopReasonAtStart)")
-            LogUtils.d(TAG, "Magnet URI: $magnetUri")
             LogUtils.d(TAG, "Save path: $savePath")
 
             return try {
+                setForeground(getForegroundInfo())
                 // Initialize TorrentManager if needed
                 torrentManager.initialize()
 

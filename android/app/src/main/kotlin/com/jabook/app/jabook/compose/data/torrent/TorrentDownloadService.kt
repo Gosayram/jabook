@@ -55,7 +55,7 @@ public class TorrentDownloadService : Service() {
     @Inject
     public lateinit var loggerFactory: LoggerFactory
 
-    private val logger = loggerFactory.get("TorrentDownloadService")
+    private val logger by lazy { loggerFactory.get("TorrentDownloadService") }
     private val serviceScope =
         CoroutineScope(
             SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("TorrentDownloadService"),

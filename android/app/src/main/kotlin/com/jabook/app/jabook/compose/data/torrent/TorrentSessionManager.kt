@@ -98,7 +98,6 @@ public class TorrentSessionManager
         private var pendingResumeDataLatch: CountDownLatch? = null
 
         private companion object {
-            private const val LIBRARY_SYNC_AFTER_TORRENT_WORK = "library_scan_after_torrent_finish"
             private const val LIBRARY_SYNC_TRIGGER_COOLDOWN_MS = 3_000L
             private const val SESSION_STATE_DIRECTORY = "torrent"
             private const val SESSION_STATE_FILE = "session.state"
@@ -858,7 +857,7 @@ public class TorrentSessionManager
                         .build()
 
                 WorkManager.getInstance(context).enqueueUniqueWork(
-                    LIBRARY_SYNC_AFTER_TORRENT_WORK,
+                    LibraryScanWorker.WORK_NAME,
                     ExistingWorkPolicy.KEEP,
                     workRequest,
                 )

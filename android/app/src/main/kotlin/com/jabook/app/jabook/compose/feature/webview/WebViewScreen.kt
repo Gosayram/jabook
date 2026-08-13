@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.feature.webview
 
 import android.graphics.Bitmap
+import android.view.WindowManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -39,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +48,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -57,6 +60,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.navigation.WebViewRoute
+import com.jabook.app.jabook.utils.componentActivity
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
@@ -85,6 +89,7 @@ public fun WebViewScreen(
     viewModel: WebViewViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val currentView = LocalView.current
     // Decode URL from navigation argument
     val url =
         remember(route.url) {
@@ -100,6 +105,19 @@ public fun WebViewScreen(
     var loadingProgress by remember { mutableFloatStateOf(0f) }
     var canGoBack by remember { mutableStateOf(false) }
     var isCapturingSession by remember { mutableStateOf(false) }
+
+    DisposableEffect(currentView, route.isAuthentication) {
+        if (route.isAuthentication) {
+            currentView.context.componentActivity.window
+                .addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        onDispose {
+            if (route.isAuthentication) {
+                currentView.context.componentActivity.window
+                    .clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
+    }
 
     // Handle back button - navigate in WebView if possible
     BackHandler(enabled = canGoBack) {
