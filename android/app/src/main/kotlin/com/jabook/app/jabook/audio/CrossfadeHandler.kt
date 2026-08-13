@@ -46,6 +46,7 @@ internal class CrossfadeHandler(
     public fun startMonitoring() {
         if (isMonitoring) return
         monitoringGeneration += 1L
+        prefetchedChapterIndex = -1
         isMonitoring = true
         handler.post(monitorRunnable)
     }

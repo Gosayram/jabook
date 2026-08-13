@@ -38,6 +38,7 @@ import org.junit.runner.RunWith
 import org.mockito.kotlin.clearInvocations
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowLooper
@@ -140,6 +141,19 @@ class CrossfadeTest {
         assertFalse(playerChanged)
         verify(playerA).volume = 1f
         verify(playerB).volume = 1f
+    }
+
+    @Test
+    fun `restart after pause remains crossfading until replacement transition completes`() {
+        crossFadePlayer.startCrossFade()
+        testScope.advanceTimeBy(20)
+        crossFadePlayer.pause()
+        crossFadePlayer.startCrossFade()
+
+        testScope.advanceTimeBy(20)
+        crossFadePlayer.startCrossFade()
+
+        verify(playerB, times(2)).play()
     }
 
     @Test

@@ -81,6 +81,7 @@ public class AudioPlayerService : MediaLibraryService() {
     public lateinit var audioOutputManager: AudioOutputManager
 
     internal var audioOutputPlayerListener: Player.Listener? = null
+    internal var audioOutputPlayerTarget: ExoPlayer? = null
 
     @Inject
     public lateinit var playbackEnhancerService: PlaybackEnhancerService
@@ -420,8 +421,6 @@ public class AudioPlayerService : MediaLibraryService() {
 
     internal fun isAudioOutputManagerInitialized(): Boolean = ::audioOutputManager.isInitialized
 
-    internal fun isExoPlayerInitialized(): Boolean = ::exoPlayer.isInitialized
-
     internal fun isPlaybackEnhancerServiceInitialized(): Boolean = ::playbackEnhancerService.isInitialized
 
     internal fun isBassBoostManagerInitialized(): Boolean = ::bassBoostManager.isInitialized
@@ -528,6 +527,17 @@ public class AudioPlayerService : MediaLibraryService() {
         mediaLibrarySession?.player = player
         mediaSessionManager?.updatePlayer(player)
         playerConfigurator?.rebindListeners(player)
+        rebindAudioOutputPlayer(player)
+        audioVisualizerManager?.initialize(player.audioSessionId)
+    }
+
+    internal fun rebindAudioOutputPlayer(player: ExoPlayer = getActivePlayer()) {
+        val listener = audioOutputPlayerListener ?: return
+        if (audioOutputPlayerTarget === player) return
+        audioOutputPlayerTarget?.removeListener(listener)
+        player.addListener(listener)
+        audioOutputPlayerTarget = player
+        if (player.isPlaying) audioOutputManager.startMonitoring() else audioOutputManager.stopMonitoring()
     }
 
     public fun triggerCrossfadeTransition(): Unit = playerFacade.triggerCrossfadeTransition()

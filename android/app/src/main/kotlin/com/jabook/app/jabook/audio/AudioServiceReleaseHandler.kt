@@ -77,9 +77,10 @@ internal class AudioServiceReleaseHandler(
 
         if (service.isAudioOutputManagerInitialized()) {
             service.audioOutputPlayerListener?.let { listener ->
-                if (service.isExoPlayerInitialized()) service.exoPlayer.removeListener(listener)
+                service.audioOutputPlayerTarget?.removeListener(listener)
             }
             service.audioOutputPlayerListener = null
+            service.audioOutputPlayerTarget = null
             service.audioOutputManager.stopMonitoring()
         }
         if (service.isPlaybackEnhancerServiceInitialized()) {

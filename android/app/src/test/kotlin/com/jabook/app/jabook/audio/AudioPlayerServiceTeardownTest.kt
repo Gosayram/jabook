@@ -49,6 +49,7 @@ class AudioPlayerServiceTeardownTest {
         service.exoPlayer = player
         service.audioOutputManager = mock()
         service.audioOutputPlayerListener = listener
+        service.audioOutputPlayerTarget = player
 
         AudioServiceReleaseHandler { service }.releaseRuntimeComponents(cancelServiceScopeChildren = false)
 

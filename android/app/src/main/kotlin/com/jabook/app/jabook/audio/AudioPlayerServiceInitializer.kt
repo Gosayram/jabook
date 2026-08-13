@@ -394,9 +394,8 @@ public class AudioPlayerServiceInitializer(
     }
 
     private fun setupAudioOutputManager() {
-        service.audioOutputPlayerListener?.let(service.exoPlayer::removeListener)
-        if (service.exoPlayer.isPlaying) {
-            service.audioOutputManager.startMonitoring()
+        service.audioOutputPlayerListener?.let { listener ->
+            service.audioOutputPlayerTarget?.removeListener(listener)
         }
 
         service.audioOutputPlayerListener =
@@ -409,7 +408,8 @@ public class AudioPlayerServiceInitializer(
                     }
                 }
             }
-        service.exoPlayer.addListener(requireNotNull(service.audioOutputPlayerListener))
+        service.audioOutputPlayerTarget = null
+        service.rebindAudioOutputPlayer()
     }
 
     private fun initializeVisualizer() {

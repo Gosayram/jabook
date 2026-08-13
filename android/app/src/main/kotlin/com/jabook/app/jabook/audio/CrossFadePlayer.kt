@@ -61,6 +61,7 @@ public class CrossFadePlayer(
 
     public var crossFadeDurationMs: Long = 0L
     private var crossfadeJob: Job? = null
+    private var transitionGeneration: Long = 0L
     private var isCrossFading = false
     private var crossFadeOutPlayer: ExoPlayer? = null
     private var pendingPreloadRequest: PendingPreloadRequest? = null
@@ -94,6 +95,7 @@ public class CrossFadePlayer(
      * Pauses playback on all players.
      */
     public fun pause() {
+        transitionGeneration += 1L
         currentPlayer.pause()
         nextPlayer.pause()
         currentPlayer.volume = 1f
@@ -108,6 +110,7 @@ public class CrossFadePlayer(
      * Stops playback and releases resources.
      */
     public fun release() {
+        transitionGeneration += 1L
         crossfadeJob?.cancel()
         crossfadeJob = null
         isCrossFading = false
@@ -124,6 +127,7 @@ public class CrossFadePlayer(
      */
     public fun startCrossFade(onComplete: () -> Unit = {}) {
         if (isCrossFading) return
+        val generation = ++transitionGeneration
         isCrossFading = true
 
         val fadingOutPlayer = currentPlayer
@@ -167,9 +171,11 @@ public class CrossFadePlayer(
                         LogUtils.d("CrossFadePlayer", "Crossfade complete. Current is now $currentPlayer")
                     }
                 } finally {
-                    isCrossFading = false
-                    crossFadeOutPlayer = null
-                    crossfadeJob = null
+                    if (generation == transitionGeneration) {
+                        isCrossFading = false
+                        crossFadeOutPlayer = null
+                        crossfadeJob = null
+                    }
                 }
             }
     }

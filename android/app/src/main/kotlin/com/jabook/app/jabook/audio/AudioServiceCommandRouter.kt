@@ -68,6 +68,7 @@ internal class AudioServiceCommandRouter(
     }
 
     fun stop() {
+        getCrossFadePlayer()?.pause()
         getPlaybackController()?.stop() ?: run {
             LogUtils.e(TAG, "PlaybackController not initialized")
             return
