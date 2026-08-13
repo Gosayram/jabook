@@ -30,7 +30,6 @@ import com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.audio.processors.EqContextRecommendationPolicy
 import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
-import com.jabook.app.jabook.audio.sortFilesByNumericPrefix
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookmarkItem
@@ -70,16 +69,11 @@ import javax.inject.Inject
 import kotlin.math.abs
 import com.jabook.app.jabook.compose.domain.model.Result as TypedResult
 
-internal fun sortChaptersForPlayback(chapters: List<Chapter>): List<Chapter> {
-    val playableChapters = chapters.filter { !it.fileUrl.isNullOrBlank() }
-    val chaptersByPath = playableChapters.groupBy { it.fileUrl }
-    val nextIndexByPath = mutableMapOf<String?, Int>()
-    return sortFilesByNumericPrefix(playableChapters.mapNotNull { it.fileUrl }).mapNotNull { path ->
-        val index = nextIndexByPath.getOrDefault(path, 0)
-        nextIndexByPath[path] = index + 1
-        chaptersByPath[path]?.getOrNull(index)
-    }
-}
+internal fun sortChaptersForPlayback(chapters: List<Chapter>): List<Chapter> =
+    chapters
+        .filter {
+            !it.fileUrl.isNullOrBlank()
+        }.sortedBy(Chapter::chapterIndex)
 
 /**
  * ViewModel for the Player screen.
@@ -857,19 +851,33 @@ public class PlayerViewModel
                 }
                 PlayerIntent.ToggleABRepeat -> {
                     val currentABState = _abRepeatState.value
+                    val activeState = uiState.value as? PlayerState.Active ?: return
+                    val chapterIndex = activeState.currentChapterIndex
+                    val position = activeState.currentPosition
                     when (currentABState.phase) {
                         ABRepeatPhase.INACTIVE -> {
-                            val position = (uiState.value as? PlayerState.Active)?.currentPosition ?: return
-                            _abRepeatState.value = ABRepeatState(pointA = position, phase = ABRepeatPhase.A_SET)
+                            _abRepeatState.value =
+                                ABRepeatState(pointA = position, chapterIndex = chapterIndex, phase = ABRepeatPhase.A_SET)
                         }
                         ABRepeatPhase.A_SET -> {
-                            val position = (uiState.value as? PlayerState.Active)?.currentPosition ?: return
-                            _abRepeatState.value =
-                                ABRepeatState(
-                                    pointA = currentABState.pointA,
-                                    pointB = position,
-                                    phase = ABRepeatPhase.ACTIVE,
-                                )
+                            when {
+                                currentABState.chapterIndex != chapterIndex -> {
+                                    _abRepeatState.value =
+                                        ABRepeatState(pointA = position, chapterIndex = chapterIndex, phase = ABRepeatPhase.A_SET)
+                                }
+                                !isValidABRepeatRange(currentABState.pointA, position) -> {
+                                    emitEffect(PlayerEffect.ShowSnackbar("Point B must be after point A"))
+                                }
+                                else -> {
+                                    _abRepeatState.value =
+                                        ABRepeatState(
+                                            pointA = currentABState.pointA,
+                                            pointB = position,
+                                            chapterIndex = chapterIndex,
+                                            phase = ABRepeatPhase.ACTIVE,
+                                        )
+                                }
+                            }
                         }
                         ABRepeatPhase.ACTIVE -> {
                             _abRepeatState.value = ABRepeatState()
@@ -1119,7 +1127,13 @@ public class PlayerViewModel
                 ) { position, chapterIndex, abState ->
                     Triple(position, chapterIndex, abState)
                 }.collect { (position, chapterIndex, abState) ->
-                    if (abState.phase == ABRepeatPhase.ACTIVE && abState.pointB > 0L && position >= abState.pointB) {
+                    if (abState.phase != ABRepeatPhase.INACTIVE && abState.chapterIndex != chapterIndex) {
+                        _abRepeatState.value = ABRepeatState()
+                    } else if (
+                        abState.phase == ABRepeatPhase.ACTIVE &&
+                        isValidABRepeatRange(abState.pointA, abState.pointB) &&
+                        position >= abState.pointB
+                    ) {
                         playerController.seekTo(abState.pointA)
                     }
                 }

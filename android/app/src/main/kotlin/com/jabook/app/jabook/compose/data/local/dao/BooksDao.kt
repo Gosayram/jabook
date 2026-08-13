@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.compose.data.local.dao
 
 import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RawQuery
 import androidx.room.Transaction
@@ -225,6 +227,92 @@ public interface BooksDao {
         upsertBooks(books)
         upsertChapters(chapters)
     }
+
+    /**
+     * Persists filesystem metadata found by a library scan without overwriting playback
+     * progress or per-book settings.
+     */
+    @Transaction
+    public suspend fun upsertScannedBooksWithChapters(
+        books: List<BookEntity>,
+        chapters: List<ChapterEntity>,
+    ) {
+        insertScannedBooks(books)
+        books.forEach { book ->
+            updateScannedBook(
+                id = book.id,
+                title = book.title,
+                author = book.author,
+                totalDuration = book.totalDuration,
+                downloadStatus = book.downloadStatus,
+                isDownloaded = book.isDownloaded,
+                localPath = book.localPath,
+            )
+        }
+        insertScannedChapters(chapters)
+        chapters.forEach { chapter ->
+            updateScannedChapter(
+                id = chapter.id,
+                title = chapter.title,
+                chapterIndex = chapter.chapterIndex,
+                fileIndex = chapter.fileIndex,
+                duration = chapter.duration,
+                fileUrl = chapter.fileUrl,
+                isDownloaded = chapter.isDownloaded,
+            )
+        }
+    }
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    public suspend fun insertScannedBooks(books: List<BookEntity>)
+
+    @Query(
+        """
+        UPDATE books
+        SET title = :title,
+            author = :author,
+            total_duration = :totalDuration,
+            download_status = :downloadStatus,
+            download_progress = CASE WHEN :isDownloaded THEN 1.0 ELSE download_progress END,
+            local_path = :localPath,
+            is_downloaded = :isDownloaded
+        WHERE id = :id
+        """,
+    )
+    public suspend fun updateScannedBook(
+        id: String,
+        title: String,
+        author: String,
+        totalDuration: Long,
+        downloadStatus: String,
+        isDownloaded: Boolean,
+        localPath: String?,
+    )
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    public suspend fun insertScannedChapters(chapters: List<ChapterEntity>)
+
+    @Query(
+        """
+        UPDATE chapters
+        SET title = :title,
+            chapter_index = :chapterIndex,
+            file_index = :fileIndex,
+            duration = :duration,
+            file_url = :fileUrl,
+            is_downloaded = :isDownloaded
+        WHERE id = :id
+        """,
+    )
+    public suspend fun updateScannedChapter(
+        id: String,
+        title: String,
+        chapterIndex: Int,
+        fileIndex: Int,
+        duration: Long,
+        fileUrl: String?,
+        isDownloaded: Boolean,
+    )
 
     /**
      * Update a book.

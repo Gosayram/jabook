@@ -631,13 +631,13 @@ public class AudioPlayerService : MediaLibraryService() {
             }
         val durationMs = settings.crossfadeBetweenBooksMs.coerceAtLeast(0L)
 
-        // Sort paths and normalize index like normal setPlaylist does
+        // Preserve the canonical chapter order supplied by the caller.
         val sessionState = PlaylistSessionStatePolicy.buildSnapshot(filePaths, initialTrackIndex)
-        val sortedPaths = sessionState.sortedFilePaths
+        val playlistPaths = sessionState.filePaths
         val normalizedIndex = sessionState.normalizedTrackIndex
 
         playerServiceScope.launch {
-            val firstSource = pm.createMediaSource(sortedPaths, normalizedIndex, metadata)
+            val firstSource = pm.createMediaSource(playlistPaths, normalizedIndex, metadata)
             if (firstSource == null) {
                 LogUtils.w("AudioPlayerService", "Failed to create first MediaSource for book crossfade, falling back")
                 pm.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback)

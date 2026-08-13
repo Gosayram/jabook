@@ -296,7 +296,7 @@ public class LibraryScanWorker
                                 // 3. Batch Upsert (insert or update) - faster for re-scans
                                 if (bookEntities.isNotEmpty()) {
                                     PerfTrace.section(name = "LibraryScanWorker.upsertBatch") {
-                                        booksDao.upsertBooksWithChapters(bookEntities, chapterEntities)
+                                        booksDao.upsertScannedBooksWithChapters(bookEntities, chapterEntities)
                                     }
                                     chapterDetectionTargets.forEach { target ->
                                         try {

@@ -21,29 +21,29 @@ import kotlin.time.Duration
 
 class PlayerChapterOrderPolicyTest {
     @Test
-    fun `chapters use the same natural order as the playback playlist`() {
+    fun `chapters preserve their stored order for playback`() {
         val chapters =
             listOf(
-                chapter(id = "10", path = "/book/10.mp3"),
-                chapter(id = "2", path = "/book/2.mp3"),
-                chapter(id = "1", path = "/book/01.mp3"),
-                chapter(id = "10-copy", path = "/book/10.mp3"),
-                chapter(id = "missing", path = null),
+                chapter(id = "10", path = "/book/10.mp3", index = 2),
+                chapter(id = "2", path = "/book/2.mp3", index = 1),
+                chapter(id = "1", path = "/book/01.mp3", index = 0),
+                chapter(id = "missing", path = null, index = 3),
             )
 
-        assertEquals(listOf("1", "2", "10", "10-copy"), sortChaptersForPlayback(chapters).map(Chapter::id))
+        assertEquals(listOf("1", "2", "10"), sortChaptersForPlayback(chapters).map(Chapter::id))
     }
 
     private fun chapter(
         id: String,
         path: String?,
+        index: Int,
     ): Chapter =
         Chapter(
             id = id,
             bookId = "book",
             title = id,
-            chapterIndex = 0,
-            fileIndex = 0,
+            chapterIndex = index,
+            fileIndex = index,
             duration = Duration.ZERO,
             fileUrl = path,
             position = Duration.ZERO,

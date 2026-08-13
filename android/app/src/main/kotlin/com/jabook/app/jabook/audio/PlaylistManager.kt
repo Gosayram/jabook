@@ -389,18 +389,15 @@ internal class PlaylistManager(
         // Clear duration cache using DurationManager
         durationManager.clearCache()
 
-        // Store file paths and groupPath
-        // CRITICAL: Sort file paths by numeric prefix to ensure correct playback order
-        // This fixes the issue where "10.mp3" might come before "2.mp3" in simple string sort
-        // or where the UI chapter list order doesn't match the file list order
-        val sortedFilePaths = sessionState.sortedFilePaths
-        currentFilePaths = sortedFilePaths
+        // Keep the persisted/scanner-provided chapter order; the UI uses the same order.
+        val playlistPaths = sessionState.filePaths
+        currentFilePaths = playlistPaths
 
         LogUtils.i(
             "AudioPlayerService",
-            "Sorted ${sortedFilePaths.size} files by numeric prefix. " +
-                "Original[0]: ${filePaths.firstOrNull()?.substringAfterLast('/')}, " +
-                "Sorted[0]: ${sortedFilePaths.firstOrNull()?.substringAfterLast('/')}",
+            "Loaded ${playlistPaths.size} files. " +
+                "Initial track: $actualTrackIndex. " +
+                "First: ${playlistPaths.firstOrNull()?.substringAfterLast('/')}",
         )
         currentMetadata = metadata
         currentGroupPath = groupPath
@@ -408,7 +405,7 @@ internal class PlaylistManager(
         // Log file paths order for debugging
         LogUtils.d(
             "AudioPlayerService",
-            "Stored filePaths (first 5): ${sortedFilePaths.take(5).mapIndexed {
+            "Stored filePaths (first 5): ${playlistPaths.take(5).mapIndexed {
                 i: Int,
                 path: String,
                 ->
@@ -428,7 +425,7 @@ internal class PlaylistManager(
 
         try {
             preparePlaybackOptimizedInternal(
-                filePaths = sortedFilePaths,
+                filePaths = playlistPaths,
                 metadata = metadata,
                 initialTrackIndex = sessionState.normalizedTrackIndex,
                 initialPosition = initialPosition,

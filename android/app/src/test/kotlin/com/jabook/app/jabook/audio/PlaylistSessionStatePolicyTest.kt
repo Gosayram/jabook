@@ -19,26 +19,26 @@ import org.junit.Test
 
 class PlaylistSessionStatePolicyTest {
     @Test
-    fun `buildSnapshot sorts paths and normalizes nullable index`() {
+    fun `buildSnapshot preserves supplied chapter order and normalizes nullable index`() {
         val snapshot =
             PlaylistSessionStatePolicy.buildSnapshot(
                 filePaths = listOf("/b/10.mp3", "/b/2.mp3", "/b/01.mp3"),
                 initialTrackIndex = null,
             )
 
-        assertEquals(listOf("/b/01.mp3", "/b/2.mp3", "/b/10.mp3"), snapshot.sortedFilePaths)
+        assertEquals(listOf("/b/10.mp3", "/b/2.mp3", "/b/01.mp3"), snapshot.filePaths)
         assertEquals(0, snapshot.normalizedTrackIndex)
     }
 
     @Test
-    fun `buildSnapshot keeps the selected source chapter after sorting`() {
+    fun `buildSnapshot keeps the selected source chapter`() {
         val snapshot =
             PlaylistSessionStatePolicy.buildSnapshot(
                 filePaths = listOf("/b/10.mp3", "/b/2.mp3", "/b/01.mp3"),
                 initialTrackIndex = 0,
             )
 
-        assertEquals(2, snapshot.normalizedTrackIndex)
+        assertEquals(0, snapshot.normalizedTrackIndex)
     }
 
     @Test
@@ -49,7 +49,7 @@ class PlaylistSessionStatePolicyTest {
                 initialTrackIndex = 1,
             )
 
-        assertEquals(2, snapshot.normalizedTrackIndex)
+        assertEquals(1, snapshot.normalizedTrackIndex)
     }
 
     @Test
@@ -77,7 +77,7 @@ class PlaylistSessionStatePolicyTest {
                 initialTrackIndex = 5,
             )
 
-        assertEquals(emptyList<String>(), snapshot.sortedFilePaths)
+        assertEquals(emptyList<String>(), snapshot.filePaths)
         assertEquals(0, snapshot.normalizedTrackIndex)
     }
 

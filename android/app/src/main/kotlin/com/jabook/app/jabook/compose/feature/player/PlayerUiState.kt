@@ -37,8 +37,14 @@ public enum class ABRepeatPhase {
 public data class ABRepeatState(
     val pointA: Long = -1L,
     val pointB: Long = -1L,
+    val chapterIndex: Int = -1,
     val phase: ABRepeatPhase = ABRepeatPhase.INACTIVE,
 )
+
+internal fun isValidABRepeatRange(
+    pointA: Long,
+    pointB: Long,
+): Boolean = pointA >= 0L && pointB > pointA
 
 public enum class ChapterRepeatMode {
     OFF,

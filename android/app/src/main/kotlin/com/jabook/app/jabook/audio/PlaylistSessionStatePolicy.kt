@@ -15,7 +15,7 @@
 package com.jabook.app.jabook.audio
 
 internal data class PlaylistSessionStateSnapshot(
-    val sortedFilePaths: List<String>,
+    val filePaths: List<String>,
     val normalizedTrackIndex: Int,
 )
 
@@ -24,21 +24,16 @@ internal object PlaylistSessionStatePolicy {
         filePaths: List<String>,
         initialTrackIndex: Int?,
     ): PlaylistSessionStateSnapshot {
-        val sortedPaths = sortFilesByNumericPrefix(filePaths)
         val normalizedTrackIndex =
             if (filePaths.isEmpty()) {
                 0
             } else {
                 initialTrackIndex
                     ?.coerceIn(0, filePaths.lastIndex)
-                    ?.let { sourceIndex ->
-                        val selectedPath = filePaths[sourceIndex]
-                        sortedPaths.indexOf(selectedPath) + filePaths.take(sourceIndex).count { it == selectedPath }
-                    }?.takeIf { it >= 0 }
                     ?: 0
             }
         return PlaylistSessionStateSnapshot(
-            sortedFilePaths = sortedPaths,
+            filePaths = filePaths,
             normalizedTrackIndex = normalizedTrackIndex,
         )
     }
