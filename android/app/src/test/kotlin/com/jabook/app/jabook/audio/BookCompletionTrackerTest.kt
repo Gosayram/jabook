@@ -57,4 +57,31 @@ class BookCompletionTrackerTest {
             verify(player, never()).pause()
             tracker.release()
         }
+
+    @Test
+    fun `does not complete a repeating book`() {
+        val player: Player = mock()
+        whenever(player.currentPosition).thenReturn(60_000L)
+        whenever(player.duration).thenReturn(60_000L)
+        var completed = false
+        val tracker =
+            BookCompletionTracker(
+                context = mock<Context>(),
+                scope = TestScope(),
+                getActivePlayer = { player },
+                getIsBookCompleted = { completed },
+                setIsBookCompleted = { completed = it },
+                getActualPlaylistSize = { 1 },
+                getLastCompletedTrackIndex = { -1 },
+                setLastCompletedTrackIndex = { },
+                saveCurrentPosition = { },
+                getCurrentBookId = { null },
+                markBookCompleted = null,
+                getRepeatMode = { Player.REPEAT_MODE_ONE },
+            )
+
+        assert(!tracker.handleBookCompletion(player, 0))
+        assert(!completed)
+        verify(player, never()).pause()
+    }
 }

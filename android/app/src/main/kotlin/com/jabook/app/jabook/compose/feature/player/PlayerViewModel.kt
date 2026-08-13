@@ -1312,16 +1312,6 @@ public class PlayerViewModel
             }
         }
 
-        public fun reorderChapters(newOrderedIds: List<String>) {
-            viewModelScope.launch {
-                runCatching { booksRepository.updateChapterOrder(bookId, newOrderedIds) }
-                    .onFailure { error ->
-                        logger.e({ "Failed to reorder chapters" }, error)
-                        dispatch(PlayerIntent.ReportError("Failed to reorder chapters"))
-                    }
-            }
-        }
-
         private fun emitEffect(effect: PlayerEffect) {
             // ponytail: trySend on BUFFERED(64) — holds events while UI is briefly
             // detached; switch to UNLIMITED if a real burst is ever observed.

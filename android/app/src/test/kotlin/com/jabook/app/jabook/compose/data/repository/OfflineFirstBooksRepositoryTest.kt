@@ -32,36 +32,6 @@ import org.mockito.kotlin.whenever
 
 class OfflineFirstBooksRepositoryTest {
     @Test
-    fun `updateChapterOrder delegates to transactional DAO path`() =
-        runTest {
-            val booksDao = mock<BooksDao>()
-            val chaptersDao = mock<ChaptersDao>()
-            val scanPathDao = mock<ScanPathDao>()
-            val playerPersistenceManager = mock<PlayerPersistenceManager>()
-            val localBookScanner = mock<LocalBookScanner>()
-            val loggerFactory = mock<LoggerFactory>()
-            whenever(loggerFactory.get(eq("OfflineFirstBooksRepository"))).thenReturn(NoOpLogger)
-
-            val repository =
-                OfflineFirstBooksRepository(
-                    booksDao = booksDao,
-                    chaptersDao = chaptersDao,
-                    scanPathDao = scanPathDao,
-                    playerPersistenceManager = playerPersistenceManager,
-                    localBookScanner = localBookScanner,
-                    loggerFactory = loggerFactory,
-                )
-
-            val orderedIds = listOf("c2", "c1", "c3")
-            repository.updateChapterOrder(bookId = "book-1", newOrderedIds = orderedIds)
-
-            verify(chaptersDao).reorderChaptersByIds(
-                bookId = eq("book-1"),
-                newOrderedIds = eq(orderedIds),
-            )
-        }
-
-    @Test
     fun `updatePreferredPlaybackSpeed rejects non-finite speeds without writing`() =
         runTest {
             val booksDao = mock<BooksDao>()

@@ -55,6 +55,7 @@ internal class BookCompletionTracker(
     private val saveCurrentPosition: () -> Unit,
     private val getCurrentBookId: () -> String?,
     private val markBookCompleted: ((String) -> Unit)?,
+    private val getRepeatMode: () -> Int = { Player.REPEAT_MODE_OFF },
     private val scheduleNotificationUpdate: () -> Unit = {},
     private val prepareNextChapter: ((Int) -> Unit)? = null,
 ) {
@@ -155,6 +156,7 @@ internal class BookCompletionTracker(
         source: String = "position_check",
     ): Boolean {
         if (getIsBookCompleted()) return false
+        if (getRepeatMode() != Player.REPEAT_MODE_OFF) return false
         val totalTracks = getActualPlaylistSize()
         if (totalTracks <= 0) return false
 

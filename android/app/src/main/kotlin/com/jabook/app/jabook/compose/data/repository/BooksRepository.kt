@@ -133,16 +133,6 @@ public interface BooksRepository {
     public suspend fun normalizeAllChapters()
 
     /**
-     * Update the order of chapters for a specific book.
-     * @param bookId The ID of the book.
-     * @param newOrderedIds List of chapter IDs in the desired order.
-     */
-    public suspend fun updateChapterOrder(
-        bookId: String,
-        newOrderedIds: List<String>,
-    )
-
-    /**
      * Resolves effective playback speed for [bookId] using hierarchy:
      * per-book -> per-author -> global.
      */

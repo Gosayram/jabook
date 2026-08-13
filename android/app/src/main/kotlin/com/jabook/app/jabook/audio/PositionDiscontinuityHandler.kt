@@ -38,6 +38,7 @@ internal class PositionDiscontinuityHandler(
     private val saveCurrentPosition: () -> Unit,
     private val bookCompletionTracker: BookCompletionTracker,
     private val playerErrorHandler: PlayerErrorHandler,
+    private val getRepeatMode: () -> Int = { Player.REPEAT_MODE_OFF },
 ) {
     /**
      * Handles position discontinuity events (track changes, seeks, auto-transitions).
@@ -90,7 +91,9 @@ internal class PositionDiscontinuityHandler(
         )
 
         // Detect end-of-book: last track wraps to index 0 via auto-transition
-        if (isEndOfBookWraparound(previousIndex, currentIndex, totalTracks, reason)) {
+        if (getRepeatMode() == Player.REPEAT_MODE_OFF &&
+            isEndOfBookWraparound(previousIndex, currentIndex, totalTracks, reason)
+        ) {
             handleEndOfBookWraparound(player, previousIndex, oldPosition.positionMs, totalTracks)
             return true
         }

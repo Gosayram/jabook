@@ -17,7 +17,6 @@ package com.jabook.app.jabook.compose.data.local.dao
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Query
-import androidx.room.Transaction
 import androidx.room.Update
 import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
@@ -153,36 +152,4 @@ public interface ChaptersDao {
      */
     @Query("SELECT COUNT(*) FROM chapters WHERE book_id = :bookId")
     public suspend fun getTotalCount(bookId: String): Int
-
-    /**
-     * Reorders chapters atomically for a specific book.
-     */
-    @Transaction
-    public suspend fun reorderChaptersByIds(
-        bookId: String,
-        newOrderedIds: List<String>,
-    ) {
-        if (newOrderedIds.isEmpty()) {
-            return
-        }
-
-        val chapters = getChaptersByBookId(bookId)
-        if (chapters.isEmpty()) {
-            return
-        }
-
-        val chapterMap = chapters.associateBy { it.id }
-        val updatedChapters = mutableListOf<ChapterEntity>()
-
-        newOrderedIds.forEachIndexed { index, id ->
-            val chapter = chapterMap[id]
-            if (chapter != null && chapter.chapterIndex != index) {
-                updatedChapters.add(chapter.copy(chapterIndex = index))
-            }
-        }
-
-        if (updatedChapters.isNotEmpty()) {
-            insertAll(updatedChapters)
-        }
-    }
 }

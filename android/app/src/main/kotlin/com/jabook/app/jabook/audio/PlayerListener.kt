@@ -89,6 +89,7 @@ internal class PlayerListener(
             saveCurrentPosition = { saveCurrentPosition() },
             getCurrentBookId = { getCurrentBookId?.invoke() },
             markBookCompleted = markBookCompleted,
+            getRepeatMode = { getActivePlayer().repeatMode },
             prepareNextChapter = preloadNextTrack,
         )
 
@@ -125,6 +126,7 @@ internal class PlayerListener(
             saveCurrentPosition = saveCurrentPosition,
             bookCompletionTracker = bookCompletionTracker,
             playerErrorHandler = playerErrorHandler,
+            getRepeatMode = { getActivePlayer().repeatMode },
         )
 
     private val playbackEventProcessor: PlaybackEventProcessor =

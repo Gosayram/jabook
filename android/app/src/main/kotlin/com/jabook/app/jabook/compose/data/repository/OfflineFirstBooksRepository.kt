@@ -418,11 +418,6 @@ public class OfflineFirstBooksRepository
             }
         }
 
-        override suspend fun updateChapterOrder(
-            bookId: String,
-            newOrderedIds: List<String>,
-        ): Unit = chaptersDao.reorderChaptersByIds(bookId = bookId, newOrderedIds = newOrderedIds)
-
         override suspend fun resolvePreferredPlaybackSpeed(
             bookId: String,
             globalSpeed: Float,
