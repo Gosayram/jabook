@@ -74,6 +74,9 @@ public class AudioPlayerService : MediaLibraryService() {
         com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 
     @Inject
+    internal lateinit var crashSafePositionWriter: CrashSafePositionWriter
+
+    @Inject
     public lateinit var listeningSessionRepository:
         com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 
@@ -730,6 +733,24 @@ public class AudioPlayerService : MediaLibraryService() {
 
     internal fun savePositionToRepository() {
         periodicPositionSaver.save()
+    }
+
+    /** Persists the final position before a terminal lifecycle event can kill this process. */
+    internal fun saveCurrentPositionSynchronously() {
+        if (!::crashSafePositionWriter.isInitialized) {
+            LogUtils.w("AudioPlayerService", "Crash-safe position writer is not initialized")
+            return
+        }
+
+        val bookId = currentGroupPath ?: return
+        val player = getActivePlayer()
+        if (player.mediaItemCount == 0) return
+
+        crashSafePositionWriter.writePositionSync(
+            bookId = bookId,
+            trackIndex = player.currentMediaItemIndex,
+            positionMs = player.currentPosition,
+        )
     }
 
     internal fun finishListeningSessionIfActive(reason: String) {

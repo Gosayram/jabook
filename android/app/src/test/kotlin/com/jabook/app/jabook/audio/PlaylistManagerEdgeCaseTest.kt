@@ -155,7 +155,7 @@ class PlaylistManagerEdgeCaseTest {
         }
 
     @Test
-    fun `setPlaylist short-circuits duplicate call when loading already in progress`() =
+    fun `setPlaylist replaces an already marked loading request`() =
         testScope.runTest {
             playlistManager.isPlaylistLoading = true
             var callbackSuccess: Boolean? = null
@@ -172,8 +172,8 @@ class PlaylistManagerEdgeCaseTest {
 
             assertTrue(callbackSuccess == true)
             assertNull(callbackError)
-            verify(exoPlayer, never()).clearMediaItems()
-            verify(exoPlayer, never()).setMediaItems(any(), any<Int>(), any<Long>())
+            verify(exoPlayer).clearMediaItems()
+            verify(exoPlayer).setMediaItems(any(), any<Int>(), any<Long>())
         }
 
     @Test

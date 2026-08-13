@@ -31,6 +31,7 @@ internal class ServiceLifecycleManager(
         try {
             // Best-effort immediate save to avoid losing progress when app is swiped away.
             service.saveCurrentPosition()
+            service.saveCurrentPositionSynchronously()
         } catch (e: Exception) {
             LogUtils.w("AudioPlayerService", "Failed to save position in onTaskRemoved", e)
             CrashDiagnostics.reportNonFatal(
@@ -81,6 +82,7 @@ internal class ServiceLifecycleManager(
         try {
             LogUtils.d("AudioPlayerService", "Saving position before service destruction")
             service.saveCurrentPosition()
+            service.saveCurrentPositionSynchronously()
         } catch (e: Exception) {
             LogUtils.w("AudioPlayerService", "Failed to save position in onDestroy", e)
             CrashDiagnostics.reportNonFatal(

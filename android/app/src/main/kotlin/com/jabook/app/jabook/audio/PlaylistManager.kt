@@ -140,7 +140,6 @@ internal class PlaylistManager(
 
     private val playlistLoadCoordinator by lazy {
         PlaylistLoadCoordinator(
-            isLoading = { isPlaylistLoading },
             setLoading = { isPlaylistLoading = it },
             setCurrentLoadingPlaylist = { currentLoadingPlaylist = it },
             setLastLoadTimestampMs = { lastPlaylistLoadTime = it },
@@ -314,21 +313,9 @@ internal class PlaylistManager(
                         "AudioPlayerService",
                         "Acquired playlistLoadMutex lock for setPlaylist",
                     )
-                    // Prevent duplicate calls - if playlist is already loading, ignore
-                    if (isPlaylistLoading) {
-                        LogUtils.w(
-                            "AudioPlayerService",
-                            "Playlist already loading, ignoring duplicate setPlaylist call: ${filePaths.size} items, initialTrackIndex=$initialTrackIndex",
-                        )
-                        callback?.invoke(true, null) // Call callback to unblock Flutter
-                        return@launch
-                    }
-
-                    val loadGeneration =
-                        playlistLoadCoordinator.beginOrSkip(filePaths) ?: run {
-                            callback?.invoke(true, null)
-                            return@launch
-                        }
+                    // The mutex serializes requests; a later explicit selection must replace
+                    // the prior one rather than report a successful no-op.
+                    val loadGeneration = playlistLoadCoordinator.begin(filePaths)
 
                     try {
                         setPlaylistInternal(

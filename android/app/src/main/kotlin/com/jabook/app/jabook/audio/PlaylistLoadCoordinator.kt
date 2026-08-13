@@ -15,17 +15,13 @@
 package com.jabook.app.jabook.audio
 
 internal class PlaylistLoadCoordinator(
-    private val isLoading: () -> Boolean,
     private val setLoading: (Boolean) -> Unit,
     private val setCurrentLoadingPlaylist: (List<String>?) -> Unit,
     private val setLastLoadTimestampMs: (Long) -> Unit,
     private val cancelAndClearActiveLoadingJob: () -> Unit,
     private val nextGeneration: () -> Long,
 ) {
-    internal fun beginOrSkip(filePaths: List<String>): Long? {
-        if (isLoading()) {
-            return null
-        }
+    internal fun begin(filePaths: List<String>): Long {
         cancelAndClearActiveLoadingJob()
         setLoading(true)
         setCurrentLoadingPlaylist(filePaths)

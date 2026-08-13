@@ -21,14 +21,13 @@ import org.junit.Test
 
 class PlaylistLoadCoordinatorTest {
     @Test
-    fun `beginOrSkip returns null when loading already in progress`() {
+    fun `begin replaces an in-progress load and cancels its async worker`() {
         var loading = true
         var cancelCalls = 0
         var generation = 41L
 
         val coordinator =
             PlaylistLoadCoordinator(
-                isLoading = { loading },
                 setLoading = { loading = it },
                 setCurrentLoadingPlaylist = {},
                 setLastLoadTimestampMs = {},
@@ -36,10 +35,10 @@ class PlaylistLoadCoordinatorTest {
                 nextGeneration = { ++generation },
             )
 
-        val result = coordinator.beginOrSkip(listOf("a.mp3"))
+        val result = coordinator.begin(listOf("a.mp3"))
 
-        assertNull(result)
-        assertEquals(0, cancelCalls)
+        assertEquals(42L, result)
+        assertEquals(1, cancelCalls)
         assertTrue(loading)
     }
 
@@ -53,7 +52,6 @@ class PlaylistLoadCoordinatorTest {
 
         val coordinator =
             PlaylistLoadCoordinator(
-                isLoading = { loading },
                 setLoading = { loading = it },
                 setCurrentLoadingPlaylist = { currentPlaylist = it },
                 setLastLoadTimestampMs = { lastTimestamp = it },
@@ -61,7 +59,7 @@ class PlaylistLoadCoordinatorTest {
                 nextGeneration = { ++generation },
             )
 
-        val result = coordinator.beginOrSkip(listOf("a.mp3", "b.mp3"))
+        val result = coordinator.begin(listOf("a.mp3", "b.mp3"))
 
         assertEquals(11L, result)
         assertEquals(1, cancelCalls)
@@ -78,7 +76,6 @@ class PlaylistLoadCoordinatorTest {
 
         val coordinator =
             PlaylistLoadCoordinator(
-                isLoading = { loading },
                 setLoading = { loading = it },
                 setCurrentLoadingPlaylist = { currentPlaylist = it },
                 setLastLoadTimestampMs = {},

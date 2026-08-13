@@ -333,7 +333,9 @@ public fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onNavigateToBook = { bookId ->
-                    navController.navigate(PlayerRoute(bookId = bookId))
+                    navController.navigate(PlayerRoute(bookId = bookId)) {
+                        popUpTo<PlayerRoute> { inclusive = true }
+                    }
                 },
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = this,
