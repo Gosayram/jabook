@@ -19,6 +19,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import androidx.annotation.OptIn
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
@@ -78,6 +79,8 @@ public class AudioPlayerService : MediaLibraryService() {
 
     @Inject
     public lateinit var audioOutputManager: AudioOutputManager
+
+    internal var audioOutputPlayerListener: Player.Listener? = null
 
     @Inject
     public lateinit var playbackEnhancerService: PlaybackEnhancerService
@@ -417,6 +420,8 @@ public class AudioPlayerService : MediaLibraryService() {
 
     internal fun isAudioOutputManagerInitialized(): Boolean = ::audioOutputManager.isInitialized
 
+    internal fun isExoPlayerInitialized(): Boolean = ::exoPlayer.isInitialized
+
     internal fun isPlaybackEnhancerServiceInitialized(): Boolean = ::playbackEnhancerService.isInitialized
 
     internal fun isBassBoostManagerInitialized(): Boolean = ::bassBoostManager.isInitialized
@@ -518,6 +523,12 @@ public class AudioPlayerService : MediaLibraryService() {
         playerFacade.configureExoPlayer(settings)
 
     internal fun getActivePlayer(): ExoPlayer = playerFacade.getActivePlayer()
+
+    internal fun rebindActivePlayer(player: ExoPlayer = getActivePlayer()) {
+        mediaLibrarySession?.player = player
+        mediaSessionManager?.updatePlayer(player)
+        playerConfigurator?.rebindListeners(player)
+    }
 
     public fun triggerCrossfadeTransition(): Unit = playerFacade.triggerCrossfadeTransition()
 

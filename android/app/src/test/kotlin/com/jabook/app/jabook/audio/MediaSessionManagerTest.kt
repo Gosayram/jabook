@@ -138,6 +138,17 @@ class MediaSessionManagerTest {
         assertEquals(30L, mediaSessionManager.getForwardDuration())
     }
 
+    @Test
+    fun `updatePlayer moves listener to replacement player`() {
+        val replacement: ExoPlayer = mock()
+        whenever(replacement.playWhenReady).thenReturn(false)
+
+        mediaSessionManager.updatePlayer(replacement)
+
+        verify(exoPlayer).removeListener(any())
+        verify(replacement).addListener(any())
+    }
+
     // ============ Player Listener Tests ============
 
     @Test

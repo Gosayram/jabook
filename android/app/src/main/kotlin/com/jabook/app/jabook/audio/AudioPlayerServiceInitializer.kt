@@ -360,16 +360,7 @@ public class AudioPlayerServiceInitializer(
             }, service.playerServiceScope)
         service.crossFadePlayer?.onPlayerChanged = { newPlayer ->
             try {
-                service.mediaLibrarySession?.let { session ->
-                    session.player = newPlayer
-                    LogUtils.d(
-                        "AudioPlayerService",
-                        "MediaSession player updated after crossfade: ${newPlayer.javaClass.simpleName}",
-                    )
-                } ?: LogUtils.w(
-                    "AudioPlayerService",
-                    "MediaLibrarySession is null, cannot update player after crossfade",
-                )
+                service.rebindActivePlayer(newPlayer)
             } catch (e: Exception) {
                 LogUtils.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
             }
@@ -403,11 +394,12 @@ public class AudioPlayerServiceInitializer(
     }
 
     private fun setupAudioOutputManager() {
+        service.audioOutputPlayerListener?.let(service.exoPlayer::removeListener)
         if (service.exoPlayer.isPlaying) {
             service.audioOutputManager.startMonitoring()
         }
 
-        service.exoPlayer.addListener(
+        service.audioOutputPlayerListener =
             object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     if (isPlaying) {
@@ -416,8 +408,8 @@ public class AudioPlayerServiceInitializer(
                         service.audioOutputManager.stopMonitoring()
                     }
                 }
-            },
-        )
+            }
+        service.exoPlayer.addListener(requireNotNull(service.audioOutputPlayerListener))
     }
 
     private fun initializeVisualizer() {
@@ -464,7 +456,7 @@ public class AudioPlayerServiceInitializer(
                 MediaLibrarySession
                     .Builder(
                         service,
-                        service.exoPlayer,
+                        service.getActivePlayer(),
                         callback,
                     ).setId(sessionId) // Truly unique session ID: PID + instance hash
 
@@ -522,7 +514,7 @@ public class AudioPlayerServiceInitializer(
             service.mediaSessionManager =
                 MediaSessionManager(
                     service,
-                    service.exoPlayer,
+                    service.getActivePlayer(),
                 )
 
             // Legacy NotificationManager is NO LONGER NEEDED for Media3 system notifications

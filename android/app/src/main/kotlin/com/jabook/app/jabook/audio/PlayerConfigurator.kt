@@ -58,6 +58,7 @@ internal class PlayerConfigurator(
      */
     var playerListener: PlayerListener? = null
         private set
+    private var playerListenerTarget: ExoPlayer? = null
 
     /**
      * Custom ExoPlayer instance with AudioProcessors.
@@ -162,6 +163,7 @@ internal class PlayerConfigurator(
 
             playerListener?.let {
                 activePlayer.addListener(it)
+                playerListenerTarget = activePlayer
             }
 
             // BP-13.1: Register audio underrun monitor
@@ -256,6 +258,12 @@ internal class PlayerConfigurator(
             // If processors are needed, create custom ExoPlayer
             if (processors.isNotEmpty()) {
                 // Release old custom player if exists
+                playerListener?.let { listener ->
+                    if (playerListenerTarget === customExoPlayer) {
+                        customExoPlayer?.removeListener(listener)
+                        playerListenerTarget = null
+                    }
+                }
                 unregisterAudioOffloadListener(customExoPlayer)
                 customExoPlayer?.release()
                 customExoPlayer = null
@@ -267,7 +275,6 @@ internal class PlayerConfigurator(
                 // Copy listener from singleton player (using instance from this class)
                 playerListener?.let {
                     it.loudnessNormalizer = loudnessNormalizer // Update listener with new normalizer
-                    customExoPlayer?.addListener(it)
                 }
 
                 LogUtils.i(
@@ -276,6 +283,12 @@ internal class PlayerConfigurator(
                 )
             } else {
                 // No processors needed, release custom player if exists
+                playerListener?.let { listener ->
+                    if (playerListenerTarget === customExoPlayer) {
+                        customExoPlayer?.removeListener(listener)
+                        playerListenerTarget = null
+                    }
+                }
                 unregisterAudioOffloadListener(customExoPlayer)
                 customExoPlayer?.release()
                 customExoPlayer = null
@@ -285,6 +298,7 @@ internal class PlayerConfigurator(
 
             // NotificationManager removed - MediaSession handles notification updates automatically
             // service.notificationManager?.updatePlayer(service.getActivePlayer())
+            service.rebindActivePlayer()
             LogUtils.d("AudioPlayerService", "Player recreation complete (MediaSession handles notifications)")
 
             // Restore playlist and position if we had a playlist before
@@ -424,7 +438,20 @@ internal class PlayerConfigurator(
         }
         customExoPlayer?.release()
         customExoPlayer = null
+        playerListenerTarget = null
         playerListener = null
+    }
+
+    fun rebindListeners(activePlayer: ExoPlayer) {
+        if (playerListenerTarget === activePlayer) return
+        playerListener?.let { listener ->
+            playerListenerTarget?.removeListener(listener)
+            activePlayer.addListener(listener)
+        }
+        underrunMonitor?.unregister()
+        underrunMonitor = AudioUnderrunMonitor(activePlayer).also { it.register() }
+        registerAudioOffloadListener(activePlayer)
+        playerListenerTarget = activePlayer
     }
 
     private fun registerAudioOffloadListener(player: ExoPlayer?) {

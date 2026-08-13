@@ -15,8 +15,12 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Intent
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 
@@ -35,5 +39,19 @@ class AudioPlayerServiceTeardownTest {
         val service = Robolectric.buildService(AudioPlayerService::class.java).get()
 
         service.onTaskRemoved(Intent("test"))
+    }
+
+    @Test
+    fun `release removes audio output listener`() {
+        val service = Robolectric.buildService(AudioPlayerService::class.java).get()
+        val player: ExoPlayer = mock()
+        val listener: Player.Listener = mock()
+        service.exoPlayer = player
+        service.audioOutputManager = mock()
+        service.audioOutputPlayerListener = listener
+
+        AudioServiceReleaseHandler { service }.releaseRuntimeComponents(cancelServiceScopeChildren = false)
+
+        verify(player).removeListener(listener)
     }
 }

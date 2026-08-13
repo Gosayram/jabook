@@ -51,7 +51,7 @@ import com.jabook.app.jabook.util.LogUtils
 @OptIn(UnstableApi::class)
 public class MediaSessionManager(
     private val context: Context,
-    private val player: ExoPlayer,
+    private var player: ExoPlayer,
     private var playCallback: (() -> Unit)? = null,
     private var pauseCallback: (() -> Unit)? = null,
 ) {
@@ -166,6 +166,15 @@ public class MediaSessionManager(
      * CRITICAL: Enhanced logging for Play/Pause diagnostics, especially for Samsung devices.
      */
     private fun setupPlayerListener() {
+        player.addListener(playerListener)
+    }
+
+    /** Moves command observation to the player currently owned by the service. */
+    public fun updatePlayer(newPlayer: ExoPlayer) {
+        if (player === newPlayer) return
+        player.removeListener(playerListener)
+        player = newPlayer
+        lastPlayWhenReady = player.playWhenReady
         player.addListener(playerListener)
     }
 

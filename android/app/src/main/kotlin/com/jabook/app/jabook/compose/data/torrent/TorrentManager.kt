@@ -222,6 +222,7 @@ public class TorrentManager
          */
         public fun resumeTorrent(hash: String) {
             session.resumeTorrent(hash)
+            startDownloadService()
         }
 
         /**
@@ -256,6 +257,7 @@ public class TorrentManager
          */
         public fun resumeAll() {
             session.resumeAll()
+            startDownloadService()
         }
 
         /**
