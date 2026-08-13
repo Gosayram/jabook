@@ -108,6 +108,7 @@ public class CrossFadePlayer(
         crossfadeJob = null
         isCrossFading = false
         crossFadeOutPlayer = null
+        pendingPreloadRequest = null
     }
 
     /**

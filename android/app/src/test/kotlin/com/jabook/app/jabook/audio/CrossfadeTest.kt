@@ -232,6 +232,23 @@ class CrossfadeTest {
     }
 
     @Test
+    fun `pause discards preload queued for the cancelled transition`() {
+        val nextChapter = MediaItem.fromUri("file://next_chapter.mp3")
+        val staleQueuedChapter = MediaItem.fromUri("file://stale_queued_chapter.mp3")
+        crossFadePlayer.setNextTrack(nextChapter)
+
+        crossFadePlayer.startCrossFade()
+        testScope.advanceTimeBy(1)
+        crossFadePlayer.setNextTrack(staleQueuedChapter)
+        crossFadePlayer.pause()
+
+        crossFadePlayer.startCrossFade()
+        testScope.advanceUntilIdle()
+
+        verify(playerA, never()).setMediaItem(staleQueuedChapter)
+    }
+
+    @Test
     fun `recreate players preserves active playback state`() {
         val mediaItem = MediaItem.fromUri("file://current.mp3")
         val replacementActive = mock<ExoPlayer>()
