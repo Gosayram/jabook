@@ -917,6 +917,7 @@ public fun PlayerScreen(
                                         PlayerContent(
                                             state = state,
                                             playbackSpeed = playbackSpeed,
+                                            reduceMotion = reduceMotion,
                                             hazeState = overlayHazeState,
                                             isVinylMode = isVinylMode,
                                             sleepTimerState = sleepTimerState,
@@ -1310,8 +1311,6 @@ private fun PlayerLandscapeLayout(
     showingLyrics: Boolean,
     showLyrics: (Boolean) -> Unit,
     isVinylMode: Boolean,
-    swipeOffsetX: Float,
-    isSwiping: Boolean,
     displayAuthor: String,
     adaptiveOnSurface: androidx.compose.ui.graphics.Color,
     adaptiveOnSurfaceVariant: androidx.compose.ui.graphics.Color,
@@ -1345,8 +1344,6 @@ private fun PlayerLandscapeLayout(
     visualizerMode: Int,
     onVisualizerModeCycle: () -> Unit,
     onBookmarkNoteSheetVisibilityChanged: (Boolean) -> Unit,
-    onSwipeOpenChapterList: () -> Unit,
-    onSwipeNavigateBack: () -> Unit,
     snackbarHostState: androidx.compose.material3.SnackbarHostState,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope?,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope?,
@@ -1795,6 +1792,7 @@ private fun PlayerLandscapeLayout(
 private fun PlayerContent(
     state: PlayerState.Active,
     playbackSpeed: Float,
+    reduceMotion: Boolean,
     hazeState: HazeState?,
     isVinylMode: Boolean,
     sleepTimerState: com.jabook.app.jabook.compose.domain.model.SleepTimerState,
@@ -1987,6 +1985,7 @@ private fun PlayerContent(
                 release()
             }
             bookmarkPlayer.value = null
+            discardBookmarkVoiceNote(context.filesDir, pendingBookmarkAudioPath)
         }
     }
 
@@ -2021,10 +2020,6 @@ private fun PlayerContent(
             adaptiveOnSurface.copy(alpha = 0.82f)
         }
 
-    // Swipe gesture state
-    var swipeOffsetX by remember { mutableStateOf(0f) }
-    var isSwiping by remember { mutableStateOf(false) }
-
     // Orientation-aware layout: landscape = Row (cover left, controls right)
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -2039,8 +2034,6 @@ private fun PlayerContent(
                 showingLyrics = showingLyrics,
                 showLyrics = { showLyrics = it },
                 isVinylMode = isVinylMode,
-                swipeOffsetX = swipeOffsetX,
-                isSwiping = isSwiping,
                 displayAuthor = displayAuthor,
                 adaptiveOnSurface = adaptiveOnSurface,
                 adaptiveOnSurfaceVariant = adaptiveOnSurfaceVariant,
@@ -2074,8 +2067,6 @@ private fun PlayerContent(
                 visualizerMode = visualizerMode,
                 onVisualizerModeCycle = onVisualizerModeCycle,
                 onBookmarkNoteSheetVisibilityChanged = onBookmarkNoteSheetVisibilityChanged,
-                onSwipeOpenChapterList = {},
-                onSwipeNavigateBack = {},
                 snackbarHostState = snackbarHostState,
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = animatedVisibilityScope,
@@ -2151,21 +2142,27 @@ private fun PlayerContent(
                         }
 
                     // Animated "breathing" effect for the cover
-                    val infiniteTransition =
-                        androidx.compose.animation.core
-                            .rememberInfiniteTransition(label = "coverScale")
-                    val scale by infiniteTransition.animateFloat(
-                        initialValue = 1f,
-                        targetValue = 1.03f,
-                        animationSpec =
-                            androidx.compose.animation.core.infiniteRepeatable(
-                                animation =
-                                    androidx.compose.animation.core
-                                        .tween(4000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-                                repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
-                            ),
-                        label = "scale",
-                    )
+                    val coverScale =
+                        if (reduceMotion) {
+                            1f
+                        } else {
+                            val infiniteTransition =
+                                androidx.compose.animation.core
+                                    .rememberInfiniteTransition(label = "coverScale")
+                            val scale by infiniteTransition.animateFloat(
+                                initialValue = 1f,
+                                targetValue = 1.03f,
+                                animationSpec =
+                                    androidx.compose.animation.core.infiniteRepeatable(
+                                        animation =
+                                            androidx.compose.animation.core
+                                                .tween(4000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                        repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
+                                    ),
+                                label = "scale",
+                            )
+                            scale
+                        }
 
                     if (showingLyrics) {
                         Box(
@@ -2218,8 +2215,8 @@ private fun PlayerContent(
                                     .fillMaxWidth(coverWidth)
                                     .aspectRatio(1f)
                                     .graphicsLayer {
-                                        scaleX = if (state.isPlaying) scale else 1f
-                                        scaleY = if (state.isPlaying) scale else 1f
+                                        scaleX = if (state.isPlaying) coverScale else 1f
+                                        scaleY = if (state.isPlaying) coverScale else 1f
                                     }.clip(RoundedCornerShape(24.dp))
                                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
                                     .semantics {
@@ -3360,6 +3357,7 @@ private fun PlayerContent(
                 showBookmarkNoteSheet = false
                 pendingBookmarkId = null
                 pendingBookmarkNote = ""
+                discardBookmarkVoiceNote(context.filesDir, pendingBookmarkAudioPath)
                 pendingBookmarkAudioPath = null
             },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -3402,7 +3400,7 @@ private fun PlayerContent(
                                 bookmarkRecorder.value = null
                                 isRecordingBookmark = false
                                 if (stopped?.isFailure == true) {
-                                    pendingBookmarkAudioPath?.let(::File)?.delete()
+                                    discardBookmarkVoiceNote(context.filesDir, pendingBookmarkAudioPath)
                                     pendingBookmarkAudioPath = null
                                     seekScope.launch {
                                         snackbarHostState.showSnackbar(context.getString(R.string.errorRecordingVoiceNote))
@@ -3412,7 +3410,9 @@ private fun PlayerContent(
                             }
 
                             val bookmarkId = pendingBookmarkId ?: return@FilledTonalButton
-                            val outputDir = File(context.cacheDir, "bookmark_notes")
+                            discardBookmarkVoiceNote(context.filesDir, pendingBookmarkAudioPath)
+                            pendingBookmarkAudioPath = null
+                            val outputDir = bookmarkVoiceNoteDirectory(context.filesDir)
                             if (!outputDir.exists() && !outputDir.mkdirs()) {
                                 seekScope.launch {
                                     snackbarHostState.showSnackbar(context.getString(R.string.errorRecordingVoiceNote))
@@ -3615,6 +3615,7 @@ private fun PlayerContent(
                             showBookmarkNoteSheet = false
                             pendingBookmarkId = null
                             pendingBookmarkNote = ""
+                            discardBookmarkVoiceNote(context.filesDir, pendingBookmarkAudioPath)
                             pendingBookmarkAudioPath = null
                         },
                     ) {
@@ -3848,6 +3849,20 @@ internal fun formatDuration(durationMs: Long): String = PlayerTimeFormatter.form
 internal fun formatPlaybackSpeedLabel(playbackSpeed: Float): String = PlayerTimeFormatter.formatPlaybackSpeedLabel(playbackSpeed)
 
 private const val HOLD_TO_BOOST_ACTIVATION_DELAY_MS: Long = 300L
+
+internal fun bookmarkVoiceNoteDirectory(filesDir: File): File = File(filesDir, "bookmark_notes")
+
+internal fun discardBookmarkVoiceNote(
+    filesDir: File,
+    path: String?,
+) {
+    if (path.isNullOrBlank()) return
+    val directory = bookmarkVoiceNoteDirectory(filesDir)
+    val file = File(path)
+    if (runCatching { file.parentFile?.canonicalFile == directory.canonicalFile }.getOrDefault(false)) {
+        file.delete()
+    }
+}
 
 internal fun playerStateContentKey(state: PlayerState): String =
     when (state) {

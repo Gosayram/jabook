@@ -24,8 +24,11 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class ComposeMainActivityDeepLinkPolicyTest {
     @Test
-    fun `allows the registered migration deep link only for jabook scheme`() {
+    fun `allows registered Jabook deep links only for jabook scheme`() {
         assertTrue(ComposeMainActivity.isAllowedJabookDeepLink(Uri.parse("jabook://migration")))
+        assertTrue(ComposeMainActivity.isAllowedJabookDeepLink(Uri.parse("jabook://rutracker/search")))
+        assertTrue(ComposeMainActivity.isAllowedJabookDeepLink(Uri.parse("jabook://debug")))
         assertFalse(ComposeMainActivity.isAllowedJabookDeepLink(Uri.parse("https://migration")))
+        assertFalse(ComposeMainActivity.isAllowedJabookDeepLink(Uri.parse("jabook://unknown")))
     }
 }

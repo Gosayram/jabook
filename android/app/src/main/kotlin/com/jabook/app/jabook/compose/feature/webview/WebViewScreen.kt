@@ -41,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -90,14 +91,15 @@ public fun WebViewScreen(
 ) {
     val context = LocalContext.current
     val currentView = LocalView.current
-    // Decode URL from navigation argument
-    val url =
-        remember(route.url) {
-            URLDecoder.decode(route.url, StandardCharsets.UTF_8.toString())
-        }
+    // Decode URL from navigation argument.
+    val url = remember(route.url) { decodeWebViewUrl(route.url) }
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
+
+    LaunchedEffect(url) {
+        if (url == null) safeNavigateBack()
+    }
 
     var webView by remember { mutableStateOf<WebView?>(null) }
     var pageTitle by remember { mutableStateOf("") }
@@ -311,7 +313,9 @@ public fun WebViewScreen(
                             .setAcceptThirdPartyCookies(this, false)
 
                         // Load the URL
-                        if (route.isAuthentication && !viewModel.isTrustedAuthenticationUrl(url)) {
+                        if (url == null) {
+                            // The navigation effect above closes malformed external deep links.
+                        } else if (route.isAuthentication && !viewModel.isTrustedAuthenticationUrl(url)) {
                             safeNavigateBack()
                         } else if (url.isNotEmpty()) {
                             loadUrl(url)
@@ -337,3 +341,10 @@ public fun WebViewScreen(
         }
     }
 }
+
+internal fun decodeWebViewUrl(value: String): String? =
+    try {
+        URLDecoder.decode(value, StandardCharsets.UTF_8.toString())
+    } catch (_: IllegalArgumentException) {
+        null
+    }

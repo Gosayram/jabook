@@ -44,6 +44,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -735,10 +736,9 @@ internal class PlaylistManager(
                         )
                         val remainingIndices = filePaths.indices.filter { it != firstTrackIndex }
                         val totalItems = filePaths.size
-                        val isLargePlaylist = totalItems > 100
                         LogUtils.d(
                             "AudioPlayerService",
-                            "Loading ${remainingIndices.size} remaining MediaItems asynchronously in parallel (large playlist: $isLargePlaylist)",
+                            "Loading ${remainingIndices.size} remaining MediaItems asynchronously in parallel",
                         )
 
                         val loadPriorityPlan =
@@ -810,6 +810,7 @@ internal class PlaylistManager(
                                 // Add to player with synchronization to maintain order
                                 withContext(dispatchers.main) {
                                     addMutex.withLock {
+                                        if (!isLoadGenerationActive(loadGeneration)) return@withContext
                                         val activePlayer = getActivePlayer()
                                         val currentCount = activePlayer.mediaItemCount
 
@@ -887,24 +888,11 @@ internal class PlaylistManager(
                         val jobs =
                             allIndices.map { index ->
                                 val priority = PlaylistAsyncLoadPriorityPolicy.priorityLabelFor(index, loadPriorityPlan)
-                                playerServiceScope.launch(mediaItemDispatcher) {
+                                launch(mediaItemDispatcher) {
                                     loadMediaItem(index, priority)
                                 }
                             }
-
-                        val asyncLoadWaitDecision = PlaylistAsyncLoadWaitPolicy.decide(isLargePlaylist)
-                        // Wait for all jobs to complete (optional - they run in background anyway)
-                        // This allows us to verify completion if needed
-                        if (!asyncLoadWaitDecision.shouldDelayForCriticalStart) {
-                            // For large playlists, don't wait - let them load in background
-                            LogUtils.d(
-                                "AudioPlayerService",
-                                "Large playlist: ${jobs.size} MediaItems loading in parallel background",
-                            )
-                        } else {
-                            // For smaller playlists, wait briefly to ensure critical tracks load
-                            kotlinx.coroutines.delay(asyncLoadWaitDecision.delayMs)
-                        }
+                        jobs.joinAll()
 
                         LogUtils.i(
                             "AudioPlayerService",

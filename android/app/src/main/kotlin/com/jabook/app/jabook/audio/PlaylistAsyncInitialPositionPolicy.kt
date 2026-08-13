@@ -28,7 +28,7 @@ internal object PlaylistAsyncInitialPositionPolicy {
             isCurrentGeneration &&
                 initialTrackIndex != null &&
                 initialPositionMs != null &&
-                initialPositionMs > 0L
+                (initialTrackIndex > 0 || initialPositionMs > 0L)
         return PlaylistAsyncInitialPositionDecision(shouldApply = shouldApply)
     }
 }

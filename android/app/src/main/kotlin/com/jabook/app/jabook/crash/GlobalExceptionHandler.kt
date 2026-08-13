@@ -62,7 +62,7 @@ public class GlobalExceptionHandler(
 
         /**
          * Check if app is in safe mode (crash-loop detected).
-         * When true, disable risky subsystems: audio offload, visualizer, shader background.
+         * When true, audio offload is disabled after a crash loop.
          */
         @JvmStatic
         public fun isSafeMode(context: Context): Boolean =

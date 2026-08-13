@@ -24,6 +24,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -64,6 +65,11 @@ class WebViewViewModelTest {
             "file:///android_asset/login.html",
             "javascript:alert(1)",
         ).forEach { url -> assertFalse(url, viewModel.isTrustedAuthenticationUrl(url)) }
+    }
+
+    @Test
+    fun `malformed percent encoded deep link URL is rejected without throwing`() {
+        assertNull(decodeWebViewUrl("https%3A%2F%2Frutracker.org%2F%"))
     }
 
     @Test

@@ -98,6 +98,8 @@ public class ComposeMainActivity : ComponentActivity() {
                 "favorites",
                 "auth",
                 "migration",
+                "rutracker",
+                "debug",
             )
         internal val ALLOWED_JABOOK_PATH_PREFIXES =
             listOf(
@@ -110,6 +112,8 @@ public class ComposeMainActivity : ComponentActivity() {
                 "/favorites",
                 "/auth",
                 "/migration",
+                "/rutracker",
+                "/debug",
             )
 
         internal fun isAllowedJabookDeepLink(uri: Uri): Boolean {

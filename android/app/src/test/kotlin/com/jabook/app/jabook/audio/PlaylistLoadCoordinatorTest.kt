@@ -71,7 +71,7 @@ class PlaylistLoadCoordinatorTest {
     }
 
     @Test
-    fun `finish and fail clear loading state`() {
+    fun `finish clears loading state without cancelling active async work`() {
         var loading = true
         var currentPlaylist: List<String>? = listOf("x.mp3")
         var cancelCalls = 0
@@ -89,13 +89,13 @@ class PlaylistLoadCoordinatorTest {
         coordinator.finish()
         assertTrue(!loading)
         assertNull(currentPlaylist)
-        assertEquals(1, cancelCalls)
+        assertEquals(0, cancelCalls)
 
         loading = true
         currentPlaylist = listOf("z.mp3")
         coordinator.fail()
         assertTrue(!loading)
         assertNull(currentPlaylist)
-        assertEquals(2, cancelCalls)
+        assertEquals(0, cancelCalls)
     }
 }

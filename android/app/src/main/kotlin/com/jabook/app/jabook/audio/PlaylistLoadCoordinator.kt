@@ -36,7 +36,6 @@ internal class PlaylistLoadCoordinator(
     internal fun finish() {
         setLoading(false)
         setCurrentLoadingPlaylist(null)
-        cancelAndClearActiveLoadingJob()
     }
 
     internal fun fail() {

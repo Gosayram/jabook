@@ -328,7 +328,10 @@ public fun JabookApp(
                             modifier =
                                 Modifier
                                     .align(androidx.compose.ui.Alignment.BottomCenter)
-                                    .padding(bottom = if (currentBook != null && !isOnPlayerScreen) 72.dp else 16.dp),
+                                    .padding(
+                                        bottom =
+                                            if (currentBook != null && isMiniPlayerVisible && !isOnPlayerScreen) 72.dp else 16.dp,
+                                    ),
                         )
                     }
 

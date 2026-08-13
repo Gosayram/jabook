@@ -147,11 +147,10 @@ public class JabookApplication :
 
         recoverOpenListeningSessions()
 
-        // Clear safe mode after successful startup (crash-loop broken)
+        // Audio offload remains disabled after a crash loop until app data is reset.
         val safeModePrefs = getSharedPreferences("jabook_crash_handler", MODE_PRIVATE)
         if (safeModePrefs.getBoolean("safe_mode", false)) {
-            LogUtils.i("JabookApplication", "Running in safe mode — disabling risky subsystems")
-            // Safe mode clears automatically after successful init below
+            LogUtils.i("JabookApplication", "Running in safe mode — audio offload disabled")
         }
 
         // Create notification channels for downloads and player
@@ -290,7 +289,7 @@ public class JabookApplication :
 
     /**
      * Enter safe mode if crash-loop detected (≥3 crashes in 60s).
-     * In safe mode: disable audio offload, visualizer, shader background.
+     * In safe mode: disable audio offload.
      */
     private fun maybeEnterSafeMode() {
         val prefs = getSharedPreferences("jabook_crash_handler", MODE_PRIVATE)
