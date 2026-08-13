@@ -21,18 +21,13 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.core.app.TaskStackBuilder
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
-internal fun playerNotificationUri(bookId: String?): android.net.Uri? =
+internal fun playerNotificationRoute(bookId: String?): String? =
     bookId
         ?.takeIf(String::isNotBlank)
-        ?.let {
-            android.net.Uri
-                .Builder()
-                .scheme("jabook")
-                .authority("player")
-                .appendPath(it)
-                .build()
-        }
+        ?.let { "jabook://player/${URLEncoder.encode(it, StandardCharsets.UTF_8).replace("+", "%20")}" }
 
 /**
  * Creates notification content intents for the audio player service.
@@ -89,6 +84,6 @@ internal class NotificationIntentFactory(
     private fun playerActivityIntent(flags: Int = 0): Intent =
         Intent(context, ComposeMainActivity::class.java).apply {
             this.flags = flags
-            data = playerNotificationUri(currentBookId())
+            data = playerNotificationRoute(currentBookId())?.let(android.net.Uri::parse)
         }
 }

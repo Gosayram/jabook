@@ -21,11 +21,11 @@ import kotlin.test.assertNull
 class NotificationIntentFactoryTest {
     @Test
     fun `player notification route includes the current book id`() {
-        assertEquals("jabook://player/book%2F1", playerNotificationUri("book/1")?.toString())
+        assertEquals("jabook://player/book%2F1", playerNotificationRoute("book/1"))
     }
 
     @Test
     fun `player notification route is absent without a book`() {
-        assertNull(playerNotificationUri(" "))
+        assertNull(playerNotificationRoute(" "))
     }
 }
