@@ -385,11 +385,7 @@ public class TorrentManager
 
         private fun stopDownloadService() {
             try {
-                val intent =
-                    Intent(context, TorrentDownloadService::class.java).apply {
-                        action = TorrentDownloadService.ACTION_STOP
-                    }
-                context.startService(intent)
+                context.stopService(Intent(context, TorrentDownloadService::class.java))
             } catch (e: Exception) {
                 logger.e({ "Failed to stop download service" }, e)
             }

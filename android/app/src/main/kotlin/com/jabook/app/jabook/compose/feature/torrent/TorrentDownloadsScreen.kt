@@ -47,12 +47,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -120,6 +123,11 @@ public fun TorrentDownloadsScreen(
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val showCompletedOnly by viewModel.showCompletedOnly.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(viewModel) {
+        viewModel.snackbarEvent.collect(snackbarHostState::showSnackbar)
+    }
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
@@ -244,6 +252,7 @@ public fun TorrentDownloadsScreen(
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.torrent_downloads)) },

@@ -72,6 +72,7 @@ public class TorrentDownloadService : Service() {
     override fun onCreate() {
         super.onCreate()
         logger.i { "Service created" }
+        startForeground()
 
         // Initialize torrent manager with error handling
         // Wrap in try-catch to prevent crashes from libtorrent4j initialization errors
@@ -97,9 +98,6 @@ public class TorrentDownloadService : Service() {
 
         // Observe downloads for notification updates
         observeDownloads()
-
-        // Start foreground
-        startForeground()
     }
 
     override fun onStartCommand(
@@ -218,8 +216,8 @@ public class TorrentDownloadService : Service() {
             .onEach { downloads ->
                 updateNotifications(downloads)
 
-                // Auto-stop service if no downloads
-                if (downloads.isEmpty()) {
+                // Completed and paused entries stay in the manager for history.
+                if (downloads.values.none(TorrentDownload::isActive)) {
                     logger.i { "No active downloads, stopping service" }
                     stopSelf()
                 }
