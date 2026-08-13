@@ -265,8 +265,6 @@ public class JabookApplication :
             }
 
             val report = file.readText()
-            file.delete()
-            prefs.edit().remove("has_crash_report").apply()
 
             LogUtils.w("JabookApplication", "Found crash report from previous session, launching CrashActivity")
             val intent =

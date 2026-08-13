@@ -25,6 +25,8 @@ import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 /**
  * Worker for periodic data synchronization.
@@ -50,6 +52,7 @@ public class SyncWorker
         private val rutrackerRepository: com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository,
         private val settingsRepository: SettingsRepository,
         private val networkMonitor: NetworkMonitor,
+        @param:javax.inject.Named("coverDownload") private val coverDownloadClient: OkHttpClient,
         private val loggerFactory: LoggerFactory,
     ) : CoroutineWorker(appContext, params) {
         private val logger = loggerFactory.get("SyncWorker")
@@ -117,6 +120,7 @@ public class SyncWorker
 
             // Get downloads with topicId
             val downloads = torrentDownloadRepository.getAll().filter { !it.topicId.isNullOrEmpty() }
+            val books = if (downloads.isEmpty()) emptyList() else booksDao.getAllBooks()
             logger.d { "Found ${downloads.size} downloads to sync" }
 
             for (download in downloads) {
@@ -132,7 +136,6 @@ public class SyncWorker
                         // Find matching book by path
                         // Ideally we would have a better link, but path is what we have for now
                         // We check if the book path contains the download path or vice versa
-                        val books = booksDao.getAllBooks()
                         val matchedBook =
                             books.find { book ->
                                 book.localPath?.let { localPath ->
@@ -147,20 +150,6 @@ public class SyncWorker
 
                             // Update metadata if needed
                             // For now, we mainly care about missing covers or empty metadata
-
-                            var needsUpdate: Boolean = false
-                            val updatedBook = matchedBook.copy() // Create copy to modify
-
-                            // Update title if generic
-                            if (matchedBook.title.isEmpty() || matchedBook.title == "Unknown Title") {
-                                // We can't easily change Val in copy if not exposed, creating new object or modifying var
-                                // BookEntity properties are vals. copy() is the way.
-                                // However, Kotlin copy() is on data class.
-                                // Let's check BookEntity structure if needed, but standard copy works.
-                                // Wait, simple variables:
-                                // updatedBook.title = details.title // Error if val
-                                // We need to use copy parameters
-                            }
 
                             // Update cover URL if missing
                             if (matchedBook.coverUrl.isNullOrEmpty() && !details.coverUrl.isNullOrEmpty()) {
@@ -232,17 +221,23 @@ public class SyncWorker
                     val coverFile = java.io.File(coverDir, fileName)
 
                     if (!coverFile.exists()) {
-                        // Download file
-                        val url = java.net.URL(coverUrl)
-                        url.openStream().use { input ->
-                            AtomicFileWriter.writeWithLock(coverFile) { output ->
-                                input.copyTo(output)
+                        val request = Request.Builder().url(coverUrl).build()
+                        coverDownloadClient.newCall(request).execute().use { response ->
+                            check(response.isSuccessful) { "Cover request failed: HTTP ${response.code}" }
+                            response.body.byteStream().use { input ->
+                                AtomicFileWriter.writeWithLock(coverFile) { output ->
+                                    input.copyTo(output)
+                                }
                             }
                         }
 
-                        // Update DB
-                        booksDao.updateCoverPath(book.id, coverFile.absolutePath)
-                        logger.i { "Downloaded cover for ${book.title}" }
+                        // Update DB only after the complete file has been written.
+                        if (coverFile.exists()) {
+                            booksDao.updateCoverPath(book.id, coverFile.absolutePath)
+                            logger.i { "Downloaded cover for ${book.title}" }
+                        } else {
+                            error("Cover file was not created")
+                        }
                     }
                 } catch (e: CancellationException) {
                     throw e

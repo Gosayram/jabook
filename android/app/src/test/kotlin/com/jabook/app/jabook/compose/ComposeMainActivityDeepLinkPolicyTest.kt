@@ -12,30 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package com.jabook.app.jabook.compose.feature.player
+package com.jabook.app.jabook.compose
 
+import android.net.Uri
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
-class DelayedSliderSeekPolicyTest {
+@RunWith(RobolectricTestRunner::class)
+class ComposeMainActivityDeepLinkPolicyTest {
     @Test
-    fun `does not dispatch a delayed cross chapter seek after a newer drag`() {
-        assertFalse(
-            DelayedSliderSeekPolicy.shouldDispatch(
-                requestGeneration = 4L,
-                currentGeneration = 5L,
-            ),
-        )
-    }
-
-    @Test
-    fun `dispatches only the current delayed seek`() {
-        assertTrue(
-            DelayedSliderSeekPolicy.shouldDispatch(
-                requestGeneration = 5L,
-                currentGeneration = 5L,
-            ),
-        )
+    fun `allows the registered migration deep link only for jabook scheme`() {
+        assertTrue(ComposeMainActivity.isAllowedJabookDeepLink(Uri.parse("jabook://migration")))
+        assertFalse(ComposeMainActivity.isAllowedJabookDeepLink(Uri.parse("https://migration")))
     }
 }

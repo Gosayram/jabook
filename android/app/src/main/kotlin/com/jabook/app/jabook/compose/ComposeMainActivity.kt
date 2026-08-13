@@ -86,8 +86,8 @@ public class ComposeMainActivity : ComponentActivity() {
     private var isPlayerScreenVisible: Boolean = false
     private var autoPipEnabled: Boolean = false
 
-    private companion object {
-        private val ALLOWED_JABOOK_HOSTS =
+    internal companion object {
+        internal val ALLOWED_JABOOK_HOSTS =
             setOf(
                 "library",
                 "settings",
@@ -97,8 +97,9 @@ public class ComposeMainActivity : ComponentActivity() {
                 "search",
                 "favorites",
                 "auth",
+                "migration",
             )
-        private val ALLOWED_JABOOK_PATH_PREFIXES =
+        internal val ALLOWED_JABOOK_PATH_PREFIXES =
             listOf(
                 "/library",
                 "/settings",
@@ -108,7 +109,16 @@ public class ComposeMainActivity : ComponentActivity() {
                 "/search",
                 "/favorites",
                 "/auth",
+                "/migration",
             )
+
+        internal fun isAllowedJabookDeepLink(uri: Uri): Boolean {
+            if (uri.scheme != "jabook") return false
+            val host = uri.host?.lowercase().orEmpty()
+            val path = uri.path.orEmpty()
+            return host in ALLOWED_JABOOK_HOSTS ||
+                ALLOWED_JABOOK_PATH_PREFIXES.any { prefix -> path.startsWith(prefix, ignoreCase = true) }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -360,18 +370,6 @@ public class ComposeMainActivity : ComponentActivity() {
             }
             else -> incomingIntent
         }
-    }
-
-    private fun isAllowedJabookDeepLink(uri: Uri): Boolean {
-        if (uri.scheme != "jabook") return false
-        val host = uri.host?.lowercase().orEmpty()
-        val path = uri.path.orEmpty()
-        val hasAllowedHost = host in ALLOWED_JABOOK_HOSTS
-        val hasAllowedPath =
-            ALLOWED_JABOOK_PATH_PREFIXES.any { prefix ->
-                path.startsWith(prefix, ignoreCase = true)
-            }
-        return hasAllowedHost || hasAllowedPath
     }
 
     private fun isValidMagnetUri(uri: Uri): Boolean = MagnetUriValidationPolicy.isValidMagnetUri(uri)

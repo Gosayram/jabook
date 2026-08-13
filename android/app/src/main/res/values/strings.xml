@@ -1506,6 +1506,7 @@
     <string name="playVoiceNote">Play voice note</string>
     <string name="stopPlayback">Stop playback</string>
     <string name="errorPlayingVoiceNote">Failed to play voice note</string>
+    <string name="errorRecordingVoiceNote">Failed to record voice note</string>
     <!-- Button to acknowledge -->
     <string name="gotIt">Got It</string>
     <!-- Title for background compatibility banner -->

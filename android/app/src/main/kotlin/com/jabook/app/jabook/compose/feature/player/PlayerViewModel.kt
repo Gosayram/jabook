@@ -30,6 +30,7 @@ import com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.audio.processors.EqContextRecommendationPolicy
 import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
+import com.jabook.app.jabook.audio.sortFilesByNumericPrefix
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookmarkItem
@@ -68,6 +69,17 @@ import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.abs
 import com.jabook.app.jabook.compose.domain.model.Result as TypedResult
+
+internal fun sortChaptersForPlayback(chapters: List<Chapter>): List<Chapter> {
+    val playableChapters = chapters.filter { !it.fileUrl.isNullOrBlank() }
+    val chaptersByPath = playableChapters.groupBy { it.fileUrl }
+    val nextIndexByPath = mutableMapOf<String?, Int>()
+    return sortFilesByNumericPrefix(playableChapters.mapNotNull { it.fileUrl }).mapNotNull { path ->
+        val index = nextIndexByPath.getOrDefault(path, 0)
+        nextIndexByPath[path] = index + 1
+        chaptersByPath[path]?.getOrNull(index)
+    }
+}
 
 /**
  * ViewModel for the Player screen.
@@ -315,7 +327,7 @@ public class PlayerViewModel
         public val uiState: PlayerStateFlowContract =
             combine(
                 getBookDetailsUseCase(bookId),
-                getChaptersUseCase(bookId),
+                getChaptersUseCase(bookId).map(::sortChaptersForPlayback),
                 playerController.isPlaying,
                 uiPositionFlow,
                 playerController.currentChapterIndex,
@@ -461,7 +473,7 @@ public class PlayerViewModel
         private fun observeChapterLyrics() {
             viewModelScope.launch {
                 combine(
-                    getChaptersUseCase(bookId),
+                    getChaptersUseCase(bookId).map(::sortChaptersForPlayback),
                     playerController.currentChapterIndex,
                 ) { chapters, index ->
                     chapters.getOrNull(index)?.fileUrl
@@ -986,12 +998,6 @@ public class PlayerViewModel
             playerController.skipToChapter(chapterIndex, positionMs)
             // Reset repeat flag when manually changing chapters
             onChapterChanged()
-            // Always start playback when user selects a chapter from the chapter selector
-            // Use coroutine to ensure chapter switch completes before starting playback
-            viewModelScope.launch {
-                kotlinx.coroutines.delay(100L) // Small delay to ensure chapter switch completes
-                playerController.play()
-            }
         }
 
         public fun seekForward() {

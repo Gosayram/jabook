@@ -761,7 +761,9 @@ public fun PlayerScreen(
                                 )
                             },
                             navigationIcon = {
-                                androidx.compose.material3.IconButton(onClick = onNavigateBack) {
+                                androidx.compose.material3.IconButton(
+                                    onClick = { navigationClickGuard.run(currentOnNavigateBack) },
+                                ) {
                                     androidx.compose.material3.Icon(
                                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                         contentDescription = stringResource(R.string.backAction),
@@ -995,8 +997,8 @@ public fun PlayerScreen(
                                                 HapticManager.performTap(hapticFeedback)
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekBackward) }
                                             },
-                                            onSelectChapter = { chapterIndex ->
-                                                viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex))
+                                            onSelectChapter = { chapterIndex, positionMs ->
+                                                viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex, positionMs))
                                             },
                                             onChapterClick = {
                                                 // Phone: bottom sheet, larger screens: supporting pane.
@@ -1323,7 +1325,7 @@ private fun PlayerLandscapeLayout(
     onSeek: (Long) -> Unit,
     onSeekForward: () -> Unit,
     onSeekBackward: () -> Unit,
-    onSelectChapter: (Int) -> Unit,
+    onSelectChapter: (Int, Long) -> Unit,
     onChapterClick: () -> Unit,
     onSpeedClick: () -> Unit,
     onHoldToBoostStart: () -> Unit,
@@ -1372,7 +1374,6 @@ private fun PlayerLandscapeLayout(
     val playerProgress by remember(chapterTimeline) { derivedStateOf { chapterTimeline.progress } }
     var dragPosition by remember { mutableStateOf<Float?>(null) }
     var pendingSeekPosition by remember { mutableStateOf<Float?>(null) }
-    var delayedSeekGeneration by remember { mutableStateOf(0L) }
     var coalescedPlayerProgress by remember { mutableStateOf(playerProgress) }
     var lastSliderHapticProgress by remember { mutableStateOf<Float?>(null) }
     val isDragging by remember(dragPosition) { derivedStateOf { dragPosition != null } }
@@ -1533,7 +1534,6 @@ private fun PlayerLandscapeLayout(
             SquigglySlider(
                 value = displayedProgress,
                 onValueChange = { newProgress ->
-                    delayedSeekGeneration++
                     pendingSeekPosition = null
                     val constrainedProgress = newProgress.coerceIn(0f, 1f)
                     val shouldTriggerHaptic =
@@ -1546,7 +1546,6 @@ private fun PlayerLandscapeLayout(
                     dragPosition = constrainedProgress
                 },
                 onValueChangeFinished = {
-                    val seekGeneration = ++delayedSeekGeneration
                     val targetProgress = dragPosition ?: displayedProgress
                     if (chapterTimeline.totalDurationMs > 0 && targetProgress.isFinite()) {
                         val target =
@@ -1556,18 +1555,7 @@ private fun PlayerLandscapeLayout(
                             )
                         pendingSeekPosition = targetProgress
                         if (target.chapterIndex != state.currentChapterIndex) {
-                            onSelectChapter(target.chapterIndex)
-                            seekScope.launch {
-                                delay(80L)
-                                if (
-                                    DelayedSliderSeekPolicy.shouldDispatch(
-                                        seekGeneration,
-                                        delayedSeekGeneration,
-                                    )
-                                ) {
-                                    onSeek(target.chapterPositionMs)
-                                }
-                            }
+                            onSelectChapter(target.chapterIndex, target.chapterPositionMs)
                         } else {
                             onSeek(target.chapterPositionMs)
                         }
@@ -1822,7 +1810,7 @@ private fun PlayerContent(
     onSeek: (Long) -> Unit,
     onSeekForward: () -> Unit,
     onSeekBackward: () -> Unit,
-    onSelectChapter: (Int) -> Unit,
+    onSelectChapter: (Int, Long) -> Unit,
     onChapterClick: () -> Unit,
     onSpeedClick: () -> Unit,
     onHoldToBoostStart: () -> Unit,
@@ -2351,7 +2339,6 @@ private fun PlayerContent(
                         // - pendingSeekPosition = last user seek target until player converges
                         var dragPosition by remember { mutableStateOf<Float?>(null) }
                         var pendingSeekPosition by remember { mutableStateOf<Float?>(null) }
-                        var delayedSeekGeneration by remember { mutableStateOf(0L) }
                         var coalescedPlayerProgress by remember { mutableStateOf(playerProgress) }
                         var lastSliderHapticProgress by remember { mutableStateOf<Float?>(null) }
                         val isDragging by remember(dragPosition) { derivedStateOf { dragPosition != null } }
@@ -2453,7 +2440,6 @@ private fun PlayerContent(
                         SquigglySlider(
                             value = displayedProgress,
                             onValueChange = { newProgress ->
-                                delayedSeekGeneration++
                                 pendingSeekPosition = null
                                 val constrainedProgress = newProgress.coerceIn(0f, 1f)
                                 val shouldTriggerHaptic =
@@ -2468,7 +2454,6 @@ private fun PlayerContent(
                             },
                             onValueChangeFinished = {
                                 // Seek only when user finishes dragging
-                                val seekGeneration = ++delayedSeekGeneration
                                 val targetProgress = dragPosition ?: displayedProgress
                                 if (chapterTimeline.totalDurationMs > 0 && targetProgress.isFinite()) {
                                     val target =
@@ -2478,18 +2463,7 @@ private fun PlayerContent(
                                         )
                                     pendingSeekPosition = targetProgress
                                     if (target.chapterIndex != state.currentChapterIndex) {
-                                        onSelectChapter(target.chapterIndex)
-                                        seekScope.launch {
-                                            delay(80L)
-                                            if (
-                                                DelayedSliderSeekPolicy.shouldDispatch(
-                                                    seekGeneration,
-                                                    delayedSeekGeneration,
-                                                )
-                                            ) {
-                                                onSeek(target.chapterPositionMs)
-                                            }
-                                        }
+                                        onSelectChapter(target.chapterIndex, target.chapterPositionMs)
                                     } else {
                                         onSeek(target.chapterPositionMs)
                                     }
@@ -2557,25 +2531,13 @@ private fun PlayerContent(
                                         progressBarRangeInfo = ProgressBarRangeInfo(displayedProgress, 0f..1f)
                                         setProgress { targetProgress ->
                                             if (chapterTimeline.totalDurationMs <= 0) return@setProgress false
-                                            val seekGeneration = ++delayedSeekGeneration
                                             val target =
                                                 ChapterSeekbarPolicy.resolveSeekTarget(
                                                     chapters = state.chapters,
                                                     progress = targetProgress.coerceIn(0f, 1f),
                                                 )
                                             if (target.chapterIndex != state.currentChapterIndex) {
-                                                onSelectChapter(target.chapterIndex)
-                                                seekScope.launch {
-                                                    delay(80L)
-                                                    if (
-                                                        DelayedSliderSeekPolicy.shouldDispatch(
-                                                            seekGeneration,
-                                                            delayedSeekGeneration,
-                                                        )
-                                                    ) {
-                                                        onSeek(target.chapterPositionMs)
-                                                    }
-                                                }
+                                                onSelectChapter(target.chapterIndex, target.chapterPositionMs)
                                             } else {
                                                 onSeek(target.chapterPositionMs)
                                             }
@@ -3432,20 +3394,32 @@ private fun PlayerContent(
                             if (isRecordingBookmark) {
                                 bookmarkRecordTimeoutJob.value?.cancel()
                                 bookmarkRecordTimeoutJob.value = null
+                                val stopped = bookmarkRecorder.value?.runCatching { stop() }
                                 bookmarkRecorder.value?.runCatching {
-                                    stop()
                                     reset()
                                     release()
                                 }
                                 bookmarkRecorder.value = null
                                 isRecordingBookmark = false
+                                if (stopped?.isFailure == true) {
+                                    pendingBookmarkAudioPath?.let(::File)?.delete()
+                                    pendingBookmarkAudioPath = null
+                                    seekScope.launch {
+                                        snackbarHostState.showSnackbar(context.getString(R.string.errorRecordingVoiceNote))
+                                    }
+                                }
                                 return@FilledTonalButton
                             }
 
                             val bookmarkId = pendingBookmarkId ?: return@FilledTonalButton
                             val outputDir = File(context.cacheDir, "bookmark_notes")
-                            outputDir.mkdirs()
-                            val outputFile = File(outputDir, "bookmark_$bookmarkId.m4a")
+                            if (!outputDir.exists() && !outputDir.mkdirs()) {
+                                seekScope.launch {
+                                    snackbarHostState.showSnackbar(context.getString(R.string.errorRecordingVoiceNote))
+                                }
+                                return@FilledTonalButton
+                            }
+                            val outputFile = File(outputDir, "bookmark_${bookmarkId}_${System.currentTimeMillis()}.m4a")
                             val recorder =
                                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                                     MediaRecorder(context)
@@ -3453,31 +3427,41 @@ private fun PlayerContent(
                                     @Suppress("DEPRECATION")
                                     MediaRecorder()
                                 }
-                            recorder.setAudioSource(MediaRecorder.AudioSource.MIC)
-                            recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                            recorder.setAudioEncodingBitRate(96_000)
-                            recorder.setAudioSamplingRate(44_100)
-                            recorder.setOutputFile(outputFile.absolutePath)
-                            recorder.prepare()
-                            recorder.start()
-                            bookmarkRecorder.value = recorder
-                            pendingBookmarkAudioPath = outputFile.absolutePath
-                            isRecordingBookmark = true
-                            bookmarkRecordTimeoutJob.value?.cancel()
-                            bookmarkRecordTimeoutJob.value =
-                                seekScope.launch {
-                                    delay(30_000L)
-                                    if (isRecordingBookmark) {
-                                        bookmarkRecorder.value?.runCatching {
-                                            stop()
-                                            reset()
-                                            release()
+                            runCatching {
+                                recorder.setAudioSource(MediaRecorder.AudioSource.MIC)
+                                recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                                recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                                recorder.setAudioEncodingBitRate(96_000)
+                                recorder.setAudioSamplingRate(44_100)
+                                recorder.setOutputFile(outputFile.absolutePath)
+                                recorder.prepare()
+                                recorder.start()
+                            }.onSuccess {
+                                bookmarkRecorder.value = recorder
+                                pendingBookmarkAudioPath = outputFile.absolutePath
+                                isRecordingBookmark = true
+                                bookmarkRecordTimeoutJob.value?.cancel()
+                                bookmarkRecordTimeoutJob.value =
+                                    seekScope.launch {
+                                        delay(30_000L)
+                                        if (isRecordingBookmark) {
+                                            bookmarkRecorder.value?.runCatching {
+                                                stop()
+                                                reset()
+                                                release()
+                                            }
+                                            bookmarkRecorder.value = null
+                                            isRecordingBookmark = false
                                         }
-                                        bookmarkRecorder.value = null
-                                        isRecordingBookmark = false
                                     }
+                            }.onFailure {
+                                recorder.runCatching { reset() }
+                                recorder.runCatching { release() }
+                                outputFile.delete()
+                                seekScope.launch {
+                                    snackbarHostState.showSnackbar(context.getString(R.string.errorRecordingVoiceNote))
                                 }
+                            }
                         },
                     ) {
                         Icon(

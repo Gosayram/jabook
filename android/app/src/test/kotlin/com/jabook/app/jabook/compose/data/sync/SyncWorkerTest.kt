@@ -35,10 +35,13 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import okhttp3.OkHttpClient
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 import kotlin.test.assertFailsWith
@@ -53,6 +56,7 @@ class SyncWorkerTest {
     private val rutrackerRepository: RutrackerRepository = mock()
     private val settingsRepository: SettingsRepository = mock()
     private val networkMonitor: NetworkMonitor = mock()
+    private val okHttpClient: OkHttpClient = mock()
     private val loggerFactory: LoggerFactory =
         object : LoggerFactory {
             override fun get(tag: String): Logger = NoopLogger
@@ -130,6 +134,25 @@ class SyncWorkerTest {
             }
         }
 
+    @Test
+    fun `sync metadata reads books once regardless of download count`() =
+        runTest {
+            whenever(torrentDownloadRepository.getAll()).thenReturn(
+                listOf(
+                    TorrentDownload(hash = "hash-1", name = "Book 1", state = TorrentState.DOWNLOADING, topicId = "topic-1"),
+                    TorrentDownload(hash = "hash-2", name = "Book 2", state = TorrentState.DOWNLOADING, topicId = "topic-2"),
+                ),
+            )
+            whenever(booksDao.getAllBooks()).thenReturn(emptyList())
+            whenever(rutrackerRepository.getTopicDetails(org.mockito.kotlin.any())).thenReturn(Result.failure(Exception("offline")))
+            whenever(settingsRepository.userPreferences).thenReturn(flowOf(UserPreferencesSerializer.defaultValue))
+            whenever(networkMonitor.networkType).thenReturn(flowOf(NetworkType.WIFI))
+
+            buildWorker(runAttemptCount = 0).doWork()
+
+            verify(booksDao, times(2)).getAllBooks()
+        }
+
     private fun buildWorker(runAttemptCount: Int): SyncWorker {
         val workerFactory =
             object : WorkerFactory() {
@@ -148,6 +171,7 @@ class SyncWorkerTest {
                         rutrackerRepository = rutrackerRepository,
                         settingsRepository = settingsRepository,
                         networkMonitor = networkMonitor,
+                        coverDownloadClient = okHttpClient,
                         loggerFactory = loggerFactory,
                     )
                 }

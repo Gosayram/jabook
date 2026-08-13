@@ -104,12 +104,6 @@ public data class TopicRoute(
 )
 
 /**
- * Download History screen route - displays download history.
- */
-@Serializable
-public object DownloadHistoryRoute
-
-/**
  * RuTracker Search screen route - search audiobooks on RuTracker.
  */
 @Serializable

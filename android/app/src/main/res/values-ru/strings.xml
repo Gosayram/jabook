@@ -3067,4 +3067,5 @@
     <string name="resumeLongPauseContinue">Продолжить</string>
     <string name="resumeLongPauseRestartChapter">Начать главу сначала</string>
     <string name="resumeLongPauseSelectChapter">Выбрать главу</string>
+    <string name="errorRecordingVoiceNote">Не удалось записать голосовую заметку</string>
 </resources>

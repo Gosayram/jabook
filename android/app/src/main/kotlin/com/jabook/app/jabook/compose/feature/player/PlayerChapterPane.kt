@@ -61,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -267,13 +268,28 @@ private fun ChapterListItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val chapterName =
+        com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
+            chapter = chapter,
+            index = index,
+            localizedPrefix = stringResource(R.string.chapter_prefix),
+            normalizeEnabled = normalizeEnabled,
+        )
+    val chapterStatus =
+        when {
+            isSelected -> stringResource(R.string.currentlyPlaying)
+            chapter.isCompleted -> stringResource(R.string.completed)
+            else -> chapterProgressLabel(chapter)
+        }
     Surface(
         onClick = onClick,
         modifier =
             modifier
                 .fillMaxWidth()
-                .semantics { selected = isSelected }
-                .padding(vertical = 4.dp),
+                .semantics(mergeDescendants = true) {
+                    contentDescription = "$chapterName, $chapterStatus"
+                    selected = isSelected
+                }.padding(vertical = 4.dp),
         color =
             if (isSelected) {
                 MaterialTheme.colorScheme.secondaryContainer
@@ -315,13 +331,7 @@ private fun ChapterListItem(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text =
-                            com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
-                                chapter = chapter,
-                                index = index,
-                                localizedPrefix = stringResource(R.string.chapter_prefix),
-                                normalizeEnabled = normalizeEnabled,
-                            ),
+                        text = chapterName,
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,

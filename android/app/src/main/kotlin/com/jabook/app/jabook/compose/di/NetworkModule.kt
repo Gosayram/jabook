@@ -44,6 +44,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import java.util.concurrent.TimeUnit
+import javax.inject.Named
 import javax.inject.Singleton
 
 /**
@@ -187,6 +188,21 @@ public object NetworkModule {
             // - followSslRedirects = true (follow redirects between HTTP/HTTPS)
             .build()
     }
+
+    /**
+     * Client for untrusted cover URLs. It deliberately has no cookies, auth, or mirror rewriting.
+     */
+    @Provides
+    @Singleton
+    @Named("coverDownload")
+    public fun provideCoverDownloadClient(): OkHttpClient =
+        OkHttpClient
+            .Builder()
+            .callTimeout(NetworkRuntimePolicy.API_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .connectTimeout(NetworkRuntimePolicy.API_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(NetworkRuntimePolicy.API_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(NetworkRuntimePolicy.API_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .build()
 
     private const val HTTP_CACHE_SIZE_BYTES: Long = 10L * 1024L * 1024L
 

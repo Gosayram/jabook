@@ -41,6 +41,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
@@ -87,6 +88,7 @@ public class AudioPlayerController
         private var mediaControllerRetryJob: Job? = null
         private var serviceInitRetryJob: Job? = null
         private var loadBookRetryJob: Job? = null
+        private var positionUpdateJob: Job? = null
         private var exoFallbackListenerAttached = false
         private val pendingCommands = ArrayDeque<PendingControllerCommand>()
         private var pendingLoadRequest: PendingLoadRequest? = null
@@ -236,7 +238,7 @@ public class AudioPlayerController
         private val mediaControllerListener =
             object : Player.Listener, ExoPlayer.AudioOffloadListener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    _isPlaying.value = isPlaying
+                    updatePlaybackState(isPlaying)
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -308,7 +310,7 @@ public class AudioPlayerController
         private val exoPlayerFallbackListener =
             object : Player.Listener, ExoPlayer.AudioOffloadListener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    _isPlaying.value = isPlaying
+                    updatePlaybackState(isPlaying)
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -531,7 +533,7 @@ public class AudioPlayerController
 
                             // Initialize state from MediaController
                             controller?.let { ctrl ->
-                                _isPlaying.value = ctrl.isPlaying
+                                updatePlaybackState(ctrl.isPlaying)
                                 publishCurrentPosition(ctrl.currentPosition, force = true)
                                 _duration.value = ctrl.duration.coerceAtLeast(0)
                                 _currentChapterIndex.value = ctrl.currentMediaItemIndex
@@ -1073,6 +1075,32 @@ public class AudioPlayerController
             _currentPosition.value = sanitizedPositionMs
         }
 
+        private fun updatePlaybackState(isPlaying: Boolean) {
+            _isPlaying.value = isPlaying
+            if (isPlaying) {
+                startPositionUpdates()
+            } else {
+                positionUpdateJob?.cancel()
+                positionUpdateJob = null
+            }
+        }
+
+        private fun startPositionUpdates() {
+            if (positionUpdateJob?.isActive == true) return
+            positionUpdateJob =
+                scope.launch {
+                    while (isActive) {
+                        val player = mediaController ?: exoPlayer
+                        if (!player.isPlaying) {
+                            updatePlaybackState(false)
+                            break
+                        }
+                        publishCurrentPosition(player.currentPosition)
+                        delay(POSITION_UPDATE_INTERVAL_MS)
+                    }
+                }
+        }
+
         private fun startService() {
             try {
                 // Check if MediaController is already connected (service is running)
@@ -1119,6 +1147,8 @@ public class AudioPlayerController
             serviceInitRetryJob = null
             loadBookRetryJob?.cancel()
             loadBookRetryJob = null
+            positionUpdateJob?.cancel()
+            positionUpdateJob = null
             pendingLoadRequest = null
             loadBookRetryAttempts = 0
             pendingCommands.clear()
@@ -1133,5 +1163,9 @@ public class AudioPlayerController
             mediaControllerFuture = null
             _connectionState.value = ConnectionState.DISCONNECTED
             chapterLoudnessPolicy.release()
+        }
+
+        private companion object {
+            const val POSITION_UPDATE_INTERVAL_MS: Long = 250L
         }
     }
