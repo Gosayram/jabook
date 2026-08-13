@@ -782,6 +782,10 @@ public class AudioPlayerController
             request: PendingLoadRequest,
             resetRetryState: Boolean,
         ) {
+            if (!isCurrentLoadRequest(request)) {
+                logger.d { "Ignoring stale loadBook request ${request.requestId}" }
+                return
+            }
             if (resetRetryState) {
                 // New user-initiated load should invalidate any previously scheduled retry.
                 loadBookRetryJob?.cancel()
@@ -841,6 +845,7 @@ public class AudioPlayerController
                 try {
                     val currentGroupPath = MediaControllerExtensions.getCurrentGroupPath(controller)
                     val currentPaths = MediaControllerExtensions.getCurrentFilePaths(controller)
+                    if (!isCurrentLoadRequest(request)) return@launch
 
                     val isSameBook = request.bookId != null && request.bookId == currentGroupPath
                     // Compare playlists by content, not by reference, to handle sorted paths
@@ -873,6 +878,7 @@ public class AudioPlayerController
                     }
 
                     // Use MediaController custom command for setPlaylist
+                    if (!isCurrentLoadRequest(request)) return@launch
                     val future =
                         MediaControllerExtensions.setPlaylist(
                             controller = controller,
@@ -888,6 +894,7 @@ public class AudioPlayerController
                         withContext(Dispatchers.IO) {
                             future.get(30, TimeUnit.SECONDS)
                         }
+                    if (!isCurrentLoadRequest(request)) return@launch
                     if (result.resultCode == SessionResult.RESULT_SUCCESS && request.autoPlay) {
                         controller.play()
                     } else if (result.resultCode != SessionResult.RESULT_SUCCESS) {
@@ -901,7 +908,9 @@ public class AudioPlayerController
                     loadBookRetryAttempts = 0
                 } catch (e: Exception) {
                     logger.e({ "Error in loadBook" }, e)
-                    scheduleLoadBookRetry(request, "exception=${e::class.java.simpleName}")
+                    if (isCurrentLoadRequest(request)) {
+                        scheduleLoadBookRetry(request, "exception=${e::class.java.simpleName}")
+                    }
                 }
             }
         }
@@ -910,6 +919,7 @@ public class AudioPlayerController
             request: PendingLoadRequest,
             reason: String,
         ) {
+            if (!isCurrentLoadRequest(request)) return
             val nextAttempt = request.retryAttempt + 1
             if (!LoadBookRetryPolicy.shouldRetry(nextAttempt)) {
                 logger.e {
@@ -950,6 +960,12 @@ public class AudioPlayerController
             nextLoadRequestId += 1L
             return nextLoadRequestId
         }
+
+        private fun isCurrentLoadRequest(request: PendingLoadRequest): Boolean =
+            LoadBookRequestPolicy.isCurrent(
+                activeRequestId = nextLoadRequestId,
+                requestId = request.requestId,
+            )
 
         public fun play() {
             executeOrQueue(

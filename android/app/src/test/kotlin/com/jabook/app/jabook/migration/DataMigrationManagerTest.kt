@@ -238,11 +238,18 @@ class DataMigrationManagerTest {
                 """.trimIndent(),
             )
             whenever(context.filesDir).thenReturn(java.io.File(System.getProperty("java.io.tmpdir")))
+            whenever(
+                bookIdentifier.generateBookId(
+                    eq("/storage/emulated/0/Audiobooks/MyBook"),
+                    eq<String?>(null),
+                    eq<String?>(null),
+                ),
+            ).thenReturn("cover-book-id")
 
             val result = migrationManager.migrateFromFlutter()
             val book = argumentCaptor<BookEntity>()
 
-            assertTrue(result is MigrationResult.Success)
+            assertTrue("Migration failed: $result", result is MigrationResult.Success)
             verify(booksDao).insertBook(book.capture())
             assertEquals("/storage/emulated/0/Audiobooks/MyBook/cover.jpg", book.firstValue.coverPath)
             assertNull(book.firstValue.coverUrl)

@@ -14,6 +14,10 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
 import android.media.AudioManager
 import android.media.MediaPlayer
@@ -371,10 +375,28 @@ public fun PlayerScreen(
         }
     }
 
-    // Check for Power Save Mode to disable expensive visual effects
-    val isPowerSaveMode by remember(context) {
+    // Keep expensive visual effects in sync with Battery Saver while the player is visible.
+    var isPowerSaveMode by remember(context) {
         val powerManager = context.getSystemService<PowerManager>()
         mutableStateOf(powerManager?.isPowerSaveMode == true)
+    }
+    DisposableEffect(context) {
+        val receiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(
+                    receiverContext: Context,
+                    intent: Intent,
+                ) {
+                    isPowerSaveMode = receiverContext.getSystemService<PowerManager>()?.isPowerSaveMode == true
+                }
+            }
+        androidx.core.content.ContextCompat.registerReceiver(
+            context,
+            receiver,
+            IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED),
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        onDispose { context.unregisterReceiver(receiver) }
     }
 
     var hasRecordAudioPermission by remember {
