@@ -352,6 +352,30 @@ public class AuthRepositoryImpl
             cookieManager.flush()
         }
 
+        override suspend fun syncCookiesToWebView(url: String) {
+            val httpUrl = url.toHttpUrlOrNull() ?: return
+            val cookies = cookieJar.loadForRequest(httpUrl)
+            if (cookies.isEmpty()) return
+
+            val cookieManager = android.webkit.CookieManager.getInstance()
+            cookieManager.setAcceptCookie(true)
+
+            val domain = if (httpUrl.host.startsWith(".")) httpUrl.host else ".${httpUrl.host}"
+
+            cookies.forEach { cookie ->
+                val cookieString =
+                    buildString {
+                        append("${cookie.name}=${cookie.value}")
+                        append("; Domain=$domain")
+                        append("; Path=/")
+                        if (cookie.secure) append("; Secure")
+                        if (cookie.httpOnly) append("; HttpOnly")
+                    }
+                cookieManager.setCookie(url, cookieString)
+            }
+            cookieManager.flush()
+        }
+
         private fun parseCookieString(
             url: String,
             cookieHeader: String,

@@ -15,8 +15,12 @@
 package com.jabook.app.jabook.compose.feature.webview
 
 import android.graphics.Bitmap
+import android.net.http.SslError
+import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -53,6 +57,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.dropUnlessResumed
@@ -107,6 +112,7 @@ public fun WebViewScreen(
     var loadingProgress by remember { mutableFloatStateOf(0f) }
     var canGoBack by remember { mutableStateOf(false) }
     var isCapturingSession by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     DisposableEffect(currentView, route.isAuthentication) {
         val release =
@@ -224,6 +230,7 @@ public fun WebViewScreen(
                                 ) {
                                     isLoading = true
                                     canGoBack = view?.canGoBack() ?: false
+                                    errorMessage = null
 
                                     // Check for magnet links
                                     if (url?.startsWith("magnet:") == true) {
@@ -266,6 +273,42 @@ public fun WebViewScreen(
 
                                     return false // Let WebView handle other URLs
                                 }
+
+                                override fun onReceivedError(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                    error: WebResourceError?,
+                                ) {
+                                    // Only report main frame errors
+                                    if (request?.isForMainFrame == true) {
+                                        isLoading = false
+                                        errorMessage = error?.description?.toString()
+                                            ?: "Failed to load page"
+                                    }
+                                }
+
+                                override fun onReceivedHttpError(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                    errorCode: Int,
+                                    description: String?,
+                                    responseHeaders: MutableMap<String, String>?,
+                                ) {
+                                    if (request?.isForMainFrame == true && (errorCode == 403 || errorCode == 503)) {
+                                        isLoading = false
+                                        errorMessage = "Cloudflare protection detected ($errorCode). Please try again or switch mirrors."
+                                    }
+                                }
+
+                                override fun onReceivedSslError(
+                                    view: WebView?,
+                                    handler: SslErrorHandler?,
+                                    error: SslError?,
+                                ) {
+                                    handler?.cancel()
+                                    isLoading = false
+                                    errorMessage = "SSL error: ${error?.toString() ?: "unknown"}"
+                                }
                             }
 
                         webChromeClient =
@@ -299,17 +342,20 @@ public fun WebViewScreen(
                             displayZoomControls = false
                             useWideViewPort = true
                             loadWithOverviewMode = true
-                            // User-Agent similar to Flutter implementation (clean Chrome to avoid WebView blocking)
-                            // "Mozilla/5.0 (Linux; Android {version}; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version} Mobile Safari/537.36"
-                            val androidVersion = android.os.Build.VERSION.RELEASE
-                            userAgentString =
-                                "Mozilla/5.0 (Linux; Android $androidVersion; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.106 Mobile Safari/537.36"
+                            // Use system default UA to match OkHttp's WebSettings.getDefaultUserAgent
+                            // so Cloudflare cookies are bound to the same fingerprint
+                            userAgentString = WebSettings.getDefaultUserAgent(context)
                         }
 
                         // Authentication stays first-party; third-party cookies are not needed.
                         android.webkit.CookieManager
                             .getInstance()
                             .setAcceptThirdPartyCookies(this, false)
+
+                        // Pre-seed WebView with OkHttp cookies before navigation
+                        if (url != null && url.isNotEmpty()) {
+                            viewModel.syncCookiesToWebView(url)
+                        }
 
                         // Load the URL
                         if (url == null) {
@@ -337,6 +383,34 @@ public fun WebViewScreen(
                 },
                 modifier = Modifier.fillMaxSize(),
             )
+
+            // Error overlay
+            val currentError = errorMessage
+            if (currentError != null) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = androidx.compose.ui.Alignment.Center,
+                ) {
+                    Column(
+                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(32.dp),
+                    ) {
+                        Text(
+                            text = currentError,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        TextButton(
+                            onClick = {
+                                errorMessage = null
+                                webView?.reload()
+                            },
+                        ) {
+                            Text(stringResource(R.string.retry))
+                        }
+                    }
+                }
+            }
         }
     }
 }

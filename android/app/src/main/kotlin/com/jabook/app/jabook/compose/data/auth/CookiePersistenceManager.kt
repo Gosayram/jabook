@@ -89,10 +89,10 @@ public class CookiePersistenceManager
                     val cookieString = cookieManager.getCookie(url)
 
                     if (!cookieString.isNullOrBlank()) {
-                        val cookies = listOfNotNull(captureWebViewSessionCookie(url, cookieString))
+                        val cookies = captureWebViewCookies(url, cookieString)
 
                         if (cookies.isEmpty()) {
-                            logger.d { "No RuTracker session cookie in WebView" }
+                            logger.d { "No cookies captured from WebView" }
                             return@withContext
                         }
 
@@ -120,32 +120,38 @@ public class CookiePersistenceManager
             }
     }
 
-internal fun captureWebViewSessionCookie(
+internal fun captureWebViewCookies(
     url: String,
     cookieHeader: String,
-): Cookie? {
+): List<Cookie> {
     val httpUrl = url.toHttpUrl()
-    val value =
-        cookieHeader
-            .split(";")
-            .map { it.trim().split("=", limit = 2) }
-            .firstOrNull { it.size == 2 && it[0].trim() == RUTRACKER_SESSION_COOKIE }
-            ?.get(1)
-            ?.trim()
-            .orEmpty()
-    if (value.isEmpty()) return null
+    val domain = httpUrl.host
 
-    return runCatching {
-        Cookie
-            .Builder()
-            .name(RUTRACKER_SESSION_COOKIE)
-            .value(value)
-            .hostOnlyDomain(httpUrl.host)
-            .path("/")
-            .secure()
-            .httpOnly()
-            .build()
-    }.getOrNull()
+    return cookieHeader
+        .split(";")
+        .mapNotNull { part ->
+            val pieces = part.trim().split("=", limit = 2)
+            if (pieces.size != 2) return@mapNotNull null
+            val name = pieces[0].trim()
+            val value = pieces[1].trim()
+            if (name.isEmpty() || value.isEmpty()) return@mapNotNull null
+
+            runCatching {
+                Cookie
+                    .Builder()
+                    .name(name)
+                    .value(value)
+                    .hostOnlyDomain(domain)
+                    .path("/")
+                    .apply {
+                        // Cloudflare cookies often need Secure; session cookies too
+                        if (name.startsWith("__cf") || name == "cf_clearance" || name == RUTRACKER_SESSION_COOKIE) {
+                            secure()
+                            httpOnly()
+                        }
+                    }.build()
+            }.getOrNull()
+        }
 }
 
 private const val RUTRACKER_SESSION_COOKIE = "bb_session"

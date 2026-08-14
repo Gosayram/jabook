@@ -15,21 +15,28 @@
 package com.jabook.app.jabook.compose.data.auth
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CookiePersistenceManagerTest {
     @Test
     fun `captured session is restricted to the trusted HTTPS host`() {
-        val cookie = captureWebViewSessionCookie("https://rutracker.org/forum/login.php", "bb_session=token; other=value")
+        val cookies = captureWebViewCookies("https://rutracker.org/forum/login.php", "bb_session=token; other=value")
 
-        assertNotNull(cookie)
-        requireNotNull(cookie).let {
-            assertEquals("rutracker.org", it.domain)
-            assertTrue(it.hostOnly)
-            assertTrue(it.secure)
-            assertTrue(it.httpOnly)
-        }
+        assertTrue(cookies.isNotEmpty())
+        val bbSession = cookies.first { it.name == "bb_session" }
+        assertEquals("rutracker.org", bbSession.domain)
+        assertTrue(bbSession.hostOnly)
+        assertTrue(bbSession.secure)
+        assertTrue(bbSession.httpOnly)
+    }
+
+    @Test
+    fun `captures cloudflare cookies`() {
+        val cookies = captureWebViewCookies("https://rutracker.org/forum/", "__cf_bm=abc123; cf_clearance=xyz789; bb_session=tok")
+
+        assertTrue(cookies.any { it.name == "__cf_bm" })
+        assertTrue(cookies.any { it.name == "cf_clearance" })
+        assertTrue(cookies.any { it.name == "bb_session" })
     }
 }

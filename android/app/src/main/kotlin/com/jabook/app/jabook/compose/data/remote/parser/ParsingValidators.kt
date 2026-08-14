@@ -92,6 +92,22 @@ internal object ParsingValidators {
     }
 
     /**
+     * Check if content is a Cloudflare challenge page.
+     *
+     * @param html HTML content to check
+     * @return true if Cloudflare challenge detected, false otherwise
+     */
+    public fun isCloudflareChallenge(html: String): Boolean {
+        val lowerHtml = html.lowercase()
+        return lowerHtml.contains("just a moment") ||
+            lowerHtml.contains("checking your browser") ||
+            lowerHtml.contains("cf-browser-verification") ||
+            lowerHtml.contains("cf_chl_") ||
+            lowerHtml.contains("turnstile") ||
+            lowerHtml.contains("attention required")
+    }
+
+    /**
      * Check if response indicates a bad request (400).
      *
      * @param html HTML content to check
@@ -133,6 +149,10 @@ internal object ParsingValidators {
             return RuTrackerError.NoData
         }
 
+        if (isCloudflareChallenge(html)) {
+            return RuTrackerError.CloudflareChallenge
+        }
+
         if (requiresAuthentication(html)) {
             return RuTrackerError.Unauthorized
         }
@@ -165,6 +185,10 @@ internal object ParsingValidators {
     public fun validateSearchResults(html: String): RuTrackerError? {
         if (!isValidContent(html)) {
             return RuTrackerError.NoData
+        }
+
+        if (isCloudflareChallenge(html)) {
+            return RuTrackerError.CloudflareChallenge
         }
 
         if (requiresAuthentication(html)) {
@@ -203,6 +227,10 @@ internal object ParsingValidators {
     public fun validateForumPage(html: String): RuTrackerError? {
         if (!isValidContent(html)) {
             return RuTrackerError.NoData
+        }
+
+        if (isCloudflareChallenge(html)) {
+            return RuTrackerError.CloudflareChallenge
         }
 
         if (requiresAuthentication(html)) {

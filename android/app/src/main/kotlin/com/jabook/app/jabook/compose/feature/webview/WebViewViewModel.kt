@@ -72,4 +72,18 @@ public class WebViewViewModel
             val baseUrl = mirrorManager.getBaseUrl()
             return "$baseUrl/forum/login.php"
         }
+
+        /**
+         * Pre-seed WebView with existing OkHttp cookies for the given URL.
+         * Should be called before loadUrl to avoid empty cookie state.
+         */
+        public fun syncCookiesToWebView(url: String) {
+            viewModelScope.launch {
+                try {
+                    authRepository.syncCookiesToWebView(url)
+                } catch (_: Exception) {
+                    // Best-effort; WebView works without pre-seeded cookies
+                }
+            }
+        }
     }
