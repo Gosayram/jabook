@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.migration
 
-import android.os.Build
+import android.database.sqlite.SQLiteException
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
@@ -67,7 +67,6 @@ private fun checkFtsSupport(db: SupportSQLiteDatabase): FtsSupport {
         }
     } catch (_: Exception) {
         fts4 = true
-        fts5 = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
     }
     return FtsSupport(fts4, fts5)
 }
@@ -87,19 +86,39 @@ public fun createBooksFtsIndex(db: SupportSQLiteDatabase) {
     val module = if (useFts5) "fts5" else "fts4"
     val tokenize = if (useFts5) "tokenize='unicode61'" else "tokenize=unicode61"
 
-    db.execSQL(
-        """
-        CREATE VIRTUAL TABLE IF NOT EXISTS books_fts
-        USING $module(
-            title,
-            author,
-            description,
-            content='books',
-            content_rowid='rowid',
-            $tokenize
+    try {
+        db.execSQL(
+            """
+            CREATE VIRTUAL TABLE IF NOT EXISTS books_fts
+            USING $module(
+                title,
+                author,
+                description,
+                content='books',
+                content_rowid='rowid',
+                $tokenize
+            )
+            """.trimIndent(),
         )
-        """.trimIndent(),
-    )
+    } catch (error: SQLiteException) {
+        if (useFts5 && error.isMissingFts5Module()) {
+            db.execSQL(
+                """
+                CREATE VIRTUAL TABLE IF NOT EXISTS books_fts
+                USING fts4(
+                    title,
+                    author,
+                    description,
+                    content='books',
+                    content_rowid='rowid',
+                    tokenize=unicode61
+                )
+                """.trimIndent(),
+            )
+        } else {
+            throw error
+        }
+    }
 
     db.execSQL(
         """
