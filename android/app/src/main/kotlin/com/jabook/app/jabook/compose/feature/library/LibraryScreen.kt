@@ -501,7 +501,7 @@ public fun LibraryScreen(
                                             searchQuery = genre.title
                                             showDiscovery = false
                                         },
-                                        modifier = Modifier.fillMaxSize(),
+                                        modifier = Modifier.weight(1f).fillMaxWidth(),
                                     )
                                 } else {
                                     SearchBar(
@@ -563,7 +563,7 @@ public fun LibraryScreen(
                                         books = filteredBooks,
                                         displayMode = viewMode.toBookDisplayMode(),
                                         actionsProvider = actionsProvider,
-                                        modifier = Modifier.fillMaxSize(),
+                                        modifier = Modifier.weight(1f).fillMaxWidth(),
                                     )
                                 }
                             }
@@ -797,7 +797,7 @@ public fun LibraryScreen(
                                                         searchQuery = genre.title
                                                         showDiscovery = false
                                                     },
-                                                    modifier = Modifier.fillMaxSize(),
+                                                    modifier = Modifier.weight(1f).fillMaxWidth(),
                                                 )
                                             } else {
                                                 SearchBar(
@@ -859,7 +859,7 @@ public fun LibraryScreen(
                                                     books = filteredBooks,
                                                     displayMode = viewMode.toBookDisplayMode(),
                                                     actionsProvider = actionsProvider,
-                                                    modifier = Modifier.fillMaxSize(),
+                                                    modifier = Modifier.weight(1f).fillMaxWidth(),
                                                 )
                                             }
                                         }
