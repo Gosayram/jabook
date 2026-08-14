@@ -110,6 +110,12 @@
         tools:targetApi="34"
         tools:ignore="NamespaceTypo,MissingClass">
 
+        <!-- Remove WorkManager default initializer — app uses on-demand initialization -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            tools:node="remove" />
+
         <!-- Android Auto support - enables audiobook playback in cars -->
         <!-- Users can browse library, control playback with steering wheel, use voice commands -->
         <meta-data
