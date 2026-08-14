@@ -298,8 +298,11 @@ public fun LibraryScreen(
 
         if (isCompact) {
             // Direct Scaffold on compact screens — skip ListDetailPaneScaffold to avoid double insets
+            // NavigationSuiteScaffold already consumes system bar insets; zero them out here to
+            // prevent double inset padding (status bar gap + extra content offset).
             Scaffold(
                 containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 topBar = {
                     TopAppBar(
                         title = {
