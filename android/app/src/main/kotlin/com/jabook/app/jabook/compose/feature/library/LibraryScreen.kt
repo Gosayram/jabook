@@ -500,208 +500,213 @@ public fun LibraryScreen(
             ) { padding ->
                 val isRefreshing = scanState is ScanState.Scanning
                 val pullToRefreshState = rememberPullToRefreshState()
-                androidx.compose.material3.pulltorefresh.PullToRefreshBox(
-                    state = pullToRefreshState,
-                    isRefreshing = isRefreshing,
-                    onRefresh = {
-                        if (isRefreshing) {
-                            return@PullToRefreshBox
-                        }
-                        val permission =
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                android.Manifest.permission.READ_MEDIA_AUDIO
-                            } else {
-                                android.Manifest.permission.READ_EXTERNAL_STORAGE
+                Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+                    androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                        state = pullToRefreshState,
+                        isRefreshing = isRefreshing,
+                        onRefresh = {
+                            if (isRefreshing) {
+                                return@PullToRefreshBox
                             }
-                        // Check permission and start scan using pre-obtained context
-                        val hasPermission =
-                            androidx.core.content.ContextCompat.checkSelfPermission(
-                                context,
-                                permission,
-                            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-
-                        if (hasPermission) {
-                            viewModel.startLibraryScan()
-                        } else {
-                            permissionLauncher.launch(permission)
-                        }
-                    },
-                    indicator = {
-                        PullToRefreshDefaults.Indicator(
-                            state = pullToRefreshState,
-                            isRefreshing = isRefreshing,
-                            modifier = Modifier.align(Alignment.TopCenter),
-                            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
-                            color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-                        )
-                    },
-                    modifier = Modifier.padding(padding).fillMaxSize(),
-                ) {
-                    when (uiState) {
-                        is LibraryUiState.Loading -> {
-                            LibraryLoadingSkeleton(message = stringResource(R.string.loadingLibrary))
-                        }
-
-                        is LibraryUiState.Success -> {
-                            val books = (uiState as LibraryUiState.Success).books
-                            val filteredBooks =
-                                remember(books, activeQuickFilter, searchQuery) {
-                                    books
-                                        .filterBy(activeQuickFilter)
-                                        .filterByQuery(searchQuery)
-                                }
-                            val discoveryUiState =
-                                remember(books, listeningMood) {
-                                    buildDiscoveryUiState(books, listeningMood)
-                                }
-                            val actionsProvider =
-                                viewModel.createBookActionsProvider(
-                                    onBookClick = { bookId ->
-                                        // Navigate to detail pane and track selection
-                                        selectedBookId = bookId
-                                        scope.launch {
-                                            navigator.navigateTo(
-                                                ListDetailPaneScaffoldRole.Detail,
-                                                bookId,
-                                            )
-                                        }
-                                    },
-                                    onBookLongPress = { bookId ->
-                                        selectedBookForActions = books.firstOrNull { it.id == bookId }
-                                    },
-                                )
-
-                            Column(modifier = Modifier.fillMaxSize()) {
-                                if (showDiscovery) {
-                                    DiscoveryScreen(
-                                        uiState = discoveryUiState,
-                                        selectedMood = listeningMood,
-                                        onMoodChange = { listeningMood = it },
-                                        onBookClick = { onBookClick(it.id) },
-                                        onGenreClick = { genre ->
-                                            searchQuery = genre.title
-                                            showDiscovery = false
-                                        },
-                                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                                    )
+                            val permission =
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                    android.Manifest.permission.READ_MEDIA_AUDIO
                                 } else {
-                                    SearchBar(
-                                        inputField = {
-                                            SearchBarDefaults.InputField(
-                                                query = searchQuery,
-                                                onQueryChange = { searchQuery = it },
-                                                onSearch = { searchBarExpanded = false },
-                                                expanded = searchBarExpanded,
-                                                onExpandedChange = { searchBarExpanded = it },
-                                                placeholder = { Text(text = stringResource(R.string.searchBooks)) },
-                                                leadingIcon = {
-                                                    Icon(
-                                                        imageVector = Icons.Filled.Search,
-                                                        contentDescription = null,
-                                                    )
-                                                },
-                                                trailingIcon = {
-                                                    if (searchQuery.isNotEmpty()) {
-                                                        IconButton(onClick = { searchQuery = "" }) {
-                                                            Icon(
-                                                                imageVector = Icons.Filled.Clear,
-                                                                contentDescription = stringResource(R.string.clearSearch),
-                                                            )
-                                                        }
-                                                    }
-                                                },
-                                            )
+                                    android.Manifest.permission.READ_EXTERNAL_STORAGE
+                                }
+                            // Check permission and start scan using pre-obtained context
+                            val hasPermission =
+                                androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context,
+                                    permission,
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+                            if (hasPermission) {
+                                viewModel.startLibraryScan()
+                            } else {
+                                permissionLauncher.launch(permission)
+                            }
+                        },
+                        indicator = {
+                            PullToRefreshDefaults.Indicator(
+                                state = pullToRefreshState,
+                                isRefreshing = isRefreshing,
+                                modifier = Modifier.align(Alignment.TopCenter),
+                                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
+                                color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                    ) {
+                        when (uiState) {
+                            is LibraryUiState.Loading -> {
+                                LibraryLoadingSkeleton(message = stringResource(R.string.loadingLibrary))
+                            }
+
+                            is LibraryUiState.Success -> {
+                                val books = (uiState as LibraryUiState.Success).books
+                                val filteredBooks =
+                                    remember(books, activeQuickFilter, searchQuery) {
+                                        books
+                                            .filterBy(activeQuickFilter)
+                                            .filterByQuery(searchQuery)
+                                    }
+                                val discoveryUiState =
+                                    remember(books, listeningMood) {
+                                        buildDiscoveryUiState(books, listeningMood)
+                                    }
+                                val actionsProvider =
+                                    viewModel.createBookActionsProvider(
+                                        onBookClick = { bookId ->
+                                            // Navigate to detail pane and track selection
+                                            selectedBookId = bookId
+                                            scope.launch {
+                                                navigator.navigateTo(
+                                                    ListDetailPaneScaffoldRole.Detail,
+                                                    bookId,
+                                                )
+                                            }
                                         },
-                                        expanded = searchBarExpanded,
-                                        onExpandedChange = { searchBarExpanded = it },
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 12.dp)
-                                                .padding(bottom = 8.dp),
-                                    ) {}
-                                    LibraryQuickFilterChips(
-                                        activeFilter = activeQuickFilter,
-                                        onFilterChanged = { activeQuickFilter = it },
-                                        bookCounts =
-                                            mapOf(
-                                                LibraryQuickFilter.ALL to books.size,
-                                                LibraryQuickFilter.IN_PROGRESS to
-                                                    books.filterBy(LibraryQuickFilter.IN_PROGRESS).size,
-                                                LibraryQuickFilter.COMPLETED to
-                                                    books.filterBy(LibraryQuickFilter.COMPLETED).size,
-                                                LibraryQuickFilter.NEW to books.filterBy(LibraryQuickFilter.NEW).size,
-                                                LibraryQuickFilter.FAVORITES to
-                                                    books.filterBy(LibraryQuickFilter.FAVORITES).size,
-                                            ),
-                                        modifier =
-                                            Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 12.dp)
-                                                .padding(top = 4.dp, bottom = 8.dp),
+                                        onBookLongPress = { bookId ->
+                                            selectedBookForActions = books.firstOrNull { it.id == bookId }
+                                        },
                                     )
-                                    UnifiedBooksView(
-                                        books = filteredBooks,
-                                        displayMode = viewMode.toBookDisplayMode(),
-                                        actionsProvider = actionsProvider,
-                                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                                    )
-                                    // Analytics below book list
-                                    weeklyRecap?.let { recap ->
-                                        WeeklyRecapCard(
-                                            stats = recap,
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+
+                                Column(modifier = Modifier.fillMaxSize()) {
+                                    if (showDiscovery) {
+                                        DiscoveryScreen(
+                                            uiState = discoveryUiState,
+                                            selectedMood = listeningMood,
+                                            onMoodChange = { listeningMood = it },
+                                            onBookClick = { onBookClick(it.id) },
+                                            onGenreClick = { genre ->
+                                                searchQuery = genre.title
+                                                showDiscovery = false
+                                            },
+                                            modifier = Modifier.weight(1f).fillMaxWidth(),
                                         )
-                                        yearRecap?.let { recapYear ->
-                                            YearRecapPromptCard(
-                                                yearRecap = recapYear,
-                                                onShareClick = {
-                                                    shareYearRecap(context, recapYear)
-                                                },
-                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                            )
-                                        }
-                                    }
-                                    if (showStatsSection) {
-                                        ListeningHeatmap(
-                                            data = buildListeningHeatmapData(books),
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    } else {
+                                        SearchBar(
+                                            inputField = {
+                                                SearchBarDefaults.InputField(
+                                                    query = searchQuery,
+                                                    onQueryChange = { searchQuery = it },
+                                                    onSearch = { searchBarExpanded = false },
+                                                    expanded = searchBarExpanded,
+                                                    onExpandedChange = { searchBarExpanded = it },
+                                                    placeholder = { Text(text = stringResource(R.string.searchBooks)) },
+                                                    leadingIcon = {
+                                                        Icon(
+                                                            imageVector = Icons.Filled.Search,
+                                                            contentDescription = null,
+                                                        )
+                                                    },
+                                                    trailingIcon = {
+                                                        if (searchQuery.isNotEmpty()) {
+                                                            IconButton(onClick = { searchQuery = "" }) {
+                                                                Icon(
+                                                                    imageVector = Icons.Filled.Clear,
+                                                                    contentDescription = stringResource(R.string.clearSearch),
+                                                                )
+                                                            }
+                                                        }
+                                                    },
+                                                )
+                                            },
+                                            expanded = searchBarExpanded,
+                                            onExpandedChange = { searchBarExpanded = it },
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 12.dp)
+                                                    .padding(bottom = 8.dp),
+                                        ) {}
+                                        LibraryQuickFilterChips(
+                                            activeFilter = activeQuickFilter,
+                                            onFilterChanged = { activeQuickFilter = it },
+                                            bookCounts =
+                                                mapOf(
+                                                    LibraryQuickFilter.ALL to books.size,
+                                                    LibraryQuickFilter.IN_PROGRESS to
+                                                        books.filterBy(LibraryQuickFilter.IN_PROGRESS).size,
+                                                    LibraryQuickFilter.COMPLETED to
+                                                        books.filterBy(LibraryQuickFilter.COMPLETED).size,
+                                                    LibraryQuickFilter.NEW to books.filterBy(LibraryQuickFilter.NEW).size,
+                                                    LibraryQuickFilter.FAVORITES to
+                                                        books.filterBy(LibraryQuickFilter.FAVORITES).size,
+                                                ),
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 12.dp)
+                                                    .padding(top = 4.dp, bottom = 8.dp),
                                         )
-                                        SpeedDonutChart(
-                                            distribution = buildSpeedDistribution(books),
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                        UnifiedBooksView(
+                                            books = filteredBooks,
+                                            displayMode = viewMode.toBookDisplayMode(),
+                                            actionsProvider = actionsProvider,
+                                            modifier = Modifier.weight(1f).fillMaxWidth(),
                                         )
-                                    }
-                                    if (weeklyRecap != null) {
-                                        androidx.compose.material3.TextButton(
-                                            onClick = { showStatsSection = !showStatsSection },
-                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                                        ) {
-                                            Icon(
-                                                imageVector = if (showStatsSection) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                                contentDescription = null,
-                                                modifier = Modifier.padding(end = 8.dp),
-                                            )
-                                            Text(text = stringResource(R.string.statistics))
-                                        }
                                     }
                                 }
                             }
-                        }
 
-                        is LibraryUiState.Empty -> {
-                            EmptyState(
-                                message = stringResource(R.string.noBooksInLibrary),
-                                subtitle = stringResource(R.string.noFoldersConfiguredPleaseAddInSettings),
-                                ctaText = stringResource(R.string.retry),
-                                onCta = { viewModel.startLibraryScan() },
+                            is LibraryUiState.Empty -> {
+                                EmptyState(
+                                    message = stringResource(R.string.noBooksInLibrary),
+                                    subtitle = stringResource(R.string.noFoldersConfiguredPleaseAddInSettings),
+                                    ctaText = stringResource(R.string.retry),
+                                    onCta = { viewModel.startLibraryScan() },
+                                )
+                            }
+
+                            is LibraryUiState.Error -> {
+                                ErrorScreen(
+                                    message = (uiState as LibraryUiState.Error).message,
+                                )
+                            }
+                        }
+                    }
+                    // Analytics below PullToRefreshBox
+                    if (uiState is LibraryUiState.Success) {
+                        val books = (uiState as LibraryUiState.Success).books
+                        weeklyRecap?.let { recap ->
+                            WeeklyRecapCard(
+                                stats = recap,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            )
+                            yearRecap?.let { recapYear ->
+                                YearRecapPromptCard(
+                                    yearRecap = recapYear,
+                                    onShareClick = {
+                                        shareYearRecap(context, recapYear)
+                                    },
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                )
+                            }
+                        }
+                        if (showStatsSection) {
+                            ListeningHeatmap(
+                                data = buildListeningHeatmapData(books),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            )
+                            SpeedDonutChart(
+                                distribution = buildSpeedDistribution(books),
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                             )
                         }
-
-                        is LibraryUiState.Error -> {
-                            ErrorScreen(
-                                message = (uiState as LibraryUiState.Error).message,
-                            )
+                        if (weeklyRecap != null) {
+                            androidx.compose.material3.TextButton(
+                                onClick = { showStatsSection = !showStatsSection },
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                            ) {
+                                Icon(
+                                    imageVector = if (showStatsSection) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(end = 8.dp),
+                                )
+                                Text(text = stringResource(R.string.statistics))
+                            }
                         }
                     }
                 }
