@@ -22,10 +22,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.libtorrent4j.Priority
 import org.libtorrent4j.SessionManager
+import org.libtorrent4j.SettingsPack
 import org.libtorrent4j.Sha1Hash
 import org.libtorrent4j.TorrentHandle
 import org.libtorrent4j.swig.error_code
 import org.libtorrent4j.swig.libtorrent
+import org.libtorrent4j.swig.settings_pack
 import org.libtorrent4j.swig.torrent_flags_t
 import java.io.File
 import javax.inject.Inject
@@ -56,8 +58,26 @@ public class LibTorrentDownloader
         }
 
         private val sessionManager: SessionManager by lazy {
-            SessionManager().apply {
-                start()
+            val settings =
+                SettingsPack().apply {
+                    connectionsLimit(200)
+                    downloadRateLimit(0)
+                    uploadRateLimit(0)
+                    activeDownloads(4)
+                    activeSeeds(4)
+                    activeLimit(8)
+                    sendBufferWatermark(1024 * 1024)
+                    activeDhtLimit(80)
+                    listenInterfaces("0.0.0.0:6881-6889")
+                    try {
+                        setInteger(settings_pack.int_types.max_out_request_queue.swigValue(), 100)
+                    } catch (_: NoSuchMethodError) {
+                        // older libtorrent4j versions lack max_out_request_queue
+                    }
+                }
+            val params = org.libtorrent4j.SessionParams(settings)
+            SessionManager(false).apply {
+                start(params)
             }
         }
 
@@ -92,9 +112,25 @@ public class LibTorrentDownloader
                     val infoHash = Sha1Hash(bestHash)
 
                     // 2. Add torrent using SessionManager
+                    // Append fallback trackers if magnet has no tracker URLs
+                    val fallbackTrackers =
+                        listOf(
+                            "udp://tracker.opentrackr.org:1337/announce",
+                            "udp://open.stealth.si:80/announce",
+                            "udp://tracker.openbittorrent.com:6969/announce",
+                            "udp://open.demonii.com:1337/announce",
+                            "udp://exodus.desync.com:6969/announce",
+                        )
+                    val effectiveUrl =
+                        if (!torrentUrl.contains("&tr=") && !torrentUrl.contains("&tr%3D")) {
+                            val trackerSuffix = fallbackTrackers.joinToString("&") { "tr=${java.net.URLEncoder.encode(it, "UTF-8")}" }
+                            "$torrentUrl&$trackerSuffix"
+                        } else {
+                            torrentUrl
+                        }
                     // SessionManager.download returns void, so we add and then find
                     val flags = torrent_flags_t() // default flags
-                    sessionManager.download(torrentUrl, saveDir, flags)
+                    sessionManager.download(effectiveUrl, saveDir, flags)
 
                     // 3. Find the handle (wait briefly if needed)
                     var torrentHandle: TorrentHandle? = null

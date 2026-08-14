@@ -57,6 +57,9 @@ import org.libtorrent4j.alerts.StateUpdateAlert
 import org.libtorrent4j.alerts.TorrentErrorAlert
 import org.libtorrent4j.alerts.TorrentFinishedAlert
 import org.libtorrent4j.alerts.TorrentLogAlert
+import org.libtorrent4j.alerts.TrackerAnnounceAlert
+import org.libtorrent4j.alerts.TrackerErrorAlert
+import org.libtorrent4j.alerts.TrackerReplyAlert
 import org.libtorrent4j.swig.error_code
 import org.libtorrent4j.swig.libtorrent
 import org.libtorrent4j.swig.settings_pack
@@ -101,6 +104,16 @@ public class TorrentSessionManager
             private const val LIBRARY_SYNC_TRIGGER_COOLDOWN_MS = 3_000L
             private const val SESSION_STATE_DIRECTORY = "torrent"
             private const val SESSION_STATE_FILE = "session.state"
+
+            // Fallback trackers used when magnet link has no tracker URLs
+            private val FALLBACK_TRACKERS =
+                listOf(
+                    "udp://tracker.opentrackr.org:1337/announce",
+                    "udp://open.stealth.si:80/announce",
+                    "udp://tracker.openbittorrent.com:6969/announce",
+                    "udp://open.demonii.com:1337/announce",
+                    "udp://exodus.desync.com:6969/announce",
+                )
         }
 
         private val alertListener =
@@ -122,6 +135,10 @@ public class TorrentSessionManager
                         AlertType.TORRENT_LOG.swig(),
                         AlertType.SAVE_RESUME_DATA.swig(),
                         AlertType.SAVE_RESUME_DATA_FAILED.swig(),
+                        AlertType.TRACKER_REPLY.swig(),
+                        AlertType.TRACKER_ERROR.swig(),
+                        AlertType.DHT_REPLY.swig(),
+                        AlertType.TRACKER_ANNOUNCE.swig(),
                     )
                 }
 
@@ -152,6 +169,18 @@ public class TorrentSessionManager
                             is TorrentLogAlert -> {
                                 // Log torrent-level debugging
                                 logger.d { "TORRENT_LOG: ${alert.logMessage()}" }
+                            }
+                            is TrackerReplyAlert -> {
+                                val hash = alert.handle().infoHash().toHex()
+                                logger.i { "TRACKER_REPLY for $hash: ${alert.numPeers()} peers from ${alert.trackerUrl()}" }
+                            }
+                            is TrackerErrorAlert -> {
+                                val hash = alert.handle().infoHash().toHex()
+                                logger.w { "TRACKER_ERROR for $hash: ${alert.errorMessage()} from ${alert.trackerUrl()}" }
+                            }
+                            is TrackerAnnounceAlert -> {
+                                val hash = alert.handle().infoHash().toHex()
+                                logger.d { "TRACKER_ANNOUNCE for $hash: ${alert.trackerUrl()}" }
                             }
                             else -> {
                                 // Log unhandled alerts for debugging (use debug to avoid spam)
@@ -215,6 +244,9 @@ public class TorrentSessionManager
                         connectionsLimit(200)
                         downloadRateLimit(0) // Unlimited by default
                         uploadRateLimit(0) // Unlimited by default
+
+                        // Listen on a port range to avoid ISP blocks on default port
+                        listenInterfaces("0.0.0.0:6881-6889")
 
                         // DHT and other settings are enabled by default in libtorrent4j
                         // Just keeping defaults
@@ -380,6 +412,16 @@ public class TorrentSessionManager
                 // Using empty flags (defaults) - SessionManager will handle magnet URI parsing
                 // Wrap in try-catch to handle any native exceptions
                 try {
+                    // Append fallback trackers if magnet has no tracker URLs
+                    val effectiveMagnetUri =
+                        if (!magnetUri.contains("&tr=") && !magnetUri.contains("&tr%3D")) {
+                            val trackerSuffix =
+                                FALLBACK_TRACKERS.joinToString("&") { "tr=${java.net.URLEncoder.encode(it, "UTF-8")}" }
+                            "$magnetUri&$trackerSuffix"
+                        } else {
+                            magnetUri
+                        }
+
                     logger.d { "Calling session.download() for hash=$hash, savePath=$savePath" }
 
                     // Create flags - this may fail if libtorrent4j classes are not available
@@ -394,7 +436,7 @@ public class TorrentSessionManager
                             return Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                         }
 
-                    session.download(magnetUri, saveDir, flags)
+                    session.download(effectiveMagnetUri, saveDir, flags)
                     logger.i {
                         "Successfully called session.download() for hash=$hash. Waiting for ADD_TORRENT alert..."
                     }
