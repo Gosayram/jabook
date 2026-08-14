@@ -233,6 +233,13 @@ public fun JabookApp(
 
         // Check if we're on the player screen - hide mini player in that case
         val isOnPlayerScreen = currentDestination?.route?.contains("player", ignoreCase = true) == true
+        // Disable drawer swipe gestures when on screens that need full-touch interaction
+        val isOnBlockingScreen =
+            currentDestination?.route?.let { route ->
+                route.contains("webview", ignoreCase = true) ||
+                    route.contains("auth", ignoreCase = true) ||
+                    route.contains("player", ignoreCase = true)
+            } == true
         androidx.compose.runtime.DisposableEffect(isOnPlayerScreen) {
             currentOnPlayerScreenVisibilityChanged(isOnPlayerScreen)
             onDispose {
@@ -254,6 +261,7 @@ public fun JabookApp(
 
         ModalNavigationDrawer(
             drawerState = drawerState,
+            gesturesEnabled = !isOnBlockingScreen,
             drawerContent = {
                 com.jabook.app.jabook.compose.navigation.JabookDrawerContent(
                     destinations = appState.topLevelDestinations,
