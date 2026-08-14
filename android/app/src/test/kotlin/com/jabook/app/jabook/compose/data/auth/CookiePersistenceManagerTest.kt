@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.auth
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -26,7 +27,7 @@ class CookiePersistenceManagerTest {
         assertTrue(cookies.isNotEmpty())
         val bbSession = cookies.first { it.name == "bb_session" }
         assertEquals("rutracker.org", bbSession.domain)
-        assertTrue(bbSession.hostOnly)
+        assertFalse(bbSession.hostOnly)
         assertTrue(bbSession.secure)
         assertTrue(bbSession.httpOnly)
     }

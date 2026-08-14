@@ -86,23 +86,30 @@ public class CookiePersistenceManager
             withContext(Dispatchers.IO) {
                 try {
                     val cookieManager = CookieManager.getInstance()
-                    val cookieString = cookieManager.getCookie(url)
+
+                    // Ensure URL has a path — CookieManager.getCookie() requires path matching
+                    val queryUrl = if (url.endsWith("/")) url else "$url/"
+
+                    cookieManager.flush()
+
+                    val cookieString = cookieManager.getCookie(queryUrl)
+                    logger.d { "getCookie($queryUrl) returned: ${cookieString?.take(80) ?: "null"}" }
 
                     if (!cookieString.isNullOrBlank()) {
-                        val cookies = captureWebViewCookies(url, cookieString)
+                        val cookies = captureWebViewCookies(queryUrl, cookieString)
+                        logger.d { "Captured ${cookies.size} cookies: ${cookies.joinToString { it.name }}" }
 
                         if (cookies.isEmpty()) {
                             logger.d { "No cookies captured from WebView" }
                             return@withContext
                         }
 
-                        // Save to CookieJar
-                        val httpUrl = url.toHttpUrl()
+                        val httpUrl = queryUrl.toHttpUrl()
                         cookieJar.saveFromResponse(httpUrl, cookies)
 
-                        logger.i { "Synced ${cookies.size} cookies from WebView for $url" }
+                        logger.i { "Synced ${cookies.size} cookies from WebView for $queryUrl" }
                     } else {
-                        logger.d { "No cookies in WebView for $url" }
+                        logger.d { "No cookies in WebView for $queryUrl" }
                     }
                 } catch (e: Exception) {
                     logger.e({ "Failed to sync from WebView" }, e)
@@ -141,7 +148,7 @@ internal fun captureWebViewCookies(
                     .Builder()
                     .name(name)
                     .value(value)
-                    .hostOnlyDomain(domain)
+                    .domain(domain)
                     .path("/")
                     .apply {
                         // Cloudflare cookies often need Secure; session cookies too

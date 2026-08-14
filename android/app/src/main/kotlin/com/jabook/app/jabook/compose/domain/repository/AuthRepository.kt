@@ -66,8 +66,9 @@ public interface AuthRepository {
     /**
      * Sync cookies from system WebView to PersistentCookieJar.
      * Should be called after WebView login.
+     * @param url the actual current WebView URL (may differ from base mirror after redirect)
      */
-    public suspend fun syncCookiesFromWebView()
+    public suspend fun syncCookiesFromWebView(url: String? = null)
 
     /**
      * Sync cookies from PersistentCookieJar to system WebView.

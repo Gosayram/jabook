@@ -66,11 +66,14 @@ public class WebViewViewModel
         }
 
         /** Captures and validates the session only after the user explicitly confirms login. */
-        public fun completeLogin(onComplete: (Boolean) -> Unit) {
+        public fun completeLogin(
+            webViewUrl: String? = null,
+            onComplete: (Boolean) -> Unit,
+        ) {
             viewModelScope.launch {
                 val isLoggedIn =
                     try {
-                        authRepository.syncCookiesFromWebView()
+                        authRepository.syncCookiesFromWebView(webViewUrl)
                         authRepository.isLoggedIn()
                     } catch (e: CancellationException) {
                         throw e

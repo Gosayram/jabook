@@ -113,6 +113,7 @@ public fun WebViewScreen(
     var canGoBack by remember { mutableStateOf(false) }
     var isCapturingSession by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var currentWebViewUrl by remember { mutableStateOf("") }
 
     DisposableEffect(currentView, route.isAuthentication) {
         val release =
@@ -162,7 +163,7 @@ public fun WebViewScreen(
                                 enabled = !isCapturingSession,
                                 onClick = {
                                     isCapturingSession = true
-                                    viewModel.completeLogin { isLoggedIn ->
+                                    viewModel.completeLogin(currentWebViewUrl) { isLoggedIn ->
                                         isCapturingSession = false
                                         if (isLoggedIn) {
                                             Toast
@@ -253,6 +254,7 @@ public fun WebViewScreen(
                                     loadingProgress = 1f
                                     pageTitle = view?.title ?: ""
                                     canGoBack = view?.canGoBack() ?: false
+                                    if (url != null) currentWebViewUrl = url
                                 }
 
                                 override fun shouldOverrideUrlLoading(

@@ -78,10 +78,10 @@ class WebViewViewModelTest {
             whenever(authRepository.isLoggedIn()).thenReturn(true)
             var result: Boolean? = null
 
-            viewModel.completeLogin { result = it }
+            viewModel.completeLogin("https://rutracker.org/forum/") { result = it }
             testDispatcher.scheduler.advanceUntilIdle()
 
-            verify(authRepository).syncCookiesFromWebView()
+            verify(authRepository).syncCookiesFromWebView("https://rutracker.org/forum/")
             assertTrue(result == true)
         }
 
@@ -91,10 +91,10 @@ class WebViewViewModelTest {
             whenever(authRepository.isLoggedIn()).thenThrow(IllegalStateException("network failure"))
             var result: Boolean? = null
 
-            viewModel.completeLogin { result = it }
+            viewModel.completeLogin("https://rutracker.org/forum/") { result = it }
             testDispatcher.scheduler.advanceUntilIdle()
 
-            verify(authRepository).syncCookiesFromWebView()
+            verify(authRepository).syncCookiesFromWebView("https://rutracker.org/forum/")
             assertFalse(result == true)
         }
 }

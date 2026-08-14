@@ -300,11 +300,7 @@ public class AuthRepositoryImpl
             }
         }
 
-        override suspend fun isLoggedIn(): Boolean {
-            // Also refresh status
-            checkAuthStatus()
-            return _authStatus.value is AuthStatus.Authenticated
-        }
+        override suspend fun isLoggedIn(): Boolean = _authStatus.value is AuthStatus.Authenticated
 
         override suspend fun saveCredentials(credentials: UserCredentials) {
             secureStorage.saveCredentials(credentials)
@@ -316,14 +312,29 @@ public class AuthRepositoryImpl
 
         override suspend fun getStoredCredentials(): UserCredentials? = secureStorage.getCredentials()
 
-        override suspend fun syncCookiesFromWebView() {
-            val url = rutrackerUrl.toString()
+        override suspend fun syncCookiesFromWebView(url: String?) {
+            // Use actual WebView URL if provided, fallback to base mirror URL
+            val primaryUrl = url ?: rutrackerUrl.toString()
+            val baseMirrorUrl = rutrackerUrl.toString()
 
-            // Use CookiePersistenceManager to sync from WebView to all layers
-            cookiePersistence.syncCookiesFromWebView(url)
+            // Try with actual WebView URL first
+            cookiePersistence.syncCookiesFromWebView(primaryUrl)
 
-            // Refresh auth status immediately
-            checkAuthStatus()
+            // Also try base mirror URL as fallback (cookies may have been set before redirect)
+            if (primaryUrl != baseMirrorUrl) {
+                cookiePersistence.syncCookiesFromWebView(baseMirrorUrl)
+            }
+
+            // Check bb_session presence directly — no HTTP validation (Cloudflare blocks it)
+            val cookies = cookieJar.loadForRequest(rutrackerUrl)
+            val hasSession = cookies.any { it.name == "bb_session" }
+            if (hasSession) {
+                val stored = secureStorage.getCredentials()
+                _authStatus.value =
+                    AuthStatus.Authenticated(
+                        stored?.username?.takeIf { it.isNotBlank() } ?: "RuTracker",
+                    )
+            }
         }
 
         override suspend fun syncCookiesToWebView() {
