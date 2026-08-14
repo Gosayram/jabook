@@ -34,6 +34,22 @@ public class WebViewViewModel
         /** Only first-party, HTTPS RuTracker pages may participate in login. */
         public fun isTrustedAuthenticationUrl(url: String): Boolean = Companion.isTrustedAuthenticationUrl(url)
 
+        /** Returns true if the URL is allowed to load during authentication mode. */
+        public fun isAllowedDuringAuth(url: String): Boolean {
+            if (isTrustedAuthenticationUrl(url)) return true
+            return isCloudflareChallengeUrl(url)
+        }
+
+        private fun isCloudflareChallengeUrl(url: String): Boolean {
+            val parsed = url.toHttpUrlOrNull() ?: return false
+            if (!parsed.isHttps) return false
+            val host = parsed.host
+            return host.endsWith(".cloudflare.com") ||
+                host == "cloudflare.com" ||
+                parsed.encodedPath.contains("cf-chl") ||
+                parsed.encodedPath.contains("turnstile")
+        }
+
         public companion object {
             public fun isTrustedAuthenticationUrl(url: String): Boolean {
                 val parsed = url.toHttpUrlOrNull() ?: return false

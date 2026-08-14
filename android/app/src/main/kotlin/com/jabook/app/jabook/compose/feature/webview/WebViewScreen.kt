@@ -239,7 +239,7 @@ public fun WebViewScreen(
                                         view?.stopLoading()
                                     } else if (
                                         route.isAuthentication &&
-                                        !viewModel.isTrustedAuthenticationUrl(url.orEmpty())
+                                        !viewModel.isAllowedDuringAuth(url.orEmpty())
                                     ) {
                                         view?.stopLoading()
                                     }
@@ -267,7 +267,7 @@ public fun WebViewScreen(
                                         return true // Don't load in WebView
                                     }
 
-                                    if (route.isAuthentication && !viewModel.isTrustedAuthenticationUrl(requestUrl.orEmpty())) {
+                                    if (route.isAuthentication && !viewModel.isAllowedDuringAuth(requestUrl.orEmpty())) {
                                         return true
                                     }
 
