@@ -101,10 +101,13 @@ public object NetworkModule {
         networkTelemetryEventListenerFactory: NetworkTelemetryEventListenerFactory,
     ): MirrorManager {
         // Lightweight OkHttpClient for health checks only
+        val dohDns =
+            com.jabook.app.jabook.compose.data.network
+                .DnsOverHttpsDns()
         val healthCheckClient =
             OkHttpClient
                 .Builder()
-                .cookieJar(cookieJar)
+                .dns(dohDns)
                 .connectionPool(RutrackerConnectionPoolPolicy.create())
                 .certificatePinner(rutrackerCertificatePinner)
                 .callTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)

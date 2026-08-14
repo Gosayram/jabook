@@ -22,7 +22,7 @@ class RutrackerCertificatePinningPolicyTest {
     @Test
     fun `hostPins include all default mirrors with at least two pins`() {
         assertEquals(
-            setOf("rutracker.org", "rutracker.net", "rutracker.me"),
+            setOf("rutracker.org", "rutracker.net"),
             RutrackerCertificatePinningPolicy.pinnedHosts,
         )
         RutrackerCertificatePinningPolicy.hostPins.values.forEach { pins ->

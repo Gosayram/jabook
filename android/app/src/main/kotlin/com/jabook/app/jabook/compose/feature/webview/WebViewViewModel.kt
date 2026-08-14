@@ -17,9 +17,11 @@ package com.jabook.app.jabook.compose.feature.webview
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.network.MirrorManager
+import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import javax.inject.Inject
@@ -74,7 +76,10 @@ public class WebViewViewModel
                 val isLoggedIn =
                     try {
                         authRepository.syncCookiesFromWebView(webViewUrl)
-                        authRepository.isLoggedIn()
+                        // syncCookiesFromWebView already sets AuthStatus if bb_session present.
+                        // Do NOT call isLoggedIn() here — it does HTTP validation which
+                        // Cloudflare blocks, causing false negatives.
+                        authRepository.authStatus.first() is AuthStatus.Authenticated
                     } catch (e: CancellationException) {
                         throw e
                     } catch (_: Exception) {

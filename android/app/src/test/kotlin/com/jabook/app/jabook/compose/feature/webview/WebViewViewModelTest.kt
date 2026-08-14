@@ -15,9 +15,11 @@
 package com.jabook.app.jabook.compose.feature.webview
 
 import com.jabook.app.jabook.compose.data.network.MirrorManager
+import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -75,7 +77,8 @@ class WebViewViewModelTest {
     @Test
     fun `complete login syncs then reports validated session`() =
         runTest {
-            whenever(authRepository.isLoggedIn()).thenReturn(true)
+            val authStatus = MutableStateFlow<AuthStatus>(AuthStatus.Authenticated("test"))
+            whenever(authRepository.authStatus).thenReturn(authStatus)
             var result: Boolean? = null
 
             viewModel.completeLogin("https://rutracker.org/forum/") { result = it }
@@ -86,9 +89,10 @@ class WebViewViewModelTest {
         }
 
     @Test
-    fun `complete login reports failure when session validation throws`() =
+    fun `complete login reports failure when session not authenticated`() =
         runTest {
-            whenever(authRepository.isLoggedIn()).thenThrow(IllegalStateException("network failure"))
+            val authStatus = MutableStateFlow<AuthStatus>(AuthStatus.Unauthenticated)
+            whenever(authRepository.authStatus).thenReturn(authStatus)
             var result: Boolean? = null
 
             viewModel.completeLogin("https://rutracker.org/forum/") { result = it }

@@ -60,7 +60,6 @@ class MirrorManagerTest {
                                 mapOf(
                                     "rutracker.org" to 503,
                                     "rutracker.net" to 200,
-                                    "rutracker.me" to 503,
                                 ),
                         ),
                     loggerFactory = noOpLoggerFactory(),
@@ -93,7 +92,6 @@ class MirrorManagerTest {
                                 mapOf(
                                     "rutracker.org" to 503,
                                     "rutracker.net" to 503,
-                                    "rutracker.me" to 503,
                                 ),
                         ),
                     loggerFactory = noOpLoggerFactory(),

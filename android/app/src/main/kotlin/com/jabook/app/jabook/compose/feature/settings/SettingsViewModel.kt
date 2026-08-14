@@ -26,6 +26,7 @@ import com.jabook.app.jabook.compose.data.backup.ImportStats
 import com.jabook.app.jabook.compose.data.cache.CacheManager
 import com.jabook.app.jabook.compose.data.cache.CacheStatistics
 import com.jabook.app.jabook.compose.data.model.ScanProgress
+import com.jabook.app.jabook.compose.data.network.MirrorHealth
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
@@ -393,11 +394,11 @@ public class SettingsViewModel
          */
         public fun checkMirrorHealth(
             domain: String,
-            onResult: (Boolean) -> Unit,
+            onResult: (MirrorHealth) -> Unit,
         ) {
             viewModelScope.launch {
-                val isHealthy = mirrorManager.checkMirrorHealth(domain)
-                onResult(isHealthy)
+                val health = mirrorManager.checkMirrorHealth(domain)
+                onResult(health)
             }
         }
 

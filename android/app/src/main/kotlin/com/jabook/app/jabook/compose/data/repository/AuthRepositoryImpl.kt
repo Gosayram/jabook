@@ -300,7 +300,10 @@ public class AuthRepositoryImpl
             }
         }
 
-        override suspend fun isLoggedIn(): Boolean = _authStatus.value is AuthStatus.Authenticated
+        override suspend fun isLoggedIn(): Boolean {
+            checkAuthStatus()
+            return _authStatus.value is AuthStatus.Authenticated
+        }
 
         override suspend fun saveCredentials(credentials: UserCredentials) {
             secureStorage.saveCredentials(credentials)

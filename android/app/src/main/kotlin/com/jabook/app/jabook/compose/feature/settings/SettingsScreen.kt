@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -103,6 +104,7 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.ScanProgress
+import com.jabook.app.jabook.compose.data.network.MirrorHealth
 import com.jabook.app.jabook.compose.data.permissions.PersistedTreeUriPermissionGuard
 import kotlinx.coroutines.launch
 
@@ -312,7 +314,7 @@ public fun SettingsScreen(
             var showAddMirrorDialog by remember { mutableStateOf(false) }
             var customMirrorUrl by remember { mutableStateOf("") }
             var healthCheckInProgress by remember { mutableStateOf<String?>(null) }
-            val healthStatus = remember { mutableStateOf<Map<String, Boolean?>>(emptyMap()) }
+            val healthStatus = remember { mutableStateOf<Map<String, MirrorHealth?>>(emptyMap()) }
 
             SettingsSection(
                 title = stringResource(R.string.networkAndMirrors),
@@ -341,9 +343,9 @@ public fun SettingsScreen(
                         onSelected = { viewModel.updateMirror(mirror) },
                         onCheckHealth = {
                             healthCheckInProgress = mirror
-                            viewModel.checkMirrorHealth(mirror) { isHealthy ->
+                            viewModel.checkMirrorHealth(mirror) { health ->
                                 healthCheckInProgress = null
-                                healthStatus.value = healthStatus.value + (mirror to isHealthy)
+                                healthStatus.value = healthStatus.value + (mirror to health)
                             }
                         },
                         onRemove =
@@ -1941,7 +1943,7 @@ private fun getVersionName(context: Context): String =
 private fun MirrorOption(
     domain: String,
     selected: Boolean,
-    healthStatus: Boolean?,
+    healthStatus: MirrorHealth?,
     isChecking: Boolean,
     onSelected: () -> Unit,
     onCheckHealth: () -> Unit,
@@ -1975,7 +1977,7 @@ private fun MirrorOption(
                     strokeWidth = 2.dp,
                 )
             }
-            healthStatus == true -> {
+            healthStatus is MirrorHealth.Healthy -> {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = stringResource(R.string.available),
@@ -1989,7 +1991,21 @@ private fun MirrorOption(
                             .size(16.dp),
                 )
             }
-            healthStatus == false -> {
+            healthStatus is MirrorHealth.CloudflareProtected -> {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = "CF Protected",
+                    tint =
+                        androidx.compose.ui.graphics
+                            .Color(0xFFFFC107),
+                    // Yellow
+                    modifier =
+                        Modifier
+                            .padding(start = 8.dp)
+                            .size(16.dp),
+                )
+            }
+            healthStatus is MirrorHealth.Dead -> {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = stringResource(R.string.unavailable),

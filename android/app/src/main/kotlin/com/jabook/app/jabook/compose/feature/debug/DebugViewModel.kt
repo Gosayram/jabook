@@ -22,6 +22,7 @@ import com.jabook.app.jabook.compose.data.debug.DebugLogService
 import com.jabook.app.jabook.compose.data.debug.DebugNetworkOverrideMode
 import com.jabook.app.jabook.compose.data.debug.DebugRuntimeOverrides
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
+import com.jabook.app.jabook.compose.data.network.MirrorHealth
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.NetworkType
@@ -320,7 +321,10 @@ public class DebugViewModel
                                     .map { mirror ->
                                         async {
                                             try {
-                                                val isHealthy = mirrorManager.checkMirrorHealth(mirror)
+                                                val health = mirrorManager.checkMirrorHealth(mirror)
+                                                val isHealthy =
+                                                    health is MirrorHealth.Healthy ||
+                                                        health is MirrorHealth.CloudflareProtected
                                                 mirror to isHealthy
                                             } catch (e: kotlinx.coroutines.CancellationException) {
                                                 // Re-throw cancellation to propagate timeout

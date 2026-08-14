@@ -27,6 +27,7 @@ import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.data.model.AppTheme
+import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.permissions.StorageHealthChecker
 import com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
@@ -370,12 +371,7 @@ public class BackupService
             val defaultDownloadPath: String =
                 "JabookAudio"
 
-            val defaultMirrors =
-                listOf(
-                    "https://rutracker.org",
-                    "https://rutracker.net",
-                    "https://rutracker.nl",
-                )
+            val defaultMirrors = MirrorManager.DEFAULT_MIRRORS.map { "https://$it" }
 
             // FIX: Get ACTUAL current mirror from MirrorManager instead of guessing
             val actualMirror = mirrorManager.currentMirror.value

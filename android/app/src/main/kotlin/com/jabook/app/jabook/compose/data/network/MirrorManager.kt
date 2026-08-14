@@ -36,6 +36,23 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
+ * Mirror health status returned by [MirrorManager.checkMirrorHealth].
+ */
+public sealed class MirrorHealth {
+    /** Mirror responds with 2xx — direct API access works. */
+    public data object Healthy : MirrorHealth()
+
+    /** Mirror returns 403/503 with Cloudflare challenge page — WebView only. */
+    public data object CloudflareProtected : MirrorHealth()
+
+    /** DNS resolution or TLS handshake failed — mirror is dead. */
+    public data object Dead : MirrorHealth()
+
+    /** Timeout or unknown error — might be temporary. */
+    public data object Unknown : MirrorHealth()
+}
+
+/**
  * Manager for RuTracker mirror domains.
  *
  * Handles:
@@ -62,10 +79,9 @@ public class MirrorManager
                 listOf(
                     "rutracker.org",
                     "rutracker.net",
-                    "rutracker.me",
                 )
 
-            private const val DEFAULT_MIRROR = "rutracker.me"
+            private const val DEFAULT_MIRROR = "rutracker.org"
         }
 
         private val scope =
@@ -141,13 +157,13 @@ public class MirrorManager
          * Check if a mirror is accessible, respecting Circuit Breaker state.
          *
          * @param domain Mirror domain to check
-         * @return true if mirror responds within timeout, false otherwise
+         * @return [MirrorHealth] indicating the mirror's accessibility
          */
-        public suspend fun checkMirrorHealth(domain: String): Boolean =
+        public suspend fun checkMirrorHealth(domain: String): MirrorHealth =
             withContext(NetworkRuntimePolicy.ioDispatcher) {
                 if (isCircuitOpen(domain)) {
                     logger.d { "Circuit open for $domain, skipping health check" }
-                    return@withContext false
+                    return@withContext MirrorHealth.Dead
                 }
 
                 try {
@@ -157,16 +173,39 @@ public class MirrorManager
                         Request
                             .Builder()
                             .url("https://$domain/forum/")
+                            .header("User-Agent", "JaBook/1.2.7")
                             .head() // HEAD request for faster response
                             .build()
 
                     val response = okHttpClient.newCall(request).execute()
-                    val isHealthy: Boolean = response.isSuccessful
-                    logger.d { "Mirror $domain health: ${if (isHealthy) "OK" else "FAILED"} (${response.code})" }
+                    val code = response.code
+                    val body = response.peekBody(4096).string()
+                    val cfRay = response.header("cf-ray")
+                    val isCfProtected =
+                        cfRay != null ||
+                            body.contains("Just a moment", ignoreCase = true) ||
+                            body.contains("Checking your browser", ignoreCase = true) ||
+                            body.contains("cf-browser-verification", ignoreCase = true)
+
+                    val health =
+                        when {
+                            code in 200..299 -> MirrorHealth.Healthy
+                            (code == 403 || code == 503) && isCfProtected -> MirrorHealth.CloudflareProtected
+                            code == 403 || code == 503 -> MirrorHealth.Dead
+                            else -> MirrorHealth.Dead
+                        }
+
+                    logger.d { "Mirror $domain health: ${health::class.simpleName} ($code)" }
                     response.close()
 
-                    if (isHealthy) recordCircuitSuccess(domain) else recordCircuitFailure(domain)
-                    isHealthy
+                    // Only count DNS/TLS/timeout failures for circuit breaker — CF-protected is not a failure
+                    when (health) {
+                        is MirrorHealth.Healthy -> recordCircuitSuccess(domain)
+                        is MirrorHealth.CloudflareProtected -> recordCircuitSuccess(domain)
+                        is MirrorHealth.Dead -> recordCircuitFailure(domain)
+                        is MirrorHealth.Unknown -> recordCircuitFailure(domain)
+                    }
+                    health
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -178,7 +217,7 @@ public class MirrorManager
                         attributes = mapOf("mirror_domain" to domain),
                     )
                     recordCircuitFailure(domain)
-                    false
+                    MirrorHealth.Dead
                 }
             }
 
@@ -236,10 +275,11 @@ public class MirrorManager
                 val healthCheckStart = System.currentTimeMillis()
                 logger.d { "Trying mirror: $mirror" }
 
-                if (checkMirrorHealth(mirror)) {
+                val health = checkMirrorHealth(mirror)
+                if (health is MirrorHealth.Healthy || health is MirrorHealth.CloudflareProtected) {
                     val healthCheckDuration = System.currentTimeMillis() - healthCheckStart
                     logger.i {
-                        "Mirror $mirror is healthy (health check: ${healthCheckDuration}ms), switching and saving to settings..."
+                        "Mirror $mirror is ${health::class.simpleName} (health check: ${healthCheckDuration}ms), switching and saving to settings..."
                     }
                     setMirror(mirror) // This will save to settings via settingsRepository.updateSelectedMirror()
                     logger.i { "Successfully switched from $currentDomain to $mirror and saved to settings" }
