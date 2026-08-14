@@ -46,6 +46,7 @@ public class SuspendableCountDownTimer(
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     private var remainingMillis: Long = totalMillis
+    private val timerScope = CoroutineScope(dispatcher)
     private var job: Job? = null
     private var isRunning: Boolean = false
 
@@ -57,9 +58,8 @@ public class SuspendableCountDownTimer(
         if (isRunning) return
         isRunning = true
         val deadlineMs = SystemClock.elapsedRealtime() + remainingMillis
-        val scope = CoroutineScope(dispatcher)
         job =
-            scope.launch {
+            timerScope.launch {
                 try {
                     while (true) {
                         ensureActive()

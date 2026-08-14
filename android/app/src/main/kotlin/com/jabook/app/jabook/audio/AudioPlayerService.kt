@@ -496,6 +496,10 @@ public class AudioPlayerService : MediaLibraryService() {
                 initializer.initialize()
                 initializer.postInitialize()
             }
+            // User actions must never be silently dropped on the outgoing player during
+            // a crossfade: finalize (or cancel) an in-flight transition first.
+            playbackController?.finalizeActiveTransition = { crossFadePlayer?.finalizeTransitionNow() }
+            playbackController?.cancelActiveTransition = { crossFadePlayer?.pause() }
             PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
             LogUtils.i("AudioPlayerService", "onCreate() completed successfully")
@@ -745,7 +749,8 @@ public class AudioPlayerService : MediaLibraryService() {
 
     /** Persists the final position before a terminal lifecycle event can kill this process. */
     internal fun saveCurrentPositionSynchronously() {
-        periodicPositionSaver.save()
+        // Only the blocking write belongs on this path: the async saver may never run
+        // before process death. Async saves stay in their regular call sites.
         if (!::crashSafePositionWriter.isInitialized) {
             LogUtils.w("AudioPlayerService", "Crash-safe position writer is not initialized")
             return

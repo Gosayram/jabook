@@ -41,17 +41,10 @@ internal object ChapterSeekbarPolicy {
         currentChapterIndex: Int,
         currentChapterPositionMs: Long,
     ): ChapterSeekbarTimeline {
-        if (chapters.isEmpty()) {
-            return ChapterSeekbarTimeline(
-                totalDurationMs = 0L,
-                globalPositionMs = 0L,
-                chapterMarkersFractions = emptyList(),
-            )
-        }
-
-        val durations = chapters.map { it.duration.inWholeMilliseconds.coerceAtLeast(0L) }
-        val totalDuration = durations.sum().coerceAtLeast(0L)
-        if (totalDuration <= 0L) {
+        val playableIndices = playableChapterIndices(chapters)
+        val durations = playableIndices.map { chapters[it].duration.inWholeMilliseconds }
+        val totalDuration = durations.sum()
+        if (playableIndices.isEmpty() || totalDuration <= 0L) {
             return ChapterSeekbarTimeline(
                 totalDurationMs = 0L,
                 globalPositionMs = 0L,
@@ -60,14 +53,25 @@ internal object ChapterSeekbarPolicy {
         }
 
         val safeChapterIndex = currentChapterIndex.coerceIn(0, chapters.lastIndex)
-        val chapterOffset = durations.take(safeChapterIndex).sum()
+        val currentPlayablePos = playableIndices.indexOfLast { it <= safeChapterIndex }
+        val chapterOffset =
+            if (currentPlayablePos >= 0) {
+                durations.take(currentPlayablePos).sum()
+            } else {
+                0L
+            }
         val localPosition = currentChapterPositionMs.coerceAtLeast(0L)
-        val safeLocalPosition = localPosition.coerceAtMost(durations[safeChapterIndex])
+        val safeLocalPosition =
+            if (currentPlayablePos >= 0) {
+                localPosition.coerceAtMost(durations[currentPlayablePos])
+            } else {
+                0L
+            }
         val globalPosition = (chapterOffset + safeLocalPosition).coerceIn(0L, totalDuration)
 
         val markers = mutableListOf<Float>()
         var cumulative = 0L
-        for (i in chapters.indices) {
+        for (i in durations.indices) {
             if (i > 0) {
                 val fraction = (cumulative.toFloat() / totalDuration.toFloat()).coerceIn(0f, 1f)
                 if (fraction > 0f && fraction < 1f) {
@@ -90,12 +94,10 @@ internal object ChapterSeekbarPolicy {
         chapters: List<Chapter>,
         progress: Float,
     ): ChapterSeekTarget {
-        if (chapters.isEmpty()) {
-            return ChapterSeekTarget(chapterIndex = 0, chapterPositionMs = 0L)
-        }
-        val durations = chapters.map { it.duration.inWholeMilliseconds.coerceAtLeast(0L) }
-        val totalDuration = durations.sum().coerceAtLeast(0L)
-        if (totalDuration <= 0L) {
+        val playableIndices = playableChapterIndices(chapters)
+        val durations = playableIndices.map { chapters[it].duration.inWholeMilliseconds }
+        val totalDuration = durations.sum()
+        if (playableIndices.isEmpty() || totalDuration <= 0L) {
             return ChapterSeekTarget(
                 chapterIndex = 0,
                 chapterPositionMs = 0L,
@@ -112,7 +114,7 @@ internal object ChapterSeekbarPolicy {
             val isLast = index == durations.lastIndex
             if (targetGlobalPosition < nextOffset || isLast) {
                 return ChapterSeekTarget(
-                    chapterIndex = index,
+                    chapterIndex = playableIndices[index],
                     chapterPositionMs = (targetGlobalPosition - offset).coerceAtLeast(0L).coerceAtMost(chapterDuration),
                 )
             }
@@ -120,8 +122,11 @@ internal object ChapterSeekbarPolicy {
         }
 
         return ChapterSeekTarget(
-            chapterIndex = durations.lastIndex,
+            chapterIndex = playableIndices.last(),
             chapterPositionMs = durations.last(),
         )
     }
+
+    private fun playableChapterIndices(chapters: List<Chapter>): List<Int> =
+        chapters.indices.filter { chapters[it].duration.inWholeMilliseconds > 0L }
 }

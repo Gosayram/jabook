@@ -62,8 +62,12 @@ public class DynamicRangeCompressor(
     // Makeup gain to compensate for level reduction
     private var makeupGain = 1.0f
 
+    // Scratch frame buffer (sized in configure, reused per frame)
+    private var channelSamples = ShortArray(0)
+
     // Input/output buffers
     private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var queuedInputBytes = 0
     private var outputBuffer: ByteBuffer? = null
     private var inputEnded = false
 
@@ -111,6 +115,8 @@ public class DynamicRangeCompressor(
         if (isActive) {
             val sampleRate = inputAudioFormat.sampleRate
 
+            channelSamples = ShortArray(inputAudioFormat.channelCount)
+
             // Convert threshold from dB to linear
             thresholdLinear = 10.0.pow((thresholdDb / 20.0f).toDouble()).toFloat()
 
@@ -129,6 +135,7 @@ public class DynamicRangeCompressor(
         }
 
         inputBuffers.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
 
@@ -158,6 +165,7 @@ public class DynamicRangeCompressor(
             buffer.put(inputBuffer)
             buffer.flip()
             inputBuffers.add(buffer)
+            queuedInputBytes += buffer.remaining()
         }
     }
 
@@ -170,22 +178,30 @@ public class DynamicRangeCompressor(
             return EMPTY_BUFFER
         }
 
-        val totalSize = inputBuffers.sumOf { it.remaining() }
+        val totalSize = queuedInputBytes
         if (totalSize == 0) {
             return EMPTY_BUFFER
         }
 
-        outputBuffer = ByteBuffer.allocateDirect(totalSize)
-        outputBuffer!!.order(ByteOrder.nativeOrder())
+        val preparedOutputBuffer =
+            if (outputBuffer == null || outputBuffer!!.capacity() < totalSize) {
+                ByteBuffer.allocateDirect(totalSize).order(ByteOrder.nativeOrder()).also {
+                    outputBuffer = it
+                }
+            } else {
+                outputBuffer!!.clear()
+                outputBuffer
+            } ?: return EMPTY_BUFFER
 
         for (inputBuffer in inputBuffers) {
-            processBuffer(inputBuffer, outputBuffer!!)
+            processBuffer(inputBuffer, preparedOutputBuffer)
         }
 
         inputBuffers.clear()
-        outputBuffer!!.flip()
+        queuedInputBytes = 0
+        preparedOutputBuffer.flip()
 
-        return outputBuffer!!
+        return preparedOutputBuffer
     }
 
     /**
@@ -228,7 +244,6 @@ public class DynamicRangeCompressor(
             // Calculate RMS across all channels for this sample (single pass)
             var sumSquares = 0.0f
             val sampleStartPos = input.position()
-            val channelSamples = ShortArray(channels)
 
             // Read all channel samples first
             for (ch in 0 until channels) {
@@ -278,6 +293,7 @@ public class DynamicRangeCompressor(
         envelopeLevel = 0.0f
         gainReduction = 0.0f
         inputBuffers.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
     }

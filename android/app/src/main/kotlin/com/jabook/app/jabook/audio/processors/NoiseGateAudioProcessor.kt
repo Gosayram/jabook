@@ -68,12 +68,16 @@ public class NoiseGateAudioProcessor(
     // Attenuation in linear
     private var gateAttenuationLinear = 1.0f
 
+    // Scratch frame buffer (sized in configure, reused per frame)
+    private var channelSamples = ShortArray(0)
+
     // Format / active
     private var inputAudioFormat: AudioProcessor.AudioFormat? = null
     private var isActive = false
 
     // Buffering
     private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var queuedInputBytes = 0
     private var outputBuffer: ByteBuffer? = null
     private var inputEnded = false
 
@@ -117,6 +121,8 @@ public class NoiseGateAudioProcessor(
         if (isActive) {
             val sampleRate = inputAudioFormat.sampleRate
 
+            channelSamples = ShortArray(inputAudioFormat.channelCount)
+
             gateCloseFrames = (gateTimeMs * sampleRate / 1000.0).toLong()
             gateOpenFrames = (50.0 * sampleRate / 1000.0).toLong()
 
@@ -140,6 +146,7 @@ public class NoiseGateAudioProcessor(
         }
 
         inputBuffers.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
 
@@ -164,6 +171,7 @@ public class NoiseGateAudioProcessor(
             buffer.put(inputBuffer)
             buffer.flip()
             inputBuffers.add(buffer)
+            queuedInputBytes += buffer.remaining()
         }
     }
 
@@ -176,21 +184,29 @@ public class NoiseGateAudioProcessor(
             return EMPTY_BUFFER
         }
 
-        val totalSize = inputBuffers.sumOf { it.remaining() }
+        val totalSize = queuedInputBytes
         if (totalSize == 0) {
             return EMPTY_BUFFER
         }
 
-        outputBuffer = ByteBuffer.allocateDirect(totalSize)
-        outputBuffer!!.order(ByteOrder.nativeOrder())
+        val preparedOutputBuffer =
+            if (outputBuffer == null || outputBuffer!!.capacity() < totalSize) {
+                ByteBuffer.allocateDirect(totalSize).order(ByteOrder.nativeOrder()).also {
+                    outputBuffer = it
+                }
+            } else {
+                outputBuffer!!.clear()
+                outputBuffer
+            } ?: return EMPTY_BUFFER
 
         for (inputBuffer in inputBuffers) {
-            processBuffer(inputBuffer, outputBuffer!!)
+            processBuffer(inputBuffer, preparedOutputBuffer)
         }
 
         inputBuffers.clear()
-        outputBuffer!!.flip()
-        return outputBuffer!!
+        queuedInputBytes = 0
+        preparedOutputBuffer.flip()
+        return preparedOutputBuffer
     }
 
     override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
@@ -207,6 +223,7 @@ public class NoiseGateAudioProcessor(
         belowThresholdCounter = 0L
         currentGain = 1.0f
         inputBuffers.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
     }
@@ -231,7 +248,6 @@ public class NoiseGateAudioProcessor(
             var frameSumSq = 0.0
 
             // Read all channel samples and accumulate RMS
-            val channelSamples = ShortArray(channels)
             for (ch in 0 until channels) {
                 val s = input.short
                 channelSamples[ch] = s

@@ -322,6 +322,7 @@
     <string name="themePreviewBookTitle">Mini player preview</string>
     <string name="lyrics">Lyrics</string>
     <string name="toggleLyricsView">Toggle lyrics view</string>
+    <string name="lyricsSeekToLine">Play from this line</string>
     <string name="lyricsVisibleState">Lyrics visible</string>
     <string name="lyricsHiddenState">Lyrics hidden</string>
     <!-- Label for high contrast -->

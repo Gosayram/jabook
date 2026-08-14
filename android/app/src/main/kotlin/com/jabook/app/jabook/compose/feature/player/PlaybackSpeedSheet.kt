@@ -280,22 +280,6 @@ internal fun isSpeedSelected(
     preset: Float,
 ): Boolean = kotlin.math.abs(current - preset) < 0.01f
 
-internal fun formatSpeedDisplay(speed: Float): String =
-    if (speed % 1.0f == 0.0f) {
-        "${speed.toInt()}x"
-    } else {
-        String.format(java.util.Locale.US, "%.2fx", speed)
-    }
-
-internal fun formatSpeedChip(speed: Float): String =
-    if (speed % 1.0f == 0.0f) {
-        "${speed.toInt()}x"
-    } else if (speed * 100 % 10 == 0f) {
-        String.format(java.util.Locale.US, "%.1fx", speed)
-    } else {
-        String.format(java.util.Locale.US, "%.2fx", speed)
-    }
-
 internal fun addRecentSpeed(
     recentSpeeds: MutableList<Float>,
     speed: Float,

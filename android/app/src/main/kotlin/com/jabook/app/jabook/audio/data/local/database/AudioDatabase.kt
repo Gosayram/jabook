@@ -16,13 +16,11 @@ package com.jabook.app.jabook.audio.data.local.database
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
-import com.jabook.app.jabook.audio.data.local.dao.ChapterMetadataDao
 import com.jabook.app.jabook.audio.data.local.dao.ListeningSessionDao
 import com.jabook.app.jabook.audio.data.local.dao.LufsCacheDao
 import com.jabook.app.jabook.audio.data.local.dao.PlaybackPositionDao
 import com.jabook.app.jabook.audio.data.local.dao.PlaylistDao
 import com.jabook.app.jabook.audio.data.local.dao.SavedPlayerStateDao
-import com.jabook.app.jabook.audio.data.local.database.entity.ChapterMetadataEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningSessionEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.LufsCacheEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.PlaybackPositionEntity
@@ -32,26 +30,23 @@ import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEn
 /**
  * Room database for audio player data.
  *
- * Version 2 adds SavedPlayerStateEntity for full player state persistence.
+ * Version 6 drops the unused chapter_metadata table.
  */
 @Database(
     entities = [
         PlaybackPositionEntity::class,
         PlaylistEntity::class,
-        ChapterMetadataEntity::class,
         SavedPlayerStateEntity::class,
         ListeningSessionEntity::class,
         LufsCacheEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 public abstract class AudioDatabase : RoomDatabase() {
     public abstract fun playbackPositionDao(): PlaybackPositionDao
 
     public abstract fun playlistDao(): PlaylistDao
-
-    public abstract fun chapterMetadataDao(): ChapterMetadataDao
 
     public abstract fun savedPlayerStateDao(): SavedPlayerStateDao
 
@@ -60,6 +55,6 @@ public abstract class AudioDatabase : RoomDatabase() {
     public abstract fun lufsCacheDao(): LufsCacheDao
 
     public companion object {
-        public const val SCHEMA_VERSION: Int = 5
+        public const val SCHEMA_VERSION: Int = 6
     }
 }

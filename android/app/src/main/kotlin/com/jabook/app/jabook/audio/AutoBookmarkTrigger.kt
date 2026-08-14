@@ -50,7 +50,11 @@ public class AutoBookmarkTrigger
             MANUAL,
         }
 
-        private val recentBookmarks = HashMap<String, Long>()
+        // Bounded insertion-order cache: evicts the oldest entry past the cap
+        private val recentBookmarks: LinkedHashMap<String, Long> =
+            object : LinkedHashMap<String, Long>() {
+                override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean = size > MAX_RECENT_BOOKMARKS
+            }
 
         /**
          * Creates an auto-bookmark if no duplicate exists nearby.
@@ -117,5 +121,6 @@ public class AutoBookmarkTrigger
         public companion object {
             private const val TAG = "AutoBookmarkTrigger"
             internal const val DEDUPLICATE_WINDOW_MS = 30_000L
+            internal const val MAX_RECENT_BOOKMARKS = 256
         }
     }

@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import kotlin.math.abs
-import kotlin.math.max
 
 internal object PlayerSliderStateMachinePolicy {
     private const val DEFAULT_TICK_MS = 250L
@@ -50,9 +49,11 @@ internal object PlayerSliderStateMachinePolicy {
             return incoming
         }
 
+        // Scale the minimum visible step by duration (advance every ~2 ticks) so the
+        // thumb keeps moving on long books where a fixed 0.001 floor means ~36s freezes.
         val dynamicStep =
             if (totalDurationMs > 0L && tickMs > 0L) {
-                max(minProgressStep, tickMs.toFloat() / totalDurationMs.toFloat())
+                (tickMs.toFloat() / totalDurationMs.toFloat()) * 2f
             } else {
                 minProgressStep
             }

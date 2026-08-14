@@ -62,37 +62,4 @@ class PlaybackSpeedSheetPolicyTest {
 
         assertEquals(listOf(1.4f, 0.8f, 1.0f), recent)
     }
-
-    // --- formatSpeedDisplay tests ---
-
-    @Test
-    fun formatSpeedDisplay_formatsIntegerSpeedWithoutDecimals() {
-        assertEquals("1x", formatSpeedDisplay(1.0f))
-        assertEquals("2x", formatSpeedDisplay(2.0f))
-    }
-
-    @Test
-    fun formatSpeedDisplay_formatsDecimalSpeedWithTwoDecimals() {
-        assertEquals("1.25x", formatSpeedDisplay(1.25f))
-        assertEquals("0.50x", formatSpeedDisplay(0.5f))
-    }
-
-    // --- formatSpeedChip tests ---
-
-    @Test
-    fun formatSpeedChip_formatsIntegerSpeedWithoutDecimals() {
-        assertEquals("1x", formatSpeedChip(1.0f))
-        assertEquals("2x", formatSpeedChip(2.0f))
-    }
-
-    @Test
-    fun formatSpeedChip_formatsOneDecimalWhenHundredthsZero() {
-        assertEquals("1.5x", formatSpeedChip(1.50f))
-    }
-
-    @Test
-    fun formatSpeedChip_formatsTwoDecimalsForOtherValues() {
-        assertEquals("1.25x", formatSpeedChip(1.25f))
-        assertEquals("0.55x", formatSpeedChip(0.55f))
-    }
 }

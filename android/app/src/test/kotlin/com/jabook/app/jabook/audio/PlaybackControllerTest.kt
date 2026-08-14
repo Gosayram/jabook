@@ -233,7 +233,7 @@ class PlaybackControllerTest {
         }
 
     @Test
-    fun `pause rewinds 2 seconds before pausing`() =
+    fun `pause does not seek - rewind belongs to resume time`() =
         runTest(testDispatcher) {
             // Given
             whenever(exoPlayer.playWhenReady).thenReturn(true)
@@ -244,41 +244,37 @@ class PlaybackControllerTest {
             playbackController.pause()
             advanceUntilIdle()
 
-            // Then - should seek to 48 seconds (50 - 2)
-            verify(exoPlayer).seekTo(48000L)
-            verify(exoPlayer).playWhenReady = false
-        }
-
-    @Test
-    fun `pause does not rewind when position is less than 2 seconds`() =
-        runTest(testDispatcher) {
-            // Given
-            whenever(exoPlayer.playWhenReady).thenReturn(true)
-            whenever(exoPlayer.playbackState).thenReturn(Player.STATE_READY)
-            whenever(exoPlayer.currentPosition).thenReturn(1000L) // 1 second
-
-            // When
-            playbackController.pause()
-            advanceUntilIdle()
-
-            // Then - should seek to 0 (coerced)
-            verify(exoPlayer).seekTo(0L)
-        }
-
-    @Test
-    fun `pause does not rewind when player is in ENDED state`() =
-        runTest(testDispatcher) {
-            // Given
-            whenever(exoPlayer.playWhenReady).thenReturn(true)
-            whenever(exoPlayer.playbackState).thenReturn(Player.STATE_ENDED)
-
-            // When
-            playbackController.pause()
-            advanceUntilIdle()
-
-            // Then - should not seek, just pause
+            // Then - no seek on pause; ResumeRewindPolicy handles rewind at play time
             verify(exoPlayer, never()).seekTo(any())
             verify(exoPlayer).playWhenReady = false
+        }
+
+    @Test
+    fun `pause cancels an active crossfade transition`() =
+        runTest(testDispatcher) {
+            var cancelled = false
+            playbackController.cancelActiveTransition = { cancelled = true }
+
+            playbackController.pause()
+            advanceUntilIdle()
+
+            assertTrue(cancelled)
+            verify(exoPlayer).playWhenReady = false
+        }
+
+    @Test
+    fun `seekToTrack finalizes active transition before acting`() =
+        runTest(testDispatcher) {
+            var finalized = false
+            playbackController.finalizeActiveTransition = { finalized = true }
+            whenever(exoPlayer.mediaItemCount).thenReturn(5)
+            whenever(exoPlayer.playWhenReady).thenReturn(false)
+
+            playbackController.seekToTrack(2)
+            advanceTimeBy(150)
+
+            assertTrue(finalized)
+            verify(exoPlayer).seekTo(2, 0L)
         }
 
     // ============ Stop Tests ============

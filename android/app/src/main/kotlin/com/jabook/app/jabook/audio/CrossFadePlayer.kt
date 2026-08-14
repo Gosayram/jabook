@@ -26,6 +26,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Manages crossfade transitions between two ExoPlayer instances.
@@ -69,6 +72,7 @@ public class CrossFadePlayer(
     private var isCrossFading = false
     private var crossFadeOutPlayer: ExoPlayer? = null
     private var pendingPreloadRequest: PendingPreloadRequest? = null
+    private var transitionOnComplete: (() -> Unit)? = null
 
     public var onPlayerChanged: ((ExoPlayer) -> Unit)? = null
 
@@ -112,18 +116,27 @@ public class CrossFadePlayer(
 
 /**
      * Pauses playback on all players.
+     *
+     * Cancels an in-flight transition without swapping: the player holding the audible
+     * content stays current (paused at its position, volume restored), the fading-in
+     * player is emptied. After this call exactly one player holds content.
      */
     public fun pause() {
         transitionGeneration += 1L
-        currentPlayer.pause()
-        nextPlayer.pause()
-        currentPlayer.volume = 1f
-        nextPlayer.volume = 1f
+        val wasFading = isCrossFading
         crossfadeJob?.cancel()
         crossfadeJob = null
         isCrossFading = false
         crossFadeOutPlayer = null
+        transitionOnComplete = null
         pendingPreloadRequest = null
+        currentPlayer.pause()
+        nextPlayer.pause()
+        currentPlayer.volume = 1f
+        nextPlayer.volume = 1f
+        if (wasFading) {
+            nextPlayer.clearMediaItems()
+        }
     }
 
     /**
@@ -135,6 +148,7 @@ public class CrossFadePlayer(
         crossfadeJob = null
         isCrossFading = false
         crossFadeOutPlayer = null
+        transitionOnComplete = null
         pendingPreloadRequest = null
         playerA.release()
         playerB.release()
@@ -158,6 +172,7 @@ public class CrossFadePlayer(
         crossfadeJob = null
         isCrossFading = false
         crossFadeOutPlayer = null
+        transitionOnComplete = null
         pendingPreloadRequest = null
 
         playerA = factory(context, true)
@@ -180,6 +195,7 @@ public class CrossFadePlayer(
         if (isCrossFading) return
         val generation = ++transitionGeneration
         isCrossFading = true
+        transitionOnComplete = onComplete
 
         val fadingOutPlayer = currentPlayer
         val fadingInPlayer = nextPlayer
@@ -196,34 +212,31 @@ public class CrossFadePlayer(
         LogUtils.d("CrossFadePlayer", "Starting crossfade: Out=$fadingOutPlayer, In=$fadingInPlayer")
 
         val durationMs = crossFadeDurationMs
+        if (durationMs <= 0L) {
+            // Zero-duration transition: swap synchronously, no fade loop.
+            finalizeTransitionNow()
+            return
+        }
+
         crossfadeJob =
             coroutineScope.launch {
                 try {
-                    val steps = 50
+                    // Equal-power curve (cos/sin) avoids the loudness dip of a linear
+                    // equal-gain fade; ~20ms per step keeps steps smooth yet cheap.
+                    val steps = (durationMs / 20L).coerceIn(16L, 200L).toInt()
                     val stepDelay = durationMs / steps
                     for (i in 1..steps) {
                         if (!isActive) return@launch
-                        val progress = i.toFloat() / steps
-                        fadingOutPlayer.volume = 1f - progress
-                        fadingInPlayer.volume = progress
+                        val angle = i.toFloat() / steps * (PI / 2.0)
+                        fadingOutPlayer.volume = cos(angle).toFloat().coerceIn(0f, 1f)
+                        fadingInPlayer.volume = sin(angle).toFloat().coerceIn(0f, 1f)
                         delay(stepDelay)
                     }
 
                     // Ensure final state
                     if (isActive) {
-                        fadingOutPlayer.pause()
-                        fadingOutPlayer.volume = 1f
-                        fadingOutPlayer.seekTo(0)
-                        fadingOutPlayer.clearMediaItems()
-
-                        // Only the player that survives the transition may own audio focus.
-                        fadingOutPlayer.setAudioAttributes(fadingOutPlayer.audioAttributes, false)
-                        fadingInPlayer.setAudioAttributes(fadingInPlayer.audioAttributes, true)
-
-                        // Swap players
-                        swapPlayers()
-                        applyPendingPreloadIfNeeded()
-                        onComplete()
+                        completeTransition(fadingOutPlayer)
+                        invokeTransitionOnComplete()
                         LogUtils.d("CrossFadePlayer", "Crossfade complete. Current is now $currentPlayer")
                     }
                 } finally {
@@ -231,9 +244,57 @@ public class CrossFadePlayer(
                         isCrossFading = false
                         crossFadeOutPlayer = null
                         crossfadeJob = null
+                        transitionOnComplete = null
                     }
                 }
             }
+    }
+
+    /**
+     * Completes an in-flight transition synchronously: the fading-in player becomes
+     * current immediately and the outgoing player is cleaned up. Idempotent no-op
+     * when no transition is running.
+     */
+    public fun finalizeTransitionNow() {
+        if (!isCrossFading) return
+        transitionGeneration += 1L
+        crossfadeJob?.cancel()
+        crossfadeJob = null
+        val outPlayer = crossFadeOutPlayer
+        crossFadeOutPlayer = null
+        isCrossFading = false
+        if (outPlayer == null) {
+            transitionOnComplete = null
+            return
+        }
+        completeTransition(outPlayer)
+        invokeTransitionOnComplete()
+        LogUtils.d("CrossFadePlayer", "Transition finalized immediately. Current is now $currentPlayer")
+    }
+
+    private fun completeTransition(fadingOutPlayer: ExoPlayer) {
+        val incoming = nextPlayer
+        incoming.volume = 1f
+
+        // Swap and rebind active-player listeners FIRST: clearing the outgoing
+        // timeline emits transition events that must not reach the still-bound listener.
+        swapPlayers()
+
+        // Only the player that survives the transition may own audio focus.
+        fadingOutPlayer.setAudioAttributes(fadingOutPlayer.audioAttributes, false)
+        incoming.setAudioAttributes(incoming.audioAttributes, true)
+
+        fadingOutPlayer.pause()
+        fadingOutPlayer.volume = 1f
+        fadingOutPlayer.seekTo(0)
+        fadingOutPlayer.clearMediaItems()
+        applyPendingPreloadIfNeeded()
+    }
+
+    private fun invokeTransitionOnComplete() {
+        val onComplete = transitionOnComplete
+        transitionOnComplete = null
+        onComplete?.invoke()
     }
 
     private fun resolvePreloadTargetPlayer(): ExoPlayer {

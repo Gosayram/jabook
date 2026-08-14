@@ -22,6 +22,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +30,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -43,6 +45,12 @@ public class AudioPlayerServiceInitializer(
     // Held reference so the sync can be cleaned up on service destruction.
     // The coroutines run in playerServiceScope which is cancelled in onDestroy.
     private var settingsSync: MediaSessionSettingsSync? = null
+
+    // Cached user preferences: read once on the cold init path, kept fresh by a
+    // collector in playerServiceScope. Playback getters read this synchronously
+    // instead of runBlocking on the main thread for every play() call.
+    @Volatile
+    private var cachedUserPreferences: UserPreferences? = null
 
     @OptIn(UnstableApi::class)
     public fun initialize() {
@@ -73,6 +81,9 @@ public class AudioPlayerServiceInitializer(
                 setCurrentMetadata = { /* Read-only in Service, no-op here */ },
             )
 
+        // 2.5 User preferences cache (cold path; single blocking read acceptable at service init)
+        startUserPreferencesCache()
+
         // 3. PlaybackController
         service.playbackController =
             PlaybackController(
@@ -81,44 +92,19 @@ public class AudioPlayerServiceInitializer(
                 resetInactivityTimer = { service.inactivityTimer?.resetTimer() },
                 getResumeRewindSeconds = {
                     // Long-pause resume rewind setting (0/5/10/30 sec).
-                    try {
-                        kotlinx.coroutines.runBlocking {
-                            service.settingsRepository.userPreferences
-                                .first()
-                                .resumeRewindSeconds
-                        }
-                    } catch (e: Exception) {
-                        10
-                    }
+                    cachedUserPreferences?.resumeRewindSeconds ?: 10
                 },
                 getResumeRewindMode = {
-                    try {
-                        kotlinx.coroutines.runBlocking {
-                            when (
-                                service.settingsRepository.userPreferences
-                                    .first()
-                                    .resumeRewindMode
-                            ) {
-                                com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART ->
-                                    ResumeRewindMode.SMART
-
-                                else -> ResumeRewindMode.FIXED
-                            }
-                        }
-                    } catch (e: Exception) {
+                    if (cachedUserPreferences?.resumeRewindMode ==
+                        com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART
+                    ) {
+                        ResumeRewindMode.SMART
+                    } else {
                         ResumeRewindMode.FIXED
                     }
                 },
                 getResumeRewindAggressiveness = {
-                    try {
-                        kotlinx.coroutines.runBlocking {
-                            service.settingsRepository.userPreferences
-                                .first()
-                                .resumeRewindAggressiveness
-                        }
-                    } catch (e: Exception) {
-                        1.0f
-                    }
+                    cachedUserPreferences?.resumeRewindAggressiveness ?: 1.0f
                 },
                 consumeSleepTimerStopFlag = { service.consumeStoppedBySleepTimerFlag() },
             )
@@ -139,12 +125,16 @@ public class AudioPlayerServiceInitializer(
                 audioFader = service.audioFader,
                 settingsRepository = service.settingsRepository,
                 saveSleepTimerStateToDataStore = { state ->
-                    try {
-                        kotlinx.coroutines.runBlocking {
+                    // Fire-and-forget: crash safety is covered by the synchronous
+                    // SharedPreferences backup written in SleepTimerManager.saveTimerState().
+                    service.playerServiceScope.launch {
+                        try {
                             service.settingsRepository.updateSleepTimerState(state)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            LogUtils.w("AudioPlayerService", "Failed to save sleep timer state to DataStore", e)
                         }
-                    } catch (e: Exception) {
-                        LogUtils.w("AudioPlayerService", "Failed to save sleep timer state to DataStore", e)
                     }
                 },
             )
@@ -368,6 +358,29 @@ public class AudioPlayerServiceInitializer(
         }
     }
 
+    /**
+     * Reads user preferences once (cold init path) and keeps the cache fresh
+     * via a collector in playerServiceScope.
+     */
+    private fun startUserPreferencesCache() {
+        cachedUserPreferences =
+            try {
+                runBlocking { service.settingsRepository.userPreferences.first() }
+            } catch (e: Exception) {
+                LogUtils.w("AudioPlayerService", "Failed to read initial user preferences", e)
+                null
+            }
+        service.playerServiceScope.launch {
+            try {
+                service.settingsRepository.userPreferences.collect { cachedUserPreferences = it }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                LogUtils.e("AudioPlayerService", "User preferences cache collector failed", e)
+            }
+        }
+    }
+
     private fun restorePlaybackSpeed() {
         service.playerServiceScope.launch {
             try {
@@ -483,11 +496,19 @@ public class AudioPlayerServiceInitializer(
             // can read sleep timer remaining and playback speed without custom commands.
             service.sessionExtrasJob =
                 service.playerServiceScope.launch {
+                    var lastRemaining = Int.MIN_VALUE
+                    var lastSpeed = Float.NaN
+                    var lastTimerActive = false
                     while (isActive) {
                         delay(5_000L)
                         val remaining = service.getSleepTimerRemainingSeconds() ?: -1
                         val speed = service.getPlaybackSpeed()
                         val isTimerActive = remaining > 0
+                        // Only rebuild sessionExtras when the published values actually changed.
+                        if (remaining == lastRemaining && speed == lastSpeed && isTimerActive == lastTimerActive) continue
+                        lastRemaining = remaining
+                        lastSpeed = speed
+                        lastTimerActive = isTimerActive
                         service.mediaLibrarySession?.sessionExtras =
                             Bundle().apply {
                                 putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV, true)

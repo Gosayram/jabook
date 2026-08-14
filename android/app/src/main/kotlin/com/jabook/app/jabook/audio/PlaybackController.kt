@@ -59,6 +59,19 @@ internal class PlaybackController(
     }
 
     /**
+     * When set, invoked before user actions so an in-flight crossfade transition is
+     * finalized synchronously and the action applies to the now-current player
+     * instead of being silently discarded on the outgoing player.
+     */
+    public var finalizeActiveTransition: (() -> Unit)? = null
+
+    /**
+     * When set, invoked on pause/stop so an in-flight crossfade transition is
+     * cancelled and player state is left consistent.
+     */
+    public var cancelActiveTransition: (() -> Unit)? = null
+
+    /**
      * Starts or resumes playback.
      *
      * Simplified implementation matching lissen-android approach.
@@ -146,9 +159,14 @@ internal class PlaybackController(
 
     /**
      * Pauses playback.
+     *
+     * Rewind intentionally happens at resume time (ResumeRewindPolicy), never here:
+     * pause-time seeks fight the resume policy, jump the visible position, and
+     * persist a position the user never heard.
      */
     public fun pause() {
         invalidatePendingResume()
+        cancelActiveTransition?.invoke()
         playerServiceScope.launch {
             try {
                 val player = getActivePlayer()
@@ -156,12 +174,6 @@ internal class PlaybackController(
                 // Update lastPauseTime for Smart Rewind
                 lastPauseTime = nowMsProvider()
                 suppressNextResumeRewind = false
-
-                // Small rewind on pause improves context retention for audiobooks.
-                if (player.playbackState != Player.STATE_ENDED) {
-                    val rewindPosition = (player.currentPosition - 2_000L).coerceAtLeast(0L)
-                    player.seekTo(rewindPosition)
-                }
 
                 player.playWhenReady = false
                 // Note: We don't abandon AudioFocus on pause - we keep it for quick resume
@@ -183,6 +195,7 @@ internal class PlaybackController(
      */
     public fun stop() {
         invalidatePendingResume()
+        cancelActiveTransition?.invoke()
         val player = getActivePlayer()
         try {
             LogUtils.d("AudioPlayerService", "stop() called, current playbackState: ${player.playbackState}")
@@ -199,6 +212,7 @@ internal class PlaybackController(
      * @param positionMs Position in milliseconds
      */
     public fun seekTo(positionMs: Long) {
+        finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
 
         try {
@@ -241,6 +255,7 @@ internal class PlaybackController(
      * @param speed Playback speed (0.5x to 4.0x)
      */
     public fun setSpeed(speed: Float) {
+        finalizeActiveTransition?.invoke()
         val safeSpeed =
             speed
                 .takeIf(Float::isFinite)
@@ -303,6 +318,7 @@ internal class PlaybackController(
      * Inspired by lissen-android: checks track availability before switching.
      */
     public fun next() {
+        finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
         val currentIndex = player.currentMediaItemIndex
 
@@ -346,6 +362,7 @@ internal class PlaybackController(
      * Inspired by lissen-android: checks track availability before switching.
      */
     public fun previous() {
+        finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
         val currentIndex = player.currentMediaItemIndex
 
@@ -389,6 +406,7 @@ internal class PlaybackController(
      * @param index Track index in playlist
      */
     public fun seekToTrack(index: Int) {
+        finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
         if (index >= 0 && index < player.mediaItemCount) {
             val resumeGeneration = invalidatePendingResume()
@@ -414,6 +432,7 @@ internal class PlaybackController(
         trackIndex: Int,
         positionMs: Long,
     ) {
+        finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
 
         if (trackIndex < 0 || trackIndex >= player.mediaItemCount) {
@@ -456,6 +475,7 @@ internal class PlaybackController(
      * @param seconds Number of seconds to rewind (default: 15)
      */
     public fun rewind(seconds: Int = 15) {
+        finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
         val newPosition = (currentPosition - seconds * 1000L).coerceAtLeast(0L)
@@ -471,6 +491,7 @@ internal class PlaybackController(
      * @param seconds Number of seconds to forward (default: 30)
      */
     public fun forward(seconds: Int = 30) {
+        finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
         val duration = player.duration

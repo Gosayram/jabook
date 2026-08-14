@@ -400,8 +400,8 @@ internal class SleepTimerManager(
         isTimerExtensionInProgress = true
         try {
             val remainingSeconds = getSleepTimerRemainingSeconds() ?: 0
-            // Extend by 5 minutes
-            val newDurationMinutes = (remainingSeconds / 60) + 5
+            // Extend by 5 minutes, rounding partial minutes up so up to 59s is not dropped
+            val newDurationMinutes = (remainingSeconds + 59) / 60 + 5
 
             LogUtils.d("AudioPlayerService", "Shake detected! Extending timer to $newDurationMinutes minutes")
 

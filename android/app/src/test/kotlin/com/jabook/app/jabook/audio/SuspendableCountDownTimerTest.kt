@@ -95,4 +95,18 @@ class SuspendableCountDownTimerTest {
         runBlocking { kotlinx.coroutines.delay(100) }
         assertEquals(1, finishes.size)
     }
+
+    // --- restart on the reused scope ---
+
+    @Test
+    fun `timer restarts on the reused scope after pause`() {
+        val timer = createTimer(0L)
+        timer.start()
+        runBlocking { kotlinx.coroutines.delay(100) }
+        timer.pause()
+        timer.start()
+        runBlocking { kotlinx.coroutines.delay(100) }
+        assertEquals(2, finishes.size)
+        timer.cancel()
+    }
 }

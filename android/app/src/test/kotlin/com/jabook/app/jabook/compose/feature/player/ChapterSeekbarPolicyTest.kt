@@ -82,6 +82,41 @@ class ChapterSeekbarPolicyTest {
     }
 
     @Test
+    fun `buildTimeline drops zero-duration chapters from timeline`() {
+        val mixedChapters =
+            listOf(
+                chapter(index = 0, durationMs = 1_000L),
+                chapter(index = 1, durationMs = 0L),
+                chapter(index = 2, durationMs = 3_000L),
+            )
+        val timeline =
+            ChapterSeekbarPolicy.buildTimeline(
+                chapters = mixedChapters,
+                currentChapterIndex = 2,
+                currentChapterPositionMs = 1_000L,
+            )
+
+        assertEquals(4_000L, timeline.totalDurationMs)
+        assertEquals(2_000L, timeline.globalPositionMs)
+        assertEquals(1, timeline.chapterMarkersFractions.size)
+        assertEquals(1f / 4f, timeline.chapterMarkersFractions[0], 0.0001f)
+    }
+
+    @Test
+    fun `resolveSeekTarget skips zero-duration chapters and keeps original indices`() {
+        val mixedChapters =
+            listOf(
+                chapter(index = 0, durationMs = 1_000L),
+                chapter(index = 1, durationMs = 0L),
+                chapter(index = 2, durationMs = 3_000L),
+            )
+        val target = ChapterSeekbarPolicy.resolveSeekTarget(mixedChapters, progress = 0.75f)
+
+        assertEquals(2, target.chapterIndex)
+        assertEquals(2_000L, target.chapterPositionMs)
+    }
+
+    @Test
     fun `property - buildTimeline keeps progress and markers in valid bounds`() {
         runTest {
             checkAll(

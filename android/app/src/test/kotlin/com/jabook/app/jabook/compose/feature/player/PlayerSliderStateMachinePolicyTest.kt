@@ -55,10 +55,34 @@ class PlayerSliderStateMachinePolicyTest {
             PlayerSliderStateMachinePolicy.coalesceLiveProgress(
                 previousProgress = 0.100f,
                 incomingProgress = 0.1004f,
-                totalDurationMs = 600_000L, // 10 minutes => dynamic step ~= 0.0004, min step 0.001
+                totalDurationMs = 600_000L, // 10 minutes => dynamic step ~= 2 * 250ms / 600s ~= 0.00083
             )
 
         assertEquals(0.100f, result, 0.0001f)
+    }
+
+    @Test
+    fun `coalesce allows sub-tick step scaled by duration on long books`() {
+        val totalDurationMs = 36_000_000L // 10 hours
+        val step = 2f * 250f / totalDurationMs.toFloat() // ~= 1.4e-5
+
+        val accepted =
+            PlayerSliderStateMachinePolicy.coalesceLiveProgress(
+                previousProgress = 0.5f,
+                incomingProgress = 0.5f + step * 1.1f,
+                totalDurationMs = totalDurationMs,
+            )
+
+        assertEquals(0.5f + step * 1.1f, accepted, 1e-7f)
+
+        val rejected =
+            PlayerSliderStateMachinePolicy.coalesceLiveProgress(
+                previousProgress = 0.5f,
+                incomingProgress = 0.5f + step * 0.5f,
+                totalDurationMs = totalDurationMs,
+            )
+
+        assertEquals(0.5f, rejected, 1e-7f)
     }
 
     @Test

@@ -33,10 +33,10 @@ public object PositionConstants {
  * Manages playback position operations (save, restore, seek).
  */
 internal class PositionManager(
-    private val context: Context,
+    context: Context,
     private val getActivePlayer: () -> ExoPlayer,
-    private val packageName: String,
-    private val sendBroadcast: (Intent) -> Unit,
+    packageName: String,
+    sendBroadcast: (Intent) -> Unit,
 ) {
     public companion object {
         // Use PositionConstants for public access
@@ -46,35 +46,14 @@ internal class PositionManager(
     }
 
     /**
-     * Saves current playback position via broadcast.
+     * Saves current playback position.
      *
-     * This method broadcasts the current position to trigger saving through MethodChannel.
-     * Position is also saved periodically, so this is an additional safety measure.
+     * The legacy Flutter MethodChannel broadcast was removed (no registered receiver).
+     * Persistence happens via PeriodicPositionSaver and CrashSafePositionWriter.
      */
     public fun saveCurrentPosition() {
-        try {
-            val activePlayer = getActivePlayer()
-            if (activePlayer.mediaItemCount > 0) {
-                val currentIndex = activePlayer.currentMediaItemIndex
-                val currentPosition = activePlayer.currentPosition
-
-                // Broadcast intent to trigger position saving through MethodChannel
-                val saveIntent =
-                    Intent(PositionConstants.ACTION_SAVE_POSITION_BEFORE_UNLOAD).apply {
-                        putExtra(PositionConstants.EXTRA_TRACK_INDEX, currentIndex)
-                        putExtra(PositionConstants.EXTRA_POSITION_MS, currentPosition)
-                        setPackage(packageName) // Set package for explicit broadcast
-                    }
-                sendBroadcast(saveIntent)
-                LogUtils.d(
-                    "AudioPlayerService",
-                    "Position save broadcast sent: track=$currentIndex, position=${currentPosition}ms",
-                )
-            }
-        } catch (e: Exception) {
-            LogUtils.w("AudioPlayerService", "Failed to send save position broadcast", e)
-            // Not critical - position is already saved periodically
-        }
+        // No-op: kept for API compatibility with existing call sites.
+        LogUtils.d("AudioPlayerService", "saveCurrentPosition: handled by periodic/crash-safe savers")
     }
 
     /**

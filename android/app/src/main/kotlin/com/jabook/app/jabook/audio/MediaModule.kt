@@ -504,6 +504,7 @@ public object AudioDataModule {
         builder.addMigrations(AudioDatabaseMigrations.MIGRATION_2_3)
         builder.addMigrations(AudioDatabaseMigrations.MIGRATION_3_4)
         builder.addMigrations(AudioDatabaseMigrations.MIGRATION_4_5)
+        builder.addMigrations(AudioDatabaseMigrations.MIGRATION_5_6)
 
         return builder.build()
     }

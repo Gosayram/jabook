@@ -29,8 +29,6 @@ internal sealed class ChapterNavigationAction {
 }
 
 internal object ChapterNavigationPolicy {
-    private const val RESTART_THRESHOLD_MS = 5000L
-
     fun resolvePreviousAction(
         chapters: List<Chapter>,
         currentChapterIndex: Int,
@@ -40,7 +38,7 @@ internal object ChapterNavigationPolicy {
 
         val safeIndex = currentChapterIndex.coerceIn(0, chapters.lastIndex)
 
-        if (currentChapterPositionMs >= RESTART_THRESHOLD_MS) {
+        if (currentChapterPositionMs >= NEAR_END_THRESHOLD_MS) {
             return ChapterNavigationAction.RestartCurrentChapter(safeIndex)
         }
 
@@ -68,3 +66,42 @@ internal object ChapterNavigationPolicy {
         }
     }
 }
+
+internal object ChapterNavigationIntentPolicy {
+    fun resolve(
+        intent: PlayerIntent,
+        state: PlayerState.Active,
+        nearEndThresholdMs: Long = NEAR_END_THRESHOLD_MS,
+    ): ChapterNavigationDecision {
+        if (intent != PlayerIntent.SkipNext) return ChapterNavigationDecision(intent = intent)
+        if (state.chapters.isEmpty()) return ChapterNavigationDecision(intent = intent)
+
+        val currentIndex = state.currentChapterIndex.coerceIn(0, state.chapters.lastIndex)
+        val canMoveNext = currentIndex < state.chapters.lastIndex
+        val chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds
+        val nearEnd =
+            chapterDurationMs != null &&
+                chapterDurationMs > 0L &&
+                state.currentPosition >= (chapterDurationMs - nearEndThresholdMs).coerceAtLeast(0L)
+
+        val targetIndex =
+            when {
+                nearEnd && canMoveNext -> currentIndex + 1
+                else -> null
+            } ?: return ChapterNavigationDecision(intent = intent)
+
+        return ChapterNavigationDecision(
+            intent = PlayerIntent.SelectChapter(targetIndex),
+            movedToChapterDisplayIndex = targetIndex + 1,
+            undoChapterIndex = currentIndex,
+        )
+    }
+}
+
+internal data class ChapterNavigationDecision(
+    val intent: PlayerIntent,
+    val movedToChapterDisplayIndex: Int? = null,
+    val undoChapterIndex: Int? = null,
+)
+
+private const val NEAR_END_THRESHOLD_MS = 5_000L

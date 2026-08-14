@@ -30,6 +30,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
@@ -38,7 +39,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
 import org.mockito.kotlin.clearInvocations
+import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
@@ -322,5 +325,150 @@ class CrossfadeTest {
         verify(replacementActive).prepare()
         verify(sourcePlayer, never()).release()
         verify(sourcePlayer).pause()
+    }
+
+    @Test
+    fun `finalizeTransitionNow completes swap synchronously and cleans up outgoing player`() {
+        crossFadePlayer.startCrossFade()
+        assertTrue(crossFadePlayer.isTransitionRunning())
+
+        crossFadePlayer.finalizeTransitionNow()
+
+        assertSame(playerB, crossFadePlayer.getActivePlayer())
+        assertSame(playerA, crossFadePlayer.getNextPlayer())
+        assertFalse(crossFadePlayer.isTransitionRunning())
+        verify(playerA).pause()
+        verify(playerA).seekTo(0L)
+        verify(playerA).clearMediaItems()
+        verify(playerA).setAudioAttributes(AudioAttributes.DEFAULT, false)
+        verify(playerB).setAudioAttributes(AudioAttributes.DEFAULT, true)
+
+        // The cancelled fade coroutine must not re-run cleanup or swap again.
+        testScope.advanceUntilIdle()
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        assertSame(playerB, crossFadePlayer.getActivePlayer())
+        verify(playerA, times(1)).pause()
+    }
+
+    @Test
+    fun `finalizeTransitionNow is a no-op without a running transition`() {
+        crossFadePlayer.finalizeTransitionNow()
+
+        assertSame(playerA, crossFadePlayer.getActivePlayer())
+        assertFalse(crossFadePlayer.isTransitionRunning())
+        verify(playerA, never()).pause()
+        verify(playerA, never()).clearMediaItems()
+    }
+
+    @Test
+    fun `finalizeTransitionNow invokes the completion callback exactly once`() {
+        var completions = 0
+        crossFadePlayer.startCrossFade { completions++ }
+
+        crossFadePlayer.finalizeTransitionNow()
+        testScope.advanceUntilIdle()
+
+        assertEquals(1, completions)
+    }
+
+    @Test
+    fun `outgoing player items are cleared after the active player swap rebinds listeners`() {
+        val events = mutableListOf<String>()
+        crossFadePlayer.onPlayerChanged = { events.add("changed") }
+        doAnswer {
+            events.add("cleared")
+            Unit
+        }.whenever(playerA).clearMediaItems()
+
+        crossFadePlayer.startCrossFade()
+        testScope.advanceUntilIdle()
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
+        assertEquals(listOf("changed", "cleared"), events)
+    }
+
+    @Test
+    fun `zero duration crossfade swaps synchronously without a fade loop`() {
+        crossFadePlayer.crossFadeDurationMs = 0L
+        var completions = 0
+
+        crossFadePlayer.startCrossFade { completions++ }
+
+        assertSame(playerB, crossFadePlayer.getActivePlayer())
+        assertFalse(crossFadePlayer.isTransitionRunning())
+        assertEquals(1, completions)
+        testScope.advanceUntilIdle()
+        assertEquals(1, completions)
+    }
+
+    @Test
+    fun `crossfade uses equal-power curve with clamped minimum step count`() {
+        val outVolumes = mutableListOf<Float>()
+        val inVolumes = mutableListOf<Float>()
+        doAnswer {
+            outVolumes.add(it.getArgument(0))
+            Unit
+        }.whenever(playerA).volume = any()
+        doAnswer {
+            inVolumes.add(it.getArgument(0))
+            Unit
+        }.whenever(playerB).volume = any()
+
+        crossFadePlayer.crossFadeDurationMs = 100L // 100/20=5 -> clamped to 16 steps
+        crossFadePlayer.startCrossFade()
+        testScope.advanceUntilIdle()
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
+        // Initial volume + 16 fade steps + final restore = 18 setter calls per player.
+        assertEquals(18, outVolumes.size)
+        assertEquals(18, inVolumes.size)
+        // Equal-power signature at mid-fade: both channels ~0.707 (linear fade dips to 0.5).
+        assertEquals(0.7071f, outVolumes[8], 0.001f)
+        assertEquals(0.7071f, inVolumes[8], 0.001f)
+        // Curve ends: full incoming gain, silent outgoing.
+        assertEquals(1.0f, inVolumes[16], 0.0001f)
+        assertEquals(0.0f, outVolumes[16], 0.001f)
+    }
+
+    @Test
+    fun `long fade clamps step count to 200`() {
+        val outVolumes = mutableListOf<Float>()
+        doAnswer {
+            outVolumes.add(it.getArgument(0))
+            Unit
+        }.whenever(playerA).volume = any()
+
+        crossFadePlayer.crossFadeDurationMs = 6000L // 6000/20=300 -> clamped to 200
+        crossFadePlayer.startCrossFade()
+        testScope.advanceUntilIdle()
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+
+        // Initial volume + 200 fade steps + final restore.
+        assertEquals(202, outVolumes.size)
+    }
+
+    @Test
+    fun `pause during crossfade empties the fading-in player and keeps current audible`() {
+        crossFadePlayer.startCrossFade()
+        testScope.advanceTimeBy(10)
+
+        crossFadePlayer.pause()
+
+        assertSame(playerA, crossFadePlayer.getActivePlayer())
+        assertFalse(crossFadePlayer.isTransitionRunning())
+        verify(playerB).clearMediaItems()
+        verify(playerA).pause()
+        verify(playerB).pause()
+    }
+
+    @Test
+    fun `pause without transition keeps the prefetched standby player loaded`() {
+        crossFadePlayer.setNextTrack(MediaItem.fromUri("file://prefetched.mp3"))
+        testScope.advanceUntilIdle()
+
+        crossFadePlayer.pause()
+
+        // Only the preload-time clear happened; pause must not drop the prefetch.
+        verify(playerB, times(1)).clearMediaItems()
     }
 }

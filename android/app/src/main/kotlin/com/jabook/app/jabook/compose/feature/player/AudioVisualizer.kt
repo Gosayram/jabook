@@ -24,13 +24,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.compose.core.theme.MotionTokens
@@ -196,6 +199,9 @@ private fun BarsVisualizer(
             }
         }
 
+    // Reuse bar gradients keyed by (quantized) bar height instead of allocating per bar per frame
+    val barBrushes = remember(primaryColor, secondaryColor) { HashMap<Int, Brush>() }
+
     Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
@@ -208,21 +214,22 @@ private fun BarsVisualizer(
             val y = (height - barHeight) / 2
 
             // Gradient from bottom to top
-            drawRoundRect(
-                brush =
+            val brush =
+                barBrushes.getOrPut(barHeight.toInt()) {
                     Brush.verticalGradient(
                         colors = listOf(secondaryColor, primaryColor),
-                        startY = y + barHeight,
-                        endY = y,
-                    ),
-                topLeft = Offset(x, y),
-                size =
-                    androidx.compose.ui.geometry
-                        .Size(barWidth, barHeight),
-                cornerRadius =
-                    androidx.compose.ui.geometry
-                        .CornerRadius(barWidth / 2),
-            )
+                        startY = barHeight,
+                        endY = 0f,
+                    )
+                }
+            translate(left = x, top = y) {
+                drawRoundRect(
+                    brush = brush,
+                    topLeft = Offset.Zero,
+                    size = Size(barWidth, barHeight),
+                    cornerRadius = CornerRadius(barWidth / 2),
+                )
+            }
         }
     }
 }

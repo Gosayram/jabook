@@ -48,11 +48,6 @@ public class VolumeBoostProcessor(
     private val limiterThresholdDb = -0.3f
     private val limiterThresholdLinear = 10.0.pow((limiterThresholdDb / 20.0f).toDouble()).toFloat()
 
-    // Look-ahead buffer size: 10ms
-    private val lookAheadMs = 10
-    private var lookAheadSamples = 0
-    private val lookAheadBuffer = mutableListOf<Float>()
-
     init {
         // Calculate gain multiplier based on boost level
         gainMultiplier =
@@ -75,13 +70,6 @@ public class VolumeBoostProcessor(
         this.inputAudioFormat = inputAudioFormat
         this.outputAudioFormat = inputAudioFormat
 
-        // Calculate look-ahead buffer size
-        val sampleRate = inputAudioFormat.sampleRate
-        lookAheadSamples = sampleRate * lookAheadMs / 1000
-
-        // Initialize look-ahead buffer
-        lookAheadBuffer.clear()
-
         // Only activate if boost is enabled
         isActive = boostLevel != VolumeBoostLevel.Off && gainMultiplier > 1.0f
 
@@ -100,6 +88,7 @@ public class VolumeBoostProcessor(
 
     // Input/output buffers
     private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var queuedInputBytes = 0
     private var outputBuffer: ByteBuffer? = null
     private var inputEnded = false
 
@@ -114,6 +103,7 @@ public class VolumeBoostProcessor(
             buffer.put(inputBuffer)
             buffer.flip()
             inputBuffers.add(buffer)
+            queuedInputBytes += buffer.remaining()
         }
     }
 
@@ -126,22 +116,30 @@ public class VolumeBoostProcessor(
             return EMPTY_BUFFER
         }
 
-        val totalSize = inputBuffers.sumOf { it.remaining() }
+        val totalSize = queuedInputBytes
         if (totalSize == 0) {
             return EMPTY_BUFFER
         }
 
-        outputBuffer = ByteBuffer.allocateDirect(totalSize)
-        outputBuffer!!.order(ByteOrder.nativeOrder())
+        val preparedOutputBuffer =
+            if (outputBuffer == null || outputBuffer!!.capacity() < totalSize) {
+                ByteBuffer.allocateDirect(totalSize).order(ByteOrder.nativeOrder()).also {
+                    outputBuffer = it
+                }
+            } else {
+                outputBuffer!!.clear()
+                outputBuffer
+            } ?: return EMPTY_BUFFER
 
         for (inputBuffer in inputBuffers) {
-            processBuffer(inputBuffer, outputBuffer!!)
+            processBuffer(inputBuffer, preparedOutputBuffer)
         }
 
         inputBuffers.clear()
-        outputBuffer!!.flip()
+        queuedInputBytes = 0
+        preparedOutputBuffer.flip()
 
-        return outputBuffer!!
+        return preparedOutputBuffer
     }
 
     /**
@@ -155,7 +153,6 @@ public class VolumeBoostProcessor(
 
         if (format.encoding != android.media.AudioFormat.ENCODING_PCM_16BIT) {
             // For other formats, pass through
-            val remaining = input.remaining()
             output.put(input)
             return
         }
@@ -212,8 +209,8 @@ public class VolumeBoostProcessor(
 
     @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun flush() {
-        lookAheadBuffer.clear()
         inputBuffers.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
     }

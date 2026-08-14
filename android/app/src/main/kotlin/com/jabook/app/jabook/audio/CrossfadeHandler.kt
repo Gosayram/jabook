@@ -32,6 +32,7 @@ internal class CrossfadeHandler(
     private val checkIntervalMs = 500L
     private var isMonitoring = false
     private var monitoringGeneration = 0L
+    private var transitionTriggerInFlight = false
 
     private val monitorRunnable =
         object : Runnable {
@@ -47,6 +48,7 @@ internal class CrossfadeHandler(
         if (isMonitoring) return
         monitoringGeneration += 1L
         prefetchedChapterIndex = -1
+        lastSeenChapterIndex = -1
         isMonitoring = true
         handler.post(monitorRunnable)
     }
@@ -58,14 +60,26 @@ internal class CrossfadeHandler(
     }
 
     private var prefetchedChapterIndex = -1
+    private var lastSeenChapterIndex = -1
 
     private fun checkCrossfade() {
+        // While a transition runs, players are mid-swap: re-triggering here would rebuild
+        // media sources for the whole book just to be rejected by staleness checks.
+        if (crossFadePlayer.isTransitionRunning()) return
+
         val currentPlayer = service.getActivePlayer()
         if (!currentPlayer.isPlaying) return
 
         val duration = currentPlayer.duration
         val position = currentPlayer.currentPosition
         if (duration == androidx.media3.common.C.TIME_UNSET) return
+
+        val currentChapterIndex = playlistManager.actualTrackIndex
+        if (currentChapterIndex != lastSeenChapterIndex) {
+            // Playback moved (seek or chapter change): re-enable prefetch of the new neighbour.
+            lastSeenChapterIndex = currentChapterIndex
+            prefetchedChapterIndex = -1
+        }
 
         val remaining = duration - position
 
@@ -117,6 +131,10 @@ internal class CrossfadeHandler(
      * Prepares next track on secondary player and starts crossfade.
      */
     public fun triggerCrossfadeTransition() {
+        // One in-flight transition at a time: an already-running swap or a trigger whose
+        // sources are still being built must not fire again on the next 500ms tick.
+        if (crossFadePlayer.isTransitionRunning() || transitionTriggerInFlight) return
+
         val currentPlayer = service.getActivePlayer()
         val currentChapterIndex = playlistManager.actualTrackIndex
         val nextChapterIndex = currentChapterIndex + 1
@@ -124,24 +142,29 @@ internal class CrossfadeHandler(
         if (nextChapterIndex !in paths.indices) return
         val metadata = playlistManager.currentMetadata
         val requestGeneration = monitoringGeneration
+        transitionTriggerInFlight = true
         service.playerServiceScope.launch {
-            val sources =
-                paths.mapIndexedNotNull { index, _ ->
-                    playlistManager.createMediaSource(paths, index, metadata)
-                }
-
-            if (sources.size == paths.size) {
-                withContext(Dispatchers.Main) {
-                    if (!isCurrentRequest(requestGeneration, currentPlayer, currentChapterIndex)) {
-                        return@withContext
+            try {
+                val sources =
+                    paths.mapIndexedNotNull { index, _ ->
+                        playlistManager.createMediaSource(paths, index, metadata)
                     }
-                    crossFadePlayer.setNextMediaSources(sources, nextChapterIndex)
-                    crossFadePlayer.startCrossFade {
-                        if (playlistManager.actualTrackIndex == currentChapterIndex) {
-                            playlistManager.actualTrackIndex = nextChapterIndex
+
+                if (sources.size == paths.size) {
+                    withContext(Dispatchers.Main) {
+                        if (!isCurrentRequest(requestGeneration, currentPlayer, currentChapterIndex)) {
+                            return@withContext
+                        }
+                        crossFadePlayer.setNextMediaSources(sources, nextChapterIndex)
+                        crossFadePlayer.startCrossFade {
+                            if (playlistManager.actualTrackIndex == currentChapterIndex) {
+                                playlistManager.actualTrackIndex = nextChapterIndex
+                            }
                         }
                     }
                 }
+            } finally {
+                transitionTriggerInFlight = false
             }
         }
     }

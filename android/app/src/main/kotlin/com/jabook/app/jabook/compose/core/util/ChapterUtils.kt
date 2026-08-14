@@ -16,6 +16,17 @@ package com.jabook.app.jabook.compose.core.util
 
 import com.jabook.app.jabook.compose.domain.model.Chapter
 
+// Matches generic prefixes (Chapter, Track, etc) followed by a number
+// Matches: "Chapter 1", "Ch. 1", "Track 01", "Глава 1"
+// Group 1: Prefix
+// Group 2: Number
+// Group 3: Remainder (suffix)
+private val GENERIC_CHAPTER_TITLE_PATTERN =
+    Regex("""^(?:Chapter|Глава|Ch|Гл|Track|File|Audio)[ ._-]*(\d+)(.*)$""", RegexOption.IGNORE_CASE)
+
+// Matches titles that are just a number (e.g. "01", "1")
+private val NUMERIC_TITLE_PATTERN = Regex("""^\d+$""")
+
 /**
  * Utilities for parsing and formatting chapter information.
  */
@@ -75,14 +86,7 @@ public object ChapterUtils {
 
         val number = extractChapterNumber(chapter.title, index)
 
-        // Regex to match generic prefixes (Chapter, Track, etc) followed by a number
-        // Matches: "Chapter 1", "Ch. 1", "Track 01", "Глава 1"
-        // Group 1: Prefix
-        // Group 2: Number
-        // Group 3: Remainder (suffix)
-        val genericPattern =
-            Regex("""^(?:Chapter|Глава|Ch|Гл|Track|File|Audio)[ ._-]*(\d+)(.*)$""", RegexOption.IGNORE_CASE)
-        val match = genericPattern.find(chapter.title)
+        val match = GENERIC_CHAPTER_TITLE_PATTERN.find(chapter.title)
 
         if (match != null) {
             val matchedNumber = match.groupValues[1]
@@ -92,7 +96,7 @@ public object ChapterUtils {
         }
 
         // If the title is just a number (e.g. "01", "1")
-        if (chapter.title.matches(Regex("""^\d+$"""))) {
+        if (NUMERIC_TITLE_PATTERN.matches(chapter.title)) {
             return "$localizedPrefix ${chapter.title.toInt()}"
         }
 

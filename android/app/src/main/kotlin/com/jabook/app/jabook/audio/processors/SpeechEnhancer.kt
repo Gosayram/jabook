@@ -51,9 +51,9 @@ public class SpeechEnhancer : AudioProcessor {
     private val compressionRatio = 2.0f
     private val compressionThresholdLinear = 10.0.pow((compressionThresholdDb / 20.0f).toDouble()).toFloat()
 
-    // High-pass filter state (simple first-order IIR)
-    private val highPassCoeff = mutableMapOf<Int, Float>() // Per channel
-    private var highPassPrev = mutableMapOf<Int, Float>() // Previous sample per channel
+    // High-pass filter state (simple first-order IIR), per channel
+    private var highPassAlpha = 0.0f
+    private var highPassPrev = FloatArray(0)
 
     // Peak EQ state (simplified - using gain multiplier for target frequency range)
     private val peakEqGainLinear = 10.0.pow((peakEqGainDb / 20.0f).toDouble()).toFloat()
@@ -68,6 +68,7 @@ public class SpeechEnhancer : AudioProcessor {
 
     // Input/output buffers
     private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var queuedInputBytes = 0
     private var outputBuffer: ByteBuffer? = null
     private var inputEnded = false
 
@@ -82,10 +83,8 @@ public class SpeechEnhancer : AudioProcessor {
         // First-order high-pass: y[n] = x[n] - x[n-1] + a * y[n-1]
         // Simplified: using alpha = 1 - 2*pi*fc/fs for approximation
         val alpha = 1.0f - (2.0f * kotlin.math.PI.toFloat() * highPassCutoffHz / sampleRate)
-        for (ch in 0 until channels) {
-            highPassCoeff[ch] = alpha.coerceIn(0.0f, 1.0f)
-            highPassPrev[ch] = 0.0f
-        }
+        highPassAlpha = alpha.coerceIn(0.0f, 1.0f)
+        highPassPrev = FloatArray(channels)
 
         // Reset states
         deEsserGain = 1.0f
@@ -118,6 +117,7 @@ public class SpeechEnhancer : AudioProcessor {
             buffer.put(inputBuffer)
             buffer.flip()
             inputBuffers.add(buffer)
+            queuedInputBytes += buffer.remaining()
         }
     }
 
@@ -130,22 +130,30 @@ public class SpeechEnhancer : AudioProcessor {
             return EMPTY_BUFFER
         }
 
-        val totalSize = inputBuffers.sumOf { it.remaining() }
+        val totalSize = queuedInputBytes
         if (totalSize == 0) {
             return EMPTY_BUFFER
         }
 
-        outputBuffer = ByteBuffer.allocateDirect(totalSize)
-        outputBuffer!!.order(ByteOrder.nativeOrder())
+        val preparedOutputBuffer =
+            if (outputBuffer == null || outputBuffer!!.capacity() < totalSize) {
+                ByteBuffer.allocateDirect(totalSize).order(ByteOrder.nativeOrder()).also {
+                    outputBuffer = it
+                }
+            } else {
+                outputBuffer!!.clear()
+                outputBuffer
+            } ?: return EMPTY_BUFFER
 
         for (inputBuffer in inputBuffers) {
-            processBuffer(inputBuffer, outputBuffer!!)
+            processBuffer(inputBuffer, preparedOutputBuffer)
         }
 
         inputBuffers.clear()
-        outputBuffer!!.flip()
+        queuedInputBytes = 0
+        preparedOutputBuffer.flip()
 
-        return outputBuffer!!
+        return preparedOutputBuffer
     }
 
     /**
@@ -196,9 +204,8 @@ public class SpeechEnhancer : AudioProcessor {
                 var normalized = sample * invMaxValue // Faster than division
 
                 // 1. High-pass filter (<120 Hz)
-                val coeff = highPassCoeff[ch] ?: 0.0f
-                val prev = highPassPrev[ch] ?: 0.0f
-                normalized = normalized - prev + coeff * prev
+                val prev = highPassPrev[ch]
+                normalized = normalized - prev + highPassAlpha * prev
                 highPassPrev[ch] = normalized
 
                 // 2. Peak EQ (2-4 kHz boost) - simplified: apply gain to mid frequencies
@@ -248,18 +255,20 @@ public class SpeechEnhancer : AudioProcessor {
     @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun flush() {
         // Reset filter states
-        highPassPrev.clear()
+        highPassPrev.fill(0f)
         deEsserGain = 1.0f
         compressionEnvelope = 0.0f
         compressionGainReduction = 1.0f
         inputBuffers.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
     }
 
     override fun reset() {
         flush()
-        highPassCoeff.clear()
+        highPassAlpha = 0.0f
+        highPassPrev = FloatArray(0)
         inputAudioFormat = null
         outputAudioFormat = null
         isActive = false

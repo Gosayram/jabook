@@ -44,6 +44,7 @@ public fun PremiumPlayerBackground(
     coverImageModel: Any? = null,
     hazeState: HazeState? = null,
     isPowerSaveMode: Boolean = false,
+    isPlaying: Boolean = true,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -75,6 +76,7 @@ public fun PremiumPlayerBackground(
         if (!isPowerSaveMode && backgroundColors.isNotEmpty()) {
             HypnoticBackground(
                 colors = backgroundColors,
+                isPlaying = isPlaying,
                 modifier = Modifier.fillMaxSize(),
             )
         } else {

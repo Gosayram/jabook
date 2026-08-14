@@ -26,10 +26,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.translate
 import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
 
 /**
@@ -38,11 +40,14 @@ import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
  * shifting gradient mesh that mimics an aurora or flow.
  *
  * Inspired by modern music players (Apple Music, Spotify).
+ *
+ * @param isPlaying When false (or under reduce-motion/power constraints) a static frame is drawn.
  */
 @Composable
 public fun HypnoticBackground(
     colors: List<Color>,
     modifier: Modifier = Modifier,
+    isPlaying: Boolean = true,
 ) {
     if (colors.isEmpty()) return
 
@@ -53,7 +58,7 @@ public fun HypnoticBackground(
     val color3 = colors.getOrElse(2) { Color.Gray }
     val color4 = colors.getOrElse(3) { color1 }
 
-    if (reduceMotion) {
+    if (reduceMotion || !isPlaying) {
         Box(
             modifier =
                 modifier
@@ -139,6 +144,9 @@ public fun HypnoticBackground(
         label = "Phase3",
     )
 
+    // Gradients are cached per (colors, canvas size); only offsets animate inside Canvas.
+    val brushCache = remember(color1, color2, color3, color4) { HypnoticBrushCache() }
+
     Box(
         modifier =
             modifier
@@ -148,69 +156,106 @@ public fun HypnoticBackground(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
+            brushCache.ensure(width, height, color1, color2, color3, color4)
 
             // Draw a base gradient
-            drawRect(
-                brush =
-                    Brush.verticalGradient(
-                        colors = listOf(color1.copy(alpha = 0.4f), color2.copy(alpha = 0.8f)),
-                    ),
-            )
+            drawRect(brush = brushCache.base!!)
 
             // Draw moving "blobs" or gradients
             // Blob 1
-            drawCircle(
-                brush =
-                    Brush.radialGradient(
-                        colors = listOf(color3.copy(alpha = 0.6f), Color.Transparent),
-                        center = Offset(width * 0.2f + (width * 0.6f * phase1), height * 0.3f),
-                        radius = width * 0.8f,
-                    ),
-                center = Offset(width * 0.2f + (width * 0.6f * phase1), height * 0.3f),
-                radius = width * 0.8f,
-            )
+            translate(
+                left = width * 0.2f + (width * 0.6f * phase1),
+                top = height * 0.3f,
+            ) {
+                drawCircle(
+                    brush = brushCache.blob1!!,
+                    center = Offset.Zero,
+                    radius = width * 0.8f,
+                )
+            }
 
             // Blob 2
-            drawCircle(
-                brush =
-                    Brush.radialGradient(
-                        colors = listOf(color2.copy(alpha = 0.5f), Color.Transparent),
-                        center = Offset(width * 0.8f - (width * 0.6f * phase2), height * 0.7f),
-                        radius = width * 0.7f,
-                    ),
-                center = Offset(width * 0.8f - (width * 0.6f * phase2), height * 0.7f),
-                radius = width * 0.7f,
-            )
+            translate(
+                left = width * 0.8f - (width * 0.6f * phase2),
+                top = height * 0.7f,
+            ) {
+                drawCircle(
+                    brush = brushCache.blob2!!,
+                    center = Offset.Zero,
+                    radius = width * 0.7f,
+                )
+            }
 
             // Blob 3
-            drawCircle(
-                brush =
-                    Brush.radialGradient(
-                        colors = listOf(color4.copy(alpha = 0.4f), Color.Transparent),
-                        center = Offset(width * 0.5f, height * 0.5f + (height * 0.3f * phase3)),
-                        radius = width * 0.9f,
-                    ),
-                center = Offset(width * 0.5f, height * 0.5f + (height * 0.3f * phase3)),
-                radius = width * 0.9f,
-            )
+            translate(
+                left = width * 0.5f,
+                top = height * 0.5f + (height * 0.3f * phase3),
+            ) {
+                drawCircle(
+                    brush = brushCache.blob3!!,
+                    center = Offset.Zero,
+                    radius = width * 0.9f,
+                )
+            }
 
             // Overlay a blur if possible, or use a scrim to soften
             // Since Blur on Canvas isn't directly supported in Compose without render effects (Android 12+),
             // we rely on the large radial gradients to create softness.
 
             // Vignette
-            drawRect(
-                brush =
-                    Brush.radialGradient(
-                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)),
-                        center = center,
-                        radius = size.minDimension,
-                    ),
-            )
+            drawRect(brush = brushCache.vignette!!)
         }
 
         // Add a blur layer using RenderEffect if on Android 12+
         // For now, we stick to standard Canvas drawing for compatibility.
         // If we wanted to use RenderEffect, we would use .graphicsLayer { renderEffect = ... }
+    }
+}
+
+private class HypnoticBrushCache {
+    private var cachedWidth = 0f
+    private var cachedHeight = 0f
+    internal var base: Brush? = null
+    internal var blob1: Brush? = null
+    internal var blob2: Brush? = null
+    internal var blob3: Brush? = null
+    internal var vignette: Brush? = null
+
+    internal fun ensure(
+        width: Float,
+        height: Float,
+        color1: Color,
+        color2: Color,
+        color3: Color,
+        color4: Color,
+    ) {
+        if (width == cachedWidth && height == cachedHeight) return
+        cachedWidth = width
+        cachedHeight = height
+        base = Brush.verticalGradient(colors = listOf(color1.copy(alpha = 0.4f), color2.copy(alpha = 0.8f)))
+        blob1 =
+            Brush.radialGradient(
+                colors = listOf(color3.copy(alpha = 0.6f), Color.Transparent),
+                center = Offset.Zero,
+                radius = width * 0.8f,
+            )
+        blob2 =
+            Brush.radialGradient(
+                colors = listOf(color2.copy(alpha = 0.5f), Color.Transparent),
+                center = Offset.Zero,
+                radius = width * 0.7f,
+            )
+        blob3 =
+            Brush.radialGradient(
+                colors = listOf(color4.copy(alpha = 0.4f), Color.Transparent),
+                center = Offset.Zero,
+                radius = width * 0.9f,
+            )
+        vignette =
+            Brush.radialGradient(
+                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)),
+                center = Offset(width / 2f, height / 2f),
+                radius = kotlin.math.min(width, height),
+            )
     }
 }

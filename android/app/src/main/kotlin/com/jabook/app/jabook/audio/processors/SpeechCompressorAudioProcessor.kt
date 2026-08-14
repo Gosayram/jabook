@@ -63,15 +63,11 @@ public class SpeechCompressorAudioProcessor(
 
     private var lpCoeffs = BiquadCoeffs()
     private var hpCoeffs = BiquadCoeffs()
-    private val lpStates = mutableMapOf<Int, BiquadState>()
-    private val hpStates = mutableMapOf<Int, BiquadState>()
+    private var lpStates: Array<BiquadState> = emptyArray()
+    private var hpStates: Array<BiquadState> = emptyArray()
 
-    // Per-band envelope followers (key = channel * 3 + band)
-    private data class BandEnvelope(
-        var envelope: Float = 0f,
-    )
-
-    private val envelopes = mutableMapOf<Int, BandEnvelope>()
+    // Per-band envelope followers (index = channel * 3 + band)
+    private var envelopes = FloatArray(0)
 
     // Compression parameters
     private var thresholdDb = -20f
@@ -80,6 +76,7 @@ public class SpeechCompressorAudioProcessor(
 
     // Input/output buffer management
     private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var queuedInputBytes = 0
     private var outputBuffer: ByteBuffer? = null
     private var inputEnded = false
 
@@ -109,12 +106,8 @@ public class SpeechCompressorAudioProcessor(
             hpCoeffs = computeBiquadCoeffs(sampleRate, CROSSOVER_HP_HZ, isLowPass = false)
 
             // Initialize per-channel filter states
-            lpStates.clear()
-            hpStates.clear()
-            for (ch in 0 until channels) {
-                lpStates[ch] = BiquadState()
-                hpStates[ch] = BiquadState()
-            }
+            lpStates = Array(channels) { BiquadState() }
+            hpStates = Array(channels) { BiquadState() }
 
             // Envelope follower coefficients from attack/release times
             val attackSec = ATTACK_MS / 1000f
@@ -123,15 +116,11 @@ public class SpeechCompressorAudioProcessor(
             releaseCoeff = 1f - exp(-1f / (releaseSec * sampleRate))
 
             // Initialize per-band envelope followers
-            envelopes.clear()
-            for (ch in 0 until channels) {
-                for (band in 0 until 3) {
-                    envelopes[ch * 3 + band] = BandEnvelope()
-                }
-            }
+            envelopes = FloatArray(channels * 3)
         }
 
         inputBuffers.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
 
@@ -154,6 +143,7 @@ public class SpeechCompressorAudioProcessor(
             buffer.put(inputBuffer)
             buffer.flip()
             inputBuffers.add(buffer)
+            queuedInputBytes += buffer.remaining()
         }
     }
 
@@ -164,49 +154,56 @@ public class SpeechCompressorAudioProcessor(
     override fun getOutput(): ByteBuffer {
         if (!isActive || inputBuffers.isEmpty()) return EMPTY_BUFFER
 
-        val totalSize = inputBuffers.sumOf { it.remaining() }
+        val totalSize = queuedInputBytes
         if (totalSize == 0) return EMPTY_BUFFER
 
-        outputBuffer = ByteBuffer.allocateDirect(totalSize)
-        outputBuffer!!.order(ByteOrder.nativeOrder())
+        val preparedOutputBuffer =
+            if (outputBuffer == null || outputBuffer!!.capacity() < totalSize) {
+                ByteBuffer.allocateDirect(totalSize).order(ByteOrder.nativeOrder()).also {
+                    outputBuffer = it
+                }
+            } else {
+                outputBuffer!!.clear()
+                outputBuffer
+            } ?: return EMPTY_BUFFER
 
         for (inputBuffer in inputBuffers) {
-            processBuffer(inputBuffer, outputBuffer!!)
+            processBuffer(inputBuffer, preparedOutputBuffer)
         }
         inputBuffers.clear()
-        outputBuffer!!.flip()
-        return outputBuffer!!
+        queuedInputBytes = 0
+        preparedOutputBuffer.flip()
+        return preparedOutputBuffer
     }
 
     override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
 
     @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun flush() {
-        for (state in lpStates.values) {
+        for (state in lpStates) {
             state.x1 = 0f
             state.x2 = 0f
             state.y1 = 0f
             state.y2 = 0f
         }
-        for (state in hpStates.values) {
+        for (state in hpStates) {
             state.x1 = 0f
             state.x2 = 0f
             state.y1 = 0f
             state.y2 = 0f
         }
-        for (env in envelopes.values) {
-            env.envelope = 0f
-        }
+        envelopes.fill(0f)
         inputBuffers.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
     }
 
     override fun reset() {
         flush()
-        lpStates.clear()
-        hpStates.clear()
-        envelopes.clear()
+        lpStates = emptyArray()
+        hpStates = emptyArray()
+        envelopes = FloatArray(0)
         inputAudioFormat = null
         outputAudioFormat = null
         isActive = false
@@ -245,8 +242,8 @@ public class SpeechCompressorAudioProcessor(
                 val normalized = rawSample * invMaxValue
 
                 // Apply crossover filters to get 3 bands
-                val lowBand = processBiquad(normalized, lpStates[ch]!!, lpCoeffs)
-                val highBand = processBiquad(normalized, hpStates[ch]!!, hpCoeffs)
+                val lowBand = processBiquad(normalized, lpStates[ch], lpCoeffs)
+                val highBand = processBiquad(normalized, hpStates[ch], hpCoeffs)
                 val midBand = normalized - lowBand - highBand
 
                 // Compress each band independently and sum
@@ -261,15 +258,18 @@ public class SpeechCompressorAudioProcessor(
                     val absSample = if (bandSample >= 0) bandSample else -bandSample
 
                     // Envelope follower (RMS-style with separate attack/release)
-                    val env = envelopes[ch * 3 + band]!!
-                    if (absSample > env.envelope) {
-                        env.envelope += attackCoeff * (absSample - env.envelope)
-                    } else {
-                        env.envelope += releaseCoeff * (absSample - env.envelope)
-                    }
+                    val envIdx = ch * 3 + band
+                    val envelope = envelopes[envIdx]
+                    val updatedEnvelope =
+                        if (absSample > envelope) {
+                            envelope + attackCoeff * (absSample - envelope)
+                        } else {
+                            envelope + releaseCoeff * (absSample - envelope)
+                        }
+                    envelopes[envIdx] = updatedEnvelope
 
                     // Gain computer
-                    val db = 20f * log10(env.envelope + minLog)
+                    val db = 20f * log10(updatedEnvelope + minLog)
                     val gainReductionDb =
                         if (db > thresholdDb) {
                             (db - thresholdDb) * (RATIO - 1f) / RATIO

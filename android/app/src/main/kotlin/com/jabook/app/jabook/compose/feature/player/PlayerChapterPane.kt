@@ -242,6 +242,14 @@ public fun PlayerChapterPane(
             items(
                 count = filteredChapters.size,
                 key = { index -> filteredChapters[index].second.id },
+                contentType = { index ->
+                    val (originalIndex, chapter) = filteredChapters[index]
+                    when {
+                        originalIndex == currentChapterIndex -> "currently-playing"
+                        chapter.isCompleted -> "completed"
+                        else -> "chapter"
+                    }
+                },
             ) { listIndex ->
                 val (originalIndex, chapter) = filteredChapters[listIndex]
                 ChapterListItem(

@@ -201,6 +201,38 @@ class SleepTimerManagerTest {
         }
 
     @Test
+    fun `triggerShakeForTesting rounds remaining minutes up when extending`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+
+            val manager =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+
+            manager.restoreFromDataStoreState(
+                SleepTimerState
+                    .newBuilder()
+                    .setMode(SleepTimerMode.FIXED_DURATION.name)
+                    .setIsPaused(true)
+                    .setPausedRemainingMs(61_000L)
+                    .build(),
+            )
+            assertEquals(61, manager.getSleepTimerRemainingSeconds())
+
+            manager.triggerShakeForTesting(nowMillis = 1_000L)
+            advanceUntilIdle()
+
+            // ceil(61/60) = 2 → 2 + 5 = 7 minutes, old integer division lost 59s
+            assertEquals(420, manager.getSleepTimerRemainingSeconds())
+        }
+
+    @Test
     fun `restoreTimerState restores end of chapter mode`() =
         runTest(testDispatcher) {
             timerPrefs()

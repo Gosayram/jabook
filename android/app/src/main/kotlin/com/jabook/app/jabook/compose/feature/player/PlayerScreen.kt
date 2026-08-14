@@ -116,7 +116,6 @@ import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -300,6 +299,7 @@ public fun PlayerScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val audioManager = remember(context) { context.getSystemService<AudioManager>() }
     val activity =
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
@@ -782,8 +782,6 @@ public fun PlayerScreen(
                                     if (shouldIgnoreShortcuts) return@onPreviewKeyEvent false
                                     when (keyEvent.key) {
                                         Key.DirectionUp -> {
-                                            val audioManager =
-                                                context.getSystemService(android.content.Context.AUDIO_SERVICE) as? AudioManager
                                             audioManager?.adjustMusicVolumeIfMutable(
                                                 direction = AudioManager.ADJUST_RAISE,
                                                 flags = AudioManager.FLAG_SHOW_UI,
@@ -791,8 +789,6 @@ public fun PlayerScreen(
                                             true
                                         }
                                         Key.DirectionDown -> {
-                                            val audioManager =
-                                                context.getSystemService(android.content.Context.AUDIO_SERVICE) as? AudioManager
                                             audioManager?.adjustMusicVolumeIfMutable(
                                                 direction = AudioManager.ADJUST_LOWER,
                                                 flags = AudioManager.FLAG_SHOW_UI,
@@ -885,6 +881,7 @@ public fun PlayerScreen(
                                         coverImageModel = CoverUtils.getCoverModel(state.book, context),
                                         hazeState = overlayHazeState,
                                         isPowerSaveMode = isPowerSaveMode,
+                                        isPlaying = state.isPlaying,
                                     ) {
                                         PlayerContent(
                                             state = state,
@@ -1252,15 +1249,13 @@ private fun PlayerLandscapeLayout(
     val seekScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
     val context = LocalContext.current
-    val chapterTimeline by remember(state.chapters, state.currentChapterIndex, state.currentPosition) {
-        derivedStateOf {
-            ChapterSeekbarPolicy.buildTimeline(
-                chapters = state.chapters,
-                currentChapterIndex = state.currentChapterIndex,
-                currentChapterPositionMs = state.currentPosition.coerceAtLeast(0L),
-            )
-        }
-    }
+    // ponytail: computed inline — derivedStateOf keyed on currentPosition was pure per-tick overhead
+    val chapterTimeline =
+        ChapterSeekbarPolicy.buildTimeline(
+            chapters = state.chapters,
+            currentChapterIndex = state.currentChapterIndex,
+            currentChapterPositionMs = state.currentPosition.coerceAtLeast(0L),
+        )
     val bookmarkMarkersFractions by remember(state.bookmarks, state.chapters) {
         derivedStateOf {
             BookmarkMarkerPolicy.calculateBookmarkMarkerFractions(
@@ -1269,13 +1264,13 @@ private fun PlayerLandscapeLayout(
             )
         }
     }
-    val playerProgress by remember(chapterTimeline) { derivedStateOf { chapterTimeline.progress } }
+    val playerProgress = chapterTimeline.progress
     var dragPosition by remember { mutableStateOf<Float?>(null) }
     var pendingSeekPosition by remember { mutableStateOf<Float?>(null) }
     var coalescedPlayerProgress by remember { mutableStateOf(playerProgress) }
     var lastSliderHapticProgress by remember { mutableStateOf<Float?>(null) }
-    val isDragging by remember(dragPosition) { derivedStateOf { dragPosition != null } }
-    val displayedProgress by remember(coalescedPlayerProgress, dragPosition, pendingSeekPosition) {
+    val isDragging = dragPosition != null
+    val displayedProgress by remember {
         derivedStateOf {
             PlayerSliderStateMachinePolicy.displayedProgress(
                 liveProgress = coalescedPlayerProgress,
@@ -1296,25 +1291,12 @@ private fun PlayerLandscapeLayout(
             }
         }
     }
-    val previewSeekTarget by remember(state.chapters, displayedProgress) {
-        derivedStateOf {
-            ChapterSeekbarPolicy.resolveSeekTarget(chapters = state.chapters, progress = displayedProgress)
+    val currentGlobalPositionMs =
+        if (isDragging && chapterTimeline.totalDurationMs > 0) {
+            (displayedProgress.coerceIn(0f, 1f) * chapterTimeline.totalDurationMs.toFloat()).toLong()
+        } else {
+            chapterTimeline.globalPositionMs
         }
-    }
-    val currentGlobalPositionMs by remember(
-        isDragging,
-        displayedProgress,
-        chapterTimeline.totalDurationMs,
-        chapterTimeline.globalPositionMs,
-    ) {
-        derivedStateOf {
-            if (isDragging && chapterTimeline.totalDurationMs > 0) {
-                (displayedProgress.coerceIn(0f, 1f) * chapterTimeline.totalDurationMs.toFloat()).toLong()
-            } else {
-                chapterTimeline.globalPositionMs
-            }
-        }
-    }
 
     LaunchedEffect(playerProgress, chapterTimeline.totalDurationMs) {
         coalescedPlayerProgress =
@@ -1485,7 +1467,39 @@ private fun PlayerLandscapeLayout(
                         .padding(vertical = 4.dp)
                         .semantics {
                             contentDescription = playbackPositionLabel
+                            val current = formatDuration(currentGlobalPositionMs)
+                            val total = formatDuration(chapterTimeline.totalDurationMs)
+                            stateDescription = "$current of $total"
                             progressBarRangeInfo = ProgressBarRangeInfo(displayedProgress, 0f..1f)
+                            setProgress { targetProgress ->
+                                if (chapterTimeline.totalDurationMs <= 0) return@setProgress false
+                                val target =
+                                    ChapterSeekbarPolicy.resolveSeekTarget(
+                                        chapters = state.chapters,
+                                        progress = targetProgress.coerceIn(0f, 1f),
+                                    )
+                                if (target.chapterIndex != state.currentChapterIndex) {
+                                    onSelectChapter(target.chapterIndex, target.chapterPositionMs)
+                                } else {
+                                    onSeek(target.chapterPositionMs)
+                                }
+                                true
+                            }
+                            customActions =
+                                listOf(
+                                    CustomAccessibilityAction(
+                                        label = seekBackwardActionLabel,
+                                    ) {
+                                        onSeekBackward()
+                                        true
+                                    },
+                                    CustomAccessibilityAction(
+                                        label = seekForwardActionLabel,
+                                    ) {
+                                        onSeekForward()
+                                        true
+                                    },
+                                )
                         },
             )
 
@@ -1743,13 +1757,13 @@ private fun PlayerContent(
     val activity =
         context as? android.app.Activity
             ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-            ?: throw IllegalStateException("Cannot get Activity from context")
-    val rawWindowSizeClass = calculateWindowSizeClass(activity)
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClass(rawWindowSizeClass, context)
+    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
+    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
 
     // Adaptive sizes for compact screens (phones)
     val isCompact =
-        windowSizeClass.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
+        windowSizeClass == null ||
+            windowSizeClass.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
     val playPauseButtonSize = if (isCompact) 72.dp else 80.dp
     val skipButtonSize = if (isCompact) 56.dp else 64.dp
     val seekButtonSize = if (isCompact) 48.dp else 56.dp
@@ -1782,9 +1796,9 @@ private fun PlayerContent(
     val controlButtonSpacing = if (isCompact) 8.dp else 12.dp
     // Optimized cover size: 70% for compact (phone optimization), 88% for larger screens
     val coverWidth = if (isCompact) 0.70f else 0.88f
-    val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
+    val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     // Increased spacing for better ergonomics
-    val itemSpacing = if (isCompact) 16.dp else AdaptiveUtils.getItemSpacing(windowSizeClass)
+    val itemSpacing = if (isCompact) 16.dp else AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
     // Spacing for compact screens between specific elements
     val smallItemSpacing = if (isCompact) 8.dp else 12.dp
     val playbackSpeedLabel by remember(playbackSpeed) {
@@ -1890,7 +1904,7 @@ private fun PlayerContent(
         }
     }
 
-    SideEffect { onBookmarkNoteSheetVisibilityChanged(showBookmarkNoteSheet) }
+    LaunchedEffect(showBookmarkNoteSheet) { onBookmarkNoteSheetVisibilityChanged(showBookmarkNoteSheet) }
 
     var lastChapterBoundaryIndex by remember(state.book.id) { mutableIntStateOf(state.currentChapterIndex) }
     var skipTriggeredHaptic by remember { mutableStateOf(false) }
@@ -2191,15 +2205,13 @@ private fun PlayerContent(
                                 .fillMaxWidth()
                                 .padding(horizontal = if (isCompact) 4.dp else 0.dp),
                     ) {
-                        val chapterTimeline by remember(state.chapters, state.currentChapterIndex, state.currentPosition) {
-                            derivedStateOf {
-                                ChapterSeekbarPolicy.buildTimeline(
-                                    chapters = state.chapters,
-                                    currentChapterIndex = state.currentChapterIndex,
-                                    currentChapterPositionMs = state.currentPosition.coerceAtLeast(0L),
-                                )
-                            }
-                        }
+                        // ponytail: computed inline — derivedStateOf keyed on currentPosition was pure per-tick overhead
+                        val chapterTimeline =
+                            ChapterSeekbarPolicy.buildTimeline(
+                                chapters = state.chapters,
+                                currentChapterIndex = state.currentChapterIndex,
+                                currentChapterPositionMs = state.currentPosition.coerceAtLeast(0L),
+                            )
 
                         // Calculate bookmark marker fractions from bookmarks
                         val bookmarkMarkersFractions by remember(
@@ -2225,11 +2237,7 @@ private fun PlayerContent(
                                 }
                             }
                         }
-                        val playerProgress by remember(chapterTimeline) {
-                            derivedStateOf {
-                                chapterTimeline.progress
-                            }
-                        }
+                        val playerProgress = chapterTimeline.progress
 
                         // Slider state-machine v2:
                         // - livePosition = playerProgress (single source from player timeline)
@@ -2239,8 +2247,8 @@ private fun PlayerContent(
                         var pendingSeekPosition by remember { mutableStateOf<Float?>(null) }
                         var coalescedPlayerProgress by remember { mutableStateOf(playerProgress) }
                         var lastSliderHapticProgress by remember { mutableStateOf<Float?>(null) }
-                        val isDragging by remember(dragPosition) { derivedStateOf { dragPosition != null } }
-                        val displayedProgress by remember(coalescedPlayerProgress, dragPosition, pendingSeekPosition) {
+                        val isDragging = dragPosition != null
+                        val displayedProgress by remember {
                             derivedStateOf {
                                 PlayerSliderStateMachinePolicy.displayedProgress(
                                     liveProgress = coalescedPlayerProgress,
@@ -2249,7 +2257,7 @@ private fun PlayerContent(
                                 )
                             }
                         }
-                        val previewSeekTarget by remember(state.chapters, displayedProgress) {
+                        val previewSeekTarget by remember(state.chapters) {
                             derivedStateOf {
                                 ChapterSeekbarPolicy.resolveSeekTarget(
                                     chapters = state.chapters,
@@ -2257,25 +2265,17 @@ private fun PlayerContent(
                                 )
                             }
                         }
-                        val currentGlobalPositionMs by remember(
-                            isDragging,
-                            displayedProgress,
-                            chapterTimeline.totalDurationMs,
-                            chapterTimeline.globalPositionMs,
-                        ) {
-                            derivedStateOf {
-                                if (isDragging && chapterTimeline.totalDurationMs > 0) {
-                                    (
-                                        displayedProgress.coerceIn(
-                                            0f,
-                                            1f,
-                                        ) * chapterTimeline.totalDurationMs.toFloat()
-                                    ).toLong()
-                                } else {
-                                    chapterTimeline.globalPositionMs
-                                }
+                        val currentGlobalPositionMs =
+                            if (isDragging && chapterTimeline.totalDurationMs > 0) {
+                                (
+                                    displayedProgress.coerceIn(
+                                        0f,
+                                        1f,
+                                    ) * chapterTimeline.totalDurationMs.toFloat()
+                                ).toLong()
+                            } else {
+                                chapterTimeline.globalPositionMs
                             }
-                        }
 
                         // Coalesce rapid progress deltas to reduce jitter/recomposition pressure on slider.
                         LaunchedEffect(playerProgress, chapterTimeline.totalDurationMs) {
@@ -2536,22 +2536,15 @@ private fun PlayerContent(
                                     .padding(top = 4.dp),
                             horizontalArrangement = Arrangement.Center,
                         ) {
-                            val remainingText by remember(
-                                chapterTimeline.totalDurationMs,
-                                currentGlobalPositionMs,
-                                state.playbackSpeed,
-                            ) {
-                                derivedStateOf {
-                                    val remainingMs = (chapterTimeline.totalDurationMs - currentGlobalPositionMs).coerceAtLeast(0L)
-                                    val speed = state.playbackSpeed
-                                    val realRemainingMs = if (speed > 0f) (remainingMs / speed).toLong() else remainingMs
-                                    if (realRemainingMs > 0L) {
-                                        "-${UiFormatters.formatDurationCompact(realRemainingMs)}"
-                                    } else {
-                                        ""
-                                    }
+                            val remainingMs = (chapterTimeline.totalDurationMs - currentGlobalPositionMs).coerceAtLeast(0L)
+                            val speed = state.playbackSpeed
+                            val realRemainingMs = if (speed > 0f) (remainingMs / speed).toLong() else remainingMs
+                            val remainingText =
+                                if (realRemainingMs > 0L) {
+                                    "-${UiFormatters.formatDurationCompact(realRemainingMs)}"
+                                } else {
+                                    ""
                                 }
-                            }
 
                             Text(
                                 text = if (remainingText.isNotEmpty()) "$chapterText • $remainingText" else chapterText,
@@ -3628,22 +3621,6 @@ internal fun mapKeyEventToPlayerIntent(keyEvent: androidx.compose.ui.input.key.K
             }
         else -> null
     }
-
-@Composable
-private fun DebugRecompositionCounter(modifier: Modifier = Modifier) {
-    var count by remember { mutableIntStateOf(0) }
-    SideEffect { count += 1 }
-    Text(
-        text = count.toString(),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurface,
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.65f))
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-    )
-}
 
 @Composable
 private fun PlayerLoadingSkeleton(modifier: Modifier = Modifier) {

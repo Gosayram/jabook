@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -64,4 +65,37 @@ class AutoBookmarkTriggerTest {
         val reasons = AutoBookmarkTrigger.AutoBookmarkReason.entries
         assertEquals(6, reasons.size)
     }
+
+    // --- createAutoBookmark dedup window ---
+
+    @Test
+    fun `createAutoBookmark deduplicates within 30s window`() =
+        runBlocking {
+            assertTrue(trigger.createAutoBookmark("b", 1_000L, 0, AutoBookmarkTrigger.AutoBookmarkReason.SLEEP_TIMER_STOP))
+            assertFalse(trigger.createAutoBookmark("b", 10_000L, 0, AutoBookmarkTrigger.AutoBookmarkReason.SLEEP_TIMER_STOP))
+            assertTrue(trigger.createAutoBookmark("b", 40_000L, 0, AutoBookmarkTrigger.AutoBookmarkReason.SLEEP_TIMER_STOP))
+        }
+
+    // --- bounded dedup cache ---
+
+    @Test
+    fun `recent bookmark cache evicts oldest entries beyond cap`() =
+        runBlocking {
+            repeat(AutoBookmarkTrigger.MAX_RECENT_BOOKMARKS + 1) { i ->
+                trigger.createAutoBookmark("book-$i", 0L, 0, AutoBookmarkTrigger.AutoBookmarkReason.CHAPTER_START)
+            }
+
+            // Oldest key evicted → bookmark is created again instead of deduplicated
+            assertTrue(trigger.createAutoBookmark("book-0", 0L, 0, AutoBookmarkTrigger.AutoBookmarkReason.CHAPTER_START))
+
+            // Newest key still deduplicated
+            assertFalse(
+                trigger.createAutoBookmark(
+                    "book-${AutoBookmarkTrigger.MAX_RECENT_BOOKMARKS}",
+                    0L,
+                    0,
+                    AutoBookmarkTrigger.AutoBookmarkReason.CHAPTER_START,
+                ),
+            )
+        }
 }

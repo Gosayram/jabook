@@ -302,6 +302,7 @@
     <string name="themePreviewBookTitle">Превью мини-плеера</string>
     <string name="lyrics">Текст песни</string>
     <string name="toggleLyricsView">Переключить отображение текста</string>
+    <string name="lyricsSeekToLine">Воспроизвести с этой строки</string>
     <string name="lyricsVisibleState">Текст отображается</string>
     <string name="lyricsHiddenState">Текст скрыт</string>
     <!-- Заголовок настройки аудио -->
