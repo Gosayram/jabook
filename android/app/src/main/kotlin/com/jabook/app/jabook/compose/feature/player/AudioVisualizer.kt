@@ -205,6 +205,7 @@ private fun BarsVisualizer(
     Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
+        if (width <= 0f || height <= 0f) return@Canvas
         val barWidth = (width / barCount) * 0.7f
         val spacing = (width / barCount) * 0.3f
 

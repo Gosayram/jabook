@@ -68,6 +68,7 @@ public fun HypnoticBackground(
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val width = size.width
                 val height = size.height
+                if (width <= 0f || height <= 0f) return@Canvas
                 drawRect(
                     brush =
                         Brush.verticalGradient(
@@ -156,6 +157,7 @@ public fun HypnoticBackground(
         Canvas(modifier = Modifier.fillMaxSize()) {
             val width = size.width
             val height = size.height
+            if (width <= 0f || height <= 0f) return@Canvas
             brushCache.ensure(width, height, color1, color2, color3, color4)
 
             // Draw a base gradient
