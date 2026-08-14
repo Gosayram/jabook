@@ -42,6 +42,7 @@ class PlayerStateRestoreHandlerTest {
     @Test
     fun `restoreFromDataStore applies snapshot at chapter 0 position 0`() =
         runTest {
+            val testScope = this
             val snapshotFlow = MutableStateFlow<PlayerStateSnapshotPreference?>(null)
             val settingsRepository =
                 mock<ProtoSettingsRepository> {
@@ -58,7 +59,7 @@ class PlayerStateRestoreHandlerTest {
             snapshotFlow.value = snapshot
 
             val restoredBootstrap = MutableStateFlow<RestoredBootstrapSnapshot?>(null)
-            val handler = createHandler(bootstrap = restoredBootstrap, settingsRepository = settingsRepository)
+            val handler = createHandler(bootstrap = restoredBootstrap, settingsRepository = settingsRepository, testScope = testScope)
 
             handler.restoreFromDataStore()
             advanceUntilIdle()
@@ -106,6 +107,7 @@ class PlayerStateRestoreHandlerTest {
     private fun createHandler(
         bootstrap: MutableStateFlow<RestoredBootstrapSnapshot?> = MutableStateFlow(null),
         settingsRepository: ProtoSettingsRepository = mock(),
+        testScope: TestScope = TestScope(),
     ): PlayerStateRestoreHandler =
         PlayerStateRestoreHandler(
             bookId = "book-1",
@@ -118,7 +120,7 @@ class PlayerStateRestoreHandlerTest {
             uiState = MutableStateFlow(PlayerState.Loading),
             restoredBootstrapSnapshot = bootstrap,
             isPlaybackRestoreReady = MutableStateFlow(false),
-            viewModelScope = TestScope().backgroundScope,
+            viewModelScope = testScope,
             loggerFactory = loggerFactory,
         )
 

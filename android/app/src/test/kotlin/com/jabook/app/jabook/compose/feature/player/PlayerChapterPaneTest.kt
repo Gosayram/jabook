@@ -16,8 +16,6 @@ package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithContentDescription
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import org.junit.Rule
