@@ -287,19 +287,6 @@ public fun WebViewScreen(
                                     }
                                 }
 
-                                override fun onReceivedHttpError(
-                                    view: WebView?,
-                                    request: WebResourceRequest?,
-                                    errorCode: Int,
-                                    description: String?,
-                                    responseHeaders: MutableMap<String, String>?,
-                                ) {
-                                    if (request?.isForMainFrame == true && (errorCode == 403 || errorCode == 503)) {
-                                        isLoading = false
-                                        errorMessage = "Cloudflare protection detected ($errorCode). Please try again or switch mirrors."
-                                    }
-                                }
-
                                 override fun onReceivedSslError(
                                     view: WebView?,
                                     handler: SslErrorHandler?,
