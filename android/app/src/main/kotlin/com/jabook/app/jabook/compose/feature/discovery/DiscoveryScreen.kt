@@ -61,7 +61,7 @@ public data class DiscoveryUiState(
 
 public enum class ListeningMood(
     public val emoji: String,
-    @androidx.annotation.StringRes public val labelRes: Int,
+    @param:androidx.annotation.StringRes public val labelRes: Int,
 ) {
     WALKING("🚶", R.string.moodWalking),
     DRIVING("🚗", R.string.moodDriving),
