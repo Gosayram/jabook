@@ -255,14 +255,17 @@ public class DirectFileSystemScanner
                                     )
                                 }
 
+                        val finalChapters =
+                            expandEmbeddedChapters(chapters, firstFileMetadata?.duration) ?: chapters
+
                         // Create Book
                         val book =
                             ScannedBook(
                                 directory = dir,
                                 title = bookTitle,
                                 author = bookAuthor,
-                                chapters = chapters,
-                                totalDuration = chapters.sumOf { it.duration },
+                                chapters = finalChapters,
+                                totalDuration = finalChapters.sumOf { it.duration },
                                 coverArt = firstFileMetadata?.coverArt,
                             )
 
@@ -714,6 +717,42 @@ public class DirectFileSystemScanner
             return ChapterInfo(partNum, chapterNum, found)
         }
 
+        /**
+         * For a single-file m4b/m4a, tries to parse embedded Nero chapter
+         * markers and expand into multiple [ScannedChapter] entries.
+         *
+         * @return expanded chapters or null when parsing is not applicable
+         */
+        private fun expandEmbeddedChapters(
+            chapters: List<ScannedChapter>,
+            fileDurationMs: Long?,
+        ): List<ScannedChapter>? {
+            if (chapters.size != 1) return null
+            val only = chapters.first()
+            val ext = only.filePath.substringAfterLast('.').lowercase()
+            if (ext !in EMBEDDED_CHAPTER_EXTENSIONS) return null
+
+            val embedded = M4bChapterParser.parseM4bChapters(only.filePath) ?: return null
+            if (embedded.size < 2) return null
+
+            return embedded.mapIndexed { index, ch ->
+                val endMs =
+                    if (index < embedded.size - 1) {
+                        embedded[index + 1].startMs
+                    } else {
+                        fileDurationMs ?: 0L
+                    }
+                ScannedChapter(
+                    filePath = only.filePath,
+                    title = ch.title,
+                    index = index,
+                    duration = (endMs - ch.startMs).coerceAtLeast(0),
+                    startMs = ch.startMs,
+                    endMs = endMs,
+                )
+            }
+        }
+
         public companion object {
             /**
              * Supported audio file extensions.
@@ -731,5 +770,8 @@ public class DirectFileSystemScanner
                     "wma",
                     "oga",
                 )
+
+            /** Extensions that may contain embedded Nero chapter atoms. */
+            private val EMBEDDED_CHAPTER_EXTENSIONS = setOf("m4b", "m4a")
         }
     }

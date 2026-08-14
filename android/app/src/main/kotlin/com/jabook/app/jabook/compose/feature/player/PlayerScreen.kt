@@ -1402,68 +1402,20 @@ private fun PlayerLandscapeLayout(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Row(
+            PlayerPlaybackButtons(
+                isPlaying = state.isPlaying,
+                rewindInterval = state.rewindInterval,
+                forwardInterval = state.forwardInterval,
+                onPlayPause = onPlayPause,
+                onSkipNext = onSkipNext,
+                onSkipPrevious = onSkipPrevious,
+                onSeekForward = onSeekForward,
+                onSeekBackward = onSeekBackward,
+                isCompact = isCompact,
+                primaryColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                onPrimaryColor = themeColors?.onPrimaryColor ?: MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CircularIconButton(
-                    icon = Icons.Filled.SkipPrevious,
-                    contentDescription = stringResource(R.string.previousChapter),
-                    onClick = onSkipPrevious,
-                    modifier = Modifier.size(if (isCompact) 56.dp else 64.dp),
-                    size = if (isCompact) 40.dp else 48.dp,
-                )
-                CircularIconButton(
-                    icon = Icons.Filled.Replay,
-                    contentDescription = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
-                    onClick = onSeekBackward,
-                    modifier = Modifier.size(if (isCompact) 48.dp else 56.dp),
-                    size = if (isCompact) 32.dp else 40.dp,
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                val playPauseSize = if (isCompact) 72.dp else 80.dp
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.size(playPauseSize * 1.2f)) {
-                    FilledIconButton(
-                        onClick = onPlayPause,
-                        modifier = Modifier.fillMaxSize(),
-                        shape = CircleShape,
-                        colors =
-                            IconButtonDefaults.filledIconButtonColors(
-                                containerColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                                contentColor = themeColors?.onPrimaryColor ?: MaterialTheme.colorScheme.onPrimary,
-                            ),
-                    ) {
-                        Icon(
-                            imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription =
-                                if (state.isPlaying) {
-                                    stringResource(
-                                        R.string.pauseButton,
-                                    )
-                                } else {
-                                    stringResource(R.string.playButton)
-                                },
-                            modifier = Modifier.size(if (isCompact) 40.dp else 48.dp),
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                CircularIconButton(
-                    icon = Icons.Filled.FastForward,
-                    contentDescription = stringResource(R.string.seekForwardDescription, state.forwardInterval),
-                    onClick = onSeekForward,
-                    modifier = Modifier.size(if (isCompact) 48.dp else 56.dp),
-                    size = if (isCompact) 32.dp else 40.dp,
-                )
-                CircularIconButton(
-                    icon = Icons.Filled.SkipNext,
-                    contentDescription = stringResource(R.string.nextChapter),
-                    onClick = onSkipNext,
-                    modifier = Modifier.size(if (isCompact) 56.dp else 64.dp),
-                    size = if (isCompact) 40.dp else 48.dp,
-                )
-            }
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -1882,117 +1834,18 @@ private fun PlayerContent(
                             Modifier
                         }
 
-                    val context = LocalContext.current
-                    val imageRequest =
-                        CoverUtils
-                            .createCoverImageRequest(
-                                book = state.book,
-                                context = context,
-                                placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                                errorColor = MaterialTheme.colorScheme.error,
-                                fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                cornerRadius = 16f, // 16dp rounded corners for player
-                            ).build()
-                    val canToggleLyrics = hasLyrics
-                    val toggleLyricsLabel = stringResource(R.string.toggleLyricsView)
-                    val toggleLyricsStateDescription =
-                        if (showingLyrics) {
-                            stringResource(R.string.lyricsVisibleState)
-                        } else {
-                            stringResource(R.string.lyricsHiddenState)
-                        }
-
-                    // Animated "breathing" effect for the cover
-                    val coverScale =
-                        if (reduceMotion) {
-                            1f
-                        } else {
-                            val infiniteTransition =
-                                androidx.compose.animation.core
-                                    .rememberInfiniteTransition(label = "coverScale")
-                            val scale by infiniteTransition.animateFloat(
-                                initialValue = 1f,
-                                targetValue = 1.03f,
-                                animationSpec =
-                                    androidx.compose.animation.core.infiniteRepeatable(
-                                        animation =
-                                            androidx.compose.animation.core
-                                                .tween(4000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-                                        repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
-                                    ),
-                                label = "scale",
-                            )
-                            scale
-                        }
-
-                    if (showingLyrics) {
-                        Box(
-                            modifier =
-                                imageModifier
-                                    .fillMaxWidth(coverWidth)
-                                    .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(24.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
-                        ) {
-                            LyricsView(
-                                lyrics = state.lyrics.orEmpty(),
-                                currentPosition = state.currentPosition,
-                                onSeek = onSeek,
-                            )
-                        }
-                    } else if (isVinylMode) {
-                        VinylCover(
-                            imageRequest = imageRequest,
-                            isPlaying = state.isPlaying,
-                            modifier =
-                                imageModifier
-                                    .fillMaxWidth(coverWidth)
-                                    .semantics {
-                                        if (canToggleLyrics) {
-                                            role = androidx.compose.ui.semantics.Role.Button
-                                            contentDescription = toggleLyricsLabel
-                                            stateDescription = toggleLyricsStateDescription
-                                        }
-                                    }.clickable(
-                                        enabled = canToggleLyrics,
-                                        onClickLabel = toggleLyricsLabel,
-                                    ) {
-                                        if (canToggleLyrics) {
-                                            showLyrics = !showLyrics
-                                        }
-                                    },
-                        )
-                    } else {
-                        AsyncImage(
-                            model = imageRequest,
-                            contentDescription =
-                                stringResource(
-                                    R.string.playerCoverAccessibilityDescription,
-                                    state.book.title,
-                                    state.book.author,
-                                ),
-                            modifier =
-                                imageModifier
-                                    .fillMaxWidth(coverWidth)
-                                    .aspectRatio(1f)
-                                    .graphicsLayer {
-                                        scaleX = if (state.isPlaying) coverScale else 1f
-                                        scaleY = if (state.isPlaying) coverScale else 1f
-                                    }.clip(RoundedCornerShape(24.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
-                                    .semantics {
-                                        if (canToggleLyrics) {
-                                            role = androidx.compose.ui.semantics.Role.Button
-                                            stateDescription = toggleLyricsStateDescription
-                                        }
-                                    }.combinedClickable(
-                                        onClick = { if (canToggleLyrics) showLyrics = !showLyrics },
-                                        onDoubleClick = onStatsClick,
-                                        onClickLabel = toggleLyricsLabel,
-                                    ),
-                            contentScale = ContentScale.Crop,
-                        )
-                    }
+                    PlayerCoverSection(
+                        state = state,
+                        imageModifier = imageModifier,
+                        coverWidth = coverWidth,
+                        showingLyrics = showingLyrics,
+                        showLyrics = { showLyrics = it },
+                        isVinylMode = isVinylMode,
+                        reduceMotion = reduceMotion,
+                        hasLyrics = hasLyrics,
+                        onStatsClick = onStatsClick,
+                        onSeek = onSeek,
+                    )
                 }
 
                 // Spacer after cover
@@ -2255,54 +2108,16 @@ private fun PlayerContent(
                 // Audio Visualizer - hidden on compact screens to save space
                 if (!isCompact) {
                     item {
-                        LaunchedEffect(hasRecordAudioPermission) {
-                            if (!hasRecordAudioPermission) {
-                                currentOnSetVisualizerEnabled(false)
-                            }
-                        }
-
-                        if (hasRecordAudioPermission) {
-                            // Initialize visualizer only after explicit permission grant
-                            LaunchedEffect(state.isPlaying, hasRecordAudioPermission) {
-                                if (state.isPlaying) {
-                                    currentOnInitializeVisualizer()
-                                    currentOnSetVisualizerEnabled(true)
-                                } else {
-                                    currentOnSetVisualizerEnabled(false)
-                                }
-                            }
-
-                            val style =
-                                when (visualizerMode) {
-                                    1 -> VisualizerStyle.BARS
-                                    2 -> VisualizerStyle.CIRCULAR
-                                    3 -> VisualizerStyle.MINIMAL
-                                    else -> VisualizerStyle.WAVEFORM
-                                }
-                            AudioVisualizer(
-                                waveformData = visualizerWaveformData,
-                                isPlaying = state.isPlaying,
-                                style = style,
-                                height = 48.dp,
-                                primaryColor = state.themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                                secondaryColor =
-                                    state.themeColors?.primaryColor?.copy(alpha = 0.5f)
-                                        ?: MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        } else {
-                            FilledTonalButton(
-                                onClick = onRequestRecordAudioPermission,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Tune,
-                                    contentDescription = null,
-                                    modifier = Modifier.padding(end = 8.dp),
-                                )
-                                Text(text = stringResource(R.string.enableVisualizer))
-                            }
-                        }
+                        PlayerVisualizerSection(
+                            hasRecordAudioPermission = hasRecordAudioPermission,
+                            isPlaying = state.isPlaying,
+                            visualizerMode = visualizerMode,
+                            waveformData = visualizerWaveformData,
+                            themeColors = state.themeColors,
+                            onRequestRecordAudioPermission = onRequestRecordAudioPermission,
+                            onInitializeVisualizer = onInitializeVisualizer,
+                            onSetVisualizerEnabled = onSetVisualizerEnabled,
+                        )
                     }
                 }
 
@@ -2360,105 +2175,25 @@ private fun PlayerContent(
 
                 // Playback controls
                 item {
-                    Row(
+                    PlayerPlaybackButtons(
+                        isPlaying = state.isPlaying,
+                        rewindInterval = state.rewindInterval,
+                        forwardInterval = state.forwardInterval,
+                        onPlayPause = onPlayPause,
+                        onSkipNext = onSkipNext,
+                        onSkipPrevious = onSkipPrevious,
+                        onSeekForward = onSeekForward,
+                        onSeekBackward = onSeekBackward,
+                        isCompact = isCompact,
+                        playPauseButtonScale = playPauseButtonScale,
+                        playPauseIconScale = playPauseIconScale,
+                        primaryColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                        onPrimaryColor = themeColors?.onPrimaryColor ?: MaterialTheme.colorScheme.onPrimary,
                         modifier =
                             Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = if (isCompact) smallItemSpacing else 0.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        // Skip previous
-                        CircularIconButton(
-                            icon = Icons.Filled.SkipPrevious,
-                            contentDescription = stringResource(R.string.previousChapter),
-                            onClick = onSkipPrevious,
-                            modifier = Modifier.size(skipButtonSize),
-                            size = skipIconSize,
-                        )
-
-                        // Seek backward (10s)
-                        CircularIconButton(
-                            icon = Icons.Filled.Replay,
-                            contentDescription = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
-                            onClick = onSeekBackward,
-                            modifier = Modifier.size(seekButtonSize),
-                            size = seekIconSize,
-                        )
-
-                        Spacer(modifier = Modifier.width(16.dp))
-                        val playbackStateDescription =
-                            if (state.isPlaying) {
-                                stringResource(R.string.playbackStatePlaying)
-                            } else {
-                                stringResource(R.string.playbackStatePaused)
-                            }
-
-                        // Play/Pause - Larger and more prominent
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier =
-                                Modifier
-                                    .size(playPauseButtonSize * 1.2f)
-                                    .graphicsLayer {
-                                        scaleX = playPauseButtonScale
-                                        scaleY = playPauseButtonScale
-                                    },
-                        ) {
-                            FilledIconButton(
-                                onClick = onPlayPause,
-                                modifier =
-                                    Modifier
-                                        .fillMaxSize()
-                                        .semantics {
-                                            stateDescription = playbackStateDescription
-                                        },
-                                shape = androidx.compose.foundation.shape.CircleShape,
-                                colors =
-                                    IconButtonDefaults.filledIconButtonColors(
-                                        containerColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                                        contentColor = themeColors?.onPrimaryColor ?: MaterialTheme.colorScheme.onPrimary,
-                                    ),
-                            ) {
-                                Icon(
-                                    imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                    contentDescription =
-                                        if (state.isPlaying) {
-                                            stringResource(R.string.pauseButton)
-                                        } else {
-                                            stringResource(R.string.playButton)
-                                        },
-                                    modifier =
-                                        Modifier
-                                            .size(playPauseIconSize * 1.2f)
-                                            .graphicsLayer {
-                                                scaleX = playPauseIconScale
-                                                scaleY = playPauseIconScale
-                                            },
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        // Seek forward (30s)
-                        CircularIconButton(
-                            icon = Icons.Filled.FastForward,
-                            contentDescription = stringResource(R.string.seekForwardDescription, state.forwardInterval),
-                            onClick = onSeekForward,
-                            modifier = Modifier.size(seekButtonSize),
-                            size = seekIconSize,
-                        )
-
-                        // Skip next
-                        CircularIconButton(
-                            icon = Icons.Filled.SkipNext,
-                            contentDescription = stringResource(R.string.nextChapter),
-                            onClick = onSkipNext,
-                            modifier = Modifier.size(skipButtonSize),
-                            size = skipIconSize,
-                        )
-                    }
+                    )
                 }
 
                 // Spacer before control buttons
@@ -2532,75 +2267,6 @@ private fun PlayerContent(
         }
     }
 }
-
-// P-91: Time formatting delegated to PlayerTimeFormatter
-internal fun formatDuration(durationMs: Long): String = PlayerTimeFormatter.formatDuration(durationMs)
-
-internal fun formatPlaybackSpeedLabel(playbackSpeed: Float): String = PlayerTimeFormatter.formatPlaybackSpeedLabel(playbackSpeed)
-
-private const val HOLD_TO_BOOST_ACTIVATION_DELAY_MS: Long = 300L
-
-internal fun deleteBookmarkVoiceNotes(
-    filesDir: File,
-    bookmarkId: String,
-) {
-    runCatching {
-        val dir = bookmarkVoiceNoteDirectory(filesDir)
-        dir.listFiles()?.filter { it.name.startsWith("bookmark_${bookmarkId}_") && it.name.endsWith(".m4a") }?.forEach { it.delete() }
-    }
-}
-
-internal fun playerStateContentKey(state: PlayerState): String =
-    when (state) {
-        is PlayerState.Loading -> "loading"
-        is PlayerState.Active -> "active"
-        is PlayerState.Error -> "error"
-    }
-
-internal data class ChapterBoundaryHapticDecision(
-    val shouldPerformHaptic: Boolean,
-    val nextSkipTriggeredHaptic: Boolean,
-    val nextLastChapterBoundaryIndex: Int,
-)
-
-internal fun resolveChapterBoundaryHapticDecision(
-    previousChapterIndex: Int,
-    newChapterIndex: Int,
-    skipTriggeredHaptic: Boolean,
-): ChapterBoundaryHapticDecision? {
-    if (newChapterIndex == previousChapterIndex) return null
-    return if (skipTriggeredHaptic) {
-        ChapterBoundaryHapticDecision(
-            shouldPerformHaptic = false,
-            nextSkipTriggeredHaptic = false,
-            nextLastChapterBoundaryIndex = newChapterIndex,
-        )
-    } else {
-        ChapterBoundaryHapticDecision(
-            shouldPerformHaptic = true,
-            nextSkipTriggeredHaptic = false,
-            nextLastChapterBoundaryIndex = newChapterIndex,
-        )
-    }
-}
-
-internal fun mapKeyEventToPlayerIntent(keyEvent: androidx.compose.ui.input.key.KeyEvent): PlayerIntent? =
-    when (keyEvent.key) {
-        Key.Spacebar -> PlayerIntent.TogglePlayPause
-        Key.DirectionLeft ->
-            if (keyEvent.isShiftPressed) {
-                PlayerIntent.SkipPrevious
-            } else {
-                PlayerIntent.SeekBackward
-            }
-        Key.DirectionRight ->
-            if (keyEvent.isShiftPressed) {
-                PlayerIntent.SkipNext
-            } else {
-                PlayerIntent.SeekForward
-            }
-        else -> null
-    }
 
 @Composable
 private fun PlayerLoadingSkeleton(modifier: Modifier = Modifier) {
