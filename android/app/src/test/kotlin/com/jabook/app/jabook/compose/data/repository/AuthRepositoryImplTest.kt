@@ -24,6 +24,7 @@ import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import okhttp3.Cookie
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -68,6 +69,38 @@ class AuthRepositoryImplTest {
 
             assertFalse(repository.isLoggedIn())
             verify(cookieJar, atLeastOnce()).clear()
+        }
+
+    @Test
+    fun `syncCookiesFromWebView extracts real username from forum page`() =
+        runTest {
+            whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("rutracker.org"))
+            whenever(cookieJar.loadForRequest(any())).thenReturn(listOf(sessionCookie()))
+            whenever(secureStorage.getCredentials()).thenReturn(null)
+            whenever(authService.fetchUsername()).thenReturn("atlet99")
+
+            val repository = repository()
+            repository.syncCookiesFromWebView()
+
+            val status = repository.authStatus.value
+            assertTrue(status is AuthStatus.Authenticated)
+            assertEquals("atlet99", (status as AuthStatus.Authenticated).username)
+        }
+
+    @Test
+    fun `syncCookiesFromWebView falls back to User when username fetch fails`() =
+        runTest {
+            whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("rutracker.org"))
+            whenever(cookieJar.loadForRequest(any())).thenReturn(listOf(sessionCookie()))
+            whenever(secureStorage.getCredentials()).thenReturn(null)
+            whenever(authService.fetchUsername()).thenThrow(RuntimeException("network error"))
+
+            val repository = repository()
+            repository.syncCookiesFromWebView()
+
+            val status = repository.authStatus.value
+            assertTrue(status is AuthStatus.Authenticated)
+            assertEquals("User", (status as AuthStatus.Authenticated).username)
         }
 
     @Test

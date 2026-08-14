@@ -120,10 +120,10 @@ public class MirrorManager
                         logger.d { "Loaded mirror from settings: $savedMirror" }
                     }
 
-                    // Merge default and custom mirrors
+                    // Merge default and custom mirrors, ensuring all defaults are always present
                     val customMirrors = prefs.customMirrorsList
                     val allMirrors = (DEFAULT_MIRRORS + customMirrors).distinct()
-                    _availableMirrors.value = allMirrors
+                    _availableMirrors.value = (DEFAULT_MIRRORS + allMirrors).distinct()
                 }
             }
         }

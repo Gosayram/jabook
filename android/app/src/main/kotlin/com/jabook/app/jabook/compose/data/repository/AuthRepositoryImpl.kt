@@ -101,7 +101,7 @@ public class AuthRepositoryImpl
                     val stored = secureStorage.getCredentials()
                     // WebView login deliberately never exposes or stores the entered password.
                     // A server-validated session is sufficient to be authenticated.
-                    _authStatus.value = AuthStatus.Authenticated(stored?.username?.takeIf { it.isNotBlank() } ?: "RuTracker")
+                    _authStatus.value = AuthStatus.Authenticated(stored?.username?.takeIf { it.isNotBlank() } ?: "User")
                 } else {
                     // Cookies present but invalid (expired or guest mode)
                     logger.d { "Session expired or invalid, attempting re-login if credentials exist" }
@@ -333,10 +333,23 @@ public class AuthRepositoryImpl
             val hasSession = cookies.any { it.name == "bb_session" }
             if (hasSession) {
                 val stored = secureStorage.getCredentials()
-                _authStatus.value =
-                    AuthStatus.Authenticated(
-                        stored?.username?.takeIf { it.isNotBlank() } ?: "RuTracker",
-                    )
+                var username = stored?.username?.takeIf { it.isNotBlank() } ?: "User"
+
+                // Fetch real username from forum page (best-effort)
+                val fetched =
+                    try {
+                        authService.fetchUsername()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.d { "Username fetch failed during cookie sync: ${e.message}" }
+                        null
+                    }
+                if (fetched != null) {
+                    username = fetched
+                }
+
+                _authStatus.value = AuthStatus.Authenticated(username)
             }
         }
 

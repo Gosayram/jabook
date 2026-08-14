@@ -536,6 +536,36 @@ public class RutrackerAuthService
         }
 
         /**
+         * Fetch the real username from the forum page HTML.
+         * Parses the logged-in-username element from the index page.
+         *
+         * @return extracted username, or null if not found / request fails
+         */
+        public suspend fun fetchUsername(): String? {
+            return try {
+                val response =
+                    kotlinx.coroutines.withTimeout(5000L) {
+                        api.getIndex()
+                    }
+                if (!response.isSuccessful) return null
+
+                val rawBody = response.body()?.bytes() ?: return null
+                if (rawBody.isEmpty()) return null
+                val bodyString = String(rawBody, CP1251)
+
+                val regex = Regex("""id="logged-in-username"[^>]*>([^<]+)</a>""")
+                val match = regex.find(bodyString)
+                match
+                    ?.groupValues
+                    ?.get(1)
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        /**
          * Test 3: Validate via index page access.
          * Final fallback - checks if forum index is accessible.
          */
