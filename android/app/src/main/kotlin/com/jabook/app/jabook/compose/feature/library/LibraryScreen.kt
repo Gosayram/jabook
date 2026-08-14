@@ -319,6 +319,7 @@ public fun LibraryScreen(
                                 )
                             }
                         },
+                        windowInsets = WindowInsets(0, 0, 0, 0),
                         colors =
                             androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
                                 containerColor = androidx.compose.ui.graphics.Color.Transparent,
