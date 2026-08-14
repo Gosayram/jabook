@@ -3018,4 +3018,29 @@
     <string name="resumeLongPauseContinue">Продолжить</string>
     <string name="resumeLongPauseRestartChapter">Начать главу с начала</string>
     <string name="resumeLongPauseSelectChapter">Выбрать главу</string>
+
+    <!-- Overflow menu content description -->
+    <string name="overflowMenu">Ещё</string>
+    <string name="statistics">Статистика</string>
+    <string name="discovery">Подборка</string>
+
+    <!-- Library accessibility & localization -->
+    <string name="scrollToTop">Scroll to top</string>
+    <string name="discoveryTrending">Trending</string>
+    <string name="discoveryForYou">For You</string>
+    <string name="discoveryGenres">Genres</string>
+    <string name="greetingMorning">Good morning</string>
+    <string name="greetingAfternoon">Good afternoon</string>
+    <string name="greetingEvening">Good evening</string>
+    <string name="greetingNight">Good night</string>
+    <string name="heatmapAccessibilityDescription">Listened %1$d minutes over the last %2$d weeks</string>
+    <string name="speedChartAccessibilityDescription">Speed distribution: most books listened at %1$.1fx</string>
+    <string name="speedLegendFormat">%1$.1fx — %2$d min</string>
+    <!-- Listening mood labels -->
+    <string name="moodWalking">Walking</string>
+    <string name="moodDriving">Driving</string>
+    <string name="moodSleeping">Before sleep</string>
+    <string name="moodWorkout">Workout</string>
+    <string name="moodRelaxing">Relaxing</string>
+    <string name="moodWorking">Working</string>
 </resources>

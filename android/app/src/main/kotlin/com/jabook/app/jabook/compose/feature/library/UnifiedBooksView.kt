@@ -19,13 +19,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -35,33 +32,20 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -223,7 +207,7 @@ private fun BooksGridLayout(
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowUp,
-                    contentDescription = "Scroll to top",
+                    contentDescription = stringResource(R.string.scrollToTop),
                 )
             }
         }
@@ -330,14 +314,13 @@ private fun BooksListLayout(
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowUp,
-                    contentDescription = "Scroll to top",
+                    contentDescription = stringResource(R.string.scrollToTop),
                 )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SwipeableBookCard(
     book: Book,
@@ -347,132 +330,14 @@ private fun SwipeableBookCard(
     isSelected: Boolean,
     onToggleSelection: (() -> Unit)?,
 ) {
-    if (isSelectionMode || actionsProvider.onDeleteBook == null) {
-        UnifiedBookCard(
-            book = book,
-            displayMode = displayMode,
-            actionsProvider = actionsProvider,
-            isSelectionMode = isSelectionMode,
-            isSelected = isSelected,
-            onToggleSelection = onToggleSelection,
-        )
-        return
-    }
-
-    val onDeleteBook = requireNotNull(actionsProvider.onDeleteBook)
-    val dismissState = rememberSwipeToDismissBoxState()
-    val deleteConfirmation = remember(book.id) { BookDeletionConfirmationController() }
-    var showDeleteConfirmation by remember(book.id) { mutableStateOf(false) }
-
-    LaunchedEffect(dismissState.currentValue, book.id) {
-        when (dismissState.currentValue) {
-            SwipeToDismissBoxValue.StartToEnd -> {
-                actionsProvider.onToggleFavorite(book.id, !actionsProvider.isFavorite(book.id))
-                dismissState.reset()
-            }
-
-            SwipeToDismissBoxValue.EndToStart -> {
-                if (deleteConfirmation.request(book.id) != null) {
-                    showDeleteConfirmation = true
-                }
-                dismissState.reset()
-            }
-
-            SwipeToDismissBoxValue.Settled -> Unit
-        }
-    }
-
-    SwipeToDismissBox(
-        state = dismissState,
-        backgroundContent = {
-            val direction = dismissState.dismissDirection
-            val isStartToEnd = direction == SwipeToDismissBoxValue.StartToEnd
-            val isEndToStart = direction == SwipeToDismissBoxValue.EndToStart
-            val backgroundColor =
-                when {
-                    isStartToEnd -> MaterialTheme.colorScheme.primaryContainer
-                    isEndToStart -> MaterialTheme.colorScheme.errorContainer
-                    else -> Color.Transparent
-                }
-            val contentColor =
-                when {
-                    isStartToEnd -> MaterialTheme.colorScheme.onPrimaryContainer
-                    isEndToStart -> MaterialTheme.colorScheme.onErrorContainer
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
-
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight()
-                        .background(backgroundColor),
-            ) {
-                if (isStartToEnd) {
-                    Icon(
-                        imageVector = Icons.Filled.Favorite,
-                        contentDescription = null,
-                        tint = contentColor,
-                        modifier =
-                            Modifier
-                                .align(Alignment.CenterStart)
-                                .padding(start = 20.dp),
-                    )
-                } else if (isEndToStart) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = null,
-                        tint = contentColor,
-                        modifier =
-                            Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 20.dp),
-                    )
-                }
-            }
-        },
-    ) {
-        UnifiedBookCard(
-            book = book,
-            displayMode = displayMode,
-            actionsProvider = actionsProvider,
-            isSelectionMode = isSelectionMode,
-            isSelected = isSelected,
-            onToggleSelection = onToggleSelection,
-        )
-    }
-
-    if (showDeleteConfirmation) {
-        AlertDialog(
-            onDismissRequest = {
-                deleteConfirmation.dismiss()
-                showDeleteConfirmation = false
-            },
-            title = { Text(stringResource(R.string.deleteConfirmationTitle)) },
-            text = { Text(stringResource(R.string.deleteConfirmationMessage)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val bookId = deleteConfirmation.confirm() ?: return@TextButton
-                        showDeleteConfirmation = false
-                        onDeleteBook(bookId)
-                    },
-                ) {
-                    Text(stringResource(R.string.deleteButton))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        deleteConfirmation.dismiss()
-                        showDeleteConfirmation = false
-                    },
-                ) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
-    }
+    UnifiedBookCard(
+        book = book,
+        displayMode = displayMode,
+        actionsProvider = actionsProvider,
+        isSelectionMode = isSelectionMode,
+        isSelected = isSelected,
+        onToggleSelection = onToggleSelection,
+    )
 }
 
 // Removed isTabletDevice() - now using WindowSizeClass for better adaptive behavior

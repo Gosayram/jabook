@@ -43,9 +43,11 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.Book
 import java.time.LocalTime
 
@@ -59,14 +61,14 @@ public data class DiscoveryUiState(
 
 public enum class ListeningMood(
     public val emoji: String,
-    public val label: String,
+    @androidx.annotation.StringRes public val labelRes: Int,
 ) {
-    WALKING("🚶", "Иду пешком"),
-    DRIVING("🚗", "В машине"),
-    SLEEPING("🛌", "Перед сном"),
-    WORKOUT("🏃", "Тренировка"),
-    RELAXING("☕", "Отдыхаю"),
-    WORKING("💼", "Фоном за работой"),
+    WALKING("🚶", R.string.moodWalking),
+    DRIVING("🚗", R.string.moodDriving),
+    SLEEPING("🛌", R.string.moodSleeping),
+    WORKOUT("🏃", R.string.moodWorkout),
+    RELAXING("☕", R.string.moodRelaxing),
+    WORKING("💼", R.string.moodWorking),
 }
 
 @Immutable
@@ -101,21 +103,21 @@ public fun DiscoveryScreen(
         }
         item {
             DiscoveryShelf(
-                title = "Продолжить",
+                title = stringResource(R.string.continueListening),
                 books = uiState.continueListening,
                 onBookClick = onBookClick,
             )
         }
         item {
             DiscoveryShelf(
-                title = "Популярное",
+                title = stringResource(R.string.discoveryTrending),
                 books = uiState.trending,
                 onBookClick = onBookClick,
             )
         }
         item {
             DiscoveryShelf(
-                title = "Для вас",
+                title = stringResource(R.string.discoveryForYou),
                 books = uiState.personalized,
                 onBookClick = onBookClick,
             )
@@ -123,7 +125,7 @@ public fun DiscoveryScreen(
         if (uiState.genres.isNotEmpty()) {
             item {
                 Text(
-                    text = "Жанры",
+                    text = stringResource(R.string.discoveryGenres),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
@@ -155,7 +157,7 @@ private fun ListeningMoodChips(
             FilterChip(
                 selected = selectedMood == mood,
                 onClick = { onMoodChange(mood) },
-                label = { Text("${mood.emoji} ${mood.label}") },
+                label = { Text("${mood.emoji} ${stringResource(mood.labelRes)}") },
                 colors =
                     FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -169,10 +171,10 @@ private fun ListeningMoodChips(
 private fun GreetingHeader() {
     val greeting =
         when (LocalTime.now().hour) {
-            in 5..11 -> "Доброе утро"
-            in 12..17 -> "Добрый день"
-            in 18..22 -> "Добрый вечер"
-            else -> "Доброй ночи"
+            in 5..11 -> stringResource(R.string.greetingMorning)
+            in 12..17 -> stringResource(R.string.greetingAfternoon)
+            in 18..22 -> stringResource(R.string.greetingEvening)
+            else -> stringResource(R.string.greetingNight)
         }
     Text(
         text = greeting,

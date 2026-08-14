@@ -38,19 +38,22 @@ import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -177,6 +180,8 @@ public fun LibraryScreen(
     var spotlightStep by rememberSaveable { mutableStateOf(0) }
     var selectedBookForActions by remember { mutableStateOf<Book?>(null) }
     var showDiscovery by rememberSaveable { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showStatsSection by rememberSaveable { mutableStateOf(false) }
     var listeningMood by rememberSaveable { mutableStateOf(ListeningMood.RELAXING) }
     var activeAchievement by remember { mutableStateOf<AchievementUiModel?>(null) }
     var hasShownFirstBookAchievement by rememberSaveable { mutableStateOf(false) }
@@ -326,68 +331,167 @@ public fun LibraryScreen(
                                 scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
                             ),
                         actions = {
-                            // Theme settings
-                            val isDark = androidx.compose.foundation.isSystemInDarkTheme()
-                            IconButton(onClick = safeNavigateToSettings) {
-                                Icon(
-                                    imageVector = if (isDark) Icons.Filled.WbSunny else Icons.Filled.NightsStay,
-                                    contentDescription = stringResource(R.string.darkMode),
-                                )
-                            }
-
-                            // Account/avatar entry
-                            IconButton(onClick = safeNavigateToAuth) {
-                                Icon(
-                                    imageVector = Icons.Filled.Person,
-                                    contentDescription = stringResource(R.string.account),
-                                )
-                            }
-
-                            IconButton(onClick = { showSortBottomSheet = true }) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Sort,
-                                    contentDescription = stringResource(R.string.sort_by),
-                                )
-                            }
-
-                            // View mode toggle
-                            ViewModeToggle(
-                                currentMode = viewMode,
-                                onModeChanged = { mode -> viewModel.onViewModeChanged(mode) },
-                            )
-                            IconButton(onClick = { showDiscovery = !showDiscovery }) {
-                                Icon(
-                                    imageVector = Icons.Default.Whatshot,
-                                    contentDescription = "Discovery",
-                                    tint =
-                                        if (showDiscovery) {
-                                            androidx.compose.material3.MaterialTheme.colorScheme.primary
-                                        } else {
-                                            androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                )
-                            }
-
-                            // Favorites button
-                            IconButton(onClick = safeNavigateToFavorites) {
-                                Icon(
-                                    imageVector = Icons.Default.Favorite,
-                                    contentDescription = stringResource(R.string.favoritesTooltip),
-                                )
-                            }
-                            // Search button
                             IconButton(onClick = safeNavigateToSearch) {
                                 Icon(
                                     imageVector = Icons.Default.Search,
                                     contentDescription = stringResource(R.string.search),
                                 )
                             }
-                            // Downloads button
-                            IconButton(onClick = safeNavigateToDownloads) {
-                                Icon(
-                                    imageVector = Icons.Default.Download,
-                                    contentDescription = stringResource(R.string.downloads),
-                                )
+                            Box {
+                                IconButton(onClick = { showOverflowMenu = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.MoreVert,
+                                        contentDescription = stringResource(R.string.overflowMenu),
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = showOverflowMenu,
+                                    onDismissRequest = { showOverflowMenu = false },
+                                ) {
+                                    val currentSortLabel =
+                                        when (sortOrder) {
+                                            com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY ->
+                                                stringResource(
+                                                    R.string.sort_by_activity,
+                                                )
+                                            com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_ASC ->
+                                                stringResource(
+                                                    R.string.sort_title_asc,
+                                                )
+                                            com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_DESC ->
+                                                stringResource(
+                                                    R.string.sort_title_desc,
+                                                )
+                                            com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_ASC ->
+                                                stringResource(
+                                                    R.string.sort_author_asc,
+                                                )
+                                            com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_DESC ->
+                                                stringResource(
+                                                    R.string.sort_author_desc,
+                                                )
+                                            com.jabook.app.jabook.compose.data.model.BookSortOrder.RECENTLY_ADDED ->
+                                                stringResource(
+                                                    R.string.sort_recently_added,
+                                                )
+                                            com.jabook.app.jabook.compose.data.model.BookSortOrder.OLDEST_FIRST ->
+                                                stringResource(
+                                                    R.string.sort_oldest_first,
+                                                )
+                                        }
+                                    DropdownMenuItem(
+                                        text = {
+                                            Column {
+                                                Text(text = stringResource(R.string.sort_by))
+                                                Text(
+                                                    text = currentSortLabel,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            showSortBottomSheet = true
+                                        },
+                                        leadingIcon = {
+                                            Icon(imageVector = Icons.AutoMirrored.Filled.Sort, contentDescription = null)
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(text = stringResource(R.string.viewModeList)) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            viewModel.onViewModeChanged(LibraryViewMode.LIST_COMPACT)
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.List,
+                                                contentDescription = null,
+                                            )
+                                        },
+                                        trailingIcon = {
+                                            if (!viewMode.isGrid()) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                )
+                                            }
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(text = stringResource(R.string.viewModeGrid)) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            viewModel.onViewModeChanged(LibraryViewMode.GRID_COMPACT)
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Filled.GridView,
+                                                contentDescription = null,
+                                            )
+                                        },
+                                        trailingIcon = {
+                                            if (viewMode.isGrid()) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Check,
+                                                    contentDescription = null,
+                                                    tint = MaterialTheme.colorScheme.primary,
+                                                )
+                                            }
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(text = stringResource(R.string.discovery)) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            showDiscovery = !showDiscovery
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.Whatshot,
+                                                contentDescription = null,
+                                                tint =
+                                                    if (showDiscovery) {
+                                                        MaterialTheme.colorScheme.primary
+                                                    } else {
+                                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                                    },
+                                            )
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(text = stringResource(R.string.account)) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            safeNavigateToAuth()
+                                        },
+                                        leadingIcon = {
+                                            Icon(imageVector = Icons.Filled.Person, contentDescription = null)
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(text = stringResource(R.string.downloads)) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            safeNavigateToDownloads()
+                                        },
+                                        leadingIcon = {
+                                            Icon(imageVector = Icons.Filled.Download, contentDescription = null)
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(text = stringResource(R.string.settings)) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            safeNavigateToSettings()
+                                        },
+                                        leadingIcon = {
+                                            Icon(imageVector = Icons.Default.Settings, contentDescription = null)
+                                        },
+                                    )
+                                }
                             }
                         },
                     )
@@ -468,29 +572,6 @@ public fun LibraryScreen(
                                 )
 
                             Column(modifier = Modifier.fillMaxSize()) {
-                                weeklyRecap?.let { recap ->
-                                    WeeklyRecapCard(
-                                        stats = recap,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    )
-                                    yearRecap?.let { recapYear ->
-                                        YearRecapPromptCard(
-                                            yearRecap = recapYear,
-                                            onShareClick = {
-                                                shareYearRecap(context, recapYear)
-                                            },
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                        )
-                                    }
-                                    ListeningHeatmap(
-                                        data = buildListeningHeatmapData(books),
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    )
-                                    SpeedDonutChart(
-                                        distribution = buildSpeedDistribution(books),
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    )
-                                }
                                 if (showDiscovery) {
                                     DiscoveryScreen(
                                         uiState = discoveryUiState,
@@ -565,6 +646,45 @@ public fun LibraryScreen(
                                         actionsProvider = actionsProvider,
                                         modifier = Modifier.weight(1f).fillMaxWidth(),
                                     )
+                                    // Analytics below book list
+                                    weeklyRecap?.let { recap ->
+                                        WeeklyRecapCard(
+                                            stats = recap,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                        )
+                                        yearRecap?.let { recapYear ->
+                                            YearRecapPromptCard(
+                                                yearRecap = recapYear,
+                                                onShareClick = {
+                                                    shareYearRecap(context, recapYear)
+                                                },
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            )
+                                        }
+                                    }
+                                    if (showStatsSection) {
+                                        ListeningHeatmap(
+                                            data = buildListeningHeatmapData(books),
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                        )
+                                        SpeedDonutChart(
+                                            distribution = buildSpeedDistribution(books),
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                        )
+                                    }
+                                    if (weeklyRecap != null) {
+                                        androidx.compose.material3.TextButton(
+                                            onClick = { showStatsSection = !showStatsSection },
+                                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = if (showStatsSection) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                                contentDescription = null,
+                                                modifier = Modifier.padding(end = 8.dp),
+                                            )
+                                            Text(text = stringResource(R.string.statistics))
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -635,58 +755,102 @@ public fun LibraryScreen(
                                             scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
                                         ),
                                     actions = {
-                                        val isDark = androidx.compose.foundation.isSystemInDarkTheme()
-                                        IconButton(onClick = safeNavigateToSettings) {
-                                            Icon(
-                                                imageVector = if (isDark) Icons.Filled.WbSunny else Icons.Filled.NightsStay,
-                                                contentDescription = stringResource(R.string.darkMode),
-                                            )
-                                        }
-                                        IconButton(onClick = safeNavigateToAuth) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Person,
-                                                contentDescription = stringResource(R.string.account),
-                                            )
-                                        }
-                                        IconButton(onClick = { showSortBottomSheet = true }) {
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.Sort,
-                                                contentDescription = stringResource(R.string.sort_by),
-                                            )
-                                        }
-                                        ViewModeToggle(
-                                            currentMode = viewMode,
-                                            onModeChanged = { mode -> viewModel.onViewModeChanged(mode) },
-                                        )
-                                        IconButton(onClick = { showDiscovery = !showDiscovery }) {
-                                            Icon(
-                                                imageVector = Icons.Default.Whatshot,
-                                                contentDescription = "Discovery",
-                                                tint =
-                                                    if (showDiscovery) {
-                                                        androidx.compose.material3.MaterialTheme.colorScheme.primary
-                                                    } else {
-                                                        androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant
-                                                    },
-                                            )
-                                        }
-                                        IconButton(onClick = safeNavigateToFavorites) {
-                                            Icon(
-                                                imageVector = Icons.Default.Favorite,
-                                                contentDescription = stringResource(R.string.favoritesTooltip),
-                                            )
-                                        }
                                         IconButton(onClick = safeNavigateToSearch) {
                                             Icon(
                                                 imageVector = Icons.Default.Search,
                                                 contentDescription = stringResource(R.string.search),
                                             )
                                         }
-                                        IconButton(onClick = safeNavigateToDownloads) {
-                                            Icon(
-                                                imageVector = Icons.Default.Download,
-                                                contentDescription = stringResource(R.string.downloads),
-                                            )
+                                        Box {
+                                            IconButton(onClick = { showOverflowMenu = true }) {
+                                                Icon(
+                                                    imageVector = Icons.Default.MoreVert,
+                                                    contentDescription = stringResource(R.string.overflowMenu),
+                                                )
+                                            }
+                                            DropdownMenu(
+                                                expanded = showOverflowMenu,
+                                                onDismissRequest = { showOverflowMenu = false },
+                                            ) {
+                                                DropdownMenuItem(
+                                                    text = { Text(text = stringResource(R.string.sort_by)) },
+                                                    onClick = {
+                                                        showOverflowMenu = false
+                                                        showSortBottomSheet = true
+                                                    },
+                                                    leadingIcon = {
+                                                        Icon(imageVector = Icons.AutoMirrored.Filled.Sort, contentDescription = null)
+                                                    },
+                                                )
+                                                DropdownMenuItem(
+                                                    text = { Text(text = stringResource(R.string.viewModeList)) },
+                                                    onClick = {
+                                                        showOverflowMenu = false
+                                                        viewModel.onViewModeChanged(LibraryViewMode.LIST_COMPACT)
+                                                    },
+                                                    leadingIcon = {
+                                                        Icon(imageVector = Icons.AutoMirrored.Filled.List, contentDescription = null)
+                                                    },
+                                                    trailingIcon = {
+                                                        if (!viewMode.isGrid()) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Check,
+                                                                contentDescription = null,
+                                                                tint = MaterialTheme.colorScheme.primary,
+                                                            )
+                                                        }
+                                                    },
+                                                )
+                                                DropdownMenuItem(
+                                                    text = { Text(text = stringResource(R.string.viewModeGrid)) },
+                                                    onClick = {
+                                                        showOverflowMenu = false
+                                                        viewModel.onViewModeChanged(LibraryViewMode.GRID_COMPACT)
+                                                    },
+                                                    leadingIcon = {
+                                                        Icon(imageVector = Icons.Filled.GridView, contentDescription = null)
+                                                    },
+                                                    trailingIcon = {
+                                                        if (viewMode.isGrid()) {
+                                                            Icon(
+                                                                imageVector = Icons.Default.Check,
+                                                                contentDescription = null,
+                                                                tint = MaterialTheme.colorScheme.primary,
+                                                            )
+                                                        }
+                                                    },
+                                                )
+                                                DropdownMenuItem(
+                                                    text = { Text(text = stringResource(R.string.account)) },
+                                                    onClick = {
+                                                        showOverflowMenu = false
+                                                        safeNavigateToAuth()
+                                                    },
+                                                    leadingIcon = {
+                                                        Icon(imageVector = Icons.Filled.Person, contentDescription = null)
+                                                    },
+                                                )
+                                                DropdownMenuItem(
+                                                    text = { Text(text = stringResource(R.string.downloads)) },
+                                                    onClick = {
+                                                        showOverflowMenu = false
+                                                        safeNavigateToDownloads()
+                                                    },
+                                                    leadingIcon = {
+                                                        Icon(imageVector = Icons.Default.Download, contentDescription = null)
+                                                    },
+                                                )
+                                                DropdownMenuItem(
+                                                    text = { Text(text = stringResource(R.string.settingsTitle)) },
+                                                    onClick = {
+                                                        showOverflowMenu = false
+                                                        safeNavigateToSettings()
+                                                    },
+                                                    leadingIcon = {
+                                                        Icon(imageVector = Icons.Default.Settings, contentDescription = null)
+                                                    },
+                                                )
+                                            }
                                         }
                                     },
                                 )

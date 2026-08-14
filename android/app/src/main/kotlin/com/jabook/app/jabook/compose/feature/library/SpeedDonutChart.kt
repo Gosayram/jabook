@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.library
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,7 +29,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.R
 
 @Composable
 public fun SpeedDonutChart(
@@ -42,8 +47,15 @@ public fun SpeedDonutChart(
             .takeIf { it > 0f } ?: return
     val primary = MaterialTheme.colorScheme.primary
 
+    val topSpeed = distribution.entries.maxByOrNull { it.value }?.key ?: 1.0f
+    val accessibilityDesc =
+        stringResource(R.string.speedChartAccessibilityDescription, topSpeed)
+
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = accessibilityDesc },
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Canvas(
@@ -69,13 +81,14 @@ public fun SpeedDonutChart(
                 startAngle += sweep
             }
         }
-        Text(
-            text =
-                distribution.entries.sortedByDescending { it.value }.joinToString("\n") {
-                    "${it.key}x — ${(it.value / 60000L).coerceAtLeast(1)} мин"
-                },
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Column {
+            distribution.entries.sortedByDescending { it.value }.forEach { (speed, ms) ->
+                Text(
+                    text = stringResource(R.string.speedLegendFormat, speed, (ms / 60000L).coerceAtLeast(1)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }

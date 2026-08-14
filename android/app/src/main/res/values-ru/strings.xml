@@ -3060,4 +3060,28 @@
     <string name="resumeLongPauseRestartChapter">Начать главу сначала</string>
     <string name="resumeLongPauseSelectChapter">Выбрать главу</string>
     <string name="errorRecordingVoiceNote">Не удалось записать голосовую заметку</string>
+
+    <string name="overflowMenu">Ещё</string>
+    <string name="statistics">Статистика</string>
+    <string name="discovery">Подборка</string>
+
+    <!-- Library accessibility & localization -->
+    <string name="scrollToTop">Прокрутить наверх</string>
+    <string name="discoveryTrending">Популярное</string>
+    <string name="discoveryForYou">Для вас</string>
+    <string name="discoveryGenres">Жанры</string>
+    <string name="greetingMorning">Доброе утро</string>
+    <string name="greetingAfternoon">Добрый день</string>
+    <string name="greetingEvening">Добрый вечер</string>
+    <string name="greetingNight">Доброй ночи</string>
+    <string name="heatmapAccessibilityDescription">Прослушано %1$d минут за последние %2$d недель</string>
+    <string name="speedChartAccessibilityDescription">Распределение скоростей: большинство книг прослушано на %1$.1fx</string>
+    <string name="speedLegendFormat">%1$.1fx — %2$d мин</string>
+    <!-- Listening mood labels -->
+    <string name="moodWalking">Иду пешком</string>
+    <string name="moodDriving">В машине</string>
+    <string name="moodSleeping">Перед сном</string>
+    <string name="moodWorkout">Тренировка</string>
+    <string name="moodRelaxing">Отдыхаю</string>
+    <string name="moodWorking">Фоном за работой</string>
 </resources>
