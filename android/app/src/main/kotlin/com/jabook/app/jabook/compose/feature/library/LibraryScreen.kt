@@ -38,20 +38,14 @@ import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material.icons.outlined.GridView
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -59,7 +53,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
@@ -99,7 +92,6 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.SideEffect
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
-import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.designsystem.component.BookActionsBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.ChipRow
@@ -121,9 +113,6 @@ import com.jabook.app.jabook.compose.feature.onboarding.SpotlightOverlay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
 
 /**
  * Library screen - displays the user's audiobook collection.
@@ -162,8 +151,7 @@ public fun LibraryScreen(
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val selectedBook by viewModel.selectedBookForProperties.collectAsStateWithLifecycle()
-    val weeklyRecap by viewModel.weeklyRecapState.collectAsStateWithLifecycle()
-    val yearRecap by viewModel.yearRecapState.collectAsStateWithLifecycle()
+
     val snackbarHostState = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val navigationClickGuard = remember { NavigationClickGuard() }
@@ -181,7 +169,7 @@ public fun LibraryScreen(
     var selectedBookForActions by remember { mutableStateOf<Book?>(null) }
     var showDiscovery by rememberSaveable { mutableStateOf(false) }
     var showOverflowMenu by remember { mutableStateOf(false) }
-    var showStatsSection by rememberSaveable { mutableStateOf(false) }
+
     var listeningMood by rememberSaveable { mutableStateOf(ListeningMood.RELAXING) }
     var activeAchievement by remember { mutableStateOf<AchievementUiModel?>(null) }
     var hasShownFirstBookAchievement by rememberSaveable { mutableStateOf(false) }
@@ -658,48 +646,6 @@ public fun LibraryScreen(
                             }
                         }
                     }
-                    // Analytics below PullToRefreshBox
-                    if (uiState is LibraryUiState.Success) {
-                        val books = (uiState as LibraryUiState.Success).books
-                        weeklyRecap?.let { recap ->
-                            WeeklyRecapCard(
-                                stats = recap,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            )
-                            yearRecap?.let { recapYear ->
-                                YearRecapPromptCard(
-                                    yearRecap = recapYear,
-                                    onShareClick = {
-                                        shareYearRecap(context, recapYear)
-                                    },
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                )
-                            }
-                        }
-                        if (showStatsSection) {
-                            ListeningHeatmap(
-                                data = buildListeningHeatmapData(books),
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            )
-                            SpeedDonutChart(
-                                distribution = buildSpeedDistribution(books),
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            )
-                        }
-                        if (weeklyRecap != null) {
-                            androidx.compose.material3.TextButton(
-                                onClick = { showStatsSection = !showStatsSection },
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp),
-                            ) {
-                                Icon(
-                                    imageVector = if (showStatsSection) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                    contentDescription = null,
-                                    modifier = Modifier.padding(end = 8.dp),
-                                )
-                                Text(text = stringResource(R.string.statistics))
-                            }
-                        }
-                    }
                 }
 
                 // Book properties dialog
@@ -924,29 +870,6 @@ public fun LibraryScreen(
                                             )
 
                                         Column(modifier = Modifier.fillMaxSize()) {
-                                            weeklyRecap?.let { recap ->
-                                                WeeklyRecapCard(
-                                                    stats = recap,
-                                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                                )
-                                                yearRecap?.let { recapYear ->
-                                                    YearRecapPromptCard(
-                                                        yearRecap = recapYear,
-                                                        onShareClick = {
-                                                            shareYearRecap(context, recapYear)
-                                                        },
-                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                                    )
-                                                }
-                                                ListeningHeatmap(
-                                                    data = buildListeningHeatmapData(books),
-                                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                                )
-                                                SpeedDonutChart(
-                                                    distribution = buildSpeedDistribution(books),
-                                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                                )
-                                            }
                                             if (showDiscovery) {
                                                 DiscoveryScreen(
                                                     uiState = discoveryUiState,
@@ -1212,72 +1135,6 @@ public fun LibraryScreen(
             spotlightStep = 1
         }
     }
-
-    LaunchedEffect(weeklyRecap) {
-        val recap = weeklyRecap ?: return@LaunchedEffect
-        if (recap.booksCompleted >= 1 && !hasShownFirstBookAchievement) {
-            hasShownFirstBookAchievement = true
-            activeAchievement =
-                AchievementUiModel(
-                    id = "first-book",
-                    title = "Первая страница",
-                    description = "Вы завершили первую книгу за неделю.",
-                )
-            return@LaunchedEffect
-        }
-        if (recap.streakDays >= 7 && !hasShownStreakAchievement) {
-            hasShownStreakAchievement = true
-            activeAchievement =
-                AchievementUiModel(
-                    id = "week-streak",
-                    title = "Неделя слова",
-                    description = "Вы слушаете уже 7 дней подряд.",
-                )
-        }
-    }
-}
-
-@Composable
-private fun YearRecapPromptCard(
-    yearRecap: YearRecapState,
-    onShareClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = SurfaceElevationTokens.Level1),
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.yearRecapTitle, yearRecap.year),
-                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-                Text(
-                    text = stringResource(R.string.yearRecapShareHint, yearRecap.totalMinutesListened),
-                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-            }
-            OutlinedButton(onClick = onShareClick) {
-                Icon(
-                    imageVector = Icons.Filled.Share,
-                    contentDescription = null,
-                    modifier = Modifier.padding(end = 6.dp),
-                )
-                Text(text = stringResource(R.string.share))
-            }
-        }
-    }
 }
 
 private fun buildDiscoveryUiState(
@@ -1343,32 +1200,6 @@ private fun isMoodMatch(
     }
 }
 
-private fun buildListeningHeatmapData(books: List<Book>): Map<LocalDate, Int> {
-    val zoneId = ZoneId.systemDefault()
-    return books
-        .mapNotNull { book ->
-            val lastPlayed = book.lastPlayedDate ?: return@mapNotNull null
-            val day = Instant.ofEpochMilli(lastPlayed).atZone(zoneId).toLocalDate()
-            day to ((book.progress * 60f).toInt().coerceAtLeast(1))
-        }.groupBy({ it.first }, { it.second })
-        .mapValues { (_, values) -> values.sum().coerceAtLeast(1) }
-}
-
-private fun buildSpeedDistribution(books: List<Book>): Map<Float, Long> {
-    if (books.isEmpty()) {
-        return emptyMap()
-    }
-    val base = books.size.toLong().coerceAtLeast(1L)
-    val fast = books.count { (it.forwardDuration ?: 0) >= 30 }.toLong()
-    val slow = books.count { (it.rewindDuration ?: 0) >= 20 }.toLong()
-    val normal = (base - fast - slow).coerceAtLeast(1L)
-    return mapOf(
-        1.0f to normal * 60_000L,
-        1.25f to fast.coerceAtLeast(1L) * 40_000L,
-        0.9f to slow.coerceAtLeast(1L) * 35_000L,
-    )
-}
-
 private fun inferGenreFromBook(book: Book): String {
     val source = listOf(book.title, book.author, book.description.orEmpty(), book.sourceUrl.orEmpty()).joinToString(" ").lowercase()
     return when {
@@ -1379,88 +1210,6 @@ private fun inferGenreFromBook(book: Book): String {
         "психолог" in source || "self" in source -> "Саморазвитие"
         "класс" in source || "classic" in source -> "Классика"
         else -> "Разное"
-    }
-}
-
-@Composable
-private fun WeeklyRecapCard(
-    stats: WeeklyRecapState,
-    modifier: Modifier = Modifier,
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = SurfaceElevationTokens.Level2),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(R.string.weeklyRecapTitle),
-                style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                WeeklyStatItem(
-                    icon = Icons.Filled.Headphones,
-                    value = stats.minutesListened.toString(),
-                    label = stringResource(R.string.minutesLabel),
-                )
-                WeeklyStatItem(
-                    icon = Icons.Filled.Check,
-                    value = stats.booksCompleted.toString(),
-                    label = stringResource(R.string.booksLabel),
-                )
-                WeeklyStatItem(
-                    icon = Icons.Filled.Whatshot,
-                    value = stats.streakDays.toString(),
-                    label = stringResource(R.string.streakDaysLabel),
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text =
-                    stringResource(
-                        R.string.productivePeriodLabel,
-                        when (stats.productivePeriod) {
-                            ProductivePeriod.MORNING -> stringResource(R.string.productiveMorning)
-                            ProductivePeriod.DAY -> stringResource(R.string.productiveDay)
-                            ProductivePeriod.EVENING -> stringResource(R.string.productiveEvening)
-                            ProductivePeriod.NIGHT -> stringResource(R.string.productiveNight)
-                            ProductivePeriod.UNKNOWN -> stringResource(R.string.unknown)
-                        },
-                    ),
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-        }
-    }
-}
-
-@Composable
-private fun WeeklyStatItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    value: String,
-    label: String,
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
-        )
-        Text(
-            text = value,
-            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
-        )
-        Text(
-            text = label,
-            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
-            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
-        )
     }
 }
 

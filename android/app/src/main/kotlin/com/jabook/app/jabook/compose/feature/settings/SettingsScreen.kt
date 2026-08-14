@@ -45,8 +45,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -61,6 +66,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -99,6 +105,7 @@ import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.theme.getAllAccentSwatches
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.UiFormatters
@@ -106,7 +113,17 @@ import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.data.network.MirrorHealth
 import com.jabook.app.jabook.compose.data.permissions.PersistedTreeUriPermissionGuard
+import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.feature.library.ListeningHeatmap
+import com.jabook.app.jabook.compose.feature.library.ProductivePeriod
+import com.jabook.app.jabook.compose.feature.library.SpeedDonutChart
+import com.jabook.app.jabook.compose.feature.library.WeeklyRecapState
+import com.jabook.app.jabook.compose.feature.library.YearRecapState
+import com.jabook.app.jabook.compose.feature.library.shareYearRecap
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 private object GitHubUrls {
     public const val REPOSITORY = "https://github.com/Gosayram/jabook"
@@ -186,6 +203,10 @@ public fun SettingsScreen(
 
     val userPreferences by viewModel.userPreferences.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
+    val weeklyRecap by viewModel.weeklyRecapState.collectAsStateWithLifecycle()
+    val yearRecap by viewModel.yearRecapState.collectAsStateWithLifecycle()
+    val statsBooks by viewModel.booksForStats.collectAsStateWithLifecycle()
+    var showStatsExpanded by remember { mutableStateOf(false) }
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateToAuth = dropUnlessResumed { navigationClickGuard.run(onNavigateToAuth) }
@@ -765,6 +786,7 @@ public fun SettingsScreen(
                 }
             }
 
+            // Library Folders
             SettingsItem(
                 title = stringResource(R.string.libraryFoldersTitle),
                 subtitle = stringResource(R.string.manageFoldersToScanForAudiobooks),
@@ -781,6 +803,50 @@ public fun SettingsScreen(
                 itemSpacing = itemSpacing,
                 smallSpacing = smallSpacing,
             )
+
+            HorizontalDivider()
+
+            // Statistics Section
+            SettingsSection(
+                title = stringResource(R.string.statistics),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
+
+            weeklyRecap?.let { recap ->
+                WeeklyRecapCard(
+                    stats = recap,
+                    modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
+                )
+                yearRecap?.let { recapYear ->
+                    YearRecapPromptCard(
+                        yearRecap = recapYear,
+                        onShareClick = { shareYearRecap(context, recapYear) },
+                        modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
+                    )
+                }
+                if (showStatsExpanded) {
+                    ListeningHeatmap(
+                        data = buildListeningHeatmapData(statsBooks),
+                        modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
+                    )
+                    SpeedDonutChart(
+                        distribution = buildSpeedDistribution(statsBooks),
+                        modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
+                    )
+                }
+                TextButton(
+                    onClick = { showStatsExpanded = !showStatsExpanded },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = contentPadding),
+                ) {
+                    Icon(
+                        imageVector = if (showStatsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                    Text(text = stringResource(R.string.statistics))
+                }
+            }
 
             HorizontalDivider()
 
@@ -2326,6 +2392,157 @@ private fun StackedSegmentedControl(
                             },
                     )
                 }
+            }
+        }
+    }
+}
+
+private fun buildListeningHeatmapData(books: List<Book>): Map<LocalDate, Int> {
+    val zoneId = ZoneId.systemDefault()
+    return books
+        .mapNotNull { book ->
+            val lastPlayed = book.lastPlayedDate ?: return@mapNotNull null
+            val day = Instant.ofEpochMilli(lastPlayed).atZone(zoneId).toLocalDate()
+            day to ((book.progress * 60f).toInt().coerceAtLeast(1))
+        }.groupBy({ it.first }, { it.second })
+        .mapValues { (_, values) -> values.sum().coerceAtLeast(1) }
+}
+
+private fun buildSpeedDistribution(books: List<Book>): Map<Float, Long> {
+    if (books.isEmpty()) {
+        return emptyMap()
+    }
+    val base = books.size.toLong().coerceAtLeast(1L)
+    val fast = books.count { (it.forwardDuration ?: 0) >= 30 }.toLong()
+    val slow = books.count { (it.rewindDuration ?: 0) >= 20 }.toLong()
+    val normal = (base - fast - slow).coerceAtLeast(1L)
+    return mapOf(
+        1.0f to normal * 60_000L,
+        1.25f to fast.coerceAtLeast(1L) * 40_000L,
+        0.9f to slow.coerceAtLeast(1L) * 35_000L,
+    )
+}
+
+@Composable
+private fun WeeklyRecapCard(
+    stats: WeeklyRecapState,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = SurfaceElevationTokens.Level2),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.weeklyRecapTitle),
+                style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                WeeklyStatItem(
+                    icon = Icons.Filled.Headphones,
+                    value = stats.minutesListened.toString(),
+                    label = stringResource(R.string.minutesLabel),
+                )
+                WeeklyStatItem(
+                    icon = Icons.Filled.Check,
+                    value = stats.booksCompleted.toString(),
+                    label = stringResource(R.string.booksLabel),
+                )
+                WeeklyStatItem(
+                    icon = Icons.Filled.Whatshot,
+                    value = stats.streakDays.toString(),
+                    label = stringResource(R.string.streakDaysLabel),
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text =
+                    stringResource(
+                        R.string.productivePeriodLabel,
+                        when (stats.productivePeriod) {
+                            ProductivePeriod.MORNING -> stringResource(R.string.productiveMorning)
+                            ProductivePeriod.DAY -> stringResource(R.string.productiveDay)
+                            ProductivePeriod.EVENING -> stringResource(R.string.productiveEvening)
+                            ProductivePeriod.NIGHT -> stringResource(R.string.productiveNight)
+                            ProductivePeriod.UNKNOWN -> stringResource(R.string.unknown)
+                        },
+                    ),
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeeklyStatItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String,
+    label: String,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        Text(
+            text = value,
+            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        Text(
+            text = label,
+            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+    }
+}
+
+@Composable
+private fun YearRecapPromptCard(
+    yearRecap: YearRecapState,
+    onShareClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = SurfaceElevationTokens.Level1),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.yearRecapTitle, yearRecap.year),
+                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    text = stringResource(R.string.yearRecapShareHint, yearRecap.totalMinutesListened),
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+            OutlinedButton(onClick = onShareClick) {
+                Icon(
+                    imageVector = Icons.Filled.Share,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 6.dp),
+                )
+                Text(text = stringResource(R.string.share))
             }
         }
     }

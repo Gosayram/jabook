@@ -157,7 +157,6 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.ContrastPolicy
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.core.util.HapticManager
-import com.jabook.app.jabook.compose.core.util.SecureWindowFlag
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
@@ -381,14 +380,6 @@ public fun PlayerScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    DisposableEffect(Unit) {
-        val activity = context as? android.app.Activity
-        val release = activity?.window?.let(SecureWindowFlag::acquire)
-        onDispose {
-            release?.invoke()
         }
     }
 

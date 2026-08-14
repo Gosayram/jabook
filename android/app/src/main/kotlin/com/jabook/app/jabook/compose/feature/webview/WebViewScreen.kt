@@ -64,9 +64,7 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
-import com.jabook.app.jabook.compose.core.util.SecureWindowFlag
 import com.jabook.app.jabook.compose.navigation.WebViewRoute
-import com.jabook.app.jabook.utils.componentActivity
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
@@ -116,14 +114,7 @@ public fun WebViewScreen(
     var currentWebViewUrl by remember { mutableStateOf("") }
 
     DisposableEffect(currentView, route.isAuthentication) {
-        val release =
-            if (route.isAuthentication) {
-                SecureWindowFlag.acquire(currentView.context.componentActivity.window)
-            } else {
-                null
-            }
         onDispose {
-            release?.invoke()
         }
     }
 

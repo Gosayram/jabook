@@ -51,7 +51,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -76,10 +75,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
-import com.jabook.app.jabook.compose.core.util.SecureWindowFlag
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
-import com.jabook.app.jabook.utils.componentActivity
 
 @Composable
 public fun AuthScreen(
@@ -111,15 +108,6 @@ public fun AuthScreen(
             viewModel.consumeWebViewLoginRequest()
             val loginUrl = viewModel.prepareWebViewLogin()
             navigationClickGuard.run { currentOnNavigateToWebView(loginUrl) }
-        }
-    }
-
-    // Protect credentials screen from screenshots/recording while it is visible.
-    DisposableEffect(currentView) {
-        val window = currentView.context.componentActivity.window
-        val release = SecureWindowFlag.acquire(window)
-        onDispose {
-            release()
         }
     }
 
