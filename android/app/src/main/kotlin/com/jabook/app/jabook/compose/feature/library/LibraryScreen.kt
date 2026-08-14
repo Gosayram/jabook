@@ -557,16 +557,7 @@ public fun LibraryScreen(
                                     }
                                 val actionsProvider =
                                     viewModel.createBookActionsProvider(
-                                        onBookClick = { bookId ->
-                                            // Navigate to detail pane and track selection
-                                            selectedBookId = bookId
-                                            scope.launch {
-                                                navigator.navigateTo(
-                                                    ListDetailPaneScaffoldRole.Detail,
-                                                    bookId,
-                                                )
-                                            }
-                                        },
+                                        onBookClick = onBookClick,
                                         onBookLongPress = { bookId ->
                                             selectedBookForActions = books.firstOrNull { it.id == bookId }
                                         },
