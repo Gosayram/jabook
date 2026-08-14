@@ -24,4 +24,30 @@ class ChapterSeekAvailabilityPolicyTest {
         assertFalse(ChapterSeekAvailabilityPolicy.isAvailable(chapterIndex = 40, mediaItemCount = 1))
         assertTrue(ChapterSeekAvailabilityPolicy.isAvailable(chapterIndex = 40, mediaItemCount = 41))
     }
+
+    @Test
+    fun `negative index returns false`() {
+        assertFalse(ChapterSeekAvailabilityPolicy.isAvailable(chapterIndex = -1, mediaItemCount = 5))
+    }
+
+    @Test
+    fun `zero media items returns false for any index`() {
+        assertFalse(ChapterSeekAvailabilityPolicy.isAvailable(chapterIndex = 0, mediaItemCount = 0))
+        assertFalse(ChapterSeekAvailabilityPolicy.isAvailable(chapterIndex = 1, mediaItemCount = 0))
+    }
+
+    @Test
+    fun `first valid index 0 returns true`() {
+        assertTrue(ChapterSeekAvailabilityPolicy.isAvailable(chapterIndex = 0, mediaItemCount = 3))
+    }
+
+    @Test
+    fun `last valid index returns true`() {
+        assertTrue(ChapterSeekAvailabilityPolicy.isAvailable(chapterIndex = 2, mediaItemCount = 3))
+    }
+
+    @Test
+    fun `index equal to mediaItemCount returns false`() {
+        assertFalse(ChapterSeekAvailabilityPolicy.isAvailable(chapterIndex = 3, mediaItemCount = 3))
+    }
 }

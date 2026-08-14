@@ -131,6 +131,8 @@ public data class BookEntity(
  * @property position Current playback position within this chapter (milliseconds)
  * @property isCompleted Whether this chapter has been fully played
  * @property isDownloaded Whether this chapter's audio file is downloaded locally
+ * @property startPositionMs In-file start offset for embedded chapters (null = whole file)
+ * @property endPositionMs In-file end offset for embedded chapters (null = whole file/EOF)
  */
 @Keep
 @Entity(
@@ -173,4 +175,9 @@ public data class ChapterEntity(
     val isDownloaded: Boolean = false,
     @ColumnInfo(name = "lufs_value")
     val lufsValue: Double? = null,
+    // In-file offsets for chapters embedded in a single M4B/MP4 file (null = whole file)
+    @ColumnInfo(name = "start_position_ms")
+    val startPositionMs: Long? = null,
+    @ColumnInfo(name = "end_position_ms")
+    val endPositionMs: Long? = null,
 )

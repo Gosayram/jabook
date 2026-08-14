@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Tracks active listening session boundaries and persists them to local DB.
@@ -34,11 +35,18 @@ internal class ListeningSessionTracker(
     private val getCurrentSpeed: () -> Float,
     private val getCurrentChapterIndex: () -> Int,
 ) {
+    @Volatile
     private var activeSessionId: String? = null
+
+    @Volatile
     private var activeBookId: String? = null
+
+    @Volatile
     private var isStartingSession: Boolean = false
+
+    @Volatile
     private var pendingStopReason: String? = null
-    private var sessionGeneration: Long = 0L
+    private val sessionGeneration: AtomicLong = AtomicLong(0L)
 
     public fun onPlaybackStarted() {
         val bookId = getCurrentBookId()?.takeIf { it.isNotBlank() } ?: return
@@ -51,7 +59,7 @@ internal class ListeningSessionTracker(
             finishActiveSession(reason = "book_switched")
         }
 
-        val generation = ++sessionGeneration
+        val generation = sessionGeneration.incrementAndGet()
         val positionStartMs = getCurrentPositionMs()
         val speedFactor = getCurrentSpeed()
         val chapterIndex = getCurrentChapterIndex()
@@ -67,7 +75,7 @@ internal class ListeningSessionTracker(
                         speedFactor = speedFactor,
                         chapterIndex = chapterIndex,
                     )
-                if (generation != sessionGeneration || activeBookId != bookId) {
+                if (generation != sessionGeneration.get() || activeBookId != bookId) {
                     try {
                         repository.finishSession(
                             sessionId = sessionId,
@@ -87,7 +95,7 @@ internal class ListeningSessionTracker(
                 }
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
-                if (generation == sessionGeneration && activeBookId == bookId) {
+                if (generation == sessionGeneration.get() && activeBookId == bookId) {
                     activeSessionId = null
                     activeBookId = null
                     isStartingSession = false

@@ -107,3 +107,36 @@ public sealed interface PlayerIntent {
         val reason: String,
     ) : PlayerIntent
 }
+
+/** Returns whether this intent controls playback and must be rejected while the player loads. */
+internal fun PlayerIntent.isPlaybackControlIntent(): Boolean =
+    when (this) {
+        PlayerIntent.TogglePlayPause,
+        PlayerIntent.Play,
+        PlayerIntent.Pause,
+        PlayerIntent.SkipNext,
+        PlayerIntent.SkipPrevious,
+        is PlayerIntent.SeekTo,
+        PlayerIntent.SeekForward,
+        PlayerIntent.SeekBackward,
+        is PlayerIntent.SelectChapter,
+        PlayerIntent.ToggleChapterRepeat,
+        PlayerIntent.ToggleABRepeat,
+        PlayerIntent.InitializeVisualizer,
+        is PlayerIntent.SetVisualizerEnabled,
+        is PlayerIntent.SetPlaybackSpeed,
+        is PlayerIntent.SetPitchCorrectionEnabled,
+        is PlayerIntent.StartSleepTimer,
+        PlayerIntent.StartSleepTimerEndOfChapter,
+        PlayerIntent.StartSleepTimerEndOfTrack,
+        PlayerIntent.CancelSleepTimer,
+        is PlayerIntent.UpdateBookSeekSettings,
+        PlayerIntent.ResetBookSeekSettings,
+        is PlayerIntent.UpdateAudioSettings,
+        -> true
+        is PlayerIntent.SetEqualizerPreset,
+        PlayerIntent.InitializePlayer,
+        is PlayerIntent.ReportError,
+        PlayerIntent.CycleVisualizerMode,
+        -> false
+    }

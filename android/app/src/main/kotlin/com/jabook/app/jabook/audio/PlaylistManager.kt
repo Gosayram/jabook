@@ -818,6 +818,12 @@ internal class PlaylistManager(
                         if (activeLoadingJob === kotlinx.coroutines.currentCoroutineContext()[Job]) {
                             activeLoadingJob = null
                         }
+                        if (!completed) {
+                            LogUtils.w(
+                                "AudioPlayerService",
+                                "All remaining tracks failed to load — playback may be incomplete",
+                            )
+                        }
                         // Mark loading as complete (only if still current generation)
                         if (isLoadGenerationActive(loadGeneration) && completed) {
                             _loadProgress.update { PlaylistLoadProgress(filePaths.size, filePaths.size, PlaylistLoadProgress.Phase.DONE) }

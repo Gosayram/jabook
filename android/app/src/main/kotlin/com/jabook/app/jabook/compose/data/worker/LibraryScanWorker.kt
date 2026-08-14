@@ -256,8 +256,17 @@ public class LibraryScanWorker
 
                                         chapterEntities.addAll(
                                             book.chapters.map { chapter ->
+                                                // Embedded M4B chapters share one file path; fold the
+                                                // in-file offset into the id so segments stay unique
+                                                // while whole-file chapters keep their legacy ids.
+                                                val idSeed =
+                                                    if (chapter.startMs != null) {
+                                                        chapter.filePath + "#" + chapter.startMs
+                                                    } else {
+                                                        chapter.filePath
+                                                    }
                                                 ChapterEntity(
-                                                    id = "$bookId-chapter-${UUID.nameUUIDFromBytes(chapter.filePath.toByteArray())}",
+                                                    id = "$bookId-chapter-${UUID.nameUUIDFromBytes(idSeed.toByteArray())}",
                                                     bookId = bookId,
                                                     title = chapter.title,
                                                     chapterIndex = chapter.index,
@@ -265,6 +274,8 @@ public class LibraryScanWorker
                                                     duration = chapter.duration,
                                                     fileUrl = chapter.filePath,
                                                     isDownloaded = true,
+                                                    startPositionMs = chapter.startMs,
+                                                    endPositionMs = chapter.endMs,
                                                 )
                                             },
                                         )

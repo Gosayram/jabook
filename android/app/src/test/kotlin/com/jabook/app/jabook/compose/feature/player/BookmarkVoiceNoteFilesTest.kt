@@ -38,4 +38,33 @@ class BookmarkVoiceNoteFilesTest {
             filesDir.deleteRecursively()
         }
     }
+
+    @Test
+    fun `deleteBookmarkVoiceNotes removes all recordings for a bookmark id`() {
+        val filesDir = Files.createTempDirectory("jabook-files").toFile()
+        try {
+            val noteDirectory = bookmarkVoiceNoteDirectory(filesDir).apply { mkdirs() }
+            val note1 = File(noteDirectory, "bookmark_abc123_1000.m4a").apply { writeText("n1") }
+            val note2 = File(noteDirectory, "bookmark_abc123_2000.m4a").apply { writeText("n2") }
+            val otherNote = File(noteDirectory, "bookmark_other_1000.m4a").apply { writeText("other") }
+
+            deleteBookmarkVoiceNotes(filesDir, "abc123")
+
+            assertFalse("first note should be deleted", note1.exists())
+            assertFalse("second note should be deleted", note2.exists())
+            assertTrue("other bookmark note should remain", otherNote.exists())
+        } finally {
+            filesDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `deleteBookmarkVoiceNotes is no-op when directory missing`() {
+        val filesDir = Files.createTempDirectory("jabook-files").toFile()
+        try {
+            deleteBookmarkVoiceNotes(filesDir, "nonexistent")
+        } finally {
+            filesDir.deleteRecursively()
+        }
+    }
 }

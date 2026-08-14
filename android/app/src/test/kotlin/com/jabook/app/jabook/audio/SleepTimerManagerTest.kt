@@ -28,6 +28,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -428,6 +429,184 @@ class SleepTimerManagerTest {
 
             verify(initialPlayer).removeListener(any())
             verify(replacementPlayer, never()).removeListener(any())
+        }
+
+    @Test
+    fun `replacement timer blocks stale callback from updating state`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+            var broadcastCount = 0
+
+            val manager =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = { broadcastCount++ },
+                )
+
+            // Set first timer, then replace with a second one
+            manager.setSleepTimerMinutes(1)
+            manager.setSleepTimerMinutes(2)
+
+            // First timer's generation is now stale; notifyTimerExpired should not double-fire
+            // (only one broadcast from the explicit call below)
+            manager.notifyTimerExpired()
+            assertEquals(1, broadcastCount)
+        }
+
+    @Test
+    fun `end of chapter mode expiry sends broadcast`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+            var broadcast: Intent? = null
+
+            val manager =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = { broadcast = it },
+                )
+
+            manager.setSleepTimerEndOfChapter()
+            assertTrue(manager.isSleepTimerActive())
+            assertTrue(manager.sleepTimerEndOfChapter)
+
+            manager.notifyTimerExpired()
+            assertEquals(SleepTimerManager.ACTION_SLEEP_TIMER_EXPIRED, broadcast?.action)
+        }
+
+    @Test
+    fun `end of track mode expiry sends broadcast`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+            var broadcast: Intent? = null
+
+            val manager =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = { broadcast = it },
+                )
+
+            manager.setSleepTimerEndOfTrack()
+            assertTrue(manager.isSleepTimerActive())
+            assertTrue(manager.sleepTimerEndOfTrack)
+
+            manager.notifyTimerExpired()
+            assertEquals(SleepTimerManager.ACTION_SLEEP_TIMER_EXPIRED, broadcast?.action)
+        }
+
+    @Test
+    fun `persistence round-trip preserves fixed duration timer state`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+
+            val original =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+            original.setSleepTimerMinutes(5)
+            val beforePersist = original.getSleepTimerRemainingSeconds()
+
+            val restored =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+            restored.restoreTimerState()
+
+            assertTrue(restored.isSleepTimerActive())
+            val afterRestore = restored.getSleepTimerRemainingSeconds()
+            assertNotNull(afterRestore)
+            // Allow 2s tolerance due to time elapsed between set and restore
+            assertTrue(afterRestore in (beforePersist!! - 2)..beforePersist)
+        }
+
+    @Test
+    fun `persistence round-trip preserves end of chapter mode`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+
+            val original =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+            original.setSleepTimerEndOfChapter()
+
+            val restored =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+            restored.restoreTimerState()
+
+            assertTrue(restored.isSleepTimerActive())
+            assertTrue(restored.sleepTimerEndOfChapter)
+        }
+
+    @Test
+    fun `setSleepTimerEndOfChapterOrFallback uses chapter mode when supported`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+
+            val manager =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+
+            val usedChapterMode = manager.setSleepTimerEndOfChapterOrFallback(hasChapterModeSupport = true)
+            assertTrue(usedChapterMode)
+            assertTrue(manager.sleepTimerEndOfChapter)
+        }
+
+    @Test
+    fun `setSleepTimerEndOfChapterOrFallback falls back to track mode`() =
+        runTest(testDispatcher) {
+            val player = mock<ExoPlayer>()
+            whenever(player.isPlaying).thenReturn(false)
+
+            val manager =
+                SleepTimerManager(
+                    context = context,
+                    packageName = context.packageName,
+                    playerServiceScope = this,
+                    getActivePlayer = { player },
+                    sendBroadcast = {},
+                )
+
+            val usedChapterMode = manager.setSleepTimerEndOfChapterOrFallback(hasChapterModeSupport = false)
+            assertFalse(usedChapterMode)
+            assertTrue(manager.sleepTimerEndOfTrack)
         }
 
     private fun timerPrefs() = context.getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)

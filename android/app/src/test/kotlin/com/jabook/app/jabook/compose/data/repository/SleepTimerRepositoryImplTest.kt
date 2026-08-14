@@ -49,4 +49,20 @@ class SleepTimerRepositoryImplTest {
         assertEquals(600, result.initialSeconds)
         assertEquals(600, result.remainingSeconds)
     }
+
+    @Test
+    fun `computePollDelayMs polls fast while a timer is active`() {
+        val active = SleepTimerState.Active(remainingSeconds = 100, initialSeconds = 200)
+        assertEquals(1_000L, SleepTimerRepositoryImpl.computePollDelayMs(SleepTimerState.Idle, active))
+        assertEquals(1_000L, SleepTimerRepositoryImpl.computePollDelayMs(active, active))
+        assertEquals(1_000L, SleepTimerRepositoryImpl.computePollDelayMs(SleepTimerState.Idle, SleepTimerState.EndOfChapter))
+        assertEquals(1_000L, SleepTimerRepositoryImpl.computePollDelayMs(SleepTimerState.Idle, SleepTimerState.EndOfTrack()))
+    }
+
+    @Test
+    fun `computePollDelayMs quickly rechecks the transition to idle then backs off`() {
+        val active = SleepTimerState.Active(remainingSeconds = 100, initialSeconds = 200)
+        assertEquals(1_000L, SleepTimerRepositoryImpl.computePollDelayMs(active, SleepTimerState.Idle))
+        assertEquals(60_000L, SleepTimerRepositoryImpl.computePollDelayMs(SleepTimerState.Idle, SleepTimerState.Idle))
+    }
 }

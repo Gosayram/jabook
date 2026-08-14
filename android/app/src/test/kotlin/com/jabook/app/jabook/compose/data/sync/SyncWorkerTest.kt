@@ -153,6 +153,44 @@ class SyncWorkerTest {
             verify(booksDao, times(2)).getAllBooks()
         }
 
+    @Test
+    fun `syncCoverImages rejects ws scheme`() =
+        runTest {
+            whenever(torrentDownloadRepository.getAll()).thenReturn(emptyList())
+            whenever(settingsRepository.userPreferences).thenReturn(flowOf(UserPreferencesSerializer.defaultValue))
+            whenever(networkMonitor.networkType).thenReturn(flowOf(NetworkType.WIFI))
+            val bookWithWs =
+                mock<com.jabook.app.jabook.compose.data.local.entity.BookEntity> {
+                    whenever(it.id).thenReturn("b1")
+                    whenever(it.coverUrl).thenReturn("ws://example.com/cover.jpg")
+                    whenever(it.coverPath).thenReturn(null)
+                }
+            whenever(booksDao.getAllBooks()).thenReturn(listOf(bookWithWs))
+
+            buildWorker(runAttemptCount = 0).doWork()
+
+            verify(okHttpClient, org.mockito.kotlin.never()).newCall(org.mockito.kotlin.any())
+        }
+
+    @Test
+    fun `syncCoverImages rejects ftp scheme`() =
+        runTest {
+            whenever(torrentDownloadRepository.getAll()).thenReturn(emptyList())
+            whenever(settingsRepository.userPreferences).thenReturn(flowOf(UserPreferencesSerializer.defaultValue))
+            whenever(networkMonitor.networkType).thenReturn(flowOf(NetworkType.WIFI))
+            val bookWithFtp =
+                mock<com.jabook.app.jabook.compose.data.local.entity.BookEntity> {
+                    whenever(it.id).thenReturn("b2")
+                    whenever(it.coverUrl).thenReturn("ftp://example.com/cover.jpg")
+                    whenever(it.coverPath).thenReturn(null)
+                }
+            whenever(booksDao.getAllBooks()).thenReturn(listOf(bookWithFtp))
+
+            buildWorker(runAttemptCount = 0).doWork()
+
+            verify(okHttpClient, org.mockito.kotlin.never()).newCall(org.mockito.kotlin.any())
+        }
+
     private fun buildWorker(runAttemptCount: Int): SyncWorker {
         val workerFactory =
             object : WorkerFactory() {

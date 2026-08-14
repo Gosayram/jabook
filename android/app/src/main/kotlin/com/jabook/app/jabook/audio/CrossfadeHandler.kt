@@ -156,8 +156,11 @@ internal class CrossfadeHandler(
                             return@withContext
                         }
                         crossFadePlayer.setNextMediaSources(sources, nextChapterIndex)
+                        val completionGeneration = monitoringGeneration
                         crossFadePlayer.startCrossFade {
-                            if (playlistManager.actualTrackIndex == currentChapterIndex) {
+                            if (monitoringGeneration == completionGeneration &&
+                                playlistManager.actualTrackIndex == currentChapterIndex
+                            ) {
                                 playlistManager.actualTrackIndex = nextChapterIndex
                             }
                         }

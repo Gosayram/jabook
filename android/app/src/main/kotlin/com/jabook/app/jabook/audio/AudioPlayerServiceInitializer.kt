@@ -270,14 +270,14 @@ public class AudioPlayerServiceInitializer(
             HeadsetAutoplayHandler(
                 context = service,
                 onHeadsetConnected = {
-                    // Wired headset: auto-resume playback
+                    // Wired headset: auto-resume playback only when the user opted in
+                    // via the headset autoplay setting (default: disabled).
                     // BT reconnect: HeadsetAutoplayHandler only triggers this when
                     // wasPlayingBeforeBtDisconnect is true — but per BP-13.2 spec,
                     // we don't auto-play. Instead, user manually resumes via UI.
-                    // For wired headset (lastDisconnectWasBluetooth=false), auto-play.
                     val handler = service.headsetAutoplayHandler
                     if (handler != null && !handler.lastDisconnectWasBluetooth) {
-                        if (!service.isPlaying) {
+                        if (!service.isPlaying && cachedUserPreferences?.headsetAutoplayEnabled == true) {
                             service.play()
                         }
                     }
@@ -503,7 +503,7 @@ public class AudioPlayerServiceInitializer(
                         delay(5_000L)
                         val remaining = service.getSleepTimerRemainingSeconds() ?: -1
                         val speed = service.getPlaybackSpeed()
-                        val isTimerActive = remaining > 0
+                        val isTimerActive = service.isSleepTimerActive()
                         // Only rebuild sessionExtras when the published values actually changed.
                         if (remaining == lastRemaining && speed == lastSpeed && isTimerActive == lastTimerActive) continue
                         lastRemaining = remaining

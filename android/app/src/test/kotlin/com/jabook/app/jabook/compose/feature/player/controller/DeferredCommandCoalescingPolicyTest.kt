@@ -92,4 +92,70 @@ class DeferredCommandCoalescingPolicyTest {
             ),
         )
     }
+
+    @Test
+    fun `repeat mode removes existing repeat mode`() {
+        assertTrue(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.REPEAT_MODE,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+    }
+
+    @Test
+    fun `repeat mode does not remove playback toggle`() {
+        assertFalse(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.PLAYBACK_TOGGLE,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+    }
+
+    @Test
+    fun `repeat mode does not remove seek`() {
+        assertFalse(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.SEEK,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+    }
+
+    @Test
+    fun `repeat mode does not remove skip`() {
+        assertFalse(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.SKIP,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+    }
+
+    @Test
+    fun `repeat mode does not remove speed`() {
+        assertFalse(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.SPEED,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+    }
+
+    @Test
+    fun `repeat mode does not remove visualizer commands`() {
+        assertFalse(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.VISUALIZER_ENABLED,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+        assertFalse(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.VISUALIZER_INITIALIZE,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+    }
 }

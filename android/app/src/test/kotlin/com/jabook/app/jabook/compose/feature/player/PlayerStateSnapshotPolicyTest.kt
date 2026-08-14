@@ -130,6 +130,38 @@ class PlayerStateSnapshotPolicyTest {
         val differentChapter = base.copy(chapterIndex = 2)
         assertTrue(PlayerStateSnapshotPolicy.shouldPersistSnapshot(base, differentChapter))
     }
+
+    @Test
+    fun `firstTerminalResult returns Success when flow emits Loading then Success`() =
+        runTest {
+            val result =
+                flowOf(
+                    AudioResult.Loading,
+                    AudioResult.Success("data"),
+                ).firstTerminalResult()
+            assertTrue(result is AudioResult.Success)
+            assertEquals("data", (result as AudioResult.Success).data)
+        }
+
+    @Test
+    fun `firstTerminalResult returns Error when flow emits Loading then Error`() =
+        runTest {
+            val result =
+                flowOf(
+                    AudioResult.Loading,
+                    AudioResult.Error(Exception("fail")),
+                ).firstTerminalResult()
+            assertTrue(result is AudioResult.Error)
+        }
+
+    @Test
+    fun `firstTerminalResult returns immediately terminal value without Loading`() =
+        runTest {
+            val result =
+                flowOf(AudioResult.Success(42)).firstTerminalResult()
+            assertTrue(result is AudioResult.Success)
+            assertEquals(42, (result as AudioResult.Success).data)
+        }
 }
 
 private data class PlaybackRestore(

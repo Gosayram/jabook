@@ -233,6 +233,7 @@ private class FakeSettingsRepository(
         sleepTimerShakeExtendEnabled: Boolean?,
         holdToBoostSpeed: Float?,
         autoPipEnabled: Boolean?,
+        headsetAutoplayEnabled: Boolean?,
         volumeBoost: String?,
         drcLevel: String?,
         speechCompressorLevel: String?,

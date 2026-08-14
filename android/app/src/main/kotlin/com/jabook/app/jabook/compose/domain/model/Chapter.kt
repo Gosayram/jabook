@@ -34,6 +34,8 @@ import kotlin.time.Duration.Companion.milliseconds
  * @property position Current playback position within this chapter
  * @property isCompleted Whether chapter has been fully played
  * @property isDownloaded Whether audio file is downloaded
+ * @property startMs In-file start offset for embedded chapters (null = whole file)
+ * @property endMs In-file end offset for embedded chapters (null = whole file/EOF)
  */
 @Immutable
 public data class Chapter(
@@ -47,6 +49,8 @@ public data class Chapter(
     val position: Duration,
     val isCompleted: Boolean,
     val isDownloaded: Boolean,
+    val startMs: Long? = null,
+    val endMs: Long? = null,
 ) {
     /**
      * Remaining duration in this chapter.
@@ -112,6 +116,8 @@ public fun ChapterEntity.toChapter(): Chapter =
         position = position.milliseconds,
         isCompleted = isCompleted,
         isDownloaded = isDownloaded,
+        startMs = startPositionMs,
+        endMs = endPositionMs,
     )
 
 /**
@@ -129,6 +135,8 @@ public fun Chapter.toEntity(): ChapterEntity =
         position = position.inWholeMilliseconds,
         isCompleted = isCompleted,
         isDownloaded = isDownloaded,
+        startPositionMs = startMs,
+        endPositionMs = endMs,
     )
 
 /**

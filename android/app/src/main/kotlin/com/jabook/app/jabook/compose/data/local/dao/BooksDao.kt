@@ -253,26 +253,37 @@ public interface BooksDao {
         val chaptersByBook = chapters.groupBy(ChapterEntity::bookId)
         books.forEach { scannedBook ->
             val existingChapters = getChaptersForScan(scannedBook.id)
-            val existingByFileUrl = existingChapters.filter { !it.fileUrl.isNullOrBlank() }.associateBy { it.fileUrl }
+            // Embedded M4B chapters share one file path, so merge keys must include the
+            // in-file start offset; a whole-file row (null start) never matches a segment.
+            val existingByKey =
+                existingChapters
+                    .filter { !it.fileUrl.isNullOrBlank() }
+                    .associateBy { chapterMergeKey(it.fileUrl, it.startPositionMs) }
             val scannedChapters = chaptersByBook[scannedBook.id].orEmpty()
-            val newIndexByFileUrl = scannedChapters.filter { !it.fileUrl.isNullOrBlank() }.associate { it.fileUrl to it.chapterIndex }
+            val newIndexByKey =
+                scannedChapters
+                    .filter { !it.fileUrl.isNullOrBlank() }
+                    .associate { chapterMergeKey(it.fileUrl, it.startPositionMs) to it.chapterIndex }
             val indexMapping =
                 existingChapters
                     .mapNotNull { existing ->
-                        newIndexByFileUrl[existing.fileUrl]?.let { newIndex -> existing.chapterIndex to newIndex }
+                        newIndexByKey[chapterMergeKey(existing.fileUrl, existing.startPositionMs)]
+                            ?.let { newIndex -> existing.chapterIndex to newIndex }
                     }.toMap()
             val obsoleteChapterIndexes =
                 existingChapters
-                    .filter { it.fileUrl !in newIndexByFileUrl }
+                    .filter { chapterMergeKey(it.fileUrl, it.startPositionMs) !in newIndexByKey }
                     .map(ChapterEntity::chapterIndex)
             val mergedChapters =
                 scannedChapters.map { scanned ->
-                    existingByFileUrl[scanned.fileUrl]?.let { existing ->
+                    existingByKey[chapterMergeKey(scanned.fileUrl, scanned.startPositionMs)]?.let { existing ->
                         scanned.copy(
                             id = existing.id,
                             position = existing.position,
                             isCompleted = existing.isCompleted,
                             lufsValue = existing.lufsValue,
+                            startPositionMs = scanned.startPositionMs,
+                            endPositionMs = scanned.endPositionMs,
                         )
                     } ?: scanned
                 }
@@ -295,6 +306,11 @@ public interface BooksDao {
             }
         }
     }
+
+    private fun chapterMergeKey(
+        fileUrl: String?,
+        startPositionMs: Long?,
+    ): String = "$fileUrl#${startPositionMs ?: -1L}"
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     public suspend fun insertScannedBooks(books: List<BookEntity>)

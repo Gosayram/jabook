@@ -283,6 +283,16 @@ public fun AudioSettingsScreen(
                 smallSpacing = smallSpacing,
             )
 
+            SettingsSwitchItem(
+                title = stringResource(R.string.headset_autoplay_title),
+                subtitle = stringResource(R.string.headset_autoplay_desc),
+                checked = protoSettings.headsetAutoplayEnabled,
+                onCheckedChange = { viewModel.updateAudioSettings(headsetAutoplayEnabled = it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
             // Audio Quality (Phase 1.2 features)
             HorizontalDivider()
             SettingsSection(

@@ -17,7 +17,6 @@ package com.jabook.app.jabook.audio
 import android.content.Context
 import android.content.Intent
 import android.hardware.Sensor
-import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.PowerManager
@@ -32,7 +31,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.math.sqrt
 
 /**
  * Manages sleep timer functionality.
@@ -76,41 +74,17 @@ internal class SleepTimerManager(
     // Shake to Extend
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val accelerometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-    private var lastShakeTime: Long = 0L
     private var isTimerExtensionInProgress: Boolean = false
     private var isShakeListenerRegistered: Boolean = false
-    private val shakeThreshold = 1.6f // g-force threshold
-    private val shakeDebounceMs = 2000L
 
-    private val shakeListener =
-        object : SensorEventListener {
-            override fun onSensorChanged(event: SensorEvent?) {
-                if (event == null) return
-
-                val x = event.values[0]
-                val y = event.values[1]
-                val z = event.values[2]
-
-                // Normalize by gravity
-                val gX = x / SensorManager.GRAVITY_EARTH
-                val gY = y / SensorManager.GRAVITY_EARTH
-                val gZ = z / SensorManager.GRAVITY_EARTH
-
-                // Calculate gForce
-                val gForce = sqrt(gX * gX + gY * gY + gZ * gZ)
-
-                if (gForce > shakeThreshold) {
-                    handleShakeDetected(System.currentTimeMillis())
-                }
-            }
-
-            override fun onAccuracyChanged(
-                sensor: Sensor?,
-                accuracy: Int,
-            ) {
-                // Not used
-            }
-        }
+    // Injectable clock so tests can drive the detector deterministically.
+    private var shakeClockMillis: Long = 0L
+    private val shakeDetector =
+        ImprovedShakeDetector(
+            clockMs = { shakeClockMillis },
+            onShakeDetected = { extendTimer() },
+        )
+    private val shakeSensorListener: SensorEventListener = shakeDetector.asListener()
 
     companion object {
         public const val ACTION_SLEEP_TIMER_EXPIRED = "com.jabook.app.jabook.audio.SLEEP_TIMER_EXPIRED"
@@ -367,7 +341,8 @@ internal class SleepTimerManager(
             return
         }
         if (accelerometer != null) {
-            sensorManager.registerListener(shakeListener, accelerometer, SensorManager.SENSOR_DELAY_UI)
+            shakeDetector.reset()
+            sensorManager.registerListener(shakeSensorListener, accelerometer, SensorManager.SENSOR_DELAY_UI)
             isShakeListenerRegistered = true
             LogUtils.d("AudioPlayerService", "Shake listener registered")
         }
@@ -377,19 +352,17 @@ internal class SleepTimerManager(
         if (!isShakeListenerRegistered) {
             return
         }
-        sensorManager.unregisterListener(shakeListener)
+        sensorManager.unregisterListener(shakeSensorListener)
         isShakeListenerRegistered = false
         LogUtils.d("AudioPlayerService", "Shake listener unregistered")
     }
 
-    private fun handleShakeDetected(nowMillis: Long) {
-        if (lastShakeTime != 0L && nowMillis - lastShakeTime <= shakeDebounceMs) return
-        lastShakeTime = nowMillis
-        extendTimer()
-    }
-
     internal fun triggerShakeForTesting(nowMillis: Long) {
-        handleShakeDetected(nowMillis)
+        shakeClockMillis = nowMillis
+        // Detector requires minShakeCount jolts within its window; deliver both at once.
+        val jolt = SensorManager.GRAVITY_EARTH * (ImprovedShakeDetector.DEFAULT_THRESHOLD + 1f)
+        shakeDetector.processAccelerometer(0f, 0f, jolt)
+        shakeDetector.processAccelerometer(0f, 0f, jolt)
     }
 
     private fun extendTimer() {

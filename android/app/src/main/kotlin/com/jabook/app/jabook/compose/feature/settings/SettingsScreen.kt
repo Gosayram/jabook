@@ -1379,7 +1379,7 @@ public fun SettingsScreen(
                         label = { Text(stringResource(R.string.coverModeCard)) },
                         modifier =
                             Modifier.semantics {
-                                role = Role.Checkbox
+                                role = Role.RadioButton
                                 selected = protoSettings.playerCoverMode == 0
                             },
                     )
@@ -1389,7 +1389,7 @@ public fun SettingsScreen(
                         label = { Text(stringResource(R.string.coverModeVinyl)) },
                         modifier =
                             Modifier.semantics {
-                                role = Role.Checkbox
+                                role = Role.RadioButton
                                 selected = protoSettings.playerCoverMode == 1
                             },
                     )

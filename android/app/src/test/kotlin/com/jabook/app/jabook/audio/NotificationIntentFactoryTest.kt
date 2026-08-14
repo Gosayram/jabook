@@ -28,4 +28,25 @@ class NotificationIntentFactoryTest {
     fun `player notification route is absent without a book`() {
         assertNull(playerNotificationRoute(" "))
     }
+
+    @Test
+    fun `route encodes special characters in book id`() {
+        val route = playerNotificationRoute("book 1/2&3")
+        assertEquals("jabook://player/book%201%2F2%263", route)
+    }
+
+    @Test
+    fun `route returns null for blank id`() {
+        assertNull(playerNotificationRoute(""))
+    }
+
+    @Test
+    fun `route returns null for null id`() {
+        assertNull(playerNotificationRoute(null))
+    }
+
+    @Test
+    fun `route handles normal alphanumeric id`() {
+        assertEquals("jabook://player/abc123", playerNotificationRoute("abc123"))
+    }
 }

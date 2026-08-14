@@ -20,6 +20,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.cancel
 
 /**
  * Slim coordinator for ExoPlayer event listening.
@@ -64,6 +65,14 @@ internal class PlayerListener(
     coroutineScope: kotlinx.coroutines.CoroutineScope? = null,
     private val onIsPlayingChanged: ((Boolean) -> Unit)? = null,
 ) : Player.Listener {
+    private var ownedScope: kotlinx.coroutines.CoroutineScope? = null
+
+    private val managedScope: kotlinx.coroutines.CoroutineScope =
+        coroutineScope
+            ?: kotlinx.coroutines
+                .CoroutineScope(kotlinx.coroutines.Dispatchers.Default)
+                .also { ownedScope = it }
+
     // --- Captured callbacks for direct use in listener overrides ---
     private val capturedActivePlayer: () -> ExoPlayer = getActivePlayer
     private val capturedSavePosition: () -> Unit = saveCurrentPosition
@@ -79,7 +88,7 @@ internal class PlayerListener(
     private val bookCompletionTracker: BookCompletionTracker =
         BookCompletionTracker(
             context = context,
-            scope = coroutineScope ?: kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default),
+            scope = managedScope,
             getActivePlayer = { getActivePlayer() },
             getIsBookCompleted = { getIsBookCompleted() },
             setIsBookCompleted = { setIsBookCompleted(it) },
@@ -106,7 +115,7 @@ internal class PlayerListener(
             context = context,
             setEmbeddedArtworkPath = setEmbeddedArtworkPath,
             getActivePlayer = capturedActivePlayer,
-            scope = coroutineScope ?: kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default),
+            scope = managedScope,
         )
 
     private val trackTransitionCoordinator: TrackTransitionCoordinator =
@@ -283,5 +292,6 @@ internal class PlayerListener(
         bookCompletionTracker.stopPositionCheck()
         playerErrorHandler.cancelPendingRetry()
         audioFocusDuckingController.release()
+        ownedScope?.cancel()
     }
 }

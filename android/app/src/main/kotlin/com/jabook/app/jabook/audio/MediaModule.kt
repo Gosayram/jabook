@@ -375,7 +375,7 @@ public object MediaModule {
     @OptIn(UnstableApi::class)
     public fun createTrackSelectionParameters(
         settings: AudioProcessingSettings,
-        hasProcessors: Boolean = AudioProcessorFactory.createProcessorChain(settings).processors.isNotEmpty(),
+        hasProcessors: Boolean = AudioProcessingSettings.hasAnyProcessorEnabled(settings),
     ): TrackSelectionParameters {
         val isCrossfadeEnabled = settings.isCrossfadeEnabled
 
@@ -505,6 +505,7 @@ public object AudioDataModule {
         builder.addMigrations(AudioDatabaseMigrations.MIGRATION_3_4)
         builder.addMigrations(AudioDatabaseMigrations.MIGRATION_4_5)
         builder.addMigrations(AudioDatabaseMigrations.MIGRATION_5_6)
+        builder.addMigrations(AudioDatabaseMigrations.MIGRATION_6_7)
 
         return builder.build()
     }
@@ -535,12 +536,6 @@ public object AudioRepositoryModule {
     public fun provideListeningSessionDao(
         database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
     ): com.jabook.app.jabook.audio.data.local.dao.ListeningSessionDao = database.listeningSessionDao()
-
-    @Provides
-    @Singleton
-    public fun provideLufsCacheDao(
-        database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
-    ): com.jabook.app.jabook.audio.data.local.dao.LufsCacheDao = database.lufsCacheDao()
 
     @Provides
     @Singleton

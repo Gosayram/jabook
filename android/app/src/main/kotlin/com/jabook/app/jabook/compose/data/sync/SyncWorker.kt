@@ -221,6 +221,15 @@ public class SyncWorker
                     val coverFile = java.io.File(coverDir, fileName)
 
                     if (!coverFile.exists()) {
+                        val uriScheme =
+                            android.net.Uri
+                                .parse(coverUrl)
+                                .scheme
+                                ?.lowercase()
+                        if (uriScheme != "http" && uriScheme != "https") {
+                            logger.w { "Skipping cover for ${book.title}: unsupported scheme '$uriScheme' in $coverUrl" }
+                            continue
+                        }
                         val request = Request.Builder().url(coverUrl).build()
                         coverDownloadClient.newCall(request).execute().use { response ->
                             check(response.isSuccessful) { "Cover request failed: HTTP ${response.code}" }

@@ -70,22 +70,14 @@ public class SleepTimerRepositoryImpl
             // Initialize MediaController for service access
             initMediaController()
 
-            // Poll service for timer state with adaptive polling interval
-            // Poll more frequently when timer is active, less when idle
+            // Poll service for timer state with adaptive polling interval.
+            // Poll fast only while a timer is believed active; idle heartbeat is slow
+            // (60s) to avoid constant IPC when no timer is running.
             scope.launch {
                 var lastState: SleepTimerState = SleepTimerState.Idle
                 while (isActive) {
-                    val newState = updateTimerState() // This is now suspend
-                    // Adaptive polling: faster when active, slower when idle
-                    val delayMs =
-                        when {
-                            newState is SleepTimerState.Active -> 1000L // 1 second when active
-                            newState is SleepTimerState.EndOfChapter -> 1000L // 1 second for end of chapter
-                            newState is SleepTimerState.EndOfTrack -> 1000L // 1 second for end of track
-                            // Immediate check when transitioning to idle
-                            lastState !is SleepTimerState.Idle && newState is SleepTimerState.Idle -> 1000L
-                            else -> 5000L // 5 seconds when idle
-                        }
+                    val newState = updateTimerState()
+                    val delayMs = computePollDelayMs(lastState, newState)
                     lastState = newState
                     delay(delayMs)
                 }
@@ -120,10 +112,13 @@ public class SleepTimerRepositoryImpl
                         } catch (e: InterruptedException) {
                             Thread.currentThread().interrupt()
                             logger.e({ "MediaController initialization interrupted" }, e)
+                            releaseMediaController()
                         } catch (e: TimeoutException) {
                             logger.e({ "Timed out while initializing MediaController" }, e)
+                            releaseMediaController()
                         } catch (e: ExecutionException) {
                             logger.e({ "Failed to initialize MediaController" }, e)
+                            releaseMediaController()
                         }
                     },
                     ContextCompat.getMainExecutor(context),
@@ -136,10 +131,13 @@ public class SleepTimerRepositoryImpl
         }
 
         private fun releaseMediaController() {
-            mediaController?.release()
+            // Idempotent and reconnect-safe: releaseFuture cancels/ignores an
+            // already-completed future, and nulling both fields lets the next
+            // poll re-initialize the controller.
+            runCatching { mediaController?.release() }
             mediaController = null
-            mediaControllerFuture?.let {
-                MediaController.releaseFuture(it)
+            mediaControllerFuture?.let { future ->
+                runCatching { MediaController.releaseFuture(future) }
             }
             mediaControllerFuture = null
         }
@@ -184,6 +182,9 @@ public class SleepTimerRepositoryImpl
                     throw e
                 } catch (e: Exception) {
                     logger.e({ "Failed to get timer state via MediaController" }, e)
+                    // Controller is unusable (e.g. service died): drop it so the
+                    // next poll actually re-initializes instead of retrying a dead one.
+                    releaseMediaController()
                     SleepTimerState.Idle
                 }
 
@@ -364,6 +365,25 @@ public class SleepTimerRepositoryImpl
                     initialSeconds = initialSeconds,
                 )
             }
+
+            /** Poll interval while a timer is believed active (keeps remaining-time UI fresh). */
+            private const val ACTIVE_POLL_MS: Long = 1_000L
+
+            /** Slow heartbeat when idle — avoids constant IPC for a non-running timer. */
+            private const val IDLE_POLL_MS: Long = 60_000L
+
+            public fun computePollDelayMs(
+                lastState: SleepTimerState,
+                newState: SleepTimerState,
+            ): Long =
+                when {
+                    newState is SleepTimerState.Active -> ACTIVE_POLL_MS
+                    newState is SleepTimerState.EndOfChapter -> ACTIVE_POLL_MS
+                    newState is SleepTimerState.EndOfTrack -> ACTIVE_POLL_MS
+                    // Quick re-check right after an active timer disappears.
+                    lastState !is SleepTimerState.Idle -> ACTIVE_POLL_MS
+                    else -> IDLE_POLL_MS
+                }
 
             private const val PREFS_NAME: String = "sleep_timer_repository"
             private const val KEY_LAST_FIXED_DURATION_MINUTES: String = "last_fixed_duration_minutes"

@@ -246,6 +246,115 @@ class BooksDaoScanUpsertTest {
             assertEquals(0, book.currentChapterIndex)
         }
 
+    @Test
+    fun `scan replaces whole-file m4b chapter with embedded segments and resets progress`() =
+        runBlocking {
+            booksDao.insertBook(
+                BookEntity(
+                    id = "book",
+                    title = "Book",
+                    author = "Author",
+                    coverUrl = null,
+                    description = null,
+                    totalDuration = 1_000L,
+                    currentPosition = 900L,
+                    currentChapterIndex = 0,
+                    addedDate = 1L,
+                ),
+            )
+            chaptersDao.insertAll(
+                listOf(
+                    ChapterEntity("whole", "book", "Whole file", 0, 0, 1_000L, "book.m4b", position = 900L),
+                ),
+            )
+
+            booksDao.upsertScannedBooksWithChapters(
+                books =
+                    listOf(
+                        BookEntity(
+                            id = "book",
+                            title = "Book",
+                            author = "Author",
+                            coverUrl = null,
+                            description = null,
+                            totalDuration = 1_000L,
+                            addedDate = 1L,
+                        ),
+                    ),
+                chapters =
+                    listOf(
+                        ChapterEntity("seg-1", "book", "Chapter 1", 0, 0, 600L, "book.m4b", startPositionMs = 0L, endPositionMs = 600L),
+                        ChapterEntity("seg-2", "book", "Chapter 2", 1, 1, 400L, "book.m4b", startPositionMs = 600L, endPositionMs = 1_000L),
+                    ),
+            )
+
+            val chapters = chaptersDao.getChaptersByBookId("book")
+            assertEquals(2, chapters.size)
+            assertEquals(null, chaptersDao.getChapterById("whole"))
+            assertEquals(listOf(0L, 0L), chapters.map { it.position })
+            assertEquals(listOf(0L, 600L), chapters.map { it.startPositionMs })
+            assertEquals(listOf(600L, 1_000L), chapters.map { it.endPositionMs })
+            val book = requireNotNull(booksDao.getBookById("book"))
+            assertEquals(0L, book.currentPosition)
+            assertEquals(0, book.currentChapterIndex)
+        }
+
+    @Test
+    fun `rescan of embedded segments preserves playback state per segment`() =
+        runBlocking {
+            booksDao.insertBook(
+                BookEntity(
+                    id = "book",
+                    title = "Book",
+                    author = "Author",
+                    coverUrl = null,
+                    description = null,
+                    totalDuration = 1_000L,
+                    addedDate = 1L,
+                ),
+            )
+            chaptersDao.insertAll(
+                listOf(
+                    ChapterEntity(
+                        "seg-2",
+                        "book",
+                        "Chapter 2",
+                        1,
+                        1,
+                        400L,
+                        "book.m4b",
+                        position = 250L,
+                        startPositionMs = 600L,
+                        endPositionMs = 1_000L,
+                    ),
+                ),
+            )
+
+            booksDao.upsertScannedBooksWithChapters(
+                books =
+                    listOf(
+                        BookEntity(
+                            id = "book",
+                            title = "Book",
+                            author = "Author",
+                            coverUrl = null,
+                            description = null,
+                            totalDuration = 1_000L,
+                            addedDate = 1L,
+                        ),
+                    ),
+                chapters =
+                    listOf(
+                        ChapterEntity("new-1", "book", "Chapter 1", 0, 0, 600L, "book.m4b", startPositionMs = 0L, endPositionMs = 600L),
+                        ChapterEntity("new-2", "book", "Chapter 2", 1, 1, 400L, "book.m4b", startPositionMs = 600L, endPositionMs = 1_000L),
+                    ),
+            )
+
+            val chapter = requireNotNull(chaptersDao.getChapterById("seg-2"))
+            assertEquals(250L, chapter.position)
+            assertEquals(2, chaptersDao.getChaptersByBookId("book").size)
+        }
+
     private fun bookmark(
         id: String,
         chapterIndex: Int,

@@ -142,6 +142,9 @@ message UserPreferences {
   // Custom EQ bands in millibels (TASK-EQ-12)
   // 10 values, range -1200 to +1200, step 50
   repeated int32 custom_eq_bands = 63;
+
+  // Auto-resume playback when a wired headset is plugged in (default: off).
+  bool headset_autoplay_enabled = 64;
 }
 
 message SleepTimerState {

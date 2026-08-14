@@ -89,8 +89,9 @@ public class AudioOutputManager
         public fun stopMonitoring() {
             if (!isMonitoring) return
 
-            sensorManager.unregisterListener(this)
+            runCatching { sensorManager.unregisterListener(this) }
             isMonitoring = false
+            isAtEar = false
 
             // Reset state
             setAudioOutput(false) // Force speaker
@@ -186,15 +187,17 @@ public class AudioOutputManager
         }
 
         private fun acquireWakeLock() {
-            if (proximityWakeLock?.isHeld == false) {
+            val wakeLock = proximityWakeLock ?: return
+            if (!wakeLock.isHeld) {
                 // 4 hours timeout safety
-                proximityWakeLock.acquire(4 * 60 * 60 * 1000L)
+                runCatching { wakeLock.acquire(4 * 60 * 60 * 1000L) }
             }
         }
 
         private fun releaseWakeLock() {
-            if (proximityWakeLock?.isHeld == true) {
-                proximityWakeLock.release()
+            val wakeLock = proximityWakeLock ?: return
+            if (wakeLock.isHeld) {
+                runCatching { wakeLock.release() }
             }
         }
     }

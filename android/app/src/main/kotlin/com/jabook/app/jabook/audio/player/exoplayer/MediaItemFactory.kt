@@ -38,6 +38,22 @@ public object MediaItemFactory {
                 .setUri(data.uri)
                 .setMediaId(data.chapterId ?: data.uri.toString())
 
+        // Embedded M4B/MP4 chapters play as clipped segments of the one file.
+        if (data.clipStartPositionMs != null || data.clipEndPositionMs != null) {
+            val clipping =
+                MediaItem.ClippingConfiguration
+                    .Builder()
+                    .apply {
+                        if (data.clipStartPositionMs != null) {
+                            setStartPositionMs(data.clipStartPositionMs)
+                        }
+                        if (data.clipEndPositionMs != null) {
+                            setEndPositionMs(data.clipEndPositionMs)
+                        }
+                    }.build()
+            builder.setClippingConfiguration(clipping)
+        }
+
         // Set metadata if available
         val metadataBuilder =
             MediaMetadata

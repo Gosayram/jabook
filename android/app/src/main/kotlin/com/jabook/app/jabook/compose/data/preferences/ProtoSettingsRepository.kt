@@ -141,6 +141,7 @@ private class LegacySettingsRepository(
         sleepTimerShakeExtendEnabled: Boolean? = null,
         holdToBoostSpeed: Float? = null,
         autoPipEnabled: Boolean? = null,
+        headsetAutoplayEnabled: Boolean? = null,
         volumeBoost: String? = null,
         drcLevel: String? = null,
         speechCompressorLevel: String? = null,
@@ -170,6 +171,7 @@ private class LegacySettingsRepository(
             if (sleepTimerShakeExtendEnabled != null) builder.setSleepTimerShakeExtendEnabled(sleepTimerShakeExtendEnabled)
             if (holdToBoostSpeed != null) builder.setHoldToBoostSpeed(holdToBoostSpeed)
             if (autoPipEnabled != null) builder.setAutoPipEnabled(autoPipEnabled)
+            if (headsetAutoplayEnabled != null) builder.setHeadsetAutoplayEnabled(headsetAutoplayEnabled)
             if (volumeBoost != null) builder.setVolumeBoostLevel(volumeBoost)
             if (drcLevel != null) builder.setDrcLevel(drcLevel)
             if (speechCompressorLevel != null) builder.setSpeechCompressorLevel(speechCompressorLevel)
@@ -435,6 +437,7 @@ public interface SettingsRepository {
         sleepTimerShakeExtendEnabled: Boolean? = null,
         holdToBoostSpeed: Float? = null,
         autoPipEnabled: Boolean? = null,
+        headsetAutoplayEnabled: Boolean? = null,
         volumeBoost: String? = null,
         drcLevel: String? = null,
         speechCompressorLevel: String? = null,
@@ -602,6 +605,7 @@ public class ProtoSettingsRepository
             sleepTimerShakeExtendEnabled: Boolean?,
             holdToBoostSpeed: Float?,
             autoPipEnabled: Boolean?,
+            headsetAutoplayEnabled: Boolean?,
             volumeBoost: String?,
             drcLevel: String?,
             speechCompressorLevel: String?,
@@ -631,6 +635,7 @@ public class ProtoSettingsRepository
                 sleepTimerShakeExtendEnabled?.let { builder.setSleepTimerShakeExtendEnabled(it) }
                 holdToBoostSpeed?.let { builder.setHoldToBoostSpeed(it) }
                 autoPipEnabled?.let { builder.setAutoPipEnabled(it) }
+                headsetAutoplayEnabled?.let { builder.setHeadsetAutoplayEnabled(it) }
                 volumeBoost?.let { builder.setVolumeBoostLevel(it) }
                 drcLevel?.let { builder.setDrcLevel(it) }
                 speechCompressorLevel?.let { builder.setSpeechCompressorLevel(it) }

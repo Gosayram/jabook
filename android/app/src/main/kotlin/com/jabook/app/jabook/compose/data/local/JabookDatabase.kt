@@ -46,7 +46,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Current Jabook database schema version. Single source of truth for [Database]'s `version`
  * and crash-diagnostics reporting. Bump together with a new [MIGRATION] and a changelog line.
  */
-public const val JABOOK_DB_VERSION: Int = 29
+public const val JABOOK_DB_VERSION: Int = 30
 
 /**
  * The Room database for this app.
@@ -80,6 +80,7 @@ public const val JABOOK_DB_VERSION: Int = 29
  * Database version 27: Added eq_preset_override column to books table for per-book EQ preset override.
  * Database version 28: Added user_eq_presets table for saved custom EQ presets.
  * Database version 29: Added normalized_position column to bookmarks for re-scan-safe restore.
+ * Database version 30: Added start_position_ms/end_position_ms columns to chapters for embedded M4B/MP4 chapters.
  */
 @Database(
     entities = [

@@ -84,4 +84,12 @@ public object AudioDatabaseMigrations {
                 db.execSQL("DROP TABLE IF EXISTS chapter_metadata")
             }
         }
+
+    public val MIGRATION_6_7: Migration =
+        object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP INDEX IF EXISTS index_lufs_cache_book_id")
+                db.execSQL("DROP TABLE IF EXISTS lufs_cache")
+            }
+        }
 }

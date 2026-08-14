@@ -27,7 +27,12 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.jabook.app.jabook.audio.processors.BookLoudnessCompensator
+import com.jabook.app.jabook.audio.processors.LufsAnalysisWorker
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.capitalizeFirst
@@ -116,6 +121,9 @@ public class AudioPlayerService : MediaLibraryService() {
     // Book loudness compensation for consistent volume across books
     @Inject
     public lateinit var booksDao: BooksDao
+
+    @Inject
+    public lateinit var workManager: WorkManager
 
     internal val bookLoudnessCompensator: BookLoudnessCompensator = BookLoudnessCompensator()
 
@@ -576,7 +584,10 @@ public class AudioPlayerService : MediaLibraryService() {
         // Apply book loudness compensation when switching to a different book
         if (groupPath != null && groupPath != currentGroupPath) {
             val bookId = groupPath.substringAfterLast("/").takeIf { it.isNotBlank() } ?: groupPath
+            // ponytail: first play of an unanalyzed book gets no gain (lufsValue null);
+            // compensation kicks in on the next play after the background worker runs.
             bookLoudnessCompensator.applyCompensation(bookId, booksDao, playerServiceScope) { getActivePlayer() }
+            maybeScheduleLufsAnalysis(bookId)
         }
 
         // Crossfade to a different book if crossfade is enabled and currently playing
@@ -607,6 +618,33 @@ public class AudioPlayerService : MediaLibraryService() {
         ) ?: run {
             LogUtils.e("AudioPlayerService", "PlaylistManager not initialized")
             callback?.invoke(false, IllegalStateException("PlaylistManager not initialized"))
+        }
+    }
+
+    /**
+     * Enqueues background LUFS analysis for [bookId] when the book has not been
+     * analyzed yet. Unique work name per book with [ExistingWorkPolicy.KEEP]
+     * guarantees analysis runs at most once per book.
+     */
+    private fun maybeScheduleLufsAnalysis(bookId: String) {
+        playerServiceScope.launch(Dispatchers.IO) {
+            try {
+                if (booksDao.getBookById(bookId)?.lufsValue != null) return@launch
+                val request =
+                    OneTimeWorkRequestBuilder<LufsAnalysisWorker>()
+                        .setInputData(workDataOf(LufsAnalysisWorker.KEY_BOOK_ID to bookId))
+                        .build()
+                workManager.enqueueUniqueWork(
+                    "lufs_analysis_$bookId",
+                    ExistingWorkPolicy.KEEP,
+                    request,
+                )
+                LogUtils.i("AudioPlayerService", "Scheduled LUFS analysis for book=$bookId")
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                LogUtils.w("AudioPlayerService", "Failed to schedule LUFS analysis for book=$bookId: ${e.message}")
+            }
         }
     }
 

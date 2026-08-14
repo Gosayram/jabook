@@ -26,6 +26,7 @@ import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_21_22
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_22_23
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_26_27
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_28_29
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_29_30
 import com.jabook.app.jabook.compose.data.local.migration.createTopicsFts5Index
 import com.jabook.app.jabook.compose.data.local.migration.isMissingFts5Module
 import org.junit.After
@@ -614,5 +615,79 @@ class JabookDatabaseMigrationTest {
     fun `migration 28 to 29 version contract is correct`() {
         assertEquals(28, MIGRATION_28_29.startVersion)
         assertEquals(29, MIGRATION_28_29.endVersion)
+    }
+
+    @Test
+    fun `migration 29 to 30 adds nullable chapter offset columns and preserves rows`() {
+        db.execSQL(
+            """
+            CREATE TABLE chapters (
+                id TEXT PRIMARY KEY NOT NULL,
+                book_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                chapter_index INTEGER NOT NULL,
+                file_index INTEGER NOT NULL,
+                duration INTEGER NOT NULL,
+                file_url TEXT,
+                position INTEGER NOT NULL DEFAULT 0,
+                is_completed INTEGER NOT NULL DEFAULT 0,
+                is_downloaded INTEGER NOT NULL DEFAULT 0,
+                lufs_value REAL
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO chapters (id, book_id, title, chapter_index, file_index, duration, file_url)
+            VALUES ('c1', 'b1', 'Whole file', 0, 0, 90000, '/books/x.m4b')
+            """.trimIndent(),
+        )
+
+        MIGRATION_29_30.migrate(db)
+
+        assertTrue(hasColumn("chapters", "start_position_ms"))
+        assertTrue(hasColumn("chapters", "end_position_ms"))
+        db
+            .query(
+                "SELECT start_position_ms, end_position_ms, duration FROM chapters WHERE id = 'c1'",
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertTrue(cursor.isNull(0))
+                assertTrue(cursor.isNull(1))
+                assertEquals(90000L, cursor.getLong(2))
+            }
+    }
+
+    @Test
+    fun `migration 29 to 30 is idempotent`() {
+        db.execSQL(
+            """
+            CREATE TABLE chapters (
+                id TEXT PRIMARY KEY NOT NULL,
+                book_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                chapter_index INTEGER NOT NULL,
+                file_index INTEGER NOT NULL,
+                duration INTEGER NOT NULL,
+                file_url TEXT,
+                position INTEGER NOT NULL DEFAULT 0,
+                is_completed INTEGER NOT NULL DEFAULT 0,
+                is_downloaded INTEGER NOT NULL DEFAULT 0,
+                lufs_value REAL
+            )
+            """.trimIndent(),
+        )
+
+        MIGRATION_29_30.migrate(db)
+        MIGRATION_29_30.migrate(db)
+
+        assertTrue(hasColumn("chapters", "start_position_ms"))
+        assertTrue(hasColumn("chapters", "end_position_ms"))
+    }
+
+    @Test
+    fun `migration 29 to 30 version contract is correct`() {
+        assertEquals(29, MIGRATION_29_30.startVersion)
+        assertEquals(30, MIGRATION_29_30.endVersion)
     }
 }

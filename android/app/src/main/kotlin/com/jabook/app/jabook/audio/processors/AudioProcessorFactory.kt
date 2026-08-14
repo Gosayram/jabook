@@ -21,6 +21,8 @@ import com.jabook.app.jabook.util.LogUtils
 /**
  * Factory for creating chains of AudioProcessors based on audio settings.
  *
+ * ponytail: hot-swap via ProxyAudioProcessor was removed; recreate-on-settings-change is the accepted path
+ *
  * This factory manages the order and configuration of audio processors
  * for ExoPlayer. Processors are applied in a specific order to ensure
  * optimal audio quality.
@@ -253,6 +255,22 @@ public data class AudioProcessingSettings(
                 crossfadeDurationMs = 2000L,
                 crossfadeBetweenBooksMs = 500L,
             )
+
+        /**
+         * Lightweight check: does [settings] enable any audio processor?
+         *
+         * Mirrors the conditions in [AudioProcessorFactory.createProcessorChain] without
+         * allocating the processor objects. Used as a default for [MediaModule.hasProcessors].
+         */
+        public fun hasAnyProcessorEnabled(settings: AudioProcessingSettings): Boolean =
+            settings.normalizeVolume ||
+                settings.speechCompressorLevel != SpeechCompressorLevel.Off ||
+                settings.volumeBoostLevel != VolumeBoostLevel.Off ||
+                settings.drcLevel != DRCLevel.Off ||
+                settings.speechEnhancer ||
+                settings.autoVolumeLeveling ||
+                settings.skipSilence ||
+                settings.noiseGateLevel != NoiseGateLevel.Off
     }
 }
 
