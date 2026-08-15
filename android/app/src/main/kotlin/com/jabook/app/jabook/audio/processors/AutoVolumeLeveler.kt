@@ -94,7 +94,8 @@ public class AutoVolumeLeveler : AudioProcessor {
     override fun isActive(): Boolean = isActive
 
     // Input/output buffers
-    private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var queuedInputBuffer: ByteBuffer? = null
+    private var queuedInputCapacity: Int = 0
     private var queuedInputBytes = 0
     private var outputBuffer: ByteBuffer? = null
     private var inputEnded = false
@@ -105,13 +106,23 @@ public class AutoVolumeLeveler : AudioProcessor {
         }
 
         if (inputBuffer.hasRemaining()) {
-            val buffer = ByteBuffer.allocateDirect(inputBuffer.remaining())
-            buffer.order(ByteOrder.nativeOrder())
-            buffer.put(inputBuffer)
-            buffer.flip()
-            inputBuffers.add(buffer)
-            queuedInputBytes += buffer.remaining()
+            queuedInputBytes += inputBuffer.remaining()
+            ensureQueuedInputCapacity(inputBuffer.remaining())
+            queuedInputBuffer!!.put(inputBuffer)
         }
+    }
+
+    private fun ensureQueuedInputCapacity(additionalBytes: Int) {
+        val required = queuedInputBytes + additionalBytes
+        if (required <= queuedInputCapacity) return
+        val newCapacity = maxOf(required, queuedInputCapacity * 2, 4096)
+        val newBuffer = ByteBuffer.allocateDirect(newCapacity).order(ByteOrder.nativeOrder())
+        queuedInputBuffer?.let { old ->
+            old.flip()
+            newBuffer.put(old)
+        }
+        queuedInputBuffer = newBuffer
+        queuedInputCapacity = newCapacity
     }
 
     override fun queueEndOfStream() {
@@ -119,14 +130,11 @@ public class AutoVolumeLeveler : AudioProcessor {
     }
 
     override fun getOutput(): ByteBuffer {
-        if (!isActive || inputBuffers.isEmpty()) {
+        if (!isActive || queuedInputBytes == 0) {
             return EMPTY_BUFFER
         }
 
         val totalSize = queuedInputBytes
-        if (totalSize == 0) {
-            return EMPTY_BUFFER
-        }
 
         val preparedOutputBuffer =
             if (outputBuffer == null || outputBuffer!!.capacity() < totalSize) {
@@ -138,11 +146,12 @@ public class AutoVolumeLeveler : AudioProcessor {
                 outputBuffer
             } ?: return EMPTY_BUFFER
 
-        for (inputBuffer in inputBuffers) {
-            processBuffer(inputBuffer, preparedOutputBuffer)
+        queuedInputBuffer?.let { buf ->
+            buf.flip()
+            processBuffer(buf, preparedOutputBuffer)
         }
 
-        inputBuffers.clear()
+        queuedInputBuffer?.clear()
         queuedInputBytes = 0
         preparedOutputBuffer.flip()
 
@@ -287,14 +296,14 @@ public class AutoVolumeLeveler : AudioProcessor {
         }
     }
 
-    override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
+    override fun isEnded(): Boolean = inputEnded && queuedInputBytes == 0
 
     @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     override fun flush() {
         rmsBuffer.clear()
         rmsWeightedSum = 0.0f
         rmsWindowFrames = 0
-        inputBuffers.clear()
+        queuedInputBuffer?.clear()
         queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false

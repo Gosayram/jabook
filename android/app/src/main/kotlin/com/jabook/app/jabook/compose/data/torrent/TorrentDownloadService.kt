@@ -62,6 +62,7 @@ public class TorrentDownloadService : Service() {
         )
     private var wakeLock: PowerManager.WakeLock? = null
     private var hasObservedActiveDownload: Boolean = false
+    private val postedNotificationIds = mutableSetOf<Int>()
 
     private val foregroundStartPolicy =
         ForegroundServiceStartPolicy(
@@ -241,11 +242,21 @@ public class TorrentDownloadService : Service() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(NOTIFICATION_ID_SUMMARY, summaryNotification)
 
+        val currentIds = mutableSetOf(NOTIFICATION_ID_SUMMARY)
+
         // Update individual notifications
         downloads.forEach { (hash, download) ->
             val notification = notificationManager.createProgressNotification(download)
-            nm.notify(hash.hashCode(), notification)
+            val id = hash.hashCode()
+            nm.notify(id, notification)
+            currentIds.add(id)
         }
+
+        // Cancel notifications for removed/completed torrents
+        val staleIds = postedNotificationIds - currentIds
+        staleIds.forEach { nm.cancel(it) }
+        postedNotificationIds.clear()
+        postedNotificationIds.addAll(currentIds)
     }
 
     private fun updateForegroundServiceTypeIfNeeded(downloads: Map<String, TorrentDownload>) {

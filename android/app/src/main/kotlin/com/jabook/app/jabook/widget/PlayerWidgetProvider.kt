@@ -46,6 +46,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
 /**
@@ -98,6 +99,12 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             intent.action == "com.jabook.app.jabook.PLAYBACK_STATE_CHANGED" ||
             intent.action == "com.jabook.app.jabook.MEDIA_ITEM_CHANGED"
         ) {
+            // For periodic alarm: skip if nothing is playing to save battery
+            if (intent.action == ACTION_UPDATE_WIDGET && !isPlaybackActive(context)) {
+                cancelPeriodicUpdate(context)
+                return
+            }
+
             LogUtils.d(
                 "PlayerWidget",
                 WidgetObservabilityPolicy.providerMessage(
@@ -315,15 +322,16 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
     /**
      * Updates widget from MediaController.
+     * Controller reads must happen on main thread (Media3 requirement).
      */
-    private fun updateWidgetFromController(
+    private suspend fun updateWidgetFromController(
         context: Context,
         views: RemoteViews,
         controller: MediaController,
         widgetSize: WidgetSize,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
-    ) {
+    ) = withContext(Dispatchers.Main) {
         val isPlaying = controller.isPlaying
         val currentMediaItem = controller.currentMediaItem
         val shouldFallbackToService =
@@ -343,7 +351,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 ),
             )
             updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId)
-            return
+            return@withContext
         }
         val mediaMetadata = currentMediaItem?.mediaMetadata
 
@@ -372,7 +380,6 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         }
 
         // Get book ID from metadata or service
-        // For widget updates, we use async approach to avoid blocking
         val currentBookId = mediaMetadata?.extras?.getString("bookId")
 
         // Update progress (if present in layout)
@@ -400,7 +407,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             }
         views.setImageViewResource(R.id.widget_play_pause, playPauseIcon)
 
-        // Get repeat mode and playback speed
+        // Get repeat mode
         val repeatMode = controller.repeatMode
 
         // Update repeat button state (if present in layout)
@@ -409,9 +416,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             views.setImageViewResource(R.id.widget_repeat, repeatIcon)
         }
 
-        // If not in metadata, we'll get it asynchronously via custom command
-        // For now, use fallback to getInstance() for widget (widget updates are time-sensitive)
-        // TODO: Implement async custom command call for widget updates
+        // Get book ID from service if not in metadata
         val currentBookIdFromService =
             if (currentBookId == null) {
                 @Suppress("DEPRECATION")
@@ -697,6 +702,20 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
     }
 
     /**
+     * Checks if audio playback is currently active.
+     * Called on main thread (from onReceive).
+     */
+    private fun isPlaybackActive(context: Context): Boolean {
+        return try {
+            @Suppress("DEPRECATION")
+            val service = AudioPlayerService.getInstance()
+            service != null && service.isFullyInitialized() && service.isPlaying
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
      * Gets repeat icon based on repeat mode.
      */
     private fun getRepeatIcon(
@@ -967,21 +986,14 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    // ponytail: direct DB access — no DI needed, 30s interval makes cost negligible
+    // ponytail: single cached DB instance — avoids rebuilding Room DB every 30s
     private fun getBookProgress(
         context: Context,
         bookId: String,
     ): Pair<Long, Long>? {
         return try {
-            val db =
-                androidx.room.Room
-                    .databaseBuilder(
-                        context.applicationContext,
-                        JabookDatabase::class.java,
-                        DATABASE_NAME,
-                    ).build()
+            val db = getDatabase(context)
             val chapters = kotlinx.coroutines.runBlocking { db.chaptersDao().getChaptersByBookId(bookId) }
-            db.close()
             if (chapters.isEmpty()) return null
             val totalPosition = chapters.sumOf { if (it.isCompleted) it.duration else it.position.coerceAtMost(it.duration) }
             val totalDuration = chapters.sumOf { it.duration }
@@ -1045,6 +1057,21 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         private const val PREFS_KEY_DOMINANT_COLOR = "dominant_color"
         private const val PREFS_KEY_BOOK_ID = "last_book_id"
         private const val DATABASE_NAME = "jabook-database"
+
+        private var cachedDatabase: JabookDatabase? = null
+
+        private fun getDatabase(context: Context): JabookDatabase {
+            cachedDatabase?.let { return it }
+            val db =
+                androidx.room.Room
+                    .databaseBuilder(
+                        context.applicationContext,
+                        JabookDatabase::class.java,
+                        DATABASE_NAME,
+                    ).build()
+            cachedDatabase = db
+            return db
+        }
 
         /**
          * Requests widget update from anywhere in the app.

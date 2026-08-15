@@ -30,7 +30,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
@@ -46,9 +45,8 @@ public class AudioPlayerServiceInitializer(
     // The coroutines run in playerServiceScope which is cancelled in onDestroy.
     private var settingsSync: MediaSessionSettingsSync? = null
 
-    // Cached user preferences: read once on the cold init path, kept fresh by a
-    // collector in playerServiceScope. Playback getters read this synchronously
-    // instead of runBlocking on the main thread for every play() call.
+    // Cached user preferences: kept fresh by a collector in playerServiceScope.
+    // Playback getters read this synchronously instead of runBlocking on the main thread.
     @Volatile
     private var cachedUserPreferences: UserPreferences? = null
 
@@ -138,8 +136,14 @@ public class AudioPlayerServiceInitializer(
                     }
                 },
             )
-        kotlinx.coroutines.runBlocking {
-            service.sleepTimerManager?.restoreTimerState()
+        service.playerServiceScope.launch {
+            try {
+                service.sleepTimerManager?.restoreTimerState()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                LogUtils.w("AudioPlayerService", "Failed to restore sleep timer state", e)
+            }
         }
 
         // 4. PlaylistManager (Complex dependencies)
@@ -363,13 +367,8 @@ public class AudioPlayerServiceInitializer(
      * via a collector in playerServiceScope.
      */
     private fun startUserPreferencesCache() {
-        cachedUserPreferences =
-            try {
-                runBlocking { service.settingsRepository.userPreferences.first() }
-            } catch (e: Exception) {
-                LogUtils.w("AudioPlayerService", "Failed to read initial user preferences", e)
-                null
-            }
+        // Apply defaults immediately; the collector below corrects the value shortly after.
+        cachedUserPreferences = null
         service.playerServiceScope.launch {
             try {
                 service.settingsRepository.userPreferences.collect { cachedUserPreferences = it }

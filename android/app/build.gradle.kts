@@ -154,7 +154,7 @@ fun detectProtocClassifier(
 val protocClassifier = detectProtocClassifier(osName, osArch)
 val protoSourceDir = layout.projectDirectory.dir("src/main/proto")
 val generatedProtoDir = layout.buildDirectory.dir("generated/source/proto/main/java")
-val roomSchemaDir = layout.buildDirectory.dir("generated/room-schemas")
+val roomSchemaDir = layout.projectDirectory.dir("schemas")
 val protoInputFiles =
     fileTree(protoSourceDir) {
         include("**/*.proto")
@@ -400,7 +400,7 @@ androidComponents {
 
 // Configure KSP for Room and Hilt
 ksp {
-    arg("room.schemaLocation", roomSchemaDir.get().asFile.absolutePath)
+    arg("room.schemaLocation", roomSchemaDir.asFile.absolutePath)
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
@@ -751,8 +751,22 @@ tasks.register<org.gradle.testing.jacoco.tasks.JacocoReport>("jacocoTestReport")
     sourceDirectories.setFrom(files("src/main/kotlin"))
 
     // Include class files (excluding generated and test classes)
+    // Kotlin classes live in tmp/kotlin-classes; generated Java (Hilt, etc.) in intermediates/javac
     classDirectories.setFrom(
         files(
+            fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/betaDebug")) {
+                exclude(
+                    "**/R.class",
+                    "**/R\$*.class",
+                    "**/BuildConfig.*",
+                    "**/Manifest*.*",
+                    "**/*Test*.*",
+                    "**/*_Factory.*",
+                    "**/*_HiltModules.*",
+                    "**/Hilt_*.*",
+                    "android/**/*.*",
+                )
+            },
             fileTree(layout.buildDirectory.dir("intermediates/javac/betaDebug/classes")) {
                 exclude(
                     "**/R.class",
@@ -795,6 +809,19 @@ tasks.register<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jaco
 
     classDirectories.setFrom(
         files(
+            fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/betaDebug")) {
+                exclude(
+                    "**/R.class",
+                    "**/R\$*.class",
+                    "**/BuildConfig.*",
+                    "**/Manifest*.*",
+                    "**/*Test*.*",
+                    "**/*_Factory.*",
+                    "**/*_HiltModules.*",
+                    "**/Hilt_*.*",
+                    "android/**/*.*",
+                )
+            },
             fileTree(layout.buildDirectory.dir("intermediates/javac/betaDebug/classes")) {
                 exclude(
                     "**/R.class",

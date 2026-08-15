@@ -32,8 +32,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.audio.AudioPlayerLibrarySessionCallback.Companion.CUSTOM_COMMAND_FORWARD
 import com.jabook.app.jabook.audio.AudioPlayerLibrarySessionCallback.Companion.CUSTOM_COMMAND_REWIND
 import com.jabook.app.jabook.util.LogUtils
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 
 /**
  * Custom MediaNotification.Provider to handle "Minimal Notification" mode.
@@ -84,6 +83,24 @@ public class AudioPlayerNotificationProvider(
     // Callback to request notification rebuild from outside
     private var notificationCallback: MediaNotification.Provider.Callback? = null
     private var lastNotification: MediaNotification? = null
+
+    // Cached notification action slots — kept fresh by a collector in playerServiceScope
+    // so filterCustomLayout never blocks the main thread with a DataStore read.
+    @Volatile
+    private var cachedNotificationActionSlots: Set<Int>? = null
+
+    init {
+        service.playerServiceScope.launch {
+            try {
+                service.settingsRepository.userPreferences.collect { prefs ->
+                    val slots = prefs.notificationActionSlotsList
+                    cachedNotificationActionSlots = if (slots.isEmpty()) null else slots.toSet()
+                }
+            } catch (_: Exception) {
+                // keep default (null) on failure
+            }
+        }
+    }
 
     // Build the default provider with explicit channel configuration
     // Note: DefaultMediaNotificationProvider.Builder only supports setChannelId() in Media3
@@ -154,19 +171,7 @@ public class AudioPlayerNotificationProvider(
     private fun filterCustomLayout(customLayout: ImmutableList<CommandButton>): ImmutableList<CommandButton> {
         if (customLayout.isEmpty()) return customLayout
 
-        val preferredSlots =
-            try {
-                val slots =
-                    runBlocking {
-                        service.settingsRepository.userPreferences
-                            .first()
-                            .notificationActionSlotsList
-                    }
-                if (slots.isEmpty()) null else slots.toSet()
-            } catch (_: Exception) {
-                null
-            }
-
+        val preferredSlots = cachedNotificationActionSlots
         if (preferredSlots == null) return customLayout
 
         val filtered =

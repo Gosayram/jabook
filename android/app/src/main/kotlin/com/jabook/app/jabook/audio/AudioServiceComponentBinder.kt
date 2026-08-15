@@ -76,8 +76,14 @@ internal object AudioServiceComponentBinder {
                 },
                 isShakeToExtendEnabled = { cachedShakeToExtendEnabled },
             )
-        kotlinx.coroutines.runBlocking {
-            service.sleepTimerManager?.restoreTimerState()
+        service.playerServiceScope.launch {
+            try {
+                service.sleepTimerManager?.restoreTimerState()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                LogUtils.w("AudioPlayerService", "Failed to restore sleep timer state", e)
+            }
         }
 
         service.playlistManager =

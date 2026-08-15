@@ -38,6 +38,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -76,7 +78,7 @@ public class AudioPlayerController
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("AudioPlayerController")
-        private val scope = CoroutineScope(Dispatchers.Main)
+        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         private var mediaController: MediaController? = null
         private val chapterLoudnessPolicy =
             ChapterLoudnessTransitionPolicy(
@@ -1311,6 +1313,7 @@ public class AudioPlayerController
             mediaControllerFuture = null
             _connectionState.value = ConnectionState.DISCONNECTED
             chapterLoudnessPolicy.release()
+            scope.cancel()
         }
 
         private companion object {

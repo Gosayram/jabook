@@ -370,15 +370,16 @@ public class TorrentManager
                     Intent(context, TorrentDownloadService::class.java).apply {
                         action = TorrentDownloadService.ACTION_START
                     }
-                // Use ContextCompat for better compatibility
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                     androidx.core.content.ContextCompat
                         .startForegroundService(context, intent)
                 } else {
                     context.startService(intent)
                 }
+            } catch (e: android.app.ForegroundServiceStartNotAllowedException) {
+                // Android 12+ blocks FGS start from background — non-fatal, will retry on next user action
+                logger.w { "Cannot start FGS from background (Android 12+ restriction): ${e.message}" }
             } catch (e: IllegalStateException) {
-                // Service might already be running or context is invalid
                 logger.w { "Cannot start foreground service (may already be running): ${e.message}" }
             } catch (e: Exception) {
                 logger.e({ "Failed to start download service" }, e)

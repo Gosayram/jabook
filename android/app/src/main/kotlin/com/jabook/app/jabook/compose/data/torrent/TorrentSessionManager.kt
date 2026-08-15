@@ -64,6 +64,7 @@ import org.libtorrent4j.swig.error_code
 import org.libtorrent4j.swig.libtorrent
 import org.libtorrent4j.swig.settings_pack
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -84,8 +85,8 @@ public class TorrentSessionManager
 
         // Use SessionManager(false) like libretorrent to avoid automatic alert listener issues
         private var session: SessionManager? = null
-        private val torrents = mutableMapOf<String, TorrentHandle>()
-        private val topicIds = mutableMapOf<String, String>()
+        private val torrents = ConcurrentHashMap<String, TorrentHandle>()
+        private val topicIds = ConcurrentHashMap<String, String>()
         private var lastLibrarySyncTriggerAtMs: Long = 0L
 
         private val _downloadsFlow = MutableStateFlow<Map<String, TorrentDownload>>(emptyMap())
@@ -584,7 +585,7 @@ public class TorrentSessionManager
          * Pause all torrents
          */
         public fun pauseAll() {
-            torrents.values.forEach { it.pause() }
+            torrents.values.toList().forEach { it.pause() }
             updateDownloads()
         }
 
@@ -592,7 +593,7 @@ public class TorrentSessionManager
          * Resume all torrents
          */
         public fun resumeAll() {
-            torrents.values.forEach { it.resume() }
+            torrents.values.toList().forEach { it.resume() }
             updateDownloads()
         }
 
@@ -958,11 +959,14 @@ public class TorrentSessionManager
             }
         }
 
+        private var lastBlockFinishedUpdateTimeMs: Long = 0L
+        private var lastPieceFinishedUpdateTimeMs: Long = 0L
+
         private fun handleBlockFinished(alert: BlockFinishedAlert) {
-            // Update less frequently for performance
-            if (System.currentTimeMillis() % 1000 < 100) {
-                updateDownloads()
-            }
+            val now = System.currentTimeMillis()
+            if (now - lastBlockFinishedUpdateTimeMs < 1000L) return
+            lastBlockFinishedUpdateTimeMs = now
+            updateDownloads()
         }
 
         private fun handlePieceFinished(alert: PieceFinishedAlert) {
@@ -974,10 +978,10 @@ public class TorrentSessionManager
                     val pieceIndex = alert.pieceIndex()
                     logger.d { "Piece finished: hash=$hash, piece=$pieceIndex, progress=$progress%" }
                 }
-                // Update downloads less frequently for performance
-                if (System.currentTimeMillis() % 2000 < 200) {
-                    updateDownloads()
-                }
+                val now = System.currentTimeMillis()
+                if (now - lastPieceFinishedUpdateTimeMs < 2000L) return
+                lastPieceFinishedUpdateTimeMs = now
+                updateDownloads()
             } catch (e: Exception) {
                 logger.e({ "Error handling piece finished alert" }, e)
             }

@@ -180,6 +180,7 @@ internal class PlaybackEventProcessor(
 
         // Update last played timestamp when playback starts
         if (isPlaying && playbackState == Player.STATE_READY) {
+            PlayerWidgetProvider.schedulePeriodicUpdate(context)
             LogUtils.v("AudioPlayerService", "Playback started, position will be saved periodically")
             getCurrentBookId?.invoke()?.let { bookId ->
                 updateLastPlayedTimestamp?.invoke(bookId)

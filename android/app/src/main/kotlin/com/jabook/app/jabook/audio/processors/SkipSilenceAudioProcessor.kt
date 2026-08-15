@@ -54,7 +54,8 @@ public class SkipSilenceAudioProcessor(
     private var minSilenceFrames = 0
 
     // ---- Buffer management ----
-    private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var queuedInputBuffer: ByteBuffer? = null
+    private var queuedInputCapacity: Int = 0
     private var queuedInputBytes = 0
     private var outputBuffer: ByteBuffer? = null
     private var inputEnded = false
@@ -87,7 +88,7 @@ public class SkipSilenceAudioProcessor(
             )
         consecutiveSilentFrames = 0
         wasDroppingSilence = false
-        inputBuffers.clear()
+        queuedInputBuffer?.clear()
         queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
@@ -117,16 +118,22 @@ public class SkipSilenceAudioProcessor(
         if (!inputBuffer.hasRemaining()) {
             return
         }
-        val copy =
-            ByteBuffer
-                .allocateDirect(inputBuffer.remaining())
-                .order(ByteOrder.nativeOrder())
-                .apply {
-                    put(inputBuffer)
-                    flip()
-                }
-        inputBuffers.add(copy)
-        queuedInputBytes += copy.remaining()
+        queuedInputBytes += inputBuffer.remaining()
+        ensureQueuedInputCapacity(inputBuffer.remaining())
+        queuedInputBuffer!!.put(inputBuffer)
+    }
+
+    private fun ensureQueuedInputCapacity(additionalBytes: Int) {
+        val required = queuedInputBytes + additionalBytes
+        if (required <= queuedInputCapacity) return
+        val newCapacity = maxOf(required, queuedInputCapacity * 2, 4096)
+        val newBuffer = ByteBuffer.allocateDirect(newCapacity).order(ByteOrder.nativeOrder())
+        queuedInputBuffer?.let { old ->
+            old.flip()
+            newBuffer.put(old)
+        }
+        queuedInputBuffer = newBuffer
+        queuedInputCapacity = newCapacity
     }
 
     override fun queueEndOfStream() {
@@ -134,17 +141,18 @@ public class SkipSilenceAudioProcessor(
     }
 
     override fun getOutput(): ByteBuffer {
-        if (inputBuffers.isEmpty()) {
+        if (queuedInputBytes == 0) {
             return EMPTY_BUFFER
         }
 
-        if (!isActive || queuedInputBytes == 0) {
+        if (!isActive) {
             val passthrough =
                 ByteBuffer.allocateDirect(queuedInputBytes).order(ByteOrder.nativeOrder())
-            for (input in inputBuffers) {
-                passthrough.put(input)
+            queuedInputBuffer?.let { buf ->
+                buf.flip()
+                passthrough.put(buf)
             }
-            inputBuffers.clear()
+            queuedInputBuffer?.clear()
             queuedInputBytes = 0
             passthrough.flip()
             return passthrough
@@ -160,8 +168,9 @@ public class SkipSilenceAudioProcessor(
                 outputBuffer
             } ?: return EMPTY_BUFFER
 
-        for (input in inputBuffers) {
-            processBuffer(input, out)
+        queuedInputBuffer?.let { buf ->
+            buf.flip()
+            processBuffer(buf, out)
         }
 
         // Flush any remaining retain window (e.g. silence at end of buffer before next speech)
@@ -170,7 +179,7 @@ public class SkipSilenceAudioProcessor(
             wasDroppingSilence = false
         }
 
-        inputBuffers.clear()
+        queuedInputBuffer?.clear()
         queuedInputBytes = 0
         out.flip()
         return out
@@ -344,11 +353,11 @@ public class SkipSilenceAudioProcessor(
         totalSkippedFrames = 0L
     }
 
-    override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
+    override fun isEnded(): Boolean = inputEnded && queuedInputBytes == 0
 
     @Suppress("OVERRIDE_DEPRECATION")
     override fun flush() {
-        inputBuffers.clear()
+        queuedInputBuffer?.clear()
         queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
