@@ -18,7 +18,10 @@ import androidx.media3.common.Player
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class PositionTrackingResetPolicyTest {
     @Test
     fun `resets tracking on IDLE and BUFFERING states`() {

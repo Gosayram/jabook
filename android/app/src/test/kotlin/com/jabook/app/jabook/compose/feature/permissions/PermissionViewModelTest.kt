@@ -38,8 +38,11 @@ import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
 class PermissionViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var context: Context
@@ -69,7 +72,7 @@ class PermissionViewModelTest {
 
     @Test
     fun `hasStoragePermission is false when full access and fallback are both unavailable`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             whenever(permissionManager.hasStoragePermission()).thenReturn(false)
 
             val viewModel =
@@ -84,7 +87,7 @@ class PermissionViewModelTest {
 
     @Test
     fun `hasStoragePermission is true when fallback mode is enabled without full access`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             whenever(permissionManager.hasStoragePermission()).thenReturn(false)
             userDataFlow.value = UserData(storageFallbackEnabled = true)
 
@@ -100,7 +103,7 @@ class PermissionViewModelTest {
 
     @Test
     fun `enableStorageFallbackMode persists fallback and updates effective permission state`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             whenever(permissionManager.hasStoragePermission()).thenReturn(false)
             doAnswer {
                 userDataFlow.value = userDataFlow.value.copy(storageFallbackEnabled = true)

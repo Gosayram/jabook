@@ -24,6 +24,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for BookDisplayMode.
@@ -33,6 +35,7 @@ import org.junit.Test
  * - Grid cells configuration
  * - List cover sizes
  */
+@RunWith(RobolectricTestRunner::class)
 class BookDisplayModeTest {
     @Test
     fun `GRID_COMPACT is identified as grid mode`() {

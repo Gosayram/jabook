@@ -18,9 +18,12 @@ import androidx.media3.common.Player
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
+import org.robolectric.RobolectricTestRunner
 import org.mockito.kotlin.whenever
 
+@RunWith(RobolectricTestRunner::class)
 class BufferingEventTrackerTest {
     private lateinit var player: Player
     private lateinit var longRebuffers: MutableList<Pair<Long, Long>>

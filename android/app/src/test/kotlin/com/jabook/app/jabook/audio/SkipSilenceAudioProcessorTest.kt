@@ -26,7 +26,10 @@ import org.junit.Before
 import org.junit.Test
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class SkipSilenceAudioProcessorTest {
     private lateinit var processor: SkipSilenceAudioProcessor
 

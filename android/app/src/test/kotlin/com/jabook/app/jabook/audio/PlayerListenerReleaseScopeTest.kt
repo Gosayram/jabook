@@ -23,7 +23,10 @@ import kotlinx.coroutines.isActive
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.kotlin.mock
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class PlayerListenerReleaseScopeTest {
     @Test
     fun `release cancels owned scope when coroutineScope is null`() {

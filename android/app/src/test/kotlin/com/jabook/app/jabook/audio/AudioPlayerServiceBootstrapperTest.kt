@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.audio
 
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Minimal smoke tests for AudioPlayerServiceBootstrapper.
@@ -22,6 +24,7 @@ import org.junit.Test
  * dependencies internally, making full mocking impractical.
  * The core logic is tested via ForegroundNotificationCoordinatorTest.
  */
+@RunWith(RobolectricTestRunner::class)
 class AudioPlayerServiceBootstrapperTest {
     @Test
     fun `ForegroundStartResult enum has expected values`() {

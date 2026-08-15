@@ -30,8 +30,11 @@ import org.junit.Assert.assertNotNull
 import org.junit.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
 class PlayerStateRestoreHandlerTest {
     private val loggerFactory =
         object : LoggerFactory {

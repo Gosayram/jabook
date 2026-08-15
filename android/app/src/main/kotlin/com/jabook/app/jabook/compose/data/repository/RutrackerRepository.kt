@@ -54,9 +54,9 @@ public interface RutrackerRepository {
      * Fetch topic details and save cover URL to database.
      *
      * @param topicId Topic ID
-     * @return Result indicating success or failure
+     * @return Result with the resolved cover URL when found, otherwise null
      */
-    public suspend fun fetchAndSaveCover(topicId: String): Result<Unit, AppError>
+    public suspend fun fetchAndSaveCover(topicId: String): Result<String?, AppError>
 
     /**
      * Get topic details.
@@ -77,6 +77,18 @@ public interface RutrackerRepository {
         topicId: String,
         page: Int,
     ): Result<RutrackerTopicDetails, AppError>
+
+    /**
+     * Search for audiobooks using indexed topics with optional network refresh.
+     *
+     * @param query Search query
+     * @param forumIds Optional forum IDs filter
+     * @return Flow of search results
+     */
+    public fun searchAudiobooksFlow(
+        query: String,
+        forumIds: String? = null,
+    ): Flow<Result<List<RutrackerSearchResult>, AppError>>
 }
 
 /**
@@ -168,10 +180,8 @@ public class RutrackerRepositoryImpl
                 }
             }
 
-        override suspend fun fetchAndSaveCover(topicId: String): Result<Unit, AppError> =
+        override suspend fun fetchAndSaveCover(topicId: String): Result<String?, AppError> =
             try {
-                // Re-use existing getTopicDetails which fetches HTML and parses it
-                // This extracts the cover URL inside RutrackerParser
                 val result = getTopicDetails(topicId)
 
                 when (result) {
@@ -179,14 +189,12 @@ public class RutrackerRepositoryImpl
                         val coverUrl = result.data.coverUrl
                         if (!coverUrl.isNullOrBlank()) {
                             offlineSearchDao.updateCoverUrl(topicId, coverUrl)
-                            Result.Success(Unit)
+                            Result.Success(coverUrl)
                         } else {
-                            Result.Success(Unit) // Success even if no cover, just nothing to save
+                            Result.Success(null)
                         }
                     }
-                    is Result.Error -> {
-                        Result.Error(result.error)
-                    }
+                    is Result.Error -> Result.Error(result.error)
                     is Result.Loading -> Result.Loading()
                 }
             } catch (e: CancellationException) {
@@ -310,4 +318,57 @@ public class RutrackerRepositoryImpl
                 Result.Error(e.toAppError())
             }
         }
+
+        override fun searchAudiobooksFlow(
+            query: String,
+            forumIds: String?,
+        ): Flow<Result<List<RutrackerSearchResult>, AppError>> =
+            flow {
+                try {
+                    val indexSize = offlineSearchDao.getTopicCount()
+
+                    if (indexSize > 0) {
+                        val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
+                        val args = ArrayList<Any>()
+                        val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+
+                        if (tokens.isEmpty()) {
+                            emit(Result.Success(emptyList()))
+                            return@flow
+                        }
+
+                        tokens.forEachIndexed { index, token ->
+                            if (index > 0) sqlBuilder.append(" AND ")
+                            sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
+                            val likePattern: String = "%$token%"
+                            args.add(likePattern)
+                            args.add(likePattern)
+                        }
+
+                        sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
+
+                        val simpleQuery =
+                            androidx.sqlite.db.SimpleSQLiteQuery(
+                                sqlBuilder.toString(),
+                                args.toArray(),
+                            )
+
+                        offlineSearchDao
+                            .searchIndexedTopicsRaw(simpleQuery)
+                            .map { entities ->
+                                val dtoResults = entities.map { it.toSearchResult() }
+                                val domainResults = dtoResults.toDomainFromIndex()
+                                Result.Success(domainResults)
+                            }.collect {
+                                emit(it)
+                            }
+                    } else {
+                        emit(Result.Success(emptyList()))
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    emit(Result.Error(e.toAppError()))
+                }
+            }
     }

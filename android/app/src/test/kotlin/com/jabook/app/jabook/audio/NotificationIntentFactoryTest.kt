@@ -17,7 +17,10 @@ package com.jabook.app.jabook.audio
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class NotificationIntentFactoryTest {
     @Test
     fun `player notification route includes the current book id`() {

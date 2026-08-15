@@ -17,7 +17,10 @@ package com.jabook.app.jabook.audio
 import androidx.media3.session.MediaConstants
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class CompletionStatusHelperTest {
     @Test
     fun `calculateCompletionPercentage returns 0 for zero duration`() {

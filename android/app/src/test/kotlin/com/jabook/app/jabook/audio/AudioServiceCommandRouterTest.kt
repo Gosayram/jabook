@@ -19,7 +19,10 @@ import org.junit.Test
 import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class AudioServiceCommandRouterTest {
     @Test
     fun `stop cancels crossfade before stopping active player`() {

@@ -149,7 +149,15 @@ public interface BooksRepository {
         speed: Float,
     )
 
-/**
+    /**
+     * Gets the pre-computed LUFS loudness value for a chapter, or null if not yet analyzed.
+     */
+    public suspend fun getChapterLufsValue(
+        bookId: String,
+        chapterIndex: Int,
+    ): Double?
+
+    /**
      * Checks if a book exists by its source URL.
      */
     public fun getBookBySourceUrlFlow(sourceUrl: String): Flow<Book?>

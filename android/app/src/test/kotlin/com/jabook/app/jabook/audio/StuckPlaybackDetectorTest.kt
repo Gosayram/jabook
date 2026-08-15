@@ -18,10 +18,13 @@ import androidx.media3.common.Player
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class StuckPlaybackDetectorTest {
     private lateinit var player: Player
     private lateinit var unrecoverableEvents: MutableList<Unit>

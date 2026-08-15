@@ -49,7 +49,7 @@ public class SyncWorker
         private val offlineSearchDao: com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao,
         private val torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository,
         private val booksDao: com.jabook.app.jabook.compose.data.local.dao.BooksDao,
-        private val rutrackerRepository: com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository,
+        private val rutrackerRepository: com.jabook.app.jabook.compose.data.repository.RutrackerRepository,
         private val settingsRepository: SettingsRepository,
         private val networkMonitor: NetworkMonitor,
         @param:javax.inject.Named("coverDownload") private val coverDownloadClient: OkHttpClient,
@@ -130,8 +130,8 @@ public class SyncWorker
                     // Fetch details from RuTracker
                     val result = rutrackerRepository.getTopicDetails(topicId)
 
-                    if (result.isSuccess) {
-                        val details = result.getOrNull() ?: continue
+                    if (result is com.jabook.app.jabook.compose.domain.model.Result.Success) {
+                        val details = result.data
 
                         // Find matching book by path
                         // Ideally we would have a better link, but path is what we have for now

@@ -20,10 +20,6 @@ subprojects {
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
 
-subprojects {
-    project.evaluationDependsOn(":app")
-}
-
 // Ensure archive-producing tasks are byte-for-byte reproducible.
 subprojects {
     tasks.withType<AbstractArchiveTask>().configureEach {

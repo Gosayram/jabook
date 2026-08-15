@@ -14,11 +14,14 @@
 
 package com.jabook.app.jabook.audio
 
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class SuspendableCountDownTimerTest {
     private lateinit var ticks: MutableList<Long>
     private lateinit var finishes: MutableList<Unit>
@@ -91,8 +94,7 @@ class SuspendableCountDownTimerTest {
         val timer = createTimer(0L)
         timer.start()
 
-        // Coroutine finishes asynchronously on Dispatchers.Default — wait briefly
-        runBlocking { kotlinx.coroutines.delay(100) }
+        waitForFinishes(1)
         assertEquals(1, finishes.size)
     }
 
@@ -102,11 +104,22 @@ class SuspendableCountDownTimerTest {
     fun `timer restarts on the reused scope after pause`() {
         val timer = createTimer(0L)
         timer.start()
-        runBlocking { kotlinx.coroutines.delay(100) }
+        waitForFinishes(1)
         timer.pause()
         timer.start()
-        runBlocking { kotlinx.coroutines.delay(100) }
+        waitForFinishes(2)
         assertEquals(2, finishes.size)
         timer.cancel()
+    }
+
+    private fun waitForFinishes(expected: Int, timeoutMs: Long = 10_000L) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (finishes.size < expected && System.currentTimeMillis() < deadline) {
+            Thread.sleep(50)
+        }
+        assertTrue(
+            "Expected $expected finishes but got ${finishes.size}",
+            finishes.size >= expected,
+        )
     }
 }

@@ -15,7 +15,9 @@
 package com.jabook.app.jabook.compose.feature.search.rutracker
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.domain.model.AppError
+import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -48,7 +50,7 @@ public class CoverLoader
         private val repository: RutrackerRepository,
         private val loggerFactory: LoggerFactory,
         private val ioDispatcher: CoroutineDispatcher,
-        private val fetchCover: suspend (String) -> Result<String?> = { topicId ->
+        private val fetchCover: suspend (String) -> Result<String?, AppError> = { topicId ->
             repository.fetchAndSaveCover(topicId)
         },
     ) {
@@ -124,28 +126,28 @@ public class CoverLoader
             try {
                 val result = fetchCover(topicId)
 
-                if (result.isSuccess) {
-                    val resolvedCoverUrl = result.getOrNull()?.takeIf { it.isNotBlank() }
-                    if (resolvedCoverUrl != null) {
-                        _coverLoadedEvents.tryEmit(
-                            CoverLoadedEvent(
-                                topicId = topicId,
-                                coverUrl = resolvedCoverUrl,
-                            ),
-                        )
-                        loadedCache.add(topicId)
-                        retryAttempts.remove(topicId)
-                    } else {
-                        // Treat empty successful response as transient miss; retry a few times.
-                        scheduleRetry(topicId)
+                when (result) {
+                    is Result.Success -> {
+                        val resolvedCoverUrl = result.data?.takeIf { it.isNotBlank() }
+                        if (resolvedCoverUrl != null) {
+                            _coverLoadedEvents.tryEmit(
+                                CoverLoadedEvent(
+                                    topicId = topicId,
+                                    coverUrl = resolvedCoverUrl,
+                                ),
+                            )
+                            loadedCache.add(topicId)
+                            retryAttempts.remove(topicId)
+                        } else {
+                            scheduleRetry(topicId)
+                        }
                     }
-                } else {
-                    scheduleRetry(topicId)
+                    is Result.Error -> scheduleRetry(topicId)
+                    is Result.Loading -> {}
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Log error
                 logger.e(e) { "Error loading cover for $topicId" }
                 scheduleRetry(topicId)
             } finally {

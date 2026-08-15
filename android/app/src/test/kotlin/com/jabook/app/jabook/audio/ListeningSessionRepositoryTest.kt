@@ -19,10 +19,13 @@ import com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class ListeningSessionRepositoryTest {
     private val dao: ListeningSessionDao = mock()
     private val repository = ListeningSessionRepository(dao)

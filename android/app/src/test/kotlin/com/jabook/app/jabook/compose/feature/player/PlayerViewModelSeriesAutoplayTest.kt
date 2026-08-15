@@ -22,8 +22,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
 import kotlin.time.Duration.Companion.milliseconds
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
 class PlayerViewModelSeriesAutoplayTest {
     private val testBook =
         Book(

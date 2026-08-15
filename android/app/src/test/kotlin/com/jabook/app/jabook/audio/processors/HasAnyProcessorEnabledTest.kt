@@ -17,7 +17,10 @@ package com.jabook.app.jabook.audio.processors
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class HasAnyProcessorEnabledTest {
     @Test
     fun `defaults returns true because normalizeVolume is enabled`() {

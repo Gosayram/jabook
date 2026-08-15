@@ -33,7 +33,7 @@ import com.jabook.app.jabook.audio.MediaControllerExtensions
 import com.jabook.app.jabook.audio.processors.ChapterLoudnessTransitionPolicy
 import com.jabook.app.jabook.audio.processors.PitchCorrectionPolicy
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
+import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -74,7 +74,7 @@ public class AudioPlayerController
         @param:ApplicationContext private val context: Context,
         private val exoPlayer: ExoPlayer, // Keep for backward compatibility during migration
         private val userPreferencesRepository: com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository,
-        private val chaptersDao: ChaptersDao,
+        private val booksRepository: BooksRepository,
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("AudioPlayerController")
@@ -83,7 +83,9 @@ public class AudioPlayerController
         private val chapterLoudnessPolicy =
             ChapterLoudnessTransitionPolicy(
                 player = exoPlayer,
-                chaptersDao = chaptersDao,
+                getChapterLufs = { bookId, chapterIndex ->
+                    booksRepository.getChapterLufsValue(bookId, chapterIndex)
+                },
                 scope = scope,
             )
         private var mediaControllerFuture: ListenableFuture<MediaController>? = null

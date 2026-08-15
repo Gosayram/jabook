@@ -18,7 +18,10 @@ import androidx.compose.ui.input.key.Key
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class PlayerScreenKeyEventTest {
     // Simplified test version that directly tests the mapping logic
     // since mapKeyEventToPlayerIntent is internal and uses KeyEvent properties

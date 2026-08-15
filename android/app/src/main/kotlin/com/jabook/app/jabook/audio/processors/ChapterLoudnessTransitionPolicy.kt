@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.exoplayer.ExoPlayer
-import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -42,7 +41,7 @@ import kotlin.math.pow
  */
 internal class ChapterLoudnessTransitionPolicy(
     private val player: ExoPlayer,
-    private val chaptersDao: ChaptersDao,
+    private val getChapterLufs: suspend (bookId: String, chapterIndex: Int) -> Double?,
     private val scope: CoroutineScope,
 ) {
     private var transitionJob: Job? = null
@@ -75,8 +74,7 @@ internal class ChapterLoudnessTransitionPolicy(
         transitionJob?.cancel()
         transitionJob =
             scope.launch {
-                val chapter = chaptersDao.getChapterByIndex(bookId, chapterIndex) ?: return@launch
-                val lufs = chapter.lufsValue ?: return@launch
+                val lufs = getChapterLufs(bookId, chapterIndex) ?: return@launch
 
                 val newGain = computeGain(lufs)
                 val ratio =

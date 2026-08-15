@@ -21,10 +21,13 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.log10
 
+@RunWith(RobolectricTestRunner::class)
 class AutoVolumeLevelerTest {
     private lateinit var leveler: AutoVolumeLeveler
 

@@ -26,11 +26,14 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for AutoSaveManager.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
 class AutoSaveManagerTest {
     private lateinit var persistenceManager: PlayerPersistenceManager
     private lateinit var autoSaveManager: AutoSaveManager

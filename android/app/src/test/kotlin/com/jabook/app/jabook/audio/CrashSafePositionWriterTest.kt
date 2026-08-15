@@ -21,10 +21,13 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.any
+import org.robolectric.RobolectricTestRunner
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
+@RunWith(RobolectricTestRunner::class)
 class CrashSafePositionWriterTest {
     private lateinit var repository: PlaybackPositionRepository
 

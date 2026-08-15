@@ -28,12 +28,15 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Tests for PlayerStateTransfer utility.
  * Verifies state saving, restoration, and transfer between players.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
 class PlayerStateTransferTest {
     private lateinit var fromPlayer: ExoPlayer
     private lateinit var toPlayer: ExoPlayer

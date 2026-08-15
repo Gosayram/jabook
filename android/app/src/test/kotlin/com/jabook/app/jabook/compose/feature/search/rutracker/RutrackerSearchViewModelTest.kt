@@ -15,9 +15,10 @@
 package com.jabook.app.jabook.compose.feature.search.rutracker
 
 import com.jabook.app.jabook.compose.core.logger.NoOpLoggerFactory
-import com.jabook.app.jabook.compose.data.remote.RuTrackerError
-import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.domain.model.AppError
+import com.jabook.app.jabook.compose.domain.model.Result
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -63,7 +64,7 @@ class RutrackerSearchViewModelTest {
     fun `failed remote search is shown as an error instead of empty results`() =
         runTest {
             whenever(repository.searchAudiobooksFlow(any(), any())).thenReturn(
-                flowOf(Result.failure(RuTrackerError.BadRequest)),
+                flowOf(Result.Error(AppError.NetworkError.HttpError(code = 400))),
             )
 
             viewModel.search("query")
@@ -71,14 +72,14 @@ class RutrackerSearchViewModelTest {
 
             val state = viewModel.searchState.value
             assertTrue(state is SearchState.Error)
-            assertEquals(RuTrackerError.BadRequest.message, (state as SearchState.Error).message)
+            assertEquals("HTTP error 400", (state as SearchState.Error).message)
         }
 
     @Test
     fun `new search cancels the previous search`() =
         runTest {
-            val first = MutableSharedFlow<Result<List<RutrackerSearchResult>>>(replay = 1)
-            val second = MutableSharedFlow<Result<List<RutrackerSearchResult>>>(replay = 1)
+            val first = MutableSharedFlow<Result<List<RutrackerSearchResult>, AppError>>(replay = 1)
+            val second = MutableSharedFlow<Result<List<RutrackerSearchResult>, AppError>>(replay = 1)
             whenever(repository.searchAudiobooksFlow(eq("first"), any())).thenReturn(first)
             whenever(repository.searchAudiobooksFlow(eq("second"), any())).thenReturn(second)
 
@@ -86,9 +87,9 @@ class RutrackerSearchViewModelTest {
             testDispatcher.scheduler.runCurrent()
             viewModel.search("second")
             testDispatcher.scheduler.runCurrent()
-            second.emit(Result.success(listOf(searchResult("second"))))
+            second.emit(Result.Success(listOf(searchResult("second"))))
             testDispatcher.scheduler.runCurrent()
-            first.emit(Result.success(listOf(searchResult("first"))))
+            first.emit(Result.Success(listOf(searchResult("first"))))
             testDispatcher.scheduler.runCurrent()
 
             val state = viewModel.searchState.value as SearchState.Success
@@ -103,14 +104,14 @@ class RutrackerSearchViewModelTest {
     @Test
     fun `cover event from old results does not replace a new loading search`() =
         runTest {
-            val first = MutableSharedFlow<Result<List<RutrackerSearchResult>>>(replay = 1)
-            val second = MutableSharedFlow<Result<List<RutrackerSearchResult>>>()
+            val first = MutableSharedFlow<Result<List<RutrackerSearchResult>, AppError>>(replay = 1)
+            val second = MutableSharedFlow<Result<List<RutrackerSearchResult>, AppError>>()
             whenever(repository.searchAudiobooksFlow(eq("first"), any())).thenReturn(first)
             whenever(repository.searchAudiobooksFlow(eq("second"), any())).thenReturn(second)
 
             viewModel.search("first")
             testDispatcher.scheduler.runCurrent()
-            first.emit(Result.success(listOf(searchResult("first"))))
+            first.emit(Result.Success(listOf(searchResult("first"))))
             testDispatcher.scheduler.runCurrent()
             viewModel.search("second")
             testDispatcher.scheduler.runCurrent()
@@ -124,7 +125,7 @@ class RutrackerSearchViewModelTest {
     fun `size sorting parses whitespace between the value and unit`() =
         runTest {
             whenever(repository.searchAudiobooksFlow(any(), any())).thenReturn(
-                flowOf(Result.success(listOf(searchResult("large", "1 GB"), searchResult("small", "500 MB")))),
+                flowOf(Result.Success(listOf(searchResult("large", "1 GB"), searchResult("small", "500 MB")))),
             )
 
             viewModel.updateSortOrder(RutrackerSortOrder.SIZE_ASC)

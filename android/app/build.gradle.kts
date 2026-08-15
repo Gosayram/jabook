@@ -286,11 +286,15 @@ android {
         targetSdk = 36 // Android 16
 
         // Read version from .release-version file (format: version+build, e.g. "1.2.7+127")
-        val versionFile = rootProject.file("../.release-version")
-        val fullVersion =
-            if (versionFile.exists()) {
-                versionFile.readText().trim()
-            } else {
+        // ponytail: providers.fileContents is a proper config-cache input (tracks file content)
+        val fullVersion: String =
+            try {
+                providers
+                    .fileContents(rootProject.layout.projectDirectory.file("../.release-version"))
+                    .asText
+                    .get()
+                    .trim()
+            } catch (_: Exception) {
                 "0.0.1+1"
             }
 
@@ -372,7 +376,6 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
-            isReturnDefaultValues = true
         }
     }
 }

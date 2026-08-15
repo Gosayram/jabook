@@ -16,6 +16,8 @@ package com.jabook.app.jabook.compose.feature.player
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Tests for skip interval resolution logic used by PlayerViewModel.
@@ -25,6 +27,7 @@ import org.junit.Test
  * 2. User global preference (if > 0)
  * 3. Default (10s rewind, 30s forward)
  */
+@RunWith(RobolectricTestRunner::class)
 class SkipIntervalPolicyTest {
     data class SkipConfig(
         val rewindDuration: Int?,

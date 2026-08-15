@@ -26,7 +26,10 @@ import org.junit.Test
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class LoudnessNormalizerTest {
     private lateinit var normalizer: LoudnessNormalizer
 

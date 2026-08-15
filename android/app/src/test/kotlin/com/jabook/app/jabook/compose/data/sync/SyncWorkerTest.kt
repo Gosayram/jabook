@@ -28,10 +28,12 @@ import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.NetworkType
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
-import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
+import com.jabook.app.jabook.compose.domain.model.AppError
+import com.jabook.app.jabook.compose.domain.model.Result
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
@@ -144,7 +146,9 @@ class SyncWorkerTest {
                 ),
             )
             whenever(booksDao.getAllBooks()).thenReturn(emptyList())
-            whenever(rutrackerRepository.getTopicDetails(org.mockito.kotlin.any())).thenReturn(Result.failure(Exception("offline")))
+            whenever(
+                rutrackerRepository.getTopicDetails(org.mockito.kotlin.any()),
+            ).thenReturn(Result.Error(AppError.NetworkError.Generic("offline")))
             whenever(settingsRepository.userPreferences).thenReturn(flowOf(UserPreferencesSerializer.defaultValue))
             whenever(networkMonitor.networkType).thenReturn(flowOf(NetworkType.WIFI))
 

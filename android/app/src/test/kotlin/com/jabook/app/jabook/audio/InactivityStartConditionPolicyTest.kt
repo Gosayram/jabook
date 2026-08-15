@@ -18,7 +18,10 @@ import androidx.media3.common.Player
 import org.junit.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class InactivityStartConditionPolicyTest {
     @Test
     fun `returns false when isPlaying is true`() {

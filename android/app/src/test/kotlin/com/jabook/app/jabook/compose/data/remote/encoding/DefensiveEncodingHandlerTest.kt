@@ -20,6 +20,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.nio.charset.Charset
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for DefensiveEncodingHandler.
@@ -32,6 +34,7 @@ import java.nio.charset.Charset
  * - Fallback chain
  * - Content-Type header parsing
  */
+@RunWith(RobolectricTestRunner::class)
 class DefensiveEncodingHandlerTest {
     private lateinit var handler: DefensiveEncodingHandler
 

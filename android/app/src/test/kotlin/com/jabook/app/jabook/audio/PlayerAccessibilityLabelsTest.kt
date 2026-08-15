@@ -16,7 +16,10 @@ package com.jabook.app.jabook.audio
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class PlayerAccessibilityLabelsTest {
     @Test
     fun `playPause playing`() {

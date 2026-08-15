@@ -18,6 +18,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.test.assertEquals
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for AudioPlayerController connection state.
@@ -25,6 +27,7 @@ import kotlin.test.assertEquals
  * Tests the ConnectionState enum and basic state properties.
  * Note: Full integration tests require instrumented tests with real service.
  */
+@RunWith(RobolectricTestRunner::class)
 class AudioPlayerControllerStateTest {
     @Test
     fun `connection state enum has all expected values`() {

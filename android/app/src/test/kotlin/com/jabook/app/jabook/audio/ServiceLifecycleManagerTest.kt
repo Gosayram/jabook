@@ -16,10 +16,13 @@ package com.jabook.app.jabook.audio
 
 import androidx.media3.exoplayer.ExoPlayer
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class ServiceLifecycleManagerTest {
     @Test
     fun `onTaskRemoved persists the final position synchronously`() {

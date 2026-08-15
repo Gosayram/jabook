@@ -461,5 +461,10 @@ public class OfflineFirstBooksRepository
         override fun getBookBySourceUrlFlow(sourceUrl: String): Flow<Book?> =
             booksDao.getBookBySourceUrlFlow(sourceUrl).map { it?.toBook() }
 
+        override suspend fun getChapterLufsValue(
+            bookId: String,
+            chapterIndex: Int,
+        ): Double? = chaptersDao.getChapterByIndex(bookId, chapterIndex)?.lufsValue
+
         override suspend fun getBookBySourceUrl(sourceUrl: String): Book? = booksDao.getBookBySourceUrl(sourceUrl)?.toBook()
     }

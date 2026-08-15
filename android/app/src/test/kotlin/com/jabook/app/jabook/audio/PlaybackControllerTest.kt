@@ -39,6 +39,8 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for PlaybackController.
@@ -53,6 +55,7 @@ import org.mockito.kotlin.whenever
  * - Initial position application
  */
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
 class PlaybackControllerTest {
     private lateinit var exoPlayer: ExoPlayer
     private lateinit var playbackController: PlaybackController

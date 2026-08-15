@@ -19,6 +19,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for JabookApp interaction policies.
@@ -28,6 +30,7 @@ import org.junit.Test
  * - Settings badge test tag constant
  * - Intent extra parsing logic
  */
+@RunWith(RobolectricTestRunner::class)
 class JabookAppInteractionTest {
     @Test
     fun `custom player intent bypasses generic deep-link dispatch`() {

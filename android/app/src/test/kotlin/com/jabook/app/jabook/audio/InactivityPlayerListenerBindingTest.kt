@@ -20,7 +20,10 @@ import org.junit.Test
 import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class InactivityPlayerListenerBindingTest {
     @Test
     fun `attach adds provided listener to player`() {

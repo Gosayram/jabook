@@ -19,7 +19,10 @@ import android.os.Build
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class PlayerPermissionPolicyTest {
     @Test
     fun `playbackPermissionsToRequest requests notification on android 13 plus when not granted`() {

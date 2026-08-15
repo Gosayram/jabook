@@ -21,7 +21,10 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.`when`
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class InactivityPlaybackEventObserverTest {
     private lateinit var player: ExoPlayer
     private var checkAndStartCalls: Int = 0

@@ -156,6 +156,8 @@ internal class AudioServiceReleaseHandler(
         service.mediaSessionManager?.release()
         service.mediaSession = null
 
+        service.stopSelf()
+
         LogUtils.d("AudioServiceReleaseHandler", "Player stopped and resources released")
     }
 }

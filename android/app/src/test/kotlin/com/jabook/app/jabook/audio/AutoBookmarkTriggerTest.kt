@@ -20,8 +20,11 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class AutoBookmarkTriggerTest {
     private lateinit var repository: com.jabook.app.jabook.compose.data.repository.BookmarkRepository
     private lateinit var trigger: AutoBookmarkTrigger

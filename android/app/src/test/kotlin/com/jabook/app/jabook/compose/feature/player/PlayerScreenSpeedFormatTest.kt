@@ -17,7 +17,10 @@ package com.jabook.app.jabook.compose.feature.player
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class PlayerScreenSpeedFormatTest {
     @Test
     fun `formatPlaybackSpeedLabel formats integer speed without decimals`() {

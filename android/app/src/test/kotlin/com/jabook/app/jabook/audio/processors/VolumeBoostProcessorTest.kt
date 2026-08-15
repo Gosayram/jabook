@@ -21,7 +21,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class VolumeBoostProcessorTest {
     @Test
     fun `boost one hundred doubles quiet samples below limiter knee`() {

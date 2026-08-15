@@ -18,8 +18,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
-import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.domain.model.AppError
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.jabook.app.jabook.compose.domain.model.Result as DomainResult
 
 /**
  * UI model for search result with library status.
@@ -123,14 +125,18 @@ public class RutrackerSearchViewModel
                     combine(
                         repository.searchAudiobooksFlow(query, forumIds),
                         librarySourceUrls,
-                    ) { result, libraryUrls ->
+                    ) {
+                        result: DomainResult<List<RutrackerSearchResult>, AppError>,
+                        libraryUrls: Set<String>,
+                        ->
                         result to libraryUrls
                     }.collect { (result, libraryUrls) ->
                         val isCachedEmission = isFirstEmission
                         isFirstEmission = false
 
-                        result
-                            .onSuccess { results ->
+                        when (result) {
+                            is DomainResult.Success -> {
+                                val results = result.data
                                 logger.d {
                                     "Search results received: ${results.size} results " +
                                         "(cached: $isCachedEmission, libraryUrls: ${libraryUrls.size})"
@@ -181,20 +187,23 @@ public class RutrackerSearchViewModel
                                         }
                                     }
                                 }
-                            }.onFailure { error ->
-                                logger.e(error) {
-                                    "Search failed for query '$query': ${error.message}"
+                            }
+                            is DomainResult.Error -> {
+                                logger.e {
+                                    "Search failed for query '$query': ${result.error.message}"
                                 }
                                 val currentState = _searchState.value
                                 if (currentState !is SearchState.Success) {
                                     _searchState.value =
                                         SearchState.Error(
-                                            error.message,
+                                            result.error.message,
                                         )
                                 } else {
                                     logger.d { "Keeping current Success state despite error" }
                                 }
                             }
+                            is DomainResult.Loading -> {}
+                        }
                     }
                 }
         }

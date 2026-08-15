@@ -21,6 +21,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.mock
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for [ForegroundServiceStartPolicy].
@@ -29,6 +31,7 @@ import org.mockito.kotlin.mock
  * controls, these tests run with the robolectric Android environment so that
  * `Build.VERSION.SDK_INT` reflects the shadow SDK.
  */
+@RunWith(RobolectricTestRunner::class)
 class ForegroundServiceStartPolicyTest {
     private lateinit var debugMessages: MutableList<String>
     private lateinit var warnMessages: MutableList<Pair<String, Throwable?>>

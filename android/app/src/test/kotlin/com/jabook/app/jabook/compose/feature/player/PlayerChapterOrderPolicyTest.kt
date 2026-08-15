@@ -18,7 +18,10 @@ import com.jabook.app.jabook.compose.domain.model.Chapter
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import kotlin.time.Duration
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class PlayerChapterOrderPolicyTest {
     @Test
     fun `chapters preserve their stored order for playback`() {

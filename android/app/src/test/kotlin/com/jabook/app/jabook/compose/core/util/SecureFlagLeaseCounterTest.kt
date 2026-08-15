@@ -16,7 +16,10 @@ package com.jabook.app.jabook.compose.core.util
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class SecureFlagLeaseCounterTest {
     @Test
     fun `keeps flag set until every overlapping owner releases its lease`() {

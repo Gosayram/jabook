@@ -102,97 +102,100 @@ class PlaybackControllerRegressionTest {
         }
 
     @Test
-    fun `PlayerErrorHandler cancels retries after player replacement`() {
-        val originalPlayer: Player = mock()
-        val replacementPlayer: Player = mock()
-        val error =
-            ExoPlaybackException.createForSource(
-                java.io.IOException("Network failed"),
-                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
-            )
+    fun `PlayerErrorHandler cancels retries after player replacement`() =
+        runTest(testDispatcher) {
+            val originalPlayer: Player = mock()
+            val replacementPlayer: Player = mock()
+            val error =
+                ExoPlaybackException.createForSource(
+                    java.io.IOException("Network failed"),
+                    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                )
 
-        var activePlayer: Player = originalPlayer
-        val errorHandler =
-            PlayerErrorHandler(
-                getActivePlayer = { activePlayer },
-                getActualPlaylistSize = { 2 },
-                getCurrentMetadata = { null },
-                getCurrentBookId = { "book-1" },
-            )
+            var activePlayer: Player = originalPlayer
+            val errorHandler =
+                PlayerErrorHandler(
+                    getActivePlayer = { activePlayer },
+                    getActualPlaylistSize = { 2 },
+                    getCurrentMetadata = { null },
+                    getCurrentBookId = { "book-1" },
+                )
 
-        // Trigger a retry on the original player
-        errorHandler.handlePlayerError(error)
+            // Trigger a retry on the original player
+            errorHandler.handlePlayerError(error)
 
-        // Replace the player
-        activePlayer = replacementPlayer
+            // Replace the player
+            activePlayer = replacementPlayer
 
-        // The retry runnable checks getActivePlayer() !== failedPlayer
-        // Since the active player changed, the retry should be skipped.
-        // Verify the original player was not re-prepared
-        verify(originalPlayer, never()).prepare()
-    }
-
-    @Test
-    fun `PlayerConfigurator preserves normalizer reference through player lifecycle`() {
-        // Verify the loudnessNormalizer property is readable and writable
-        // In real code, PlayerConfigurator.loudnessNormalizer is set during configureExoPlayer
-        // and preserved through rebindListeners. We test the property contract.
-        val mockNormalizer = mock<com.jabook.app.jabook.audio.processors.LoudnessNormalizer>()
-
-        // Simulate the pattern used in PlayerConfigurator:
-        // loudnessNormalizer = chainResult.loudnessNormalizer
-        // playerListener?.loudnessNormalizer = loudnessNormalizer
-        // rebindListeners: playerListener?.loudnessNormalizer = loudnessNormalizers[activePlayer]
-
-        val context: Context = mock()
-        val listener =
-            PlayerListener(
-                context = context,
-                getActivePlayer = { exoPlayer },
-                getIsBookCompleted = { false },
-                setIsBookCompleted = { },
-                getSleepTimerEndOfChapter = { false },
-                getSleepTimerEndOfTrack = { false },
-                cancelSleepTimer = { },
-                sendTimerExpiredEvent = { },
-                saveCurrentPosition = { },
-                getEmbeddedArtworkPath = { null },
-                setEmbeddedArtworkPath = { },
-                getCurrentMetadata = { null },
-                getActualPlaylistSize = { 1 },
-            )
-
-        // Set normalizer
-        listener.loudnessNormalizer = mockNormalizer
-        assertEquals(mockNormalizer, listener.loudnessNormalizer)
-
-        // Clear normalizer
-        listener.loudnessNormalizer = null
-        assertEquals(null, listener.loudnessNormalizer)
-    }
+            // The retry runnable checks getActivePlayer() !== failedPlayer
+            // Since the active player changed, the retry should be skipped.
+            // Verify the original player was not re-prepared
+            verify(originalPlayer, never()).prepare()
+        }
 
     @Test
-    fun `PlayerListener release cancels pending retries`() {
-        val context: Context = mock()
-        val listener =
-            PlayerListener(
-                context = context,
-                getActivePlayer = { exoPlayer },
-                getIsBookCompleted = { false },
-                setIsBookCompleted = { },
-                getSleepTimerEndOfChapter = { false },
-                getSleepTimerEndOfTrack = { false },
-                cancelSleepTimer = { },
-                sendTimerExpiredEvent = { },
-                saveCurrentPosition = { },
-                getEmbeddedArtworkPath = { null },
-                setEmbeddedArtworkPath = { },
-                getCurrentMetadata = { null },
-                getActualPlaylistSize = { 1 },
-            )
+    fun `PlayerConfigurator preserves normalizer reference through player lifecycle`() =
+        runTest(testDispatcher) {
+            // Verify the loudnessNormalizer property is readable and writable
+            // In real code, PlayerConfigurator.loudnessNormalizer is set during configureExoPlayer
+            // and preserved through rebindListeners. We test the property contract.
+            val mockNormalizer = mock<com.jabook.app.jabook.audio.processors.LoudnessNormalizer>()
 
-        // Should not throw
-        listener.release()
-        assertTrue(true)
-    }
+            // Simulate the pattern used in PlayerConfigurator:
+            // loudnessNormalizer = chainResult.loudnessNormalizer
+            // playerListener?.loudnessNormalizer = loudnessNormalizer
+            // rebindListeners: playerListener?.loudnessNormalizer = loudnessNormalizers[activePlayer]
+
+            val context: Context = mock()
+            val listener =
+                PlayerListener(
+                    context = context,
+                    getActivePlayer = { exoPlayer },
+                    getIsBookCompleted = { false },
+                    setIsBookCompleted = { },
+                    getSleepTimerEndOfChapter = { false },
+                    getSleepTimerEndOfTrack = { false },
+                    cancelSleepTimer = { },
+                    sendTimerExpiredEvent = { },
+                    saveCurrentPosition = { },
+                    getEmbeddedArtworkPath = { null },
+                    setEmbeddedArtworkPath = { },
+                    getCurrentMetadata = { null },
+                    getActualPlaylistSize = { 1 },
+                )
+
+            // Set normalizer
+            listener.loudnessNormalizer = mockNormalizer
+            assertEquals(mockNormalizer, listener.loudnessNormalizer)
+
+            // Clear normalizer
+            listener.loudnessNormalizer = null
+            assertEquals(null, listener.loudnessNormalizer)
+        }
+
+    @Test
+    fun `PlayerListener release cancels pending retries`() =
+        runTest(testDispatcher) {
+            val context: Context = mock()
+            val listener =
+                PlayerListener(
+                    context = context,
+                    getActivePlayer = { exoPlayer },
+                    getIsBookCompleted = { false },
+                    setIsBookCompleted = { },
+                    getSleepTimerEndOfChapter = { false },
+                    getSleepTimerEndOfTrack = { false },
+                    cancelSleepTimer = { },
+                    sendTimerExpiredEvent = { },
+                    saveCurrentPosition = { },
+                    getEmbeddedArtworkPath = { null },
+                    setEmbeddedArtworkPath = { },
+                    getCurrentMetadata = { null },
+                    getActualPlaylistSize = { 1 },
+                )
+
+            // Should not throw
+            listener.release()
+            assertTrue(true)
+        }
 }
