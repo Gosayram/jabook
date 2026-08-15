@@ -17,9 +17,9 @@ package com.jabook.app.jabook.compose.feature.player.controller
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.test.assertEquals
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import kotlin.test.assertEquals
 
 /**
  * Unit tests for AudioPlayerController connection state.

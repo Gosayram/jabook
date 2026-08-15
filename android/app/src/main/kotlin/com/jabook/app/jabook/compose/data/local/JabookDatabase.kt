@@ -19,7 +19,6 @@ import androidx.room.RoomDatabase
 import com.jabook.app.jabook.compose.data.local.dao.BookmarkDao
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
-import com.jabook.app.jabook.compose.data.local.dao.CookiesDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
@@ -31,7 +30,6 @@ import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.BookmarkEntity
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
-import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
 import com.jabook.app.jabook.compose.data.local.entity.DownloadHistoryEntity
 import com.jabook.app.jabook.compose.data.local.entity.DownloadQueueEntity
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
@@ -54,7 +52,7 @@ public const val JABOOK_DB_VERSION: Int = 30
  * Database version 2: Added new fields to BookEntity and ChapterEntity for
  * enhanced library and playback features.
  * Database version 3: Added SearchHistoryEntity for search history persistence.
- * Database version 4: Added CookieEntity for multi-stage cookie persistence.
+ * Database version 4: (cookies table removed — replaced by PersistentCookieJar).
  * Database version 5: Added download_queue table for download queue management.
  * Database version 6: Added download_history table for tracking completed/failed downloads.
  * Database version 7: Added favorites table for favorite audiobooks management.
@@ -88,7 +86,6 @@ public const val JABOOK_DB_VERSION: Int = 30
         BookmarkEntity::class,
         ChapterEntity::class,
         SearchHistoryEntity::class,
-        CookieEntity::class,
         DownloadQueueEntity::class,
         DownloadHistoryEntity::class,
         FavoriteEntity::class,
@@ -109,8 +106,6 @@ public abstract class JabookDatabase : RoomDatabase() {
     public abstract fun chaptersDao(): ChaptersDao
 
     public abstract fun searchHistoryDao(): SearchHistoryDao
-
-    public abstract fun cookiesDao(): CookiesDao
 
     public abstract fun downloadQueueDao(): DownloadQueueDao
 

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 30,
-    "identityHash": "93b7750cc0783572cd47419694d4cac0",
+    "identityHash": "1a5d0811007c1d414718787bd33a95af",
     "entities": [
       {
         "tableName": "books",
@@ -465,36 +465,6 @@
           "autoGenerate": true,
           "columnNames": [
             "id"
-          ]
-        }
-      },
-      {
-        "tableName": "cookies",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`url` TEXT NOT NULL, `cookieHeader` TEXT NOT NULL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`url`))",
-        "fields": [
-          {
-            "fieldPath": "url",
-            "columnName": "url",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "cookieHeader",
-            "columnName": "cookieHeader",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "timestamp",
-            "columnName": "timestamp",
-            "affinity": "INTEGER",
-            "notNull": true
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": false,
-          "columnNames": [
-            "url"
           ]
         }
       },
@@ -1080,7 +1050,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '93b7750cc0783572cd47419694d4cac0')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1a5d0811007c1d414718787bd33a95af')"
     ]
   }
 }

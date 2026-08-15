@@ -23,9 +23,9 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.nio.file.Files
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.nio.file.Files
 
 @RunWith(RobolectricTestRunner::class)
 class DataStoreUserPreferencesRepositoryTest {

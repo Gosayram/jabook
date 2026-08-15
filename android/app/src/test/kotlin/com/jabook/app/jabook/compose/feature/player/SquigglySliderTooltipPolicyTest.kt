@@ -17,8 +17,6 @@ package com.jabook.app.jabook.compose.feature.player
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 
 public class SquigglySliderTooltipPolicyTest {
     @Test

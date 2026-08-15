@@ -17,8 +17,6 @@ package com.jabook.app.jabook.compose.feature.player
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 
 public class PlayerViewModelAutoplayTest {
     @Test

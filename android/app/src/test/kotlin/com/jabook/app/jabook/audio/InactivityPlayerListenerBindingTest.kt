@@ -17,10 +17,10 @@ package com.jabook.app.jabook.audio
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
-import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)

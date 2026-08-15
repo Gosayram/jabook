@@ -41,5 +41,7 @@ public val MIGRATION_29_30: Migration =
             if ("end_position_ms" !in existing) {
                 db.execSQL("ALTER TABLE chapters ADD COLUMN end_position_ms INTEGER")
             }
+            // ponytail: drop dead cookies table (replaced by PersistentCookieJar)
+            db.execSQL("DROP TABLE IF EXISTS cookies")
         }
     }
