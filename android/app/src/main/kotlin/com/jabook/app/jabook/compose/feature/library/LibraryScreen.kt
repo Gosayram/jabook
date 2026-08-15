@@ -130,7 +130,11 @@ import kotlinx.coroutines.launch
  * @param onFirstMeaningfulContentDrawn Callback for performance tracking
  * @param viewModel ViewModel provided by Hilt
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
+@OptIn(
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3AdaptiveApi::class,
+    androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class,
+)
 @Composable
 public fun LibraryScreen(
     onBookClick: (String) -> Unit,
@@ -249,6 +253,23 @@ public fun LibraryScreen(
     // Get context for permission check in pull-to-refresh
     val context = LocalContext.current
 
+    // Compute WindowSizeClass once at screen level
+    val activity =
+        context as? android.app.Activity
+            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+    val rawWindowSizeClass =
+        activity?.let {
+            androidx.compose.material3.windowsizeclass
+                .calculateWindowSizeClass(it)
+        }
+    val windowSizeClass =
+        com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+            .resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val isCompact =
+        com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+            .shouldForceCompact(context) ||
+            (windowSizeClass?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact)
+
     // 🎯 Navigator for ListDetailPaneScaffold
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()
 
@@ -288,8 +309,6 @@ public fun LibraryScreen(
                     }
                 },
     ) {
-        val isCompact = context.resources.configuration.screenWidthDp < 600
-
         if (isCompact) {
             // Direct Scaffold on compact screens — skip ListDetailPaneScaffold to avoid double insets
             // NavigationSuiteScaffold already consumes system bar insets; zero them out here to
@@ -545,12 +564,14 @@ public fun LibraryScreen(
                                         buildDiscoveryUiState(books, listeningMood)
                                     }
                                 val actionsProvider =
-                                    viewModel.createBookActionsProvider(
-                                        onBookClick = onBookClick,
-                                        onBookLongPress = { bookId ->
-                                            selectedBookForActions = books.firstOrNull { it.id == bookId }
-                                        },
-                                    )
+                                    remember(viewModel, onBookClick) {
+                                        viewModel.createBookActionsProvider(
+                                            onBookClick = onBookClick,
+                                            onBookLongPress = { bookId ->
+                                                selectedBookForActions = books.firstOrNull { it.id == bookId }
+                                            },
+                                        )
+                                    }
 
                                 Column(modifier = Modifier.fillMaxSize()) {
                                     if (showDiscovery) {
@@ -855,20 +876,22 @@ public fun LibraryScreen(
                                                 buildDiscoveryUiState(books, listeningMood)
                                             }
                                         val actionsProvider =
-                                            viewModel.createBookActionsProvider(
-                                                onBookClick = { bookId ->
-                                                    selectedBookId = bookId
-                                                    scope.launch {
-                                                        navigator.navigateTo(
-                                                            ListDetailPaneScaffoldRole.Detail,
-                                                            bookId,
-                                                        )
-                                                    }
-                                                },
-                                                onBookLongPress = { bookId ->
-                                                    selectedBookForActions = books.firstOrNull { it.id == bookId }
-                                                },
-                                            )
+                                            remember(viewModel, onBookClick) {
+                                                viewModel.createBookActionsProvider(
+                                                    onBookClick = { bookId ->
+                                                        selectedBookId = bookId
+                                                        scope.launch {
+                                                            navigator.navigateTo(
+                                                                ListDetailPaneScaffoldRole.Detail,
+                                                                bookId,
+                                                            )
+                                                        }
+                                                    },
+                                                    onBookLongPress = { bookId ->
+                                                        selectedBookForActions = books.firstOrNull { it.id == bookId }
+                                                    },
+                                                )
+                                            }
 
                                         Column(modifier = Modifier.fillMaxSize()) {
                                             if (showDiscovery) {

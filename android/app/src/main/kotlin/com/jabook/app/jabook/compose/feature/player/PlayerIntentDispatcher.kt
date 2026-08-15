@@ -49,6 +49,7 @@ internal class PlayerIntentDispatcher(
     private val settingsRepository: ProtoSettingsRepository,
     private val chapterRepeatHandler: PlayerChapterRepeatHandler,
     private val abRepeatHandler: PlayerABRepeatHandler,
+    private val playerController: com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController,
     private val viewModelScope: CoroutineScope,
     loggerFactory: LoggerFactory,
     private val emitEffect: (PlayerEffect) -> Unit,
@@ -60,7 +61,8 @@ internal class PlayerIntentDispatcher(
         val currentState = uiState.value
         val chapterNavigationDecision = resolveChapterNavigationIntent(intent, currentState)
         val effectiveIntent = chapterNavigationDecision.intent
-        val reducedState = PlayerReducer.reduce(currentState, effectiveIntent)
+        val currentPositionMs = playerController.currentPosition.value
+        val reducedState = PlayerReducer.reduce(currentState, effectiveIntent, currentPositionMs)
         if (
             currentState is PlayerState.Loading &&
             reducedState is PlayerState.Loading &&
@@ -137,7 +139,7 @@ internal class PlayerIntentDispatcher(
         if (!PlayerIntentCommandRouter.isCommandIntent(intent)) {
             false
         } else {
-            val command = PlayerIntentCommandRouter.routeIntent(intent, currentState, reducedState)
+            val command = PlayerIntentCommandRouter.routeIntent(intent, currentState, reducedState, currentPositionMs)
             if (command == null) {
                 logger.d { "Command intent produced no command: $intent" }
             } else {

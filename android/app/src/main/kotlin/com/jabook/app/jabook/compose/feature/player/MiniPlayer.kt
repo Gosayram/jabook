@@ -62,6 +62,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.transformations
@@ -74,6 +75,7 @@ import com.jabook.app.jabook.compose.designsystem.component.CircularIconButton
 import com.jabook.app.jabook.compose.designsystem.component.CircularIconButtonStyle
 import com.jabook.app.jabook.compose.designsystem.component.ThinProgressBar
 import com.jabook.app.jabook.ui.theme.JabookTheme
+import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.abs
 
 /**
@@ -101,7 +103,6 @@ public fun MiniPlayer(
     title: String,
     author: String,
     isPlaying: Boolean,
-    progress: Float,
     onPlayPauseClick: () -> Unit,
     onMiniPlayerClick: () -> Unit,
     onNextClick: () -> Unit = {},
@@ -110,7 +111,12 @@ public fun MiniPlayer(
     hasPreviousChapter: Boolean = true,
     onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier,
+    currentPositionMs: StateFlow<Long> = kotlinx.coroutines.flow.MutableStateFlow(0L),
+    durationMs: StateFlow<Long> = kotlinx.coroutines.flow.MutableStateFlow(0L),
 ) {
+    val currentPosition by currentPositionMs.collectAsStateWithLifecycle()
+    val duration by durationMs.collectAsStateWithLifecycle()
+    val progress = if (duration > 0) currentPosition.toFloat() / duration else 0f
     val density = LocalDensity.current
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
@@ -340,7 +346,6 @@ private fun MiniPlayerFontScalePreview() {
             title = "Очень длинное название аудиокниги для проверки адаптивности в мини-плеере",
             author = "Очень длинное имя автора",
             isPlaying = true,
-            progress = 0.42f,
             onPlayPauseClick = {},
             onMiniPlayerClick = {},
         )
@@ -357,7 +362,6 @@ public fun AnimatedMiniPlayer(
     title: String,
     author: String,
     isPlaying: Boolean,
-    progress: Float,
     onPlayPauseClick: () -> Unit,
     onMiniPlayerClick: () -> Unit,
     onNextClick: () -> Unit = {},
@@ -366,6 +370,8 @@ public fun AnimatedMiniPlayer(
     hasPreviousChapter: Boolean = true,
     onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier,
+    currentPositionMs: StateFlow<Long> = kotlinx.coroutines.flow.MutableStateFlow(0L),
+    durationMs: StateFlow<Long> = kotlinx.coroutines.flow.MutableStateFlow(0L),
 ) {
     val reduceMotion = rememberReduceMotion()
     AnimatedVisibility(
@@ -399,7 +405,6 @@ public fun AnimatedMiniPlayer(
             title = title,
             author = author,
             isPlaying = isPlaying,
-            progress = progress,
             onPlayPauseClick = onPlayPauseClick,
             onMiniPlayerClick = onMiniPlayerClick,
             onNextClick = onNextClick,
@@ -407,6 +412,8 @@ public fun AnimatedMiniPlayer(
             hasNextChapter = hasNextChapter,
             hasPreviousChapter = hasPreviousChapter,
             onDismiss = onDismiss,
+            currentPositionMs = currentPositionMs,
+            durationMs = durationMs,
         )
     }
 }

@@ -223,8 +223,6 @@ public fun JabookApp(
         // Safe to instantiate at app root (no navigation dependencies)
         val miniPlayerViewModel: com.jabook.app.jabook.compose.feature.miniplayer.MiniPlayerViewModel = hiltViewModel()
         val isPlaying by miniPlayerViewModel.isPlaying.collectAsStateWithLifecycle()
-        val currentPosition by miniPlayerViewModel.currentPosition.collectAsStateWithLifecycle()
-        val duration by miniPlayerViewModel.duration.collectAsStateWithLifecycle()
         val hasNextChapter by miniPlayerViewModel.hasNextChapter.collectAsStateWithLifecycle()
         val hasPreviousChapter by miniPlayerViewModel.hasPreviousChapter.collectAsStateWithLifecycle()
         val currentBook by miniPlayerViewModel.currentBook.collectAsStateWithLifecycle()
@@ -351,7 +349,6 @@ public fun JabookApp(
                                 title = book.title,
                                 author = book.author,
                                 isPlaying = isPlaying,
-                                progress = if (duration > 0) currentPosition.toFloat() / duration else 0f,
                                 onPlayPauseClick = { miniPlayerViewModel.togglePlayPause() },
                                 onNextClick = { miniPlayerViewModel.skipToNext() },
                                 onPreviousClick = { miniPlayerViewModel.skipToPrevious() },
@@ -378,6 +375,8 @@ public fun JabookApp(
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
+                                currentPositionMs = miniPlayerViewModel.currentPosition,
+                                durationMs = miniPlayerViewModel.duration,
                             )
                         }
                     }

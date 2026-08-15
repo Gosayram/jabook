@@ -91,11 +91,13 @@ public fun UnifiedBooksView(
     val context = LocalContext.current
     val effectiveWindowSizeClass =
         windowSizeClass
-            ?: calculateWindowSizeClass(
-                context as? android.app.Activity
-                    ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-                    ?: throw IllegalStateException("Cannot get Activity from context"),
-            )
+            ?: run {
+                val activity =
+                    context as? android.app.Activity
+                        ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+                val raw = activity?.let { calculateWindowSizeClass(it) }
+                AdaptiveUtils.resolveWindowSizeClassOrNull(raw, context)
+            }
 
     when {
         displayMode.isGrid() ->
@@ -103,7 +105,12 @@ public fun UnifiedBooksView(
                 books = books,
                 displayMode = displayMode,
                 actionsProvider = actionsProvider,
-                windowSizeClass = effectiveWindowSizeClass,
+                windowSizeClass =
+                    effectiveWindowSizeClass
+                        ?: WindowSizeClass.calculateFromSize(
+                            androidx.compose.ui.unit
+                                .DpSize(360.dp, 800.dp),
+                        ),
                 isSelectionMode = isSelectionMode,
                 selectedIds = selectedIds,
                 onToggleSelection = onToggleSelection,
@@ -114,7 +121,12 @@ public fun UnifiedBooksView(
                 books = books,
                 displayMode = displayMode,
                 actionsProvider = actionsProvider,
-                windowSizeClass = effectiveWindowSizeClass,
+                windowSizeClass =
+                    effectiveWindowSizeClass
+                        ?: WindowSizeClass.calculateFromSize(
+                            androidx.compose.ui.unit
+                                .DpSize(360.dp, 800.dp),
+                        ),
                 isSelectionMode = isSelectionMode,
                 selectedIds = selectedIds,
                 onToggleSelection = onToggleSelection,
@@ -190,6 +202,7 @@ private fun BooksGridLayout(
                     isSelectionMode = isSelectionMode,
                     isSelected = selectedIds.contains(book.id),
                     onToggleSelection = { onToggleSelection?.invoke(book.id) },
+                    windowSizeClass = windowSizeClass,
                 )
             }
         }
@@ -274,6 +287,7 @@ private fun BooksListLayout(
                         isSelectionMode = isSelectionMode,
                         isSelected = selectedIds.contains(book.id),
                         onToggleSelection = { onToggleSelection?.invoke(book.id) },
+                        windowSizeClass = windowSizeClass,
                     )
                 }
             }
@@ -296,6 +310,7 @@ private fun BooksListLayout(
                         isSelectionMode = isSelectionMode,
                         isSelected = selectedIds.contains(book.id),
                         onToggleSelection = { onToggleSelection?.invoke(book.id) },
+                        windowSizeClass = windowSizeClass,
                     )
                 }
             }
@@ -329,6 +344,7 @@ private fun SwipeableBookCard(
     isSelectionMode: Boolean,
     isSelected: Boolean,
     onToggleSelection: (() -> Unit)?,
+    windowSizeClass: WindowSizeClass? = null,
 ) {
     UnifiedBookCard(
         book = book,
@@ -337,6 +353,7 @@ private fun SwipeableBookCard(
         isSelectionMode = isSelectionMode,
         isSelected = isSelected,
         onToggleSelection = onToggleSelection,
+        windowSizeClass = windowSizeClass,
     )
 }
 

@@ -21,10 +21,11 @@ public object PlayerReducer {
     public fun reduce(
         state: PlayerState,
         intent: PlayerIntent,
+        currentPositionMs: Long = 0L,
     ): PlayerState =
         when (state) {
             PlayerState.Loading -> reduceLoading(state, intent)
-            is PlayerState.Active -> reduceActive(state, intent)
+            is PlayerState.Active -> reduceActive(state, intent, currentPositionMs)
             is PlayerState.Error -> reduceError(state, intent)
         }
 
@@ -70,6 +71,7 @@ public object PlayerReducer {
     private fun reduceActive(
         state: PlayerState.Active,
         intent: PlayerIntent,
+        currentPositionMs: Long = 0L,
     ): PlayerState =
         when (intent) {
             PlayerIntent.Play -> {
@@ -101,25 +103,25 @@ public object PlayerReducer {
                         requestedPositionMs = intent.positionMs,
                         chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds,
                     )
-                state.copy(currentPosition = clampedPosition)
+                state.copy()
             }
             PlayerIntent.SeekForward -> {
-                val requestedPosition = state.currentPosition + state.forwardInterval * 1_000L
+                val requestedPosition = currentPositionMs + state.forwardInterval * 1_000L
                 val clampedPosition =
                     PlayerIntentGuardPolicy.clampSeekPosition(
                         requestedPositionMs = requestedPosition,
                         chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds,
                     )
-                state.copy(currentPosition = clampedPosition)
+                state.copy()
             }
             PlayerIntent.SeekBackward -> {
-                val requestedPosition = state.currentPosition - state.rewindInterval * 1_000L
+                val requestedPosition = currentPositionMs - state.rewindInterval * 1_000L
                 val clampedPosition =
                     PlayerIntentGuardPolicy.clampSeekPosition(
                         requestedPositionMs = requestedPosition,
                         chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds,
                     )
-                state.copy(currentPosition = clampedPosition)
+                state.copy()
             }
             is PlayerIntent.SelectChapter -> {
                 if (state.chapters.isEmpty()) {
@@ -137,7 +139,6 @@ public object PlayerReducer {
                     state.copy(
                         currentChapterIndex = clampedIndex,
                         currentChapter = selectedChapter,
-                        currentPosition = resumePosition,
                     )
                 }
             }

@@ -44,7 +44,6 @@ private data class PlayerPlaybackBundle(
     val book: Book?,
     val chapters: List<Chapter>,
     val isPlaying: Boolean,
-    val position: Long,
     val chapterIndex: Int,
 )
 
@@ -72,7 +71,6 @@ internal fun buildPlayerUiState(
     bookFlow: Flow<Book?>,
     chaptersFlow: Flow<List<Chapter>>,
     isPlaying: StateFlow<Boolean>,
-    position: StateFlow<Long>,
     currentChapterIndex: StateFlow<Int>,
     controllerBookId: StateFlow<String?>,
     preferences: Flow<UserPreferences>,
@@ -85,18 +83,16 @@ internal fun buildPlayerUiState(
     lyrics: StateFlow<ImmutableList<LyricLine>?>,
 ): PlayerStateFlowContract =
     combine(
-        combine(bookFlow, chaptersFlow, isPlaying, position, currentChapterIndex) {
+        combine(bookFlow, chaptersFlow, isPlaying, currentChapterIndex) {
             book,
             chapters,
             playing,
-            pos,
             chapterIdx,
             ->
             PlayerPlaybackBundle(
                 book = book,
                 chapters = chapters,
                 isPlaying = playing,
-                position = pos,
                 chapterIndex = chapterIdx,
             )
         },
@@ -166,22 +162,10 @@ internal fun buildPlayerUiState(
                     safeSavedChapterIndex
                 }
 
-            // Prefer controller position only when it's clearly bound to this book;
-            // otherwise keep DB-restored position to avoid transient UI jumps.
-            val chapterPosition =
-                if (hasControllerStateForCurrentBook) {
-                    playback.position.coerceAtLeast(0L)
-                } else if (initialChapterIndexOverride != null) {
-                    0L
-                } else {
-                    (restore.bootstrapSnapshot?.positionMs ?: 0L).coerceAtLeast(0L)
-                }
-
             PlayerState.Active(
                 book = book,
                 chapters = chapters.toImmutableList(),
                 isPlaying = playback.isPlaying,
-                currentPosition = chapterPosition,
                 currentChapterIndex = chapterIndex,
                 currentChapter = chapters.getOrNull(chapterIndex),
                 rewindInterval = rewindInterval,

@@ -705,15 +705,14 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
      * Checks if audio playback is currently active.
      * Called on main thread (from onReceive).
      */
-    private fun isPlaybackActive(context: Context): Boolean {
-        return try {
+    private fun isPlaybackActive(context: Context): Boolean =
+        try {
             @Suppress("DEPRECATION")
             val service = AudioPlayerService.getInstance()
             service != null && service.isFullyInitialized() && service.isPlaying
         } catch (e: Exception) {
             false
         }
-    }
 
     /**
      * Gets repeat icon based on repeat mode.

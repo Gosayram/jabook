@@ -85,11 +85,8 @@ public class DynamicBaseUrlInterceptor
                         "Request failed: HTTP ${response.code} ${response.message} (${requestDuration}ms) - ${originalUrl.encodedPath}, checking auto-switch"
                     }
 
-                    // Check if auto-switch is enabled (blocking call, should be fast from cache)
-                    val autoSwitchEnabled =
-                        runBlocking {
-                            mirrorManager.isAutoSwitchEnabled()
-                        }
+                    // Check if auto-switch is enabled (sync read from in-memory cache)
+                    val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabledSync()
 
                     if (autoSwitchEnabled) {
                         logger.i { "Auto-switch enabled, attempting to find working mirror" }
@@ -171,11 +168,8 @@ public class DynamicBaseUrlInterceptor
                     "Request failed with exception: ${e.javaClass.simpleName} - ${e.message} (${requestDuration}ms) - ${originalUrl.encodedPath}"
                 }, e)
 
-                // Check if auto-switch is enabled before attempting mirror switch
-                val autoSwitchEnabled =
-                    runBlocking {
-                        mirrorManager.isAutoSwitchEnabled()
-                    }
+                // Check if auto-switch is enabled (sync read from in-memory cache)
+                val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabledSync()
 
                 if (autoSwitchEnabled) {
                     // Auto-switch is enabled - attempt to switch mirror for any error

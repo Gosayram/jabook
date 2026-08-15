@@ -110,6 +110,10 @@ public class MirrorManager
          */
         public val availableMirrors: StateFlow<List<String>> = _availableMirrors.asStateFlow()
 
+        // Cached auto-switch flag, kept in sync by the settings collector.
+        // Read synchronously by DynamicBaseUrlInterceptor to avoid runBlocking.
+        private var cachedAutoSwitchEnabled = false
+
         init {
             // Load saved settings on init
             scope.launch {
@@ -124,6 +128,8 @@ public class MirrorManager
                     val customMirrors = prefs.customMirrorsList
                     val allMirrors = (DEFAULT_MIRRORS + customMirrors).distinct()
                     _availableMirrors.value = (DEFAULT_MIRRORS + allMirrors).distinct()
+
+                    cachedAutoSwitchEnabled = prefs.autoSwitchMirror
                 }
             }
         }
@@ -378,6 +384,13 @@ public class MirrorManager
             val prefs = settingsRepository.userPreferences.first()
             return prefs.autoSwitchMirror
         }
+
+        /**
+         * Synchronous check for auto-switch — reads the in-memory cached flag
+         * kept in sync by the settings collector. Use from OkHttp interceptors
+         * where runBlocking would risk dispatcher starvation.
+         */
+        public fun isAutoSwitchEnabledSync(): Boolean = cachedAutoSwitchEnabled
 
         /**
          * Synchronize in-memory state with latest persisted preferences snapshot.

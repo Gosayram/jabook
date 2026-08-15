@@ -35,6 +35,8 @@ public class AuthInterceptor
         private val loggerFactory: LoggerFactory,
     ) : Interceptor {
         private val logger = loggerFactory.get("AuthInterceptor")
+        private val reauthLock = Any()
+        private var reauthInProgress = false
 
         public companion object {
             private const val LOGIN_PAGE_MARKER = "login.php"
@@ -60,34 +62,46 @@ public class AuthInterceptor
             if (sessionExpired) {
                 logger.w { "Session expired detected (code=${response.code}, url=${response.request.url})" }
 
-                // Try to re-authenticate with stored credentials
-                // Note: runBlocking is used here because interceptors are synchronous
-                // This should be fast as it only reads from local storage
+                // Try to re-authenticate with stored credentials.
+                // synchronized + flag prevents concurrent re-logins that could
+                // starve the OkHttp dispatcher if login uses the same client.
                 val reauthenticated =
-                    runBlocking {
-                        try {
-                            val credentials = authRepository.get().getStoredCredentials()
-                            if (credentials != null) {
-                                logger.i { "Attempting automatic re-authentication..." }
-
-                                val loginResult = authRepository.get().login(credentials)
-                                if (loginResult.isSuccess) {
-                                    logger.i { "Automatic re-authentication successful" }
-                                    true
-                                } else {
-                                    logger.e { "Automatic re-authentication failed: ${loginResult.exceptionOrNull()}" }
-                                    false
-                                }
-                            } else {
-                                logger.w { "No stored credentials available for re-authentication" }
-                                false
-                            }
-                        } catch (e: Exception) {
-                            if (e is CancellationException) {
-                                throw e
-                            }
-                            logger.e({ "Error during automatic re-authentication" }, e)
+                    synchronized(reauthLock) {
+                        if (reauthInProgress) {
+                            logger.d { "Re-authentication already in progress, skipping" }
                             false
+                        } else {
+                            reauthInProgress = true
+                            try {
+                                runBlocking {
+                                    try {
+                                        val credentials = authRepository.get().getStoredCredentials()
+                                        if (credentials != null) {
+                                            logger.i { "Attempting automatic re-authentication..." }
+
+                                            val loginResult = authRepository.get().login(credentials)
+                                            if (loginResult.isSuccess) {
+                                                logger.i { "Automatic re-authentication successful" }
+                                                true
+                                            } else {
+                                                logger.e { "Automatic re-authentication failed: ${loginResult.exceptionOrNull()}" }
+                                                false
+                                            }
+                                        } else {
+                                            logger.w { "No stored credentials available for re-authentication" }
+                                            false
+                                        }
+                                    } catch (e: Exception) {
+                                        if (e is CancellationException) {
+                                            throw e
+                                        }
+                                        logger.e({ "Error during automatic re-authentication" }, e)
+                                        false
+                                    }
+                                }
+                            } finally {
+                                reauthInProgress = false
+                            }
                         }
                     }
 

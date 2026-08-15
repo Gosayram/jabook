@@ -43,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -89,6 +90,7 @@ private val unifiedBookCardLogger by lazy { LoggerFactoryImpl().get("UnifiedBook
  * @param actionsProvider Provider for all book actions
  * @param modifier Modifier for the card
  */
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 public fun UnifiedBookCard(
     book: Book,
@@ -99,6 +101,7 @@ public fun UnifiedBookCard(
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
+    windowSizeClass: WindowSizeClass? = null,
 ) {
     // Log if book has invalid/empty data
     androidx.compose.runtime.LaunchedEffect(book.id) {
@@ -116,6 +119,17 @@ public fun UnifiedBookCard(
         }
     }
 
+    // Compute WindowSizeClass once per card, not per child
+    val effectiveWindowSizeClass =
+        windowSizeClass ?: run {
+            val ctx = LocalContext.current
+            val act =
+                ctx as? android.app.Activity
+                    ?: (ctx as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+            val raw = act?.let { calculateWindowSizeClass(it) }
+            AdaptiveUtils.resolveWindowSizeClassOrNull(raw, ctx)
+        }
+
     when {
         displayMode.isGrid() ->
             GridBookCard(
@@ -125,6 +139,7 @@ public fun UnifiedBookCard(
                 isSelectionMode = isSelectionMode,
                 isSelected = isSelected,
                 onToggleSelection = onToggleSelection,
+                windowSizeClass = effectiveWindowSizeClass,
                 modifier = modifier,
             )
         displayMode.isList() ->
@@ -136,6 +151,7 @@ public fun UnifiedBookCard(
                 isSelectionMode = isSelectionMode,
                 isSelected = isSelected,
                 onToggleSelection = onToggleSelection,
+                windowSizeClass = effectiveWindowSizeClass,
                 modifier = modifier,
             )
     }
@@ -154,14 +170,14 @@ private fun GridBookCard(
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
+    windowSizeClass: WindowSizeClass? = null,
 ) {
-    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
-    val windowSizeClass =
-        calculateWindowSizeClass(
-            context as? android.app.Activity
-                ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-                ?: throw IllegalStateException("Cannot get Activity from context"),
+    // Ponytail: non-null fallback avoids scattering null checks across AdaptiveUtils calls
+    val effectiveWSC =
+        windowSizeClass ?: WindowSizeClass.calculateFromSize(
+            androidx.compose.ui.unit
+                .DpSize(360.dp, 800.dp),
         )
     val isFavorite = actionsProvider.isFavorite(book.id)
 
@@ -269,7 +285,7 @@ private fun GridBookCard(
                             } else {
                                 MaterialTheme.colorScheme.onSurface
                             },
-                        modifier = Modifier.size(AdaptiveUtils.getIconSize(windowSizeClass)),
+                        modifier = Modifier.size(AdaptiveUtils.getIconSize(effectiveWSC)),
                     )
                 }
             }
@@ -324,7 +340,7 @@ private fun GridBookCard(
                                             .copy(alpha = 0.78f),
                                     ),
                             ),
-                        ).padding(AdaptiveUtils.getCardPadding(windowSizeClass)),
+                        ).padding(AdaptiveUtils.getCardPadding(effectiveWSC)),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
@@ -332,7 +348,7 @@ private fun GridBookCard(
                         style =
                             AdaptiveUtils.getAdaptiveTextStyle(
                                 MaterialTheme.typography.titleSmall,
-                                windowSizeClass,
+                                effectiveWSC,
                             ),
                         color = androidx.compose.ui.graphics.Color.White,
                         maxLines = 2,
@@ -345,7 +361,7 @@ private fun GridBookCard(
                             style =
                                 AdaptiveUtils.getAdaptiveTextStyle(
                                     MaterialTheme.typography.bodySmall,
-                                    windowSizeClass,
+                                    effectiveWSC,
                                 ),
                             color =
                                 androidx.compose.ui.graphics.Color.White
@@ -400,21 +416,21 @@ private fun ListBookCard(
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onToggleSelection: (() -> Unit)? = null,
+    windowSizeClass: WindowSizeClass? = null,
 ) {
-    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
-    val windowSizeClass =
-        calculateWindowSizeClass(
-            context as? android.app.Activity
-                ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-                ?: throw IllegalStateException("Cannot get Activity from context"),
+    // Ponytail: non-null fallback avoids scattering null checks across AdaptiveUtils calls
+    val effectiveWSC =
+        windowSizeClass ?: WindowSizeClass.calculateFromSize(
+            androidx.compose.ui.unit
+                .DpSize(360.dp, 800.dp),
         )
     val isFavorite = actionsProvider.isFavorite(book.id)
     // Use adaptive cover size based on WindowSizeClass
     val coverSize =
         when (displayMode) {
-            BookDisplayMode.LIST_COMPACT -> AdaptiveUtils.getCompactListCoverSize(windowSizeClass)
-            BookDisplayMode.LIST_DEFAULT -> AdaptiveUtils.getListCoverSize(windowSizeClass)
+            BookDisplayMode.LIST_COMPACT -> AdaptiveUtils.getCompactListCoverSize(effectiveWSC)
+            BookDisplayMode.LIST_DEFAULT -> AdaptiveUtils.getListCoverSize(effectiveWSC)
             else -> displayMode.getListCoverSize()?.dp ?: 48.dp
         }
 

@@ -32,6 +32,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.Cookie
 import okhttp3.CookieJar
@@ -92,6 +93,7 @@ public class PersistentCookieJar
                 produceFile = { context.preferencesDataStoreFile(DATASTORE_NAME) },
             )
         }
+        private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         private val cache = CookieMemoryCache()
         private val aead: Aead? by lazy {
             runCatching {
@@ -108,14 +110,47 @@ public class PersistentCookieJar
             }.getOrNull()
         }
 
+        init {
+            // Warm in-memory cache from DataStore on a background thread so the
+            // first loadForRequest call doesn't block on runBlocking.
+            scope.launch {
+                try {
+                    val prefs = dataStore.data.first()
+                    val nowMillis = System.currentTimeMillis()
+                    for (entry in prefs.asMap()) {
+                        val key = entry.key.name
+                        val encrypted = entry.value as? String ?: continue
+                        val serialized = decrypt(encrypted) ?: continue
+                        val cookies =
+                            serialized
+                                .split(COOKIE_SEPARATOR)
+                                .mapNotNull { deserializeCookie(it) }
+                                .filter { !it.hasExpiredAt(nowMillis) }
+                        if (cookies.isNotEmpty()) {
+                            cache.store(key, cookies)
+                        }
+                    }
+                } catch (_: Exception) {
+                    // Best-effort warm-up; cold start falls back to DataStore.
+                }
+            }
+        }
+
         override fun saveFromResponse(
             url: HttpUrl,
             cookies: List<Cookie>,
         ) {
             val host = url.host
+            val nowMillis = System.currentTimeMillis()
 
-            // Persist session material only with a Keystore-backed AEAD.
-            runBlocking {
+            // Update in-memory cache synchronously so concurrent requests see fresh cookies.
+            cache.load(host)?.let { existingCookies ->
+                val merged = mergeCookies(existingCookies, cookies, nowMillis)
+                cache.store(host, merged)
+            } ?: cache.store(host, mergeCookies(emptyList(), cookies, nowMillis))
+
+            // Persist to DataStore in the background — no need to block the OkHttp thread.
+            scope.launch {
                 dataStore.edit { prefs ->
                     val key = stringPreferencesKey(host)
                     val existingCookies =
@@ -124,7 +159,7 @@ public class PersistentCookieJar
                             ?.split(COOKIE_SEPARATOR)
                             ?.mapNotNull(::deserializeCookie)
                             .orEmpty()
-                    val mergedCookies = mergeCookies(existingCookies, cookies, System.currentTimeMillis())
+                    val mergedCookies = mergeCookies(existingCookies, cookies, nowMillis)
                     val encrypted =
                         mergedCookies
                             .takeIf { it.isNotEmpty() }
@@ -140,12 +175,12 @@ public class PersistentCookieJar
             val host = url.host
             val nowMillis = System.currentTimeMillis()
 
-            // Try cache first
+            // Return from in-memory cache (warmed at construction).
             cache.load(host)?.let { cachedCookies ->
                 return cachedCookies.filter { !it.hasExpiredAt(nowMillis) && it.matches(url) }
             }
 
-            // Load from DataStore
+            // Cold start fallback: cache not yet warm, load from DataStore once.
             val storedCookies =
                 runBlocking {
                     val prefs = dataStore.data.first()

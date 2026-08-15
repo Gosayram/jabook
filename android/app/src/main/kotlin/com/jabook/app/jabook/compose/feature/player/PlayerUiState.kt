@@ -69,7 +69,6 @@ public sealed interface PlayerState {
         val book: Book,
         val chapters: ImmutableList<Chapter>,
         val isPlaying: Boolean,
-        val currentPosition: Long, // milliseconds
         val currentChapterIndex: Int,
         val currentChapter: Chapter?,
         val rewindInterval: Int,

@@ -174,7 +174,7 @@ public class PlayerViewModel
 
         // Backpressure guard for seekbar/UI: keep only latest position updates and
         // suppress jittery micro-updates that don't change visible state.
-        private val uiPositionFlow: StateFlow<Long> =
+        public val currentPosition: StateFlow<Long> =
             playerController.currentPosition
                 .map { it.coerceAtLeast(0L) }
                 .distinctUntilChanged { previous, current -> abs(current - previous) < POSITION_UI_EPSILON_MS }
@@ -196,7 +196,6 @@ public class PlayerViewModel
                 bookFlow = getBookDetailsUseCase(bookId),
                 chaptersFlow = getChaptersUseCase(bookId).map(::sortChaptersForPlayback),
                 isPlaying = playerController.isPlaying,
-                position = uiPositionFlow,
                 currentChapterIndex = playerController.currentChapterIndex,
                 controllerBookId = playerController.currentBookId,
                 preferences = settingsRepository.userPreferences,
@@ -402,6 +401,7 @@ public class PlayerViewModel
                 settingsRepository = settingsRepository,
                 chapterRepeatHandler = chapterRepeatHandler,
                 abRepeatHandler = abRepeatHandler,
+                playerController = playerController,
                 viewModelScope = viewModelScope,
                 loggerFactory = loggerFactory,
                 emitEffect = ::emitEffect,
