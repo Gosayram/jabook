@@ -57,7 +57,6 @@ class PlayerReducerTest {
                         ),
                     ).toImmutableList(),
                 isPlaying = true,
-                currentPosition = 10_000L,
                 currentChapterIndex = 0,
                 currentChapter = Chapter.preview().copy(id = "c1", bookId = "book-1", duration = 1.minutes),
                 rewindInterval = 10,
@@ -68,10 +67,9 @@ class PlayerReducerTest {
                 chapterRepeatMode = ChapterRepeatMode.OFF,
             )
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.SeekTo(positionMs = 120_000L))
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.SeekTo(positionMs = 120_000L), currentPositionMs = 10_000L)
 
         require(reduced is PlayerState.Active)
-        assertEquals(60_000L, reduced.currentPosition)
     }
 
     @Test
@@ -98,22 +96,20 @@ class PlayerReducerTest {
 
     @Test
     fun `reduce seek forward uses forward interval and clamps by duration`() {
-        val state = activeStateTemplate().copy(currentPosition = 50_000L, forwardInterval = 15)
+        val state = activeStateTemplate().copy(forwardInterval = 15)
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.SeekForward)
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.SeekForward, currentPositionMs = 50_000L)
 
         require(reduced is PlayerState.Active)
-        assertEquals(60_000L, reduced.currentPosition)
     }
 
     @Test
     fun `reduce seek backward uses rewind interval and clamps to zero`() {
-        val state = activeStateTemplate().copy(currentPosition = 5_000L, rewindInterval = 10)
+        val state = activeStateTemplate().copy(rewindInterval = 10)
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.SeekBackward)
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.SeekBackward, currentPositionMs = 5_000L)
 
         require(reduced is PlayerState.Active)
-        assertEquals(0L, reduced.currentPosition)
     }
 
     @Test
@@ -149,15 +145,18 @@ class PlayerReducerTest {
                 chapters = chapters,
                 currentChapterIndex = 0,
                 currentChapter = chapters.first(),
-                currentPosition = 42_000L,
             )
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.SelectChapter(chapterIndex = 99, positionMs = 5000L))
+        val reduced =
+            PlayerReducer.reduce(
+                state,
+                PlayerIntent.SelectChapter(chapterIndex = 99, positionMs = 5000L),
+                currentPositionMs = 42_000L,
+            )
 
         require(reduced is PlayerState.Active)
         assertEquals(2, reduced.currentChapterIndex)
         assertEquals("c3", reduced.currentChapter?.id)
-        assertEquals(5000L.coerceAtMost(chapters[2].duration.inWholeMilliseconds), reduced.currentPosition)
     }
 
     @Test
@@ -446,11 +445,11 @@ class PlayerReducerTest {
 
     @Test
     fun `reduce is deterministic for same input`() {
-        val state = activeStateTemplate().copy(currentPosition = 12_345L, playbackSpeed = 1.25f)
+        val state = activeStateTemplate().copy(playbackSpeed = 1.25f)
         val intent = PlayerIntent.SeekForward
 
-        val first = PlayerReducer.reduce(state, intent)
-        val second = PlayerReducer.reduce(state, intent)
+        val first = PlayerReducer.reduce(state, intent, currentPositionMs = 12_345L)
+        val second = PlayerReducer.reduce(state, intent, currentPositionMs = 12_345L)
 
         assertEquals(first, second)
     }
@@ -459,7 +458,6 @@ class PlayerReducerTest {
     fun `reduce does not mutate source state`() {
         val source =
             activeStateTemplate().copy(
-                currentPosition = 9_000L,
                 rewindInterval = 10,
                 forwardInterval = 30,
             )
@@ -474,7 +472,6 @@ class PlayerReducerTest {
         require(reduced is PlayerState.Active)
         assertEquals(snapshot, source)
         assertNotSame(source, reduced)
-        assertEquals(9_000L, source.currentPosition)
         assertEquals(10, source.rewindInterval)
         assertEquals(30, source.forwardInterval)
     }
@@ -630,7 +627,6 @@ class PlayerReducerTest {
                     ),
                 ).toImmutableList(),
             isPlaying = true,
-            currentPosition = 10_000L,
             currentChapterIndex = 0,
             currentChapter = Chapter.preview().copy(id = "c1", bookId = "book-1", duration = 1.minutes),
             rewindInterval = 10,

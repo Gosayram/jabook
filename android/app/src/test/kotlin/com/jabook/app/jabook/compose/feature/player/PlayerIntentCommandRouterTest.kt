@@ -88,16 +88,17 @@ class PlayerIntentCommandRouterTest {
 
     @Test
     fun `routePlaybackIntent maps seek forward to reduced position`() {
-        val reducedState = activeState(currentPosition = 23_000L)
+        val reducedState = activeState()
 
         val command =
             PlayerIntentCommandRouter.routePlaybackIntent(
                 intent = PlayerIntent.SeekForward,
-                currentState = activeState(currentPosition = 10_000L),
+                currentState = activeState(),
                 reducedState = reducedState,
+                currentPositionMs = 23_000L,
             )
 
-        assertEquals(PlayerCommand.SeekTo(23_000L), command)
+        assertEquals(PlayerCommand.SeekTo(53_000L), command)
     }
 
     @Test
@@ -120,7 +121,7 @@ class PlayerIntentCommandRouterTest {
             PlayerIntentCommandRouter.routePlaybackIntent(
                 intent = PlayerIntent.SelectChapter(chapterIndex = 2, positionMs = 42_000L),
                 currentState = activeState(currentChapterIndex = 0),
-                reducedState = activeState(currentChapterIndex = 2, currentPosition = 42_000L),
+                reducedState = activeState(currentChapterIndex = 2),
             )
 
         assertEquals(PlayerCommand.SkipToChapter(chapterIndex = 2, positionMs = 42_000L), command)
@@ -244,7 +245,6 @@ class PlayerIntentCommandRouterTest {
 
     private fun activeState(
         isPlaying: Boolean = false,
-        currentPosition: Long = 0L,
         currentChapterIndex: Int = 0,
         playbackSpeed: Float = 1.0f,
         sleepTimerMode: PlayerSleepTimerMode = PlayerSleepTimerMode.IDLE,
@@ -265,7 +265,6 @@ class PlayerIntentCommandRouterTest {
             book = Book.preview().copy(id = "book-1"),
             chapters = listOf(chapter).toImmutableList(),
             isPlaying = isPlaying,
-            currentPosition = currentPosition,
             currentChapterIndex = currentChapterIndex,
             currentChapter = chapter,
             rewindInterval = rewindInterval,

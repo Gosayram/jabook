@@ -82,7 +82,7 @@ internal class PlayerSpeedHandler(
         viewModelScope.launch {
             runCatching {
                 val activeState = uiState.value as? PlayerState.Active
-                val listenedMs = activeState?.currentPosition ?: playerController.currentPosition.value
+                val listenedMs = playerController.currentPosition.value
                 if (
                     SpeedMemoryHierarchy.shouldRecordBookSpeed(
                         listenedMs = listenedMs,

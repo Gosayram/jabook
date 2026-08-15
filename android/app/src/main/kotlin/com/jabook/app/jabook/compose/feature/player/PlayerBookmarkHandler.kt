@@ -38,6 +38,7 @@ internal class PlayerBookmarkHandler(
     private val bookmarkRepository: BookmarkRepository,
     private val uiState: StateFlow<PlayerState>,
     private val bookmarks: StateFlow<List<BookmarkItem>>,
+    private val playerController: com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController,
     private val viewModelScope: CoroutineScope,
     private val loggerFactory: LoggerFactory,
     private val reportError: (String) -> Unit,
@@ -52,7 +53,7 @@ internal class PlayerBookmarkHandler(
                 .addBookmark(
                     bookId = state.book.id,
                     chapterIndex = state.currentChapterIndex,
-                    positionMs = state.currentPosition,
+                    positionMs = playerController.currentPosition.value,
                     noteText = noteText,
                     chapterDurationMs = chapterDurationMs,
                 ).onFailure { error ->

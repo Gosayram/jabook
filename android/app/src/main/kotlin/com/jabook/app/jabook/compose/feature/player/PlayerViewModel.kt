@@ -535,6 +535,7 @@ public class PlayerViewModel
                 bookmarkRepository = bookmarkRepository,
                 uiState = uiState,
                 bookmarks = bookmarks,
+                playerController = playerController,
                 viewModelScope = viewModelScope,
                 loggerFactory = loggerFactory,
                 reportError = { msg -> dispatch(PlayerIntent.ReportError(msg)) },
@@ -661,7 +662,7 @@ public class PlayerViewModel
                     // Single source-of-truth: initialize from unified uiState (controller/service-driven
                     // when bound, DB-restored only as bootstrap fallback before controller binds).
                     val initialChapterIndex = state.currentChapterIndex
-                    val initialPosition = state.currentPosition
+                    val initialPosition = playerController.currentPosition.value
 
                     logger.d {
                         "Initializing player: chapter=$initialChapterIndex, position=${initialPosition}ms"
@@ -754,6 +755,7 @@ public class PlayerViewModel
                 playbackPositionRepository = playbackPositionRepository,
                 sleepTimerState = sleepTimerState,
                 uiState = uiState,
+                playerController = playerController,
                 restoredBootstrapSnapshot = restoredBootstrapSnapshot,
                 isPlaybackRestoreReady = isPlaybackRestoreReady,
                 viewModelScope = viewModelScope,

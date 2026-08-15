@@ -19,6 +19,7 @@ import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.preferences.PlayerStateSnapshotPreference
 import com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
+import com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -107,6 +108,7 @@ class PlayerStateRestoreHandlerTest {
     private fun createHandler(
         bootstrap: MutableStateFlow<RestoredBootstrapSnapshot?> = MutableStateFlow(null),
         settingsRepository: ProtoSettingsRepository = mock(),
+        playerController: AudioPlayerController = mock(),
         testScope: TestScope = TestScope(),
     ): PlayerStateRestoreHandler =
         PlayerStateRestoreHandler(
@@ -118,6 +120,7 @@ class PlayerStateRestoreHandlerTest {
             playbackPositionRepository = mock(),
             sleepTimerState = MutableStateFlow(com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle),
             uiState = MutableStateFlow(PlayerState.Loading),
+            playerController = playerController,
             restoredBootstrapSnapshot = bootstrap,
             isPlaybackRestoreReady = MutableStateFlow(false),
             viewModelScope = testScope,

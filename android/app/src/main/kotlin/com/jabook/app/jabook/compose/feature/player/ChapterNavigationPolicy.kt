@@ -71,6 +71,7 @@ internal object ChapterNavigationIntentPolicy {
     fun resolve(
         intent: PlayerIntent,
         state: PlayerState.Active,
+        currentPositionMs: Long = 0L,
         nearEndThresholdMs: Long = NEAR_END_THRESHOLD_MS,
     ): ChapterNavigationDecision {
         if (intent != PlayerIntent.SkipNext) return ChapterNavigationDecision(intent = intent)
@@ -82,7 +83,7 @@ internal object ChapterNavigationIntentPolicy {
         val nearEnd =
             chapterDurationMs != null &&
                 chapterDurationMs > 0L &&
-                state.currentPosition >= (chapterDurationMs - nearEndThresholdMs).coerceAtLeast(0L)
+                currentPositionMs >= (chapterDurationMs - nearEndThresholdMs).coerceAtLeast(0L)
 
         val targetIndex =
             when {

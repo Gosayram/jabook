@@ -58,7 +58,7 @@ internal class PlayerResumeAfterLongPauseHandler(
                 hasShownResumeAfterLongPause = true
                 val chapter = activeState.currentChapter
                 val chapterName = chapter?.title ?: (chapter?.displayNumber?.toString() ?: "—")
-                val positionFormatted = PlayerTimeFormatter.formatDuration(activeState.currentPosition)
+                val positionFormatted = PlayerTimeFormatter.formatDuration(playerController.currentPosition.value)
                 _resumeAfterLongPauseState.value =
                     PlayerViewModel.ResumeAfterLongPauseData(
                         chapterName = chapterName,

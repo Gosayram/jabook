@@ -61,18 +61,20 @@ internal class PlayerPlaybackBootstrapHandler(
         val filePaths = state.chapters.mapNotNull { it.fileUrl }
         if (filePaths.isEmpty()) return
 
+        val currentPositionMs = playerController.currentPosition.value
+
         if (resolveHierarchicalSpeed) {
             // Single source-of-truth: initialize from unified uiState (controller/service-driven
             // when bound, DB-restored only as bootstrap fallback before controller binds).
             logger.d {
-                "Initializing player: chapter=${state.currentChapterIndex}, position=${state.currentPosition}ms"
+                "Initializing player: chapter=${state.currentChapterIndex}, position=${currentPositionMs}ms"
             }
         }
 
         playerController.loadBook(
             filePaths = filePaths,
             initialChapterIndex = state.currentChapterIndex,
-            initialPosition = state.currentPosition,
+            initialPosition = currentPositionMs,
             autoPlay = autoPlay,
             metadata =
                 mapOf(

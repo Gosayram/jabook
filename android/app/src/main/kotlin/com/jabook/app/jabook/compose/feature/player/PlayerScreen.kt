@@ -222,6 +222,7 @@ public fun PlayerScreen(
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentPosition by viewModel.currentPosition.collectAsStateWithLifecycle()
     val playbackSpeed by viewModel.playbackSpeed.collectAsStateWithLifecycle()
     val pitchCorrectionEnabled by viewModel.pitchCorrectionEnabled.collectAsStateWithLifecycle()
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
@@ -672,7 +673,7 @@ public fun PlayerScreen(
         ) {
             BookmarksSheet(
                 bookmarks = state.bookmarks,
-                currentPositionMs = state.currentPosition,
+                currentPositionMs = currentPosition,
                 chapters = state.chapters,
                 currentChapterIndex = state.currentChapterIndex,
                 onJumpToBookmark = { bookmark ->
@@ -772,7 +773,7 @@ public fun PlayerScreen(
                                             val activeState = uiState as? PlayerState.Active ?: return@onPreviewKeyEvent false
                                             viewModel.addBookmarkAtPosition(
                                                 chapterIndex = activeState.currentChapterIndex,
-                                                positionMs = activeState.currentPosition,
+                                                positionMs = currentPosition,
                                             )
                                             true
                                         }
@@ -911,7 +912,7 @@ public fun PlayerScreen(
                                                             ChapterNavigationPolicy.resolvePreviousAction(
                                                                 activeState.chapters,
                                                                 activeState.currentChapterIndex,
-                                                                activeState.currentPosition,
+                                                                currentPosition,
                                                             )
                                                     ) {
                                                         is ChapterNavigationAction.RestartCurrentChapter -> {
@@ -1020,6 +1021,7 @@ public fun PlayerScreen(
                                             },
                                             onBookmarkNoteSheetVisibilityChanged = { isBookmarkNoteSheetVisible = it },
                                             snackbarHostState = snackbarHostState,
+                                            currentPositionMs = currentPosition,
                                             modifier = Modifier.hazeEffect(state = overlayHazeState),
                                             sharedTransitionScope = sharedTransitionScope,
                                             animatedVisibilityScope = animatedVisibilityScope,
@@ -1217,12 +1219,13 @@ private fun PlayerLandscapeLayout(
     onVisualizerModeCycle: () -> Unit,
     onBookmarkNoteSheetVisibilityChanged: (Boolean) -> Unit,
     snackbarHostState: androidx.compose.material3.SnackbarHostState,
+    currentPositionMs: Long,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope?,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope?,
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     val context = LocalContext.current
-    val seekState = rememberPlayerSeekState(state = state, abRepeatState = abRepeatState)
+    val seekState = rememberPlayerSeekState(state = state, abRepeatState = abRepeatState, currentPositionMs = currentPositionMs)
     val playbackPositionLabel = stringResource(R.string.playbackPositionLabel)
     val seekBackwardActionLabel = stringResource(R.string.seekBackwardDescription, state.rewindInterval)
     val seekForwardActionLabel = stringResource(R.string.seekForwardDescription, state.forwardInterval)
@@ -1554,6 +1557,7 @@ private fun PlayerContent(
     onVisualizerModeCycle: () -> Unit,
     onBookmarkNoteSheetVisibilityChanged: (Boolean) -> Unit = {},
     snackbarHostState: androidx.compose.material3.SnackbarHostState,
+    currentPositionMs: Long = 0L,
     modifier: Modifier = Modifier,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
@@ -1760,6 +1764,7 @@ private fun PlayerContent(
                 onVisualizerModeCycle = onVisualizerModeCycle,
                 onBookmarkNoteSheetVisibilityChanged = onBookmarkNoteSheetVisibilityChanged,
                 snackbarHostState = snackbarHostState,
+                currentPositionMs = currentPositionMs,
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = animatedVisibilityScope,
             )
@@ -1824,6 +1829,7 @@ private fun PlayerContent(
                         hasLyrics = hasLyrics,
                         onStatsClick = onStatsClick,
                         onSeek = onSeek,
+                        currentPositionMs = currentPositionMs,
                     )
                 }
 
@@ -1883,7 +1889,8 @@ private fun PlayerContent(
                                 .fillMaxWidth()
                                 .padding(horizontal = if (isCompact) 4.dp else 0.dp),
                     ) {
-                        val seekState = rememberPlayerSeekState(state = state, abRepeatState = abRepeatState)
+                        val seekState =
+                            rememberPlayerSeekState(state = state, abRepeatState = abRepeatState, currentPositionMs = currentPositionMs)
                         val playbackPositionLabel = stringResource(R.string.playbackPositionLabel)
                         val seekBackwardActionLabel =
                             stringResource(R.string.seekBackwardDescription, state.rewindInterval)

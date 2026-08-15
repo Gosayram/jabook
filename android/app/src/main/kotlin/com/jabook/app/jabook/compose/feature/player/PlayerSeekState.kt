@@ -153,13 +153,14 @@ internal class PlayerSeekState internal constructor(
 internal fun rememberPlayerSeekState(
     state: PlayerState.Active,
     abRepeatState: ABRepeatState,
+    currentPositionMs: Long,
 ): PlayerSeekState {
     // ponytail: computed inline — derivedStateOf keyed on currentPosition was pure per-tick overhead
     val chapterTimeline =
         ChapterSeekbarPolicy.buildTimeline(
             chapters = state.chapters,
             currentChapterIndex = state.currentChapterIndex,
-            currentChapterPositionMs = state.currentPosition.coerceAtLeast(0L),
+            currentChapterPositionMs = currentPositionMs.coerceAtLeast(0L),
         )
     val seekState = remember { PlayerSeekState(chapterTimeline) }
     seekState.timeline = chapterTimeline

@@ -59,9 +59,9 @@ internal class PlayerIntentDispatcher(
     fun dispatch(intent: PlayerIntent) {
         logger.d { "PlayerIntent received: $intent" }
         val currentState = uiState.value
-        val chapterNavigationDecision = resolveChapterNavigationIntent(intent, currentState)
-        val effectiveIntent = chapterNavigationDecision.intent
         val currentPositionMs = playerController.currentPosition.value
+        val chapterNavigationDecision = resolveChapterNavigationIntent(intent, currentState, currentPositionMs)
+        val effectiveIntent = chapterNavigationDecision.intent
         val reducedState = PlayerReducer.reduce(currentState, effectiveIntent, currentPositionMs)
         if (
             currentState is PlayerState.Loading &&
@@ -75,6 +75,7 @@ internal class PlayerIntentDispatcher(
             intent = effectiveIntent,
             currentState = currentState,
             reducedState = reducedState,
+            currentPositionMs = currentPositionMs,
         )
         maybeEmitChapterNavigationUndo(chapterNavigationDecision)
     }
@@ -82,9 +83,10 @@ internal class PlayerIntentDispatcher(
     private fun resolveChapterNavigationIntent(
         intent: PlayerIntent,
         state: PlayerState,
+        currentPositionMs: Long,
     ): ChapterNavigationDecision =
         (state as? PlayerState.Active)?.let { activeState ->
-            ChapterNavigationIntentPolicy.resolve(intent = intent, state = activeState)
+            ChapterNavigationIntentPolicy.resolve(intent = intent, state = activeState, currentPositionMs = currentPositionMs)
         } ?: ChapterNavigationDecision(intent = intent)
 
     private fun maybeEmitChapterNavigationUndo(decision: ChapterNavigationDecision) {
@@ -103,8 +105,9 @@ internal class PlayerIntentDispatcher(
         intent: PlayerIntent,
         currentState: PlayerState,
         reducedState: PlayerState,
+        currentPositionMs: Long,
     ) {
-        if (handleCommandIntent(intent, currentState, reducedState)) return
+        if (handleCommandIntent(intent, currentState, reducedState, currentPositionMs)) return
         when (intent) {
             PlayerIntent.ToggleChapterRepeat -> chapterRepeatHandler.onToggleChapterRepeat(reducedState)
             is PlayerIntent.CycleVisualizerMode -> {
@@ -135,6 +138,7 @@ internal class PlayerIntentDispatcher(
         intent: PlayerIntent,
         currentState: PlayerState,
         reducedState: PlayerState,
+        currentPositionMs: Long,
     ): Boolean =
         if (!PlayerIntentCommandRouter.isCommandIntent(intent)) {
             false

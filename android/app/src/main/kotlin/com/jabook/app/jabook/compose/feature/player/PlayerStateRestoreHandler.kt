@@ -64,6 +64,7 @@ internal class PlayerStateRestoreHandler(
     private val playbackPositionRepository: PlaybackPositionRepository,
     private val sleepTimerState: StateFlow<SleepTimerState>,
     private val uiState: StateFlow<PlayerState>,
+    private val playerController: com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController,
     private val restoredBootstrapSnapshot: MutableStateFlow<RestoredBootstrapSnapshot?>,
     private val isPlaybackRestoreReady: MutableStateFlow<Boolean>,
     private val viewModelScope: CoroutineScope,
@@ -225,6 +226,7 @@ internal class PlayerStateRestoreHandler(
                             PlayerStateSnapshotPolicy.capture(
                                 bookId = bookId,
                                 state = state,
+                                currentPositionMs = playerController.currentPosition.value,
                                 sleepTimerState = timerState,
                             )
                         savedStateHandle[STATE_SNAPSHOT_BOOK_ID] = snapshot.bookId

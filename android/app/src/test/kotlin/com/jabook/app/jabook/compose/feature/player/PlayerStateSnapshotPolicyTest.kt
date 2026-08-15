@@ -50,7 +50,6 @@ class PlayerStateSnapshotPolicyTest {
                         .preview(),
                 chapters = persistentListOf(Chapter.preview()),
                 isPlaying = true,
-                currentPosition = -1L,
                 currentChapterIndex = -3,
                 currentChapter = Chapter.preview(),
                 rewindInterval = 10,
@@ -65,6 +64,7 @@ class PlayerStateSnapshotPolicyTest {
             PlayerStateSnapshotPolicy.capture(
                 bookId = "book-1",
                 state = activeState,
+                currentPositionMs = -1L,
                 sleepTimerState = SleepTimerState.EndOfChapter,
             )
 

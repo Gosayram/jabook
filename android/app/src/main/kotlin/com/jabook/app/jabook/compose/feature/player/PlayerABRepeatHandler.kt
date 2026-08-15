@@ -46,7 +46,7 @@ internal class PlayerABRepeatHandler(
         val currentABState = _abRepeatState.value
         val activeState = uiState.value as? PlayerState.Active ?: return
         val chapterIndex = activeState.currentChapterIndex
-        val position = activeState.currentPosition
+        val position = playerController.currentPosition.value
         when (currentABState.phase) {
             ABRepeatPhase.INACTIVE -> {
                 _abRepeatState.value =

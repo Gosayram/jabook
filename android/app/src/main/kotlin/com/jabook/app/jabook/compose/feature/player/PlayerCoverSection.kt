@@ -64,6 +64,7 @@ internal fun PlayerCoverSection(
     onStatsClick: () -> Unit,
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    currentPositionMs: Long = 0L,
 ) {
     val context = LocalContext.current
     val imageRequest =
@@ -117,7 +118,7 @@ internal fun PlayerCoverSection(
         ) {
             LyricsView(
                 lyrics = state.lyrics.orEmpty(),
-                currentPosition = state.currentPosition,
+                currentPosition = currentPositionMs,
                 onSeek = onSeek,
             )
         }

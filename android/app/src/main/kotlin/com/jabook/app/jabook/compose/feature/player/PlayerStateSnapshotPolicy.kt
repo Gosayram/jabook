@@ -36,11 +36,12 @@ public object PlayerStateSnapshotPolicy {
     public fun capture(
         bookId: String,
         state: PlayerState.Active,
+        currentPositionMs: Long,
         sleepTimerState: SleepTimerState,
     ): PlayerStateSnapshot =
         PlayerStateSnapshot(
             bookId = bookId,
-            positionMs = state.currentPosition.coerceAtLeast(0L),
+            positionMs = currentPositionMs.coerceAtLeast(0L),
             chapterIndex = state.currentChapterIndex.coerceAtLeast(0),
             playbackSpeed = state.playbackSpeed.coerceAtLeast(0f),
             sleepTimerMode = sleepTimerModeOf(sleepTimerState),

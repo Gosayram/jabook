@@ -183,9 +183,9 @@ class ChapterNavigationPolicyTest {
 class ChapterNavigationIntentPolicyTest {
     @Test
     fun `resolve keeps skip next unchanged when tap is near chapter start`() {
-        val state = activeState(currentChapterIndex = 1, currentPositionMs = 2_000L)
+        val state = activeState(currentChapterIndex = 1)
 
-        val decision = ChapterNavigationIntentPolicy.resolve(intent = PlayerIntent.SkipNext, state = state)
+        val decision = ChapterNavigationIntentPolicy.resolve(intent = PlayerIntent.SkipNext, state = state, currentPositionMs = 2_000L)
 
         assertEquals(PlayerIntent.SkipNext, decision.intent)
         assertEquals(null, decision.movedToChapterDisplayIndex)
@@ -194,9 +194,9 @@ class ChapterNavigationIntentPolicyTest {
 
     @Test
     fun `resolve converts skip next to next chapter when tap is near chapter end`() {
-        val state = activeState(currentChapterIndex = 1, currentPositionMs = 56_000L)
+        val state = activeState(currentChapterIndex = 1)
 
-        val decision = ChapterNavigationIntentPolicy.resolve(intent = PlayerIntent.SkipNext, state = state)
+        val decision = ChapterNavigationIntentPolicy.resolve(intent = PlayerIntent.SkipNext, state = state, currentPositionMs = 56_000L)
 
         assertEquals(PlayerIntent.SelectChapter(2), decision.intent)
         assertEquals(3, decision.movedToChapterDisplayIndex)
@@ -205,9 +205,9 @@ class ChapterNavigationIntentPolicyTest {
 
     @Test
     fun `resolve keeps skip next unchanged when tap is in chapter middle`() {
-        val state = activeState(currentChapterIndex = 1, currentPositionMs = 30_000L)
+        val state = activeState(currentChapterIndex = 1)
 
-        val decision = ChapterNavigationIntentPolicy.resolve(intent = PlayerIntent.SkipNext, state = state)
+        val decision = ChapterNavigationIntentPolicy.resolve(intent = PlayerIntent.SkipNext, state = state, currentPositionMs = 30_000L)
 
         assertEquals(PlayerIntent.SkipNext, decision.intent)
         assertEquals(null, decision.movedToChapterDisplayIndex)
@@ -216,9 +216,9 @@ class ChapterNavigationIntentPolicyTest {
 
     @Test
     fun `resolve keeps skip next unchanged when no chapter can be inferred`() {
-        val state = activeState(currentChapterIndex = 0, currentPositionMs = 1_000L)
+        val state = activeState(currentChapterIndex = 0)
 
-        val decision = ChapterNavigationIntentPolicy.resolve(intent = PlayerIntent.SkipNext, state = state)
+        val decision = ChapterNavigationIntentPolicy.resolve(intent = PlayerIntent.SkipNext, state = state, currentPositionMs = 1_000L)
 
         assertEquals(PlayerIntent.SkipNext, decision.intent)
         assertEquals(null, decision.movedToChapterDisplayIndex)
@@ -227,19 +227,16 @@ class ChapterNavigationIntentPolicyTest {
 
     @Test
     fun `resolve keeps non-skip intents untouched`() {
-        val state = activeState(currentChapterIndex = 1, currentPositionMs = 2_000L)
+        val state = activeState(currentChapterIndex = 1)
 
-        val decision = ChapterNavigationIntentPolicy.resolve(intent = PlayerIntent.SeekForward, state = state)
+        val decision = ChapterNavigationIntentPolicy.resolve(intent = PlayerIntent.SeekForward, state = state, currentPositionMs = 2_000L)
 
         assertEquals(PlayerIntent.SeekForward, decision.intent)
         assertEquals(null, decision.movedToChapterDisplayIndex)
         assertEquals(null, decision.undoChapterIndex)
     }
 
-    private fun activeState(
-        currentChapterIndex: Int,
-        currentPositionMs: Long,
-    ): PlayerState.Active {
+    private fun activeState(currentChapterIndex: Int): PlayerState.Active {
         val chapters =
             listOf(
                 Chapter.preview().copy(
@@ -272,7 +269,6 @@ class ChapterNavigationIntentPolicyTest {
             book = Book.preview().copy(id = "book-1"),
             chapters = chapters,
             isPlaying = true,
-            currentPosition = currentPositionMs,
             currentChapterIndex = currentChapterIndex,
             currentChapter = chapters[currentChapterIndex],
             rewindInterval = 10,
