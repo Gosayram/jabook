@@ -1,0 +1,725 @@
+// Copyright 2026 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.jabook.app.jabook.compose.data.remote.repository
+
+import com.jabook.app.jabook.compose.core.logger.LogLevel
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.core.logger.endOperation
+import com.jabook.app.jabook.compose.core.logger.log
+import com.jabook.app.jabook.compose.core.logger.logError
+import com.jabook.app.jabook.compose.core.logger.logSuccess
+import com.jabook.app.jabook.compose.core.logger.logWarning
+import com.jabook.app.jabook.compose.core.logger.logWithDuration
+import com.jabook.app.jabook.compose.core.logger.startOperation
+import com.jabook.app.jabook.compose.core.logger.withOperation
+import com.jabook.app.jabook.compose.data.auth.RutrackerAuthService
+import com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache
+import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
+import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
+import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
+import com.jabook.app.jabook.compose.data.local.search.TransliterationSearchPolicy
+import com.jabook.app.jabook.compose.data.network.MirrorManager
+import com.jabook.app.jabook.compose.data.network.SearchStaleWhileRevalidatePolicy
+import com.jabook.app.jabook.compose.data.remote.RuTrackerError
+import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
+import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
+import com.jabook.app.jabook.compose.data.remote.mapper.toDomainFromIndex
+import com.jabook.app.jabook.compose.data.remote.model.AudiobookCategory
+import com.jabook.app.jabook.compose.data.remote.model.SearchResult
+import com.jabook.app.jabook.compose.data.remote.parser.CategoryParser
+import com.jabook.app.jabook.compose.data.remote.parser.ParsingResult
+import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
+import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
+import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
+import dagger.Lazy
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/**
+ * Repository for RuTracker operations.
+ *
+ * Integrates:
+ * - RutrackerApi - network calls
+ * - RutrackerParser - HTML parsing with encoding detection
+ * - CategoryParser - category structure parsing
+ * - RutrackerAuthService - authentication
+ *
+ * This is the main entry point for RuTracker functionality.
+ */
+@Singleton
+public class RutrackerRemoteDataSource
+    @Inject
+    constructor(
+        private val api: RutrackerApi,
+        private val parser: Lazy<RutrackerParser>,
+        private val categoryParser: Lazy<CategoryParser>,
+        private val authService: RutrackerAuthService,
+        private val searchCache: RutrackerSearchCache,
+        private val offlineSearchDao: OfflineSearchDao,
+        private val mirrorManager: MirrorManager,
+        private val loggerFactory: LoggerFactory,
+    ) {
+        private val logger = loggerFactory.get(TAG)
+        private val rutrackerParser: RutrackerParser
+            get() = parser.get()
+        private val rutrackerCategoryParser: CategoryParser
+            get() = categoryParser.get()
+
+        /**
+         * Search for audiobooks using ONLY indexed topics (offline, no network).
+         *
+         * This method uses the pre-indexed topics from forums, ensuring:
+         * - Fast, offline search
+         * - Only audiobook topics (from indexed forums)
+         * - No unwanted topics from other forums
+         * - No network requests
+         *
+         * @param query Search query
+         * @param forumIds Optional forum IDs (ignored - uses all indexed topics)
+         * @return Result with search results (empty if index is empty or search fails)
+         */
+        public suspend fun searchAudiobooks(
+            query: String,
+            forumIds: String? = null,
+        ): Result<List<RutrackerSearchResult>> =
+            withContext(Dispatchers.IO) {
+                logger.withOperation("searchAudiobooks") { operationId ->
+                    try {
+                        logger.log(operationId, "Index-only search started: query='$query', forumIds=$forumIds")
+
+                        // Use ONLY indexed search
+                        val indexSize = offlineSearchDao.getTopicCount()
+                        if (indexSize > 0) {
+                            val indexSearchStartTime = System.currentTimeMillis()
+                            val indexedResults = searchIndexedTopics(query, limit = 200)
+                            val indexSearchDuration = System.currentTimeMillis() - indexSearchStartTime
+
+                            logger.logSuccess(
+                                operationId,
+                                "Found ${indexedResults.size} results from index (${indexSearchDuration}ms, index size: $indexSize)",
+                            )
+                            Result.success(indexedResults)
+                        } else {
+                            logger.logWarning(
+                                operationId,
+                                "Index is empty ($indexSize topics) - cannot search. Please run indexing first.",
+                            )
+                            Result.success(emptyList())
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.logError(operationId, "Indexed search failed", e)
+                        Result.success(emptyList()) // Return empty instead of error
+                    }
+                }
+            }
+
+        /**
+         * Fast search in indexed topics (offline, no network required).
+         *
+         * Uses lenient validation (isValidForIndex) since indexed topics:
+         * - May have fallback category values
+         * - Don't have torrentUrl (retrieved on-demand via getTopicDetails())
+         *
+         * @param query Search query
+         * @param limit Maximum number of results
+         * @return List of search results from index
+         */
+        public suspend fun searchIndexedTopics(
+            query: String,
+            limit: Int = 100,
+        ): List<RutrackerSearchResult> =
+            withContext(Dispatchers.IO) {
+                try {
+                    val ftsQuery = toFtsQuery(query)
+                    val entities =
+                        try {
+                            val ftsSql =
+                                "SELECT t.* FROM cached_topics t " +
+                                    "JOIN topics_fts ON topics_fts.rowid = t.rowid " +
+                                    "WHERE topics_fts MATCH ? " +
+                                    "AND t.category IS NOT NULL AND t.category != '' " +
+                                    "ORDER BY bm25(topics_fts), t.seeders DESC LIMIT $limit"
+                            offlineSearchDao.searchIndexedTopicsFtsRaw(
+                                androidx.sqlite.db.SimpleSQLiteQuery(ftsSql, arrayOf<Any>(ftsQuery)),
+                            )
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            logger.w { "FTS5 search failed, falling back to LIKE: ${e.message}" }
+                            offlineSearchDao.searchIndexedTopics(query, limit)
+                        }
+                    val dtoResults = entities.map { it.toSearchResult() }
+                    val domainResults = dtoResults.toDomainFromIndex()
+                    logger.d { "Indexed search: ${entities.size} candidates, ${domainResults.size} results" }
+
+                    domainResults
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logger.e(
+                        { "Indexed search EXCEPTION for query '$query': ${e.message}" },
+                        e,
+                    )
+                    emptyList()
+                }
+            }
+
+        public companion object {
+            private const val TAG = "RutrackerRepository"
+
+            internal fun toFtsQuery(input: String): String =
+                TransliterationSearchPolicy
+                    .buildFtsMatchQuery(input.replace('ё', 'е').replace('Ё', 'Е'))
+        }
+
+        /**
+         * Search using ONLY indexed topics (offline, no network).
+         *
+         * If index is empty or search fails, returns empty list (never falls back to network).
+         */
+        public fun searchAudiobooksFlow(
+            query: String,
+            forumIds: String? = null,
+        ): Flow<Result<List<RutrackerSearchResult>>> =
+            flow {
+                try {
+                    var lastEmitted: List<RutrackerSearchResult> = emptyList()
+
+                    suspend fun emitIfChanged(next: List<RutrackerSearchResult>) {
+                        if (SearchStaleWhileRevalidatePolicy.isMeaningfulRefresh(lastEmitted, next)) {
+                            lastEmitted = next
+                            emit(Result.success(next))
+                        }
+                    }
+
+                    searchCache.get(query, forumIds)?.let { cached ->
+                        val domainCached = cached.toDomainFromIndex()
+                        if (domainCached.isNotEmpty()) {
+                            emitIfChanged(domainCached)
+                        }
+                    }
+
+                    val indexSize =
+                        withContext(Dispatchers.IO) {
+                            try {
+                                offlineSearchDao.getTopicCount()
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                0
+                            }
+                        }
+
+                    if (indexSize > 0) {
+                        if (query.trim() == "!index" || query.trim() == ":debug") {
+                            val sampleTopics = offlineSearchDao.getSampleTopics(10)
+                            val domainResults = sampleTopics.map { it.toSearchResult() }.toDomainFromIndex()
+                            emitIfChanged(domainResults)
+                            return@flow
+                        }
+
+                        val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+
+                        if (tokens.isEmpty()) {
+                            emitIfChanged(emptyList())
+                        } else {
+                            val ftsQuery = toFtsQuery(query)
+                            val indexedEntities =
+                                try {
+                                    val ftsSql =
+                                        "SELECT t.* FROM cached_topics t " +
+                                            "JOIN topics_fts ON topics_fts.rowid = t.rowid " +
+                                            "WHERE topics_fts MATCH ? " +
+                                            "AND t.category IS NOT NULL AND t.category != '' " +
+                                            "ORDER BY bm25(topics_fts), t.seeders DESC LIMIT 200"
+                                    offlineSearchDao.searchIndexedTopicsFtsRaw(
+                                        androidx.sqlite.db.SimpleSQLiteQuery(ftsSql, arrayOf<Any>(ftsQuery)),
+                                    )
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    logger.w { "FTS5 flow search failed, falling back to LIKE: ${e.message}" }
+                                    val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
+                                    val args = ArrayList<Any>()
+                                    tokens.forEachIndexed { index, token ->
+                                        if (index > 0) sqlBuilder.append(" AND ")
+                                        sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
+                                        args.add("%$token%")
+                                        args.add("%$token%")
+                                    }
+                                    sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
+                                    offlineSearchDao
+                                        .searchIndexedTopicsRaw(
+                                            androidx.sqlite.db.SimpleSQLiteQuery(sqlBuilder.toString(), args.toArray()),
+                                        ).first()
+                                }
+                            val indexedDomainResults = indexedEntities.map { it.toSearchResult() }.toDomainFromIndex()
+                            emitIfChanged(indexedDomainResults)
+                        }
+                    }
+
+                    val refreshed = fetchFromNetwork(query, forumIds)
+                    if (refreshed.isSuccess) {
+                        emitIfChanged(refreshed.getOrDefault(emptyList()))
+                    } else if (lastEmitted.isEmpty()) {
+                        emit(Result.failure(refreshed.exceptionOrNull() ?: RuTrackerError.Unknown()))
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    emit(Result.failure(e))
+                }
+            }.catch { e ->
+                if (e is CancellationException) throw e
+                emit(Result.failure(e))
+            }
+
+        /**
+         * Fetch topic details and save cover URL to database.
+         *
+         * @return [Result.success] with the resolved cover URL when found, otherwise null.
+         */
+        public suspend fun fetchAndSaveCover(topicId: String): Result<String?> =
+            try {
+                // Re-use existing getTopicDetails which fetches HTML and parses it
+                val result = getTopicDetails(topicId)
+
+                // Extract success data to check coverUrl
+                if (result.isSuccess) {
+                    val details = result.getOrNull()
+                    val coverUrl: String? = details?.coverUrl
+                    if (!coverUrl.isNullOrBlank()) {
+                        logger.d { "Updating cover for $topicId: $coverUrl" }
+                        offlineSearchDao.updateCoverUrl(topicId, coverUrl)
+                        Result.success(coverUrl)
+                    } else {
+                        logger.d { "No cover found for $topicId" }
+                        Result.success(null)
+                    }
+                } else {
+                    Result.failure(result.exceptionOrNull() ?: Exception("Unknown error"))
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Result.failure(e)
+            }
+
+        private suspend fun fetchFromNetwork(
+            query: String,
+            forumIds: String?,
+            operationId: String? = null,
+        ): Result<List<RutrackerSearchResult>> {
+            val opId = operationId ?: logger.startOperation("fetchFromNetwork")
+            val networkStartTime = System.currentTimeMillis()
+            val currentMirror = mirrorManager.getCurrentMirrorDomain()
+            logger.log(opId, "Fetching from network: query='$query', forumIds=$forumIds")
+            logger.log(opId, "Current mirror: $currentMirror")
+            // === HTTP REQUEST LOGGING ===
+            logger.w { "=== SEARCH REQUEST ===" }
+            logger.w { "Query: '$query'" }
+            logger.w { "Mirror: $currentMirror" }
+            if (forumIds != null) {
+                logger.w { "Forum IDs: $forumIds" }
+            }
+
+            val response = api.searchTopics(query, forumIds)
+
+            // Log request details
+            val requestUrl = response.raw().request.url
+            logger.w { "Request URL: $requestUrl" }
+
+            // === HTTP RESPONSE LOGGING ===
+            val networkDuration = System.currentTimeMillis() - networkStartTime
+            logger.logWithDuration(
+                opId,
+                "Response received: HTTP ${response.code()} ${response.message()}",
+                networkDuration,
+            )
+            logger.log(opId, "Final URL: ${response.raw().request.url}", LogLevel.DEBUG)
+
+            if (!response.isSuccessful) {
+                val error =
+                    when (response.code()) {
+                        401 -> RuTrackerError.Unauthorized
+                        403 -> RuTrackerError.Forbidden
+                        404 -> RuTrackerError.NotFound
+                        400 -> RuTrackerError.BadRequest
+                        else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
+                    }
+                logger.logError(opId, "Request failed: ${error.message}", error)
+                if (operationId == null) logger.endOperation(opId, success = false)
+                return Result.failure(error)
+            }
+
+            // Log important headers
+            val headers = response.headers()
+            logger.w { "Headers:" }
+            listOf("content-type", "content-encoding", "content-length", "location").forEach { name ->
+                headers[name]?.let { value ->
+                    logger.w { "  $name: $value" }
+                }
+            }
+
+            // CRITICAL: Check Content-Encoding to see if data was compressed
+            // Note: BrotliInterceptor removes "Content-Encoding: br" header after decompression,
+            // so if we see it here, BrotliInterceptor didn't process it (shouldn't happen)
+            val contentEncoding = headers["Content-Encoding"]
+            logger.w { "Content-Encoding: $contentEncoding" }
+            if (contentEncoding != null && contentEncoding.contains("br", ignoreCase = true)) {
+                logger.w {
+                    "WARNING: Content-Encoding still contains 'br' - BrotliInterceptor may not have processed it!"
+                }
+            }
+
+            // CRITICAL: ResponseBody can only be read once!
+            // Store bytes immediately and reuse
+            // Note: OkHttp BrotliInterceptor automatically decompresses Brotli responses
+            // After decompression, we get raw bytes that need to be decoded with Windows-1251
+            val rawBytes = response.body()?.bytes() ?: ByteArray(0)
+            logger.w { "Response Size: ${rawBytes.size} bytes (should be decompressed if was Brotli)" }
+
+            // Check if bytes look like compressed data (Brotli magic bytes)
+            if (rawBytes.isNotEmpty()) {
+                val firstBytes = rawBytes.take(4).toByteArray()
+                val hexPreview = firstBytes.joinToString(" ") { "%02x".format(it) }
+                logger.w { "First 4 bytes (hex): $hexPreview" }
+
+                // Brotli magic bytes: 0x81, 0x1B (or similar)
+                // Gzip magic bytes: 0x1F, 0x8B
+                val looksLikeBrotli = rawBytes[0] == 0x81.toByte() && rawBytes[1] == 0x1B.toByte()
+                val looksLikeGzip = rawBytes[0] == 0x1F.toByte() && rawBytes[1] == 0x8B.toByte()
+                logger.w { "Looks like Brotli: $looksLikeBrotli, Gzip: $looksLikeGzip" }
+
+                if (looksLikeBrotli || looksLikeGzip) {
+                    logger.e { "WARNING: Data appears to be compressed but OkHttp didn't decompress it!" }
+                }
+
+                // Check if bytes look like HTML (should start with < or whitespace before <)
+                val startsWithHtml =
+                    rawBytes.take(100).any {
+                        it == '<'.code.toByte() ||
+                            it == 0x20.toByte() ||
+                            it == 0x09.toByte() ||
+                            it == 0x0A.toByte()
+                    }
+                logger.w { "Looks like HTML (contains '<' or whitespace): $startsWithHtml" }
+
+                // Try to see if it's valid Windows-1251 (Cyrillic range)
+                val sample = rawBytes.take(1000)
+                val hasCyrillicBytes = sample.any { it.toInt() and 0xFF in 0xC0..0xFF } // Windows-1251 Cyrillic range
+                logger.w { "Has potential Cyrillic bytes (0xC0-0xFF): $hasCyrillicBytes" }
+            }
+
+            // Get Content-Type for encoding detection
+            // Note: After BrotliInterceptor decompression, bytes are ready for charset decoding
+            val contentType = response.headers()["Content-Type"]
+            // Parse with encoding detection (RutrackerSimpleDecoder will decode bytes with Windows-1251)
+            val parsingResult = rutrackerParser.parseSearchResultsWithEncoding(rawBytes, contentType)
+
+            return when (parsingResult) {
+                is ParsingResult.Success -> {
+                    val dtoResults = parsingResult.data
+                    logger.d { "Parsing success: ${dtoResults.size} DTO results for query '$query'" }
+                    val domainResults = dtoResults.toDomain()
+                    val filteredCount = dtoResults.size - domainResults.size
+                    if (filteredCount > 0) {
+                        logger.w {
+                            "Filtered out $filteredCount invalid results during toDomain() conversion"
+                        }
+                    }
+                    logger.d {
+                        "Final domain results: ${domainResults.size} valid results " +
+                            "(${dtoResults.size} DTO -> ${domainResults.size} domain)"
+                    }
+                    handleSuccess(query, forumIds, dtoResults) // Cache DTO models
+                    val resultCount = domainResults.size
+                    logger.logSuccess(
+                        opId,
+                        "Parsed $resultCount results (${dtoResults.size} DTO, $resultCount valid domain)",
+                        networkDuration,
+                    )
+                    if (operationId == null) logger.endOperation(opId, success = true, "Found $resultCount results")
+                    Result.success(domainResults)
+                }
+                is ParsingResult.PartialSuccess -> {
+                    val dtoResults = parsingResult.data
+                    logger.w {
+                        "Partial parsing: ${dtoResults.size} DTO results, ${parsingResult.errors.size} errors for query '$query'"
+                    }
+                    val domainResults = dtoResults.toDomain()
+                    val filteredCount = dtoResults.size - domainResults.size
+                    if (filteredCount > 0) {
+                        logger.w {
+                            "Filtered out $filteredCount invalid results during toDomain() conversion"
+                        }
+                    }
+                    logger.d {
+                        "Final domain results: ${domainResults.size} valid results " +
+                            "(${dtoResults.size} DTO -> ${domainResults.size} domain)"
+                    }
+                    handleSuccess(query, forumIds, dtoResults) // Cache DTO models
+                    val resultCount = domainResults.size
+                    logger.logWarning(
+                        opId,
+                        "Partial success: parsed $resultCount results with ${parsingResult.errors.size} errors (${dtoResults.size} DTO, $resultCount valid domain)",
+                    )
+                    if (operationId ==
+                        null
+                    ) {
+                        logger.endOperation(opId, success = true, "Found $resultCount results (partial)")
+                    }
+                    Result.success(domainResults)
+                }
+                is ParsingResult.Failure -> {
+                    val errorMessage = parsingResult.errors.firstOrNull()?.reason ?: "Parsing failed"
+                    logger.e {
+                        "Parsing failed for query '$query': ${parsingResult.errors.size} errors"
+                    }
+                    parsingResult.errors.take(5).forEachIndexed { index, error ->
+                        logger.e {
+                            "  Error[$index]: ${error.field} - ${error.reason} " +
+                                "(severity: ${error.severity})"
+                        }
+                    }
+                    if (parsingResult.errors.size > 5) {
+                        logger.e { "  ... and ${parsingResult.errors.size - 5} more errors" }
+                    }
+
+                    val error = RuTrackerError.ParsingError(errorMessage)
+                    logger.logError(opId, "Parsing failed: $errorMessage", error)
+                    if (operationId == null) logger.endOperation(opId, success = false, errorMessage)
+                    Result.failure(error)
+                }
+            }
+        }
+
+        private suspend fun handleSuccess(
+            query: String,
+            forumIds: String?,
+            results: List<SearchResult>,
+        ) {
+            // Memory Cache
+            searchCache.put(query, forumIds, results)
+
+            // DB Persistence for default/generic search scopes.
+            if (SearchStaleWhileRevalidatePolicy.shouldPersistResults(forumIds)) {
+                try {
+                    val entities = results.map { it.toCachedTopicEntity() }
+                    val dbSaveStartTime = System.currentTimeMillis()
+                    offlineSearchDao.saveSearchResults(query, entities)
+                    val dbSaveDuration = System.currentTimeMillis() - dbSaveStartTime
+                    logger.d { "Saved ${entities.size} results to DB cache (query: '$query', ${dbSaveDuration}ms)" }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logger.e(
+                        { "Failed to save to DB" },
+                        e,
+                    )
+                }
+            }
+        }
+
+        /**
+         * Get topic details.
+         *
+         * @param topicId Topic ID
+         * @return Result with topic details or error
+         */
+        public suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails> =
+            withContext(Dispatchers.IO) {
+                logger.withOperation("getTopicDetails") { operationId ->
+                    try {
+                        // Validate input
+                        if (topicId.isBlank()) {
+                            logger.logError(
+                                operationId,
+                                "Topic ID is blank",
+                                IllegalArgumentException("Topic ID cannot be blank"),
+                            )
+                            return@withOperation Result.failure(IllegalArgumentException("Topic ID cannot be blank"))
+                        }
+
+                        logger.log(operationId, "Fetching topic details: $topicId")
+
+                        val response = api.getTopicDetails(topicId)
+
+                        if (!response.isSuccessful) {
+                            logger.logWarning(operationId, "Topic details failed: HTTP ${response.code()}")
+                            val rutrackerError =
+                                when (response.code()) {
+                                    401 -> RuTrackerError.Unauthorized
+                                    403 -> RuTrackerError.Forbidden
+                                    404 -> RuTrackerError.NotFound
+                                    400 -> RuTrackerError.BadRequest
+                                    else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
+                                }
+                            logger.logError(operationId, "Failed to fetch topic details", rutrackerError)
+                            Result.failure(rutrackerError)
+                        } else {
+                            // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
+                            val rawBytes = response.body()?.bytes() ?: byteArrayOf()
+                            if (rawBytes.isEmpty()) {
+                                logger.logError(
+                                    operationId,
+                                    "Empty response body",
+                                    IllegalArgumentException("Response body is empty"),
+                                )
+                                return@withOperation Result.failure(IllegalArgumentException("Response body is empty"))
+                            }
+
+                            val html = String(rawBytes, charset("windows-1251"))
+                            val dtoDetails = rutrackerParser.parseTopicDetails(html, topicId)
+
+                            if (dtoDetails != null) {
+                                // Map DTO to domain model with validation
+                                val domainDetails = dtoDetails.toDomain()
+                                if (domainDetails.isValid()) {
+                                    logger.logSuccess(
+                                        operationId,
+                                        "Topic details parsed and validated: ${domainDetails.title}",
+                                    )
+                                    Result.success(domainDetails)
+                                } else {
+                                    logger.logWarning(operationId, "Topic details parsed but failed validation")
+                                    Result.failure(RuTrackerError.ParsingError("Topic details failed validation"))
+                                }
+                            } else {
+                                logger.logWarning(operationId, "Failed to parse topic details")
+                                Result.failure(RuTrackerError.ParsingError("Failed to parse topic details"))
+                            }
+                        }
+                    } catch (e: java.net.UnknownHostException) {
+                        logger.logError(operationId, "Network error - unknown host", e)
+                        Result.failure(RuTrackerError.NoConnection)
+                    } catch (e: java.io.IOException) {
+                        logger.logError(operationId, "Network I/O error", e)
+                        Result.failure(RuTrackerError.NoConnection)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.logError(operationId, "Topic details error", e)
+                        Result.failure(RuTrackerError.Unknown(e.message))
+                    }
+                }
+            }
+
+        /**
+         * Get audiobook categories.
+         *
+         * @return Result with categories or error
+         */
+        public suspend fun getCategories(): Result<List<AudiobookCategory>> =
+            withContext(Dispatchers.IO) {
+                logger.withOperation("getCategories") { operationId ->
+                    try {
+                        logger.log(operationId, "Fetching categories")
+
+                        val response = api.getIndex()
+
+                        if (!response.isSuccessful) {
+                            logger.logWarning(operationId, "Categories failed: HTTP ${response.code()}")
+                            val error =
+                                when (response.code()) {
+                                    401 -> RuTrackerError.Unauthorized
+                                    403 -> RuTrackerError.Forbidden
+                                    404 -> RuTrackerError.NotFound
+                                    400 -> RuTrackerError.BadRequest
+                                    else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
+                                }
+                            logger.logError(operationId, "Failed to fetch categories", error)
+                            Result.failure(error)
+                        } else {
+                            // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
+                            val rawBytes = response.body()?.bytes() ?: ByteArray(0)
+                            // Decode HTML (CategoryParser expects decoded string)
+                            val html = String(rawBytes, Charsets.UTF_8)
+
+                            val parsingResult = rutrackerCategoryParser.parseCategories(html)
+
+                            when (parsingResult) {
+                                is ParsingResult.Success -> {
+                                    logger.logSuccess(operationId, "Categories parsed: ${parsingResult.data.size}")
+                                    Result.success(parsingResult.data)
+                                }
+                                is ParsingResult.PartialSuccess -> {
+                                    logger.logWarning(
+                                        operationId,
+                                        "Categories partial: ${parsingResult.data.size} categories with ${parsingResult.errors.size} errors",
+                                    )
+                                    Result.success(parsingResult.data)
+                                }
+                                is ParsingResult.Failure -> {
+                                    val errorMessage =
+                                        parsingResult.errors.firstOrNull()?.reason ?: "Failed to parse categories"
+                                    logger.logError(
+                                        operationId,
+                                        "Categories parsing failed: $errorMessage",
+                                        RuTrackerError.ParsingError(errorMessage),
+                                    )
+                                    Result.failure(RuTrackerError.ParsingError(errorMessage))
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        logger.logError(operationId, "Categories error", e)
+                        Result.failure(RuTrackerError.Unknown(e.message))
+                    }
+                }
+            }
+
+        /**
+         * Check if user is authenticated.
+         *
+         * @return true if authenticated
+         */
+        public suspend fun isAuthenticated(): Boolean =
+            withContext(Dispatchers.IO) {
+                try {
+                    val response = api.getProfile()
+                    response.isSuccessful
+                } catch (e: Exception) {
+                    logger.w(
+                        { "Auth check failed" },
+                        e,
+                    )
+                    // Return false for any error - let caller handle specific error types if needed
+                    false
+                }
+            }
+
+        /**
+         * Get search cache statistics.
+         */
+        public fun getCacheStatistics(): RutrackerSearchCache.CacheStatistics = searchCache.getStatistics()
+
+        /**
+         * Clear search cache.
+         */
+        public fun clearSearchCache() {
+            searchCache.clear()
+        }
+    }
