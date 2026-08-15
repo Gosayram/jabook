@@ -123,6 +123,35 @@ class JabookDatabaseMigrationTest {
         )
     }
 
+    private fun createBooksTableV18() {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS books (
+                id TEXT PRIMARY KEY NOT NULL,
+                title TEXT NOT NULL,
+                author TEXT NOT NULL,
+                cover_url TEXT,
+                description TEXT,
+                total_duration INTEGER NOT NULL DEFAULT 0,
+                current_position INTEGER NOT NULL DEFAULT 0,
+                total_progress REAL NOT NULL DEFAULT 0.0,
+                current_chapter_index INTEGER NOT NULL DEFAULT 0,
+                download_status TEXT NOT NULL DEFAULT 'NOT_DOWNLOADED',
+                download_progress REAL NOT NULL DEFAULT 0.0,
+                local_path TEXT,
+                added_date INTEGER NOT NULL DEFAULT 0,
+                last_played_date INTEGER,
+                is_favorite INTEGER NOT NULL DEFAULT 0,
+                source_url TEXT,
+                cover_path TEXT,
+                rewind_duration INTEGER,
+                forward_duration INTEGER,
+                is_downloaded INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent(),
+        )
+    }
+
     private fun createFts4TableAndTriggers() {
         db.execSQL(
             """
@@ -218,7 +247,7 @@ class JabookDatabaseMigrationTest {
                 topic_id TEXT PRIMARY KEY NOT NULL,
                 title TEXT NOT NULL,
                 author TEXT NOT NULL,
-                category TEXT NOT NULL,
+                category TEXT,
                 size TEXT NOT NULL,
                 seeders INTEGER NOT NULL,
                 leechers INTEGER NOT NULL,
@@ -379,6 +408,7 @@ class JabookDatabaseMigrationTest {
 
     @Test
     fun `migration 15 to 16 populates FTS from existing books`() {
+        if (!isFts5Available()) return
         createBooksTable()
         db.execSQL("INSERT INTO books (id, title, author, description, added_date) VALUES ('b1', 'Test Book', 'Author', 'Desc', 1000)")
 
@@ -469,7 +499,7 @@ class JabookDatabaseMigrationTest {
 
     @Test
     fun `migration 18 to 19 adds lufs_value and preferred_speed columns to books`() {
-        createBooksTable()
+        createBooksTableV18()
         db.execSQL("INSERT INTO books (id, title, author, added_date) VALUES ('b1', 'Book', 'Author', 1000)")
         assertFalse(hasColumn("books", "lufs_value"))
         assertFalse(hasColumn("books", "preferred_speed"))
@@ -488,7 +518,7 @@ class JabookDatabaseMigrationTest {
 
     @Test
     fun `migration 18 to 19 is idempotent`() {
-        createBooksTable()
+        createBooksTableV18()
 
         MIGRATION_18_19.migrate(db)
         MIGRATION_18_19.migrate(db)
@@ -1112,8 +1142,9 @@ class JabookDatabaseMigrationTest {
 
     @Test
     fun `full upgrade path from v14 to v30 applies all migrations without error`() {
+        if (!isFts5Available()) return
         // Start with v14 schema: books + scan_paths + cached_topics (no FTS, no bookmarks)
-        createBooksTable()
+        createBooksTableV18()
         createScanPathsTableV16()
         createCachedTopicsTable()
 
@@ -1123,7 +1154,22 @@ class JabookDatabaseMigrationTest {
         MIGRATION_15_16.migrate(db)
         // v16 → v17
         MIGRATION_16_17.migrate(db)
-        // v17 → v18
+        // v17 → v18 (creates indices on chapters, so chapters table must exist)
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS chapters (
+                id TEXT PRIMARY KEY NOT NULL,
+                book_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                chapter_index INTEGER NOT NULL,
+                file_index INTEGER NOT NULL,
+                duration INTEGER NOT NULL,
+                file_url TEXT,
+                position INTEGER NOT NULL DEFAULT 0,
+                is_completed INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent(),
+        )
         MIGRATION_17_18.migrate(db)
         // v18 → v19
         MIGRATION_18_19.migrate(db)

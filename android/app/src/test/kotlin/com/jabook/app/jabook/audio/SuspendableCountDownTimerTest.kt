@@ -14,8 +14,8 @@
 
 package com.jabook.app.jabook.audio
 
+import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,6 +41,7 @@ class SuspendableCountDownTimerTest {
             intervalMillis = intervalMillis,
             onTickSeconds = { ticks.add(it) },
             onFinished = { finishes.add(Unit) },
+            dispatcher = Dispatchers.Unconfined,
         )
 
     // --- getRemainingMillis returns total initially ---
@@ -94,7 +95,6 @@ class SuspendableCountDownTimerTest {
         val timer = createTimer(0L)
         timer.start()
 
-        waitForFinishes(1)
         assertEquals(1, finishes.size)
     }
 
@@ -104,22 +104,10 @@ class SuspendableCountDownTimerTest {
     fun `timer restarts on the reused scope after pause`() {
         val timer = createTimer(0L)
         timer.start()
-        waitForFinishes(1)
+        assertEquals(1, finishes.size)
         timer.pause()
         timer.start()
-        waitForFinishes(2)
         assertEquals(2, finishes.size)
         timer.cancel()
-    }
-
-    private fun waitForFinishes(expected: Int, timeoutMs: Long = 10_000L) {
-        val deadline = System.currentTimeMillis() + timeoutMs
-        while (finishes.size < expected && System.currentTimeMillis() < deadline) {
-            Thread.sleep(50)
-        }
-        assertTrue(
-            "Expected $expected finishes but got ${finishes.size}",
-            finishes.size >= expected,
-        )
     }
 }
