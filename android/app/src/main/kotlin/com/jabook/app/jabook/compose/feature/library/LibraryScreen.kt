@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
@@ -312,7 +313,7 @@ public fun LibraryScreen(
                                 )
                             }
                         },
-                        windowInsets = WindowInsets(0, 0, 0, 0),
+                        windowInsets = WindowInsets.statusBars,
                         colors =
                             androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
                                 containerColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -598,7 +599,7 @@ public fun LibraryScreen(
                                                 Modifier
                                                     .fillMaxWidth()
                                                     .padding(horizontal = 12.dp)
-                                                    .padding(bottom = 8.dp),
+                                                    .padding(top = 8.dp, bottom = 8.dp),
                                         ) {}
                                         LibraryQuickFilterChips(
                                             activeFilter = activeQuickFilter,
@@ -916,7 +917,7 @@ public fun LibraryScreen(
                                                         Modifier
                                                             .fillMaxWidth()
                                                             .padding(horizontal = 12.dp)
-                                                            .padding(bottom = 8.dp),
+                                                            .padding(top = 8.dp, bottom = 8.dp),
                                                 ) {}
                                                 LibraryQuickFilterChips(
                                                     activeFilter = activeQuickFilter,
