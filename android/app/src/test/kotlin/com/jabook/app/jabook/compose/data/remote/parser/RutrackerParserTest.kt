@@ -28,6 +28,8 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Unit tests for RutrackerParser.
@@ -40,6 +42,7 @@ import org.mockito.kotlin.whenever
  * - Title cleaning logic
  * - Error handling and partial results
  */
+@RunWith(RobolectricTestRunner::class)
 class RutrackerParserTest {
     private lateinit var parser: RutrackerParser
     private lateinit var mockDecoder: RutrackerSimpleDecoder

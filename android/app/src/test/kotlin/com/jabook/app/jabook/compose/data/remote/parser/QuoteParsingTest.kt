@@ -20,13 +20,16 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+import org.robolectric.RobolectricTestRunner
 
 /**
  * Validates parsing of Rutracker quote blocks.
  */
+@RunWith(RobolectricTestRunner::class)
 class QuoteParsingTest {
     private lateinit var parser: RutrackerParser
     private lateinit var mockDecoder: RutrackerSimpleDecoder
