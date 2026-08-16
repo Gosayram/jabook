@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Derives dynamic player theme colors from the book cover artwork.
@@ -85,6 +86,8 @@ internal class PlayerThemeColorsHandler(
                     )
                 _themeColors.value = colors
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             // Ignore errors, keep default theme
             logger.e({ "Failed to extract dynamic colors" }, e)

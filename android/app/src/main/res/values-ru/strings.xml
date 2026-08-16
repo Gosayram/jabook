@@ -2549,6 +2549,7 @@
     <string name="sleepTimerStopsAt">Остановка в %1$s (через %2$s)</string>
     <string name="sleepTimerResumeHint">Таймер сна остановил воспроизведение. Продолжить с того же места.</string>
     <string name="phoneCallBookmarkSnackbar">Добавили закладку — продолжить с того места?</string>
+    <string name="playChapter">Воспроизвести главу</string>
     <string name="stopAtSpecificTime">Остановить в конкретное время</string>
     <string name="stopAtSpecificTimeDesc">Выберите время по часам (например, 23:30)</string>
     <string name="currentMirror">Текущее зеркало</string>
@@ -3090,4 +3091,8 @@
     <string name="moodWorkout">Тренировка</string>
     <string name="moodRelaxing">Отдыхаю</string>
     <string name="moodWorking">Фоном за работой</string>
+    <!-- Статус защиты Cloudflare -->
+    <string name="cfProtected">Защита CF</string>
+    <!-- Имя главы по умолчанию для закладок -->
+    <string name="chapterFallback">Глава %1$d</string>
 </resources>

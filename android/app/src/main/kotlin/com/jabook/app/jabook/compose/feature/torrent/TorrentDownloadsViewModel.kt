@@ -47,6 +47,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * UI state for torrent downloads screen
@@ -108,6 +109,9 @@ public class TorrentDownloadsViewModel
         private val _showCompletedOnly = MutableStateFlow(false)
         public val showCompletedOnly: StateFlow<Boolean> = _showCompletedOnly.asStateFlow()
 
+        // Retry trigger — toggled by retryLoad() to re-evaluate the combine
+        private val retryTrigger = MutableStateFlow(0L)
+
         // UI state combining downloads from manager and repository
         public val uiState: StateFlow<TorrentDownloadsUiState> =
             combine(
@@ -115,7 +119,8 @@ public class TorrentDownloadsViewModel
                 repository.getAllFlow(),
                 _showCompletedOnly,
                 downloadHistoryRepository.getHistoryWithFilter(),
-            ) { activeDownloads, persistedDownloads, showCompletedOnly, historyItems ->
+                retryTrigger,
+            ) { activeDownloads, persistedDownloads, showCompletedOnly, historyItems, _ ->
                 try {
                     // Merge active downloads with persisted ones
                     // Active downloads take precedence (they have real-time data)
@@ -182,6 +187,13 @@ public class TorrentDownloadsViewModel
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = TorrentDownloadsUiState.Loading,
             )
+
+        /**
+         * Retry loading after an error state.
+         */
+        public fun retryLoad() {
+            retryTrigger.value++
+        }
 
         /**
          * Pause download
@@ -336,6 +348,8 @@ public class TorrentDownloadsViewModel
                         .addTorrent(magnetLink, path)
                         .onSuccess { _pendingMagnetLink.value = null }
                         .onFailure { _snackbarEvent.send("Failed to add torrent: ${it.message}") }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     _snackbarEvent.send("Failed to add torrent: ${e.message}")
                 }

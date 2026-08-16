@@ -342,7 +342,7 @@ public fun TorrentDownloadsScreen(
                 is TorrentDownloadsUiState.Error -> {
                     ErrorScreen(
                         message = state.message,
-                        onRetry = {}, // No retry action for now
+                        onRetry = { viewModel.retryLoad() },
                     )
                 }
 

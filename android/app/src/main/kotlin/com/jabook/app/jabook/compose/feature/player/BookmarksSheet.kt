@@ -144,7 +144,7 @@ private fun BookmarkItemRow(
 ) {
     val chapterName =
         chapters.getOrNull(bookmark.chapterIndex)?.title
-            ?: "Chapter ${bookmark.chapterIndex + 1}"
+            ?: stringResource(R.string.chapterFallback, bookmark.chapterIndex + 1)
     val isActive =
         bookmark.chapterIndex == currentChapterIndex &&
             abs(bookmark.positionMs - currentPositionMs) < 5000

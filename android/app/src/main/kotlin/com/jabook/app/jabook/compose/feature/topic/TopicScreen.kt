@@ -76,7 +76,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -94,6 +93,8 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.HtmlToAnnotatedString
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
+import com.jabook.app.jabook.ui.theme.LeecherOrange
+import com.jabook.app.jabook.ui.theme.SeederGreen
 
 /**
  * Topic Screen - displays detailed information about a RuTracker topic.
@@ -380,7 +381,7 @@ private fun TopicDetailsContent(
                             Icon(
                                 Icons.Filled.ArrowUpward,
                                 contentDescription = stringResource(R.string.seeders),
-                                tint = Color(0xFF4CAF50), // Green
+                                tint = SeederGreen,
                             )
                         },
                     )
@@ -392,7 +393,7 @@ private fun TopicDetailsContent(
                             Icon(
                                 Icons.Filled.ArrowDownward,
                                 contentDescription = stringResource(R.string.leechers),
-                                tint = Color(0xFFFF9800), // Orange
+                                tint = LeecherOrange,
                             )
                         },
                     )
@@ -644,7 +645,7 @@ private fun SeedersLeechersChip(
                 Icon(
                     Icons.Filled.ArrowUpward,
                     contentDescription = stringResource(R.string.seeders),
-                    tint = Color(0xFF4CAF50), // Green
+                    tint = SeederGreen,
                 )
             },
         )
@@ -656,7 +657,7 @@ private fun SeedersLeechersChip(
                 Icon(
                     Icons.Filled.ArrowDownward,
                     contentDescription = stringResource(R.string.leechers),
-                    tint = Color(0xFFFF9800), // Orange
+                    tint = LeecherOrange,
                 )
             },
         )

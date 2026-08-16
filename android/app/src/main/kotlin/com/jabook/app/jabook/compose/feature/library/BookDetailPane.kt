@@ -78,6 +78,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -641,8 +642,17 @@ private fun ChapterProgressRow(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-                .padding(12.dp),
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable(
+                            onClickLabel = stringResource(R.string.playChapter),
+                            role = Role.Button,
+                            onClick = onClick,
+                        )
+                    } else {
+                        Modifier
+                    },
+                ).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(

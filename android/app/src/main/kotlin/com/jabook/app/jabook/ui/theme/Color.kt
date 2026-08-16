@@ -146,3 +146,18 @@ public val GenreAccentColors: List<Color> =
         Color(0xFF6F42C1), // Purple
         Color(0xFF0099CC), // Cyan
     )
+
+// ====================
+// MIRROR HEALTH INDICATOR COLORS
+// ====================
+
+public val MirrorHealthGreen: Color = Color(0xFF4CAF50)
+public val MirrorHealthYellow: Color = Color(0xFFFFC107)
+public val MirrorHealthRed: Color = Color(0xFFF44336)
+
+// ====================
+// TORRENT STATS COLORS
+// ====================
+
+public val SeederGreen: Color = Color(0xFF4CAF50)
+public val LeecherOrange: Color = Color(0xFFFF9800)

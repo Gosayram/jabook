@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 import com.jabook.app.jabook.compose.domain.model.Result as TypedResult
 
 private const val STATE_SNAPSHOT_BOOK_ID: String = "player_snapshot.book_id"
@@ -208,6 +209,8 @@ internal class PlayerStateRestoreHandler(
                     }
                     is TypedResult.Loading -> Unit
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 logger.e({ "Error restoring position from database" }, e)
             } finally {

@@ -52,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -252,7 +253,7 @@ public fun MiniPlayer(
             val displayDensity = context.resources.displayMetrics.density
             val cornerRadiusPx = 8f * displayDensity // 8dp rounded corners for mini player
             val imageRequest =
-                remember(coverUrl) {
+                remember(coverUrl, context) {
                     ImageRequest
                         .Builder(context)
                         .data(coverUrl)
@@ -273,6 +274,8 @@ public fun MiniPlayer(
                     contentDescription = title,
                     modifier = Modifier.size(48.dp),
                     contentScale = ContentScale.Crop,
+                    placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
+                    error = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
                 )
 
                 Spacer(modifier = Modifier.width(12.dp))

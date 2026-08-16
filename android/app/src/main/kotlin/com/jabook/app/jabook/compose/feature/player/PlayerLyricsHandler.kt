@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Loads and exposes sidecar lyrics for the currently playing chapter.
@@ -89,6 +90,8 @@ internal class PlayerLyricsHandler(
             // Sidecar lyrics are optional.
             val lyrics = lyricsRepository.getLyrics(audioPath)
             return if (lyrics.isNotEmpty()) lyrics.toImmutableList() else null
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             logger.e({ "Failed to load lyrics" }, e)
             return null

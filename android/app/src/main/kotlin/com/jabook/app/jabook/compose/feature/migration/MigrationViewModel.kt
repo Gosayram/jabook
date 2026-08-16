@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * ViewModel for migration screen.
@@ -70,6 +71,8 @@ public class MigrationViewModel
                                 )
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     _state.value = MigrationUiState.Error(message = e.message ?: "Unknown error")
                 }

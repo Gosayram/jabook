@@ -141,7 +141,7 @@ public fun StatsOverlay(
             StatItem(label = stringResource(R.string.audioSessionId), value = stats.audioSessionId)
             StatItem(
                 label = stringResource(R.string.audioOffload),
-                value = if (stats.isAudioOffloaded) "Active" else "Disabled",
+                value = if (stats.isAudioOffloaded) stringResource(R.string.activeStatus) else stringResource(R.string.disabledStatus),
             )
 
             if (stats.droppedFrames > 0) {

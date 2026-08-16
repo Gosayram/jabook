@@ -45,6 +45,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.HapticManager
@@ -126,7 +127,10 @@ public fun SleepTimerSheet(
                                 )
                             },
                             modifier =
-                                Modifier.clickable {
+                                Modifier.clickable(
+                                    onClickLabel = stringResource(R.string.sleepTimerTitle),
+                                    role = Role.Button,
+                                ) {
                                     HapticManager.performTap(hapticFeedback)
                                     onStartTimer(minutes)
                                     onDismiss()
@@ -146,7 +150,10 @@ public fun SleepTimerSheet(
                             )
                         },
                         modifier =
-                            Modifier.clickable {
+                            Modifier.clickable(
+                                onClickLabel = stringResource(R.string.endOfChapterLabel),
+                                role = Role.Button,
+                            ) {
                                 HapticManager.performTap(hapticFeedback)
                                 onStartTimerEndOfChapter()
                                 onDismiss()
@@ -164,7 +171,10 @@ public fun SleepTimerSheet(
                             )
                         },
                         modifier =
-                            Modifier.clickable {
+                            Modifier.clickable(
+                                onClickLabel = stringResource(R.string.endOfTrackLabel),
+                                role = Role.Button,
+                            ) {
                                 HapticManager.performTap(hapticFeedback)
                                 onStartTimerEndOfTrack()
                                 onDismiss()
@@ -185,7 +195,10 @@ public fun SleepTimerSheet(
                             )
                         },
                         modifier =
-                            Modifier.clickable {
+                            Modifier.clickable(
+                                onClickLabel = stringResource(R.string.stopAtSpecificTime),
+                                role = Role.Button,
+                            ) {
                                 val now = LocalDateTime.now()
                                 TimePickerDialog(
                                     context,

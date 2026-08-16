@@ -120,6 +120,9 @@ import com.jabook.app.jabook.compose.feature.library.SpeedDonutChart
 import com.jabook.app.jabook.compose.feature.library.WeeklyRecapState
 import com.jabook.app.jabook.compose.feature.library.YearRecapState
 import com.jabook.app.jabook.compose.feature.library.shareYearRecap
+import com.jabook.app.jabook.ui.theme.MirrorHealthGreen
+import com.jabook.app.jabook.ui.theme.MirrorHealthRed
+import com.jabook.app.jabook.ui.theme.MirrorHealthYellow
 import kotlinx.coroutines.launch
 
 private object GitHubUrls {
@@ -1631,7 +1634,7 @@ internal fun SettingsItem(
                 .fillMaxWidth()
                 .then(
                     if (onClick != null) {
-                        Modifier.clickable(onClick = onClick)
+                        Modifier.clickable(onClick = onClick, role = Role.Button)
                     } else {
                         Modifier
                     },
@@ -2064,10 +2067,7 @@ private fun MirrorOption(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = stringResource(R.string.available),
-                    tint =
-                        androidx.compose.ui.graphics
-                            .Color(0xFF4CAF50),
-                    // Green
+                    tint = MirrorHealthGreen,
                     modifier =
                         Modifier
                             .padding(start = 8.dp)
@@ -2077,11 +2077,8 @@ private fun MirrorOption(
             healthStatus is MirrorHealth.CloudflareProtected -> {
                 Icon(
                     imageVector = Icons.Default.Warning,
-                    contentDescription = "CF Protected",
-                    tint =
-                        androidx.compose.ui.graphics
-                            .Color(0xFFFFC107),
-                    // Yellow
+                    contentDescription = stringResource(R.string.cfProtected),
+                    tint = MirrorHealthYellow,
                     modifier =
                         Modifier
                             .padding(start = 8.dp)
@@ -2092,10 +2089,7 @@ private fun MirrorOption(
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = stringResource(R.string.unavailable),
-                    tint =
-                        androidx.compose.ui.graphics
-                            .Color(0xFFF44336),
-                    // Red
+                    tint = MirrorHealthRed,
                     modifier =
                         Modifier
                             .padding(start = 8.dp)

@@ -2559,6 +2559,7 @@
     <string name="sleepTimerStopsAt">Stops at %1$s (in %2$s)</string>
     <string name="sleepTimerResumeHint">Sleep timer paused playback. Continue from the same spot.</string>
     <string name="phoneCallBookmarkSnackbar">Added a bookmark — continue from where you left off?</string>
+    <string name="playChapter">Play chapter</string>
     <string name="stopAtSpecificTime">Stop at specific time</string>
     <string name="stopAtSpecificTimeDesc">Choose clock time (for example, 23:30)</string>
     <string name="currentMirror">Current Mirror</string>
@@ -3049,4 +3050,8 @@
     <string name="moodWorkout">Workout</string>
     <string name="moodRelaxing">Relaxing</string>
     <string name="moodWorking">Working</string>
+    <!-- Cloudflare protection status -->
+    <string name="cfProtected">CF Protected</string>
+    <!-- Fallback chapter name for bookmarks -->
+    <string name="chapterFallback">Chapter %1$d</string>
 </resources>

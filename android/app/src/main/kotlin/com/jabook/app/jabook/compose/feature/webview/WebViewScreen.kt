@@ -43,7 +43,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -52,7 +51,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -93,7 +91,6 @@ public fun WebViewScreen(
     viewModel: WebViewViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    val currentView = LocalView.current
     // Decode URL from navigation argument.
     val url = remember(route.url) { decodeWebViewUrl(route.url) }
 
@@ -112,11 +109,6 @@ public fun WebViewScreen(
     var isCapturingSession by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var currentWebViewUrl by remember { mutableStateOf("") }
-
-    DisposableEffect(currentView, route.isAuthentication) {
-        onDispose {
-        }
-    }
 
     // Handle back button - navigate in WebView if possible
     BackHandler(enabled = canGoBack) {
