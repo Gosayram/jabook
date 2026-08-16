@@ -121,9 +121,6 @@ import com.jabook.app.jabook.compose.feature.library.WeeklyRecapState
 import com.jabook.app.jabook.compose.feature.library.YearRecapState
 import com.jabook.app.jabook.compose.feature.library.shareYearRecap
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
 
 private object GitHubUrls {
     public const val REPOSITORY = "https://github.com/Gosayram/jabook"
@@ -206,6 +203,7 @@ public fun SettingsScreen(
     val weeklyRecap by viewModel.weeklyRecapState.collectAsStateWithLifecycle()
     val yearRecap by viewModel.yearRecapState.collectAsStateWithLifecycle()
     val statsBooks by viewModel.booksForStats.collectAsStateWithLifecycle()
+    val dailyListeningMinutes by viewModel.dailyListeningMinutes.collectAsStateWithLifecycle()
     var showStatsExpanded by remember { mutableStateOf(false) }
 
     val navigationClickGuard = remember { NavigationClickGuard() }
@@ -812,16 +810,16 @@ public fun SettingsScreen(
                 smallSpacing = smallSpacing,
             )
 
-            HorizontalDivider()
-
-            // Statistics Section
-            SettingsSection(
-                title = stringResource(R.string.statistics),
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-            )
-
             weeklyRecap?.let { recap ->
+                HorizontalDivider()
+
+                // Statistics Section
+                SettingsSection(
+                    title = stringResource(R.string.statistics),
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                )
+
                 WeeklyRecapCard(
                     stats = recap,
                     modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
@@ -835,8 +833,14 @@ public fun SettingsScreen(
                 }
                 if (showStatsExpanded) {
                     ListeningHeatmap(
-                        data = buildListeningHeatmapData(statsBooks),
+                        data = dailyListeningMinutes,
                         modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.approximateSpeedDistribution),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = contentPadding),
                     )
                     SpeedDonutChart(
                         distribution = buildSpeedDistribution(statsBooks),
@@ -852,7 +856,12 @@ public fun SettingsScreen(
                         contentDescription = null,
                         modifier = Modifier.padding(end = 8.dp),
                     )
-                    Text(text = stringResource(R.string.statistics))
+                    Text(
+                        text =
+                            stringResource(
+                                if (showStatsExpanded) R.string.hideStatistics else R.string.showStatistics,
+                            ),
+                    )
                 }
             }
 
@@ -2405,17 +2414,8 @@ private fun StackedSegmentedControl(
     }
 }
 
-private fun buildListeningHeatmapData(books: List<Book>): Map<LocalDate, Int> {
-    val zoneId = ZoneId.systemDefault()
-    return books
-        .mapNotNull { book ->
-            val lastPlayed = book.lastPlayedDate ?: return@mapNotNull null
-            val day = Instant.ofEpochMilli(lastPlayed).atZone(zoneId).toLocalDate()
-            day to ((book.progress * 60f).toInt().coerceAtLeast(1))
-        }.groupBy({ it.first }, { it.second })
-        .mapValues { (_, values) -> values.sum().coerceAtLeast(1) }
-}
-
+// ponytail: bucket minutes are invented ms constants scaled by rewind/forward counts, not real
+// per-speed listening time; approximate by design until a per-speed DAO query exists
 private fun buildSpeedDistribution(books: List<Book>): Map<Float, Long> {
     if (books.isEmpty()) {
         return emptyMap()
@@ -2494,10 +2494,13 @@ private fun WeeklyStatItem(
     value: String,
     label: String,
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.semantics(mergeDescendants = true) {},
+    ) {
         Icon(
             imageVector = icon,
-            contentDescription = label,
+            contentDescription = null,
             tint = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
         )
         Text(

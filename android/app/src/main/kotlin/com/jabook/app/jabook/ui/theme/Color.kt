@@ -131,3 +131,18 @@ public val prod_dark_onTertiary: Color = Color(0xFF402D00)
 public val prod_dark_error: Color = Color(0xFFFFB4AB)
 public val prod_dark_onError: Color = Color(0xFF690005)
 public val prod_dark_outline: Color = Color(0xFF948F99)
+
+// ====================
+// GENRE ACCENT COLORS (Discovery genre chips)
+// Mid-luminance accents, legible on both light and dark surfaces.
+// ====================
+
+public val GenreAccentColors: List<Color> =
+    listOf(
+        Color(0xFF0D6EFD), // Blue
+        Color(0xFF00A884), // Teal
+        Color(0xFFFF7A00), // Orange
+        Color(0xFFE91E63), // Pink
+        Color(0xFF6F42C1), // Purple
+        Color(0xFF0099CC), // Cyan
+    )

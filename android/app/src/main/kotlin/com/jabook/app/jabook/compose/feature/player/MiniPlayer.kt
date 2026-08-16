@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.player
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -122,6 +123,12 @@ public fun MiniPlayer(
     val currentPosition by currentPositionMs.collectAsStateWithLifecycle()
     val duration by durationMs.collectAsStateWithLifecycle()
     val progress = if (duration > 0) currentPosition.toFloat() / duration else 0f
+    // Position ticks arrive ~every 250ms; glide between them instead of stepping
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 250, easing = LinearEasing),
+        label = "miniPlayerProgress",
+    )
     val density = LocalDensity.current
     var offsetX by remember { mutableFloatStateOf(0f) }
     var offsetY by remember { mutableFloatStateOf(0f) }
@@ -332,7 +339,7 @@ public fun MiniPlayer(
 
             // Progress indicator
             ThinProgressBar(
-                progress = progress,
+                progress = animatedProgress,
                 modifier = Modifier.fillMaxWidth(),
                 trackColor = MaterialTheme.colorScheme.surfaceVariant,
                 progressColor = MaterialTheme.colorScheme.primary,

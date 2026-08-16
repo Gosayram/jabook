@@ -209,12 +209,34 @@ class RutrackerParserTest {
 
         val results = parser.parseSearchResults(html)
 
-        assertTrue("Expected at least 1 result, got ${results.size}", results.isNotEmpty())
-        val first = results.first()
-        assertNotNull(first.topicId)
-        assertTrue(first.topicId.toLongOrNull() != null || first.topicId.isNotEmpty())
-        assertNotNull(first.title)
-        assertTrue(first.title.isNotEmpty())
+        assertEquals(5, results.size)
+        assertEquals(
+            listOf("6887565", "6841050", "6845198", "6844485", "6841540"),
+            results.map { it.topicId },
+        )
+        results.forEach { assertTrue("topicId must be numeric: ${it.topicId}", it.topicId.toLongOrNull() != null) }
+        assertTrue(results.all { it.title.isNotBlank() })
+    }
+
+    @Test
+    fun `parseSearchResults falls back to numeric suffix of trs-tr row id`() {
+        val html =
+            """
+            <html>
+            <body>
+                <table>
+                <tr id="trs-tr-12345" class="hl-tr">
+                    <td><a class="torTopic" href="viewtopic.php?p=999">Fallback Row Title</a></td>
+                </tr>
+                </table>
+            </body>
+            </html>
+            """.trimIndent()
+
+        val results = parser.parseSearchResults(html)
+
+        assertEquals(1, results.size)
+        assertEquals("12345", results[0].topicId)
     }
 
     // ============ Title Cleaning Tests ============

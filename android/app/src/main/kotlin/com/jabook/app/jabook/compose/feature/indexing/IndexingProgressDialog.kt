@@ -20,11 +20,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
@@ -41,6 +44,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -70,9 +75,10 @@ public fun IndexingProgressDialog(
 ) {
     AlertDialog(
         onDismissRequest = {
-            // Don't allow dismiss during indexing
-            if (progress is IndexingProgress.Completed || progress is IndexingProgress.Error) {
-                onDismiss()
+            when (progress) {
+                is IndexingProgress.Completed, is IndexingProgress.Error -> onDismiss()
+                // Outside tap during indexing hides the dialog; indexing continues in background
+                is IndexingProgress.Idle, is IndexingProgress.InProgress -> onHide?.invoke()
             }
         },
         title = {
@@ -87,7 +93,10 @@ public fun IndexingProgressDialog(
         },
         text = {
             Column(
-                modifier = modifier.fillMaxWidth(),
+                modifier =
+                    modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
@@ -135,7 +144,7 @@ public fun IndexingProgressDialog(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .height(200.dp),
+                                        .heightIn(max = 200.dp),
                                 verticalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 items(forumStatuses, key = { it.forumId }) { status ->
@@ -227,21 +236,25 @@ private fun ForumStatusRow(status: ForumStatus) {
             ForumState.INDEXED -> {
                 Icon(
                     imageVector = Icons.Filled.CheckCircle,
-                    contentDescription = "Indexed",
+                    contentDescription = stringResource(R.string.indexingStatusIndexed),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.primary,
                 )
             }
             ForumState.IN_PROGRESS -> {
+                val inProgressLabel = stringResource(R.string.indexingStatusInProgress)
                 CircularProgressIndicator(
-                    modifier = Modifier.size(16.dp),
+                    modifier =
+                        Modifier
+                            .size(16.dp)
+                            .semantics { contentDescription = inProgressLabel },
                     strokeWidth = 2.dp,
                 )
             }
             ForumState.FAILED -> {
                 Icon(
                     imageVector = Icons.Filled.Error,
-                    contentDescription = "Failed",
+                    contentDescription = stringResource(R.string.indexingStatusFailed),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.error,
                 )
@@ -249,7 +262,7 @@ private fun ForumStatusRow(status: ForumStatus) {
             ForumState.PENDING -> {
                 Icon(
                     imageVector = Icons.Filled.Pending,
-                    contentDescription = "Pending",
+                    contentDescription = stringResource(R.string.indexingStatusPending),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -265,7 +278,12 @@ private fun ForumStatusRow(status: ForumStatus) {
             )
             if (status.state == ForumState.INDEXED && status.topicsCount > 0) {
                 Text(
-                    text = "${status.topicsCount} topics",
+                    text =
+                        pluralStringResource(
+                            R.plurals.indexTopicsCount,
+                            status.topicsCount,
+                            status.topicsCount,
+                        ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

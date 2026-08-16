@@ -43,7 +43,6 @@ internal class PlayerSessionHintsHandler(
     private val emitEffect: (PlayerEffect) -> Unit,
 ) {
     private var hasShownSleepTimerResumeHint: Boolean = false
-    private var hasShownSmartResumeRecapHint: Boolean = false
     private var hasShownEqRecommendation: Boolean = false
 
     fun observeSleepTimerResumeHint() {
@@ -74,28 +73,6 @@ internal class PlayerSessionHintsHandler(
                     AudioPlayerService.phoneCallBookmarkCreated = false
                     emitEffect(PlayerEffect.ShowSnackbar(context.getString(R.string.phoneCallBookmarkSnackbar)))
                 }
-            }
-        }
-    }
-
-    fun observeSmartResumeSuggestion() {
-        viewModelScope.launch {
-            uiState.collect { state ->
-                val activeState = state as? PlayerState.Active ?: return@collect
-                if (!activeState.isPlaying || hasShownSmartResumeRecapHint) return@collect
-                val suggestion = playerController.consumeSmartResumeSuggestion() ?: return@collect
-                hasShownSmartResumeRecapHint = true
-                emitEffect(
-                    PlayerEffect.ShowSnackbar(
-                        message =
-                            context.getString(
-                                R.string.smartResumeRecapSuggestion,
-                                suggestion.pauseDurationMs / 3_600_000L,
-                            ),
-                        actionLabel = context.getString(R.string.smartResumeRecapAction),
-                        actionIntent = PlayerIntent.SeekTo(suggestion.recapStartMs),
-                    ),
-                )
             }
         }
     }

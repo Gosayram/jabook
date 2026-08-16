@@ -289,7 +289,7 @@ public class RutrackerParser
                                 val hasTitle: Boolean = row.selectFirst(TITLE_SELECTOR) != null
                                 val topicIdAttr = row.attr(TOPIC_ID_ATTR)
                                 val rowId = row.attr("id")
-                                val topicId = topicIdAttr.ifEmpty { rowId.removePrefix("tr-") }
+                                val topicId = topicIdAttr.ifEmpty { extractTopicIdFromRowId(rowId) ?: "" }
 
                                 // Try to extract topicId from title link as fallback
                                 val topicIdFromLink =
@@ -886,12 +886,18 @@ public class RutrackerParser
             }
         }
 
+        /** Extracts numeric topic id from row id attribute: handles "tr-123", "trs-tr-123", "123". */
+        private fun extractTopicIdFromRowId(idAttr: String): String? {
+            if (idAttr.isBlank()) return null
+            return idAttr.substringAfterLast("tr-", idAttr).takeIf { it.isNotBlank() && it.all(Char::isDigit) }
+        }
+
         private fun parseSearchResultRow(row: Element): SearchResult? {
             // Extract topic ID from data attribute (preferred) or from link href
             val topicId =
                 row.attr(TOPIC_ID_ATTR).ifEmpty {
                     // Fallback: extract from row id attribute
-                    row.attr("id").removePrefix("tr-").ifEmpty {
+                    extractTopicIdFromRowId(row.attr("id")).orEmpty().ifEmpty {
                         // Last resort: extract from title link href
                         // Use absUrl() for proper absolute URL resolution
                         row

@@ -846,6 +846,8 @@ public class ForumIndexer
                             state = state,
                             topicsCount = if (state == ForumState.INDEXED) topicsCount else fs.topicsCount,
                             lastUpdated = if (state == ForumState.INDEXED && lastUpdated > 0) lastUpdated else fs.lastUpdated,
+                            // Record the final page reached as the forum's total page count
+                            totalPages = if (state == ForumState.INDEXED) fs.currentPage.coerceAtLeast(1) else fs.totalPages,
                             errorMessage = errorMessage ?: if (state == ForumState.FAILED) fs.errorMessage else null,
                         )
                     } else {

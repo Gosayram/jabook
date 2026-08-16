@@ -111,6 +111,7 @@ import com.jabook.app.jabook.compose.feature.discovery.DiscoveryScreen
 import com.jabook.app.jabook.compose.feature.discovery.DiscoveryUiState
 import com.jabook.app.jabook.compose.feature.discovery.ListeningMood
 import com.jabook.app.jabook.compose.feature.onboarding.SpotlightOverlay
+import com.jabook.app.jabook.ui.theme.GenreAccentColors
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -310,9 +311,10 @@ public fun LibraryScreen(
                 },
     ) {
         if (isCompact) {
-            // Direct Scaffold on compact screens — skip ListDetailPaneScaffold to avoid double insets
-            // NavigationSuiteScaffold already consumes system bar insets; zero them out here to
-            // prevent double inset padding (status bar gap + extra content offset).
+            // Direct Scaffold on compact screens — skip ListDetailPaneScaffold to avoid double insets.
+            // NavigationSuiteScaffold does not consume status-bar insets on this branch; the TopAppBar
+            // applies statusBars insets itself (windowInsets below), so they are zeroed here to
+            // prevent double inset padding.
             Scaffold(
                 containerColor = androidx.compose.ui.graphics.Color.Transparent,
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -619,7 +621,7 @@ public fun LibraryScreen(
                                             modifier =
                                                 Modifier
                                                     .fillMaxWidth()
-                                                    .padding(horizontal = 12.dp)
+                                                    .padding(horizontal = 16.dp)
                                                     .padding(top = 8.dp, bottom = 8.dp),
                                         ) {}
                                         LibraryQuickFilterChips(
@@ -639,7 +641,7 @@ public fun LibraryScreen(
                                             modifier =
                                                 Modifier
                                                     .fillMaxWidth()
-                                                    .padding(horizontal = 12.dp)
+                                                    .padding(horizontal = 16.dp)
                                                     .padding(top = 4.dp, bottom = 8.dp),
                                         )
                                         UnifiedBooksView(
@@ -939,7 +941,7 @@ public fun LibraryScreen(
                                                     modifier =
                                                         Modifier
                                                             .fillMaxWidth()
-                                                            .padding(horizontal = 12.dp)
+                                                            .padding(horizontal = 16.dp)
                                                             .padding(top = 8.dp, bottom = 8.dp),
                                                 ) {}
                                                 LibraryQuickFilterChips(
@@ -959,7 +961,7 @@ public fun LibraryScreen(
                                                     modifier =
                                                         Modifier
                                                             .fillMaxWidth()
-                                                            .padding(horizontal = 12.dp)
+                                                            .padding(horizontal = 16.dp)
                                                             .padding(top = 4.dp, bottom = 8.dp),
                                                 )
                                                 UnifiedBooksView(
@@ -1174,21 +1176,7 @@ private fun buildDiscoveryUiState(
             .ifEmpty { books }
             .take(12)
     val genresByTitle = books.groupBy { inferGenreFromBook(it) }
-    val colorPalette =
-        listOf(
-            androidx.compose.ui.graphics
-                .Color(0xFF0D6EFD),
-            androidx.compose.ui.graphics
-                .Color(0xFF00A884),
-            androidx.compose.ui.graphics
-                .Color(0xFFFF7A00),
-            androidx.compose.ui.graphics
-                .Color(0xFFE91E63),
-            androidx.compose.ui.graphics
-                .Color(0xFF6F42C1),
-            androidx.compose.ui.graphics
-                .Color(0xFF0099CC),
-        )
+    val colorPalette = GenreAccentColors
     val genres =
         genresByTitle.entries
             .sortedByDescending { it.value.size }

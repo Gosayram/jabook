@@ -181,6 +181,22 @@ public class SettingsViewModel
                 initialValue = null,
             )
 
+        /** Real minutes listened per day (from listening_sessions), feeding the settings heatmap. */
+        public val dailyListeningMinutes: StateFlow<Map<java.time.LocalDate, Int>> =
+            listeningStatsUseCase
+                .observeDayStats(
+                    fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(26 * 7),
+                    toEpochMs = System.currentTimeMillis(),
+                ).map { dayStats ->
+                    dayStats.associate { stat ->
+                        java.time.LocalDate.parse(stat.day) to (stat.contentTimeMs / 60000L).toInt().coerceAtLeast(1)
+                    }
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptyMap(),
+                )
+
         public val booksForStats: StateFlow<List<com.jabook.app.jabook.compose.domain.model.Book>> =
             getLibraryUseCase(com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY)
                 .stateIn(

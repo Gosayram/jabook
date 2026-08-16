@@ -771,7 +771,6 @@ public class PlayerViewModel
             stateRestoreHandler.restoreSleepTimerModeFromSnapshotIfNeeded()
             sessionHintsHandler.observeSleepTimerResumeHint()
             sessionHintsHandler.observePhoneCallBookmarkHint()
-            sessionHintsHandler.observeSmartResumeSuggestion()
             speedHandler.observeHoldToBoostSpeedSetting()
             resumeAfterLongPauseHandler.observe()
             seekbarWaveformHandler.observe()

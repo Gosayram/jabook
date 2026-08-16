@@ -2927,6 +2927,10 @@
     <string name="indexingCompletedHeadline">Индексация завершена!</string>
     <string name="indexingDurationSeconds">Время: %1$d сек</string>
     <string name="indexingForumLabel">Форум: %1$s</string>
+    <string name="indexingStatusIndexed">Проиндексировано</string>
+    <string name="indexingStatusInProgress">Индексация</string>
+    <string name="indexingStatusFailed">Ошибка</string>
+    <string name="indexingStatusPending">Ожидание</string>
     <string name="hideAction">Скрыть</string>
     <string name="cannotShareLogsActivityRequired">Не удалось поделиться логами: требуется Activity-контекст</string>
     <string name="torrentBufferingTitle">Буферизация...</string>
@@ -2959,8 +2963,7 @@
     <string name="off">Выкл</string>
     <string name="volumeBoostPercent">+%1$d%%</string>
     <string name="smartEffectsTitle">Умные эффекты</string>
-    <string name="smartResumeRecapSuggestion">Долгий перерыв (%1$d ч). Повторить последние 2 минуты?</string>
-    <string name="smartResumeRecapAction">Повторить</string>
+
     <string name="notificationPermissionPlaybackHint">Уведомления помогают управлять воспроизведением из панели уведомлений</string>
     <string name="audioVisualizerPermissionHint">Аудиовизуализатору нужно разрешение на микрофон</string>
 
@@ -3063,6 +3066,9 @@
 
     <string name="overflowMenu">Ещё</string>
     <string name="statistics">Статистика</string>
+    <string name="showStatistics">Показать статистику</string>
+    <string name="hideStatistics">Скрыть статистику</string>
+    <string name="approximateSpeedDistribution">Примерное распределение скоростей</string>
     <string name="discovery">Подборка</string>
 
     <!-- Library accessibility & localization -->

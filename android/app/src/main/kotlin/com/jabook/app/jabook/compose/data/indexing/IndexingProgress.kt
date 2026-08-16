@@ -117,9 +117,15 @@ public data class IndexProgress(
         get() {
             if (totalForums == 0) return 0f
             val forumContribution = 1f / totalForums
-            // Estimate 50 pages per forum (conservative)
+            // Prefer the current forum's recorded page total; fall back to a 50-page estimate
+            val currentForumTotalPages =
+                forumStatuses
+                    .firstOrNull { it.state == ForumState.IN_PROGRESS && it.totalPages > 0 }
+                    ?.totalPages
+                    ?.toFloat()
+                    ?: 50f
             val pageInForum = currentForumPage.toFloat()
-            val forumProgress = forumContribution * minOf(pageInForum / 50f, 1f)
+            val forumProgress = forumContribution * minOf(pageInForum / currentForumTotalPages, 1f)
             return (totalForumsCompleted.toFloat() * forumContribution + forumProgress).coerceIn(0f, 1f)
         }
 }

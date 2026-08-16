@@ -2893,6 +2893,10 @@
     <string name="indexingCompletedHeadline">Indexing completed!</string>
     <string name="indexingDurationSeconds">Time: %1$d sec</string>
     <string name="indexingForumLabel">Forum: %1$s</string>
+    <string name="indexingStatusIndexed">Indexed</string>
+    <string name="indexingStatusInProgress">Indexing</string>
+    <string name="indexingStatusFailed">Failed</string>
+    <string name="indexingStatusPending">Pending</string>
     <string name="hideAction">Hide</string>
     <string name="cannotShareLogsActivityRequired">Cannot share logs: activity context required</string>
     <string name="torrentBufferingTitle">Buffering...</string>
@@ -2925,8 +2929,7 @@
     <string name="off">Off</string>
     <string name="volumeBoostPercent">+%1$d%%</string>
     <string name="smartEffectsTitle">Smart Effects</string>
-    <string name="smartResumeRecapSuggestion">Long pause detected (%1$d h). Replay last 2 minutes?</string>
-    <string name="smartResumeRecapAction">Replay</string>
+
     <string name="notificationPermissionPlaybackHint">Notifications help control playback from the notification bar</string>
     <string name="audioVisualizerPermissionHint">Audio visualizer needs microphone permission</string>
 
@@ -3022,6 +3025,9 @@
     <!-- Overflow menu content description -->
     <string name="overflowMenu">Ещё</string>
     <string name="statistics">Статистика</string>
+    <string name="showStatistics">Show statistics</string>
+    <string name="hideStatistics">Hide statistics</string>
+    <string name="approximateSpeedDistribution">Approximate speed distribution</string>
     <string name="discovery">Подборка</string>
 
     <!-- Library accessibility & localization -->

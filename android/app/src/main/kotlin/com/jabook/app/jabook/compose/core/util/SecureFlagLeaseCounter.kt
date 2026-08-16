@@ -14,10 +14,6 @@
 
 package com.jabook.app.jabook.compose.core.util
 
-import android.view.Window
-import android.view.WindowManager
-import java.util.WeakHashMap
-
 internal class SecureFlagLeaseCounter<K>(
     private val onFirstAcquire: (K) -> Unit,
     private val onFinalRelease: (K) -> Unit,
@@ -45,21 +41,5 @@ internal class SecureFlagLeaseCounter<K>(
         } else {
             counts[key] = count - 1
         }
-    }
-}
-
-/** Shares [WindowManager.LayoutParams.FLAG_SECURE] ownership between overlapping screens. */
-internal object SecureWindowFlag {
-    private val lock = Any()
-    private val counter =
-        SecureFlagLeaseCounter<Window>(
-            onFirstAcquire = { it.addFlags(WindowManager.LayoutParams.FLAG_SECURE) },
-            onFinalRelease = { it.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) },
-            counts = WeakHashMap(),
-        )
-
-    fun acquire(window: Window): () -> Unit {
-        val release = synchronized(lock) { counter.acquire(window) }
-        return { synchronized(lock) { release() } }
     }
 }

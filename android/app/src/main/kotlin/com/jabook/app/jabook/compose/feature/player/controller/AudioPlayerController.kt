@@ -84,7 +84,7 @@ public class AudioPlayerController
             ChapterLoudnessTransitionPolicy(
                 player = exoPlayer,
                 getChapterLufs = { bookId, chapterIndex ->
-                    booksRepository.getChapterLufsValue(bookId, chapterIndex)
+                    runCatching { booksRepository.getChapterLufsValue(bookId, chapterIndex) }.getOrNull()
                 },
                 scope = scope,
             )
@@ -1183,12 +1183,6 @@ public class AudioPlayerController
                 MediaControllerExtensions.setVisualizerEnabled(controller, enabled)
             }
         }
-
-        public suspend fun consumeSmartResumeSuggestion(): MediaControllerExtensions.SmartResumeSuggestion? =
-            withContext(Dispatchers.IO) {
-                val controller = mediaController ?: return@withContext null
-                MediaControllerExtensions.consumeSmartResumeSuggestion(controller)
-            }
 
         private fun ensureControllerReady() {
             startService()
