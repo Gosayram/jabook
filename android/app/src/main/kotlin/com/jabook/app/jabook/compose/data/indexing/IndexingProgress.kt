@@ -26,47 +26,12 @@ public sealed class IndexingProgress {
     /**
      * Indexing in progress.
      *
-     * @param currentForum Current forum being indexed
-     * @param currentForumIndex Index of current forum (0-based)
-     * @param totalForums Total number of forums to index
-     * @param currentPage Current page in current forum
-     * @param topicsIndexed Total topics indexed so far
-     * @param estimatedTotalTopics Estimated total topics (may be 0 if unknown)
+     * @param detail Aggregated progress including per-forum details,
+     *   overall percentage ([IndexProgress.percentComplete]) and topics found.
      */
     public data class InProgress(
-        val currentForum: String,
-        val currentForumIndex: Int,
-        val totalForums: Int,
-        val currentPage: Int,
-        val topicsIndexed: Int,
-        val estimatedTotalTopics: Int = 0,
-    ) : IndexingProgress() {
-        /**
-         * Overall progress percentage (0.0 to 1.0).
-         *
-         * Improved calculation: uses forum index and topics indexed for more accurate progress.
-         * Progress is based on completed forums + current forum progress.
-         */
-        val progress: Float
-            get() =
-                if (totalForums == 0) {
-                    0f
-                } else {
-                    // Base progress from completed forums (forums before current)
-                    val completedForums = currentForumIndex.toFloat()
-                    val forumProgress = completedForums / totalForums.toFloat()
-
-                    // Progress from current forum: estimate based on page number
-                    // Use a conservative estimate: assume forums have varying page counts
-                    // Current page gives us a rough estimate (normalized to max 50 pages per forum)
-
-                    val maxPagesPerForum = 50f
-                    val currentForumPageProgress = (currentPage.toFloat() / maxPagesPerForum).coerceIn(0f, 1f)
-                    val currentForumContribution = currentForumPageProgress / totalForums.toFloat()
-
-                    (forumProgress + currentForumContribution).coerceIn(0f, 1f)
-                }
-    }
+        val detail: IndexProgress,
+    ) : IndexingProgress()
 
     /**
      * Indexing completed successfully.

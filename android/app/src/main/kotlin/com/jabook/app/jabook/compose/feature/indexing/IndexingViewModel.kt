@@ -73,10 +73,6 @@ public class IndexingViewModel
         private val _indexSize = MutableStateFlow(0)
         public val indexSize: StateFlow<Int> = _indexSize.asStateFlow()
 
-        // Detailed progress state — collected by UI
-        private val _indexProgress = MutableStateFlow(IndexProgress())
-        public val indexProgress: StateFlow<IndexProgress> = _indexProgress.asStateFlow()
-
         // Per-forum statuses — collected by UI
         public val forumStatuses: StateFlow<List<com.jabook.app.jabook.compose.data.indexing.ForumStatus>>
             get() = forumIndexer.forumStatuses
@@ -87,14 +83,6 @@ public class IndexingViewModel
             startIndexingWorkMonitor()
             viewModelScope.launch {
                 refreshIndexSize()
-            }
-            // Collect detailed progress from ForumIndexer
-            viewModelScope.launch {
-                forumIndexer.indexProgress.collect { progress ->
-                    if (progress.totalForums > 0) {
-                        _indexProgress.value = progress
-                    }
-                }
             }
         }
 
@@ -323,11 +311,12 @@ public class IndexingViewModel
         private fun WorkInfo.toIndexingProgress(): IndexingProgress {
             val percent = progress.getInt("progress_percent", 0).coerceIn(0, 100)
             return IndexingProgress.InProgress(
-                currentForum = progress.getString("progress_message").orEmpty(),
-                currentPage = percent,
-                currentForumIndex = 0,
-                totalForums = 1,
-                topicsIndexed = percent,
+                IndexProgress(
+                    currentForumName = progress.getString("progress_message").orEmpty(),
+                    currentForumPage = percent,
+                    totalForums = 1,
+                    topicsFound = percent,
+                ),
             )
         }
     }

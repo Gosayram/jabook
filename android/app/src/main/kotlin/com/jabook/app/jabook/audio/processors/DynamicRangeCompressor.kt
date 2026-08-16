@@ -161,8 +161,9 @@ public class DynamicRangeCompressor(
         }
 
         if (inputBuffer.hasRemaining()) {
-            queuedInputBytes += inputBuffer.remaining()
-            ensureQueuedInputCapacity(inputBuffer.remaining())
+            val remaining = inputBuffer.remaining()
+            ensureQueuedInputCapacity(remaining)
+            queuedInputBytes += remaining
             queuedInputBuffer!!.put(inputBuffer)
         }
     }
@@ -185,6 +186,7 @@ public class DynamicRangeCompressor(
     }
 
     override fun getOutput(): ByteBuffer {
+        if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
         if (!isActive || queuedInputBytes == 0) {
             return EMPTY_BUFFER
         }

@@ -219,41 +219,48 @@ internal class PlayerStateRestoreHandler(
     /** Persists player snapshot for process-death restore. */
     fun observeSnapshotPersistence() {
         viewModelScope.launch {
-            combine(uiState, sleepTimerState) { state, timerState -> state to timerState }
-                .collect { (state, timerState) ->
-                    if (state is PlayerState.Active) {
-                        val snapshot =
-                            PlayerStateSnapshotPolicy.capture(
-                                bookId = bookId,
-                                state = state,
-                                currentPositionMs = playerController.currentPosition.value,
-                                sleepTimerState = timerState,
-                            )
-                        savedStateHandle[STATE_SNAPSHOT_BOOK_ID] = snapshot.bookId
-                        savedStateHandle[STATE_SNAPSHOT_POSITION_MS] = snapshot.positionMs
-                        savedStateHandle[STATE_SNAPSHOT_CHAPTER_INDEX] = snapshot.chapterIndex
-                        savedStateHandle[STATE_SNAPSHOT_PLAYBACK_SPEED] = snapshot.playbackSpeed
-                        savedStateHandle[STATE_SNAPSHOT_SLEEP_MODE] = snapshot.sleepTimerMode
+            // currentPosition ticks during playback so the snapshot keeps refreshing;
+            // DataStore write cadence is throttled by PlayerStateSnapshotPolicy.shouldPersistSnapshot.
+            combine(
+                uiState,
+                sleepTimerState,
+                playerController.currentPosition,
+            ) { state, timerState, positionMs ->
+                Triple(state, timerState, positionMs)
+            }.collect { (state, timerState, positionMs) ->
+                if (state is PlayerState.Active) {
+                    val snapshot =
+                        PlayerStateSnapshotPolicy.capture(
+                            bookId = bookId,
+                            state = state,
+                            currentPositionMs = positionMs,
+                            sleepTimerState = timerState,
+                        )
+                    savedStateHandle[STATE_SNAPSHOT_BOOK_ID] = snapshot.bookId
+                    savedStateHandle[STATE_SNAPSHOT_POSITION_MS] = snapshot.positionMs
+                    savedStateHandle[STATE_SNAPSHOT_CHAPTER_INDEX] = snapshot.chapterIndex
+                    savedStateHandle[STATE_SNAPSHOT_PLAYBACK_SPEED] = snapshot.playbackSpeed
+                    savedStateHandle[STATE_SNAPSHOT_SLEEP_MODE] = snapshot.sleepTimerMode
 
-                        val persistentSnapshot = PlayerStateSnapshotPolicy.normalizeForPersistence(snapshot)
-                        if (PlayerStateSnapshotPolicy.shouldPersistSnapshot(lastPersistedPlayerSnapshot, persistentSnapshot)) {
-                            lastPersistedPlayerSnapshot = persistentSnapshot
-                            runCatching {
-                                settingsRepository.updatePlayerStateSnapshot(
-                                    PlayerStateSnapshotPreference(
-                                        bookId = persistentSnapshot.bookId,
-                                        positionMs = persistentSnapshot.positionMs,
-                                        chapterIndex = persistentSnapshot.chapterIndex,
-                                        playbackSpeed = persistentSnapshot.playbackSpeed,
-                                        sleepTimerMode = persistentSnapshot.sleepTimerMode,
-                                    ),
-                                )
-                            }.onFailure { error ->
-                                logger.w(error) { "Failed to persist player snapshot to DataStore" }
-                            }
+                    val persistentSnapshot = PlayerStateSnapshotPolicy.normalizeForPersistence(snapshot)
+                    if (PlayerStateSnapshotPolicy.shouldPersistSnapshot(lastPersistedPlayerSnapshot, persistentSnapshot)) {
+                        lastPersistedPlayerSnapshot = persistentSnapshot
+                        runCatching {
+                            settingsRepository.updatePlayerStateSnapshot(
+                                PlayerStateSnapshotPreference(
+                                    bookId = persistentSnapshot.bookId,
+                                    positionMs = persistentSnapshot.positionMs,
+                                    chapterIndex = persistentSnapshot.chapterIndex,
+                                    playbackSpeed = persistentSnapshot.playbackSpeed,
+                                    sleepTimerMode = persistentSnapshot.sleepTimerMode,
+                                ),
+                            )
+                        }.onFailure { error ->
+                            logger.w(error) { "Failed to persist player snapshot to DataStore" }
                         }
                     }
                 }
+            }
         }
     }
 }

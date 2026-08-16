@@ -75,8 +75,13 @@ import com.jabook.app.jabook.compose.designsystem.component.CircularIconButton
 import com.jabook.app.jabook.compose.designsystem.component.CircularIconButtonStyle
 import com.jabook.app.jabook.compose.designsystem.component.ThinProgressBar
 import com.jabook.app.jabook.ui.theme.JabookTheme
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.abs
+
+/** Shared empty flows so default parameters keep a stable identity across recompositions. */
+private val NoPosition: StateFlow<Long> = MutableStateFlow(0L)
+private val NoDuration: StateFlow<Long> = MutableStateFlow(0L)
 
 /**
  * Mini player component displayed above bottom navigation.
@@ -111,8 +116,8 @@ public fun MiniPlayer(
     hasPreviousChapter: Boolean = true,
     onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier,
-    currentPositionMs: StateFlow<Long> = kotlinx.coroutines.flow.MutableStateFlow(0L),
-    durationMs: StateFlow<Long> = kotlinx.coroutines.flow.MutableStateFlow(0L),
+    currentPositionMs: StateFlow<Long> = NoPosition,
+    durationMs: StateFlow<Long> = NoDuration,
 ) {
     val currentPosition by currentPositionMs.collectAsStateWithLifecycle()
     val duration by durationMs.collectAsStateWithLifecycle()
@@ -370,8 +375,8 @@ public fun AnimatedMiniPlayer(
     hasPreviousChapter: Boolean = true,
     onDismiss: () -> Unit = {},
     modifier: Modifier = Modifier,
-    currentPositionMs: StateFlow<Long> = kotlinx.coroutines.flow.MutableStateFlow(0L),
-    durationMs: StateFlow<Long> = kotlinx.coroutines.flow.MutableStateFlow(0L),
+    currentPositionMs: StateFlow<Long> = NoPosition,
+    durationMs: StateFlow<Long> = NoDuration,
 ) {
     val reduceMotion = rememberReduceMotion()
     AnimatedVisibility(

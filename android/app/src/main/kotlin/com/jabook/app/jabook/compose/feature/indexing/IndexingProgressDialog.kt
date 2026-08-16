@@ -103,7 +103,7 @@ public fun IndexingProgressDialog(
                     is IndexingProgress.InProgress -> {
                         // Progress bar
                         LinearProgressIndicator(
-                            progress = { progress.progress },
+                            progress = { progress.detail.percentComplete },
                             modifier = Modifier.fillMaxWidth(),
                         )
 
@@ -111,14 +111,14 @@ public fun IndexingProgressDialog(
                         val forumProgressText =
                             stringResource(
                                 R.string.indexingStatusForumProgress,
-                                progress.currentForumIndex + 1,
-                                progress.totalForums,
+                                progress.detail.totalForumsCompleted + 1,
+                                progress.detail.totalForums,
                             )
                         val topicsIndexedText =
                             pluralStringResource(
                                 R.plurals.indexTopicsIndexed,
-                                progress.topicsIndexed,
-                                progress.topicsIndexed,
+                                progress.detail.topicsFound,
+                                progress.detail.topicsFound,
                             )
                         Text(
                             text =
@@ -146,7 +146,7 @@ public fun IndexingProgressDialog(
 
                         // Progress percentage
                         Text(
-                            text = UiFormatters.formatPercent(progress.progress),
+                            text = UiFormatters.formatPercent(progress.detail.percentComplete),
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.primary,
                         )

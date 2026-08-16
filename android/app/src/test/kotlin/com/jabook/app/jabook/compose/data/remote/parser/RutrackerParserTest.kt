@@ -286,7 +286,7 @@ class RutrackerParserTest {
         details?.let {
             assertEquals("topic-fixture", it.topicId)
             assertEquals(
-                "Стругацкий Аркадий, Стругацкий Борис - Пикник на обочине Арестович Алексей, 2023, 128 kbps",
+                "Стругацкий Аркадий, Стругацкий Борис - Пикник на обочине Арестович Алексей, 2023, 128 kbps, MP3",
                 it.title,
             )
             assertTrue(it.author?.contains("Стругацкий") == true)

@@ -1216,10 +1216,17 @@ public class AudioPlayerController
         }
 
         private fun updatePlaybackState(isPlaying: Boolean) {
+            val wasPlaying = _isPlaying.value
             _isPlaying.value = isPlaying
             if (isPlaying) {
                 startPositionUpdates()
             } else {
+                if (wasPlaying) {
+                    // Publish the final position so .value readers (snapshots, resume dialogs)
+                    // don't observe a stale value after the poll stops.
+                    val player = mediaController ?: exoPlayer
+                    publishCurrentPosition(player.currentPosition, force = true)
+                }
                 positionUpdateJob?.cancel()
                 positionUpdateJob = null
             }

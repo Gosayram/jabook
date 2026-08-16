@@ -376,6 +376,10 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+            // ponytail: deliberate — many unit tests construct Android framework objects
+            // (ActivityManager.MemoryInfo, Media3 EventTime, SystemClock) without Robolectric.
+            // Removing this silently breaks ~10 test classes; migrate them to
+            // @RunWith(RobolectricTestRunner::class) first, then drop this flag.
             isReturnDefaultValues = true
         }
     }

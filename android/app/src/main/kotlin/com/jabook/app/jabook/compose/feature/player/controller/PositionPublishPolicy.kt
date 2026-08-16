@@ -18,7 +18,7 @@ import kotlin.math.abs
 
 internal object PositionPublishPolicy {
     private const val POSITION_UPDATE_EPSILON_MS: Long = 120L
-    private const val OFFLOAD_UPDATE_EPSILON_MS: Long = 5000L
+    private const val OFFLOAD_UPDATE_EPSILON_MS: Long = 1000L
 
     fun shouldPublish(
         previousPositionMs: Long,

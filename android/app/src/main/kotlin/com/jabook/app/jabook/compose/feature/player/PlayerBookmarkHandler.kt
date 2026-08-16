@@ -48,12 +48,13 @@ internal class PlayerBookmarkHandler(
     fun addBookmarkAtCurrentPosition(noteText: String? = null) {
         val state = uiState.value as? PlayerState.Active ?: return
         val chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds ?: 0L
+        val positionMs = playerController.currentPosition.value
         viewModelScope.launch {
             bookmarkRepository
                 .addBookmark(
                     bookId = state.book.id,
                     chapterIndex = state.currentChapterIndex,
-                    positionMs = playerController.currentPosition.value,
+                    positionMs = positionMs,
                     noteText = noteText,
                     chapterDurationMs = chapterDurationMs,
                 ).onFailure { error ->

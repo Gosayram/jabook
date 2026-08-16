@@ -239,6 +239,28 @@ class ChapterNavigationIntentPolicyTest {
         assertEquals(null, decision.undoChapterIndex)
     }
 
+    @Test
+    fun `resolve converts skip previous to chapter restart when past threshold`() {
+        val state = activeState(currentChapterIndex = 1)
+
+        val decision = ChapterNavigationIntentPolicy.resolve(intent = PlayerIntent.SkipPrevious, state = state, currentPositionMs = 10_000L)
+
+        assertEquals(PlayerIntent.SelectChapter(1), decision.intent)
+        assertEquals(null, decision.movedToChapterDisplayIndex)
+        assertEquals(null, decision.undoChapterIndex)
+    }
+
+    @Test
+    fun `resolve converts skip previous to previous chapter when near start`() {
+        val state = activeState(currentChapterIndex = 1)
+
+        val decision = ChapterNavigationIntentPolicy.resolve(intent = PlayerIntent.SkipPrevious, state = state, currentPositionMs = 3_000L)
+
+        assertEquals(PlayerIntent.SelectChapter(0), decision.intent)
+        assertEquals(null, decision.movedToChapterDisplayIndex)
+        assertEquals(null, decision.undoChapterIndex)
+    }
+
     private fun activeState(currentChapterIndex: Int): PlayerState.Active {
         val chapters =
             listOf(

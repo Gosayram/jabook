@@ -291,7 +291,7 @@ internal object PlayerIntentCommandRouter {
         intent: PlayerIntent,
         currentState: PlayerState,
         reducedState: PlayerState,
-        currentPositionMs: Long = 0L,
+        currentPositionMs: Long,
     ): PlayerCommand? =
         when (intent) {
             PlayerIntent.TogglePlayPause -> {

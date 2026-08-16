@@ -18,6 +18,9 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
@@ -25,6 +28,7 @@ import com.jabook.app.jabook.compose.data.network.NetworkType
 import com.jabook.app.jabook.compose.data.network.TorrentDownloadNetworkPolicy
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
+import com.jabook.app.jabook.compose.data.worker.WorkConstraintsPolicy
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -377,12 +381,33 @@ public class TorrentManager
                     context.startService(intent)
                 }
             } catch (e: android.app.ForegroundServiceStartNotAllowedException) {
-                // Android 12+ blocks FGS start from background — non-fatal, will retry on next user action
-                logger.w { "Cannot start FGS from background (Android 12+ restriction): ${e.message}" }
+                // Android 12+ blocks FGS start from background — reschedule via WorkManager
+                logger.w {
+                    "Cannot start FGS from background (Android 12+ restriction), " +
+                        "falling back to WorkManager: ${e.message}"
+                }
+                scheduleServiceStartViaWorkManager()
             } catch (e: IllegalStateException) {
                 logger.w { "Cannot start foreground service (may already be running): ${e.message}" }
             } catch (e: Exception) {
                 logger.e({ "Failed to start download service" }, e)
+            }
+        }
+
+        private fun scheduleServiceStartViaWorkManager() {
+            try {
+                val request =
+                    OneTimeWorkRequestBuilder<TorrentStartWorker>()
+                        .setConstraints(WorkConstraintsPolicy.userInitiatedDownload())
+                        .build()
+                WorkManager.getInstance(context).enqueueUniqueWork(
+                    TorrentStartWorker.WORK_NAME,
+                    ExistingWorkPolicy.REPLACE,
+                    request,
+                )
+                logger.i { "Scheduled TorrentStartWorker (${TorrentStartWorker.WORK_NAME}) as FGS fallback" }
+            } catch (e: Exception) {
+                logger.e({ "Failed to schedule TorrentStartWorker fallback" }, e)
             }
         }
 

@@ -103,6 +103,8 @@ class AutoVolumeLevelerTest {
         leveler.queueInput(constPcmBuffer(amplitude, SAMPLES_PER_BUFFER))
         val output = leveler.getOutput().order(ByteOrder.nativeOrder())
         val measured = output.short.toInt()
+        // Drain remaining output: getOutput() returns unconsumed buffers until fully read.
+        output.position(output.limit())
         return measured.toFloat() / amplitude
     }
 

@@ -167,8 +167,9 @@ public class NoiseGateAudioProcessor(
     override fun queueInput(inputBuffer: ByteBuffer) {
         if (!isActive) return
         if (inputBuffer.hasRemaining()) {
-            queuedInputBytes += inputBuffer.remaining()
-            ensureQueuedInputCapacity(inputBuffer.remaining())
+            val remaining = inputBuffer.remaining()
+            ensureQueuedInputCapacity(remaining)
+            queuedInputBytes += remaining
             queuedInputBuffer!!.put(inputBuffer)
         }
     }
@@ -191,6 +192,7 @@ public class NoiseGateAudioProcessor(
     }
 
     override fun getOutput(): ByteBuffer {
+        if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
         if (!isActive || queuedInputBytes == 0) {
             return EMPTY_BUFFER
         }

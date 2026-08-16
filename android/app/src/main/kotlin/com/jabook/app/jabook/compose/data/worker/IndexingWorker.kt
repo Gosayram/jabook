@@ -125,8 +125,8 @@ public class IndexingWorker
                         when (progress) {
                             is IndexingProgress.InProgress -> {
                                 val percent =
-                                    if (progress.totalForums > 0) {
-                                        (progress.progress * 100).toInt()
+                                    if (progress.detail.totalForums > 0) {
+                                        (progress.detail.percentComplete * 100).toInt()
                                     } else {
                                         0
                                     }
@@ -135,7 +135,7 @@ public class IndexingWorker
                                         Data
                                             .Builder()
                                             .putInt(KEY_PROGRESS_PERCENT, percent)
-                                            .putString(KEY_PROGRESS_MESSAGE, progress.currentForum)
+                                            .putString(KEY_PROGRESS_MESSAGE, progress.detail.currentForumName)
                                             .build(),
                                     )
                                 }

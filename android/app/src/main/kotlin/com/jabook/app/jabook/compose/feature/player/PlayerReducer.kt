@@ -21,7 +21,7 @@ public object PlayerReducer {
     public fun reduce(
         state: PlayerState,
         intent: PlayerIntent,
-        currentPositionMs: Long = 0L,
+        currentPositionMs: Long,
     ): PlayerState =
         when (state) {
             PlayerState.Loading -> reduceLoading(state, intent)
@@ -97,32 +97,11 @@ public object PlayerReducer {
                     state.copy(playbackSpeed = clampedSpeed)
                 }
             }
-            is PlayerIntent.SeekTo -> {
-                val clampedPosition =
-                    PlayerIntentGuardPolicy.clampSeekPosition(
-                        requestedPositionMs = intent.positionMs,
-                        chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds,
-                    )
-                state.copy()
-            }
-            PlayerIntent.SeekForward -> {
-                val requestedPosition = currentPositionMs + state.forwardInterval * 1_000L
-                val clampedPosition =
-                    PlayerIntentGuardPolicy.clampSeekPosition(
-                        requestedPositionMs = requestedPosition,
-                        chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds,
-                    )
-                state.copy()
-            }
-            PlayerIntent.SeekBackward -> {
-                val requestedPosition = currentPositionMs - state.rewindInterval * 1_000L
-                val clampedPosition =
-                    PlayerIntentGuardPolicy.clampSeekPosition(
-                        requestedPositionMs = requestedPosition,
-                        chapterDurationMs = state.currentChapter?.duration?.inWholeMilliseconds,
-                    )
-                state.copy()
-            }
+            // Seek intents are routed authoritatively by PlayerIntentCommandRouter;
+            // the reducer only confirms the active state.
+            is PlayerIntent.SeekTo -> state.copy()
+            PlayerIntent.SeekForward -> state.copy()
+            PlayerIntent.SeekBackward -> state.copy()
             is PlayerIntent.SelectChapter -> {
                 if (state.chapters.isEmpty()) {
                     state

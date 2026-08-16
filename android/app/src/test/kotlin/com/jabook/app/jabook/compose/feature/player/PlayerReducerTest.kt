@@ -37,7 +37,7 @@ class PlayerReducerTest {
     fun `reduce keeps loading state when play intent received`() {
         val state = PlayerState.Loading
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.Play)
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.Play, currentPositionMs = 0L)
 
         assertSame(state, reduced)
     }
@@ -77,7 +77,7 @@ class PlayerReducerTest {
 
     @Test
     fun `reduce transitions to error state on report error intent`() {
-        val reduced = PlayerReducer.reduce(PlayerState.Loading, PlayerIntent.ReportError("boom"))
+        val reduced = PlayerReducer.reduce(PlayerState.Loading, PlayerIntent.ReportError("boom"), currentPositionMs = 0L)
 
         require(reduced is PlayerState.Error)
         assertEquals("boom", reduced.message)
@@ -88,8 +88,8 @@ class PlayerReducerTest {
         val paused = activeStateTemplate().copy(isPlaying = false)
         val playing = activeStateTemplate().copy(isPlaying = true)
 
-        val pausedToPlaying = PlayerReducer.reduce(paused, PlayerIntent.TogglePlayPause)
-        val playingToPaused = PlayerReducer.reduce(playing, PlayerIntent.TogglePlayPause)
+        val pausedToPlaying = PlayerReducer.reduce(paused, PlayerIntent.TogglePlayPause, currentPositionMs = 0L)
+        val playingToPaused = PlayerReducer.reduce(playing, PlayerIntent.TogglePlayPause, currentPositionMs = 0L)
 
         require(pausedToPlaying is PlayerState.Active)
         require(playingToPaused is PlayerState.Active)
@@ -119,8 +119,8 @@ class PlayerReducerTest {
     fun `reduce clamps playback speed to allowed range`() {
         val state = activeStateTemplate().copy(playbackSpeed = 1.0f)
 
-        val tooLow = PlayerReducer.reduce(state, PlayerIntent.SetPlaybackSpeed(speed = 0.1f)) as PlayerState.Active
-        val tooHigh = PlayerReducer.reduce(state, PlayerIntent.SetPlaybackSpeed(speed = 3.5f)) as PlayerState.Active
+        val tooLow = PlayerReducer.reduce(state, PlayerIntent.SetPlaybackSpeed(speed = 0.1f), currentPositionMs = 0L) as PlayerState.Active
+        val tooHigh = PlayerReducer.reduce(state, PlayerIntent.SetPlaybackSpeed(speed = 3.5f), currentPositionMs = 0L) as PlayerState.Active
 
         assertEquals(0.5f, tooLow.playbackSpeed)
         assertEquals(2.0f, tooHigh.playbackSpeed)
@@ -130,7 +130,7 @@ class PlayerReducerTest {
     fun `reduce keeps state when playback speed is already clamped target`() {
         val state = activeStateTemplate().copy(playbackSpeed = 2.0f)
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.SetPlaybackSpeed(speed = 9.0f))
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.SetPlaybackSpeed(speed = 9.0f), currentPositionMs = 0L)
 
         assertEquals(state, reduced)
     }
@@ -165,9 +165,9 @@ class PlayerReducerTest {
     @Test
     fun `reduce toggle chapter repeat cycles repeat mode in active state`() {
         val off = activeStateTemplate().copy(chapterRepeatMode = ChapterRepeatMode.OFF)
-        val once = PlayerReducer.reduce(off, PlayerIntent.ToggleChapterRepeat) as PlayerState.Active
-        val infinite = PlayerReducer.reduce(once, PlayerIntent.ToggleChapterRepeat) as PlayerState.Active
-        val backToOff = PlayerReducer.reduce(infinite, PlayerIntent.ToggleChapterRepeat) as PlayerState.Active
+        val once = PlayerReducer.reduce(off, PlayerIntent.ToggleChapterRepeat, currentPositionMs = 0L) as PlayerState.Active
+        val infinite = PlayerReducer.reduce(once, PlayerIntent.ToggleChapterRepeat, currentPositionMs = 0L) as PlayerState.Active
+        val backToOff = PlayerReducer.reduce(infinite, PlayerIntent.ToggleChapterRepeat, currentPositionMs = 0L) as PlayerState.Active
 
         assertEquals(ChapterRepeatMode.ONCE, once.chapterRepeatMode)
         assertEquals(ChapterRepeatMode.INFINITE, infinite.chapterRepeatMode)
@@ -178,7 +178,7 @@ class PlayerReducerTest {
     fun `reduce keeps state when fixed sleep timer request is idempotent`() {
         val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.FIXED, sleepTimerRemainingSeconds = 300)
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimer(minutes = 5))
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimer(minutes = 5), currentPositionMs = 0L)
 
         assertEquals(state, reduced)
     }
@@ -187,7 +187,7 @@ class PlayerReducerTest {
     fun `reduce keeps state when end-of-track timer already active`() {
         val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.END_OF_TRACK, sleepTimerRemainingSeconds = null)
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimerEndOfTrack)
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimerEndOfTrack, currentPositionMs = 0L)
 
         assertEquals(state, reduced)
     }
@@ -196,7 +196,7 @@ class PlayerReducerTest {
     fun `reduce updates state when fixed sleep timer request differs`() {
         val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.FIXED, sleepTimerRemainingSeconds = 120)
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimer(minutes = 5))
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimer(minutes = 5), currentPositionMs = 0L)
 
         require(reduced is PlayerState.Active)
         assertEquals(PlayerSleepTimerMode.FIXED, reduced.sleepTimerMode)
@@ -207,7 +207,7 @@ class PlayerReducerTest {
     fun `reduce keeps state when end-of-chapter timer already active`() {
         val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.END_OF_CHAPTER, sleepTimerRemainingSeconds = null)
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimerEndOfChapter)
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimerEndOfChapter, currentPositionMs = 0L)
 
         assertEquals(state, reduced)
     }
@@ -216,7 +216,7 @@ class PlayerReducerTest {
     fun `reduce cancel sleep timer keeps state when already idle`() {
         val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.IDLE, sleepTimerRemainingSeconds = null)
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.CancelSleepTimer)
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.CancelSleepTimer, currentPositionMs = 0L)
 
         assertEquals(state, reduced)
     }
@@ -225,7 +225,7 @@ class PlayerReducerTest {
     fun `reduce cancel sleep timer resets mode and remaining when active`() {
         val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.FIXED, sleepTimerRemainingSeconds = 600)
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.CancelSleepTimer)
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.CancelSleepTimer, currentPositionMs = 0L)
 
         require(reduced is PlayerState.Active)
         assertEquals(PlayerSleepTimerMode.IDLE, reduced.sleepTimerMode)
@@ -240,6 +240,7 @@ class PlayerReducerTest {
             PlayerReducer.reduce(
                 state,
                 PlayerIntent.UpdateBookSeekSettings(rewindSeconds = 10, forwardSeconds = 30),
+                currentPositionMs = 0L,
             )
 
         assertEquals(state, reduced)
@@ -260,6 +261,7 @@ class PlayerReducerTest {
             PlayerReducer.reduce(
                 state,
                 PlayerIntent.UpdateBookSeekSettings(rewindSeconds = 15, forwardSeconds = 45),
+                currentPositionMs = 0L,
             )
 
         require(reduced is PlayerState.Active)
@@ -279,7 +281,7 @@ class PlayerReducerTest {
                 hasBookSeekOverride = false,
             )
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.ResetBookSeekSettings)
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.ResetBookSeekSettings, currentPositionMs = 0L)
 
         assertEquals(state, reduced)
     }
@@ -295,7 +297,7 @@ class PlayerReducerTest {
                 hasBookSeekOverride = true,
             )
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.ResetBookSeekSettings)
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.ResetBookSeekSettings, currentPositionMs = 0L)
 
         require(reduced is PlayerState.Active)
         assertEquals(10, reduced.rewindInterval)
@@ -330,6 +332,7 @@ class PlayerReducerTest {
                     speechEnhancer = true,
                     autoVolumeLeveling = true,
                 ),
+                currentPositionMs = 0L,
             )
 
         assertEquals(state, reduced)
@@ -352,6 +355,7 @@ class PlayerReducerTest {
                     speechEnhancer = true,
                     autoVolumeLeveling = true,
                 ),
+                currentPositionMs = 0L,
             )
 
         require(reduced is PlayerState.Active)
@@ -470,6 +474,7 @@ class PlayerReducerTest {
             PlayerReducer.reduce(
                 source,
                 PlayerIntent.UpdateBookSeekSettings(rewindSeconds = 15, forwardSeconds = 45),
+                currentPositionMs = 0L,
             )
 
         require(reduced is PlayerState.Active)
@@ -481,14 +486,14 @@ class PlayerReducerTest {
 
     @Test
     fun `reduce transitions error to loading on initialize intent`() {
-        val reduced = PlayerReducer.reduce(PlayerState.Error("oops"), PlayerIntent.InitializePlayer)
+        val reduced = PlayerReducer.reduce(PlayerState.Error("oops"), PlayerIntent.InitializePlayer, currentPositionMs = 0L)
 
         assertEquals(PlayerState.Loading, reduced)
     }
 
     @Test
     fun `reduce replaces error message when report error on error state`() {
-        val reduced = PlayerReducer.reduce(PlayerState.Error("old"), PlayerIntent.ReportError("new"))
+        val reduced = PlayerReducer.reduce(PlayerState.Error("old"), PlayerIntent.ReportError("new"), currentPositionMs = 0L)
 
         require(reduced is PlayerState.Error)
         assertEquals("new", reduced.message)
@@ -496,7 +501,7 @@ class PlayerReducerTest {
 
     @Test
     fun `reduce transitions active to error on report error intent`() {
-        val reduced = PlayerReducer.reduce(activeStateTemplate(), PlayerIntent.ReportError("boom"))
+        val reduced = PlayerReducer.reduce(activeStateTemplate(), PlayerIntent.ReportError("boom"), currentPositionMs = 0L)
 
         require(reduced is PlayerState.Error)
         assertEquals("boom", reduced.message)
@@ -507,7 +512,7 @@ class PlayerReducerTest {
         val loading = PlayerState.Loading
 
         nonErrorIntents().forEach { intent ->
-            val reduced = PlayerReducer.reduce(loading, intent)
+            val reduced = PlayerReducer.reduce(loading, intent, currentPositionMs = 0L)
             assertSame("Expected Loading state to stay unchanged for $intent", loading, reduced)
         }
     }
@@ -517,7 +522,7 @@ class PlayerReducerTest {
         val error = PlayerState.Error("boom")
 
         nonErrorAndInitializeIntents().forEach { intent ->
-            val reduced = PlayerReducer.reduce(error, intent)
+            val reduced = PlayerReducer.reduce(error, intent, currentPositionMs = 0L)
             assertSame("Expected Error state to stay unchanged for $intent", error, reduced)
         }
     }
@@ -527,7 +532,7 @@ class PlayerReducerTest {
         val loading = PlayerState.Loading
 
         allIntentsForMatrix().forEach { intent ->
-            val reduced = PlayerReducer.reduce(loading, intent)
+            val reduced = PlayerReducer.reduce(loading, intent, currentPositionMs = 0L)
             assertFalse("Loading must not transition to Active for $intent", reduced is PlayerState.Active)
         }
     }
@@ -537,7 +542,7 @@ class PlayerReducerTest {
         val error = PlayerState.Error("boom")
 
         allIntentsForMatrix().forEach { intent ->
-            val reduced = PlayerReducer.reduce(error, intent)
+            val reduced = PlayerReducer.reduce(error, intent, currentPositionMs = 0L)
             assertFalse("Error must not transition to Active for $intent", reduced is PlayerState.Active)
         }
     }
@@ -547,7 +552,7 @@ class PlayerReducerTest {
         val active = activeStateTemplate()
 
         allIntentsForMatrix().forEach { intent ->
-            val reduced = PlayerReducer.reduce(active, intent)
+            val reduced = PlayerReducer.reduce(active, intent, currentPositionMs = 0L)
             assertFalse("Active must not transition to Loading for $intent", reduced == PlayerState.Loading)
         }
     }
@@ -564,7 +569,7 @@ class PlayerReducerTest {
 
         states.forEach { state ->
             intents.forEach { intent ->
-                val reduced = PlayerReducer.reduce(state, intent)
+                val reduced = PlayerReducer.reduce(state, intent, currentPositionMs = 0L)
                 assertNotNull("Reducer returned null for state=$state intent=$intent", reduced)
 
                 when (state) {
@@ -599,7 +604,7 @@ class PlayerReducerTest {
         val active = activeStateTemplate()
 
         commandOnlyNoOpIntents().forEach { intent ->
-            val reduced = PlayerReducer.reduce(active, intent)
+            val reduced = PlayerReducer.reduce(active, intent, currentPositionMs = 0L)
             assertSame("Expected Active state to stay unchanged for $intent", active, reduced)
         }
     }
@@ -608,7 +613,7 @@ class PlayerReducerTest {
     fun `start sleep timer clamps zero minutes to one minute`() {
         val state = activeStateTemplate().copy(sleepTimerMode = PlayerSleepTimerMode.IDLE, sleepTimerRemainingSeconds = null)
 
-        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimer(minutes = 0))
+        val reduced = PlayerReducer.reduce(state, PlayerIntent.StartSleepTimer(minutes = 0), currentPositionMs = 0L)
 
         require(reduced is PlayerState.Active)
         assertEquals(PlayerSleepTimerMode.FIXED, reduced.sleepTimerMode)

@@ -35,6 +35,7 @@ import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_25_26
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_26_27
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_28_29
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_29_30
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_30_31
 import com.jabook.app.jabook.compose.data.local.migration.createTopicsFts5Index
 import com.jabook.app.jabook.compose.data.local.migration.isMissingFts5Module
 import org.junit.After
@@ -1092,6 +1093,7 @@ class JabookDatabaseMigrationTest {
 
         assertTrue(hasColumn("chapters", "start_position_ms"))
         assertTrue(hasColumn("chapters", "end_position_ms"))
+        assertFalse(hasTable("cookies"))
         db
             .query(
                 "SELECT start_position_ms, end_position_ms, duration FROM chapters WHERE id = 'c1'",
@@ -1137,11 +1139,48 @@ class JabookDatabaseMigrationTest {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // Full upgrade path: v14 → v30
+    // Migration 30 → 31: cached_topics.last_updated index
     // ══════════════════════════════════════════════════════════════════════
 
     @Test
-    fun `full upgrade path from v14 to v30 applies all migrations without error`() {
+    fun `migration 30 to 31 creates last_updated index and preserves cached topics`() {
+        createCachedTopicsTable()
+        db.execSQL(
+            "INSERT INTO cached_topics VALUES ('t1', 'Книга', 'Автор', 'Аудиокниги', '1 GB', 5, 0, NULL, NULL, NULL, 1, 1000, 1)",
+        )
+        assertFalse(hasIndex("index_cached_topics_last_updated"))
+
+        MIGRATION_30_31.migrate(db)
+
+        assertTrue(hasIndex("index_cached_topics_last_updated"))
+        db.query("SELECT title FROM cached_topics WHERE topic_id = 't1'").use {
+            assertTrue(it.moveToFirst())
+            assertEquals("Книга", it.getString(0))
+        }
+    }
+
+    @Test
+    fun `migration 30 to 31 is idempotent`() {
+        createCachedTopicsTable()
+
+        MIGRATION_30_31.migrate(db)
+        MIGRATION_30_31.migrate(db)
+
+        assertTrue(hasIndex("index_cached_topics_last_updated"))
+    }
+
+    @Test
+    fun `migration 30 to 31 version contract is correct`() {
+        assertEquals(30, MIGRATION_30_31.startVersion)
+        assertEquals(31, MIGRATION_30_31.endVersion)
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Full upgrade path: v14 → v31
+    // ══════════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `full upgrade path from v14 to v31 applies all migrations without error`() {
         if (!isFts5Available()) return
         // Start with v14 schema: books + scan_paths + cached_topics (no FTS, no bookmarks)
         createBooksTableV18()
@@ -1196,6 +1235,8 @@ class JabookDatabaseMigrationTest {
         MIGRATION_28_29.migrate(db)
         // v29 → v30
         MIGRATION_29_30.migrate(db)
+        // v30 → v31
+        MIGRATION_30_31.migrate(db)
 
         // Verify final schema state
         assertTrue(hasTable("books"))
@@ -1215,5 +1256,6 @@ class JabookDatabaseMigrationTest {
         assertTrue(hasColumn("chapters", "lufs_value"))
         assertTrue(hasColumn("chapters", "start_position_ms"))
         assertTrue(hasColumn("chapters", "end_position_ms"))
+        assertTrue(hasIndex("index_cached_topics_last_updated"))
     }
 }

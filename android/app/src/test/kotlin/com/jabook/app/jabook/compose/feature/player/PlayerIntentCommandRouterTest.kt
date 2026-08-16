@@ -69,7 +69,7 @@ class PlayerIntentCommandRouterTest {
     fun `routePlaybackIntent returns null for idempotent play command`() {
         val state = activeState(isPlaying = true)
 
-        val command = PlayerIntentCommandRouter.routePlaybackIntent(PlayerIntent.Play, state, state)
+        val command = PlayerIntentCommandRouter.routePlaybackIntent(PlayerIntent.Play, state, state, currentPositionMs = 0L)
 
         assertNull(command)
     }
@@ -84,6 +84,7 @@ class PlayerIntentCommandRouterTest {
                 intent = PlayerIntent.TogglePlayPause,
                 currentState = currentState,
                 reducedState = reducedState,
+                currentPositionMs = 0L,
             )
 
         assertEquals(PlayerCommand.Play, command)
@@ -113,6 +114,7 @@ class PlayerIntentCommandRouterTest {
                 intent = PlayerIntent.SelectChapter(chapterIndex = 99),
                 currentState = activeState(currentChapterIndex = 0),
                 reducedState = reducedState,
+                currentPositionMs = 0L,
             )
 
         assertEquals(PlayerCommand.SkipToChapter(chapterIndex = 2, positionMs = 0L), command)
@@ -125,6 +127,7 @@ class PlayerIntentCommandRouterTest {
                 intent = PlayerIntent.SelectChapter(chapterIndex = 2, positionMs = 42_000L),
                 currentState = activeState(currentChapterIndex = 0),
                 reducedState = activeState(currentChapterIndex = 2),
+                currentPositionMs = 0L,
             )
 
         assertEquals(PlayerCommand.SkipToChapter(chapterIndex = 2, positionMs = 42_000L), command)
@@ -140,12 +143,14 @@ class PlayerIntentCommandRouterTest {
                 intent = PlayerIntent.SetPlaybackSpeed(1.75f),
                 currentState = unchanged,
                 reducedState = unchanged,
+                currentPositionMs = 0L,
             )
         val changedCommand =
             PlayerIntentCommandRouter.routePlaybackIntent(
                 intent = PlayerIntent.SetPlaybackSpeed(1.75f),
                 currentState = unchanged,
                 reducedState = changed,
+                currentPositionMs = 0L,
             )
 
         assertNull(unchangedCommand)

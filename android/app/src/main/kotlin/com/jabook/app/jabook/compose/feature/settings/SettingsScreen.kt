@@ -534,9 +534,9 @@ public fun SettingsScreen(
                                 val timeText = if (elapsedTimeStr.isNotEmpty()) " • $elapsedTimeStr" else ""
                                 stringResource(
                                     R.string.indexingCompactStatus,
-                                    progress.currentForum,
-                                    progress.currentForumIndex + 1,
-                                    progress.totalForums,
+                                    progress.detail.currentForumName,
+                                    progress.detail.totalForumsCompleted + 1,
+                                    progress.detail.totalForums,
                                     timeText,
                                 )
                             }
@@ -580,7 +580,13 @@ public fun SettingsScreen(
                         indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
                     ) {
                         val progress = indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
-                        val progressValue = progress.currentForumIndex.toFloat() / progress.totalForums.toFloat()
+                        val totalForums = progress.detail.totalForums
+                        val progressValue =
+                            if (totalForums > 0) {
+                                progress.detail.totalForumsCompleted.toFloat() / totalForums.toFloat()
+                            } else {
+                                0f
+                            }
 
                         Column(modifier = Modifier.fillMaxWidth()) {
                             androidx.compose.material3.LinearProgressIndicator(
@@ -594,8 +600,8 @@ public fun SettingsScreen(
                             val indexedTopics =
                                 pluralStringResource(
                                     R.plurals.indexTopicsCount,
-                                    progress.topicsIndexed,
-                                    progress.topicsIndexed,
+                                    progress.detail.topicsFound,
+                                    progress.detail.topicsFound,
                                 )
                             Text(
                                 text =

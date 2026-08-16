@@ -17,7 +17,6 @@ package com.jabook.app.jabook.compose.feature.indexing
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
-import com.jabook.app.jabook.compose.data.indexing.IndexProgress
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 import com.jabook.app.jabook.compose.data.worker.IndexingWorkScheduler
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
@@ -58,8 +57,7 @@ class IndexingViewModelTest {
         Dispatchers.setMain(testDispatcher)
         whenever(loggerFactory.get(any<String>())).thenReturn(logger)
         whenever(indexingWorkScheduler.observe()).thenReturn(emptyFlow())
-        // Stub new ForumIndexer StateFlows so ViewModel init can collect them
-        whenever(forumIndexer.indexProgress).thenReturn(MutableStateFlow(IndexProgress()))
+        // Stub ForumIndexer StateFlows so ViewModel init can collect them
         whenever(forumIndexer.forumStatuses).thenReturn(MutableStateFlow(emptyList()))
 
         viewModel =

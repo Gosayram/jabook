@@ -906,28 +906,7 @@ public fun PlayerScreen(
                                             onSkipPrevious = {
                                                 HapticManager.performGesture(hapticFeedback)
                                                 clickDebouncer.debounce {
-                                                    val activeState = uiState as? PlayerState.Active ?: return@debounce
-                                                    when (
-                                                        val action =
-                                                            ChapterNavigationPolicy.resolvePreviousAction(
-                                                                activeState.chapters,
-                                                                activeState.currentChapterIndex,
-                                                                currentPosition,
-                                                            )
-                                                    ) {
-                                                        is ChapterNavigationAction.RestartCurrentChapter -> {
-                                                            viewModel.skipToChapter(action.chapterIndex)
-                                                            viewModel.seekTo(0L)
-                                                        }
-                                                        is ChapterNavigationAction.JumpToChapter ->
-                                                            viewModel.skipToChapter(
-                                                                action.chapterIndex,
-                                                            )
-                                                        is ChapterNavigationAction.EndOfBook ->
-                                                            viewModel.dispatch(
-                                                                PlayerIntent.SkipPrevious,
-                                                            )
-                                                    }
+                                                    viewModel.dispatch(PlayerIntent.SkipPrevious)
                                                 }
                                             },
                                             onSeek = { positionMs ->

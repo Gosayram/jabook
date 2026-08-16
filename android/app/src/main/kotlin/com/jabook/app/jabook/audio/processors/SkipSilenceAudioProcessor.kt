@@ -118,8 +118,9 @@ public class SkipSilenceAudioProcessor(
         if (!inputBuffer.hasRemaining()) {
             return
         }
-        queuedInputBytes += inputBuffer.remaining()
-        ensureQueuedInputCapacity(inputBuffer.remaining())
+        val remaining = inputBuffer.remaining()
+        ensureQueuedInputCapacity(remaining)
+        queuedInputBytes += remaining
         queuedInputBuffer!!.put(inputBuffer)
     }
 
@@ -141,6 +142,7 @@ public class SkipSilenceAudioProcessor(
     }
 
     override fun getOutput(): ByteBuffer {
+        if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
         if (queuedInputBytes == 0) {
             return EMPTY_BUFFER
         }
@@ -173,8 +175,11 @@ public class SkipSilenceAudioProcessor(
             processBuffer(buf, out)
         }
 
-        // Flush any remaining retain window (e.g. silence at end of buffer before next speech)
-        if (wasDroppingSilence) {
+        // Flush any remaining retain window (e.g. silence at end of buffer before next speech).
+        // SPEED_UP mode must NOT flush here: retained frames are restored in-order by the
+        // speech-detection branch in processBuffer; flushing at end-of-buffer would restore
+        // time-reordered audio and cancel the speed-up entirely.
+        if (wasDroppingSilence && mode != SkipSilenceMode.SPEED_UP) {
             flushRetainRing(out)
             wasDroppingSilence = false
         }

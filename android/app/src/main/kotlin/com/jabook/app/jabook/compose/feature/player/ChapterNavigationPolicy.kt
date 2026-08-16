@@ -71,10 +71,21 @@ internal object ChapterNavigationIntentPolicy {
     fun resolve(
         intent: PlayerIntent,
         state: PlayerState.Active,
-        currentPositionMs: Long = 0L,
+        currentPositionMs: Long,
         nearEndThresholdMs: Long = NEAR_END_THRESHOLD_MS,
+    ): ChapterNavigationDecision =
+        when (intent) {
+            PlayerIntent.SkipNext -> resolveSkipNext(intent, state, currentPositionMs, nearEndThresholdMs)
+            PlayerIntent.SkipPrevious -> resolveSkipPrevious(intent, state, currentPositionMs)
+            else -> ChapterNavigationDecision(intent = intent)
+        }
+
+    private fun resolveSkipNext(
+        intent: PlayerIntent,
+        state: PlayerState.Active,
+        currentPositionMs: Long,
+        nearEndThresholdMs: Long,
     ): ChapterNavigationDecision {
-        if (intent != PlayerIntent.SkipNext) return ChapterNavigationDecision(intent = intent)
         if (state.chapters.isEmpty()) return ChapterNavigationDecision(intent = intent)
 
         val currentIndex = state.currentChapterIndex.coerceIn(0, state.chapters.lastIndex)
@@ -96,6 +107,30 @@ internal object ChapterNavigationIntentPolicy {
             movedToChapterDisplayIndex = targetIndex + 1,
             undoChapterIndex = currentIndex,
         )
+    }
+
+    private fun resolveSkipPrevious(
+        intent: PlayerIntent,
+        state: PlayerState.Active,
+        currentPositionMs: Long,
+    ): ChapterNavigationDecision {
+        if (state.chapters.isEmpty()) return ChapterNavigationDecision(intent = intent)
+
+        val targetIndex =
+            when (
+                val action =
+                    ChapterNavigationPolicy.resolvePreviousAction(
+                        chapters = state.chapters,
+                        currentChapterIndex = state.currentChapterIndex,
+                        currentChapterPositionMs = currentPositionMs,
+                    )
+            ) {
+                is ChapterNavigationAction.JumpToChapter -> action.chapterIndex
+                is ChapterNavigationAction.RestartCurrentChapter -> action.chapterIndex
+                ChapterNavigationAction.EndOfBook -> return ChapterNavigationDecision(intent = intent)
+            }
+
+        return ChapterNavigationDecision(intent = PlayerIntent.SelectChapter(targetIndex))
     }
 }
 

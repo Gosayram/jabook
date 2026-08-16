@@ -273,11 +273,10 @@ public class ForumIndexer
 
                     onProgress?.invoke(
                         IndexingProgress.InProgress(
-                            currentForum = forumIdList.firstOrNull() ?: "",
-                            currentForumIndex = 0,
-                            totalForums = forumIdList.size,
-                            currentPage = 0,
-                            topicsIndexed = 0,
+                            IndexProgress(
+                                currentForumName = forumIdList.firstOrNull() ?: "",
+                                totalForums = forumIdList.size,
+                            ),
                         ),
                     )
 
@@ -291,15 +290,14 @@ public class ForumIndexer
                     val failedForumMessages = mutableListOf<String>()
 
                     // Process forums in parallel batches
-                    forumIdList.chunked(MAX_CONCURRENT_FORUMS).forEachIndexed { batchIndex, batch ->
+                    forumIdList.chunked(MAX_CONCURRENT_FORUMS).forEach { batch ->
                         batch
-                            .mapIndexed { indexInBatch, forumId ->
+                            .map { forumId ->
                                 async(Dispatchers.IO) {
                                     // Mark forum as IN_PROGRESS
                                     updateForumStatus(forumId, ForumState.IN_PROGRESS)
 
                                     try {
-                                        val forumIndex = batchIndex * MAX_CONCURRENT_FORUMS + indexInBatch
                                         val (indexed, covers) =
                                             indexForum(forumId, currentIndexVersion) { page, topicsInForum ->
                                                 // Update per-forum page progress
@@ -320,13 +318,7 @@ public class ForumIndexer
                                                             forumStatuses = _forumStatuses.value,
                                                         )
                                                     onProgress?.invoke(
-                                                        IndexingProgress.InProgress(
-                                                            currentForum = forumId,
-                                                            currentForumIndex = forumIndex,
-                                                            totalForums = forumIdList.size,
-                                                            currentPage = page,
-                                                            topicsIndexed = currentTotal,
-                                                        ),
+                                                        IndexingProgress.InProgress(_indexProgress.value),
                                                     )
                                                 }
                                             }

@@ -104,6 +104,8 @@ public class RutrackerParser
             private val SERIES_HTML_REGEX = ":\\s*(.+?)(?=\\n|<|$)".toRegex()
             private val PAGINATION_TOTAL_REGEX = "Страница\\s+\\d+\\s+из\\s+(\\d+)".toRegex(RegexOption.IGNORE_CASE)
             private val PAGINATION_CURRENT_REGEX = "Страница\\s+(\\d+)".toRegex(RegexOption.IGNORE_CASE)
+            private val TRAILING_BRACKET_REGEX = Regex("\\s*\\[([^\\]]+)\\]\\s*$")
+            private val SQUARE_BRACKETS_REGEX = Regex("\\[.*?\\]")
             private val BR_REGEX = Regex("<br\\s*/?>", RegexOption.IGNORE_CASE)
             private val POST_BR_REGEX = Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE)
             private val WHITESPACE_REGEX = Regex("\\s+")
@@ -2219,23 +2221,22 @@ public class RutrackerParser
         private fun cleanTitle(rawTitle: String): String {
             var cleaned = rawTitle
 
-            // Keep trailing [...] if it contains comma-separated names/descriptions (metadata block)
-            // e.g. "[Арестович Алексей, 2023, 128 kbps, MP3]" — strip the brackets but keep content
-            val trailingBracketPattern = Regex("\\s*\\[([^\\]]+)\\]\\s*$")
-            val trailingMatch = trailingBracketPattern.find(cleaned)
+            // Extract the trailing [...] before other cleanup so format removal
+            // (MP3, FLAC, ...) never strips tokens from a preserved block.
+            // Trailing bracket WITH commas = metadata block: strip brackets, keep full text.
+            // Trailing bracket WITHOUT commas = tag: remove entirely.
+            var metadata: String? = null
+            val trailingMatch = TRAILING_BRACKET_REGEX.find(cleaned)
             if (trailingMatch != null) {
-                val inner = trailingMatch.groupValues[1].trim()
-                // If inner content has commas (typical metadata block), strip brackets but keep text
+                val inner = WHITESPACE_REGEX.replace(trailingMatch.groupValues[1], " ").trim()
+                cleaned = cleaned.substring(0, trailingMatch.range.first).trim()
                 if (inner.contains(",")) {
-                    cleaned = cleaned.substring(0, trailingMatch.range.first).trim() + " " + inner
-                } else {
-                    // Not a metadata block, remove it entirely
-                    cleaned = cleaned.replace(Regex("\\[.*?\\]"), "")
+                    metadata = inner
                 }
-            } else {
-                // Remove content in square brackets (category tags like [Аудио], [MP3])
-                cleaned = cleaned.replace(Regex("\\[.*?\\]"), "")
             }
+
+            // Remove remaining content in square brackets (category tags like [Аудио], [MP3])
+            cleaned = cleaned.replace(SQUARE_BRACKETS_REGEX, "")
 
             // Remove quality indicators
             val qualityPatterns =
@@ -2285,7 +2286,9 @@ public class RutrackerParser
             // Remove trailing/leading dashes, commas, and periods
             cleaned = cleaned.trim('-', ',', '.', ' ')
 
-            return cleaned.ifEmpty { rawTitle } // Return original if cleaning results in empty string
+            // Re-attach the preserved metadata block verbatim
+            val result = if (metadata != null) "$cleaned $metadata".trim() else cleaned
+            return result.ifEmpty { rawTitle } // Return original if cleaning results in empty string
         }
 
         /**

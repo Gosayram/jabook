@@ -121,8 +121,9 @@ public class LoudnessNormalizer(
 
         // Store input buffer for processing
         if (inputBuffer.hasRemaining()) {
-            queuedInputBytes += inputBuffer.remaining()
-            ensureQueuedInputCapacity(inputBuffer.remaining())
+            val remaining = inputBuffer.remaining()
+            ensureQueuedInputCapacity(remaining)
+            queuedInputBytes += remaining
             queuedInputBuffer!!.put(inputBuffer)
         }
     }
@@ -145,6 +146,7 @@ public class LoudnessNormalizer(
     }
 
     override fun getOutput(): ByteBuffer {
+        if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
         if (!isActive || queuedInputBytes == 0) {
             return EMPTY_BUFFER
         }
@@ -247,7 +249,12 @@ public class LoudnessNormalizer(
             }
         }
 
-        val rms = kotlin.math.sqrt(sumSquares / (samples * channels)).toFloat()
+        val rms =
+            if (samples > 0) {
+                kotlin.math.sqrt(sumSquares / (samples * channels)).toFloat()
+            } else {
+                0.0f
+            }
 
         // Update RMS sliding window using frame-weighted running average.
         // This keeps the intended 400ms horizon independent from varying input buffer sizes.
