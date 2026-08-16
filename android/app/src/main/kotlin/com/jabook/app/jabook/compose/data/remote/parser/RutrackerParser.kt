@@ -1070,25 +1070,53 @@ public class RutrackerParser
             )
         }
 
+        // Ponytail: non-author words that should prevent false-positive author extraction from titles
+        private val nonAuthorWords =
+            listOf(
+                "Аудиокнига",
+                "Сборник",
+                "Лекция",
+                "Подкаст",
+                "Радио",
+                "Часть",
+                "Книга",
+                "Том",
+                "Выпуск",
+                "Эпизод",
+                "Серия",
+                "Диск",
+            )
+
         /**
          * Extract author from title string.
          * Assumes format "Author - Title" or "Author / Title".
+         * Validates the potential author looks like a name to avoid false positives
+         * on titles like "Аудиокнига - Часть 1".
          */
         private fun extractAuthorFromTitle(title: String): String? {
-            // Split by common separators
-            val separators = listOf(" - ", " / ", " – ", " — ") // including ndash, mdash
+            val separators = listOf(" - ", " / ", " – ", " — ")
 
             for (separator in separators) {
                 if (title.contains(separator)) {
                     val parts = title.split(separator, limit = 2)
                     if (parts.isNotEmpty()) {
                         val potentialAuthor = parts[0].trim()
-                        // Basic validation: Author name shouldn't be too long or contain weird chars
-                        // Allow letters, dots, spaces, hyphens
+                        // Skip if it contains common non-author words
+                        if (nonAuthorWords.any { potentialAuthor.contains(it, ignoreCase = true) }) {
+                            continue
+                        }
+                        // Basic validation: 2-60 chars, no long numbers
                         if (potentialAuthor.length in 2..60 &&
                             !potentialAuthor.contains(Regex("[0-9]{3,}"))
-                        ) { // simple heuristic: no long numbers
-                            return potentialAuthor
+                        ) {
+                            // Additional heuristic: looks like a name if starts with capital,
+                            // has 2+ words, or contains a dot (e.g. "Л.Н. Толстой")
+                            val startsWithCapital = potentialAuthor.first().isUpperCase()
+                            val wordCount = potentialAuthor.split(Regex("\\s+")).size
+                            val hasDot = potentialAuthor.contains(".")
+                            if (startsWithCapital && (wordCount >= 2 || hasDot)) {
+                                return potentialAuthor
+                            }
                         }
                     }
                 }
@@ -1131,9 +1159,26 @@ public class RutrackerParser
                     // Extract post body for metadata
                     val postBody = document.selectFirst(POST_BODY_SELECTOR)
 
-                    // Extract size
-                    val sizeElement = document.selectFirst(TOR_SIZE_SELECTOR)
-                    val size = sizeElement?.toStr() ?: "Unknown"
+                    // Extract size with fallbacks
+                    val sizeElement =
+                        document.selectFirst(TOR_SIZE_SELECTOR)
+                            ?: postBody?.selectFirst("#tor-size-hf, span#tor-size-humn")
+                            ?: postBody?.selectFirst(".attach_link span, .tor-size span")
+                    var size = sizeElement?.toStr() ?: "Unknown"
+                    // Fallback: look for "Размер" label and extract text after it
+                    if (size == "Unknown" && postBody != null) {
+                        val sizeLabel = postBody.select("span.post-b").firstOrNull { it.text().contains("Размер") }
+                        val sizeText =
+                            sizeLabel
+                                ?.nextSibling()
+                                ?.toString()
+                                ?.trim()
+                                ?.removePrefix(":")
+                                ?.trim()
+                        if (!sizeText.isNullOrEmpty()) {
+                            size = sizeText
+                        }
+                    }
 
                     // Extract magnet link
                     // Use absUrl() for proper absolute URL resolution (magnet: links are already absolute)
@@ -1280,9 +1325,9 @@ public class RutrackerParser
                 }
             }
 
-            // Fallback: try to extract from text
+            // Fallback: try to extract from text (toStr() strips HTML, so no <b> tags)
             val seedText = document.select("span.seed, .seed").toStr()
-            val regex = "Сиды?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)
+            val regex = "Сиды?:\\s*(\\d+)".toRegex(RegexOption.IGNORE_CASE)
             regex
                 .find(seedText)
                 ?.groupValues
@@ -1317,9 +1362,9 @@ public class RutrackerParser
                 }
             }
 
-            // Fallback: try to extract from text
+            // Fallback: try to extract from text (toStr() strips HTML, so no <b> tags)
             val leechText = document.selectFirst("span.leech, .leech")?.toStr() ?: ""
-            val regex = "Личи?:\\s*<b>?(\\d+)</b>?".toRegex(RegexOption.IGNORE_CASE)
+            val regex = "Личи?:\\s*(\\d+)".toRegex(RegexOption.IGNORE_CASE)
             regex
                 .find(leechText)
                 ?.groupValues
@@ -1358,14 +1403,21 @@ public class RutrackerParser
                             val current = metadata["author"] ?: ""
                             metadata["author"] = if (current.isEmpty()) value else "$current $value"
                         }
-                        // Performer
+                        // "Под редакцией" maps to author (for edited collections)
+                        label.contains("Под редакцией", ignoreCase = true) -> {
+                            val current = metadata["author"] ?: ""
+                            metadata["author"] = if (current.isEmpty()) value else "$current $value"
+                        }
+                        // Performer — also match "Читает" alias
                         label.contains("Исполнитель", ignoreCase = true) ||
-                            label.contains("Narrator", ignoreCase = true) -> {
+                            label.contains("Narrator", ignoreCase = true) ||
+                            label.contains("Читает", ignoreCase = true) -> {
                             metadata["performer"] = value
                         }
                         // Duration
                         label.contains("Время звучания", ignoreCase = true) ||
-                            label.contains("Duration", ignoreCase = true) -> {
+                            label.contains("Duration", ignoreCase = true) ||
+                            label.contains("Общая продолжительность раздачи", ignoreCase = true) -> {
                             metadata["duration"] = value
                         }
                         // Audio Codec
@@ -1405,11 +1457,12 @@ public class RutrackerParser
                                 metadata["bitrate"] = value
                             }
                         }
-                        // Year/Date
+                        // Year/Date — match both "Год выпуска" and "Год"
                         label.contains(
                             "Год выпуска",
                             ignoreCase = true,
                         ) ||
+                            label.equals("Год", ignoreCase = true) ||
                             label.contains("Year", ignoreCase = true) -> {
                             metadata["addedDate"] = value
                         }
@@ -1423,7 +1476,8 @@ public class RutrackerParser
                         }
                         // Publisher
                         label.contains("Издательство", ignoreCase = true) ||
-                            label.contains("Publisher", ignoreCase = true) -> {
+                            label.contains("Publisher", ignoreCase = true) ||
+                            label.contains("Страна (Издатель)", ignoreCase = true) -> {
                             metadata["publisher"] = value
                         }
                         // Correction (Корректор)
@@ -1432,7 +1486,6 @@ public class RutrackerParser
                             metadata["correction"] = value
                         }
                         // Poster Author (Авторский постер)
-                        // Handle tricky cases like "Авторский постер: :"
                         label.contains("Авторский постер", ignoreCase = true) ||
                             label.contains("Poster", ignoreCase = true) -> {
                             val cleanValue = value.removePrefix(":").trim()
@@ -1449,6 +1502,16 @@ public class RutrackerParser
                         // Music (Музыка)
                         label.contains("Музыка", ignoreCase = true) || label.contains("Music", ignoreCase = true) -> {
                             metadata["music"] = value
+                        }
+                        // Тип записи → additionalInfo (not genre)
+                        label.contains("Тип записи", ignoreCase = true) -> {
+                            metadata["additionalInfo"] = value
+                        }
+                        // Формат → codec fallback
+                        label.contains("Формат", ignoreCase = true) -> {
+                            if (metadata["codec"].isNullOrBlank()) {
+                                metadata["codec"] = value
+                            }
                         }
                     }
                 }
@@ -1759,11 +1822,17 @@ public class RutrackerParser
                             break
                         }
 
-                        // Stop if we hit another metadata label (safety check, though usually separated by br)
+                        // Stop if we hit <span class="post-br"><br></span> (alternative line break)
+                        if (current is org.jsoup.nodes.Element &&
+                            current.hasClass("post-br") &&
+                            current.selectFirst("br") != null
+                        ) {
+                            current.remove()
+                            break
+                        }
+
+                        // Stop if we hit another metadata label (safety check)
                         if (current is org.jsoup.nodes.Element && current.hasClass("post-b")) {
-                            // Oops, we went too far (maybe missing br).
-                            // But wait, our loop will handle this next span.
-                            // We should probably stop removing *values* if we see a new label.
                             break
                         }
 
@@ -2142,8 +2211,24 @@ public class RutrackerParser
         private fun cleanTitle(rawTitle: String): String {
             var cleaned = rawTitle
 
-            // Remove content in square brackets: [1962, СССР, рисованный мультфильм]
-            cleaned = cleaned.replace(Regex("\\[.*?\\]"), "")
+            // Keep trailing [...] if it contains comma-separated names/descriptions (metadata block)
+            // e.g. "[Арестович Алексей, 2023, 128 kbps, MP3]" — strip the brackets but keep content
+            val trailingBracketPattern = Regex("\\s*\\[([^\\]]+)\\]\\s*$")
+            val trailingMatch = trailingBracketPattern.find(cleaned)
+            if (trailingMatch != null) {
+                val inner = trailingMatch.groupValues[1].trim()
+                // If inner content has commas (typical metadata block), strip brackets but keep text
+                if (inner.contains(",")) {
+                    cleaned = cleaned.substring(0, trailingMatch.range.first).trim()
+                    // Append the inner text without brackets (the metadata will be stripped by later patterns)
+                } else {
+                    // Not a metadata block, remove it entirely
+                    cleaned = cleaned.replace(Regex("\\[.*?\\]"), "")
+                }
+            } else {
+                // Remove content in square brackets (category tags like [Аудио], [MP3])
+                cleaned = cleaned.replace(Regex("\\[.*?\\]"), "")
+            }
 
             // Remove quality indicators
             val qualityPatterns =

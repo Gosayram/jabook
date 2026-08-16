@@ -963,4 +963,172 @@ class RutrackerParserTest {
         // Plain text description should also contain some content if extractDescriptionSection worked
         assertTrue("Should contain description text", details.description?.contains("Случившийся долгожданный") == true)
     }
+
+    // ============ Edge-Case Fixture Tests ============
+
+    @Test
+    fun `parseTopicDetails handles minimal lecture without author or genre`() {
+        val html =
+            """
+            <html>
+            <head><title>Лекции по Аюрведе</title></head>
+            <body>
+                <h1 class="maintitle"><a>Лекции по Аюрведе</a></h1>
+                ${readFixture("fixtures/rutracker/topics/topic_minimal_lecture.html")}
+            </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "70441939")
+
+        assertNotNull(details)
+        details?.let {
+            assertEquals("70441939", it.topicId)
+            assertEquals("2.3 GB", it.size)
+            assertEquals("magnet:?xt=urn:btih:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", it.magnetUrl)
+            // No "Автор" label → author should be null
+            assertNull(it.author)
+            // "Исполнитель" label present → performer extracted
+            assertEquals("Мезенцев Михаил и йогатичеры", it.performer)
+            // "Тип записи" → additionalInfo (not genre)
+            assertEquals("Лекции", it.allMetadata["additionalInfo"])
+            // "Год" alias → addedDate
+            assertEquals("2010", it.addedDate)
+            // "Общая продолжительность раздачи" → duration
+            assertEquals("10:00:00", it.duration)
+        }
+    }
+
+    @Test
+    fun `parseTopicDetails handles bare post with no metadata labels`() {
+        val html =
+            """
+            <html>
+            <head><title>Просто название книги</title></head>
+            <body>
+                <h1 class="maintitle"><a>Просто название книги</a></h1>
+                ${readFixture("fixtures/rutracker/topics/topic_no_metadata.html")}
+            </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "99999999")
+
+        assertNotNull(details)
+        details?.let {
+            assertEquals("99999999", it.topicId)
+            assertEquals("150 MB", it.size)
+            assertEquals("magnet:?xt=urn:btih:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", it.magnetUrl)
+            assertNull(it.author)
+            assertNull(it.performer)
+            assertTrue(it.genres.isEmpty())
+        }
+    }
+
+    @Test
+    fun `parseTopicDetails uses size fallback when tor-size-humn missing`() {
+        val html =
+            """
+            <html>
+            <head><title>Автор - Книга без размера</title></head>
+            <body>
+                <h1 class="maintitle"><a>Автор - Книга без размера</a></h1>
+                ${readFixture("fixtures/rutracker/topics/topic_no_size.html")}
+            </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "88888888")
+
+        assertNotNull(details)
+        details?.let {
+            assertEquals("88888888", it.topicId)
+            // No size element at all → "Unknown"
+            assertEquals("Unknown", it.size)
+            assertEquals("Тестовый Автор", it.author)
+            assertEquals("Чтец Тестов", it.performer)
+            assertEquals("2020", it.addedDate)
+        }
+    }
+
+    @Test
+    fun `parseTopicDetails handles alt size in text span`() {
+        val html =
+            """
+            <html>
+            <head><title>Книга с альтернативным размером</title></head>
+            <body>
+                <h1 class="maintitle"><a>Книга с альтернативным размером</a></h1>
+                ${readFixture("fixtures/rutracker/topics/topic_alt_size.html")}
+            </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "77777777")
+
+        assertNotNull(details)
+        details?.let {
+            assertEquals("77777777", it.topicId)
+            // Size fallback: "Размер" label → next sibling text
+            assertEquals("450 MB", it.size)
+            assertEquals("Иван Петров", it.author)
+            assertEquals("Николай Петров", it.performer)
+            assertEquals("2019", it.addedDate)
+        }
+    }
+
+    @Test
+    fun `parseTopicDetails handles old bold format`() {
+        val html =
+            """
+            <html>
+            <head><title>Старая книга</title></head>
+            <body>
+                <h1 class="maintitle"><a>Старая книга</a></h1>
+                ${readFixture("fixtures/rutracker/topics/topic_old_format.html")}
+            </body>
+            </html>
+            """.trimIndent()
+
+        val details = parser.parseTopicDetails(html, "66666666")
+
+        assertNotNull(details)
+        details?.let {
+            assertEquals("66666666", it.topicId)
+            assertEquals("500 MB", it.size)
+            assertEquals("magnet:?xt=urn:btih:EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE", it.magnetUrl)
+            // Old format uses <b>Label:</b> not <span class="post-b">, so metadata won't extract via structural parsing
+            // but should still parse via regex fallback or at least not crash
+        }
+    }
+
+    @Test
+    fun `extractAuthorFromTitle skips non-author words`() {
+        val method = RutrackerParser::class.java.getDeclaredMethod("extractAuthorFromTitle", String::class.java)
+        method.isAccessible = true
+
+        // Should NOT extract "Аудиокнига" as author
+        assertNull(method.invoke(parser, "Аудиокнига - Часть 1"))
+        // Should NOT extract "Сборник" as author
+        assertNull(method.invoke(parser, "Сборник - Лучшее за 2020"))
+        // Should NOT extract "Лекция" as author
+        assertNull(method.invoke(parser, "Лекция - Введение в философию"))
+        // SHOULD extract real author names
+        assertEquals("Толстой Лев", method.invoke(parser, "Толстой Лев - Война и мир"))
+        assertEquals("Л.Н. Толстой", method.invoke(parser, "Л.Н. Толстой - Анна Каренина"))
+    }
+
+    @Test
+    fun `cleanTitle preserves trailing bracket metadata`() {
+        val method = RutrackerParser::class.java.getDeclaredMethod("cleanTitle", String::class.java)
+        method.isAccessible = true
+
+        // Trailing bracket with commas → strip brackets but keep inner text
+        val result1 = method.invoke(parser, "Арестович Алексей [Арестович Алексей, 2023, 128 kbps, MP3]") as String
+        assertTrue("Should keep inner text from trailing bracket", result1.contains("Арестович Алексей"))
+
+        // Leading bracket → remove entirely
+        val result2 = method.invoke(parser, "[Аудио] Моя книга") as String
+        assertEquals("Моя книга", result2)
+    }
 }
