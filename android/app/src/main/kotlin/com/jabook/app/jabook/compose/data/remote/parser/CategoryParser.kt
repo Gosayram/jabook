@@ -239,7 +239,7 @@ public class CategoryParser
          * @return true if should be ignored
          */
         private fun shouldIgnoreForum(forumName: String): Boolean {
-            val lowerName = forumName.lowercase()
+            val lowerName = forumName.lowercase(java.util.Locale.ROOT)
             return FORUM_BLACKLIST.any { lowerName.contains(it) }
         }
 
@@ -250,7 +250,7 @@ public class CategoryParser
          * @return true if should be ignored
          */
         private fun shouldIgnoreCategory(categoryName: String): Boolean {
-            val lowerName = categoryName.lowercase()
+            val lowerName = categoryName.lowercase(java.util.Locale.ROOT)
             return CATEGORY_BLACKLIST.any { lowerName.contains(it) }
         }
     }

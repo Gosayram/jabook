@@ -86,6 +86,27 @@ public class RutrackerParser
             private const val POST_BODY_SELECTOR = ".post_body, .post-body"
             private const val MAIN_TITLE_SELECTOR = "h1.maintitle a, h1.maintitle"
             private const val TOR_SIZE_SELECTOR = "#tor-size-humn"
+
+            // Regex constants (avoid recompilation in hot paths)
+            private val SEEDERS_FALLBACK_REGEX = "Сиды?:\\s*(\\d+)".toRegex(RegexOption.IGNORE_CASE)
+            private val LEECHERS_FALLBACK_REGEX = "Личи?:\\s*(\\d+)".toRegex(RegexOption.IGNORE_CASE)
+            private val AUTHOR_FALLBACK_REGEX = "Автор[:\\s]+(.+?)(?=\\n|Исполнитель|Год|$)".toRegex()
+            private val PERFORMER_FALLBACK_REGEX = "Исполнитель[:\\s]+(.+?)(?=\\n|Год|Жанр|$)".toRegex()
+            private val DURATION_FALLBACK_REGEX = "Время звучания[:\\s]+(.+?)(?=\\n|$)".toRegex()
+            private val BITRATE_FALLBACK_REGEX = "Битрейт[:\\s]+(.+?)(?=\\n|$)".toRegex()
+            private val GENRE_FALLBACK_REGEX = "Жанр[:\\s]+(.+?)(?=\\n|$)".toRegex()
+            private val SERIES_PATTERNS =
+                listOf(
+                    "Цикл/серия[:\\s]+(.+?)(?=\\n|Номер|Жанр|$)".toRegex(RegexOption.IGNORE_CASE),
+                    "Цикл[:\\s]+[\"']?(.+?)[\"']?(?=\\n|$)".toRegex(RegexOption.IGNORE_CASE),
+                    "Серия[:\\s]+(.+?)(?=\\n|$)".toRegex(RegexOption.IGNORE_CASE),
+                )
+            private val SERIES_HTML_REGEX = ":\\s*(.+?)(?=\\n|<|$)".toRegex()
+            private val PAGINATION_TOTAL_REGEX = "Страница\\s+\\d+\\s+из\\s+(\\d+)".toRegex(RegexOption.IGNORE_CASE)
+            private val PAGINATION_CURRENT_REGEX = "Страница\\s+(\\d+)".toRegex(RegexOption.IGNORE_CASE)
+            private val BR_REGEX = Regex("<br\\s*/?>", RegexOption.IGNORE_CASE)
+            private val POST_BR_REGEX = Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE)
+            private val WHITESPACE_REGEX = Regex("\\s+")
         }
 
         /**
@@ -714,13 +735,10 @@ public class RutrackerParser
                         // Method 2: Check pagination text "Страница X из Y"
                         val paginationText = document.select("#pagination, .nav").toStr()
                         val pageMatch =
-                            Regex(
-                                "Страница\\s+\\d+\\s+из\\s+(\\d+)",
-                                RegexOption.IGNORE_CASE,
-                            ).find(paginationText)
+                            PAGINATION_TOTAL_REGEX.find(paginationText)
                         if (pageMatch != null) {
                             val currentPage =
-                                Regex("Страница\\s+(\\d+)", RegexOption.IGNORE_CASE)
+                                PAGINATION_CURRENT_REGEX
                                     .find(paginationText)
                                     ?.groupValues
                                     ?.get(1)
@@ -830,7 +848,7 @@ public class RutrackerParser
                     logger.w { "Page Title: $pageTitle" }
 
                     // 4. HTML preview
-                    val htmlPreview = html.take(500).replace(Regex("\\s+"), " ")
+                    val htmlPreview = html.take(500).replace(WHITESPACE_REGEX, " ")
                     logger.w { "HTML Preview: $htmlPreview..." }
 
                     // 5. Check for common page elements
@@ -1289,12 +1307,16 @@ public class RutrackerParser
             if (paginationText.isBlank()) return 1 to 1
 
             // Regex for "Страница X из Y" (Page X of Y)
-            val regex = Regex("Страница\\s+(\\d+)\\s+из\\s+(\\d+)", RegexOption.IGNORE_CASE)
-            val match = regex.find(paginationText)
+            val match = PAGINATION_TOTAL_REGEX.find(paginationText)
 
             return if (match != null) {
-                val current = match.groupValues[1].toIntOrNull() ?: 1
-                val total = match.groupValues[2].toIntOrNull() ?: 1
+                val current =
+                    PAGINATION_CURRENT_REGEX
+                        .find(paginationText)
+                        ?.groupValues
+                        ?.get(1)
+                        ?.toIntOrNull() ?: 1
+                val total = match.groupValues[1].toIntOrNull() ?: 1
                 current to total
             } else {
                 1 to 1
@@ -1327,8 +1349,7 @@ public class RutrackerParser
 
             // Fallback: try to extract from text (toStr() strips HTML, so no <b> tags)
             val seedText = document.select("span.seed, .seed").toStr()
-            val regex = "Сиды?:\\s*(\\d+)".toRegex(RegexOption.IGNORE_CASE)
-            regex
+            SEEDERS_FALLBACK_REGEX
                 .find(seedText)
                 ?.groupValues
                 ?.get(1)
@@ -1364,8 +1385,7 @@ public class RutrackerParser
 
             // Fallback: try to extract from text (toStr() strips HTML, so no <b> tags)
             val leechText = document.selectFirst("span.leech, .leech")?.toStr() ?: ""
-            val regex = "Личи?:\\s*(\\d+)".toRegex(RegexOption.IGNORE_CASE)
-            regex
+            LEECHERS_FALLBACK_REGEX
                 .find(leechText)
                 ?.groupValues
                 ?.get(1)
@@ -1520,19 +1540,19 @@ public class RutrackerParser
             if (metadata.isEmpty()) {
                 val text = postBody.wholeText()
                 // Author (fallback)
-                "Автор[:\\s]+(.+?)(?=\\n|Исполнитель|Год|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
+                AUTHOR_FALLBACK_REGEX.find(text)?.groupValues?.get(1)?.trim()?.let {
                     metadata["author"] = it
                 }
                 // Performer
-                "Исполнитель[:\\s]+(.+?)(?=\\n|Год|Жанр|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
+                PERFORMER_FALLBACK_REGEX.find(text)?.groupValues?.get(1)?.trim()?.let {
                     metadata["performer"] = it
                 }
                 // Duration
-                "Время звучания[:\\s]+(.+?)(?=\\n|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
+                DURATION_FALLBACK_REGEX.find(text)?.groupValues?.get(1)?.trim()?.let {
                     metadata["duration"] = it
                 }
                 // Bitrate
-                "Битрейт[:\\s]+(.+?)(?=\\n|$)".toRegex().find(text)?.groupValues?.get(1)?.trim()?.let {
+                BITRATE_FALLBACK_REGEX.find(text)?.groupValues?.get(1)?.trim()?.let {
                     metadata["bitrate"] = it
                 }
             }
@@ -1573,8 +1593,7 @@ public class RutrackerParser
             // Strategy 2: Regex fallback (using wholeText to preserve newlines)
             if (genreText == null) {
                 val text = postBody.wholeText()
-                val genrePattern = "Жанр[:\\s]+(.+?)(?=\\n|$)".toRegex()
-                genreText = genrePattern.find(text)?.groupValues?.get(1)
+                genreText = GENRE_FALLBACK_REGEX.find(text)?.groupValues?.get(1)
             }
 
             return genreText
@@ -1593,14 +1612,7 @@ public class RutrackerParser
 
             val text = postBody.toStr()
             // Try multiple patterns
-            val patterns =
-                listOf(
-                    "Цикл/серия[:\\s]+(.+?)(?=\\n|Номер|Жанр|$)".toRegex(RegexOption.IGNORE_CASE),
-                    "Цикл[:\\s]+[\"']?(.+?)[\"']?(?=\\n|$)".toRegex(RegexOption.IGNORE_CASE),
-                    "Серия[:\\s]+(.+?)(?=\\n|$)".toRegex(RegexOption.IGNORE_CASE),
-                )
-
-            for (pattern in patterns) {
+            for (pattern in SERIES_PATTERNS) {
                 pattern
                     .find(text)
                     ?.groupValues
@@ -1614,7 +1626,7 @@ public class RutrackerParser
                 val label = span.toStr().trim()
                 if (label.contains("Цикл", ignoreCase = true) || label.contains("Серия", ignoreCase = true)) {
                     val nextText = span.nextSibling()?.toString() ?: ""
-                    val match = ":\\s*(.+?)(?=\\n|<|$)".toRegex().find(nextText)
+                    val match = SERIES_HTML_REGEX.find(nextText)
                     match
                         ?.groupValues
                         ?.get(1)
@@ -1962,11 +1974,9 @@ public class RutrackerParser
                             html?.let { htmlContent ->
                                 // Convert <br> tags to newlines, then extract text
                                 htmlContent
-                                    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
-                                    .replace(
-                                        Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE),
-                                        "\n",
-                                    ).let {
+                                    .replace(BR_REGEX, "\n")
+                                    .replace(POST_BR_REGEX, "\n")
+                                    .let {
                                         org.jsoup.Jsoup
                                             .parse(it)
                                             .toStr()
@@ -2065,11 +2075,9 @@ public class RutrackerParser
                         html?.let { htmlContent ->
                             // Convert <br> tags to newlines, then extract text
                             htmlContent
-                                .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
-                                .replace(
-                                    Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE),
-                                    "\n",
-                                ).let {
+                                .replace(BR_REGEX, "\n")
+                                .replace(POST_BR_REGEX, "\n")
+                                .let {
                                     org.jsoup.Jsoup
                                         .parse(it)
                                         .toStr()
@@ -2122,8 +2130,8 @@ public class RutrackerParser
             // Normalize <br> and <span class="post-br">
             val intermediate =
                 rawHtml
-                    .replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "<br>")
-                    .replace(Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE), "<br>")
+                    .replace(BR_REGEX, "<br>")
+                    .replace(POST_BR_REGEX, "<br>")
 
             // Parse with baseUri for proper absolute URL resolution
             val doc = org.jsoup.Jsoup.parse(intermediate, getBaseUrl())
@@ -2219,8 +2227,7 @@ public class RutrackerParser
                 val inner = trailingMatch.groupValues[1].trim()
                 // If inner content has commas (typical metadata block), strip brackets but keep text
                 if (inner.contains(",")) {
-                    cleaned = cleaned.substring(0, trailingMatch.range.first).trim()
-                    // Append the inner text without brackets (the metadata will be stripped by later patterns)
+                    cleaned = cleaned.substring(0, trailingMatch.range.first).trim() + " " + inner
                 } else {
                     // Not a metadata block, remove it entirely
                     cleaned = cleaned.replace(Regex("\\[.*?\\]"), "")
@@ -2333,7 +2340,7 @@ public class RutrackerParser
             // - No login form present
             // - Logout link present
             // - User profile links
-            val hasLoginForm = lowerHtml.contains("name=\\\"login_username\\\"")
+            val hasLoginForm = lowerHtml.contains("name=\"login_username\"") || lowerHtml.contains("name='login_username'")
             val hasLogout =
                 lowerHtml.contains("login.php?logout=1") ||
                     lowerHtml.contains("mode=logout")

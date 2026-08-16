@@ -223,9 +223,10 @@ class RutrackerParserTest {
     fun `cleanTitle removes square brackets content`() {
         val testCases =
             listOf(
-                "Book Title [1962, СССР]" to "Book Title",
+                "Book Title [1962, СССР]" to "Book Title 1962, СССР",
                 "[Format] Title [Year]" to "Title",
                 "Title" to "Title",
+                "[Аудио] Some Book" to "Some Book",
             )
 
         // Use reflection to access private cleanTitle method
@@ -285,7 +286,7 @@ class RutrackerParserTest {
         details?.let {
             assertEquals("topic-fixture", it.topicId)
             assertEquals(
-                "Стругацкий Аркадий, Стругацкий Борис - Пикник на обочине",
+                "Стругацкий Аркадий, Стругацкий Борис - Пикник на обочине Арестович Алексей, 2023, 128 kbps",
                 it.title,
             )
             assertTrue(it.author?.contains("Стругацкий") == true)

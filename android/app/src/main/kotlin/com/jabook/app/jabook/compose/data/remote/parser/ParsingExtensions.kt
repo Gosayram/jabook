@@ -122,7 +122,9 @@ private fun parseUrl(url: String): Map<String, List<String>> =
             ?.split("&")
             ?.associate { queryParam ->
                 val split = queryParam.split("=")
-                split[0] to split.drop(1)
+                val key = java.net.URLDecoder.decode(split[0], "UTF-8")
+                val value = java.net.URLDecoder.decode(split.drop(1).joinToString("="), "UTF-8")
+                key to listOf(value)
             }
             ?: emptyMap()
     }.getOrDefault(emptyMap())

@@ -33,6 +33,14 @@ public class DefensiveFieldExtractor
     ) {
         private val logger = loggerFactory.get("DefensiveFieldExtractor")
 
+        public companion object {
+            private val SEEDERS_REGEX = Regex("""[↑↑]\s*(\d+)|Сиды[:\s]*(\d+)""")
+            private val LEECHERS_REGEX = Regex("""[↓↓]\s*(\d+)|Личи[:\s]*(\d+)""")
+            private val SIZE_REGEX = Regex("""(\d+\.?\d*\s*[KMGT]B)""", RegexOption.IGNORE_CASE)
+            private val SIZE_PATTERN = Regex("""^\d+\.?\d*\s*[KMGT]B$""", RegexOption.IGNORE_CASE)
+            private val PREFIX_REGEX = Regex("""^(Сиды|Личи)[:\s]*""")
+        }
+
         /**
          * Extract seeders count with 6 fallback strategies.
          *
@@ -116,7 +124,7 @@ public class DefensiveFieldExtractor
             }
 
             // Strategy 6: Regex fallback (last resort)
-            val regexMatch = Regex("""[↑↑]\s*(\d+)|Сиды[:\s]*(\d+)""").find(row.text())
+            val regexMatch = SEEDERS_REGEX.find(row.text())
             if (regexMatch != null) {
                 val value =
                     regexMatch.groupValues
@@ -193,7 +201,7 @@ public class DefensiveFieldExtractor
             if (colValue != null) return colValue
 
             // Strategy 6: Regex fallback
-            val regexMatch = Regex("""[↓↓]\s*(\d+)|Личи[:\s]*(\d+)""").find(row.text())
+            val regexMatch = LEECHERS_REGEX.find(row.text())
             if (regexMatch != null) {
                 val value =
                     regexMatch.groupValues
@@ -249,9 +257,7 @@ public class DefensiveFieldExtractor
             }
 
             // Strategy 5: Regex for typical size patterns
-            val regexMatch =
-                Regex("""(\d+\.?\d*\s*[KMGT]B)""", RegexOption.IGNORE_CASE)
-                    .find(row.text())
+            val regexMatch = SIZE_REGEX.find(row.text())
             if (regexMatch != null) {
                 return regexMatch.value
             }
@@ -311,7 +317,7 @@ public class DefensiveFieldExtractor
                 element
                     .text()
                     .trim()
-                    .replace(Regex("""^(Сиды|Личи)[:\s]*"""), "") // Remove prefixes
+                    .replace(PREFIX_REGEX, "") // Remove prefixes
             return text.toIntOrNull()
         }
 
@@ -322,12 +328,6 @@ public class DefensiveFieldExtractor
          */
         private fun isValidSize(size: String): Boolean {
             if (size.isBlank()) return false
-
-            // Check for size pattern (number + unit)
-            val sizePattern = Regex("""^\d+\.?\d*\s*[KMGT]B$""", RegexOption.IGNORE_CASE)
-            return sizePattern.matches(size) ||
-                size.contains("MB", ignoreCase = true) ||
-                size.contains("GB", ignoreCase = true) ||
-                size.contains("KB", ignoreCase = true)
+            return SIZE_PATTERN.matches(size)
         }
     }
