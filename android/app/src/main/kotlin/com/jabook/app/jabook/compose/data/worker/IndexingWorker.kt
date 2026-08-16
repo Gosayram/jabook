@@ -25,6 +25,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
@@ -172,7 +173,11 @@ public class IndexingWorker
                     if (runAttemptCount < 3) {
                         Result.retry()
                     } else {
-                        Result.failure()
+                        Result.failure(
+                            workDataOf(
+                                "error_message" to (e.message ?: "Unknown error"),
+                            ),
+                        )
                     }
                 }
             }

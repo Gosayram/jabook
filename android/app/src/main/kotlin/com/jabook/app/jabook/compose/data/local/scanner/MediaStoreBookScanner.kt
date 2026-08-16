@@ -131,7 +131,7 @@ public class MediaStoreBookScanner
                                     allowedPaths.any { filePath.startsWith(it) }
                                 }
 
-                            if (shouldInclude && File(filePath).exists()) {
+                            if (shouldInclude) {
                                 audioFiles.add(
                                     AudioFileInfo(
                                         id = cursor.getLong(idColumn),

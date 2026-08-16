@@ -123,6 +123,7 @@ public fun RutrackerSearchScreen(
     val indexingProgress by indexingViewModel.indexingProgress.collectAsStateWithLifecycle()
     val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
     val indexSize by indexingViewModel.indexSize.collectAsStateWithLifecycle()
+    val forumStatuses by indexingViewModel.forumStatuses.collectAsStateWithLifecycle()
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
     var showIndexingDialog by remember { mutableStateOf(false) }
@@ -142,6 +143,7 @@ public fun RutrackerSearchScreen(
     if (showIndexingDialog && indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Idle) {
         com.jabook.app.jabook.compose.feature.indexing.IndexingProgressDialog(
             progress = indexingProgress,
+            forumStatuses = forumStatuses,
             onDismiss = {
                 if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed ||
                     indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error

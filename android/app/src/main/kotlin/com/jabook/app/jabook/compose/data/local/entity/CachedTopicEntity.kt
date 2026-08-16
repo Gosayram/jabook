@@ -44,6 +44,7 @@ import com.jabook.app.jabook.compose.data.remote.model.SearchResult
         androidx.room.Index(value = ["author"]), // For fast author search
         androidx.room.Index(value = ["timestamp"]), // For sorting by date
         androidx.room.Index(value = ["seeders"]), // For sorting by popularity
+        androidx.room.Index(value = ["last_updated"]), // For getTopicsNeedingUpdate()
     ],
 )
 public data class CachedTopicEntity(

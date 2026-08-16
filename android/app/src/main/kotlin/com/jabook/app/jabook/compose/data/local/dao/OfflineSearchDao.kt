@@ -252,6 +252,13 @@ public interface OfflineSearchDao {
     """,
     )
     public suspend fun getIndexMetadata(): IndexMetadata?
+
+    /**
+     * Get the maximum index_version across all cached topics.
+     * Returns 0 if no topics exist.
+     */
+    @Query("SELECT COALESCE(MAX(index_version), 0) FROM cached_topics")
+    public suspend fun getMaxIndexVersion(): Int
 }
 
 /**

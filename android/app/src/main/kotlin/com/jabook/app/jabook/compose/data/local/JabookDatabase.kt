@@ -44,7 +44,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Current Jabook database schema version. Single source of truth for [Database]'s `version`
  * and crash-diagnostics reporting. Bump together with a new [MIGRATION] and a changelog line.
  */
-public const val JABOOK_DB_VERSION: Int = 30
+public const val JABOOK_DB_VERSION: Int = 31
 
 /**
  * The Room database for this app.

@@ -445,6 +445,7 @@ public fun SettingsScreen(
             val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
             val indexingStartTime by indexingViewModel.indexingStartTime.collectAsStateWithLifecycle()
             val clearingInProgress by indexingViewModel.clearingInProgress.collectAsStateWithLifecycle()
+            val forumStatuses by indexingViewModel.forumStatuses.collectAsStateWithLifecycle()
 
             var showIndexingDialog by remember { mutableStateOf(false) }
             var indexSize by remember { mutableStateOf(0) }
@@ -696,6 +697,7 @@ public fun SettingsScreen(
                 com.jabook.app.jabook.compose.feature.indexing.IndexingProgressDialog(
                     progress = indexingProgress,
                     indexSize = indexSize, // Pass current index size from database as single source of truth
+                    forumStatuses = forumStatuses,
                     onDismiss = {
                         if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed ||
                             indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error
