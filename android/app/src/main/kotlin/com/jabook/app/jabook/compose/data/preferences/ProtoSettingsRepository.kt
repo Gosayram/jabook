@@ -389,27 +389,27 @@ private class LegacySettingsRepository(
 /**
      * Persist player state snapshot for process death restore fallback.
      */
-    public suspend fun updatePlayerStateSnapshot(snapshot: PlayerStateSnapshotPreference) = Unit
+    public fun updatePlayerStateSnapshot(snapshot: PlayerStateSnapshotPreference) = Unit
 
     /**
      * Clear persisted player state snapshot.
      */
-    public suspend fun clearPlayerStateSnapshot() = Unit
+    public fun clearPlayerStateSnapshot() = Unit
 
     /**
      * Update sleep timer state.
      */
-    public suspend fun updateSleepTimerState(state: SleepTimerState) = Unit
+    public fun updateSleepTimerState(state: SleepTimerState) = Unit
 
     /**
      * Clear sleep timer state.
      */
-    public suspend fun clearSleepTimerState() = Unit
+    public fun clearSleepTimerState() = Unit
 
     /**
      * Reset all settings to defaults.
      */
-    public suspend fun resetToDefaults() = Unit
+    public fun resetToDefaults() = Unit
 }
 
 /** Contract for application settings backed by Proto DataStore. */

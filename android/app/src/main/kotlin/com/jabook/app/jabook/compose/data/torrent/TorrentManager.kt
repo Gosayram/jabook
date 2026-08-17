@@ -131,7 +131,7 @@ public class TorrentManager
          * @param sequential Enable sequential download for streaming
          * @return Info hash of the added torrent
          */
-        public suspend fun addMagnetLink(
+        public fun addMagnetLink(
             magnetUri: String,
             savePath: String,
             sequential: Boolean = true,
@@ -151,21 +151,21 @@ public class TorrentManager
         /**
          * Pause download (compatibility alias for pauseTorrent).
          */
-        public suspend fun pauseDownload(hash: String) {
+        public fun pauseDownload(hash: String) {
             pauseTorrent(hash)
         }
 
         /**
          * Resume download (compatibility alias for resumeTorrent).
          */
-        public suspend fun resumeDownload(hash: String) {
+        public fun resumeDownload(hash: String) {
             resumeTorrent(hash)
         }
 
         /**
          * Remove download (compatibility alias for removeTorrent).
          */
-        public suspend fun removeDownload(
+        public fun removeDownload(
             hash: String,
             deleteFiles: Boolean = false,
         ) {
