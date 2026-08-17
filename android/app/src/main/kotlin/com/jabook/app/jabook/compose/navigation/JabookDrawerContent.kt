@@ -53,7 +53,7 @@ public fun JabookDrawerContent(
     onNavigateToSettings: () -> Unit,
     onNavigateToAuth: () -> Unit,
     onNavigateToAbout: () -> Unit,
-    accountProfile: AccountProfile = AccountProfile("Guest User", "guest@jabook.app"), // TODO: Real user data
+    accountProfile: AccountProfile = AccountProfile(stringResource(R.string.settingsProfileGuest), ""),
     modifier: Modifier = Modifier,
 ) {
     ModalDrawerSheet(

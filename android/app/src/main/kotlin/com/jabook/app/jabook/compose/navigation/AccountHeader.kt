@@ -125,11 +125,13 @@ public fun AccountHeader(
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
-                    Text(
-                        text = selectedAccount.email,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-                    )
+                    if (selectedAccount.email.isNotBlank()) {
+                        Text(
+                            text = selectedAccount.email,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                        )
+                    }
                 }
 
                 IconButton(onClick = onAccountClick) {

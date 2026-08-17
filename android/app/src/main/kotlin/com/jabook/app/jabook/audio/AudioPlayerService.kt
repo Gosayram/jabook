@@ -986,7 +986,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun getCurrentMediaItemInfo(): Map<String, Any?> = commandRouter.getCurrentMediaItemInfo()
 
-    public fun extractArtworkFromFile(filePath: String): String? = commandRouter.extractArtworkFromFile(filePath)
+    public suspend fun extractArtworkFromFile(filePath: String): String? = commandRouter.extractArtworkFromFile(filePath)
 
     public fun getPlaylistInfo(): Map<String, Any> = commandRouter.getPlaylistInfo()
 

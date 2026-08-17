@@ -450,7 +450,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
      * Fallback method to update widget from service instance.
      * This is used when MediaController is not available.
      */
-    private fun updateWidgetFromService(
+    private suspend fun updateWidgetFromService(
         context: Context,
         views: RemoteViews,
         widgetSize: WidgetSize,
@@ -579,7 +579,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
     /**
      * Sets default widget state when no playback is active.
      */
-    private fun setDefaultWidgetState(
+    private suspend fun setDefaultWidgetState(
         context: Context,
         views: RemoteViews,
         appWidgetId: Int,
@@ -623,10 +623,10 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
     /**
      * Safely updates a view if it exists in the layout.
      */
-    private fun safeUpdateView(
+    private suspend fun safeUpdateView(
         views: RemoteViews,
         viewId: Int,
-        update: () -> Unit,
+        update: suspend () -> Unit,
     ) {
         try {
             update()
@@ -641,7 +641,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
      * Progress bar shows book-level progress (across all chapters) when bookId is available.
      * Time labels show chapter-level progress.
      */
-    private fun updateProgress(
+    private suspend fun updateProgress(
         context: Context,
         views: RemoteViews,
         currentPosition: Long,
@@ -747,7 +747,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
      * Sets up click intents for widget buttons.
      */
     @RequiresApi(Build.VERSION_CODES.M)
-    private fun setupClickIntents(
+    private suspend fun setupClickIntents(
         context: Context,
         views: RemoteViews,
         currentBookId: String?,
@@ -986,13 +986,13 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
     }
 
     // ponytail: single cached DB instance — avoids rebuilding Room DB every 30s
-    private fun getBookProgress(
+    private suspend fun getBookProgress(
         context: Context,
         bookId: String,
     ): Pair<Long, Long>? {
         return try {
             val db = getDatabase(context)
-            val chapters = kotlinx.coroutines.runBlocking { db.chaptersDao().getChaptersByBookId(bookId) }
+            val chapters = db.chaptersDao().getChaptersByBookId(bookId)
             if (chapters.isEmpty()) return null
             val totalPosition = chapters.sumOf { if (it.isCompleted) it.duration else it.position.coerceAtMost(it.duration) }
             val totalDuration = chapters.sumOf { it.duration }

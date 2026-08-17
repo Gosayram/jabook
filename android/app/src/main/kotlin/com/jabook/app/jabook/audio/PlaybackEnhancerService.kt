@@ -29,10 +29,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -88,6 +86,11 @@ public class PlaybackEnhancerService
         private var enhancer: LoudnessEnhancer? = null
         private var volumeBoostJob: Job? = null
 
+        // Cached boost — kept fresh by the collector below so getCurrentVolumeBoost()
+        // never blocks on a DataStore read (same pattern as AudioPlayerNotificationProvider).
+        @Volatile
+        private var cachedVolumeBoost: PlaybackVolumeBoost? = null
+
         /**
          * Flow of volume boost levels from user preferences.
          */
@@ -121,29 +124,17 @@ public class PlaybackEnhancerService
             volumeBoostJob =
                 scope.launch {
                     volumeBoostFlow.collectLatest { boost ->
+                        cachedVolumeBoost = boost
                         updateGain(boost)
                     }
                 }
         }
 
         /**
-         * Gets current volume boost level from settings.
+         * Gets current volume boost level from the eager collector's cache.
+         * Null (collector not yet emitted) means DISABLED until the Flow fires.
          */
-        private fun getCurrentVolumeBoost(): PlaybackVolumeBoost {
-            // Read current value synchronously (for initial setup)
-            // This is a fallback - the Flow will handle updates
-            return try {
-                val preferences =
-                    kotlinx.coroutines.runBlocking {
-                        settingsRepository.userPreferences.firstOrNull()
-                    }
-                preferences?.let { mapVolumeBoostLevel(it.volumeBoostLevel) }
-                    ?: PlaybackVolumeBoost.DISABLED
-            } catch (e: Exception) {
-                LogUtils.w("PlaybackEnhancerService", "Failed to get volume boost: ${e.message}", e)
-                PlaybackVolumeBoost.DISABLED
-            }
-        }
+        private fun getCurrentVolumeBoost(): PlaybackVolumeBoost = cachedVolumeBoost ?: PlaybackVolumeBoost.DISABLED
 
         @OptIn(UnstableApi::class)
         private fun attachEnhancer(

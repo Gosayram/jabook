@@ -18,7 +18,6 @@ import android.content.Context
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -84,55 +83,53 @@ internal class MetadataManager(
      * @param filePath Path to the audio file
      * @return Path to saved artwork file, or null if no artwork found
      */
-    public fun extractArtworkFromFile(filePath: String): String? {
-        return runBlocking {
-            withContext(Dispatchers.IO) {
-                try {
-                    val file = File(filePath)
-                    if (!file.exists()) {
-                        LogUtils.w("AudioPlayerService", "File does not exist: $filePath")
-                        return@withContext null
-                    }
-
-                    // Use Android MediaMetadataRetriever to extract embedded artwork
-                    val retriever = android.media.MediaMetadataRetriever()
-                    try {
-                        retriever.setDataSource(filePath)
-
-                        // Try to get embedded picture (album art) from ID3 tags
-                        // Embedded covers from MP3 files are most reliable source
-                        val picture = retriever.embeddedPicture
-                        if (picture != null && picture.isNotEmpty()) {
-                            // Validate cover data before saving (minimum 1KB to avoid corrupted images)
-                            if (picture.size >= 1024) {
-                                // Save artwork to cache
-                                val cacheDir = context.cacheDir
-                                val artworkFile = File(cacheDir, "embedded_artwork_${filePath.hashCode()}.jpg")
-                                artworkFile.outputStream().use { it.write(picture) }
-                                LogUtils.i(
-                                    "AudioPlayerService",
-                                    "Extracted and saved embedded artwork from ID3 tags: $filePath (${picture.size} bytes) -> ${artworkFile.absolutePath}",
-                                )
-                                val artworkPath = artworkFile.absolutePath
-                                setEmbeddedArtworkPath(artworkPath)
-                                return@withContext artworkPath
-                            } else {
-                                LogUtils.d(
-                                    "AudioPlayerService",
-                                    "Skipped small/invalid embedded artwork from $filePath (${picture.size} bytes)",
-                                )
-                            }
-                        }
-
-                        LogUtils.d("AudioPlayerService", "No embedded artwork found in $filePath")
-                        null
-                    } finally {
-                        retriever.release()
-                    }
-                } catch (e: Exception) {
-                    LogUtils.e("AudioPlayerService", "Failed to extract artwork from $filePath", e)
-                    null
+    public suspend fun extractArtworkFromFile(filePath: String): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val file = File(filePath)
+                if (!file.exists()) {
+                    LogUtils.w("AudioPlayerService", "File does not exist: $filePath")
+                    return@withContext null
                 }
+
+                // Use Android MediaMetadataRetriever to extract embedded artwork
+                val retriever = android.media.MediaMetadataRetriever()
+                try {
+                    retriever.setDataSource(filePath)
+
+                    // Try to get embedded picture (album art) from ID3 tags
+                    // Embedded covers from MP3 files are most reliable source
+                    val picture = retriever.embeddedPicture
+                    if (picture != null && picture.isNotEmpty()) {
+                        // Validate cover data before saving (minimum 1KB to avoid corrupted images)
+                        if (picture.size >= 1024) {
+                            // Save artwork to cache
+                            val cacheDir = context.cacheDir
+                            val artworkFile = File(cacheDir, "embedded_artwork_${filePath.hashCode()}.jpg")
+                            artworkFile.outputStream().use { it.write(picture) }
+                            LogUtils.i(
+                                "AudioPlayerService",
+                                "Extracted and saved embedded artwork from ID3 tags: $filePath (${picture.size} bytes) -> ${artworkFile.absolutePath}",
+                            )
+                            val artworkPath = artworkFile.absolutePath
+                            setEmbeddedArtworkPath(artworkPath)
+                            return@withContext artworkPath
+                        } else {
+                            LogUtils.d(
+                                "AudioPlayerService",
+                                "Skipped small/invalid embedded artwork from $filePath (${picture.size} bytes)",
+                            )
+                        }
+                    }
+
+                    LogUtils.d("AudioPlayerService", "No embedded artwork found in $filePath")
+                    null
+                } finally {
+                    retriever.release()
+                }
+            } catch (e: Exception) {
+                LogUtils.e("AudioPlayerService", "Failed to extract artwork from $filePath", e)
+                null
             }
         }
     }

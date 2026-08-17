@@ -410,7 +410,26 @@ public class BackupService
          */
         private suspend fun collectBookMetadata(): List<BookBackup> {
             val books = database.booksDao().getAllBooksFlow().first()
+            // Best-effort torrent association: topicId match, else the path-prefix
+            // heuristic used by SyncWorker (books and downloads share no foreign key).
+            val torrentDownloads =
+                try {
+                    database.torrentDownloadDao().getAll()
+                } catch (e: Exception) {
+                    rethrowIfCancellation(e)
+                    logger.e({ "Failed to load torrent downloads for backup" }, e)
+                    emptyList()
+                }
             return books.map { entity ->
+                val torrent =
+                    torrentDownloads.firstOrNull { it.topicId == entity.id }
+                        ?: torrentDownloads.firstOrNull { download ->
+                            entity.localPath?.let { localPath ->
+                                localPath == download.savePath ||
+                                    localPath.startsWith(download.savePath) ||
+                                    download.savePath.startsWith(localPath)
+                            } == true
+                        }
                 // Read timestamps from PlayerPersistence
                 val playerState =
                     try {
@@ -435,11 +454,12 @@ public class BackupService
                     // Save activity timestamps
                     lastPlayedTimestamp = (playerState?.lastPlayedTimestamp ?: 0L).toInt(),
                     completedTimestamp = (playerState?.completedTimestamp ?: 0L).toInt(),
-                    // NEW Phase 9B: Torrent metadata (not yet in entity, null for now)
-                    torrentPath = null, // TODO: Add to BookEntity when torrent download is implemented
-                    sourceUrl = null,
+                    // Torrent metadata from torrent_downloads (joined by topicId/path).
+                    // magnetUrl stays null: torrent_downloads stores the info-hash, not the magnet URI.
+                    torrentPath = torrent?.savePath,
+                    sourceUrl = entity.sourceUrl,
                     magnetUrl = null,
-                    topicId = null,
+                    topicId = torrent?.topicId,
                 )
             }
         }
@@ -659,6 +679,9 @@ public class BackupService
                                 rewindDuration = backup.rewindDuration,
                                 forwardDuration = backup.forwardDuration,
                                 isFavorite = false,
+                                // Torrent files/resume data are not part of the backup,
+                                // so torrentPath/topicId are informational only.
+                                sourceUrl = backup.sourceUrl,
                             ),
                         )
 

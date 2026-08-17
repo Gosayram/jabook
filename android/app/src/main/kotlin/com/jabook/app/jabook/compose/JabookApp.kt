@@ -89,6 +89,7 @@ public fun JabookApp(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val activeDownloadsCount by settingsViewModel.activeDownloadsCount.collectAsStateWithLifecycle()
+    val authStatus by settingsViewModel.authStatus.collectAsStateWithLifecycle()
 
     // Detect if this is a beta/dev/stage flavor by checking package name
     // Beta: com.jabook.app.jabook.beta, Dev: .dev, Stage: .stage, Prod: com.jabook.app.jabook
@@ -274,6 +275,17 @@ public fun JabookApp(
                         appState.navController.navigate(com.jabook.app.jabook.compose.navigation.SettingsRoute)
                         scope.launch { drawerState.close() }
                     },
+                    accountProfile =
+                        when (val status = authStatus) {
+                            is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated ->
+                                com.jabook.app.jabook.compose.navigation
+                                    .AccountProfile(status.username, "")
+                            else ->
+                                com.jabook.app.jabook.compose.navigation.AccountProfile(
+                                    stringResource(R.string.settingsProfileGuest),
+                                    "",
+                                )
+                        },
                 )
             },
         ) {

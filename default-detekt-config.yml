@@ -57,6 +57,11 @@ coroutines:
     active: false
   SuspendFunWithFlowReturnType:
     active: true
+  # audio/ layer deliberately uses Dispatchers.IO directly (hot paths, service
+  # scopes) — injecting dispatchers there is a 40+ file refactor with no test
+  # win today. Re-enable when audio/ migrates to DispatcherProvider.
+  InjectDispatcher:
+    active: false
 
 performance:
   active: false

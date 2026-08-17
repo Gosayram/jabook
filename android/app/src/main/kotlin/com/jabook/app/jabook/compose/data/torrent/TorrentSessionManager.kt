@@ -1510,9 +1510,9 @@ public class TorrentSessionManager
             val handle = torrents[hash] ?: return ByteArray(0)
             return try {
                 if (!handle.havePiece(pieceIndex)) return ByteArray(0)
-                // Synchronous piece read: readPiece in libtorrent4j is async (fires alert).
-                // For now, return empty — a proper async read-queue will be built in TS-B.
-                // TODO(TS-B): Implement async piece read with ReadPieceAlert listener.
+                // ponytail: stub always returns empty — libtorrent4j readPiece is alert-driven
+                // (async ReadPieceAlert) and has no production caller yet; build a pending-read
+                // queue keyed by piece index when torrent streaming needs real data.
                 ByteArray(0)
             } catch (e: Exception) {
                 logger.e({ "Failed to read piece $pieceIndex for $hash" }, e)

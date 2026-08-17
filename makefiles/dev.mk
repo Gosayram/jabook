@@ -47,7 +47,7 @@ compile-prod: ## Compile prod flavor only
 .PHONY: fmt-kotlin
 fmt-kotlin: ## Format Kotlin code (ktlint + detekt auto-correct) + regenerate verification metadata
 	@echo "Formatting Kotlin code with ktlint + detekt..."
-	@(cd android && ./gradlew :app:ktlintFormat :app:detekt --auto-correct --no-daemon); \
+	@(cd android && ./gradlew :app:ktlintFormat :app:detektMain --no-daemon); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Kotlin code formatted successfully (ktlint + detekt)"; \
@@ -143,7 +143,7 @@ lint-kotlin: audit-main-thread-queries ## Lint Kotlin code (ktlint + detekt chec
 		fi; \
 	fi; \
 	echo "✅ Dependency verification passed"
-	@(cd android && ./gradlew :app:ktlintCheck :app:detekt --no-daemon); \
+	@(cd android && ./gradlew :app:ktlintCheck :app:detektMain --no-daemon); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		./scripts/check-i18n-keys.sh; \

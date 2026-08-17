@@ -182,7 +182,7 @@ internal class AudioServiceCommandRouter(
 
     fun getCurrentMediaItemInfo(): Map<String, Any?> = getMetadataManager()?.getCurrentMediaItemInfo() ?: emptyMap()
 
-    fun extractArtworkFromFile(filePath: String): String? = getMetadataManager()?.extractArtworkFromFile(filePath)
+    suspend fun extractArtworkFromFile(filePath: String): String? = getMetadataManager()?.extractArtworkFromFile(filePath)
 
     fun getPlaylistInfo(): Map<String, Any> = getPlayerStateHelper()?.getPlaylistInfo() ?: emptyMap()
 
