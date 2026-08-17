@@ -87,11 +87,11 @@ public class TorrentDownloadService : Service() {
         } catch (e: NoClassDefFoundError) {
             logger.e({ "libtorrent4j classes not available - version mismatch" }, e)
             // Don't crash - allow service to continue
-        } catch (e: LinkageError) {
-            logger.e({ "libtorrent4j linkage error - version mismatch" }, e)
-            // Don't crash - allow service to continue
         } catch (e: UnsatisfiedLinkError) {
             logger.e({ "Failed to load libtorrent4j native library" }, e)
+            // Don't crash - allow service to continue
+        } catch (e: LinkageError) {
+            logger.e({ "libtorrent4j linkage error - version mismatch" }, e)
             // Don't crash - allow service to continue
         } catch (e: Exception) {
             logger.e({ "Failed to initialize TorrentManager" }, e)

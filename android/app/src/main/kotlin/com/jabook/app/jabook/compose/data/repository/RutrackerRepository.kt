@@ -48,7 +48,7 @@ public interface RutrackerRepository {
      * @param query Search query
      * @return Flow of Result with list of search results
      */
-    public suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>, AppError>>
+    public fun search(query: String): Flow<Result<List<RutrackerSearchResult>, AppError>>
 
     /**
      * Fetch topic details and save cover URL to database.
@@ -106,7 +106,7 @@ public class RutrackerRepositoryImpl
     ) : RutrackerRepository {
         private val logger = loggerFactory.get("RutrackerRepositoryImpl")
 
-        override suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>, AppError>> =
+        override fun search(query: String): Flow<Result<List<RutrackerSearchResult>, AppError>> =
             flow {
                 // Use ONLY indexed search (no network)
                 try {

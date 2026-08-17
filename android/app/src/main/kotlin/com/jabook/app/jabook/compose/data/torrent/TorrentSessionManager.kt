@@ -219,12 +219,12 @@ public class TorrentSessionManager
                     logger.e({ "libtorrent4j classes not available - version mismatch" }, e)
                     session = null
                     return
-                } catch (e: LinkageError) {
-                    logger.e({ "libtorrent4j linkage error during class check" }, e)
-                    session = null
-                    return
                 } catch (e: NoSuchMethodError) {
                     logger.e({ "libtorrent4j native method not found - version mismatch" }, e)
+                    session = null
+                    return
+                } catch (e: LinkageError) {
+                    logger.e({ "libtorrent4j linkage error during class check" }, e)
                     session = null
                     return
                 } catch (e: Exception) {
@@ -297,11 +297,6 @@ public class TorrentSessionManager
                 session = null // Ensure session is null on error
                 // Don't throw - allow app to continue without torrent functionality
                 // User will see error when trying to download
-            } catch (e: LinkageError) {
-                logger.e({ "libtorrent4j linkage error - version mismatch" }, e)
-                session = null // Ensure session is null on error
-                // Don't throw - allow app to continue without torrent functionality
-                // User will see error when trying to download
             } catch (e: NoSuchMethodError) {
                 logger.e({ "libtorrent4j version mismatch - native library incompatible" }, e)
                 session = null // Ensure session is null on error
@@ -311,6 +306,11 @@ public class TorrentSessionManager
                 logger.e({ "Failed to load libtorrent4j native library" }, e)
                 session = null // Ensure session is null on error
                 // Don't throw - allow app to continue
+            } catch (e: LinkageError) {
+                logger.e({ "libtorrent4j linkage error - version mismatch" }, e)
+                session = null // Ensure session is null on error
+                // Don't throw - allow app to continue without torrent functionality
+                // User will see error when trying to download
             } catch (e: Exception) {
                 logger.e({ "Failed to initialize torrent session" }, e)
                 session = null // Ensure session is null on error
@@ -401,12 +401,12 @@ public class TorrentSessionManager
                 } catch (e: NoClassDefFoundError) {
                     logger.e({ "libtorrent4j classes not available when checking session" }, e)
                     return Result.failure(IllegalStateException("libtorrent4j not available: ${e.message}", e))
-                } catch (e: LinkageError) {
-                    logger.e({ "libtorrent4j linkage error when checking session" }, e)
-                    return Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                 } catch (e: NoSuchMethodError) {
                     // isRunning() not available, assume session is running if no exception
                     logger.d { "isRunning() not available, assuming session is running" }
+                } catch (e: LinkageError) {
+                    logger.e({ "libtorrent4j linkage error when checking session" }, e)
+                    return Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                 }
 
                 // Add torrent - download(String magnetUri, File saveDir, torrent_flags_t flags)
@@ -447,15 +447,15 @@ public class TorrentSessionManager
                 } catch (e: NoClassDefFoundError) {
                     logger.e({ "Class not found error while adding torrent: hash=$hash" }, e)
                     Result.failure(IllegalStateException("libtorrent4j not available: ${e.message}", e))
-                } catch (e: LinkageError) {
-                    logger.e({ "Linkage error while adding torrent: hash=$hash" }, e)
-                    Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                 } catch (e: UnsatisfiedLinkError) {
                     logger.e({ "Native library error while adding torrent: hash=$hash" }, e)
                     Result.failure(IllegalStateException("Native library error: ${e.message}", e))
                 } catch (e: NoSuchMethodError) {
                     logger.e({ "Method not found error while adding torrent: hash=$hash" }, e)
                     Result.failure(IllegalStateException("Library version mismatch: ${e.message}", e))
+                } catch (e: LinkageError) {
+                    logger.e({ "Linkage error while adding torrent: hash=$hash" }, e)
+                    Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                 } catch (e: RuntimeException) {
                     // libtorrent4j may throw RuntimeException for various errors
                     logger.e({ "Runtime error while adding torrent: hash=$hash, error=${e.message}" }, e)

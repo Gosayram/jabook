@@ -569,8 +569,8 @@ public class RutrackerAuthService
          * Test 3: Validate via index page access.
          * Final fallback - checks if forum index is accessible.
          */
-        private suspend fun validateIndexPage(operationId: String): Boolean {
-            return try {
+        private suspend fun validateIndexPage(operationId: String): Boolean =
+            try {
                 // Test 3: Index page (final fallback) using api.getIndex()
                 val response =
                     kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
@@ -584,17 +584,16 @@ public class RutrackerAuthService
                         "Index check: HTTP ${response.code()}, validContent=$isValidIndex",
                         LogLevel.DEBUG,
                     )
-                    return isValidIndex
+                    isValidIndex
                 } else {
                     logger.logWarning(operationId, "Index check failed: HTTP ${response.code()}")
-                    return false
+                    false
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 logger.logError(operationId, "Index check timeout", e)
-                return false
+                false
             } catch (e: Exception) {
                 logger.logError(operationId, "Index check exception", e)
-                return false
+                false
             }
-        }
     }

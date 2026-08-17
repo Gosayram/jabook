@@ -233,7 +233,7 @@ ktlint-strace: ## Run ktlint format with stacktrace (debug formatting issues)
 .PHONY: detekt
 detekt: ## Run detekt static analysis
 	@echo "Running detekt static analysis..."
-	@(cd android && ./gradlew :app:detekt --no-daemon); \
+	@(cd android && ./gradlew :app:detektMain --no-daemon); \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -eq 0 ]; then \
 		echo "✅ Detekt analysis passed"; \

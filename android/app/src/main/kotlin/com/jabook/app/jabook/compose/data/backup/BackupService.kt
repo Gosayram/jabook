@@ -424,11 +424,15 @@ public class BackupService
                 val torrent =
                     torrentDownloads.firstOrNull { it.topicId == entity.id }
                         ?: torrentDownloads.firstOrNull { download ->
-                            entity.localPath?.let { localPath ->
-                                localPath == download.savePath ||
-                                    localPath.startsWith(download.savePath) ||
-                                    download.savePath.startsWith(localPath)
-                            } == true
+                            val localPath = entity.localPath
+                            val savePath = download.savePath
+                            !localPath.isNullOrBlank() &&
+                                savePath.isNotBlank() &&
+                                (
+                                    localPath == savePath ||
+                                        localPath.startsWith(savePath) ||
+                                        savePath.startsWith(localPath)
+                                )
                         }
                 // Read timestamps from PlayerPersistence
                 val playerState =

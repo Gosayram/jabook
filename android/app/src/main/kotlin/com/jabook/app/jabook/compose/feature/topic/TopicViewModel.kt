@@ -397,12 +397,12 @@ public class TopicViewModel
                 } catch (e: RuTrackerError.Unauthorized) {
                     logger.w { "Download requires authentication" }
                     _message.value = context.getString(R.string.authenticationRequired)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: IllegalStateException) {
                     logger.e(e) { "Illegal state during torrent download" }
                     _message.value =
                         context.getString(R.string.failedToStartDownloadWithError, e.message ?: "Illegal state")
-                } catch (e: CancellationException) {
-                    throw e
                 } catch (e: Exception) {
                     logger.e(e) { "Unexpected error starting torrent download" }
                     _message.value =

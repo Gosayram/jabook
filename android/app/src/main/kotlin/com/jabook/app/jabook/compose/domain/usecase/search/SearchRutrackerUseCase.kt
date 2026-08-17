@@ -41,7 +41,7 @@ public class SearchRutrackerUseCase
          * @param query Search query
          * @return Result with list of search results
          */
-        public suspend operator fun invoke(
+        public operator fun invoke(
             query: String,
         ): Flow<Result<List<RutrackerSearchResult>, com.jabook.app.jabook.compose.domain.model.AppError>> {
             if (query.isBlank()) {
