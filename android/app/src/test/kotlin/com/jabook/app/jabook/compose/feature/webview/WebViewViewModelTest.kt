@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -76,13 +77,13 @@ class WebViewViewModelTest {
 
     @Test
     fun `complete login syncs then reports validated session`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             val authStatus = MutableStateFlow<AuthStatus>(AuthStatus.Authenticated("test"))
             whenever(authRepository.authStatus).thenReturn(authStatus)
             var result: Boolean? = null
 
             viewModel.completeLogin("https://rutracker.org/forum/") { result = it }
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             verify(authRepository).syncCookiesFromWebView("https://rutracker.org/forum/")
             assertTrue(result == true)
@@ -90,13 +91,13 @@ class WebViewViewModelTest {
 
     @Test
     fun `complete login reports failure when session not authenticated`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             val authStatus = MutableStateFlow<AuthStatus>(AuthStatus.Unauthenticated)
             whenever(authRepository.authStatus).thenReturn(authStatus)
             var result: Boolean? = null
 
             viewModel.completeLogin("https://rutracker.org/forum/") { result = it }
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             verify(authRepository).syncCookiesFromWebView("https://rutracker.org/forum/")
             assertFalse(result == true)

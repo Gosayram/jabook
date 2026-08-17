@@ -25,7 +25,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -72,7 +74,7 @@ class AuthViewModelTest {
 
     @Test
     fun `loadSavedCredentials updates state`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             val credentials = UserCredentials("user", "pass")
             whenever(authRepository.getStoredCredentials()).thenReturn(credentials)
 
@@ -82,14 +84,14 @@ class AuthViewModelTest {
 
             // Let's create a new VM instance for this test to correctly capture init behavior
             viewModel = AuthViewModel(authRepository, mirrorManager)
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             assertEquals(credentials, viewModel.uiState.value.savedCredentials)
         }
 
     @Test
     fun `login success updates state`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             val username = "testuser"
             val password = "password"
             whenever(authRepository.login(any())).thenReturn(Result.success(true))
@@ -98,7 +100,7 @@ class AuthViewModelTest {
 
             // Loading state check might require manual advance if standard dispatcher used
             // but here we just check final result after idle
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             assertEquals(false, viewModel.uiState.value.isLoading)
             assertNull(viewModel.uiState.value.error)
@@ -107,12 +109,12 @@ class AuthViewModelTest {
 
     @Test
     fun `login failure with error updates state`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             val errorMsg = "Login failed"
             whenever(authRepository.login(any())).thenReturn(Result.failure(Exception(errorMsg)))
 
             viewModel.login("user", "pass", rememberMe = false)
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             assertEquals(errorMsg, viewModel.uiState.value.error)
             assertEquals(false, viewModel.uiState.value.isLoading)
@@ -151,12 +153,12 @@ class AuthViewModelTest {
 
     @Test
     fun `login failure with captcha updates state`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             val captchaData = CaptchaData("http://url", "test-sid")
             whenever(authRepository.login(any())).thenReturn(Result.failure(CaptchaRequiredException(captchaData)))
 
             viewModel.login("user", "pass", rememberMe = true)
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             assertEquals("Captcha required", viewModel.uiState.value.error)
             assertEquals(captchaData, viewModel.uiState.value.captchaData)
@@ -164,15 +166,15 @@ class AuthViewModelTest {
 
     @Test
     fun `logout calls repository`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel.logout()
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
             verify(authRepository).logout()
         }
 
     @Test
     fun `login emits loading then completion states with Turbine`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             whenever(authRepository.login(any())).thenReturn(Result.success(true))
 
             viewModel.uiState.test {
@@ -181,13 +183,13 @@ class AuthViewModelTest {
                 assertNull(initial.error)
 
                 viewModel.login("test-user", "test-pass", rememberMe = false)
-                testDispatcher.scheduler.runCurrent()
+                runCurrent()
 
                 val loading = awaitItem()
                 assertEquals(true, loading.isLoading)
                 assertNull(loading.error)
 
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
 
                 val completed = awaitItem()
                 assertEquals(false, completed.isLoading)

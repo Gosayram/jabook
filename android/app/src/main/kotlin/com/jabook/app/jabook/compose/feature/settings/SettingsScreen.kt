@@ -460,8 +460,9 @@ public fun SettingsScreen(
             // Timer for elapsed time
             LaunchedEffect(isIndexing, indexingStartTime) {
                 if (isIndexing && indexingStartTime != null) {
+                    val start = indexingStartTime ?: return@LaunchedEffect
                     while (true) {
-                        val duration = System.currentTimeMillis() - indexingStartTime!!
+                        val duration = System.currentTimeMillis() - start
                         elapsedTimeStr = UiFormatters.formatDuration(duration)
                         kotlinx.coroutines.delay(1000L)
                     }

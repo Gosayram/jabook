@@ -41,6 +41,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -190,11 +191,11 @@ class LibraryViewModelTest {
 
     @Test
     fun `initial load emits success with all books`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 val state = expectMostRecentItem()
                 assertTrue(state is LibraryUiState.Success)
                 assertEquals(3, (state as LibraryUiState.Success).books.size)
@@ -204,11 +205,11 @@ class LibraryViewModelTest {
 
     @Test
     fun `initial load with empty library emits Empty state`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel(books = emptyList())
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 val state = expectMostRecentItem()
                 assertTrue(state is LibraryUiState.Empty)
                 cancelAndIgnoreRemainingEvents()
@@ -219,15 +220,15 @@ class LibraryViewModelTest {
 
     @Test
     fun `search query filters books by title`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 expectMostRecentItem()
 
                 viewModel.onSearchQueryChanged("Alpha")
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 val state = expectMostRecentItem()
                 assertTrue(state is LibraryUiState.Success)
                 val books = (state as LibraryUiState.Success).books
@@ -239,15 +240,15 @@ class LibraryViewModelTest {
 
     @Test
     fun `search query filters books by author`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 expectMostRecentItem()
 
                 viewModel.onSearchQueryChanged("Author C")
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 val state = expectMostRecentItem()
                 assertTrue(state is LibraryUiState.Success)
                 val books = (state as LibraryUiState.Success).books
@@ -259,15 +260,15 @@ class LibraryViewModelTest {
 
     @Test
     fun `search query is case insensitive`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 expectMostRecentItem()
 
                 viewModel.onSearchQueryChanged("alpha")
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 val state = expectMostRecentItem()
                 assertTrue(state is LibraryUiState.Success)
                 assertEquals(1, (state as LibraryUiState.Success).books.size)
@@ -277,15 +278,15 @@ class LibraryViewModelTest {
 
     @Test
     fun `search query with no matches emits Empty`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 expectMostRecentItem()
 
                 viewModel.onSearchQueryChanged("ZZZZZ")
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 val state = expectMostRecentItem()
                 assertTrue(state is LibraryUiState.Empty)
                 cancelAndIgnoreRemainingEvents()
@@ -294,20 +295,20 @@ class LibraryViewModelTest {
 
     @Test
     fun `clearing search query restores all books`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 expectMostRecentItem()
 
                 viewModel.onSearchQueryChanged("Alpha")
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 val filtered = expectMostRecentItem() as LibraryUiState.Success
                 assertEquals(1, filtered.books.size)
 
                 viewModel.onSearchQueryChanged("")
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 val restored = expectMostRecentItem() as LibraryUiState.Success
                 assertEquals(3, restored.books.size)
                 cancelAndIgnoreRemainingEvents()
@@ -318,15 +319,15 @@ class LibraryViewModelTest {
 
     @Test
     fun `sort order change triggers library reload`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 expectMostRecentItem()
 
                 viewModel.onSortOrderChanged(BookSortOrder.TITLE_ASC)
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
 
                 verify(getLibraryUseCase).invoke(BookSortOrder.TITLE_ASC)
                 cancelAndIgnoreRemainingEvents()
@@ -335,15 +336,15 @@ class LibraryViewModelTest {
 
     @Test
     fun `sort order change persists to preferences`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 expectMostRecentItem()
 
                 viewModel.onSortOrderChanged(BookSortOrder.AUTHOR_ASC)
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
 
                 verify(userPreferencesRepository).setSortOrder(BookSortOrder.AUTHOR_ASC)
                 cancelAndIgnoreRemainingEvents()
@@ -354,27 +355,27 @@ class LibraryViewModelTest {
 
     @Test
     fun `favorite books use case is invoked`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             verify(getFavoriteBooksUseCase).invoke()
         }
 
     @Test
     fun `in progress books use case is invoked`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             verify(getInProgressBooksUseCase).invoke()
         }
 
     @Test
     fun `recently played use case is invoked`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             verify(getRecentlyPlayedBooksUseCase).invoke(any())
         }
@@ -383,15 +384,15 @@ class LibraryViewModelTest {
 
     @Test
     fun `delete book calls delete use case`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 expectMostRecentItem()
 
                 viewModel.deleteBook("1")
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
 
                 verify(deleteBookUseCase).invoke("1")
                 cancelAndIgnoreRemainingEvents()
@@ -402,15 +403,15 @@ class LibraryViewModelTest {
 
     @Test
     fun `toggle favorite calls use case`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 expectMostRecentItem()
 
                 viewModel.toggleFavorite("1", true)
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
 
                 verify(toggleFavoriteUseCase).invoke("1", true)
                 cancelAndIgnoreRemainingEvents()
@@ -419,15 +420,15 @@ class LibraryViewModelTest {
 
     @Test
     fun `toggle favorite remove calls repository remove`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 expectMostRecentItem()
 
                 viewModel.toggleFavorite("2", false)
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
 
                 verify(toggleFavoriteUseCase).invoke("2", false)
                 verify(favoritesRepository).removeFromFavorites("2")
@@ -439,15 +440,15 @@ class LibraryViewModelTest {
 
     @Test
     fun `show book properties sets selected book`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 expectMostRecentItem()
 
                 viewModel.showBookProperties("1")
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
 
                 val selected = viewModel.selectedBookForProperties.value
                 assertEquals("1", selected?.id)
@@ -457,15 +458,15 @@ class LibraryViewModelTest {
 
     @Test
     fun `hide book properties clears selected book`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 expectMostRecentItem()
 
                 viewModel.showBookProperties("1")
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 viewModel.hideBookProperties()
 
                 assertNull(viewModel.selectedBookForProperties.value)
@@ -477,15 +478,15 @@ class LibraryViewModelTest {
 
     @Test
     fun `view mode change persists to preferences`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 expectMostRecentItem()
 
                 viewModel.onViewModeChanged(LibraryViewMode.GRID_COMPACT)
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
 
                 verify(userPreferencesRepository).setViewMode(LibraryViewMode.GRID_COMPACT)
                 cancelAndIgnoreRemainingEvents()
@@ -496,15 +497,15 @@ class LibraryViewModelTest {
 
     @Test
     fun `complete spotlight persists and updates state`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             viewModel = createViewModel()
 
             viewModel.uiState.test {
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
                 expectMostRecentItem()
 
                 viewModel.completeSpotlight()
-                testDispatcher.scheduler.advanceUntilIdle()
+                advanceUntilIdle()
 
                 verify(userPreferencesRepository).setSpotlightCompleted(true)
                 assertTrue(viewModel.spotlightCompleted.value)

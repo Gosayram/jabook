@@ -31,6 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -86,7 +87,7 @@ class TopicViewModelTest {
 
     @Test
     fun `loadTopicDetails success calls avatarPreloader`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             // Given
             val comments =
                 listOf(
@@ -131,7 +132,7 @@ class TopicViewModelTest {
                     context,
                     savedStateHandle,
                 )
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             // Then
             verify(avatarPreloader).preloadAvatars(any(), any())
@@ -141,7 +142,7 @@ class TopicViewModelTest {
 
     @Test
     fun `loadTopicDetails with multiple pages loads last page first`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             // Given - page 1 metadata (needed to know totalPages)
             val page1Details =
                 RutrackerTopicDetails(
@@ -217,7 +218,7 @@ class TopicViewModelTest {
                     context,
                     savedStateHandle,
                 )
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.uiState.value as? TopicUiState.Success
@@ -229,7 +230,7 @@ class TopicViewModelTest {
 
     @Test
     fun `loadMoreComments loads previous page in reverse order`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             // Given - page 1 metadata (needed to know totalPages)
             val page1Details =
                 RutrackerTopicDetails(
@@ -335,11 +336,11 @@ class TopicViewModelTest {
                     context,
                     savedStateHandle,
                 )
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             // Load more (should fetch page 2)
             viewModel.loadMoreComments()
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             // Then
             val state = viewModel.uiState.value as? TopicUiState.Success
@@ -351,7 +352,7 @@ class TopicViewModelTest {
 
     @Test
     fun `downloadTorrentRelease rejects http url immediately`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             whenever(rutrackerRepository.getTopicDetails("12345"))
                 .thenReturn(Result.Error(AppError.DataError.NotFound))
             viewModel =
@@ -372,7 +373,7 @@ class TopicViewModelTest {
                 magnetUrl = null,
                 torrentUrl = "https://example.com/file.torrent",
             )
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             verify(torrentManager, never()).initialize()
             verify(torrentManager, never()).addTorrent(any(), any(), anyOrNull(), anyOrNull())
@@ -380,7 +381,7 @@ class TopicViewModelTest {
 
     @Test
     fun `downloadTorrentRelease accepts valid magnet and starts torrent manager`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             whenever(rutrackerRepository.getTopicDetails("12345"))
                 .thenReturn(Result.Error(AppError.DataError.NotFound))
             val downloadsDir =
@@ -419,7 +420,7 @@ class TopicViewModelTest {
                 magnetUrl = "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567",
                 torrentUrl = null,
             )
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             verify(torrentManager).initialize()
             verify(torrentManager).addTorrent(any(), any(), anyOrNull(), anyOrNull())

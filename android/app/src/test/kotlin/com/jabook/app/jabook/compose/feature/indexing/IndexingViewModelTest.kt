@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -85,12 +86,12 @@ class IndexingViewModelTest {
 
     @Test
     fun `clearIndex success resets index-related UI state`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             whenever(forumIndexer.getIndexSize()).thenReturn(42)
             whenever(forumIndexer.clearIndex()).thenAnswer { }
             // Bring view model state to non-zero index before clearing.
             viewModel.getIndexSize()
-            testDispatcher.scheduler.runCurrent()
+            runCurrent()
 
             val cleared = viewModel.clearIndex()
 

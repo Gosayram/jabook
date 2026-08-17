@@ -25,7 +25,9 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -62,13 +64,13 @@ class RutrackerSearchViewModelTest {
 
     @Test
     fun `failed remote search is shown as an error instead of empty results`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             whenever(repository.searchAudiobooksFlow(any(), any())).thenReturn(
                 flowOf(Result.Error(AppError.NetworkError.HttpError(code = 400))),
             )
 
             viewModel.search("query")
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             val state = viewModel.searchState.value
             assertTrue(state is SearchState.Error)
@@ -77,20 +79,20 @@ class RutrackerSearchViewModelTest {
 
     @Test
     fun `new search cancels the previous search`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             val first = MutableSharedFlow<Result<List<RutrackerSearchResult>, AppError>>(replay = 1)
             val second = MutableSharedFlow<Result<List<RutrackerSearchResult>, AppError>>(replay = 1)
             whenever(repository.searchAudiobooksFlow(eq("first"), any())).thenReturn(first)
             whenever(repository.searchAudiobooksFlow(eq("second"), any())).thenReturn(second)
 
             viewModel.search("first")
-            testDispatcher.scheduler.runCurrent()
+            runCurrent()
             viewModel.search("second")
-            testDispatcher.scheduler.runCurrent()
+            runCurrent()
             second.emit(Result.Success(listOf(searchResult("second"))))
-            testDispatcher.scheduler.runCurrent()
+            runCurrent()
             first.emit(Result.Success(listOf(searchResult("first"))))
-            testDispatcher.scheduler.runCurrent()
+            runCurrent()
 
             val state = viewModel.searchState.value as SearchState.Success
             assertEquals(
@@ -103,34 +105,34 @@ class RutrackerSearchViewModelTest {
 
     @Test
     fun `cover event from old results does not replace a new loading search`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             val first = MutableSharedFlow<Result<List<RutrackerSearchResult>, AppError>>(replay = 1)
             val second = MutableSharedFlow<Result<List<RutrackerSearchResult>, AppError>>()
             whenever(repository.searchAudiobooksFlow(eq("first"), any())).thenReturn(first)
             whenever(repository.searchAudiobooksFlow(eq("second"), any())).thenReturn(second)
 
             viewModel.search("first")
-            testDispatcher.scheduler.runCurrent()
+            runCurrent()
             first.emit(Result.Success(listOf(searchResult("first"))))
-            testDispatcher.scheduler.runCurrent()
+            runCurrent()
             viewModel.search("second")
-            testDispatcher.scheduler.runCurrent()
+            runCurrent()
             coverEvents.emit(CoverLoader.CoverLoadedEvent("first", "https://example.com/cover.jpg"))
-            testDispatcher.scheduler.runCurrent()
+            runCurrent()
 
             assertTrue(viewModel.searchState.value is SearchState.Loading)
         }
 
     @Test
     fun `size sorting parses whitespace between the value and unit`() =
-        runTest {
+        runTest(testDispatcher.scheduler) {
             whenever(repository.searchAudiobooksFlow(any(), any())).thenReturn(
                 flowOf(Result.Success(listOf(searchResult("large", "1 GB"), searchResult("small", "500 MB")))),
             )
 
             viewModel.updateSortOrder(RutrackerSortOrder.SIZE_ASC)
             viewModel.search("query")
-            testDispatcher.scheduler.advanceUntilIdle()
+            advanceUntilIdle()
 
             val state = viewModel.searchState.value as SearchState.Success
             assertEquals(

@@ -217,7 +217,7 @@ public class ForumIndexer
                         }
                     }
                 }
-                throw lastException!!
+                throw lastException ?: IllegalStateException("retryWithBackoff: no retries attempted")
             }
 
             private const val MIN_VALID_TOPICS_ABSOLUTE = 10
