@@ -14,6 +14,9 @@
 
 package com.jabook.app.jabook.compose.designsystem.component
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
@@ -33,6 +36,9 @@ public fun JabookModalBottomSheet(
         onDismissRequest = onDismissRequest,
         modifier = modifier,
         sheetState = sheetState,
-        content = { content() },
+        content = {
+            // Sheet window does not inset for gesture nav; pad content inside the sheet.
+            Column(modifier = Modifier.fillMaxWidth().navigationBarsPadding()) { content() }
+        },
     )
 }

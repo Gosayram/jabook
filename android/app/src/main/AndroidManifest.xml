@@ -131,7 +131,10 @@
             android:theme="@style/Theme.App.Starting"
             android:supportsPictureInPicture="true"
             android:resizeableActivity="true"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            <!-- PiP requires screenSize|smallestScreenSize|screenLayout; playback lives in a
+                 foreground service, so other config changes (orientation, density, uiMode, ...)
+                 may recreate the activity safely and apply density/posture updates. -->
+            android:configChanges="screenSize|smallestScreenSize|screenLayout"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 

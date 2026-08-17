@@ -51,6 +51,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -697,6 +698,8 @@ public fun PlayerScreen(
         mainPane = {
             AnimatedPane(modifier = Modifier) {
                 Scaffold(
+                    // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
                     modifier = Modifier.fillMaxSize(),
                     snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
                     topBar = {
