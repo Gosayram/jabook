@@ -18,6 +18,7 @@ import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
 import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.CommandButton
@@ -173,18 +174,14 @@ public class AudioPlayerNotificationProvider(
 
         val filtered =
             customLayout.filter { button ->
-                val customAction = button.sessionCommand?.customAction ?: return@filter true
-                slotIdForCustomAction(customAction)?.let { it in preferredSlots } ?: true
+                notificationSlot(button)?.let { it in preferredSlots } ?: true
             }
         return ImmutableList.copyOf(filtered)
     }
 
-    private fun slotIdForCustomAction(customAction: String): Int? =
-        when (customAction) {
-            CUSTOM_COMMAND_REWIND -> SLOT_REWIND_30
-            CUSTOM_COMMAND_FORWARD -> SLOT_FORWARD_30
-            else -> null
-        }
+    private fun notificationSlot(button: CommandButton): Int? =
+        button.sessionCommand?.customAction?.let(::slotIdForCustomAction)
+            ?: slotIdForPlayerCommand(button.playerCommand)
 
     override fun handleCustomCommand(
         session: MediaSession,
@@ -207,5 +204,21 @@ public class AudioPlayerNotificationProvider(
         public const val SLOT_SPEED: Int = 4
         public const val SLOT_CHAPTER_PREV: Int = 5
         public const val SLOT_CHAPTER_NEXT: Int = 6
+
+        internal fun slotIdForCustomAction(customAction: String): Int? =
+            when (customAction) {
+                CUSTOM_COMMAND_REWIND -> SLOT_REWIND_30
+                CUSTOM_COMMAND_FORWARD -> SLOT_FORWARD_30
+                else -> null
+            }
+
+        internal fun slotIdForPlayerCommand(playerCommand: Int): Int? =
+            when (playerCommand) {
+                Player.COMMAND_SEEK_BACK -> SLOT_REWIND_30
+                Player.COMMAND_SEEK_FORWARD -> SLOT_FORWARD_30
+                Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> SLOT_CHAPTER_PREV
+                Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM -> SLOT_CHAPTER_NEXT
+                else -> null
+            }
     }
 }
