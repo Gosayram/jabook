@@ -398,11 +398,13 @@ public class AudioPlayerLibrarySessionCallback(
         includePrivilegedCommands: Boolean,
     ): androidx.media3.session.SessionCommands {
         val builder =
-            (if (controller.isTrusted) {
-                MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
-            } else {
-                MediaSession.ConnectionResult.DEFAULT_UNTRUSTED_SESSION_AND_LIBRARY_COMMANDS
-            }).buildUpon()
+            (
+                if (controller.isTrusted) {
+                    MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
+                } else {
+                    MediaSession.ConnectionResult.DEFAULT_UNTRUSTED_SESSION_AND_LIBRARY_COMMANDS
+                }
+            ).buildUpon()
 
         // Keep Media3's read-only contract for untrusted controllers. System media controllers
         // are trusted and still receive these actions.

@@ -84,21 +84,21 @@ public class SpeechEnhancer : AudioProcessor {
         // Calculate high-pass filter coefficient
         // First-order high-pass: y[n] = x[n] - x[n-1] + a * y[n-1]
         // Simplified: using alpha = 1 - 2*pi*fc/fs for approximation
-        val alpha = 1.0f - (2.0f * kotlin.math.PI.toFloat() * highPassCutoffHz / sampleRate)
-        highPassAlpha = alpha.coerceIn(0.0f, 1.0f)
+        val hpAlpha = 1.0f - (2.0f * kotlin.math.PI.toFloat() * highPassCutoffHz / sampleRate)
+        highPassAlpha = hpAlpha.coerceIn(0.0f, 1.0f)
         highPassPrev = FloatArray(channels)
 
         // Compute peak EQ biquad coefficients (peak/notch filter)
         val w0 = (2.0f * kotlin.math.PI.toFloat() * peakEqFreqHz / sampleRate)
         val sinW0 = kotlin.math.sin(w0.toDouble()).toFloat()
-        val alpha = sinW0 / (2.0f * peakEqQ)
-        val amplitude = kotlin.math.pow(10.0, (peakEqGainDb / 40.0)).toFloat() // sqrt(10^(dBgain/20))
-        val norm = 1.0f / (1.0f + alpha / amplitude)
-        peakEqB0 = (1.0f + alpha * amplitude) * norm
+        val peakAlpha = sinW0 / (2.0f * peakEqQ)
+        val amplitude = 10.0.pow(peakEqGainDb / 40.0).toFloat() // sqrt(10^(dBgain/20))
+        val norm = 1.0f / (1.0f + peakAlpha / amplitude)
+        peakEqB0 = (1.0f + peakAlpha * amplitude) * norm
         peakEqB1 = (-2.0f * kotlin.math.cos(w0.toDouble())).toFloat() * norm
-        peakEqB2 = (1.0f - alpha * amplitude) * norm
+        peakEqB2 = (1.0f - peakAlpha * amplitude) * norm
         peakEqA1 = peakEqB1 // same as -2*cos(w0)*norm
-        peakEqA2 = (1.0f - alpha / amplitude) * norm
+        peakEqA2 = (1.0f - peakAlpha / amplitude) * norm
         peakEqState = Array(channels) { BiquadState() }
 
         // Reset states
