@@ -188,10 +188,10 @@ public fun MiniPlayer(
                     onClick = {
                         // Only handle click if not dragging
                         if (abs(offsetX) < 10f && abs(offsetY) < 10f) {
-                            onMiniPlayerClick()
+                            currentOnMiniPlayerClick()
                         }
                     },
-                ).pointerInput(Unit) {
+                ).pointerInput(hasNextChapter, hasPreviousChapter) {
                     detectDragGestures(
                         onDragEnd = {
                             val absX = abs(offsetX)

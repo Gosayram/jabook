@@ -21,7 +21,6 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.media.AudioManager
 import android.os.PowerManager
-import androidx.annotation.RequiresApi
 import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -90,11 +89,13 @@ public class AudioOutputManager
             if (!isMonitoring) return
 
             runCatching { sensorManager.unregisterListener(this) }
+            val wasAtEar = isAtEar
             isMonitoring = false
             isAtEar = false
 
-            // Reset state
-            setAudioOutput(false) // Force speaker
+            // Only undo a route this manager applied. Resetting the communication mode on every
+            // pause can interfere with an active call or another app's communication route.
+            if (wasAtEar) setAudioOutput(false)
             releaseWakeLock()
 
             LogUtils.d("AudioOutputManager", "Proximity monitoring stopped")
@@ -133,7 +134,6 @@ public class AudioOutputManager
             // No-op
         }
 
-        @RequiresApi(android.os.Build.VERSION_CODES.S)
         private fun setAudioOutput(toEarpiece: Boolean) {
             if (toEarpiece) {
                 // Switch to Earpiece

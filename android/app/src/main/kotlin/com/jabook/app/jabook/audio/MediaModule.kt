@@ -33,6 +33,7 @@ import androidx.room.RoomDatabase
 import com.jabook.app.jabook.audio.data.local.database.migration.AudioDatabaseMigrations
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.audio.processors.AudioProcessorFactory
+import com.jabook.app.jabook.crash.GlobalExceptionHandler
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.PerformanceClass
 import com.jabook.app.jabook.utils.PerformanceUtils
@@ -185,13 +186,10 @@ public object MediaModule {
                             .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
                             .build(),
                         true,
-                    ).setSkipSilenceEnabled(true)
-                    .build()
+                    ).build()
                     .also {
                         // Disable audio offload in safe mode (crash-loop detected)
-                        if (!com.jabook.app.jabook.crash.GlobalExceptionHandler
-                                .isSafeMode(context)
-                        ) {
+                        if (!GlobalExceptionHandler.isSafeMode(context)) {
                             it.trackSelectionParameters = createAudioOffloadTrackSelectionParameters()
                         } else {
                             LogUtils.w("MediaModule", "Safe mode: skipping audio offload")
@@ -274,7 +272,6 @@ public object MediaModule {
                         .setLoadControl(createOptimizedLoadControl(context))
                         .setHandleAudioBecomingNoisy(true)
                         .setWakeMode(C.WAKE_MODE_LOCAL)
-                        .setSkipSilenceEnabled(true)
                         .setAudioAttributes(
                             AudioAttributes
                                 .Builder()
