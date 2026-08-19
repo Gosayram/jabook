@@ -55,6 +55,7 @@
             <trusting group="androidx.activity"/>
             <trusting group="androidx.core"/>
             <trusting group="androidx.datastore"/>
+            <trusting group="androidx.media3"/>
             <trusting group="androidx.work"/>
             <trusting group="^com[.]google($|([.].*))" regex="true"/>
          </trusted-key>
@@ -148,6 +149,7 @@
             <trusting group="ch.qos.logback"/>
             <trusting group="org.slf4j"/>
          </trusted-key>
+         <trusted-key id="638DBA7FF338F537EACB7AC0AE1B9D6007DDFA7C" group="com.google.testparameterinjector"/>
          <trusted-key id="64B9B09F164AA0BF88742EB61188B69F6D6259CA" group="com.google.accompanist" name="accompanist-drawablepainter" version="0.37.3"/>
          <trusted-key id="694621A7227D8D5289699830ABE9F3126BB741C1" group="^com[.]google($|([.].*))" regex="true"/>
          <trusted-key id="696B6199A2A9D8C29CE78CC0D041CAD2E452550F" group="com.google.protobuf"/>
@@ -185,6 +187,7 @@
             <trusting group="androidx.concurrent"/>
             <trusting group="androidx.core"/>
             <trusting group="androidx.graphics"/>
+            <trusting group="androidx.lifecycle"/>
             <trusting group="androidx.privacysandbox.ads"/>
             <trusting group="androidx.profileinstaller"/>
             <trusting group="androidx.startup"/>

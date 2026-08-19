@@ -224,6 +224,8 @@ public fun PlayerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val currentPosition by viewModel.currentPosition.collectAsStateWithLifecycle()
+    val hasNextChapter by viewModel.hasNextChapter.collectAsStateWithLifecycle()
+    val hasPreviousChapter by viewModel.hasPreviousChapter.collectAsStateWithLifecycle()
     val playbackSpeed by viewModel.playbackSpeed.collectAsStateWithLifecycle()
     val pitchCorrectionEnabled by viewModel.pitchCorrectionEnabled.collectAsStateWithLifecycle()
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
@@ -907,6 +909,8 @@ public fun PlayerScreen(
                                                     viewModel.dispatch(PlayerIntent.SkipPrevious)
                                                 }
                                             },
+                                            hasNextChapter = hasNextChapter,
+                                            hasPreviousChapter = hasPreviousChapter,
                                             onSeek = { positionMs ->
                                                 viewModel.dispatch(PlayerIntent.SeekTo(positionMs))
                                             },
@@ -1164,6 +1168,8 @@ private fun PlayerLandscapeLayout(
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
+    hasNextChapter: Boolean,
+    hasPreviousChapter: Boolean,
     onSeek: (Long) -> Unit,
     onSeekForward: () -> Unit,
     onSeekBackward: () -> Unit,
@@ -1360,6 +1366,8 @@ private fun PlayerLandscapeLayout(
                 onPlayPause = onPlayPause,
                 onSkipNext = onSkipNext,
                 onSkipPrevious = onSkipPrevious,
+                hasNextChapter = hasNextChapter,
+                hasPreviousChapter = hasPreviousChapter,
                 onSeekForward = onSeekForward,
                 onSeekBackward = onSeekBackward,
                 isCompact = isCompact,
@@ -1502,6 +1510,8 @@ private fun PlayerContent(
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
+    hasNextChapter: Boolean,
+    hasPreviousChapter: Boolean,
     onSeek: (Long) -> Unit,
     onSeekForward: () -> Unit,
     onSeekBackward: () -> Unit,
@@ -1706,6 +1716,8 @@ private fun PlayerContent(
                 onPlayPause = onPlayPause,
                 onSkipNext = onSkipNext,
                 onSkipPrevious = onSkipPrevious,
+                hasNextChapter = hasNextChapter,
+                hasPreviousChapter = hasPreviousChapter,
                 onSeek = onSeek,
                 onSeekForward = onSeekForward,
                 onSeekBackward = onSeekBackward,
@@ -2134,6 +2146,8 @@ private fun PlayerContent(
                         onPlayPause = onPlayPause,
                         onSkipNext = onSkipNext,
                         onSkipPrevious = onSkipPrevious,
+                        hasNextChapter = hasNextChapter,
+                        hasPreviousChapter = hasPreviousChapter,
                         onSeekForward = onSeekForward,
                         onSeekBackward = onSeekBackward,
                         isCompact = isCompact,

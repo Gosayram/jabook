@@ -418,6 +418,7 @@ class AudioPlayerLibrarySessionCallbackTest {
                     filePaths = listOf(first.absolutePath, second.absolutePath),
                     currentIndex = 1,
                     currentPosition = 42_000L,
+                    metadata = null,
                 ),
             )
 
@@ -537,8 +538,8 @@ class AudioPlayerLibrarySessionCallbackTest {
             whenever(torrentRepository.getAllFlow()).thenReturn(
                 flowOf(
                     listOf(
-                        TorrentDownload(hash = "h1", name = "One"),
-                        TorrentDownload(hash = "h2", name = "Two"),
+                        TorrentDownload(hash = "h1", name = "One", state = TorrentState.COMPLETED),
+                        TorrentDownload(hash = "h2", name = "Two", state = TorrentState.COMPLETED),
                     ),
                 ),
             )
@@ -566,6 +567,7 @@ class AudioPlayerLibrarySessionCallbackTest {
                 TorrentDownload(
                     hash = "book",
                     name = "Book",
+                    state = TorrentState.COMPLETED,
                     files =
                         listOf(
                             TorrentFile(index = 0, path = existingFile.absolutePath, size = 1L),

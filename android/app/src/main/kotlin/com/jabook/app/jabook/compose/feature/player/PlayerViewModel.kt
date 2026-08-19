@@ -184,6 +184,12 @@ public class PlayerViewModel
                     initialValue = playerController.currentPosition.value.coerceAtLeast(0L),
                 )
 
+        /** Whether the current playlist has a following chapter that can be selected. */
+        public val hasNextChapter: StateFlow<Boolean> = playerController.hasNextChapter
+
+        /** Whether the current playlist has a preceding chapter that can be selected. */
+        public val hasPreviousChapter: StateFlow<Boolean> = playerController.hasPreviousChapter
+
         /**
          * Combined UI state from book data, playback state, and settings.
          */

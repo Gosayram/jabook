@@ -124,7 +124,7 @@ public class AudioPlayerLibrarySessionCallback(
             // This follows Rhythm pattern to avoid MediaSessionLegacyStub conversion issues
             return Futures.immediateFuture(
                 MediaSession.ConnectionResult
-                    .AcceptedResultBuilder(session)
+                    .AcceptedResultBuilder(session, controller)
                     .setAvailableSessionCommands(availableCommands)
                     .build(),
             )
@@ -139,7 +139,7 @@ public class AudioPlayerLibrarySessionCallback(
 
         return Futures.immediateFuture(
             MediaSession.ConnectionResult
-                .AcceptedResultBuilder(session)
+                .AcceptedResultBuilder(session, controller)
                 .setAvailableSessionCommands(availableCommands)
                 .build(),
         )
@@ -730,7 +730,7 @@ public class AudioPlayerLibrarySessionCallback(
 
             // 1. "Last Played" Item
             if (isRootId(parentId) && persistedState != null) {
-                val isPersistedStateOffline = persistedState.filePaths.all { File(it).exists() }
+                val isPersistedStateOffline = persistedState.filePaths.all { File(it).isFile }
                 val shouldIncludeLastPlayed =
                     when (browseMode) {
                         RootBrowseMode.ALL -> true
@@ -767,7 +767,7 @@ public class AudioPlayerLibrarySessionCallback(
                                 durationMs = totalDuration,
                             ).apply {
                                 // Download status: check if files exist locally
-                                val isDownloaded = persistedState.filePaths.all { File(it).exists() }
+                                val isDownloaded = persistedState.filePaths.all { File(it).isFile }
                                 MediaMetadataExtrasHelper.run { addDownloadStatus(isDownloaded) }
 
                                 // Content grouping for series
@@ -890,7 +890,7 @@ public class AudioPlayerLibrarySessionCallback(
                     // Fallback to persisted state
                     for (filePath in persistedState.filePaths) {
                         val file = File(filePath)
-                        if (file.exists()) {
+                        if (file.isFile) {
                             val chapterMetadata =
                                 MediaMetadata
                                     .Builder()
@@ -1042,7 +1042,7 @@ public class AudioPlayerLibrarySessionCallback(
                 val playlist = mutableListOf<MediaItem>()
                 for (filePath in persistedState.filePaths) {
                     val file = File(filePath)
-                    if (file.exists()) {
+                    if (file.isFile) {
                         val uri = android.net.Uri.fromFile(file)
                         val metadataBuilder = MediaMetadata.Builder()
 
@@ -1236,7 +1236,7 @@ public class AudioPlayerLibrarySessionCallback(
 
             // Create MediaItem from file path
             val file = File(filePath)
-            if (!file.exists()) {
+            if (!file.isFile) {
                 LogUtils.w("AudioPlayerService", "Stored file does not exist: $filePath")
                 throw IllegalStateException("stored file does not exist")
             }

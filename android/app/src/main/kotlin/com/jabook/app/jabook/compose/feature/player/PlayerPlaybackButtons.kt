@@ -60,6 +60,8 @@ internal fun PlayerPlaybackButtons(
     onSkipPrevious: () -> Unit,
     onSeekForward: () -> Unit,
     onSeekBackward: () -> Unit,
+    hasNextChapter: Boolean,
+    hasPreviousChapter: Boolean,
     isCompact: Boolean,
     playPauseButtonScale: Float = 1f,
     playPauseIconScale: Float = 1f,
@@ -83,6 +85,7 @@ internal fun PlayerPlaybackButtons(
             icon = Icons.Filled.SkipPrevious,
             contentDescription = stringResource(R.string.previousChapter),
             onClick = onSkipPrevious,
+            enabled = hasPreviousChapter,
             modifier = Modifier.size(skipButtonSize),
             size = skipIconSize,
         )
@@ -162,6 +165,7 @@ internal fun PlayerPlaybackButtons(
             icon = Icons.Filled.SkipNext,
             contentDescription = stringResource(R.string.nextChapter),
             onClick = onSkipNext,
+            enabled = hasNextChapter,
             modifier = Modifier.size(skipButtonSize),
             size = skipIconSize,
         )
