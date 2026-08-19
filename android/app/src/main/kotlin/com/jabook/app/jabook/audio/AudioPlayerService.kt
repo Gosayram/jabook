@@ -35,7 +35,6 @@ import com.jabook.app.jabook.audio.processors.BookLoudnessCompensator
 import com.jabook.app.jabook.audio.processors.LufsAnalysisWorker
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.util.LogUtils
-import com.jabook.app.jabook.utils.capitalizeFirst
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -395,7 +394,7 @@ public class AudioPlayerService : MediaLibraryService() {
                     else -> "" // prod or unknown
                 }
             // Capitalize first letter for display (using utility function)
-            return flavor.capitalizeFirst()
+            return flavor.replaceFirstChar { it.titlecase() }
         }
 
         // Session extras keys for Auto / Wear

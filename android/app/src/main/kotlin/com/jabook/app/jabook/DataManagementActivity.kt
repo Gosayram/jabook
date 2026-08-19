@@ -95,9 +95,9 @@ public class DataManagementActivity : AppCompatActivity() {
                 val totalSize = cacheSize + dataSize
 
                 runOnUiThread {
-                    cacheSizeText.text = getString(R.string.cacheSizeLabel, formatSize(cacheSize))
-                    dataSizeText.text = getString(R.string.dataSizeLabel, formatSize(dataSize))
-                    totalSizeText.text = getString(R.string.totalSizeLabel, formatSize(totalSize))
+                    cacheSizeText.text = getString(R.string.cacheSizeLabel, com.jabook.app.jabook.compose.core.util.UiFormatters.formatFileSize(cacheSize))
+                    dataSizeText.text = getString(R.string.dataSizeLabel, com.jabook.app.jabook.compose.core.util.UiFormatters.formatFileSize(dataSize))
+                    totalSizeText.text = getString(R.string.totalSizeLabel, com.jabook.app.jabook.compose.core.util.UiFormatters.formatFileSize(totalSize))
                     progressBar.visibility = View.GONE
                 }
             } catch (e: Exception) {
@@ -181,19 +181,6 @@ public class DataManagementActivity : AppCompatActivity() {
             LogUtils.w("DataManagementActivity", "Error calculating size for ${directory.path}", e)
         }
         return size
-    }
-
-    /**
-     * Formats size in bytes to human-readable string.
-     */
-    private fun formatSize(bytes: Long): String {
-        if (bytes < 1024) return "$bytes B"
-        val kb = bytes / 1024.0
-        if (kb < 1024) return String.format("%.2f KB", kb)
-        val mb = kb / 1024.0
-        if (mb < 1024) return String.format("%.2f MB", mb)
-        val gb = mb / 1024.0
-        return String.format("%.2f GB", gb)
     }
 
     /**
