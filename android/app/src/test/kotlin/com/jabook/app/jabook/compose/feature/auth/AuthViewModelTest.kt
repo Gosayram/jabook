@@ -69,11 +69,11 @@ class AuthViewModelTest {
             assertEquals(false, state.isLoading)
             assertNull(state.error)
             assertNull(state.captchaData)
-            assertNull(state.savedCredentials)
+            assertNull(state.savedUsername)
         }
 
     @Test
-    fun `loadSavedCredentials updates state`() =
+    fun `loadSavedCredentials exposes username without password`() =
         runTest(testDispatcher.scheduler) {
             val credentials = UserCredentials("user", "pass")
             whenever(authRepository.getStoredCredentials()).thenReturn(credentials)
@@ -86,7 +86,7 @@ class AuthViewModelTest {
             viewModel = AuthViewModel(authRepository, mirrorManager)
             advanceUntilIdle()
 
-            assertEquals(credentials, viewModel.uiState.value.savedCredentials)
+            assertEquals(credentials.username, viewModel.uiState.value.savedUsername)
         }
 
     @Test

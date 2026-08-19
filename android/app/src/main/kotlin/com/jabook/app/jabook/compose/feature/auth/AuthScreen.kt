@@ -131,12 +131,9 @@ public fun AuthScreen(
         }
     }
 
-    // Pre-fill if saved credentials exist
-    LaunchedEffect(uiState.savedCredentials) {
-        uiState.savedCredentials?.let {
-            username = it.username
-            password = it.password
-        }
+    // A stored password never enters Compose state; only pre-fill the non-secret username.
+    LaunchedEffect(uiState.savedUsername) {
+        uiState.savedUsername?.let { username = it }
     }
 
     Scaffold(

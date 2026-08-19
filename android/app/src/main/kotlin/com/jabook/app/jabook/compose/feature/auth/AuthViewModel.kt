@@ -42,7 +42,7 @@ public data class AuthUiState(
     val error: String? = null,
     val captchaData: CaptchaData? = null,
     val showWebViewLogin: Boolean = false,
-    val savedCredentials: UserCredentials? = null,
+    val savedUsername: String? = null,
 )
 
 @HiltViewModel
@@ -68,8 +68,8 @@ public class AuthViewModel
 
         private fun loadSavedCredentials() {
             viewModelScope.launch {
-                val credentials = authRepository.getStoredCredentials()
-                _uiState.update { it.copy(savedCredentials = credentials) }
+                val username = authRepository.getStoredCredentials()?.username
+                _uiState.update { it.copy(savedUsername = username) }
             }
         }
 

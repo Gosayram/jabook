@@ -153,10 +153,8 @@ public object PlayerPerformanceLogger {
         LogUtils.d(TAG, "===================================================")
     }
 
-    /**
-     * Enable/disable logging (for production builds).
-     */
-    public fun setEnabled() {
+    /** Enable or disable timing logs outside a measurement session. */
+    public fun setEnabled(enabled: Boolean) {
         this.enabled = enabled
     }
 

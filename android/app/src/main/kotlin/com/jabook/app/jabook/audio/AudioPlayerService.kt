@@ -55,10 +55,6 @@ public class AudioPlayerService : MediaLibraryService() {
     @Inject
     public lateinit var exoPlayer: ExoPlayer
 
-    @Inject
-    @javax.inject.Named("okhttp")
-    public lateinit var mediaCache: okhttp3.Cache
-
     // Repository for torrent downloads (library content)
     @Inject
     public lateinit var torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository

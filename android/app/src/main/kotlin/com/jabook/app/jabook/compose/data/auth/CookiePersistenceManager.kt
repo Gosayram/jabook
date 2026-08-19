@@ -93,7 +93,7 @@ public class CookiePersistenceManager
                     cookieManager.flush()
 
                     val cookieString = cookieManager.getCookie(queryUrl)
-                    logger.d { "getCookie($queryUrl) returned: ${cookieString?.take(80) ?: "null"}" }
+                    logger.d { "getCookie($queryUrl) returned ${if (cookieString.isNullOrBlank()) "no" else "some"} cookies" }
 
                     if (!cookieString.isNullOrBlank()) {
                         val cookies = captureWebViewCookies(queryUrl, cookieString)
