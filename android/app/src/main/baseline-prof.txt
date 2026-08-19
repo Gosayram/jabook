@@ -11,8 +11,3 @@ Lcom/jabook/app/jabook/compose/JabookAppKt;
 Lcom/jabook/app/jabook/compose/navigation/JabookNavHostKt;
 Lcom/jabook/app/jabook/compose/feature/player/PlayerScreenKt;
 Lcom/jabook/app/jabook/compose/feature/miniplayer/MiniPlayerViewModel;
-
-HSPLcom/jabook/app/jabook/compose/ComposeMainActivity;->onCreate(Landroid/os/Bundle;)V
-HSPLcom/jabook/app/jabook/compose/JabookAppKt;->JabookApp(Landroidx/compose/material3/windowsizeclass/WindowSizeClass;Landroid/content/Intent;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lcom/jabook/app/jabook/compose/JabookAppState;Lcom/jabook/app/jabook/compose/MainViewModel;Lcom/jabook/app/jabook/compose/feature/permissions/PermissionViewModel;)V
-HSPLcom/jabook/app/jabook/audio/AudioPlayerService;->onCreate()V
-HSPLcom/jabook/app/jabook/audio/AudioPlayerService;->onStartCommand(Landroid/content/Intent;II)I

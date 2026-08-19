@@ -14,15 +14,10 @@
 
 package com.jabook.app.jabook.macrobenchmark
 
-import android.util.Log
-import androidx.benchmark.macro.BaselineProfileMode
-import androidx.benchmark.macro.StartupMode
-import androidx.benchmark.macro.StartupTimingMetric
 import androidx.benchmark.macro.junit4.BaselineProfileRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
-import androidx.test.uiautomator.Until
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,7 +34,6 @@ class BaselineProfileGenerator {
 
     @Test
     fun generateBaselineProfile() {
-        Log.d("BaselineProfile", "Generating profile for package: $targetPackage")
         rule.collect(
             packageName = targetPackage,
             includeInStartupProfile = true,
@@ -50,21 +44,11 @@ class BaselineProfileGenerator {
             // Wait for the main UI to load
             device.waitForIdle()
 
-            // Wait for content to appear (library/catalog screen)
-            device.wait(
-                Until.hasObject(By.res(targetPackage, "miniPlayer")),
-                10_000,
-            )
-
-            // Navigate to player if mini player is visible
+            // The mini player is optional when a fresh install has no book yet.
             val miniPlayer = device.findObject(By.res(targetPackage, "miniPlayer"))
             if (miniPlayer != null) {
                 miniPlayer.click()
                 device.waitForIdle()
-                device.wait(
-                    Until.hasObject(By.res(targetPackage, "playerScreen")),
-                    5_000,
-                )
                 // Go back
                 device.pressBack()
                 device.waitForIdle()
@@ -78,7 +62,6 @@ class BaselineProfileGenerator {
                 for (i in 0 until minOf(navItems.size, 3)) {
                     navItems[i].click()
                     device.waitForIdle()
-                    device.wait(Until.hasObject(By.hasDescendant(By.clickable(true))), 3_000)
                 }
             }
 
@@ -89,15 +72,4 @@ class BaselineProfileGenerator {
         }
     }
 
-    @Test
-    fun startupCompilationBaselineProfile() {
-        rule.collect(
-            packageName = targetPackage,
-            includeInStartupProfile = true,
-        ) {
-            pressHome()
-            startActivityAndWait()
-            device.waitForIdle()
-        }
-    }
 }
