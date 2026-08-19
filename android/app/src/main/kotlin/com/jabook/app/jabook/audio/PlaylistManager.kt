@@ -233,15 +233,15 @@ internal class PlaylistManager(
                 0L
             }
         val dataSourceFactory = SimpleMediaDataSourceFactory()
-        val mediaItems =
-            updatedPaths.mapIndexed { index, path ->
-                createMediaItemForPath(path, index, currentMetadata, updatedPaths.size, dataSourceFactory)
+        val mediaSources =
+            updatedPaths.mapIndexed { index, _ ->
+                createMediaSourceForIndex(updatedPaths, index, currentMetadata, dataSourceFactory)
             }
 
         withContext(dispatchers.main) {
             val player = getActivePlayer()
             val wasPlaying = player.playWhenReady
-            player.setMediaItems(mediaItems, normalizedIndex, restoredPositionMs)
+            player.setMediaSources(mediaSources, normalizedIndex, restoredPositionMs)
             player.prepare()
             player.playWhenReady = wasPlaying
         }
@@ -578,10 +578,10 @@ internal class PlaylistManager(
         LogUtils.d("AudioPlayerService", "Using synchronous loading for small playlist (${filePaths.size} tracks)")
         val dataSourceFactory = SimpleMediaDataSourceFactory()
 
-        // Create all MediaItems synchronously (fast for small playlists)
-        val mediaItems =
-            filePaths.mapIndexed { index, path ->
-                createMediaItemForPath(path, index, metadata, filePaths.size, dataSourceFactory)
+        // Create all MediaSources synchronously so the configured cache route is retained.
+        val mediaSources =
+            filePaths.mapIndexed { index, _ ->
+                createMediaSourceForIndex(filePaths, index, metadata, dataSourceFactory)
             }
 
         // Apply to player on main thread
@@ -592,17 +592,17 @@ internal class PlaylistManager(
             // Clear any existing items
             activePlayer.clearMediaItems()
 
-            // Use setMediaItems with startIndex and startPosition (like Rhythm)
+            // Use setMediaSources with startIndex and startPosition.
             // This is simpler and more reliable than async loading
-            val startIndex = (initialTrackIndex ?: 0).coerceIn(0, mediaItems.size - 1)
+            val startIndex = (initialTrackIndex ?: 0).coerceIn(0, mediaSources.size - 1)
             val startPosition = (initialPosition ?: 0).coerceAtLeast(0)
 
             LogUtils.d(
                 "AudioPlayerService",
-                "Setting ${mediaItems.size} MediaItems synchronously: startIndex=$startIndex, startPosition=${startPosition}ms",
+                "Setting ${mediaSources.size} MediaSources synchronously: startIndex=$startIndex, startPosition=${startPosition}ms",
             )
 
-            activePlayer.setMediaItems(mediaItems, startIndex, startPosition)
+            activePlayer.setMediaSources(mediaSources, startIndex, startPosition)
             activePlayer.prepare()
 
             // MediaSession handles notification updates automatically - manual update removed
@@ -611,12 +611,12 @@ internal class PlaylistManager(
             val loadDuration = System.currentTimeMillis() - loadStartTime
             LogUtils.i(
                 "AudioPlayerService",
-                "Synchronous playlist loaded: ${mediaItems.size} tracks in ${loadDuration}ms " +
+                "Synchronous playlist loaded: ${mediaSources.size} tracks in ${loadDuration}ms " +
                     "(startIndex=$startIndex, startPosition=${startPosition}ms)",
             )
 
             // Mark loading as complete for synchronous loading
-            _loadProgress.update { PlaylistLoadProgress(mediaItems.size, mediaItems.size, PlaylistLoadProgress.Phase.DONE) }
+            _loadProgress.update { PlaylistLoadProgress(mediaSources.size, mediaSources.size, PlaylistLoadProgress.Phase.DONE) }
         }
     }
 
@@ -1226,27 +1226,6 @@ internal class PlaylistManager(
                 "After retry: currentMediaItemIndex=$lastIndex (expected=$targetIndex)",
             )
         }
-    }
-
-    /**
-     * Creates a MediaItem for a specific file path.
-     * Helper method for synchronous loading.
-     */
-    private fun createMediaItemForPath(
-        path: String,
-        index: Int,
-        metadata: Map<String, String>?,
-        totalChapters: Int,
-        dataSourceFactory: SimpleMediaDataSourceFactory,
-    ): MediaItem {
-        val uri = createUriForPath(path)
-        val mediaMetadata = createMediaMetadata(path, index, metadata, totalChapters)
-
-        return MediaItem
-            .Builder()
-            .setUri(uri)
-            .setMediaMetadata(mediaMetadata)
-            .build()
     }
 
     /**

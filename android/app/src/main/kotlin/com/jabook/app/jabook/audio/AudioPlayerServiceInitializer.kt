@@ -329,7 +329,6 @@ public class AudioPlayerServiceInitializer(
      */
     public fun postInitialize() {
         restorePlaybackSpeed()
-        setupNotificationProvider()
         setupAudioOutputManager()
         service.playbackEnhancerService.initialize()
         initializeVisualizer()
@@ -396,16 +395,6 @@ public class AudioPlayerServiceInitializer(
         }
     }
 
-    @OptIn(UnstableApi::class)
-    private fun setupNotificationProvider() {
-        if (service.mediaLibrarySession != null) {
-            service.setNotificationProvider(AudioPlayerNotificationProvider(service))
-            LogUtils.i("AudioPlayerService", "MediaNotificationProvider set for MediaLibrarySession")
-        } else {
-            LogUtils.w("AudioPlayerService", "MediaLibrarySession is null, cannot set MediaNotificationProvider")
-        }
-    }
-
     private fun setupAudioOutputManager() {
         service.audioOutputPlayerListener?.let { listener ->
             service.audioOutputPlayerTarget?.removeListener(listener)
@@ -455,10 +444,9 @@ public class AudioPlayerServiceInitializer(
                     service.mediaButtonHandler,
                     { filePath -> service.durationManager.getDurationForFile(filePath) },
                 )
+            val notificationProvider = AudioPlayerNotificationProvider(service)
 
-            // Build MediaLibrarySession - Media3 handles notifications automatically
-            // DO NOT set custom notification provider or media button preferences in Builder
-            // These must be handled in the Callback's onConnect method
+            // Build the session and notification around one artwork loader.
             // CRITICAL FIX: Add BOTH PID AND instance hash to session ID
             // Android can call onCreate() MULTIPLE TIMES with the SAME PID without calling onDestroy()
             // Evidence from logs: PID 8921 had onCreate() called twice (Instance 50442924, then 115225231)
@@ -472,6 +460,7 @@ public class AudioPlayerServiceInitializer(
                         service.getActivePlayer(),
                         callback,
                     ).setId(sessionId) // Truly unique session ID: PID + instance hash
+                    .setBitmapLoader(notificationProvider.bitmapLoader)
 
             // Set session activity (PendingIntent)
             // This is CRITICAL for Android 12+ media controls to work properly
@@ -482,6 +471,7 @@ public class AudioPlayerServiceInitializer(
             }
 
             service.mediaLibrarySession = sessionBuilder.build()
+            service.setNotificationProvider(notificationProvider)
 
             // Reserve space for skip buttons in notification (prevents jumping when buttons change)
             // Following Media3 official pattern from DemoPlaybackService

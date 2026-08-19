@@ -15,6 +15,9 @@
 package com.jabook.app.jabook.compose.data.cache
 
 import android.content.Context
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.cache.Cache
 import coil3.SingletonImageLoader
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
@@ -29,6 +32,7 @@ import javax.inject.Singleton
  * Manages app cache: tracks sizes, provides cleanup operations.
  */
 @Singleton
+@OptIn(UnstableApi::class)
 public class CacheManager
     @Inject
     constructor(
@@ -36,6 +40,7 @@ public class CacheManager
         private val database: JabookDatabase,
         private val rutrackerSearchCache: RutrackerSearchCache,
         private val loggerFactory: LoggerFactory,
+        private val mediaCache: Cache,
     ) {
         private val logger = loggerFactory.get("CacheManager")
 
@@ -110,8 +115,15 @@ public class CacheManager
                     // subsequent search cannot surface results the user just asked to remove.
                     rutrackerSearchCache.clear()
 
-                    // Clear cache directories (includes Coil disk cache in image_cache/)
-                    context.cacheDir.deleteRecursively()
+                    clearMediaCache()
+
+                    // The active Media3 cache owns playback_cache and must only be cleared via
+                    // its API. Deleting its files while it is open corrupts its index.
+                    context.cacheDir.listFiles()?.forEach { directory ->
+                        if (directory.name != PLAYBACK_CACHE_DIRECTORY) {
+                            directory.deleteRecursively()
+                        }
+                    }
                     context.externalCacheDir?.deleteRecursively()
 
                     // Recreate directories
@@ -149,6 +161,10 @@ public class CacheManager
                     false
                 }
             }
+
+        private fun clearMediaCache() {
+            mediaCache.keys.forEach(mediaCache::removeResource)
+        }
 
         private suspend fun clearTopicCache(): Boolean =
             withContext(Dispatchers.IO) {
@@ -265,6 +281,10 @@ public class CacheManager
         private fun saveLastCleanupTimestamp() {
             val prefs = context.getSharedPreferences("cache_prefs", Context.MODE_PRIVATE)
             prefs.edit().putLong("last_cleanup", System.currentTimeMillis()).apply()
+        }
+
+        private companion object {
+            private const val PLAYBACK_CACHE_DIRECTORY = "playback_cache"
         }
     }
 

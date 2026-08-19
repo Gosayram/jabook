@@ -103,8 +103,8 @@ internal class PlaybackEventProcessor(
 
         PlayerWidgetProvider.requestUpdate(context)
 
-        // Reset retry and skip counts on successful playback
-        if (playbackState == Player.STATE_READY || playbackState == Player.STATE_BUFFERING) {
+        // A rebuffer is not recovery; retain the bounded retry/skip budget until playback resumes.
+        if (PlaybackErrorResetPolicy.shouldReset(playbackState)) {
             playerErrorHandler.resetCounts()
         }
 

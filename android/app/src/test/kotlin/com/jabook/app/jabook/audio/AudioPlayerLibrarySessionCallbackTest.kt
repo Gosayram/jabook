@@ -28,6 +28,7 @@ import androidx.media3.session.SessionResult
 import androidx.test.core.app.ApplicationProvider
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
+import com.jabook.app.jabook.compose.data.torrent.TorrentFile
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -132,7 +133,7 @@ class AudioPlayerLibrarySessionCallbackTest {
         whenever(session.isAutoCompanionController(controller)).thenReturn(false)
         whenever(controller.packageName).thenReturn("com.android.car.media")
 
-        val result = callback.onConnect(session, controller)
+        val result = callback.onConnectAsync(session, controller).get(1, TimeUnit.SECONDS)
 
         val sleepTimerCommand =
             SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY)
@@ -150,7 +151,7 @@ class AudioPlayerLibrarySessionCallbackTest {
         whenever(session.isAutoCompanionController(controller)).thenReturn(false)
         whenever(controller.packageName).thenReturn("com.jabook.app.jabook")
 
-        val result = callback.onConnect(session, controller)
+        val result = callback.onConnectAsync(session, controller).get(1, TimeUnit.SECONDS)
 
         val sleepTimerCommand =
             SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY)
@@ -168,7 +169,7 @@ class AudioPlayerLibrarySessionCallbackTest {
         whenever(session.isAutoCompanionController(controller)).thenReturn(false)
         whenever(controller.packageName).thenReturn("com.example.untrusted")
 
-        val result = callback.onConnect(session, controller)
+        val result = callback.onConnectAsync(session, controller).get(1, TimeUnit.SECONDS)
 
         val sleepTimerCommand =
             SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY)
@@ -370,7 +371,7 @@ class AudioPlayerLibrarySessionCallbackTest {
         runTest {
             whenever(service.isBookCompleted).thenReturn(true)
 
-            val result = callback.onPlaybackResumption(session, controller).get(1, TimeUnit.SECONDS)
+            val result = callback.onPlaybackResumption(session, controller, true).get(1, TimeUnit.SECONDS)
 
             assertTrue(result.mediaItems.isEmpty())
             assertEquals(0, result.startIndex)
@@ -396,12 +397,34 @@ class AudioPlayerLibrarySessionCallbackTest {
                 ),
             )
 
-            val result = callback.onPlaybackResumption(session, controller).get(1, TimeUnit.SECONDS)
+            val result = callback.onPlaybackResumption(session, controller, true).get(1, TimeUnit.SECONDS)
 
             assertEquals(1, result.mediaItems.size)
             assertEquals(existingFile.absolutePath, result.mediaItems.first().mediaId)
             assertEquals(0, result.startIndex)
             assertEquals(42_000L, result.startPositionMs)
+        }
+
+    @Test
+    fun `onPlaybackResumption returns only current item when playback is not requested`() =
+        runTest {
+            whenever(service.isBookCompleted).thenReturn(false)
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val first = File(context.cacheDir, "resume_metadata_01.mp3").apply { writeText("audio") }
+            val second = File(context.cacheDir, "resume_metadata_02.mp3").apply { writeText("audio") }
+            whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(
+                PlayerPersistenceManager.PersistedPlayerState(
+                    groupPath = "book://resume-metadata",
+                    filePaths = listOf(first.absolutePath, second.absolutePath),
+                    currentIndex = 1,
+                    currentPosition = 42_000L,
+                ),
+            )
+
+            val result = callback.onPlaybackResumption(session, controller, false).get(1, TimeUnit.SECONDS)
+
+            assertEquals(listOf(second.absolutePath), result.mediaItems.map { it.mediaId })
+            assertEquals(0, result.startIndex)
         }
 
     @Test
@@ -411,7 +434,7 @@ class AudioPlayerLibrarySessionCallbackTest {
             whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(null)
             whenever(persistenceManager.retrieveLastStoredMediaItem()).thenReturn(null)
 
-            val result = callback.onPlaybackResumption(session, controller).get(1, TimeUnit.SECONDS)
+            val result = callback.onPlaybackResumption(session, controller, true).get(1, TimeUnit.SECONDS)
 
             assertTrue(result.mediaItems.isEmpty())
             assertEquals(0, result.startIndex)
@@ -505,6 +528,64 @@ class AudioPlayerLibrarySessionCallbackTest {
 
             assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
             assertEquals(10, result.value?.size)
+        }
+
+    @Test
+    fun `onGetChildren paginates without integer overflow`() =
+        runTest {
+            whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(null)
+            whenever(torrentRepository.getAllFlow()).thenReturn(
+                flowOf(
+                    listOf(
+                        TorrentDownload(hash = "h1", name = "One"),
+                        TorrentDownload(hash = "h2", name = "Two"),
+                    ),
+                ),
+            )
+
+            val result =
+                callback
+                    .onGetChildren(
+                        librarySession,
+                        controller,
+                        AudioPlayerLibrarySessionCallback.ROOT_ID,
+                        page = Int.MAX_VALUE,
+                        pageSize = Int.MAX_VALUE,
+                        params = null,
+                    ).get(1, TimeUnit.SECONDS)
+
+            assertTrue(result.value.isNullOrEmpty())
+        }
+
+    @Test
+    fun `onGetChildren skips unavailable chapter files`() =
+        runTest {
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val existingFile = File(context.cacheDir, "available_chapter.mp3").apply { writeText("audio") }
+            whenever(torrentRepository.getByHash("book")).thenReturn(
+                TorrentDownload(
+                    hash = "book",
+                    name = "Book",
+                    files =
+                        listOf(
+                            TorrentFile(index = 0, path = existingFile.absolutePath, size = 1L),
+                            TorrentFile(index = 1, path = "/missing/chapter.mp3", size = 1L),
+                        ),
+                ),
+            )
+
+            val result =
+                callback
+                    .onGetChildren(
+                        librarySession,
+                        controller,
+                        parentId = "book",
+                        page = 0,
+                        pageSize = 10,
+                        params = null,
+                    ).get(1, TimeUnit.SECONDS)
+
+            assertEquals(listOf(existingFile.absolutePath), result.value?.map { it.mediaId })
         }
 
     @Test

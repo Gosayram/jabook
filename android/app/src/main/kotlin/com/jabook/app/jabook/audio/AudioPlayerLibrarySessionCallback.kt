@@ -89,10 +89,10 @@ public class AudioPlayerLibrarySessionCallback(
         )
 
     @OptIn(UnstableApi::class)
-    override fun onConnect(
+    override fun onConnectAsync(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
-    ): MediaSession.ConnectionResult {
+    ): ListenableFuture<MediaSession.ConnectionResult> {
         // Following Media3 official pattern: only add custom commands for system controllers
         // (notification, automotive, auto companion). Regular app controllers get default commands.
         //
@@ -122,10 +122,12 @@ public class AudioPlayerLibrarySessionCallback(
 
             // NOTE: CustomLayout is NOT set here - it will be set separately after initialization
             // This follows Rhythm pattern to avoid MediaSessionLegacyStub conversion issues
-            return MediaSession.ConnectionResult
-                .AcceptedResultBuilder(session)
-                .setAvailableSessionCommands(availableCommands)
-                .build()
+            return Futures.immediateFuture(
+                MediaSession.ConnectionResult
+                    .AcceptedResultBuilder(session)
+                    .setAvailableSessionCommands(availableCommands)
+                    .build(),
+            )
         }
 
         // Regular controllers receive only non-privileged custom commands.
@@ -135,10 +137,12 @@ public class AudioPlayerLibrarySessionCallback(
                 includePrivilegedCommands = isAppController,
             )
 
-        return MediaSession.ConnectionResult
-            .AcceptedResultBuilder(session)
-            .setAvailableSessionCommands(availableCommands)
-            .build()
+        return Futures.immediateFuture(
+            MediaSession.ConnectionResult
+                .AcceptedResultBuilder(session)
+                .setAvailableSessionCommands(availableCommands)
+                .build(),
+        )
     }
 
     /**
@@ -863,6 +867,7 @@ public class AudioPlayerLibrarySessionCallback(
                     val sortedFiles = download.files.sortedBy { it.path }
                     for (file in sortedFiles) {
                         val f = File(file.path)
+                        if (!f.isFile) continue
                         val chapterMetadata =
                             MediaMetadata
                                 .Builder()
@@ -908,7 +913,7 @@ public class AudioPlayerLibrarySessionCallback(
                 }
             }
 
-            LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+            LibraryResult.ofItemList(ImmutableList.copyOf(items.paginate(page, pageSize)), params)
         }
 
     override fun onSearch(
@@ -995,7 +1000,7 @@ public class AudioPlayerLibrarySessionCallback(
                 }
             }
 
-            LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+            LibraryResult.ofItemList(ImmutableList.copyOf(items.paginate(page, pageSize)), params)
         }
 
     /**
@@ -1004,11 +1009,11 @@ public class AudioPlayerLibrarySessionCallback(
      * This is called by the system when user wants to resume playback from a previous session.
      * Based on Media3 DemoMediaLibrarySessionCallback example.
      */
-    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
     @OptIn(UnstableApi::class) // onPlaybackResumption callback + MediaItemsWithStartPosition
     override fun onPlaybackResumption(
         mediaSession: MediaSession,
         controller: MediaSession.ControllerInfo,
+        isForPlayback: Boolean,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> =
         service.playerServiceScope.future(Dispatchers.IO) {
             // Check if book is completed - don't resume completed books
@@ -1136,6 +1141,14 @@ public class AudioPlayerLibrarySessionCallback(
                         "AudioPlayerService",
                         "Restoring full playlist: ${playlist.size} items, index=$correctedIndex",
                     )
+
+                    if (!isForPlayback) {
+                        return@future MediaSession.MediaItemsWithStartPosition(
+                            listOf(playlist[correctedIndex]),
+                            0,
+                            persistedState.currentPosition,
+                        )
+                    }
 
                     return@future MediaSession.MediaItemsWithStartPosition(
                         playlist,
@@ -1285,4 +1298,15 @@ public class AudioPlayerLibrarySessionCallback(
     private fun isDownloadOffline(download: com.jabook.app.jabook.compose.data.torrent.TorrentDownload): Boolean =
         download.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.COMPLETED ||
             download.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.SEEDING
+
+    private fun List<MediaItem>.paginate(
+        page: Int,
+        pageSize: Int,
+    ): List<MediaItem> {
+        if (page < 0 || pageSize <= 0) return emptyList()
+        val start = page.toLong() * pageSize
+        if (start >= size) return emptyList()
+        val end = (start + pageSize).coerceAtMost(size.toLong()).toInt()
+        return subList(start.toInt(), end)
+    }
 }

@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-@file:Suppress("DEPRECATION") // BitmapLoader is deprecated in Media3 but still required
-
 package com.jabook.app.jabook.audio
 
 import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.session.BitmapLoader // Deprecated but still required by current Media3 API
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaNotification
@@ -46,10 +44,9 @@ public class AudioPlayerNotificationProvider(
     // Coil provides superior memory management and async loading
     private val coilBitmapLoader = CoilBitmapLoader(service)
 
-    // Create a custom BitmapLoader that conditionally fails/skips loading for minimal mode
-    // Note: BitmapLoader is deprecated in Media3 but still required for compatibility
-    @Suppress("DEPRECATION")
-    private val minimalBitmapLoader =
+    // Share this loader with MediaLibrarySession so artwork behavior is identical in the session
+    // and notification, including minimal-notification mode.
+    internal val bitmapLoader: BitmapLoader =
         object : BitmapLoader {
             override fun loadBitmap(uri: android.net.Uri): ListenableFuture<Bitmap> {
                 if (service.isMinimalNotification) {

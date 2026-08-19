@@ -18,6 +18,7 @@ import android.content.Context
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.MediaSource
 import androidx.test.core.app.ApplicationProvider
 import com.jabook.app.jabook.compose.core.di.AppDispatchers
 import kotlinx.coroutines.CompletableDeferred
@@ -107,7 +108,7 @@ class PlaylistManagerEdgeCaseTest {
             advanceUntilIdle()
 
             verify(exoPlayer).clearMediaItems()
-            verify(exoPlayer, never()).setMediaItems(any(), any<Int>(), any<Long>())
+            verify(exoPlayer, never()).setMediaSources(any(), any<Int>(), any<Long>())
             verify(exoPlayer, never()).prepare()
         }
 
@@ -124,7 +125,7 @@ class PlaylistManagerEdgeCaseTest {
             )
             advanceUntilIdle()
 
-            verify(exoPlayer).setMediaItems(any(), eq(0), eq(1234L))
+            verify(exoPlayer).setMediaSources(any(), eq(0), eq(1234L))
             verify(exoPlayer).prepare()
         }
 
@@ -146,7 +147,7 @@ class PlaylistManagerEdgeCaseTest {
             verify(exoPlayer).clearMediaItems()
             verify(exoPlayer).addMediaSource(eq(0), any())
             verify(exoPlayer).prepare()
-            verify(exoPlayer, never()).setMediaItems(any(), any<Int>(), any<Long>())
+            verify(exoPlayer, never()).setMediaSources(any(), any<Int>(), any<Long>())
 
             val orderedAdds = inOrder(exoPlayer)
             largePlaylist.indices.forEach { index ->
@@ -173,7 +174,7 @@ class PlaylistManagerEdgeCaseTest {
             assertTrue(callbackSuccess == true)
             assertNull(callbackError)
             verify(exoPlayer).clearMediaItems()
-            verify(exoPlayer).setMediaItems(any(), any<Int>(), any<Long>())
+            verify(exoPlayer).setMediaSources(any(), any<Int>(), any<Long>())
         }
 
     @Test
@@ -297,6 +298,10 @@ class PlaylistManagerEdgeCaseTest {
             assertTrue(snapshot != null)
             assertEquals(3, snapshot?.filePaths?.size)
             assertEquals(0, snapshot?.currentIndex)
+
+            val sourcesCaptor = argumentCaptor<List<MediaSource>>()
+            verify(exoPlayer, times(2)).setMediaSources(sourcesCaptor.capture(), any(), any())
+            assertEquals(3, sourcesCaptor.lastValue.size)
 
             val persistedCaptor = argumentCaptor<PlayerPersistenceManager.PersistedPlayerState>()
             verify(playerPersistenceManager).savePersistedPlayerState(persistedCaptor.capture())

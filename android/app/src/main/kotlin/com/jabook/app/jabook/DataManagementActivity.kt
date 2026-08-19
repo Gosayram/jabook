@@ -22,12 +22,17 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.cache.Cache
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.util.LogUtils
+import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
+import javax.inject.Inject
 
 /**
  * Activity for managing app storage space.
@@ -38,7 +43,12 @@ import java.io.File
  *
  * The activity shows storage information and allows clearing cache.
  */
+@AndroidEntryPoint
+@OptIn(UnstableApi::class)
 public class DataManagementActivity : AppCompatActivity() {
+    @Inject
+    public lateinit var mediaCache: Cache
+
     private lateinit var cacheSizeText: TextView
     private lateinit var dataSizeText: TextView
     private lateinit var totalSizeText: TextView
@@ -214,7 +224,8 @@ public class DataManagementActivity : AppCompatActivity() {
                 // Clear internal cache
                 val internalCache = cacheDir
                 clearedSize += getDirectorySize(internalCache)
-                deleteDirectory(internalCache)
+                clearMediaCache()
+                deleteDirectory(internalCache, preservePlaybackCache = true)
 
                 // Clear external cache
                 externalCacheDir?.let {
@@ -259,12 +270,20 @@ public class DataManagementActivity : AppCompatActivity() {
     /**
      * Recursively deletes directory.
      */
-    private fun deleteDirectory(directory: File) {
+    private fun clearMediaCache() {
+        mediaCache.keys.forEach(mediaCache::removeResource)
+    }
+
+    private fun deleteDirectory(
+        directory: File,
+        preservePlaybackCache: Boolean = false,
+    ) {
         try {
             if (directory.exists() && directory.isDirectory) {
                 val files = directory.listFiles()
                 if (files != null) {
                     for (file in files) {
+                        if (preservePlaybackCache && file.name == PLAYBACK_CACHE_DIRECTORY) continue
                         if (file.isDirectory) {
                             deleteDirectory(file)
                         } else {
@@ -278,5 +297,9 @@ public class DataManagementActivity : AppCompatActivity() {
         } catch (e: Exception) {
             LogUtils.w("DataManagementActivity", "Error deleting ${directory.path}", e)
         }
+    }
+
+    private companion object {
+        private const val PLAYBACK_CACHE_DIRECTORY = "playback_cache"
     }
 }

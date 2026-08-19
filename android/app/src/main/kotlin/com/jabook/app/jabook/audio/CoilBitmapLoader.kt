@@ -12,16 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-@file:Suppress("DEPRECATION") // BitmapLoader is deprecated in Media3 but still required
-
 package com.jabook.app.jabook.audio
 
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.annotation.OptIn
+import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.session.BitmapLoader
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
@@ -52,7 +50,6 @@ import kotlinx.coroutines.launch
  * @param context Application context for Coil initialization
  */
 @OptIn(UnstableApi::class)
-@Suppress("DEPRECATION") // BitmapLoader is deprecated in Media3 but still required
 public class CoilBitmapLoader(
     private val context: Context,
 ) : BitmapLoader {

@@ -14,9 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
-import androidx.annotation.OptIn
 import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +33,6 @@ internal class AudioPlayerPostInitCoordinator(
 ) {
     fun run() {
         restorePlaybackSpeed()
-        setupNotificationProvider()
         setupAudioOutputManager()
         service.playbackEnhancerService.initialize()
         service.bassBoostManager.initialize()
@@ -55,16 +52,6 @@ internal class AudioPlayerPostInitCoordinator(
             } catch (e: Exception) {
                 LogUtils.e("AudioPlayerService", "Failed to restore playback speed", e)
             }
-        }
-    }
-
-    @OptIn(UnstableApi::class)
-    private fun setupNotificationProvider() {
-        if (service.mediaLibrarySession != null) {
-            service.setNotificationProvider(AudioPlayerNotificationProvider(service))
-            LogUtils.i("AudioPlayerService", "MediaNotificationProvider set for MediaLibrarySession")
-        } else {
-            LogUtils.w("AudioPlayerService", "MediaLibrarySession is null, cannot set MediaNotificationProvider")
         }
     }
 

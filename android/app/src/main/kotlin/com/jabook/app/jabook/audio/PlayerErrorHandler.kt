@@ -78,7 +78,6 @@ internal class PlayerErrorHandler(
         when {
             cause is HttpDataSource.InvalidResponseCodeException -> {
                 LogUtils.e(TAG, "HTTP error: code=${cause.responseCode}, msg=${cause.responseMessage}")
-                if (!cause.headerFields.isEmpty()) LogUtils.e(TAG, "HTTP headers: ${cause.headerFields}")
             }
             cause is HttpDataSource.HttpDataSourceException -> LogUtils.e(TAG, "HTTP data source error: type=${cause.type}")
             cause is java.io.IOException -> LogUtils.e(TAG, "IO error: ${cause.message}")
