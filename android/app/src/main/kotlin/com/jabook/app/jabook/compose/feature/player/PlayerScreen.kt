@@ -1055,14 +1055,6 @@ public fun PlayerScreen(
                         onChapterClick = { chapterIndex ->
                             // Start playback immediately (skipToChapter now includes play())
                             viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex))
-                            // On compact screens, smoothly close the pane after selection
-                            scope.launch {
-                                // Small delay to ensure playback starts before closing
-                                kotlinx.coroutines.delay(50L)
-                                if (scaffoldNavigator.canNavigateBack()) {
-                                    scaffoldNavigator.navigateBack()
-                                }
-                            }
                         },
                     )
                 }

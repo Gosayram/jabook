@@ -18,6 +18,7 @@ import android.content.Context
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.test.core.app.ApplicationProvider
@@ -163,6 +164,23 @@ class CrossfadeTest {
         crossFadePlayer.startCrossFade()
 
         verify(playerB).setPlaybackSpeed(1.5f)
+    }
+
+    @Test
+    fun `crossfade preserves repeat and shuffle modes on the incoming player`() {
+        whenever(playerA.repeatMode).thenReturn(Player.REPEAT_MODE_ALL)
+        whenever(playerA.shuffleModeEnabled).thenReturn(true)
+
+        crossFadePlayer.startCrossFade()
+
+        verify(playerB).repeatMode = Player.REPEAT_MODE_ALL
+        verify(playerB).shuffleModeEnabled = true
+    }
+
+    @Test
+    fun `chapter repeat skips crossfade`() {
+        assertFalse(canCrossfadeForRepeatMode(Player.REPEAT_MODE_ONE))
+        assertTrue(canCrossfadeForRepeatMode(Player.REPEAT_MODE_ALL))
     }
 
     @Test

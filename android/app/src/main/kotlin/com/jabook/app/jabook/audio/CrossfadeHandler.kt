@@ -16,9 +16,12 @@ package com.jabook.app.jabook.audio
 
 import android.os.Handler
 import android.os.Looper
+import androidx.media3.common.Player
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+internal fun canCrossfadeForRepeatMode(repeatMode: Int): Boolean = repeatMode != Player.REPEAT_MODE_ONE
 
 /**
  * Handles crossfade scheduling and monitoring.
@@ -69,6 +72,7 @@ internal class CrossfadeHandler(
 
         val currentPlayer = service.getActivePlayer()
         if (!currentPlayer.isPlaying) return
+        if (!canCrossfadeForRepeatMode(currentPlayer.repeatMode)) return
 
         val duration = currentPlayer.duration
         val position = currentPlayer.currentPosition

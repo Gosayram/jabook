@@ -24,7 +24,9 @@ import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -231,11 +233,13 @@ public class SyncWorker
                             continue
                         }
                         val request = Request.Builder().url(coverUrl).build()
-                        coverDownloadClient.newCall(request).execute().use { response ->
-                            check(response.isSuccessful) { "Cover request failed: HTTP ${response.code}" }
-                            response.body.byteStream().use { input ->
-                                AtomicFileWriter.writeWithLock(coverFile) { output ->
-                                    input.copyTo(output)
+                        withContext(Dispatchers.IO) {
+                            coverDownloadClient.newCall(request).execute().use { response ->
+                                check(response.isSuccessful) { "Cover request failed: HTTP ${response.code}" }
+                                response.body.byteStream().use { input ->
+                                    AtomicFileWriter.writeWithLock(coverFile) { output ->
+                                        input.copyTo(output)
+                                    }
                                 }
                             }
                         }

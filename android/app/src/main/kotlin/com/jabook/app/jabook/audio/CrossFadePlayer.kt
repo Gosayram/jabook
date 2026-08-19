@@ -205,6 +205,8 @@ public class CrossFadePlayer(
         fadingOutPlayer.volume = 1f
         fadingInPlayer.volume = 0f
         fadingInPlayer.setPlaybackSpeed(fadingOutPlayer.playbackParameters.speed)
+        fadingInPlayer.repeatMode = fadingOutPlayer.repeatMode
+        fadingInPlayer.shuffleModeEnabled = fadingOutPlayer.shuffleModeEnabled
 
         // Start the next player
         fadingInPlayer.play()
