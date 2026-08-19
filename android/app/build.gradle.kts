@@ -555,7 +555,7 @@ dependencies {
     implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.hilt.compiler)
 
-    // Media3 - Native audio player (stable 1.10.0)
+    // Media3 - Native audio player (stable 1.11.0; version catalog is the source of truth)
     implementation(libs.bundles.media3)
 
     // Audio metadata parsing using KTagLib (TagLib Kotlin bindings)
@@ -588,7 +588,6 @@ dependencies {
 
     // Security & Encryption - Modern approach with Tink (replaces deprecated EncryptedSharedPreferences)
     implementation(libs.tink.android)
-    // Media3 is pinned via version catalog (stable 1.10.0)
 
     // Media library for MediaStyle notification (required for MediaStyle class)
     // MediaStyle is part of androidx.media, not androidx.core

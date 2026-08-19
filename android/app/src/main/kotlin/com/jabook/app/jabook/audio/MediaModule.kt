@@ -390,30 +390,7 @@ public object MediaModule {
             ).build()
     }
 
-    /**
-     * Calculates optimal cache size limit based on available storage.
-     *
-     * @param ctx Application context
-     * @return Cache size limit in bytes
-     */
-    private fun buildPlaybackCacheLimit(ctx: Context): Long {
-        val baseFolder =
-            ctx
-                .externalCacheDir
-                ?.takeIf { it.exists() && it.canWrite() }
-                ?: ctx.cacheDir
-
-        val stat = android.os.StatFs(baseFolder.path)
-        val available = stat.availableBytes
-        val dynamicCap = (available - KEEP_FREE_BYTES).coerceAtLeast(MIN_CACHE_BYTES)
-
-        return minOf(MAX_CACHE_BYTES, dynamicCap)
-    }
-
-    private const val MAX_CACHE_BYTES = 512L * 1024 * 1024 // 512 MB
     private const val DEFAULT_CACHE_BYTES = 200L * 1024 * 1024 // 200 MB (fallback if StatFs fails)
-    private const val KEEP_FREE_BYTES = 20L * 1024 * 1024 // 20 MB
-    private const val MIN_CACHE_BYTES = 10L * 1024 * 1024 // 10 MB
 }
 
 /**
