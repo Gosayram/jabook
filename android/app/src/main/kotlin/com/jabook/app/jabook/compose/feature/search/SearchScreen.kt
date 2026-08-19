@@ -82,7 +82,6 @@ import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
 import com.jabook.app.jabook.compose.domain.model.SearchHistoryItem
 import com.jabook.app.jabook.compose.domain.model.SearchSortOrder
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -136,29 +135,8 @@ public fun SearchScreen(
     val indexingViewModel: com.jabook.app.jabook.compose.feature.indexing.IndexingViewModel = hiltViewModel()
     val context = androidx.compose.ui.platform.LocalContext.current
     val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
-    var indexSize by remember { mutableStateOf(0) }
-    var showIndexingMessage by remember { mutableStateOf(false) }
-
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        indexSize = indexingViewModel.getIndexSize()
-        if (indexSize == 0) {
-            showIndexingMessage = true
-        }
-    }
-
-    // Update index size when indexing completes
-    androidx.compose.runtime.LaunchedEffect(isIndexing) {
-        if (!isIndexing) {
-            indexSize = indexingViewModel.getIndexSize()
-            showIndexingMessage = indexSize == 0
-        } else {
-            while (indexingViewModel.isIndexing.value) {
-                indexSize = indexingViewModel.getIndexSize()
-                showIndexingMessage = indexSize == 0
-                delay(1500L)
-            }
-        }
-    }
+    val indexSize by indexingViewModel.indexSize.collectAsStateWithLifecycle()
+    val showIndexingMessage = isIndexing || indexSize == 0
 
     // Removed filter sheet - using adaptive pane instead
     val imagePickerLauncher =

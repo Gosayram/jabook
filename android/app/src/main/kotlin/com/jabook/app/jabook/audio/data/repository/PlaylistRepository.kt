@@ -20,8 +20,7 @@ import com.jabook.app.jabook.audio.data.local.dao.PlaylistDao
 import com.jabook.app.jabook.audio.data.local.database.entity.PlaylistEntity
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import org.json.JSONArray
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -52,7 +51,7 @@ public class PlaylistRepository
             currentIndex: Int = 0,
         ): Result<Unit> =
             try {
-                val filePathsJson = JSONArray(filePaths).toString()
+                val filePathsJson = Json.encodeToString(filePaths)
                 val entity =
                     PlaylistEntity(
                         bookId = bookId,
@@ -74,8 +73,7 @@ public class PlaylistRepository
          */
         public fun parseFilePaths(filePathsJson: String): List<String> =
             try {
-                val jsonArray = JSONArray(filePathsJson)
-                (0 until jsonArray.length()).map { jsonArray.getString(it) }
+                Json.decodeFromString<List<String>>(filePathsJson)
             } catch (e: Exception) {
                 emptyList()
             }

@@ -18,7 +18,6 @@ import androidx.work.BackoffPolicy
 import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import dagger.hilt.android.scopes.ViewModelScoped
@@ -41,7 +40,6 @@ public class IndexingWorkScheduler
                             .putBoolean(IndexingWorker.KEY_PRELOAD_COVERS, true)
                             .build(),
                     ).setConstraints(WorkConstraintsPolicy.userInitiatedDownload())
-                    .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                     .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.SECONDS)
                     .addTag(IndexingWorker.WORK_NAME_ONE_TIME)
                     .build()

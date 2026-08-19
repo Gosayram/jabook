@@ -23,7 +23,6 @@ import com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerContro
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 /**
  * One-shot session hint observers: sleep-timer resume hint, phone-call bookmark notice,
@@ -84,7 +83,10 @@ internal class PlayerSessionHintsHandler(
                 if (hasShownEqRecommendation) return@collect
                 hasShownEqRecommendation = true
 
-                val hourOfDay = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+                val hourOfDay =
+                    java.time.LocalTime
+                        .now()
+                        .hour
                 val audioOutputType = EqContextRecommendationPolicy.detectAudioOutputType(context)
                 val recommendation = EqContextRecommendationPolicy(context).recommend(hourOfDay, audioOutputType, null)
                 if (recommendation != null) {

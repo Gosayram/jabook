@@ -18,8 +18,10 @@ import com.jabook.app.jabook.audio.core.result.Result
 import com.jabook.app.jabook.audio.data.local.dao.SavedPlayerStateDao
 import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEntity
 import kotlinx.coroutines.CancellationException
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -76,10 +78,10 @@ public class SavedPlayerStateRepository
             sleepTimerRemainingSeconds: Int? = null,
         ): Result<Unit> =
             try {
-                val filePathsJson = JSONArray(filePaths).toString()
+                val filePathsJson = Json.encodeToString(filePaths)
                 val metadataJson =
                     if (metadata != null && metadata.isNotEmpty()) {
-                        JSONObject(metadata).toString()
+                        Json.encodeToString(metadata.mapValues { JsonPrimitive(it.value) })
                     } else {
                         null
                     }
@@ -139,8 +141,7 @@ public class SavedPlayerStateRepository
          */
         public fun parseFilePaths(filePathsJson: String): List<String> =
             try {
-                val jsonArray = JSONArray(filePathsJson)
-                (0 until jsonArray.length()).map { jsonArray.getString(it) }
+                Json.decodeFromString<List<String>>(filePathsJson)
             } catch (e: Exception) {
                 emptyList()
             }
@@ -153,14 +154,8 @@ public class SavedPlayerStateRepository
                 if (metadataJson == null || metadataJson.isEmpty()) {
                     return null
                 }
-                val jsonObject = JSONObject(metadataJson)
-                val map = mutableMapOf<String, String>()
-                val keys = jsonObject.keys()
-                while (keys.hasNext()) {
-                    val key = keys.next()
-                    map[key] = jsonObject.getString(key)
-                }
-                map
+                val jsonObject = Json.parseToJsonElement(metadataJson).jsonObject
+                jsonObject.mapValues { it.value.jsonPrimitive.content }
             } catch (e: Exception) {
                 null
             }

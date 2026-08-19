@@ -176,7 +176,7 @@ public class GlobalExceptionHandler(
     ): String =
         buildString {
             appendLine("=== JaBook Crash Report ===")
-            appendLine("Time: ${java.util.Date()}")
+            appendLine("Time: ${java.time.Instant.now()}")
             appendLine("Thread: ${thread.name}")
             appendLine("Build: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) flavor=${BuildConfig.FLAVOR}")
             appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")

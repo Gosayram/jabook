@@ -1141,50 +1141,42 @@ public fun SettingsScreen(
                 )
             }
 
-            // Handle Export Success - Share file
+            // Handle backup state changes
             LaunchedEffect(backupState) {
-                if (backupState is BackupUiState.ExportReady) {
-                    val uri = (backupState as BackupUiState.ExportReady).uri
-                    val intent =
-                        android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                            type = "application/json"
-                            putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                            putExtra(android.content.Intent.EXTRA_SUBJECT, context.getString(R.string.jabookBackup))
-                            putExtra(
-                                android.content.Intent.EXTRA_TEXT,
-                                context.getString(R.string.backupOfJabookSettingsAndData),
-                            )
-                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                    context.startActivity(
-                        android.content.Intent.createChooser(intent, context.getString(R.string.exportBackup)),
-                    )
-                    viewModel.resetBackupState()
-                }
-            }
-
-            // Handle Import Success - Show statistics
-            LaunchedEffect(backupState) {
-                if (backupState is BackupUiState.ImportComplete) {
-                    val stats = (backupState as BackupUiState.ImportComplete).stats
-                    android.widget.Toast
-                        .makeText(
-                            context,
-                            context.getString(R.string.importSuccessfulStats),
-                            android.widget.Toast.LENGTH_LONG,
-                        ).show()
-                    viewModel.resetBackupState()
-                }
-            }
-
-            // Handle Errors
-            LaunchedEffect(backupState) {
-                if (backupState is BackupUiState.Error) {
-                    val error = (backupState as BackupUiState.Error).message
-                    android.widget.Toast
-                        .makeText(context, error, android.widget.Toast.LENGTH_LONG)
-                        .show()
-                    viewModel.resetBackupState()
+                when (val state = backupState) {
+                    is BackupUiState.ExportReady -> {
+                        val intent =
+                            android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "application/json"
+                                putExtra(android.content.Intent.EXTRA_STREAM, state.uri)
+                                putExtra(android.content.Intent.EXTRA_SUBJECT, context.getString(R.string.jabookBackup))
+                                putExtra(
+                                    android.content.Intent.EXTRA_TEXT,
+                                    context.getString(R.string.backupOfJabookSettingsAndData),
+                                )
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                        context.startActivity(
+                            android.content.Intent.createChooser(intent, context.getString(R.string.exportBackup)),
+                        )
+                        viewModel.resetBackupState()
+                    }
+                    is BackupUiState.ImportComplete -> {
+                        android.widget.Toast
+                            .makeText(
+                                context,
+                                context.getString(R.string.importSuccessfulStats),
+                                android.widget.Toast.LENGTH_LONG,
+                            ).show()
+                        viewModel.resetBackupState()
+                    }
+                    is BackupUiState.Error -> {
+                        android.widget.Toast
+                            .makeText(context, state.message, android.widget.Toast.LENGTH_LONG)
+                            .show()
+                        viewModel.resetBackupState()
+                    }
+                    else -> {}
                 }
             }
 
