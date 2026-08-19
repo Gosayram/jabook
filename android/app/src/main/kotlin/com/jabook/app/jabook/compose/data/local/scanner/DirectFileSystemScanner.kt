@@ -734,13 +734,14 @@ public class DirectFileSystemScanner
 
             val embedded = M4bChapterParser.parseM4bChapters(only.filePath) ?: return null
             if (embedded.size < 2) return null
+            val durationMs = fileDurationMs?.takeIf { it > embedded.last().startMs } ?: return null
 
             return embedded.mapIndexed { index, ch ->
                 val endMs =
                     if (index < embedded.size - 1) {
                         embedded[index + 1].startMs
                     } else {
-                        fileDurationMs ?: 0L
+                        durationMs
                     }
                 ScannedChapter(
                     filePath = only.filePath,

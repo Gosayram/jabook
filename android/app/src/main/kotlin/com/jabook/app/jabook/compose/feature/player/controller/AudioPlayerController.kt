@@ -24,12 +24,14 @@ import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.MediaControllerConstants
 import com.jabook.app.jabook.audio.MediaControllerExtensions
+import com.jabook.app.jabook.audio.PlaylistItem
 import com.jabook.app.jabook.audio.processors.ChapterLoudnessTransitionPolicy
 import com.jabook.app.jabook.audio.processors.PitchCorrectionPolicy
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
@@ -42,6 +44,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
@@ -139,6 +144,9 @@ public class AudioPlayerController
         private val _currentBookId = MutableStateFlow<String?>(null)
         public val currentBookId: StateFlow<String?> = _currentBookId.asStateFlow()
 
+        private val _terminalPlaybackErrors = MutableSharedFlow<String>(extraBufferCapacity = 1)
+        public val terminalPlaybackErrors: SharedFlow<String> = _terminalPlaybackErrors.asSharedFlow()
+
         // Connection state for debugging - tracks MediaController connection status
         public enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED, FAILED_USING_FALLBACK }
 
@@ -156,6 +164,7 @@ public class AudioPlayerController
         private data class PendingLoadRequest(
             val requestId: Long,
             val filePaths: List<String>,
+            val playlistItems: List<PlaylistItem>,
             val initialChapterIndex: Int,
             val initialPosition: Long,
             val autoPlay: Boolean,
@@ -352,6 +361,16 @@ public class AudioPlayerController
                 override fun onOffloadedPlayback(isOffloadedPlayback: Boolean) {
                     this@AudioPlayerController.isAudioOffloaded = isOffloadedPlayback
                     logger.d { "MediaController audio offload: $isOffloadedPlayback" }
+                }
+            }
+
+        private val mediaControllerCallback =
+            object : MediaController.Listener {
+                override fun onError(
+                    controller: MediaController,
+                    sessionError: SessionError,
+                ) {
+                    _terminalPlaybackErrors.tryEmit(sessionError.message)
                 }
             }
 
@@ -582,6 +601,7 @@ public class AudioPlayerController
                     MediaController
                         .Builder(context, sessionToken)
                         .setApplicationLooper(context.mainLooper)
+                        .setListener(mediaControllerCallback)
                         .buildAsync()
                 mediaControllerFuture = controllerFuture
 
@@ -866,6 +886,7 @@ public class AudioPlayerController
          */
         public fun loadBook(
             filePaths: List<String>,
+            playlistItems: List<PlaylistItem> = filePaths.map(::PlaylistItem),
             initialChapterIndex: Int = 0,
             initialPosition: Long = 0L,
             autoPlay: Boolean = false,
@@ -877,6 +898,7 @@ public class AudioPlayerController
                 PendingLoadRequest(
                     requestId = nextRequestId(),
                     filePaths = filePaths,
+                    playlistItems = playlistItems,
                     initialChapterIndex = initialChapterIndex,
                     initialPosition = initialPosition,
                     autoPlay = autoPlay,
@@ -924,6 +946,7 @@ public class AudioPlayerController
                     PendingLoadRequest(
                         requestId = request.requestId,
                         filePaths = request.filePaths,
+                        playlistItems = request.playlistItems,
                         initialChapterIndex = request.initialChapterIndex,
                         initialPosition = request.initialPosition,
                         autoPlay = request.autoPlay,
@@ -989,6 +1012,7 @@ public class AudioPlayerController
                         MediaControllerExtensions.setPlaylist(
                             controller = controller,
                             filePaths = request.filePaths,
+                            playlistItems = request.playlistItems,
                             metadata = request.metadata,
                             initialTrackIndex = request.initialChapterIndex,
                             initialPosition = request.initialPosition,

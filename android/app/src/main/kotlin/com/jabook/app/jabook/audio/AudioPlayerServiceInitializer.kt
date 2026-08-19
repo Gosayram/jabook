@@ -354,6 +354,9 @@ public class AudioPlayerServiceInitializer(
             }, service.playerServiceScope)
         service.crossFadePlayer?.onPlayerChanged = { newPlayer ->
             try {
+                // The incoming player already owns a complete crossfade queue. An older
+                // incremental loader must not append its sources after this swap.
+                service.playlistManager?.cancelAsyncLoadingForPlayerSwitch()
                 service.rebindActivePlayer(newPlayer)
             } catch (e: Exception) {
                 LogUtils.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)

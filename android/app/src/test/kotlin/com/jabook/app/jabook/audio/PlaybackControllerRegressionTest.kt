@@ -134,6 +134,38 @@ class PlaybackControllerRegressionTest {
         }
 
     @Test
+    fun `PlayerErrorHandler reports only terminal errors`() =
+        runTest(testDispatcher) {
+            val player: Player = mock()
+            val terminalErrors = mutableListOf<String>()
+            val retryableError =
+                ExoPlaybackException.createForSource(
+                    java.io.IOException("offline"),
+                    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                )
+            val terminalError =
+                ExoPlaybackException.createForSource(
+                    java.io.IOException("server unavailable"),
+                    PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+                )
+            val errorHandler =
+                PlayerErrorHandler(
+                    getActivePlayer = { player },
+                    getActualPlaylistSize = { 1 },
+                    getCurrentMetadata = { null },
+                    getCurrentBookId = { "book-1" },
+                    onTerminalError = terminalErrors::add,
+                )
+
+            errorHandler.handlePlayerError(retryableError)
+            assertTrue(terminalErrors.isEmpty())
+
+            errorHandler.handlePlayerError(terminalError)
+
+            assertTrue(terminalErrors.single().contains("server", ignoreCase = true))
+        }
+
+    @Test
     fun `PlayerConfigurator preserves normalizer reference through player lifecycle`() =
         runTest(testDispatcher) {
             // Verify the loudnessNormalizer property is readable and writable

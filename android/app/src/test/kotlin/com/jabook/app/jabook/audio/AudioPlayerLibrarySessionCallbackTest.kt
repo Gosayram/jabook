@@ -309,42 +309,32 @@ class AudioPlayerLibrarySessionCallbackTest {
             }
         val command = SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_PLAYLIST, Bundle.EMPTY)
 
-        doAnswer { invocation ->
-            @Suppress("UNCHECKED_CAST")
-            val callback = invocation.getArgument<((Boolean, Exception?) -> Unit)?>(5)
-            callback?.invoke(true, null)
-            Unit
-        }.whenever(service).setPlaylist(
-            filePaths = any(),
-            metadata = anyOrNull(),
-            initialTrackIndex = anyOrNull(),
-            initialPosition = anyOrNull(),
-            groupPath = anyOrNull(),
-            callback = anyOrNull(),
-        )
-
         val future = callback.onCustomCommand(session, controller, command, args)
 
         val filePathsCaptor = argumentCaptor<List<String>>()
+        val playlistItemsCaptor = argumentCaptor<List<PlaylistItem>>()
         val metadataCaptor = argumentCaptor<Map<String, String>?>()
         val initialTrackIndexCaptor = argumentCaptor<Int?>()
         val initialPositionCaptor = argumentCaptor<Long?>()
         val groupPathCaptor = argumentCaptor<String?>()
         val callbackCaptor = argumentCaptor<((Boolean, Exception?) -> Unit)?>()
         verify(service).setPlaylist(
-            filePaths = filePathsCaptor.capture(),
-            metadata = metadataCaptor.capture(),
-            initialTrackIndex = initialTrackIndexCaptor.capture(),
-            initialPosition = initialPositionCaptor.capture(),
-            groupPath = groupPathCaptor.capture(),
-            callback = callbackCaptor.capture(),
+            filePathsCaptor.capture(),
+            metadataCaptor.capture(),
+            initialTrackIndexCaptor.capture(),
+            initialPositionCaptor.capture(),
+            groupPathCaptor.capture(),
+            callbackCaptor.capture(),
+            playlistItemsCaptor.capture(),
         )
         assertEquals(listOf("content://books/ch1.mp3", "content://books/ch2.mp3"), filePathsCaptor.firstValue)
+        assertEquals(filePathsCaptor.firstValue, playlistItemsCaptor.firstValue.map(PlaylistItem::path))
         assertEquals(null, metadataCaptor.firstValue)
         assertEquals(1, initialTrackIndexCaptor.firstValue)
         assertEquals(12_345L, initialPositionCaptor.firstValue)
         assertEquals("external://shared-audio", groupPathCaptor.firstValue)
         assertNotEquals(null, callbackCaptor.firstValue)
+        callbackCaptor.firstValue?.invoke(true, null)
 
         val result = future.get(1, TimeUnit.SECONDS)
         assertEquals(SessionResult.RESULT_SUCCESS, result.resultCode)
@@ -363,7 +353,15 @@ class AudioPlayerLibrarySessionCallbackTest {
             "bad_value",
             result.extras.getString(SetPlaylistCommandResultPolicy.EXTRA_ERROR_REASON),
         )
-        verify(service, never()).setPlaylist(any(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull())
+        verify(service, never()).setPlaylist(
+            any(),
+            anyOrNull(),
+            anyOrNull(),
+            anyOrNull(),
+            anyOrNull(),
+            anyOrNull(),
+            any(),
+        )
     }
 
     @Test

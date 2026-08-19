@@ -64,6 +64,7 @@ internal class PlayerListener(
     getCrossfadeHandler: (() -> CrossfadeHandler?)? = null,
     coroutineScope: kotlinx.coroutines.CoroutineScope? = null,
     private val onIsPlayingChanged: ((Boolean) -> Unit)? = null,
+    private val onTerminalPlaybackError: (String) -> Unit = {},
 ) : Player.Listener {
     private var ownedScope: kotlinx.coroutines.CoroutineScope? = null
 
@@ -108,6 +109,7 @@ internal class PlayerListener(
             getActualPlaylistSize = { getActualPlaylistSize?.invoke() ?: getActivePlayer().mediaItemCount },
             getCurrentMetadata = { getCurrentMetadata() },
             getCurrentBookId = { getCurrentBookId?.invoke() },
+            onTerminalError = onTerminalPlaybackError,
         )
 
     private val metadataHandler: PlayerMetadataHandler =

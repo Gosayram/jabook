@@ -161,6 +161,7 @@ internal class PlayerConfigurator(
                     getCrossfadeHandler = { service.crossfadeHandler },
                     coroutineScope = service.playerServiceScope, // Pass coroutine scope for debounce
                     onIsPlayingChanged = { isPlaying -> service.onPlaybackIsPlayingChanged(isPlaying) },
+                    onTerminalPlaybackError = service::reportTerminalPlaybackError,
                 )
 
             playerListener?.let {
@@ -368,10 +369,10 @@ internal class PlayerConfigurator(
                 service.playerServiceScope.launch {
                     try {
                         playlistManager.preparePlaybackOptimized(
-                            filePathsForRestore,
-                            playlistManager.currentMetadata,
-                            savedStateForRestore.currentIndex,
-                            savedStateForRestore.currentPosition,
+                            filePaths = filePathsForRestore,
+                            metadata = playlistManager.currentMetadata,
+                            initialTrackIndex = savedStateForRestore.currentIndex,
+                            initialPosition = savedStateForRestore.currentPosition,
                         )
 
                         // Position is already applied in preparePlaybackOptimized if firstTrackIndex == savedState.currentIndex

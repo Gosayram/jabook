@@ -21,6 +21,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
+import com.jabook.app.jabook.audio.PlaylistItem
 import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -663,7 +664,11 @@ public class PlayerViewModel
             playerController.setOnChapterChangedCallback { onChapterChanged() }
 
             if (state is PlayerState.Active && !isControllerBoundToCurrentBook) {
-                val filePaths = state.chapters.mapNotNull { it.fileUrl }
+                val playlistItems =
+                    state.chapters.mapNotNull { chapter ->
+                        chapter.fileUrl?.let { path -> PlaylistItem(path, chapter.id, chapter.startMs, chapter.endMs) }
+                    }
+                val filePaths = playlistItems.map(PlaylistItem::path)
                 if (filePaths.isNotEmpty()) {
                     // Single source-of-truth: initialize from unified uiState (controller/service-driven
                     // when bound, DB-restored only as bootstrap fallback before controller binds).
@@ -676,6 +681,7 @@ public class PlayerViewModel
 
                     playerController.loadBook(
                         filePaths = filePaths,
+                        playlistItems = playlistItems,
                         initialChapterIndex = initialChapterIndex,
                         initialPosition = initialPosition,
                         autoPlay = false, // Don't auto-play on init
@@ -786,6 +792,11 @@ public class PlayerViewModel
             viewModelScope.launch {
                 commandFlow.collect { command ->
                     commandExecutor.execute(command)
+                }
+            }
+            viewModelScope.launch {
+                playerController.terminalPlaybackErrors.collect { message ->
+                    emitEffect(PlayerEffect.ShowError(message))
                 }
             }
 

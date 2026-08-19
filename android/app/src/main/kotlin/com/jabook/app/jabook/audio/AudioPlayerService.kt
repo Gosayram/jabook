@@ -27,6 +27,7 @@ import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
+import androidx.media3.session.SessionError
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -448,6 +449,11 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun getMediaSession(): MediaSession? = mediaLibrarySession ?: mediaSession
 
+    /** Sends a user-safe error only after the playback recovery policy is exhausted. */
+    internal fun reportTerminalPlaybackError(message: String) {
+        getMediaSession()?.sendError(SessionError(SessionError.ERROR_IO, message))
+    }
+
     /** Delegates to [NotificationIntentFactory.getSingleTopActivity]. */
     internal fun getSingleTopActivity(): PendingIntent? = notificationIntentFactory.getSingleTopActivity()
 
@@ -576,6 +582,7 @@ public class AudioPlayerService : MediaLibraryService() {
         initialPosition: Long? = null,
         groupPath: String? = null,
         callback: ((Boolean, Exception?) -> Unit)? = null,
+        playlistItems: List<PlaylistItem> = filePaths.map(::PlaylistItem),
     ) {
         // Apply book loudness compensation when switching to a different book
         if (groupPath != null && groupPath != currentGroupPath) {
@@ -595,6 +602,7 @@ public class AudioPlayerService : MediaLibraryService() {
         ) {
             performBookSwitchCrossfade(
                 filePaths = filePaths,
+                playlistItems = playlistItems,
                 metadata = metadata,
                 initialTrackIndex = initialTrackIndex,
                 initialPosition = initialPosition,
@@ -605,12 +613,13 @@ public class AudioPlayerService : MediaLibraryService() {
         }
 
         playlistManager?.setPlaylist(
-            filePaths,
-            metadata,
-            initialTrackIndex,
-            initialPosition,
-            groupPath,
-            callback,
+            filePaths = filePaths,
+            playlistItems = playlistItems,
+            metadata = metadata,
+            initialTrackIndex = initialTrackIndex,
+            initialPosition = initialPosition,
+            groupPath = groupPath,
+            callback = callback,
         ) ?: run {
             LogUtils.e("AudioPlayerService", "PlaylistManager not initialized")
             callback?.invoke(false, IllegalStateException("PlaylistManager not initialized"))
@@ -654,6 +663,7 @@ public class AudioPlayerService : MediaLibraryService() {
      */
     private fun performBookSwitchCrossfade(
         filePaths: List<String>,
+        playlistItems: List<PlaylistItem>,
         metadata: Map<String, String>?,
         initialTrackIndex: Int?,
         initialPosition: Long?,
@@ -662,12 +672,16 @@ public class AudioPlayerService : MediaLibraryService() {
     ) {
         val settings =
             playerConfigurator?.audioProcessingSettings ?: run {
-                playlistManager?.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback)
+                playlistManager?.setPlaylist(
+                    filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback, playlistItems,
+                )
                 return
             }
         val cfp =
             crossFadePlayer ?: run {
-                playlistManager?.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback)
+                playlistManager?.setPlaylist(
+                    filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback, playlistItems,
+                )
                 return
             }
         val pm =
@@ -683,10 +697,10 @@ public class AudioPlayerService : MediaLibraryService() {
         val normalizedIndex = sessionState.normalizedTrackIndex
 
         playerServiceScope.launch {
-            val firstSource = pm.createMediaSource(playlistPaths, normalizedIndex, metadata)
+            val firstSource = pm.createMediaSourceForItems(playlistItems, normalizedIndex, metadata)
             if (firstSource == null) {
                 LogUtils.w("AudioPlayerService", "Failed to create first MediaSource for book crossfade, falling back")
-                pm.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback)
+                pm.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback, playlistItems)
                 return@launch
             }
 
@@ -694,7 +708,7 @@ public class AudioPlayerService : MediaLibraryService() {
             // Cancel the old transition and let PlaylistManager apply the latest selection.
             if (cfp.isTransitionRunning()) {
                 cfp.pause()
-                pm.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback)
+                pm.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback, playlistItems)
                 return@launch
             }
 
@@ -712,6 +726,7 @@ public class AudioPlayerService : MediaLibraryService() {
                 playerServiceScope.launch(Dispatchers.Main) {
                     try {
                         pm.currentFilePaths = playlistPaths
+                        pm.currentPlaylistItems = playlistItems
                         pm.currentMetadata = metadata
                         pm.currentGroupPath = groupPath
                         pm.actualTrackIndex = normalizedIndex
@@ -722,7 +737,7 @@ public class AudioPlayerService : MediaLibraryService() {
                         // remains at its intended timeline index, then append following sources.
                         val currentPlayer = getActivePlayer()
                         for (index in PlaylistSessionStatePolicy.crossfadeRemainingSourceIndices(playlistPaths.size, normalizedIndex)) {
-                            val source = pm.createMediaSource(playlistPaths, index, metadata)
+                            val source = pm.createMediaSourceForItems(playlistItems, index, metadata)
                             if (source != null) {
                                 if (index < normalizedIndex) {
                                     currentPlayer.addMediaSource(0, source)
@@ -744,7 +759,7 @@ public class AudioPlayerService : MediaLibraryService() {
                     } catch (e: Exception) {
                         LogUtils.e("AudioPlayerService", "Failed to complete book switch crossfade", e)
                         // Fallback: load playlist normally
-                        pm.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback)
+                        pm.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback, playlistItems)
                     }
                 }
             }
@@ -774,6 +789,9 @@ public class AudioPlayerService : MediaLibraryService() {
 
     /** Applies lifecycle side effects after MediaSession pauses the player directly. */
     internal fun onMediaSessionPlaybackPaused() {
+        // MediaSession invokes Player.pause() directly, bypassing AudioServiceCommandRouter.
+        // Cancel both sides of an active fade so playback cannot resume after a user pause.
+        crossFadePlayer?.pause()
         playbackLifecycleActions.onPause()
     }
 

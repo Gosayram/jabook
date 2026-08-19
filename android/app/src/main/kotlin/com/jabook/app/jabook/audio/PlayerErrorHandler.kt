@@ -40,6 +40,7 @@ internal class PlayerErrorHandler(
     private val getCurrentMetadata: () -> Map<String, String>?,
     private val getCurrentBookId: () -> String?,
     private val scheduleNotificationUpdate: () -> Unit = {},
+    private val onTerminalError: (String) -> Unit = {},
 ) {
     private var retryCount = 0
     private var skipCount = 0
@@ -99,6 +100,7 @@ internal class PlayerErrorHandler(
                 fallbackMessage = error.message,
             )
 
+        var isTerminal = false
         val userMessage =
             when (resolution.action) {
                 PlaybackRecoveryAction.RETRY -> {
@@ -127,11 +129,18 @@ internal class PlayerErrorHandler(
                     if (attemptSkipOnError()) {
                         resolution.userMessage
                     } else {
+                        isTerminal = true
                         "Playback error: Unable to recover automatically."
                     }
                 }
-                PlaybackRecoveryAction.RESCAN_LIBRARY -> "${resolution.userMessage} Try re-scanning your library."
-                PlaybackRecoveryAction.NONE -> resolution.userMessage
+                PlaybackRecoveryAction.RESCAN_LIBRARY -> {
+                    isTerminal = true
+                    "${resolution.userMessage} Try re-scanning your library."
+                }
+                PlaybackRecoveryAction.NONE -> {
+                    isTerminal = true
+                    resolution.userMessage
+                }
             }
 
         val player = getActivePlayer()
@@ -141,6 +150,9 @@ internal class PlayerErrorHandler(
         val bookName = getCurrentMetadata()?.get("title") ?: "unknown"
 
         LogUtils.e(TAG, "$userMessage (track=$currentIndex/$totalTracks, retry=$retryCount/$maxRetries, book=$bookId)")
+        if (isTerminal) {
+            onTerminalError(userMessage)
+        }
         scheduleNotificationUpdate()
     }
 

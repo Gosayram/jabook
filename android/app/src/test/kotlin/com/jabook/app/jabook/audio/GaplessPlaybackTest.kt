@@ -111,7 +111,7 @@ class GaplessPlaybackTest {
             whenever(exoPlayer.mediaItemCount).thenReturn(0)
 
             // When playlist is prepared
-            playlistManager.preparePlaybackOptimized(files, null)
+            playlistManager.preparePlaybackOptimized(filePaths = files, metadata = null)
 
             // Advance all coroutines to ensure completion
             advanceUntilIdle()

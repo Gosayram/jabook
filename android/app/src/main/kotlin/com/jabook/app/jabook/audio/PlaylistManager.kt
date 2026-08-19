@@ -87,6 +87,8 @@ internal class PlaylistManager(
     // State managed by PlaylistManager
     var currentFilePaths: List<String>? = null
         internal set
+    var currentPlaylistItems: List<PlaylistItem>? = null
+        internal set
     var currentMetadata: Map<String, String>? = null
         internal set
     var currentGroupPath: String? = null
@@ -154,6 +156,14 @@ internal class PlaylistManager(
     }
 
     /**
+     * Prevents an old incremental load from mutating a player after CrossFadePlayer swaps it.
+     */
+    public fun cancelAsyncLoadingForPlayerSwitch() {
+        playlistLoadGeneration += 1L
+        cancelAndClearActiveLoadingJob()
+    }
+
+    /**
      * Applies queue mutation atomically against in-memory queue state.
      *
      * This is a Queue Engine v2 foundation and does not yet mutate MediaSession playlist directly.
@@ -189,7 +199,19 @@ internal class PlaylistManager(
                     currentIndex = actualTrackIndex.coerceIn(0, (currentPaths.size - 1).coerceAtLeast(0)),
                     operation = operation,
                 )
+            val currentItems = currentPlaylistItems ?: currentPaths.map(::PlaylistItem)
+            val updatedItems =
+                when (operation) {
+                    is PlaylistQueueOperation.Add ->
+                        currentItems.toMutableList().apply { add(operation.index ?: size, PlaylistItem(operation.path)) }
+                    is PlaylistQueueOperation.Remove -> currentItems.toMutableList().apply { removeAt(operation.index) }
+                    is PlaylistQueueOperation.Move ->
+                        currentItems.toMutableList().apply { add(operation.toIndex, removeAt(operation.fromIndex)) }
+                    is PlaylistQueueOperation.Replace -> operation.paths.map(::PlaylistItem)
+                    is PlaylistQueueOperation.PlayAt -> currentItems
+                }
             currentFilePaths = mutation.paths
+            currentPlaylistItems = updatedItems
             actualTrackIndex = mutation.currentIndex
             lastQueueMutationKey = operationKey
             lastQueueMutationAtMs = nowMs
@@ -197,6 +219,7 @@ internal class PlaylistManager(
 
             syncQueueWithPlayerAndPersistence(
                 updatedPaths = mutation.paths,
+                updatedItems = updatedItems,
                 updatedIndex = mutation.currentIndex,
                 previousCurrentPath = previousCurrentPath,
                 previousPositionMs = previousPositionMs,
@@ -211,6 +234,7 @@ internal class PlaylistManager(
 
     private suspend fun syncQueueWithPlayerAndPersistence(
         updatedPaths: List<String>,
+        updatedItems: List<PlaylistItem>,
         updatedIndex: Int,
         previousCurrentPath: String?,
         previousPositionMs: Long,
@@ -235,7 +259,7 @@ internal class PlaylistManager(
         val dataSourceFactory = SimpleMediaDataSourceFactory()
         val mediaSources =
             updatedPaths.mapIndexed { index, _ ->
-                createMediaSourceForIndex(updatedPaths, index, currentMetadata, dataSourceFactory)
+                createMediaSourceForIndex(updatedItems, index, currentMetadata, dataSourceFactory)
             }
 
         withContext(dispatchers.main) {
@@ -299,6 +323,7 @@ internal class PlaylistManager(
         initialPosition: Long? = null,
         groupPath: String? = null,
         callback: ((Boolean, Exception?) -> Unit)? = null,
+        playlistItems: List<PlaylistItem> = filePaths.map(::PlaylistItem),
     ) {
         // CRITICAL: Use mutex to prevent race conditions when multiple setPlaylist calls happen simultaneously
         // This ensures only one playlist loads at a time and prevents state corruption
@@ -320,6 +345,7 @@ internal class PlaylistManager(
                     try {
                         setPlaylistInternal(
                             filePaths = filePaths,
+                            playlistItems = playlistItems,
                             metadata = metadata,
                             initialTrackIndex = initialTrackIndex,
                             initialPosition = initialPosition,
@@ -359,6 +385,7 @@ internal class PlaylistManager(
      */
     private suspend fun setPlaylistInternal(
         filePaths: List<String>,
+        playlistItems: List<PlaylistItem>,
         metadata: Map<String, String>? = null,
         initialTrackIndex: Int? = null,
         initialPosition: Long? = null,
@@ -378,6 +405,9 @@ internal class PlaylistManager(
                 filePaths = filePaths,
                 initialTrackIndex = initialTrackIndex,
             )
+        require(playlistItems.map(PlaylistItem::path) == sessionState.filePaths) {
+            "playlistItems must match the playlist paths"
+        }
 
         // Initialize actualTrackIndex from normalized initial track index.
         actualTrackIndex = sessionState.normalizedTrackIndex
@@ -392,6 +422,7 @@ internal class PlaylistManager(
         // Keep the persisted/scanner-provided chapter order; the UI uses the same order.
         val playlistPaths = sessionState.filePaths
         currentFilePaths = playlistPaths
+        currentPlaylistItems = playlistItems
 
         LogUtils.i(
             "AudioPlayerService",
@@ -426,6 +457,7 @@ internal class PlaylistManager(
         try {
             preparePlaybackOptimizedInternal(
                 filePaths = playlistPaths,
+                playlistItems = playlistItems,
                 metadata = metadata,
                 initialTrackIndex = sessionState.normalizedTrackIndex,
                 initialPosition = initialPosition,
@@ -484,6 +516,7 @@ internal class PlaylistManager(
      */
     public suspend fun preparePlaybackOptimized(
         filePaths: List<String>,
+        playlistItems: List<PlaylistItem> = filePaths.map(::PlaylistItem),
         metadata: Map<String, String>?,
         initialTrackIndex: Int? = null,
         initialPosition: Long? = null,
@@ -492,6 +525,7 @@ internal class PlaylistManager(
         playlistLoadMutex.withLock {
             preparePlaybackOptimizedInternal(
                 filePaths = filePaths,
+                playlistItems = playlistItems,
                 metadata = metadata,
                 initialTrackIndex = initialTrackIndex,
                 initialPosition = initialPosition,
@@ -502,6 +536,7 @@ internal class PlaylistManager(
 
     private suspend fun preparePlaybackOptimizedInternal(
         filePaths: List<String>,
+        playlistItems: List<PlaylistItem>,
         metadata: Map<String, String>?,
         initialTrackIndex: Int? = null,
         initialPosition: Long? = null,
@@ -535,6 +570,7 @@ internal class PlaylistManager(
                     // Use simplified synchronous loading for small playlists (like Rhythm)
                     preparePlaybackSynchronous(
                         filePaths,
+                        playlistItems,
                         metadata,
                         initialTrackIndex,
                         initialPosition,
@@ -546,6 +582,7 @@ internal class PlaylistManager(
                     // Use optimized async loading for large playlists
                     preparePlaybackAsync(
                         filePaths = filePaths,
+                        playlistItems = playlistItems,
                         metadata = metadata,
                         initialTrackIndex = initialTrackIndex,
                         initialPosition = initialPosition,
@@ -570,6 +607,7 @@ internal class PlaylistManager(
      */
     private suspend fun preparePlaybackSynchronous(
         filePaths: List<String>,
+        playlistItems: List<PlaylistItem>,
         metadata: Map<String, String>?,
         initialTrackIndex: Int?,
         initialPosition: Long?,
@@ -581,7 +619,7 @@ internal class PlaylistManager(
         // Create all MediaSources synchronously so the configured cache route is retained.
         val mediaSources =
             filePaths.mapIndexed { index, _ ->
-                createMediaSourceForIndex(filePaths, index, metadata, dataSourceFactory)
+                createMediaSourceForIndex(playlistItems, index, metadata, dataSourceFactory)
             }
 
         // Apply to player on main thread
@@ -629,6 +667,7 @@ internal class PlaylistManager(
      */
     private suspend fun preparePlaybackAsync(
         filePaths: List<String>,
+        playlistItems: List<PlaylistItem>,
         metadata: Map<String, String>?,
         initialTrackIndex: Int?,
         initialPosition: Long?,
@@ -652,7 +691,7 @@ internal class PlaylistManager(
             // This allows player to start immediately while other tracks load in background
             val firstMediaSource =
                 createMediaSourceForIndex(
-                    filePaths,
+                    playlistItems,
                     firstTrackIndex,
                     metadata,
                     dataSourceFactory,
@@ -739,7 +778,7 @@ internal class PlaylistManager(
                                 )
                                 val mediaSource =
                                     createMediaSourceForIndex(
-                                        filePaths,
+                                        playlistItems,
                                         index,
                                         metadata,
                                         dataSourceFactory,
@@ -1304,14 +1343,15 @@ internal class PlaylistManager(
      * Helper method to avoid code duplication.
      */
     private fun createMediaSourceForIndex(
-        filePaths: List<String>,
+        playlistItems: List<PlaylistItem>,
         index: Int,
         metadata: Map<String, String>?,
         dataSourceFactory: SimpleMediaDataSourceFactory,
     ): MediaSource {
-        val path = filePaths[index]
+        val item = playlistItems[index]
+        val path = item.path
         val uri = createUriForPath(path)
-        val mediaMetadata = createMediaMetadata(path, index, metadata, filePaths.size)
+        val mediaMetadata = createMediaMetadata(path, index, metadata, playlistItems.size)
 
         LogUtils.d(
             "AudioPlayerService",
@@ -1329,8 +1369,20 @@ internal class PlaylistManager(
             MediaItem
                 .Builder()
                 .setUri(uri)
+                .setMediaId(item.mediaId)
                 .setMediaMetadata(mediaMetadata)
-                .build()
+                .apply {
+                    if (item.clipStartPositionMs != null || item.clipEndPositionMs != null) {
+                        setClippingConfiguration(
+                            MediaItem.ClippingConfiguration
+                                .Builder()
+                                .apply {
+                                    item.clipStartPositionMs?.let(::setStartPositionMs)
+                                    item.clipEndPositionMs?.let(::setEndPositionMs)
+                                }.build(),
+                        )
+                    }
+                }.build()
 
         val sourceFactory = dataSourceFactory.createDataSourceFactoryForUri(uri)
         return ProgressiveMediaSource
@@ -1348,7 +1400,16 @@ internal class PlaylistManager(
         metadata: Map<String, String>?,
     ): MediaSource? {
         if (index < 0 || index >= filePaths.size) return null
-        return createMediaSourceForIndex(filePaths, index, metadata, SimpleMediaDataSourceFactory())
+        return createMediaSourceForItems(filePaths.map(::PlaylistItem), index, metadata)
+    }
+
+    public fun createMediaSourceForItems(
+        playlistItems: List<PlaylistItem>,
+        index: Int,
+        metadata: Map<String, String>?,
+    ): MediaSource? {
+        if (index < 0 || index >= playlistItems.size) return null
+        return createMediaSourceForIndex(playlistItems, index, metadata, SimpleMediaDataSourceFactory())
     }
 
     /**
@@ -1356,12 +1417,12 @@ internal class PlaylistManager(
      * Used for Crossfade pre-loading.
      */
     public fun getNextMediaSource(currentIndex: Int): MediaSource? {
-        val paths = currentFilePaths ?: return null
+        val items = currentPlaylistItems ?: currentFilePaths?.map(::PlaylistItem) ?: return null
         val nextIndex = currentIndex + 1
-        if (nextIndex >= paths.size) return null // End of playlist
+        if (nextIndex >= items.size) return null // End of playlist
 
         return createMediaSourceForIndex(
-            paths,
+            items,
             nextIndex,
             currentMetadata,
             SimpleMediaDataSourceFactory(),
@@ -1432,8 +1493,8 @@ internal class PlaylistManager(
      * @param nextTrackIndex Index of the track to preload
      */
     public fun preloadNextTrack(nextTrackIndex: Int) {
-        val filePaths = this.currentFilePaths
-        val playlistSize = filePaths?.size
+        val playlistItems = this.currentPlaylistItems ?: this.currentFilePaths?.map(::PlaylistItem)
+        val playlistSize = playlistItems?.size
 
         val player = getActivePlayer()
         val alreadyLoaded = TrackExistencePolicy.exists(player, nextTrackIndex)
@@ -1458,7 +1519,7 @@ internal class PlaylistManager(
 
             PreloadDecision.PRELOAD -> Unit
         }
-        val nonNullPaths = filePaths ?: return
+        val nonNullItems = playlistItems ?: return
 
         // Preload in background to avoid blocking
         playerServiceScope.launch(mediaItemDispatcher) {
@@ -1469,7 +1530,7 @@ internal class PlaylistManager(
                 preloadExecutor.execute(
                     buildMediaSource = {
                         createMediaSourceForIndex(
-                            filePaths = nonNullPaths,
+                            playlistItems = nonNullItems,
                             index = nextTrackIndex,
                             metadata = metadataSnapshot,
                             dataSourceFactory = dataSourceFactory,

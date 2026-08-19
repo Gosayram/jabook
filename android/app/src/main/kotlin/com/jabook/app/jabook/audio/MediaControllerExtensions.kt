@@ -49,12 +49,25 @@ public object MediaControllerExtensions {
         initialTrackIndex: Int? = null,
         initialPosition: Long? = null,
         groupPath: String? = null,
+        playlistItems: List<PlaylistItem> = filePaths.map(::PlaylistItem),
     ): ListenableFuture<SessionResult> {
         val args =
             Bundle().apply {
+                require(playlistItems.map(PlaylistItem::path) == filePaths) {
+                    "playlistItems must match filePaths"
+                }
                 putStringArray(
                     AudioPlayerLibrarySessionCallback.ARG_FILE_PATHS,
                     filePaths.toTypedArray(),
+                )
+                putStringArray(AudioPlayerLibrarySessionCallback.ARG_MEDIA_IDS, playlistItems.map(PlaylistItem::mediaId).toTypedArray())
+                putLongArray(
+                    AudioPlayerLibrarySessionCallback.ARG_CLIP_STARTS_MS,
+                    playlistItems.map { it.clipStartPositionMs ?: CLIP_POSITION_UNSET }.toLongArray(),
+                )
+                putLongArray(
+                    AudioPlayerLibrarySessionCallback.ARG_CLIP_ENDS_MS,
+                    playlistItems.map { it.clipEndPositionMs ?: CLIP_POSITION_UNSET }.toLongArray(),
                 )
                 if (metadata != null) {
                     val metadataBundle = Bundle()
@@ -81,6 +94,8 @@ public object MediaControllerExtensions {
             )
         return controller.sendCustomCommand(command, Bundle.EMPTY)
     }
+
+    private const val CLIP_POSITION_UNSET = Long.MIN_VALUE
 
     /**
      * Sets sleep timer with duration in minutes.

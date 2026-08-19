@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
+import com.jabook.app.jabook.audio.PlaylistItem
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
@@ -58,7 +59,13 @@ internal class PlayerPlaybackBootstrapHandler(
         autoPlay: Boolean,
         resolveHierarchicalSpeed: Boolean,
     ) {
-        val filePaths = state.chapters.mapNotNull { it.fileUrl }
+        val playlistItems =
+            state.chapters.mapNotNull { chapter ->
+                chapter.fileUrl?.let { path ->
+                    PlaylistItem(path, chapter.id, chapter.startMs, chapter.endMs)
+                }
+            }
+        val filePaths = playlistItems.map(PlaylistItem::path)
         if (filePaths.isEmpty()) return
 
         val currentPositionMs = playerController.currentPosition.value
@@ -73,6 +80,7 @@ internal class PlayerPlaybackBootstrapHandler(
 
         playerController.loadBook(
             filePaths = filePaths,
+            playlistItems = playlistItems,
             initialChapterIndex = state.currentChapterIndex,
             initialPosition = currentPositionMs,
             autoPlay = autoPlay,

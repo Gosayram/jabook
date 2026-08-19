@@ -88,4 +88,25 @@ class SetPlaylistCommandArgsParserTest {
         assertEquals(0L, result?.initialPositionMs)
         assertEquals("book-42", result?.groupPath)
     }
+
+    @Test
+    fun `parse keeps distinct clips for chapters in one M4B`() {
+        val args =
+            Bundle().apply {
+                putStringArray(AudioPlayerLibrarySessionCallback.ARG_FILE_PATHS, arrayOf("/book.m4b", "/book.m4b"))
+                putStringArray(AudioPlayerLibrarySessionCallback.ARG_MEDIA_IDS, arrayOf("chapter-1", "chapter-2"))
+                putLongArray(AudioPlayerLibrarySessionCallback.ARG_CLIP_STARTS_MS, longArrayOf(0L, 12_000L))
+                putLongArray(AudioPlayerLibrarySessionCallback.ARG_CLIP_ENDS_MS, longArrayOf(12_000L, Long.MIN_VALUE))
+            }
+
+        val result = SetPlaylistCommandArgsParser.parse(args)
+
+        assertEquals(
+            listOf(
+                PlaylistItem("/book.m4b", "chapter-1", 0L, 12_000L),
+                PlaylistItem("/book.m4b", "chapter-2", 12_000L, null),
+            ),
+            result?.playlistItems,
+        )
+    }
 }

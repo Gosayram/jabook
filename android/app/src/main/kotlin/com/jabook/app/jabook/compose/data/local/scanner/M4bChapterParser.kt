@@ -30,9 +30,8 @@ public data class M4bChapter(
 /**
  * Pure-Kotlin parser for Nero chpl (chapter) atoms embedded in M4B/MP4 files.
  *
- * Walks the MP4 box tree: moov → udta → chpl.  Supports both 32-bit and
- * 64-bit box sizes.  Detects the optional 8-byte reserved field between
- * entry_count and the first entry by sanity-checking timestamps.
+ * Walks the MP4 box tree: moov → udta → chpl. Supports both 32-bit and
+ * 64-bit box sizes.
  */
 public object M4bChapterParser {
     private const val MAX_CHAPTERS = 4096
@@ -48,8 +47,8 @@ public object M4bChapterParser {
             RandomAccessFile(filePath, "r").use { raf ->
                 if (!hasFtypBox(raf)) return null
 
-                val chplOffset = findChplBox(raf) ?: return null
-                parseChplBox(raf, chplOffset)
+                val chpl = findChplBox(raf) ?: return null
+                parseChplBox(raf, chpl)
             }
         } catch (_: Exception) {
             null
@@ -59,25 +58,15 @@ public object M4bChapterParser {
     // ── ftyp validation ────────────────────────────────────────────────
 
     private fun hasFtypBox(raf: RandomAccessFile): Boolean {
-        if (raf.length() < 8) return false
-        raf.seek(0)
-        val size = readUint32(raf)
-        if (size < 8) return false
-        return readBoxType(raf) == "ftyp"
+        return readBoxAt(raf, 0, raf.length())?.type == "ftyp"
     }
 
     // ── box tree walking ───────────────────────────────────────────────
 
-    private fun findChplBox(raf: RandomAccessFile): Long? {
-        raf.seek(0)
-        val moovOffset = findBox(raf, 0, raf.length(), "moov") ?: return null
-        val moovSize = readBoxSizeAt(raf, moovOffset)
-        val moovDataEnd = moovOffset + moovSize
-
-        val udtaOffset = findBox(raf, dataStart(moovOffset, moovSize), moovDataEnd, "udta") ?: return null
-        val udtaSize = readBoxSizeAt(raf, udtaOffset)
-
-        return findBox(raf, dataStart(udtaOffset, udtaSize), udtaOffset + udtaSize, "chpl")
+    private fun findChplBox(raf: RandomAccessFile): Box? {
+        val moov = findBox(raf, 0, raf.length(), "moov") ?: return null
+        val udta = findBox(raf, moov.dataStart, moov.end, "udta") ?: return null
+        return findBox(raf, udta.dataStart, udta.end, "chpl")
     }
 
     private fun findBox(
@@ -85,16 +74,12 @@ public object M4bChapterParser {
         start: Long,
         end: Long,
         type: String,
-    ): Long? {
+    ): Box? {
         var pos = start
-        while (pos + 8 <= end) {
-            raf.seek(pos)
-            val size = readUint32(raf)
-            if (size == 0L) return null // extends to EOF — not the box we want
-            if (size < 8) return null
-            val boxType = readBoxType(raf)
-            if (boxType == type) return pos
-            pos += size
+        while (pos < end) {
+            val box = readBoxAt(raf, pos, end) ?: return null
+            if (box.type == type) return box
+            pos = box.end
         }
         return null
     }
@@ -103,28 +88,17 @@ public object M4bChapterParser {
 
     private fun parseChplBox(
         raf: RandomAccessFile,
-        chplOffset: Long,
+        chpl: Box,
     ): List<M4bChapter>? {
-        val size = readBoxSizeAt(raf, chplOffset)
-        val dataEnd = chplOffset + size
-        var pos = dataStart(chplOffset, size)
-
-        raf.seek(pos)
-        val version = raf.read()
-        if (version != 0) return null
-        raf.skipBytes(3) // flags
-
+        if (chpl.end - chpl.dataStart < 9) return null
+        raf.seek(chpl.dataStart)
+        raf.skipBytes(5) // 1 byte version + 3 bytes flags + 1 byte reserved.
         val entryCount = readUint32(raf).toInt()
         if (entryCount <= 0 || entryCount > MAX_CHAPTERS) return null
-        pos = raf.filePointer
-
-        // Try without reserved first (8-byte gap), then with.
-        val without = tryParseEntries(raf, pos, dataEnd, entryCount)
-        if (without != null) return without
-        return tryParseEntries(raf, pos + 8, dataEnd, entryCount)
+        return parseEntries(raf, raf.filePointer, chpl.end, entryCount)
     }
 
-    private fun tryParseEntries(
+    private fun parseEntries(
         raf: RandomAccessFile,
         start: Long,
         end: Long,
@@ -137,7 +111,8 @@ public object M4bChapterParser {
             if (pos + 9 > end) return null // need at least 8 ts + 1 len
             raf.seek(pos)
 
-            val ts100ns = readUint64(raf)
+            val ts100ns = readInt64(raf)
+            if (ts100ns < 0) return null
             val titleLen = raf.read()
             if (titleLen < 0 || raf.filePointer + titleLen > end) return null
 
@@ -152,7 +127,7 @@ public object M4bChapterParser {
 
         // Monotonicity sanity check
         for (i in 1 until chapters.size) {
-            if (chapters[i].startMs < chapters[i - 1].startMs) return null
+            if (chapters[i].startMs <= chapters[i - 1].startMs) return null
         }
 
         return chapters
@@ -169,7 +144,7 @@ public object M4bChapterParser {
             (buf[3].toLong() and 0xFF)
     }
 
-    private fun readUint64(raf: RandomAccessFile): Long {
+    private fun readInt64(raf: RandomAccessFile): Long {
         val buf = ByteArray(8)
         raf.readFully(buf)
         return ((buf[0].toLong() and 0xFF) shl 56) or
@@ -188,23 +163,42 @@ public object M4bChapterParser {
         return String(buf, Charsets.US_ASCII)
     }
 
-    /** Reads the full box size at [offset], handling the 64-bit largesize. */
-    private fun readBoxSizeAt(
+    private fun readBoxAt(
         raf: RandomAccessFile,
         offset: Long,
-    ): Long {
-        raf.seek(offset)
-        val size = readUint32(raf)
-        return if (size == 1L) {
-            readUint64(raf)
-        } else {
-            size
+        parentEnd: Long,
+    ): Box? {
+        if (
+            offset < 0 ||
+                offset > parentEnd ||
+                parentEnd > raf.length() ||
+                parentEnd - offset < 8
+        ) {
+            return null
         }
+        raf.seek(offset)
+        val declaredSize = readUint32(raf)
+        val type = readBoxType(raf)
+        val headerSize =
+            if (declaredSize == 1L) {
+                if (parentEnd - offset < 16) return null
+                16L
+            } else {
+                8L
+            }
+        val size =
+            when (declaredSize) {
+                0L -> parentEnd - offset
+                1L -> readInt64(raf)
+                else -> declaredSize
+            }
+        if (size < headerSize || size > parentEnd - offset) return null
+        return Box(type = type, dataStart = offset + headerSize, end = offset + size)
     }
 
-    /** Byte offset where box payload begins. */
-    private fun dataStart(
-        boxOffset: Long,
-        size: Long,
-    ): Long = boxOffset + if (size == 1L) 16 else 8
+    private data class Box(
+        val type: String,
+        val dataStart: Long,
+        val end: Long,
+    )
 }

@@ -56,11 +56,10 @@ class M4bChapterParserTest {
     /**
      * Builds a minimal MP4 byte stream: ftyp + moov(udta(chpl(...))).
      *
-     * chpl layout: version(1) + flags(3) + entryCount(4) + [reserved(8)] + entries
+     * chpl layout: version(1) + flags(3) + reserved(1) + entryCount(4) + entries
      */
     private fun buildM4b(
         chapters: List<Pair<String, Long>>, // title → startMs
-        includeReserved: Boolean = true,
         withValidFtyp: Boolean = true,
     ): ByteArray {
         // Build chpl payload first
@@ -77,7 +76,7 @@ class M4bChapterParserTest {
             chplEntries.addAll(titleBytes.toList())
         }
         val entryCount = chapters.size
-        val chplDataSize = 1 + 3 + 4 + (if (includeReserved) 8 else 0) + chplEntries.size
+        val chplDataSize = 1 + 3 + 1 + 4 + chplEntries.size
         val chplBoxSize = 8 + chplDataSize // header(8) + data
         val chplBox = ByteArray(chplBoxSize)
         writeUint32BE(chplBox, 0, chplBoxSize.toLong())
@@ -89,9 +88,9 @@ class M4bChapterParserTest {
         chplBox[9] = 0
         chplBox[10] = 0
         chplBox[11] = 0 // flags
-        writeUint32BE(chplBox, 12, entryCount.toLong())
-        var off = 16
-        if (includeReserved) off += 8
+        chplBox[12] = 0 // reserved
+        writeUint32BE(chplBox, 13, entryCount.toLong())
+        var off = 17
         for (b in chplEntries) {
             chplBox[off++] = b
         }
@@ -136,7 +135,7 @@ class M4bChapterParserTest {
     // ── tests ──────────────────────────────────────────────────────────
 
     @Test
-    fun `parses two chapters with reserved field`() {
+    fun `parses standard Nero chpl layout`() {
         val path =
             tempFile(
                 buildM4b(
@@ -145,7 +144,6 @@ class M4bChapterParserTest {
                             "Intro" to 0L,
                             "Chapter 1" to 30_000L,
                         ),
-                    includeReserved = true,
                 ),
             )
 
@@ -157,30 +155,6 @@ class M4bChapterParserTest {
         assertEquals(0L, result[0].startMs)
         assertEquals("Chapter 1", result[1].title)
         assertEquals(30_000L, result[1].startMs)
-    }
-
-    @Test
-    fun `parses two chapters without reserved field`() {
-        val path =
-            tempFile(
-                buildM4b(
-                    chapters =
-                        listOf(
-                            "Start" to 0L,
-                            "Middle" to 60_000L,
-                        ),
-                    includeReserved = false,
-                ),
-            )
-
-        val result = M4bChapterParser.parseM4bChapters(path)
-
-        assertNotNull(result)
-        assertEquals(2, result!!.size)
-        assertEquals("Start", result[0].title)
-        assertEquals(0L, result[0].startMs)
-        assertEquals("Middle", result[1].title)
-        assertEquals(60_000L, result[1].startMs)
     }
 
     @Test
@@ -288,6 +262,28 @@ class M4bChapterParserTest {
         assertNotNull(result)
         assertEquals(0L, result!![0].startMs)
         assertEquals(100L, result[1].startMs)
+    }
+
+    @Test
+    fun `parses boxes after extended-size ftyp`() {
+        val regularFile = buildM4b(chapters = listOf("Start" to 0L, "End" to 1_000L))
+        val extendedFtyp = ByteArray(20)
+        writeUint32BE(extendedFtyp, 0, 1L)
+        extendedFtyp[4] = 'f'.code.toByte()
+        extendedFtyp[5] = 't'.code.toByte()
+        extendedFtyp[6] = 'y'.code.toByte()
+        extendedFtyp[7] = 'p'.code.toByte()
+        writeUint64BE(extendedFtyp, 8, 20L)
+        extendedFtyp[16] = 'i'.code.toByte()
+        extendedFtyp[17] = 's'.code.toByte()
+        extendedFtyp[18] = 'o'.code.toByte()
+        extendedFtyp[19] = 'm'.code.toByte()
+
+        val file = extendedFtyp + regularFile.copyOfRange(12, regularFile.size)
+        val result = M4bChapterParser.parseM4bChapters(tempFile(file))
+
+        assertNotNull(result)
+        assertEquals(listOf(0L, 1_000L), result!!.map(M4bChapter::startMs))
     }
 
     @Test

@@ -369,6 +369,7 @@ public class AudioPlayerLibrarySessionCallback(
 
                 service.setPlaylist(
                     filePaths = parsedArgs.filePaths,
+                    playlistItems = parsedArgs.playlistItems,
                     metadata = parsedArgs.metadata,
                     initialTrackIndex = parsedArgs.initialTrackIndex,
                     initialPosition = parsedArgs.initialPositionMs,
@@ -527,6 +528,9 @@ public class AudioPlayerLibrarySessionCallback(
 
         // Bundle keys for command arguments
         public const val ARG_FILE_PATHS: String = "filePaths"
+        public const val ARG_MEDIA_IDS: String = "mediaIds"
+        public const val ARG_CLIP_STARTS_MS: String = "clipStartsMs"
+        public const val ARG_CLIP_ENDS_MS: String = "clipEndsMs"
         public const val ARG_METADATA: String = "metadata"
         public const val ARG_INITIAL_TRACK_INDEX: String = "initialTrackIndex"
         public const val ARG_INITIAL_POSITION: String = "initialPosition"

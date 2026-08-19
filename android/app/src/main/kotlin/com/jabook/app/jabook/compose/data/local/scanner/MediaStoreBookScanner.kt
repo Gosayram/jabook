@@ -311,6 +311,7 @@ public class MediaStoreBookScanner
 
             val embedded = M4bChapterParser.parseM4bChapters(only.filePath) ?: return null
             if (embedded.size < 2) return null
+            if (only.duration <= embedded.last().startMs) return null
 
             return embedded.mapIndexed { index, ch ->
                 val endMs =
