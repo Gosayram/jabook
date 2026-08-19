@@ -117,6 +117,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     internal val bookLoudnessCompensator: BookLoudnessCompensator = BookLoudnessCompensator()
 
+    @Volatile
     internal var mediaLibrarySession: MediaLibrarySession? = null
 
     internal var notificationHelper: NotificationHelper? = null
