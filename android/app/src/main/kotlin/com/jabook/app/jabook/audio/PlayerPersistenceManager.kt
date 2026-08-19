@@ -48,6 +48,7 @@ public class PlayerPersistenceManager
             private const val KEY_PLAYBACK_SNAPSHOT_VERSION = "playback_snapshot_version"
             private const val KEY_PLAYBACK_SNAPSHOT_GROUP_PATH = "playback_snapshot_group_path"
             private const val KEY_PLAYBACK_SNAPSHOT_FILE_PATHS = "playback_snapshot_file_paths"
+            private const val KEY_PLAYBACK_SNAPSHOT_PLAYLIST_ITEMS = "playback_snapshot_playlist_items"
             private const val KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX = "playback_snapshot_current_index"
             private const val KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION = "playback_snapshot_current_position"
             private const val KEY_PLAYBACK_SNAPSHOT_METADATA = "playback_snapshot_metadata"
@@ -69,6 +70,7 @@ public class PlayerPersistenceManager
         public data class PersistedPlayerState(
             val groupPath: String,
             val filePaths: List<String>,
+            val playlistItems: List<PlaylistItem> = filePaths.map(::PlaylistItem),
             val currentIndex: Int,
             val currentPosition: Long,
             val metadata: Map<String, String>?,
@@ -331,10 +333,19 @@ public class PlayerPersistenceManager
 
                 val metadataJson = prefs.getString(KEY_PLAYBACK_SNAPSHOT_METADATA, null)
                 val metadata = parseMetadataJson(metadataJson)
+                val playlistItems =
+                    prefs
+                        .getString(KEY_PLAYBACK_SNAPSHOT_PLAYLIST_ITEMS, null)
+                        ?.let(::parsePlaylistItemsJson)
+                        ?: filePaths.map(::PlaylistItem)
+                if (playlistItems.map(PlaylistItem::path) != filePaths) {
+                    error("playlistItems do not match filePaths")
+                }
 
                 PersistedPlayerState(
                     groupPath = groupPath,
                     filePaths = filePaths,
+                    playlistItems = playlistItems,
                     currentIndex = prefs.getInt(KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX, 0),
                     currentPosition = prefs.getLong(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION, 0L),
                     metadata = metadata,
@@ -363,6 +374,7 @@ public class PlayerPersistenceManager
                 .putInt(KEY_PLAYBACK_SNAPSHOT_VERSION, PLAYBACK_SNAPSHOT_VERSION_V1)
                 .putString(KEY_PLAYBACK_SNAPSHOT_GROUP_PATH, state.groupPath)
                 .putString(KEY_PLAYBACK_SNAPSHOT_FILE_PATHS, JSONArray(state.filePaths).toString())
+                .putString(KEY_PLAYBACK_SNAPSHOT_PLAYLIST_ITEMS, playlistItemsToJson(state.playlistItems))
                 .putInt(KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX, state.currentIndex)
                 .putLong(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION, state.currentPosition)
                 .putString(KEY_PLAYBACK_SNAPSHOT_METADATA, metadataJson)
@@ -375,6 +387,7 @@ public class PlayerPersistenceManager
                 .remove(KEY_PLAYBACK_SNAPSHOT_VERSION)
                 .remove(KEY_PLAYBACK_SNAPSHOT_GROUP_PATH)
                 .remove(KEY_PLAYBACK_SNAPSHOT_FILE_PATHS)
+                .remove(KEY_PLAYBACK_SNAPSHOT_PLAYLIST_ITEMS)
                 .remove(KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX)
                 .remove(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION)
                 .remove(KEY_PLAYBACK_SNAPSHOT_METADATA)
@@ -405,6 +418,39 @@ public class PlayerPersistenceManager
                 metadata = parseMetadataJson(json.optJSONObject("metadata")?.toString()),
             )
         }
+
+        private fun playlistItemsToJson(items: List<PlaylistItem>): String =
+            JSONArray()
+                .apply {
+                    items.forEach { item ->
+                        put(
+                            JSONObject()
+                                .put("path", item.path)
+                                .put("mediaId", item.mediaId)
+                                .put("clipStartPositionMs", item.clipStartPositionMs)
+                                .put("clipEndPositionMs", item.clipEndPositionMs),
+                        )
+                    }
+                }.toString()
+
+        private fun parsePlaylistItemsJson(json: String): List<PlaylistItem> {
+            val items = JSONArray(json)
+            return buildList(items.length()) {
+                for (index in 0 until items.length()) {
+                    val item = items.getJSONObject(index)
+                    add(
+                        PlaylistItem(
+                            path = item.getString("path"),
+                            mediaId = item.optString("mediaId").ifBlank { item.getString("path") },
+                            clipStartPositionMs = item.optLongOrNull("clipStartPositionMs"),
+                            clipEndPositionMs = item.optLongOrNull("clipEndPositionMs"),
+                        ),
+                    )
+                }
+            }
+        }
+
+        private fun JSONObject.optLongOrNull(name: String): Long? = if (isNull(name) || !has(name)) null else getLong(name)
 
         private fun parseMetadataJson(metadataJson: String?): Map<String, String>? {
             if (metadataJson.isNullOrBlank()) {

@@ -57,9 +57,7 @@ public object M4bChapterParser {
 
     // ── ftyp validation ────────────────────────────────────────────────
 
-    private fun hasFtypBox(raf: RandomAccessFile): Boolean {
-        return readBoxAt(raf, 0, raf.length())?.type == "ftyp"
-    }
+    private fun hasFtypBox(raf: RandomAccessFile): Boolean = readBoxAt(raf, 0, raf.length())?.type == "ftyp"
 
     // ── box tree walking ───────────────────────────────────────────────
 
@@ -170,9 +168,9 @@ public object M4bChapterParser {
     ): Box? {
         if (
             offset < 0 ||
-                offset > parentEnd ||
-                parentEnd > raf.length() ||
-                parentEnd - offset < 8
+            offset > parentEnd ||
+            parentEnd > raf.length() ||
+            parentEnd - offset < 8
         ) {
             return null
         }

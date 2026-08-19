@@ -673,14 +673,26 @@ public class AudioPlayerService : MediaLibraryService() {
         val settings =
             playerConfigurator?.audioProcessingSettings ?: run {
                 playlistManager?.setPlaylist(
-                    filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback, playlistItems,
+                    filePaths,
+                    metadata,
+                    initialTrackIndex,
+                    initialPosition,
+                    groupPath,
+                    callback,
+                    playlistItems,
                 )
                 return
             }
         val cfp =
             crossFadePlayer ?: run {
                 playlistManager?.setPlaylist(
-                    filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback, playlistItems,
+                    filePaths,
+                    metadata,
+                    initialTrackIndex,
+                    initialPosition,
+                    groupPath,
+                    callback,
+                    playlistItems,
                 )
                 return
             }

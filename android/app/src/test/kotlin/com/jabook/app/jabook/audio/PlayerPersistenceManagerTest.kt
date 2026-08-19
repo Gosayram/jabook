@@ -126,5 +126,30 @@ class PlayerPersistenceManagerTest {
             assertNull(prefs().getString("flutter.player_state", null))
         }
 
+    @Test
+    fun `persisted snapshot restores clip windows for chapters in one M4B`() =
+        runTest {
+            val items =
+                listOf(
+                    PlaylistItem("/book.m4b", "chapter-1", 0L, 10_000L),
+                    PlaylistItem("/book.m4b", "chapter-2", 10_000L, null),
+                )
+            manager.savePersistedPlayerState(
+                PlayerPersistenceManager.PersistedPlayerState(
+                    groupPath = "book-1",
+                    filePaths = items.map(PlaylistItem::path),
+                    playlistItems = items,
+                    currentIndex = 1,
+                    currentPosition = 500L,
+                    metadata = null,
+                ),
+            )
+
+            val restored = manager.retrievePersistedPlayerState()
+
+            assertEquals(items, restored?.playlistItems)
+            assertEquals(1, restored?.currentIndex)
+        }
+
     private fun prefs() = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
 }

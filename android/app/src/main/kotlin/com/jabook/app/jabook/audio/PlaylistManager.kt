@@ -296,6 +296,7 @@ internal class PlaylistManager(
             PlayerPersistenceManager.PersistedPlayerState(
                 groupPath = groupPath.orEmpty(),
                 filePaths = updatedPaths,
+                playlistItems = updatedItems,
                 currentIndex = normalizedIndex,
                 currentPosition = restoredPositionMs,
                 metadata = metadata,
@@ -464,6 +465,17 @@ internal class PlaylistManager(
                 loadGeneration = loadGeneration,
             )
             LogUtils.d("AudioPlayerService", "Playlist prepared successfully")
+
+            playerPersistenceManager.savePersistedPlayerState(
+                PlayerPersistenceManager.PersistedPlayerState(
+                    groupPath = groupPath.orEmpty(),
+                    filePaths = playlistPaths,
+                    playlistItems = playlistItems,
+                    currentIndex = sessionState.normalizedTrackIndex,
+                    currentPosition = (initialPosition ?: 0L).coerceAtLeast(0L),
+                    metadata = metadata,
+                ),
+            )
 
             // Call callback first to unblock Flutter
             withContext(dispatchers.main) {

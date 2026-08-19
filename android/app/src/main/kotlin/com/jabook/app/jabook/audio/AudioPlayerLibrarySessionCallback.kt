@@ -1044,7 +1044,8 @@ public class AudioPlayerLibrarySessionCallback(
                 )
 
                 val playlist = mutableListOf<MediaItem>()
-                for (filePath in persistedState.filePaths) {
+                for (item in persistedState.playlistItems) {
+                    val filePath = item.path
                     val file = File(filePath)
                     if (file.isFile) {
                         val uri = android.net.Uri.fromFile(file)
@@ -1113,9 +1114,20 @@ public class AudioPlayerLibrarySessionCallback(
                             MediaItem
                                 .Builder()
                                 .setUri(uri)
-                                .setMediaId(filePath)
+                                .setMediaId(item.mediaId)
                                 .setMediaMetadata(metadataBuilder.build())
-                                .build(),
+                                .apply {
+                                    if (item.clipStartPositionMs != null || item.clipEndPositionMs != null) {
+                                        setClippingConfiguration(
+                                            MediaItem.ClippingConfiguration
+                                                .Builder()
+                                                .apply {
+                                                    item.clipStartPositionMs?.let(::setStartPositionMs)
+                                                    item.clipEndPositionMs?.let(::setEndPositionMs)
+                                                }.build(),
+                                        )
+                                    }
+                                }.build(),
                         )
                     } else {
                         LogUtils.w(
@@ -1128,8 +1140,8 @@ public class AudioPlayerLibrarySessionCallback(
                 if (playlist.isNotEmpty()) {
                     var correctedIndex = persistedState.currentIndex
                     if (persistedState.currentIndex < persistedState.filePaths.size) {
-                        val currentFilePath = persistedState.filePaths[persistedState.currentIndex]
-                        val newIndex = playlist.indexOfFirst { it.mediaId == currentFilePath }
+                        val currentMediaId = persistedState.playlistItems[persistedState.currentIndex].mediaId
+                        val newIndex = playlist.indexOfFirst { it.mediaId == currentMediaId }
                         if (newIndex >= 0) {
                             correctedIndex = newIndex
                         } else {
