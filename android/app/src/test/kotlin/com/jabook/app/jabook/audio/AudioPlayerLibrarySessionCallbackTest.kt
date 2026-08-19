@@ -403,6 +403,34 @@ class AudioPlayerLibrarySessionCallbackTest {
         }
 
     @Test
+    fun `onPlaybackResumption marks the current embedded chapter by index`() =
+        runTest {
+            whenever(service.isBookCompleted).thenReturn(false)
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val bookFile = File(context.cacheDir, "resume_embedded_chapters.m4b").apply { writeText("audio") }
+            whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(
+                PlayerPersistenceManager.PersistedPlayerState(
+                    groupPath = "book://embedded-chapters",
+                    filePaths = listOf(bookFile.absolutePath, bookFile.absolutePath),
+                    playlistItems =
+                        listOf(
+                            PlaylistItem(bookFile.absolutePath, "chapter-1", 0L, 10_000L),
+                            PlaylistItem(bookFile.absolutePath, "chapter-2", 10_000L, null),
+                        ),
+                    currentIndex = 1,
+                    currentPosition = 42_000L,
+                    metadata = mapOf("title" to "Current chapter"),
+                ),
+            )
+
+            val result = callback.onPlaybackResumption(session, controller, true).get(1, TimeUnit.SECONDS)
+
+            assertEquals(listOf("chapter-1", "chapter-2"), result.mediaItems.map { it.mediaId })
+            assertEquals(bookFile.nameWithoutExtension, result.mediaItems[0].mediaMetadata.title)
+            assertEquals("Current chapter", result.mediaItems[1].mediaMetadata.title)
+        }
+
+    @Test
     fun `onPlaybackResumption returns only current item when playback is not requested`() =
         runTest {
             whenever(service.isBookCompleted).thenReturn(false)

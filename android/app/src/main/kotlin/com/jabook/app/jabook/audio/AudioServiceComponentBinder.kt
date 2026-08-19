@@ -219,7 +219,6 @@ internal object AudioServiceComponentBinder {
             )
         service.headsetAutoplayHandler?.startListening()
 
-        service.audioOutputDeviceMonitor = AudioOutputDeviceMonitor(service).also { it.register() }
         service.configurePlayer()
     }
 }

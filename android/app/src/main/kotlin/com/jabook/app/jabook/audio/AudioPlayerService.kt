@@ -158,7 +158,6 @@ public class AudioPlayerService : MediaLibraryService() {
     internal var mediaButtonHandler: MediaButtonHandler? = null
 
     /** BP-13.3: Audio output device routing monitor. */
-    internal var audioOutputDeviceMonitor: AudioOutputDeviceMonitor? = null
 
     // Track if playback was active before phone call (for auto-resume)
     internal var wasPlayingBeforeCall = false

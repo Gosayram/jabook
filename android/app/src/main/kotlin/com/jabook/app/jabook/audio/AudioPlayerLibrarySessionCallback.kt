@@ -1021,7 +1021,7 @@ public class AudioPlayerLibrarySessionCallback(
                 )
 
                 val playlist = mutableListOf<MediaItem>()
-                for (item in persistedState.playlistItems) {
+                for ((index, item) in persistedState.playlistItems.withIndex()) {
                     val filePath = item.path
                     val file = File(filePath)
                     if (file.isFile) {
@@ -1030,9 +1030,10 @@ public class AudioPlayerLibrarySessionCallback(
 
                         // Use filename as default title
                         var title = file.nameWithoutExtension
+                        metadataBuilder.setTitle(title)
 
                         // If this is the current item, add extra metadata if available
-                        if (persistedState.filePaths.indexOf(filePath) == persistedState.currentIndex) {
+                        if (index == persistedState.currentIndex) {
                             // Add completion extras
                             val durationMs = getDurationForFile(filePath) ?: 0L
                             if (durationMs > 0) {
@@ -1081,10 +1082,6 @@ public class AudioPlayerLibrarySessionCallback(
                                     }
                                 }
                             }
-                        } else {
-                            // For other items, we might not have specific metadata loaded yet
-                            // Just set title from filename
-                            metadataBuilder.setTitle(title)
                         }
 
                         playlist.add(

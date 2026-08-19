@@ -111,10 +111,6 @@ internal class AudioServiceReleaseHandler(
         service.headsetAutoplayHandler?.stopListening()
         service.headsetAutoplayHandler = null
 
-        // BP-13.3: Unregister audio output device monitor
-        service.audioOutputDeviceMonitor?.unregister()
-        service.audioOutputDeviceMonitor = null
-
         service.mediaSessionManager?.release()
         service.mediaSessionManager = null
 

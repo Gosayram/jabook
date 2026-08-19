@@ -297,9 +297,6 @@ public class AudioPlayerServiceInitializer(
             )
         service.headsetAutoplayHandler?.startListening()
 
-        // BP-13.3: Initialize audio output device routing monitor
-        service.audioOutputDeviceMonitor = AudioOutputDeviceMonitor(service).also { it.register() }
-
         // Ensure ExoPlayer is initialized
         // Note: Hilt initialization check removed to avoid backing field access error
         // We assume Hilt has initialized exoPlayer before onCreate calls initialize()

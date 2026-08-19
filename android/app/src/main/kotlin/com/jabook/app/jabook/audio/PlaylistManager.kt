@@ -22,7 +22,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.Cache
-import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -95,9 +94,7 @@ internal class PlaylistManager(
                 .Factory()
                 .setCache(mediaCache)
                 .setUpstreamDataSourceFactory(networkFactory)
-                .setCacheWriteDataSinkFactory(
-                    CacheDataSink.Factory().setCache(mediaCache).setFragmentSize(CacheDataSink.DEFAULT_FRAGMENT_SIZE),
-                ).setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE or CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+                .setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE or CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
         DefaultDataSource.Factory(context, cachedNetworkFactory)
     }
