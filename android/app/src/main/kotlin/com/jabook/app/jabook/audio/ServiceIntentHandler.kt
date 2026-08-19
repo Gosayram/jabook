@@ -16,7 +16,6 @@ package com.jabook.app.jabook.audio
 
 import android.app.Service
 import android.content.Intent
-import androidx.annotation.RequiresApi
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.widget.PlayerWidgetProvider
 import com.jabook.app.jabook.widget.WidgetObservabilityPolicy

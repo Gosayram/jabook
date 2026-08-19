@@ -21,10 +21,8 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
-import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.ForegroundServiceStartPolicy
@@ -169,22 +167,19 @@ public class TorrentDownloadService : Service() {
         stopSelf(startId)
     }
 
-    @RequiresApi(Build.VERSION_CODES.O)
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel =
-                NotificationChannel(
-                    CHANNEL_ID_DOWNLOADS,
-                    getString(R.string.torrent_downloads),
-                    NotificationManager.IMPORTANCE_LOW,
-                ).apply {
-                    description = getString(R.string.torrent_downloads_channel_description)
-                    setShowBadge(false)
-                }
+        val channel =
+            NotificationChannel(
+                CHANNEL_ID_DOWNLOADS,
+                getString(R.string.torrent_downloads),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = getString(R.string.torrent_downloads_channel_description)
+                setShowBadge(false)
+            }
 
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
-        }
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
     }
 
     private fun createForegroundNotification(): Notification {

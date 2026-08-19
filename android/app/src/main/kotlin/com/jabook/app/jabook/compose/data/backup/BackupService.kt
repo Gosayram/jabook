@@ -16,7 +16,6 @@ package com.jabook.app.jabook.compose.data.backup
 
 import android.content.Context
 import android.net.Uri
-import androidx.annotation.RequiresApi
 import androidx.core.content.FileProvider
 import androidx.room.withTransaction
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
@@ -277,7 +276,6 @@ public class BackupService
         /**
          * Collects app version and device information.
          */
-        @RequiresApi(android.os.Build.VERSION_CODES.P)
         private fun collectAppInfo(): AppInfo {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
             val versionName = packageInfo.versionName ?: "unknown"

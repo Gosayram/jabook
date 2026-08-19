@@ -16,8 +16,6 @@ package com.jabook.app.jabook.audio.processors
 
 import android.content.Context
 import android.media.AudioManager
-import android.os.Build
-import androidx.annotation.RequiresApi
 
 public enum class AudioOutputType {
     SPEAKER,

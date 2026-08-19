@@ -27,7 +27,9 @@ import androidx.leanback.widget.PlaybackControlsRow.PlayPauseAction
 import androidx.leanback.widget.PlaybackControlsRow.SkipNextAction
 import androidx.leanback.widget.PlaybackControlsRow.SkipPreviousAction
 import androidx.leanback.widget.PlaybackControlsRowPresenter
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController
@@ -170,17 +172,19 @@ public class TvPlaybackFragment : PlaybackSupportFragment() {
 
     private fun observePlaybackState() {
         lifecycleScope.launch {
-            audioPlayerController.isPlaying.collect { isPlaying ->
-                playPauseAction.index =
-                    if (isPlaying) {
-                        PlayPauseAction.INDEX_PAUSE
-                    } else {
-                        PlayPauseAction.INDEX_PLAY
-                    }
-                primaryActionsAdapter.notifyArrayItemRangeChanged(
-                    primaryActionsAdapter.indexOf(playPauseAction),
-                    1,
-                )
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                audioPlayerController.isPlaying.collect { isPlaying ->
+                    playPauseAction.index =
+                        if (isPlaying) {
+                            PlayPauseAction.INDEX_PAUSE
+                        } else {
+                            PlayPauseAction.INDEX_PLAY
+                        }
+                    primaryActionsAdapter.notifyArrayItemRangeChanged(
+                        primaryActionsAdapter.indexOf(playPauseAction),
+                        1,
+                    )
+                }
             }
         }
     }
