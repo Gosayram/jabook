@@ -93,6 +93,7 @@ public class AudioPlayerLibrarySessionCallback(
                 !session.isAutomotiveController(controller) && isAppController
             val availableCommands =
                 buildAvailableSessionCommands(
+                    controller = controller,
                     includeSleepTimerCommands = includeSleepTimerCommands,
                     includePrivilegedCommands = isAppController,
                 )
@@ -110,6 +111,7 @@ public class AudioPlayerLibrarySessionCallback(
         // Regular controllers receive only non-privileged custom commands.
         val availableCommands =
             buildAvailableSessionCommands(
+                controller = controller,
                 includeSleepTimerCommands = isAppController,
                 includePrivilegedCommands = isAppController,
             )
@@ -391,14 +393,24 @@ public class AudioPlayerLibrarySessionCallback(
         }
 
     private fun buildAvailableSessionCommands(
+        controller: MediaSession.ControllerInfo,
         includeSleepTimerCommands: Boolean,
         includePrivilegedCommands: Boolean,
     ): androidx.media3.session.SessionCommands {
         val builder =
-            MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
-                .buildUpon()
+            (if (controller.isTrusted) {
+                MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
+            } else {
+                MediaSession.ConnectionResult.DEFAULT_UNTRUSTED_SESSION_AND_LIBRARY_COMMANDS
+            }).buildUpon()
+
+        // Keep Media3's read-only contract for untrusted controllers. System media controllers
+        // are trusted and still receive these actions.
+        if (controller.isTrusted) {
+            builder
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY))
                 .add(androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY))
+        }
 
         if (includePrivilegedCommands) {
             builder
@@ -424,7 +436,8 @@ public class AudioPlayerLibrarySessionCallback(
         return builder.build()
     }
 
-    private fun isAppController(controller: MediaSession.ControllerInfo): Boolean = controller.packageName == service.packageName
+    private fun isAppController(controller: MediaSession.ControllerInfo): Boolean =
+        controller.isTrusted && controller.packageName == service.packageName
 
     private fun isPrivilegedCommand(action: String): Boolean =
         action == CUSTOM_COMMAND_SET_PLAYLIST ||

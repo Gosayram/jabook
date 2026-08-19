@@ -241,8 +241,8 @@ class DataMigrationManagerTest {
             whenever(
                 bookIdentifier.generateBookId(
                     eq("/storage/emulated/0/Audiobooks/MyBook"),
-                    eq<String?>(null),
-                    eq<String?>(null),
+                    isNull(),
+                    isNull(),
                 ),
             ).thenReturn("cover-book-id")
 

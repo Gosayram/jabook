@@ -97,8 +97,8 @@ class PlaybackControllerRegressionTest {
             // onIsPlayingChanged is forwarded through PlaybackEventProcessor via onEvents
             // We verify the callback was captured by construction
             assertEquals(null, capturedIsPlaying)
-            // The listener correctly stores the callback
-            assertTrue(listener is Player.Listener)
+            // Construction keeps the Media3 listener contract intact.
+            assertTrue(listener.javaClass.interfaces.contains(Player.Listener::class.java))
         }
 
     @Test

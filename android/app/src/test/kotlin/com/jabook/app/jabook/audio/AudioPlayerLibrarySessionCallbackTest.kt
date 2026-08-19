@@ -100,6 +100,7 @@ class AudioPlayerLibrarySessionCallbackTest {
         librarySession = mock()
         controller = mock()
         whenever(controller.packageName).thenReturn("com.jabook.app.jabook")
+        whenever(controller.isTrusted).thenReturn(true)
 
         callback =
             AudioPlayerLibrarySessionCallback(
@@ -131,6 +132,7 @@ class AudioPlayerLibrarySessionCallbackTest {
         whenever(session.isAutomotiveController(controller)).thenReturn(true)
         whenever(session.isAutoCompanionController(controller)).thenReturn(false)
         whenever(controller.packageName).thenReturn("com.android.car.media")
+        whenever(controller.isTrusted).thenReturn(true)
 
         val result = callback.onConnectAsync(session, controller).get(1, TimeUnit.SECONDS)
 
@@ -149,6 +151,7 @@ class AudioPlayerLibrarySessionCallbackTest {
         whenever(session.isAutomotiveController(controller)).thenReturn(false)
         whenever(session.isAutoCompanionController(controller)).thenReturn(false)
         whenever(controller.packageName).thenReturn("com.jabook.app.jabook")
+        whenever(controller.isTrusted).thenReturn(true)
 
         val result = callback.onConnectAsync(session, controller).get(1, TimeUnit.SECONDS)
 
@@ -162,11 +165,12 @@ class AudioPlayerLibrarySessionCallbackTest {
     }
 
     @Test
-    fun `onConnect excludes privileged commands for untrusted controller`() {
+    fun `onConnect preserves Media3 read-only commands for untrusted controller`() {
         whenever(session.isMediaNotificationController(controller)).thenReturn(false)
         whenever(session.isAutomotiveController(controller)).thenReturn(false)
         whenever(session.isAutoCompanionController(controller)).thenReturn(false)
         whenever(controller.packageName).thenReturn("com.example.untrusted")
+        whenever(controller.isTrusted).thenReturn(false)
 
         val result = callback.onConnectAsync(session, controller).get(1, TimeUnit.SECONDS)
 
@@ -176,10 +180,12 @@ class AudioPlayerLibrarySessionCallbackTest {
             SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_PLAYLIST, Bundle.EMPTY)
         val rewindCommand =
             SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_REWIND, Bundle.EMPTY)
+        val setRatingCommand = SessionCommand(SessionCommand.COMMAND_CODE_SESSION_SET_RATING)
 
         assertTrue(!result.availableSessionCommands.contains(sleepTimerCommand))
         assertTrue(!result.availableSessionCommands.contains(setPlaylistCommand))
-        assertTrue(result.availableSessionCommands.contains(rewindCommand))
+        assertTrue(!result.availableSessionCommands.contains(rewindCommand))
+        assertTrue(!result.availableSessionCommands.contains(setRatingCommand))
     }
 
     @Test

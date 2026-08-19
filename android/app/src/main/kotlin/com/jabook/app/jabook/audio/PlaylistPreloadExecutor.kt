@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import androidx.media3.exoplayer.source.MediaSource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
@@ -46,6 +47,8 @@ internal class PlaylistPreloadExecutor(
                     PlaylistPreloadExecutionResult.SkippedAlreadyAvailable
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             PlaylistPreloadExecutionResult.Failed(e)
         }

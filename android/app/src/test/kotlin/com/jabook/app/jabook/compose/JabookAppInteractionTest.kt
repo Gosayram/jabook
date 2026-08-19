@@ -50,7 +50,7 @@ class JabookAppInteractionTest {
     @Test
     fun `navigate_to_player extra extraction logic`() {
         // Simulate the intent extra check done in JabookApp
-        val extras = mapOf("navigate_to_player" to true, "book_id" to "book-123")
+        val extras: Map<String, Any?> = mapOf("navigate_to_player" to true, "book_id" to "book-123")
         val isCustomPlayer = extras["navigate_to_player"] as? Boolean ?: false
         val bookId = extras["book_id"] as? String
 
@@ -60,7 +60,7 @@ class JabookAppInteractionTest {
 
     @Test
     fun `missing book_id falls back to library navigation`() {
-        val extras = mapOf("navigate_to_player" to true)
+        val extras: Map<String, Any?> = mapOf("navigate_to_player" to true)
         val isCustomPlayer = extras["navigate_to_player"] as? Boolean ?: false
         val bookId = extras["book_id"] as? String
 
