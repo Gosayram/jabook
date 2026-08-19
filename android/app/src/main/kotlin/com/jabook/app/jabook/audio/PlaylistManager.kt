@@ -1433,7 +1433,12 @@ internal class PlaylistManager(
         metadata: Map<String, String>?,
     ): MediaSource? {
         if (index < 0 || index >= filePaths.size) return null
-        return createMediaSourceForItems(filePaths.map(::PlaylistItem), index, metadata)
+        // Crossfade callers supply the active queue paths. Reuse its richer items so embedded
+        // chapter clips and stable media IDs survive instead of reconstructing them from paths.
+        val playlistItems =
+            currentPlaylistItems?.takeIf { it.map(PlaylistItem::path) == filePaths }
+                ?: filePaths.map(::PlaylistItem)
+        return createMediaSourceForItems(playlistItems, index, metadata)
     }
 
     public fun createMediaSourceForItems(

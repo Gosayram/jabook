@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit
  * Constants for MediaController timeouts.
  *
  * Different contexts require different timeout values:
- * - Service initialization needs more time (5s) as it's a critical path
  * - Widget updates need faster timeouts (1s) for better UX
  * - Regular operations use default timeout (2s)
  * - Quick fallback operations use very short timeout (500ms) for fast fallback
@@ -31,12 +30,6 @@ public object MediaControllerConstants {
      * Used for regular operations like initialization in controllers.
      */
     public const val DEFAULT_TIMEOUT_SECONDS: Int = 2
-
-    /**
-     * Timeout for service initialization (5 seconds).
-     * Service initialization is critical and may take longer, especially on first start.
-     */
-    public const val SERVICE_INIT_TIMEOUT_SECONDS: Int = 5
 
     /**
      * Timeout for widget updates (1 second).
@@ -55,12 +48,6 @@ public object MediaControllerConstants {
      */
     @JvmStatic
     public fun getDefaultTimeout(timeUnit: TimeUnit): Long = timeUnit.convert(DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
-
-    /**
-     * Gets service init timeout in TimeUnit.SECONDS.
-     */
-    @JvmStatic
-    public fun getServiceInitTimeout(timeUnit: TimeUnit): Long = timeUnit.convert(SERVICE_INIT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
 
     /**
      * Gets widget timeout in TimeUnit.SECONDS.

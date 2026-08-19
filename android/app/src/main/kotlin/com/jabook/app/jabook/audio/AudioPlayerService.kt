@@ -22,7 +22,6 @@ import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaNotification
@@ -122,17 +121,6 @@ public class AudioPlayerService : MediaLibraryService() {
 
     // Keep mediaSession for backward compatibility during migration
     internal var mediaSession: MediaSession? = null
-
-    // MediaController for internal service use (as in Rhythm)
-    // This replaces getInstance() pattern and provides proper Media3 integration
-    internal var serviceMediaController: MediaController? = null
-
-    /**
-     * Gets the service MediaController for internal use.
-     * Returns null if not yet initialized.
-     * This replaces getInstance() pattern and provides proper Media3 integration.
-     */
-    public fun getServiceMediaController(): MediaController? = serviceMediaController
 
     internal var notificationHelper: NotificationHelper? = null
     internal var mediaSessionManager: MediaSessionManager? = null
@@ -388,12 +376,11 @@ public class AudioPlayerService : MediaLibraryService() {
         private var instance: AudioPlayerService? = null
 
         /**
-         * @deprecated Use MediaController or getServiceMediaController() instead.
+         * @deprecated Hold a lifecycle-aware [MediaController] in the UI layer instead.
          * This method is kept for backward compatibility during migration.
          */
         @Deprecated(
-            "Use MediaController or getServiceMediaController() for proper Media3 integration",
-            ReplaceWith("getServiceMediaController()"),
+            "Hold a lifecycle-aware MediaController in the UI layer instead",
         )
         public fun getInstance(): AudioPlayerService? = instance
 

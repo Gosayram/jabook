@@ -215,22 +215,9 @@ public data class AudioProcessingSettings(
     val crossfadeDurationMs: Long = 0L,
     /** Crossfade duration between different books (0 = instant). */
     val crossfadeBetweenBooksMs: Long = 0L,
-    val equalizerEnabled: Boolean = false,
-    val noiseSuppressionEnabled: Boolean = false,
     val noiseGateLevel: NoiseGateLevel = NoiseGateLevel.Off,
-    val reverbEnabled: Boolean = false,
-    val echoEnabled: Boolean = false,
-    val echoStrength: Float = 0.5f,
-    val echoDelayMs: Int = 500,
-    val echoDecay: Float = 0.5f,
     val preferredLanguageCode: String = "ru",
 ) {
-    init {
-        require(echoStrength in 0f..1f) { "echoStrength must be in [0, 1]" }
-        require(echoDelayMs > 0) { "echoDelayMs must be positive" }
-        require(echoDecay in 0f..1f) { "echoDecay must be in [0, 1]" }
-    }
-
     public companion object {
         /** Default retain window (65 ms) — balance between smoothness and skip efficiency. */
         public const val DEFAULT_RETAIN_WINDOW_MS: Int = 65

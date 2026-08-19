@@ -105,6 +105,25 @@ class PlaylistManagerTest {
     }
 
     @Test
+    fun `createMediaSource preserves active embedded chapter item`() {
+        val chapter =
+            PlaylistItem(
+                path = "/storage/book/book.m4b",
+                mediaId = "chapter-2",
+                clipStartPositionMs = 12_000L,
+                clipEndPositionMs = 24_000L,
+            )
+        playlistManager.currentPlaylistItems = listOf(chapter)
+
+        val source = playlistManager.createMediaSource(listOf(chapter.path), index = 0, metadata = null)
+
+        requireNotNull(source)
+        assertEquals("chapter-2", source.mediaItem.mediaId)
+        assertEquals(12_000L, source.mediaItem.clippingConfiguration.startPositionMs)
+        assertEquals(24_000L, source.mediaItem.clippingConfiguration.endPositionMs)
+    }
+
+    @Test
     fun `sortFilesByNumericPrefix orders numbered files naturally and keeps lexical fallback`() {
         val input =
             listOf(

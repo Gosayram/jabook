@@ -16,12 +16,9 @@ package com.jabook.app.jabook.audio
 
 import android.os.Bundle
 import androidx.annotation.OptIn
-import androidx.core.content.ContextCompat
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
-import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CancellationException
@@ -31,8 +28,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 
 /**
  * Handles initialization logic for AudioPlayerService.
@@ -313,9 +308,6 @@ public class AudioPlayerServiceInitializer(
         // Initialize MediaSession (Media3)
         initializeMediaSession()
 
-        // Note: isFullyInitializedFlag will be set after MediaController is created
-        // This ensures service is truly ready before components try to use it
-
         // Start settings synchronization to MediaSession
         // This ensures system media controls always reflect current app settings
         initializeSettingsSync()
@@ -519,10 +511,6 @@ public class AudioPlayerServiceInitializer(
                 "MediaLibrarySession created successfully: ${service.mediaLibrarySession?.token}",
             )
 
-            // Create MediaController inside Service (as in Rhythm pattern)
-            // This replaces getInstance() pattern and provides proper Media3 integration
-            createServiceMediaController()
-
             // Create MediaSessionManager (wraps MediaSequencer)
             service.mediaSessionManager =
                 MediaSessionManager(
@@ -531,6 +519,11 @@ public class AudioPlayerServiceInitializer(
                     playCallback = service::onMediaSessionPlaybackStarted,
                     pauseCallback = service::onMediaSessionPlaybackPaused,
                 )
+
+            // The session is ready as soon as it is built. Media3 applies button preferences
+            // directly to the session; connecting a controller to our own service adds no state.
+            service.setInitialCustomLayout()
+            service.isFullyInitializedFlag = true
 
             // Legacy NotificationManager is NO LONGER NEEDED for Media3 system notifications
             // Migration Phase 1: DISABLED to prevent conflicts with MediaNotification.Provider
@@ -556,68 +549,6 @@ public class AudioPlayerServiceInitializer(
             // as it's a protected method in MediaSessionService
         } catch (e: Exception) {
             LogUtils.e("AudioPlayerService", "Failed to create MediaLibrarySession", e)
-        }
-    }
-
-    /**
-     * Creates MediaController inside Service for internal use (as in Rhythm pattern).
-     * This replaces getInstance() pattern and provides proper Media3 integration.
-     */
-    @OptIn(UnstableApi::class)
-    private fun createServiceMediaController() {
-        val session = service.mediaLibrarySession
-        if (session == null) {
-            LogUtils.w("AudioPlayerService", "Cannot create MediaController: MediaLibrarySession is null")
-            return
-        }
-
-        try {
-            // Build the controller asynchronously to avoid blocking the main thread
-            val controllerFuture: ListenableFuture<MediaController> =
-                MediaController
-                    .Builder(service, session.token)
-                    .setApplicationLooper(service.mainLooper)
-                    .buildAsync()
-
-            controllerFuture.addListener(
-                {
-                    try {
-                        // Wait for controller with reasonable timeout for service initialization
-                        val controller =
-                            controllerFuture.get(
-                                com.jabook.app.jabook.audio.MediaControllerConstants.SERVICE_INIT_TIMEOUT_SECONDS
-                                    .toLong(),
-                                java.util.concurrent.TimeUnit.SECONDS,
-                            )
-                        service.serviceMediaController = controller
-
-                        // CRITICAL: Set initialization flag only after MediaController is ready
-                        // This ensures components don't try to use service before it's fully ready
-                        service.isFullyInitializedFlag = true
-
-                        // Set initial CustomLayout after MediaController is ready (following Rhythm pattern)
-                        // This avoids MediaSessionLegacyStub conversion issues during onConnect
-                        service.setInitialCustomLayout()
-
-                        LogUtils.i(
-                            "AudioPlayerService",
-                            "Service MediaController initialized successfully, service is now fully ready",
-                        )
-                    } catch (e: java.util.concurrent.TimeoutException) {
-                        LogUtils.e("AudioPlayerService", "Service MediaController initialization timeout", e)
-                        // Set flag anyway - MediaSession is ready, external controllers can connect
-                        // Service can function without internal MediaController
-                        service.isFullyInitializedFlag = true
-                    } catch (e: Exception) {
-                        LogUtils.e("AudioPlayerService", "Error initializing Service MediaController", e)
-                        // Set flag anyway - MediaSession is ready, external controllers can connect
-                        service.isFullyInitializedFlag = true
-                    }
-                },
-                ContextCompat.getMainExecutor(service),
-            )
-        } catch (e: Exception) {
-            LogUtils.e("AudioPlayerService", "Failed to create Service MediaController", e)
         }
     }
 

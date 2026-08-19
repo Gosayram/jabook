@@ -42,7 +42,6 @@ internal class AudioServiceReleaseHandler(
         val service = getService()
         val hasExistingComponents =
             service.mediaLibrarySession != null ||
-                service.serviceMediaController != null ||
                 service.crossFadePlayer != null ||
                 service.audioVisualizerManager != null ||
                 service.visualizerBridgeJob != null
@@ -115,9 +114,6 @@ internal class AudioServiceReleaseHandler(
         // BP-13.3: Unregister audio output device monitor
         service.audioOutputDeviceMonitor?.unregister()
         service.audioOutputDeviceMonitor = null
-
-        service.serviceMediaController?.release()
-        service.serviceMediaController = null
 
         service.mediaSessionManager?.release()
         service.mediaSessionManager = null
