@@ -102,7 +102,6 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -1585,9 +1584,10 @@ private fun PlayerContent(
     val itemSpacing = if (isCompact) 16.dp else AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
     // Spacing for compact screens between specific elements
     val smallItemSpacing = if (isCompact) 8.dp else 12.dp
-    val playbackSpeedLabel by remember(playbackSpeed) {
-        derivedStateOf { formatPlaybackSpeedLabel(playbackSpeed) }
-    }
+    val playbackSpeedLabel =
+        remember(playbackSpeed) {
+            formatPlaybackSpeedLabel(playbackSpeed)
+        }
     val speedButtonInteractionSource = remember { MutableInteractionSource() }
     val speedButtonPressed by speedButtonInteractionSource.collectIsPressedAsState()
     var holdToBoostActivated by remember { mutableStateOf(false) }
@@ -1639,12 +1639,14 @@ private fun PlayerContent(
 
     // Lyrics visibility state
     var showLyrics by remember { mutableStateOf(false) }
-    val hasLyrics by remember(state.lyrics) {
-        derivedStateOf { !state.lyrics.isNullOrEmpty() }
-    }
-    val showingLyrics by remember(showLyrics, hasLyrics) {
-        derivedStateOf { showLyrics && hasLyrics }
-    }
+    val hasLyrics =
+        remember(state.lyrics) {
+            !state.lyrics.isNullOrEmpty()
+        }
+    val showingLyrics =
+        remember(showLyrics, hasLyrics) {
+            showLyrics && hasLyrics
+        }
     val seekScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
     var showBookmarkNoteSheet by remember { mutableStateOf(false) }

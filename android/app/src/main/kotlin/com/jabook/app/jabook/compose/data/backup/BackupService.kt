@@ -281,13 +281,7 @@ public class BackupService
         private fun collectAppInfo(): AppInfo {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
             val versionName = packageInfo.versionName ?: "unknown"
-            val versionCode =
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                    packageInfo.longVersionCode.toInt()
-                } else {
-                    @Suppress("DEPRECATION")
-                    packageInfo.versionCode
-                }
+            val versionCode = packageInfo.longVersionCode.toInt()
 
             val flavor =
                 try {

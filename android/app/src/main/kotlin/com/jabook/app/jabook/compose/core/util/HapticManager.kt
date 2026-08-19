@@ -19,7 +19,6 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
-import androidx.annotation.RequiresApi
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 
@@ -35,50 +34,36 @@ public object HapticManager {
         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
     public fun performDoubleVibration(context: Context) {
-        val vibrator =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                context.getSystemService(VibratorManager::class.java)?.defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                context.getSystemService(Vibrator::class.java)
-            } ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(
-                VibrationEffect.createWaveform(
-                    longArrayOf(0, 30, 100, 30),
-                    intArrayOf(0, 180, 0, 180),
-                    -1,
-                ),
-            )
-        } else {
-            @Suppress("DEPRECATION")
-            vibrator.vibrate(longArrayOf(0, 30, 100, 30), -1)
-        }
+        // VibratorManager is API 31+; Vibrator is the fallback.
+        // minSdk=30, so Vibrator is always available.
+        val vibrator = getVibrator(context) ?: return
+        vibrator.vibrate(
+            VibrationEffect.createWaveform(
+                longArrayOf(0, 30, 100, 30),
+                intArrayOf(0, 180, 0, 180),
+                -1,
+            ),
+        )
     }
 
     public fun performGesture(hapticFeedback: HapticFeedback) {
         hapticFeedback.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
     public fun vibrateOnce(
         context: Context,
         durationMs: Long = 50L,
         amplitude: Int = 180,
     ) {
-        val vibrator =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                context.getSystemService(VibratorManager::class.java)?.defaultVibrator
-            } else {
-                context.getSystemService(Vibrator::class.java)
-            } ?: return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createOneShot(durationMs, amplitude))
-        } else {
-            @Suppress("DEPRECATION")
-            vibrator.vibrate(durationMs)
-        }
+        val vibrator = getVibrator(context) ?: return
+        vibrator.vibrate(VibrationEffect.createOneShot(durationMs, amplitude))
     }
+
+    private fun getVibrator(context: Context): Vibrator? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            context.getSystemService(VibratorManager::class.java)?.defaultVibrator
+        } else {
+            context.getSystemService(Vibrator::class.java)
+        }
 }

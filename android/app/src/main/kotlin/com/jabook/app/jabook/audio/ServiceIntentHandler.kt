@@ -149,14 +149,7 @@ internal class ServiceIntentHandler(
                         )
                         try {
                             service.stopAndCleanup()
-
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                                service.stopForeground(Service.STOP_FOREGROUND_REMOVE)
-                            } else {
-                                @Suppress("DEPRECATION")
-                                service.stopForeground(true)
-                            }
-
+                            service.stopForeground(Service.STOP_FOREGROUND_REMOVE)
                             service.stopSelf()
                             // Send broadcast to finish activity
                             val exitIntent =
