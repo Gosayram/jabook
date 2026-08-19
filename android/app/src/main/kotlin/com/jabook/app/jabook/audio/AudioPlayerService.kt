@@ -904,8 +904,8 @@ public class AudioPlayerService : MediaLibraryService() {
         mediaSessionLayoutHelper.updateSmart(rewindSeconds, forwardSeconds)
     }
 
-    /** Sets initial CustomLayout for MediaSession via [MediaSessionLayoutHelper]. */
-    internal fun setInitialCustomLayout() {
+    /** Sets initial MediaButtonPreferences for MediaSession via [MediaSessionLayoutHelper]. */
+    internal fun setInitialMediaButtonPreferences() {
         mediaSessionLayoutHelper.setInitialLayout()
     }
 

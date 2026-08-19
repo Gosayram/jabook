@@ -20,6 +20,8 @@ import androidx.media3.common.Player
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 internal fun canCrossfadeForRepeatMode(repeatMode: Int): Boolean = repeatMode != Player.REPEAT_MODE_ONE
 
@@ -34,8 +36,8 @@ internal class CrossfadeHandler(
     private val handler = Handler(Looper.getMainLooper())
     private val checkIntervalMs = 500L
     private var isMonitoring = false
-    private var monitoringGeneration = 0L
-    private var transitionTriggerInFlight = false
+    private val monitoringGeneration = AtomicLong(0L)
+    private val transitionTriggerInFlight = AtomicBoolean(false)
 
     private val monitorRunnable =
         object : Runnable {
@@ -49,7 +51,7 @@ internal class CrossfadeHandler(
 
     public fun startMonitoring() {
         if (isMonitoring) return
-        monitoringGeneration += 1L
+        monitoringGeneration.incrementAndGet()
         prefetchedChapterIndex = -1
         lastSeenChapterIndex = -1
         isMonitoring = true
@@ -58,7 +60,7 @@ internal class CrossfadeHandler(
 
     public fun stopMonitoring() {
         isMonitoring = false
-        monitoringGeneration += 1L
+        monitoringGeneration.incrementAndGet()
         handler.removeCallbacks(monitorRunnable)
     }
 
@@ -112,7 +114,7 @@ internal class CrossfadeHandler(
 
         if (nextIndex >= (playlistManager.currentFilePaths?.size ?: 0)) return
 
-        val requestGeneration = monitoringGeneration
+        val requestGeneration = monitoringGeneration.get()
         service.playerServiceScope.launch {
             val nextSource = playlistManager.getNextMediaSource(currentChapterIndex)
             if (nextSource != null) {
@@ -137,7 +139,7 @@ internal class CrossfadeHandler(
     public fun triggerCrossfadeTransition() {
         // One in-flight transition at a time: an already-running swap or a trigger whose
         // sources are still being built must not fire again on the next 500ms tick.
-        if (crossFadePlayer.isTransitionRunning() || transitionTriggerInFlight) return
+        if (crossFadePlayer.isTransitionRunning() || transitionTriggerInFlight.get()) return
 
         val currentPlayer = service.getActivePlayer()
         val currentChapterIndex = playlistManager.actualTrackIndex
@@ -145,8 +147,8 @@ internal class CrossfadeHandler(
         val paths = playlistManager.currentFilePaths ?: return
         if (nextChapterIndex !in paths.indices) return
         val metadata = playlistManager.currentMetadata
-        val requestGeneration = monitoringGeneration
-        transitionTriggerInFlight = true
+        val requestGeneration = monitoringGeneration.get()
+        transitionTriggerInFlight.set(true)
         service.playerServiceScope.launch {
             try {
                 val sources =
@@ -160,9 +162,9 @@ internal class CrossfadeHandler(
                             return@withContext
                         }
                         crossFadePlayer.setNextMediaSources(sources, nextChapterIndex)
-                        val completionGeneration = monitoringGeneration
+                        val completionGeneration = monitoringGeneration.get()
                         crossFadePlayer.startCrossFade {
-                            if (monitoringGeneration == completionGeneration &&
+                            if (monitoringGeneration.get() == completionGeneration &&
                                 playlistManager.actualTrackIndex == currentChapterIndex
                             ) {
                                 playlistManager.actualTrackIndex = nextChapterIndex
@@ -171,7 +173,7 @@ internal class CrossfadeHandler(
                     }
                 }
             } finally {
-                transitionTriggerInFlight = false
+                transitionTriggerInFlight.set(false)
             }
         }
     }
@@ -185,7 +187,7 @@ internal class CrossfadeHandler(
     ): Boolean {
         val activePlayer = service.getActivePlayer()
         return CrossfadeRequestStalenessPolicy.isCurrent(
-            activeGeneration = monitoringGeneration,
+            activeGeneration = monitoringGeneration.get(),
             requestGeneration = requestGeneration,
             activePlayer = activePlayer,
             requestPlayer = requestPlayer,

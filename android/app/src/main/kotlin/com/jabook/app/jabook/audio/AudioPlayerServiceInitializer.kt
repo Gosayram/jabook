@@ -516,7 +516,7 @@ public class AudioPlayerServiceInitializer(
 
             // The session is ready as soon as it is built. Media3 applies button preferences
             // directly to the session; connecting a controller to our own service adds no state.
-            service.setInitialCustomLayout()
+            service.setInitialMediaButtonPreferences()
             service.isFullyInitializedFlag = true
 
             // Legacy NotificationManager is NO LONGER NEEDED for Media3 system notifications

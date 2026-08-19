@@ -42,10 +42,6 @@ public class SpeechEnhancer : AudioProcessor {
     private val peakEqGainDb = 4.5f // Average of +3-6 dB
     private val peakEqQ = 1.5f
 
-    // DeEsser parameters
-    private val deEsserFreqLowHz = 4000.0f
-    private val deEsserFreqHighHz = 8000.0f
-
     // Compression parameters (gentle)
     private val compressionThresholdDb = -28.0f
     private val compressionRatio = 2.0f
@@ -55,8 +51,13 @@ public class SpeechEnhancer : AudioProcessor {
     private var highPassAlpha = 0.0f
     private var highPassPrev = FloatArray(0)
 
-    // Peak EQ state (simplified - using gain multiplier for target frequency range)
-    private val peakEqGainLinear = 10.0.pow((peakEqGainDb / 20.0f).toDouble()).toFloat()
+    // Peak EQ biquad state (frequency-selective 3kHz boost), per channel
+    private var peakEqB0 = 0f
+    private var peakEqB1 = 0f
+    private var peakEqB2 = 0f
+    private var peakEqA1 = 0f
+    private var peakEqA2 = 0f
+    private lateinit var peakEqState: Array<BiquadState>
 
     // DeEsser state (dynamic suppression in 4-8 kHz range)
     private var deEsserGain = 1.0f
@@ -86,6 +87,19 @@ public class SpeechEnhancer : AudioProcessor {
         val alpha = 1.0f - (2.0f * kotlin.math.PI.toFloat() * highPassCutoffHz / sampleRate)
         highPassAlpha = alpha.coerceIn(0.0f, 1.0f)
         highPassPrev = FloatArray(channels)
+
+        // Compute peak EQ biquad coefficients (peak/notch filter)
+        val w0 = (2.0f * kotlin.math.PI.toFloat() * peakEqFreqHz / sampleRate)
+        val sinW0 = kotlin.math.sin(w0.toDouble()).toFloat()
+        val alpha = sinW0 / (2.0f * peakEqQ)
+        val amplitude = kotlin.math.pow(10.0, (peakEqGainDb / 40.0)).toFloat() // sqrt(10^(dBgain/20))
+        val norm = 1.0f / (1.0f + alpha / amplitude)
+        peakEqB0 = (1.0f + alpha * amplitude) * norm
+        peakEqB1 = (-2.0f * kotlin.math.cos(w0.toDouble())).toFloat() * norm
+        peakEqB2 = (1.0f - alpha * amplitude) * norm
+        peakEqA1 = peakEqB1 // same as -2*cos(w0)*norm
+        peakEqA2 = (1.0f - alpha / amplitude) * norm
+        peakEqState = Array(channels) { BiquadState() }
 
         // Reset states
         deEsserGain = 1.0f
@@ -201,7 +215,6 @@ public class SpeechEnhancer : AudioProcessor {
         // Pre-compute constants
         val invMaxValue = 1.0f / Short.MAX_VALUE
         val maxValue = Short.MAX_VALUE.toFloat()
-        val peakEqGain = 1.1f
         val deEsserAttack = 0.85f
         val deEsserRecovery = 0.9f
         val deEsserRecoveryTarget = 0.1f
@@ -219,8 +232,8 @@ public class SpeechEnhancer : AudioProcessor {
                 normalized = normalized - prev + highPassAlpha * prev
                 highPassPrev[ch] = normalized
 
-                // 2. Peak EQ (2-4 kHz boost) - simplified: apply gain to mid frequencies
-                normalized *= peakEqGain
+                // 2. Peak EQ (3 kHz boost via biquad — frequency-selective, not broadband)
+                normalized = processPeakEqBiquad(normalized, ch)
 
                 // 3. DeEsser (4-8 kHz dynamic suppression)
                 // Simplified: detect high frequencies and reduce if too loud
@@ -285,7 +298,35 @@ public class SpeechEnhancer : AudioProcessor {
         isActive = false
     }
 
+    /**
+     * Processes one sample through the peak EQ biquad filter.
+     */
+    private fun processPeakEqBiquad(
+        input: Float,
+        channel: Int,
+    ): Float {
+        val state = peakEqState[channel]
+        val output =
+            peakEqB0 * input +
+                peakEqB1 * state.x1 +
+                peakEqB2 * state.x2 -
+                peakEqA1 * state.y1 -
+                peakEqA2 * state.y2
+        state.x2 = state.x1
+        state.x1 = input
+        state.y2 = state.y1
+        state.y1 = output
+        return output
+    }
+
     public companion object {
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
+
+        private class BiquadState {
+            var x1 = 0f
+            var x2 = 0f
+            var y1 = 0f
+            var y2 = 0f
+        }
     }
 }

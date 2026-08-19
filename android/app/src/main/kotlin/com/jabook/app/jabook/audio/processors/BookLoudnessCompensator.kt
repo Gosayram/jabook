@@ -44,6 +44,7 @@ public class BookLoudnessCompensator(
     private val policy: LufsLoudnessCompensationPolicy = LufsLoudnessCompensationPolicy(),
 ) {
     /** Tracks the LUFS value of the previously playing book for transition gain. */
+    @Volatile
     public var previousBookLufs: Double? = null
         private set
 
