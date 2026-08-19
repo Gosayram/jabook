@@ -40,6 +40,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.clearInvocations
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.mock
@@ -289,6 +290,7 @@ class PlaylistManagerEdgeCaseTest {
                 groupPath = "book://queue",
             )
             advanceUntilIdle()
+            clearInvocations(playerPersistenceManager)
 
             val snapshot =
                 playlistManager.mutateQueueAtomically(

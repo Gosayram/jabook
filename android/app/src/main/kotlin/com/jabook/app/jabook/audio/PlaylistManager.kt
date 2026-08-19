@@ -1420,8 +1420,7 @@ internal class PlaylistManager(
             DefaultExtractorsFactory().setMp3ExtractorFlags(
                 Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING or Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING,
             ),
-        )
-            .createMediaSource(mediaItem)
+        ).createMediaSource(mediaItem)
     }
 
     /**

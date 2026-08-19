@@ -37,5 +37,4 @@ class PlaylistUriRoutingTest {
         assertEquals("file", uri.scheme)
         assertEquals("/storage/emulated/0/Audiobooks/book.mp3", uri.path)
     }
-
 }
