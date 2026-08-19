@@ -106,6 +106,9 @@ public class AudioPlayerNotificationProvider(
     private val defaultProvider: DefaultMediaNotificationProvider =
         DefaultMediaNotificationProvider
             .Builder(service)
+            // The default provider also posts artwork-loaded updates through its callback.
+            // Keep those updates on the same notification ID as the initial notification.
+            .setNotificationId(MEDIA_NOTIFICATION_ID)
             .setChannelId(NotificationHelper.CHANNEL_ID)
             .build()
             .also {
@@ -145,13 +148,8 @@ public class AudioPlayerNotificationProvider(
             )
         }
 
-        val result =
-            MediaNotification(
-                NotificationHelper.NOTIFICATION_ID,
-                mediaNotification.notification,
-            )
-        lastNotification = result
-        return result
+        lastNotification = mediaNotification
+        return mediaNotification
     }
 
     /** Pushes notification with current subtitle override (for chapter progress updates). */
@@ -196,6 +194,8 @@ public class AudioPlayerNotificationProvider(
         )
 
     public companion object {
+        internal const val MEDIA_NOTIFICATION_ID: Int = NotificationHelper.NOTIFICATION_ID
+
         // Notification action slot IDs — must match proto enum values
         public const val SLOT_REWIND_30: Int = 0
         public const val SLOT_FORWARD_30: Int = 1

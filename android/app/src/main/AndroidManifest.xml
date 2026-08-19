@@ -263,18 +263,6 @@
             </intent-filter>
         </receiver>
 
-        <!-- MediaSession action receiver for Play/Pause commands -->
-        <!-- This receiver handles Play/Pause actions through MediaSession, -->
-        <!-- which is more reliable than PendingIntent on Samsung and other devices -->
-        <receiver
-            android:name=".audio.MediaSessionActionReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.jabook.app.jabook.audio.MEDIA_SESSION_PLAY" />
-                <action android:name="com.jabook.app.jabook.audio.MEDIA_SESSION_PAUSE" />
-            </intent-filter>
-        </receiver>
-
         <!-- Player widget provider -->
         <receiver
             android:name=".widget.PlayerWidgetProvider"

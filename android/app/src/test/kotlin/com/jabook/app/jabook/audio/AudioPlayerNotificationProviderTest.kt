@@ -20,6 +20,14 @@ import org.junit.Test
 
 class AudioPlayerNotificationProviderTest {
     @Test
+    fun `uses the service notification ID for Media3 provider callbacks`() {
+        assertEquals(
+            NotificationHelper.NOTIFICATION_ID,
+            AudioPlayerNotificationProvider.MEDIA_NOTIFICATION_ID,
+        )
+    }
+
+    @Test
     fun `maps Media3 player command buttons to saved notification slots`() {
         assertEquals(
             AudioPlayerNotificationProvider.SLOT_REWIND_30,
