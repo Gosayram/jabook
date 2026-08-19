@@ -17,86 +17,31 @@ package com.jabook.app.jabook.infrastructure
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.asCoroutineDispatcher
-import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
-/**
- * Task priority levels for coroutine tasks.
- */
 public enum class TaskPriority {
-    /** Light tasks: caching, UI updates */
     LIGHT,
-
-    /** Medium tasks: metadata downloads, MediaItem creation */
     MEDIUM,
-
-    /** Heavy tasks: torrent parsing, library scanning */
     HEAVY,
 }
 
-/**
- * Centralized task manager for coroutines with priority-based execution.
- *
- * This manager provides:
- * - Priority-based dispatchers with limited parallelism
- * - Fixed thread pools (2-4 threads based on CPU cores)
- * - Task monitoring and statistics
- * - Energy efficiency support (pause/resume)
- */
 public object CoroutineTaskManager {
     private const val TAG = "CoroutineTaskManager"
 
-    // Number of CPU cores (defaults to 2 if detection fails)
-    private val cpuCores: Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(2)
+    // Dispatchers.IO.limitedParallelism handles thread pooling natively — no raw Executors needed.
+    private val heavyDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(2)
+    private val mediumDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(3)
+    private val lightDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(4)
 
-    // Maximum number of concurrent threads (2-4 based on CPU)
-    private val maxConcurrentThreads: Int =
-        when {
-            cpuCores <= 2 -> 2
-            cpuCores <= 4 -> 3
-            else -> 4
-        }
-
-    // Fixed thread pools for different priorities
-    private val heavyExecutor =
-        Executors.newFixedThreadPool(maxConcurrentThreads) { r ->
-            Thread(r, "TaskManager-HEAVY").apply { isDaemon = true }
-        }
-
-    private val mediumExecutor =
-        Executors.newFixedThreadPool(maxConcurrentThreads) { r ->
-            Thread(r, "TaskManager-MEDIUM").apply { isDaemon = true }
-        }
-
-    private val lightExecutor =
-        Executors.newFixedThreadPool(maxConcurrentThreads) { r ->
-            Thread(r, "TaskManager-LIGHT").apply { isDaemon = true }
-        }
-
-    // Dispatchers for different priorities
-    private val heavyDispatcher: CoroutineDispatcher = heavyExecutor.asCoroutineDispatcher()
-    private val mediumDispatcher: CoroutineDispatcher = mediumExecutor.asCoroutineDispatcher()
-    private val lightDispatcher: CoroutineDispatcher = lightExecutor.asCoroutineDispatcher()
-
-    // Limited parallelism dispatchers (for MediaItem creation, etc.)
     public val mediaItemDispatcher: CoroutineDispatcher = Dispatchers.IO.limitedParallelism(4)
 
-    // Task counters for monitoring
     private val activeHeavyTasks = AtomicInteger(0)
     private val activeMediumTasks = AtomicInteger(0)
     private val activeLightTasks = AtomicInteger(0)
 
-    // Pause state
     @Volatile
     private var paused = false
 
-    /**
-     * Get dispatcher for the given priority.
-     *
-     * @param priority Task priority
-     * @return Coroutine dispatcher for the priority
-     */
     public fun getDispatcher(priority: TaskPriority): CoroutineDispatcher =
         when (priority) {
             TaskPriority.HEAVY -> heavyDispatcher
@@ -104,11 +49,6 @@ public object CoroutineTaskManager {
             TaskPriority.LIGHT -> lightDispatcher
         }
 
-    /**
-     * Increment active task counter for monitoring.
-     *
-     * @param priority Task priority
-     */
     internal fun incrementActiveTasks(priority: TaskPriority) {
         when (priority) {
             TaskPriority.HEAVY -> activeHeavyTasks.incrementAndGet()
@@ -117,11 +57,6 @@ public object CoroutineTaskManager {
         }
     }
 
-    /**
-     * Decrement active task counter for monitoring.
-     *
-     * @param priority Task priority
-     */
     internal fun decrementActiveTasks(priority: TaskPriority) {
         when (priority) {
             TaskPriority.HEAVY -> activeHeavyTasks.decrementAndGet()
@@ -130,53 +65,27 @@ public object CoroutineTaskManager {
         }
     }
 
-    /**
-     * Get current task statistics.
-     *
-     * @return Map with statistics
-     */
     public fun getStatistics(): Map<String, Any> =
         mapOf(
             "active_heavy" to activeHeavyTasks.get(),
             "active_medium" to activeMediumTasks.get(),
             "active_light" to activeLightTasks.get(),
-            "max_concurrent" to maxConcurrentThreads,
-            "cpu_cores" to cpuCores,
             "paused" to paused,
         )
 
-    /**
-     * Pause non-critical tasks (LIGHT and MEDIUM).
-     *
-     * This is useful when the app goes to background or battery is low.
-     */
     public fun pauseNonCritical() {
         paused = true
         LogUtils.i(TAG, "Paused non-critical tasks")
     }
 
-    /**
-     * Resume non-critical tasks.
-     */
     public fun resume() {
         paused = false
         LogUtils.i(TAG, "Resumed non-critical tasks")
     }
 
-    /**
-     * Check if tasks are paused.
-     *
-     * @return True if paused
-     */
     public fun isPaused(): Boolean = paused
 
-    /**
-     * Shutdown all executors (for cleanup).
-     */
     public fun shutdown() {
-        heavyExecutor.shutdown()
-        mediumExecutor.shutdown()
-        lightExecutor.shutdown()
-        LogUtils.i(TAG, "Shutdown all executors")
+        LogUtils.i(TAG, "CoroutineTaskManager shutdown (Dispatchers.IO manages threads)")
     }
 }

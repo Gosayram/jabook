@@ -39,9 +39,6 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.domain.model.Book
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * Dialog showing detailed properties of an audiobook.
@@ -192,11 +189,14 @@ private fun PropertyRow(
 /**
  * Format timestamp to readable date.
  */
-private fun formatDate(timestamp: Long): String {
-    val date = Date(timestamp)
-    val formatter = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
-    return formatter.format(date)
-}
+private fun formatDate(timestamp: Long): String =
+    java.time.Instant
+        .ofEpochMilli(timestamp)
+        .atZone(java.time.ZoneId.systemDefault())
+        .format(
+            java.time.format.DateTimeFormatter
+                .ofPattern("dd MMM yyyy, HH:mm"),
+        )
 
 /**
  * Calculate total size of directory.

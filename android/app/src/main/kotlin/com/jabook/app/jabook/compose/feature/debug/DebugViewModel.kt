@@ -85,28 +85,18 @@ public class DebugViewModel
         public val recentSearchPreview: StateFlow<List<String>> = _recentSearchPreview.asStateFlow()
 
         init {
-            // Delay initialization until viewModelScope is fully ready
-            // Post initialization to ensure ViewModel is fully constructed
-            // Use Handler to post initialization to the next message loop iteration
-            try {
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    try {
-                        // Now viewModelScope should be ready
-                        loadLogs()
-                        loadCacheStats()
-                        refreshAuthDebugInfo()
-                        observeDebugRuntimeState()
-                        observeRecentSearchHistory()
-                        refreshDbInspector()
-                    } catch (e: Exception) {
-                        logger.e({ "Failed to initialize debug data" }, e)
-                        _uiState.value = DebugUiState.Error("Initialization failed: ${e.message ?: "Unknown error"}")
-                    }
+            viewModelScope.launch {
+                try {
+                    loadLogs()
+                    loadCacheStats()
+                    refreshAuthDebugInfo()
+                    observeDebugRuntimeState()
+                    observeRecentSearchHistory()
+                    refreshDbInspector()
+                } catch (e: Exception) {
+                    logger.e({ "Failed to initialize debug data" }, e)
+                    _uiState.value = DebugUiState.Error("Initialization failed: ${e.message ?: "Unknown error"}")
                 }
-            } catch (e: Exception) {
-                // Handle case when initialization fails
-                logger.e({ "Failed to post initialization" }, e)
-                _uiState.value = DebugUiState.Error("Initialization failed: ${e.message ?: "Unknown error"}")
             }
         }
 

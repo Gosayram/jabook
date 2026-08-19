@@ -17,6 +17,10 @@ package com.jabook.app.jabook.audio
 import androidx.media3.common.Player
 import androidx.media3.datasource.HttpDataSource
 import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 
 /**
@@ -35,6 +39,7 @@ import java.io.File
  * @param scheduleNotificationUpdate Schedule notification refresh
  */
 internal class PlayerErrorHandler(
+    private val scope: CoroutineScope,
     private val getActivePlayer: () -> Player,
     private val getActualPlaylistSize: () -> Int,
     private val getCurrentMetadata: () -> Map<String, String>?,
@@ -44,8 +49,7 @@ internal class PlayerErrorHandler(
 ) {
     private var retryCount = 0
     private var skipCount = 0
-    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
-    private var pendingRetry: Runnable? = null
+    private var retryJob: Job? = null
     private val maxRetries = 3
     private val maxSkips = 5
     private val retryDelayMs = 2000L
@@ -59,8 +63,8 @@ internal class PlayerErrorHandler(
 
     /** Cancels a retry that no longer belongs to the current playback. */
     fun cancelPendingRetry() {
-        pendingRetry?.let(mainHandler::removeCallbacks)
-        pendingRetry = null
+        retryJob?.cancel()
+        retryJob = null
     }
 
     /** Logs detailed error context (HTTP, IO, book/track info). */
@@ -110,19 +114,18 @@ internal class PlayerErrorHandler(
                     val failedPlayer = getActivePlayer()
                     val failedMediaId = failedPlayer.currentMediaItem?.mediaId
                     cancelPendingRetry()
-                    pendingRetry =
-                        Runnable {
-                            pendingRetry = null
+                    retryJob =
+                        scope.launch {
+                            delay(backoffDelay)
                             if (getActivePlayer() !== failedPlayer ||
                                 !failedPlayer.playWhenReady ||
                                 failedPlayer.currentMediaItem?.mediaId != failedMediaId
                             ) {
-                                return@Runnable
+                                return@launch
                             }
                             failedPlayer.prepare()
                             LogUtils.d(TAG, "Retry $retryCount after error (delay: ${backoffDelay}ms)")
                         }
-                    mainHandler.postDelayed(requireNotNull(pendingRetry), backoffDelay)
                     return
                 }
                 PlaybackRecoveryAction.SKIP_TRACK -> {

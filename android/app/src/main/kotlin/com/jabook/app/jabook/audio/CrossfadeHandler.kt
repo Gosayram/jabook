@@ -14,12 +14,10 @@
 
 package com.jabook.app.jabook.audio
 
-import android.os.Handler
-import android.os.Looper
 import androidx.media3.common.Player
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
@@ -33,43 +31,35 @@ internal class CrossfadeHandler(
     private val crossFadePlayer: CrossFadePlayer,
     private val playlistManager: PlaylistManager,
 ) {
-    private val handler = Handler(Looper.getMainLooper())
     private val checkIntervalMs = 500L
-    private var isMonitoring = false
+    private var monitoringJob: Job? = null
     private val monitoringGeneration = AtomicLong(0L)
     private val transitionTriggerInFlight = AtomicBoolean(false)
 
-    private val monitorRunnable =
-        object : Runnable {
-            override fun run() {
-                if (!isMonitoring) return
-
-                checkCrossfade()
-                handler.postDelayed(this, checkIntervalMs)
-            }
-        }
-
     public fun startMonitoring() {
-        if (isMonitoring) return
+        if (monitoringJob?.isActive == true) return
         monitoringGeneration.incrementAndGet()
         prefetchedChapterIndex = -1
         lastSeenChapterIndex = -1
-        isMonitoring = true
-        handler.post(monitorRunnable)
+        monitoringJob =
+            service.playerServiceScope.launch {
+                while (true) {
+                    checkCrossfade()
+                    delay(checkIntervalMs)
+                }
+            }
     }
 
     public fun stopMonitoring() {
-        isMonitoring = false
         monitoringGeneration.incrementAndGet()
-        handler.removeCallbacks(monitorRunnable)
+        monitoringJob?.cancel()
+        monitoringJob = null
     }
 
     private var prefetchedChapterIndex = -1
     private var lastSeenChapterIndex = -1
 
     private fun checkCrossfade() {
-        // While a transition runs, players are mid-swap: re-triggering here would rebuild
-        // media sources for the whole book just to be rejected by staleness checks.
         if (crossFadePlayer.isTransitionRunning()) return
 
         val currentPlayer = service.getActivePlayer()
@@ -82,7 +72,6 @@ internal class CrossfadeHandler(
 
         val currentChapterIndex = playlistManager.actualTrackIndex
         if (currentChapterIndex != lastSeenChapterIndex) {
-            // Playback moved (seek or chapter change): re-enable prefetch of the new neighbour.
             lastSeenChapterIndex = currentChapterIndex
             prefetchedChapterIndex = -1
         }
@@ -93,7 +82,6 @@ internal class CrossfadeHandler(
             prefetchNextChapter()
         }
 
-        // Existing crossfade logic (wrapped in the settings check)
         val settings = service.playerConfigurator?.audioProcessingSettings ?: return
         if (settings.isCrossfadeEnabled) {
             val crossfadeDuration = settings.crossfadeDurationMs
@@ -118,12 +106,10 @@ internal class CrossfadeHandler(
         service.playerServiceScope.launch {
             val nextSource = playlistManager.getNextMediaSource(currentChapterIndex)
             if (nextSource != null) {
-                withContext(Dispatchers.Main) {
-                    if (!isCurrentRequest(requestGeneration, currentPlayer, currentChapterIndex)) {
-                        return@withContext
-                    }
-                    crossFadePlayer.setNextMediaSource(nextSource)
+                if (!isCurrentRequest(requestGeneration, currentPlayer, currentChapterIndex)) {
+                    return@launch
                 }
+                crossFadePlayer.setNextMediaSource(nextSource)
             }
         }
     }
@@ -134,11 +120,8 @@ internal class CrossfadeHandler(
 
     /**
      * Triggers crossfade transition.
-     * Prepares next track on secondary player and starts crossfade.
      */
     public fun triggerCrossfadeTransition() {
-        // One in-flight transition at a time: an already-running swap or a trigger whose
-        // sources are still being built must not fire again on the next 500ms tick.
         if (crossFadePlayer.isTransitionRunning() || transitionTriggerInFlight.get()) return
 
         val currentPlayer = service.getActivePlayer()
@@ -157,18 +140,16 @@ internal class CrossfadeHandler(
                     }
 
                 if (sources.size == paths.size) {
-                    withContext(Dispatchers.Main) {
-                        if (!isCurrentRequest(requestGeneration, currentPlayer, currentChapterIndex)) {
-                            return@withContext
-                        }
-                        crossFadePlayer.setNextMediaSources(sources, nextChapterIndex)
-                        val completionGeneration = monitoringGeneration.get()
-                        crossFadePlayer.startCrossFade {
-                            if (monitoringGeneration.get() == completionGeneration &&
-                                playlistManager.actualTrackIndex == currentChapterIndex
-                            ) {
-                                playlistManager.actualTrackIndex = nextChapterIndex
-                            }
+                    if (!isCurrentRequest(requestGeneration, currentPlayer, currentChapterIndex)) {
+                        return@launch
+                    }
+                    crossFadePlayer.setNextMediaSources(sources, nextChapterIndex)
+                    val completionGeneration = monitoringGeneration.get()
+                    crossFadePlayer.startCrossFade {
+                        if (monitoringGeneration.get() == completionGeneration &&
+                            playlistManager.actualTrackIndex == currentChapterIndex
+                        ) {
+                            playlistManager.actualTrackIndex = nextChapterIndex
                         }
                     }
                 }

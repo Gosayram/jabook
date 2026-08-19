@@ -105,6 +105,7 @@ internal class PlayerListener(
 
     private val playerErrorHandler: PlayerErrorHandler =
         PlayerErrorHandler(
+            scope = managedScope,
             getActivePlayer = { getActivePlayer() },
             getActualPlaylistSize = { getActualPlaylistSize?.invoke() ?: getActivePlayer().mediaItemCount },
             getCurrentMetadata = { getCurrentMetadata() },

@@ -19,8 +19,9 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 /**
  * Room entity for persisting torrent downloads
@@ -139,8 +140,6 @@ public class TorrentDownloadEntity(
  * Type converters for Room
  */
 public class TorrentDownloadConverters {
-    private val gson = Gson()
-
     @TypeConverter
     public fun fromTorrentState(state: TorrentState): String = state.name
 
@@ -154,11 +153,8 @@ public class TorrentDownloadConverters {
     public fun toPauseReason(value: String?): PauseReason? = value?.let { PauseReason.valueOf(it) }
 
     @TypeConverter
-    public fun fromFileList(files: List<TorrentFile>): String = gson.toJson(files)
+    public fun fromFileList(files: List<TorrentFile>): String = Json.encodeToString(files)
 
     @TypeConverter
-    public fun toFileList(value: String): List<TorrentFile> {
-        val type = object : TypeToken<List<TorrentFile>>() {}.type
-        return gson.fromJson(value, type)
-    }
+    public fun toFileList(value: String): List<TorrentFile> = Json.decodeFromString(value)
 }

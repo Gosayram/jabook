@@ -678,15 +678,23 @@ public fun SettingsScreen(
                     if (indexSize > 0) {
                         val oldestDate =
                             metadata.oldest?.let { timestamp ->
-                                java.text
-                                    .SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault())
-                                    .format(java.util.Date(timestamp))
+                                java.time.Instant
+                                    .ofEpochMilli(timestamp)
+                                    .atZone(java.time.ZoneId.systemDefault())
+                                    .format(
+                                        java.time.format.DateTimeFormatter
+                                            .ofPattern("dd.MM.yyyy"),
+                                    )
                             } ?: stringResource(R.string.unknown)
                         val newestDate =
                             metadata.newest?.let { timestamp ->
-                                java.text
-                                    .SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault())
-                                    .format(java.util.Date(timestamp))
+                                java.time.Instant
+                                    .ofEpochMilli(timestamp)
+                                    .atZone(java.time.ZoneId.systemDefault())
+                                    .format(
+                                        java.time.format.DateTimeFormatter
+                                            .ofPattern("dd.MM.yyyy"),
+                                    )
                             } ?: stringResource(R.string.unknown)
 
                         SettingsItem(

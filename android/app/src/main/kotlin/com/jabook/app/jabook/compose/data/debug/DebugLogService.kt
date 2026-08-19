@@ -26,9 +26,9 @@ import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -137,9 +137,9 @@ public class DebugLogService
                     logs.append("║       JABOOK DEBUG LOGS & DIAGNOSTICS      ║\n")
                     logs.append("╚════════════════════════════════════════════╝\n\n")
 
-                    val currentDate = Date()
-                    val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                    logs.append("Captured: ${dateFormatter.format(currentDate)}\n")
+                    val currentDate = Instant.now().atZone(ZoneId.systemDefault())
+                    val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                    logs.append("Captured: ${currentDate.format(dateFormatter)}\n")
                     logs.append("Package: ${context.packageName}\n")
                     logs.append("Version: ${getAppVersion()}\n\n")
 
@@ -248,7 +248,11 @@ public class DebugLogService
         public suspend fun exportLogsToFile(): Uri =
             withContext(Dispatchers.IO) {
                 val logs = collectLogs()
-                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val timestamp =
+                    Instant
+                        .now()
+                        .atZone(ZoneId.systemDefault())
+                        .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
                 val fileName: String = "${LOG_FILE_PREFIX}_$timestamp.txt"
                 // Save to cache directory (will be cleared on uninstall)
                 val logFile = File(context.cacheDir, fileName)
