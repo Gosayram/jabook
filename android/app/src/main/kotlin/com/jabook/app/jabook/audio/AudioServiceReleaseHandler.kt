@@ -120,7 +120,6 @@ internal class AudioServiceReleaseHandler(
 
         service.mediaLibrarySession?.release()
         service.mediaLibrarySession = null
-        service.mediaSession = null
 
         service.mediaSessionLayoutHelper.release()
 
@@ -143,7 +142,6 @@ internal class AudioServiceReleaseHandler(
 
         // Release MediaSession
         service.mediaSessionManager?.release()
-        service.mediaSession = null
 
         service.stopSelf()
 

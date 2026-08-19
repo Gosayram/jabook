@@ -195,10 +195,10 @@ public class AudioPlayerServiceInitializer(
                     service.customExoPlayer?.release()
                     service.customExoPlayer = null
                 },
-                getMediaSession = { service.mediaSession },
+                getMediaSession = { service.mediaLibrarySession },
                 releaseMediaSession = {
-                    service.mediaSession?.release()
-                    service.mediaSession = null
+                    service.mediaLibrarySession?.release()
+                    service.mediaLibrarySession = null
                 },
                 getMediaSessionManager = { service.mediaSessionManager },
                 releaseMediaSessionManager = {
@@ -502,9 +502,6 @@ public class AudioPlayerServiceInitializer(
                             }
                     }
                 }
-
-            // Assign to legacy field for compatibility
-            service.mediaSession = service.mediaLibrarySession
 
             LogUtils.i(
                 "AudioPlayerService",

@@ -45,8 +45,6 @@ public object M4bChapterParser {
     public fun parseM4bChapters(filePath: String): List<M4bChapter>? {
         return try {
             RandomAccessFile(filePath, "r").use { raf ->
-                if (!hasFtypBox(raf)) return null
-
                 val chpl = findChplBox(raf) ?: return null
                 parseChplBox(raf, chpl)
             }
@@ -54,10 +52,6 @@ public object M4bChapterParser {
             null
         }
     }
-
-    // ── ftyp validation ────────────────────────────────────────────────
-
-    private fun hasFtypBox(raf: RandomAccessFile): Boolean = readBoxAt(raf, 0, raf.length())?.type == "ftyp"
 
     // ── box tree walking ───────────────────────────────────────────────
 

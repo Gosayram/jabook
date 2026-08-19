@@ -129,7 +129,7 @@ class M4bChapterParserTest {
             ftypBox[11] = 'm'.code.toByte()
         }
 
-        return ftypBox + moovBox
+        return if (withValidFtyp) ftypBox + moovBox else moovBox
     }
 
     // ── tests ──────────────────────────────────────────────────────────
@@ -197,17 +197,18 @@ class M4bChapterParserTest {
     }
 
     @Test
-    fun `returns null for non-mp4 file (no ftyp)`() {
+    fun `parses QuickTime chapters without ftyp atom`() {
         val path =
             tempFile(
                 buildM4b(
-                    chapters = listOf("Ch1" to 0L),
+                    chapters = listOf("Ch1" to 0L, "Ch2" to 1_000L),
                     withValidFtyp = false,
                 ),
             )
 
         val result = M4bChapterParser.parseM4bChapters(path)
-        assertNull(result)
+
+        assertEquals(listOf("Ch1", "Ch2"), result!!.map(M4bChapter::title))
     }
 
     @Test

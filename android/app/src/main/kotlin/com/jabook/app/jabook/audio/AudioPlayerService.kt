@@ -119,9 +119,6 @@ public class AudioPlayerService : MediaLibraryService() {
 
     internal var mediaLibrarySession: MediaLibrarySession? = null
 
-    // Keep mediaSession for backward compatibility during migration
-    internal var mediaSession: MediaSession? = null
-
     internal var notificationHelper: NotificationHelper? = null
     internal var mediaSessionManager: MediaSessionManager? = null
     internal var playbackTimer: PlaybackTimer? = null
@@ -224,7 +221,7 @@ public class AudioPlayerService : MediaLibraryService() {
     internal val notificationIntentFactory = NotificationIntentFactory(this) { currentGroupPath }
 
     internal val mediaSessionLayoutHelper =
-        MediaSessionLayoutHelper(this, playerServiceScope) { mediaSession }
+        MediaSessionLayoutHelper(this, playerServiceScope) { mediaLibrarySession }
 
     internal val foregroundNotificationCoordinator by lazy {
         ForegroundNotificationCoordinator(
@@ -424,7 +421,7 @@ public class AudioPlayerService : MediaLibraryService() {
     // If true, artwork loading will be skipped to show a smaller notification
     internal var isMinimalNotification = false
 
-    public fun getMediaSession(): MediaSession? = mediaLibrarySession ?: mediaSession
+    public fun getMediaSession(): MediaSession? = mediaLibrarySession
 
     /** Sends a user-safe error only after the playback recovery policy is exhausted. */
     internal fun reportTerminalPlaybackError(message: String) {

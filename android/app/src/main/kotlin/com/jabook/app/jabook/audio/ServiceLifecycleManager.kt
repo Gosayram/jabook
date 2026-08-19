@@ -113,9 +113,7 @@ internal class ServiceLifecycleManager(
             service.playbackTimer?.stopTimer()
             service.inactivityTimer?.stopTimer()
 
-            // Release MediaSession
             service.mediaSessionManager?.release()
-            service.mediaSession = null
 
             // Inspired by Easybook: Properly cancel notification when stopping service
             try {

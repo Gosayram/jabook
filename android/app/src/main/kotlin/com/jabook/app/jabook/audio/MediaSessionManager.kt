@@ -219,10 +219,6 @@ public class MediaSessionManager(
         }
     }
 
-    // getMediaSession removed - use AudioPlayerService.mediaSession
-    // fun getMediaSession(): androidx.media3.session.MediaSession =
-    //    mediaSession ?: throw IllegalStateException("MediaSession not initialized")
-
     /**
      * Updates media metadata.
      */
@@ -234,8 +230,6 @@ public class MediaSessionManager(
     public fun release() {
         try {
             player.removeListener(playerListener)
-            // mediaSession?.release()
-            // mediaSession = null
             LogUtils.d("MediaSessionManager", "MediaSession released successfully")
         } catch (e: Exception) {
             LogUtils.e("MediaSessionManager", "Failed to release MediaSession", e)

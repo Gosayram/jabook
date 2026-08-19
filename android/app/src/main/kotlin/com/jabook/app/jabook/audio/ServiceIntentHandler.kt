@@ -138,10 +138,10 @@ internal class ServiceIntentHandler(
                     // Only process if service is fully initialized to avoid stopping during initialization
                     LogUtils.d(
                         "AudioPlayerService",
-                        "ACTION_EXIT_APP received: isFullyInitialized=${service.isFullyInitializedFlag}, mediaSession=${service.mediaSession != null}",
+                        "ACTION_EXIT_APP received: isFullyInitialized=${service.isFullyInitializedFlag}, mediaSession=${service.mediaLibrarySession != null}",
                     )
                     if (service.isFullyInitializedFlag &&
-                        (service.mediaSession != null || service.mediaLibrarySession != null)
+                        service.mediaLibrarySession != null
                     ) {
                         LogUtils.i(
                             "AudioPlayerService",
