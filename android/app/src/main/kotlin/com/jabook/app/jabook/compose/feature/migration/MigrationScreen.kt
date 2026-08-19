@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,6 +38,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 
 /**
  * Screen shown during data migration from Flutter to Kotlin.
@@ -61,7 +64,14 @@ public fun MigrationScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .padding(32.dp),
+                .padding(32.dp)
+                .then(
+                    run {
+                        val wsc = LocalWindowSizeClass.current
+                        val maxW = wsc?.let { AdaptiveUtils.getMaxContentWidth(it) }
+                        if (maxW != null) Modifier.widthIn(max = maxW) else Modifier
+                    },
+                ),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {

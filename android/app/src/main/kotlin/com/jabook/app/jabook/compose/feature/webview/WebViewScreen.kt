@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -62,6 +63,8 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.navigation.WebViewRoute
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
@@ -200,7 +203,14 @@ public fun WebViewScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(padding),
+                    .padding(padding)
+                    .then(
+                        run {
+                            val wsc = LocalWindowSizeClass.current
+                            val maxW = wsc?.let { AdaptiveUtils.getMaxContentWidth(it) }
+                            if (maxW != null) Modifier.widthIn(max = maxW) else Modifier
+                        },
+                    ),
         ) {
             AndroidView(
                 factory = { context ->

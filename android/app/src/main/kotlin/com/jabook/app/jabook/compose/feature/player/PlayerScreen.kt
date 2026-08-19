@@ -99,7 +99,6 @@ import androidx.compose.material3.adaptive.layout.SupportingPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -158,6 +157,7 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.ContrastPolicy
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.core.util.HapticManager
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
@@ -282,15 +282,10 @@ public fun PlayerScreen(
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val context = androidx.compose.ui.platform.LocalContext.current
     val audioManager = remember(context) { context.getSystemService<AudioManager>() }
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+    val wsc = LocalWindowSizeClass.current
+    val resolved = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val isCompactScreen =
-        activity?.let {
-            val rawWindowSizeClass = calculateWindowSizeClass(it)
-            val windowSizeClass = AdaptiveUtils.resolveWindowSizeClass(rawWindowSizeClass, context)
-            windowSizeClass.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
-        } ?: true
+        resolved?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
     val openSettingsLabel = stringResource(R.string.openSettings)
     val notificationPermissionPlaybackHint = stringResource(R.string.notificationPermissionPlaybackHint)
     val audioVisualizerPermissionHint = stringResource(R.string.audioVisualizerPermissionHint)
@@ -1550,11 +1545,8 @@ private fun PlayerContent(
     val currentOnSetVisualizerEnabled by rememberUpdatedState(onSetVisualizerEnabled)
     // Get window size class for adaptive sizing
     val context = LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val wsc = LocalWindowSizeClass.current
+    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
 
     // Adaptive sizes for compact screens (phones)
     val isCompact =

@@ -35,6 +35,7 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.navigation.DeepLinkDispatchPolicy
 import com.jabook.app.jabook.compose.navigation.JabookAppState
 import com.jabook.app.jabook.compose.navigation.JabookNavHost
@@ -220,177 +222,179 @@ public fun JabookApp(
         isBetaFlavor = isBetaFlavor,
         selectedFont = selectedFont,
     ) {
-        // Mini-player state management using MiniPlayerViewModel
-        // MiniPlayerViewModel is a lightweight wrapper around AudioPlayerController
-        // Safe to instantiate at app root (no navigation dependencies)
-        val miniPlayerViewModel: com.jabook.app.jabook.compose.feature.miniplayer.MiniPlayerViewModel = hiltViewModel()
-        val isPlaying by miniPlayerViewModel.isPlaying.collectAsStateWithLifecycle()
-        val hasNextChapter by miniPlayerViewModel.hasNextChapter.collectAsStateWithLifecycle()
-        val hasPreviousChapter by miniPlayerViewModel.hasPreviousChapter.collectAsStateWithLifecycle()
-        val currentBook by miniPlayerViewModel.currentBook.collectAsStateWithLifecycle()
-        val currentDestination = appState.currentDestination // Hoist to Composable scope
-        val currentOnPlayerScreenVisibilityChanged by rememberUpdatedState(onPlayerScreenVisibilityChanged)
+        CompositionLocalProvider(LocalWindowSizeClass provides windowSizeClass) {
+            // Mini-player state management using MiniPlayerViewModel
+            // MiniPlayerViewModel is a lightweight wrapper around AudioPlayerController
+            // Safe to instantiate at app root (no navigation dependencies)
+            val miniPlayerViewModel: com.jabook.app.jabook.compose.feature.miniplayer.MiniPlayerViewModel = hiltViewModel()
+            val isPlaying by miniPlayerViewModel.isPlaying.collectAsStateWithLifecycle()
+            val hasNextChapter by miniPlayerViewModel.hasNextChapter.collectAsStateWithLifecycle()
+            val hasPreviousChapter by miniPlayerViewModel.hasPreviousChapter.collectAsStateWithLifecycle()
+            val currentBook by miniPlayerViewModel.currentBook.collectAsStateWithLifecycle()
+            val currentDestination = appState.currentDestination // Hoist to Composable scope
+            val currentOnPlayerScreenVisibilityChanged by rememberUpdatedState(onPlayerScreenVisibilityChanged)
 
-        // Check if we're on the player screen - hide mini player in that case
-        val isOnPlayerScreen = currentDestination?.route?.contains("player", ignoreCase = true) == true
-        androidx.compose.runtime.DisposableEffect(isOnPlayerScreen) {
-            currentOnPlayerScreenVisibilityChanged(isOnPlayerScreen)
-            onDispose {
-                currentOnPlayerScreenVisibilityChanged(false)
+            // Check if we're on the player screen - hide mini player in that case
+            val isOnPlayerScreen = currentDestination?.route?.contains("player", ignoreCase = true) == true
+            androidx.compose.runtime.DisposableEffect(isOnPlayerScreen) {
+                currentOnPlayerScreenVisibilityChanged(isOnPlayerScreen)
+                onDispose {
+                    currentOnPlayerScreenVisibilityChanged(false)
+                }
             }
-        }
 
-        // State for mini player visibility (can be hidden by swipe)
-        var isMiniPlayerVisible by remember { mutableStateOf(true) }
+            // State for mini player visibility (can be hidden by swipe)
+            var isMiniPlayerVisible by remember { mutableStateOf(true) }
 
-        // Reset visibility when book changes
-        LaunchedEffect(currentBook?.id) {
-            isMiniPlayerVisible = true
-        }
+            // Reset visibility when book changes
+            LaunchedEffect(currentBook?.id) {
+                isMiniPlayerVisible = true
+            }
 
-        // Drawer State
-        val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-        val scope = rememberCoroutineScope()
-        val onMenuClick: () -> Unit = { scope.launch { drawerState.open() } }
+            // Drawer State
+            val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+            val scope = rememberCoroutineScope()
+            val onMenuClick: () -> Unit = { scope.launch { drawerState.open() } }
 
-        ModalNavigationDrawer(
-            drawerState = drawerState,
-            gesturesEnabled = false,
-            drawerContent = {
-                com.jabook.app.jabook.compose.navigation.JabookDrawerContent(
-                    destinations = appState.topLevelDestinations,
-                    currentDestination = currentDestination,
-                    onNavigateToDestination = { destination ->
-                        appState.navigateToTopLevelDestination(destination)
-                        scope.launch { drawerState.close() }
-                    },
-                    onNavigateToSettings = {
-                        appState.navController.navigate(com.jabook.app.jabook.compose.navigation.SettingsRoute)
-                        scope.launch { drawerState.close() }
-                    },
-                    onNavigateToAuth = {
-                        appState.navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute)
-                        scope.launch { drawerState.close() }
-                    },
-                    onNavigateToAbout = {
-                        appState.navController.navigate(com.jabook.app.jabook.compose.navigation.SettingsRoute)
-                        scope.launch { drawerState.close() }
-                    },
-                    accountProfile =
-                        when (val status = authStatus) {
-                            is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated ->
-                                com.jabook.app.jabook.compose.navigation
-                                    .AccountProfile(status.username, "")
-                            else ->
-                                com.jabook.app.jabook.compose.navigation.AccountProfile(
-                                    stringResource(R.string.settingsProfileGuest),
-                                    "",
-                                )
+            ModalNavigationDrawer(
+                drawerState = drawerState,
+                gesturesEnabled = false,
+                drawerContent = {
+                    com.jabook.app.jabook.compose.navigation.JabookDrawerContent(
+                        destinations = appState.topLevelDestinations,
+                        currentDestination = currentDestination,
+                        onNavigateToDestination = { destination ->
+                            appState.navigateToTopLevelDestination(destination)
+                            scope.launch { drawerState.close() }
                         },
-                )
-            },
-        ) {
-            // NavigationSuiteScaffold automatically adapts navigation to screen size
-            // - Compact: Bottom navigation bar
-            // - Medium/Expanded: Navigation rail
-            // - Large/Extra-large: Wide navigation rail or drawer
-            NavigationSuiteScaffold(
-                navigationSuiteItems = {
-                    appState.topLevelDestinations.forEach { destination ->
-                        val selected = currentDestination.isTopLevelDestinationInHierarchy(destination)
-
-                        item(
-                            icon = {
-                                val icon =
-                                    if (selected) {
-                                        destination.selectedIcon
-                                    } else {
-                                        destination.unselectedIcon
-                                    }
-                                TopLevelDestinationIcon(
-                                    destination = destination,
-                                    icon = icon,
-                                    activeDownloadsCount = activeDownloadsCount,
-                                )
+                        onNavigateToSettings = {
+                            appState.navController.navigate(com.jabook.app.jabook.compose.navigation.SettingsRoute)
+                            scope.launch { drawerState.close() }
+                        },
+                        onNavigateToAuth = {
+                            appState.navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute)
+                            scope.launch { drawerState.close() }
+                        },
+                        onNavigateToAbout = {
+                            appState.navController.navigate(com.jabook.app.jabook.compose.navigation.SettingsRoute)
+                            scope.launch { drawerState.close() }
+                        },
+                        accountProfile =
+                            when (val status = authStatus) {
+                                is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated ->
+                                    com.jabook.app.jabook.compose.navigation
+                                        .AccountProfile(status.username, "")
+                                else ->
+                                    com.jabook.app.jabook.compose.navigation.AccountProfile(
+                                        stringResource(R.string.settingsProfileGuest),
+                                        "",
+                                    )
                             },
-                            label = { Text(stringResource(destination.titleTextId)) },
-                            selected = selected,
-                            onClick = { appState.navigateToTopLevelDestination(destination) },
-                        )
-                    }
+                    )
                 },
-                modifier = Modifier.fillMaxSize(),
             ) {
-                // Main content area with mini player
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Navigation content
-                    Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .fillMaxSize(),
-                    ) {
-                        @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
-                        androidx.compose.animation.SharedTransitionLayout {
-                            JabookNavHost(
-                                appState = appState,
-                                modifier = Modifier.fillMaxSize(),
-                                sharedTransitionScope = this,
-                                onFirstMeaningfulContentDrawn = onFirstMeaningfulContentDrawn,
-                                onMenuClick = onMenuClick,
+                // NavigationSuiteScaffold automatically adapts navigation to screen size
+                // - Compact: Bottom navigation bar
+                // - Medium/Expanded: Navigation rail
+                // - Large/Extra-large: Wide navigation rail or drawer
+                NavigationSuiteScaffold(
+                    navigationSuiteItems = {
+                        appState.topLevelDestinations.forEach { destination ->
+                            val selected = currentDestination.isTopLevelDestinationInHierarchy(destination)
+
+                            item(
+                                icon = {
+                                    val icon =
+                                        if (selected) {
+                                            destination.selectedIcon
+                                        } else {
+                                            destination.unselectedIcon
+                                        }
+                                    TopLevelDestinationIcon(
+                                        destination = destination,
+                                        icon = icon,
+                                        activeDownloadsCount = activeDownloadsCount,
+                                    )
+                                },
+                                label = { Text(stringResource(destination.titleTextId)) },
+                                selected = selected,
+                                onClick = { appState.navigateToTopLevelDestination(destination) },
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    // Main content area with mini player
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Navigation content
+                        Box(
+                            modifier =
+                                Modifier
+                                    .weight(1f)
+                                    .fillMaxSize(),
+                        ) {
+                            @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
+                            androidx.compose.animation.SharedTransitionLayout {
+                                JabookNavHost(
+                                    appState = appState,
+                                    modifier = Modifier.fillMaxSize(),
+                                    sharedTransitionScope = this,
+                                    onFirstMeaningfulContentDrawn = onFirstMeaningfulContentDrawn,
+                                    onMenuClick = onMenuClick,
+                                )
+                            }
+
+                            // Snackbar host positioned above mini player
+                            androidx.compose.material3.SnackbarHost(
+                                hostState = appState.snackbarHostState,
+                                modifier =
+                                    Modifier
+                                        .align(androidx.compose.ui.Alignment.BottomCenter)
+                                        .padding(
+                                            bottom =
+                                                if (currentBook != null && isMiniPlayerVisible && !isOnPlayerScreen) 72.dp else 16.dp,
+                                        ),
                             )
                         }
 
-                        // Snackbar host positioned above mini player
-                        androidx.compose.material3.SnackbarHost(
-                            hostState = appState.snackbarHostState,
-                            modifier =
-                                Modifier
-                                    .align(androidx.compose.ui.Alignment.BottomCenter)
-                                    .padding(
-                                        bottom =
-                                            if (currentBook != null && isMiniPlayerVisible && !isOnPlayerScreen) 72.dp else 16.dp,
-                                    ),
-                        )
-                    }
-
-                    // Mini player (shown when book is playing, but hidden on player screen or when swiped away)
-                    if (!isOnPlayerScreen && isMiniPlayerVisible) {
-                        currentBook?.let { book ->
-                            com.jabook.app.jabook.compose.feature.player.MiniPlayer(
-                                coverUrl = book.coverUrl,
-                                title = book.title,
-                                author = book.author,
-                                isPlaying = isPlaying,
-                                onPlayPauseClick = { miniPlayerViewModel.togglePlayPause() },
-                                onNextClick = { miniPlayerViewModel.skipToNext() },
-                                onPreviousClick = { miniPlayerViewModel.skipToPrevious() },
-                                hasNextChapter = hasNextChapter,
-                                hasPreviousChapter = hasPreviousChapter,
-                                onMiniPlayerClick = {
-                                    // Navigate to player screen
-                                    appState.navController.navigate(PlayerRoute(bookId = book.id))
-                                },
-                                onDismiss = {
-                                    miniPlayerViewModel.pause()
-                                    isMiniPlayerVisible = false
-                                    scope.launch {
-                                        val result =
-                                            appState.snackbarHostState.showSnackbar(
-                                                message = context.getString(R.string.mini_player_dismissed_undo),
-                                                actionLabel = context.getString(R.string.mini_player_dismissed_resume),
-                                                duration = SnackbarDuration.Long,
-                                            )
-                                        if (result == SnackbarResult.ActionPerformed) {
-                                            miniPlayerViewModel.play()
-                                            isMiniPlayerVisible = true
+                        // Mini player (shown when book is playing, but hidden on player screen or when swiped away)
+                        if (!isOnPlayerScreen && isMiniPlayerVisible) {
+                            currentBook?.let { book ->
+                                com.jabook.app.jabook.compose.feature.player.MiniPlayer(
+                                    coverUrl = book.coverUrl,
+                                    title = book.title,
+                                    author = book.author,
+                                    isPlaying = isPlaying,
+                                    onPlayPauseClick = { miniPlayerViewModel.togglePlayPause() },
+                                    onNextClick = { miniPlayerViewModel.skipToNext() },
+                                    onPreviousClick = { miniPlayerViewModel.skipToPrevious() },
+                                    hasNextChapter = hasNextChapter,
+                                    hasPreviousChapter = hasPreviousChapter,
+                                    onMiniPlayerClick = {
+                                        // Navigate to player screen
+                                        appState.navController.navigate(PlayerRoute(bookId = book.id))
+                                    },
+                                    onDismiss = {
+                                        miniPlayerViewModel.pause()
+                                        isMiniPlayerVisible = false
+                                        scope.launch {
+                                            val result =
+                                                appState.snackbarHostState.showSnackbar(
+                                                    message = context.getString(R.string.mini_player_dismissed_undo),
+                                                    actionLabel = context.getString(R.string.mini_player_dismissed_resume),
+                                                    duration = SnackbarDuration.Long,
+                                                )
+                                            if (result == SnackbarResult.ActionPerformed) {
+                                                miniPlayerViewModel.play()
+                                                isMiniPlayerVisible = true
+                                            }
                                         }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
-                                currentPositionMs = miniPlayerViewModel.currentPosition,
-                                durationMs = miniPlayerViewModel.duration,
-                            )
+                                    },
+                                    modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
+                                    currentPositionMs = miniPlayerViewModel.currentPosition,
+                                    durationMs = miniPlayerViewModel.duration,
+                                )
+                            }
                         }
                     }
                 }

@@ -77,7 +77,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -109,6 +108,7 @@ import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.theme.getAllAccentSwatches
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.ScanProgress
@@ -193,11 +193,8 @@ public fun SettingsScreen(
                     ).show()
             }
         }
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val wsc = LocalWindowSizeClass.current
+    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
     val smallSpacing = AdaptiveUtils.getSmallSpacingOrDefault(windowSizeClass)

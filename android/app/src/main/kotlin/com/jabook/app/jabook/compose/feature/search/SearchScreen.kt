@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -74,6 +75,8 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
@@ -319,7 +322,14 @@ public fun SearchScreen(
                                 Modifier
                                     .fillMaxSize()
                                     .padding(padding)
-                                    .padding(16.dp),
+                                    .padding(16.dp)
+                                    .then(
+                                        run {
+                                            val wsc = LocalWindowSizeClass.current
+                                            val maxW = wsc?.let { AdaptiveUtils.getMaxContentWidth(it) }
+                                            if (maxW != null) Modifier.widthIn(max = maxW) else Modifier
+                                        },
+                                    ),
                         ) {
                             // Show indexing message if index is empty
                             if (showIndexingMessage && indexSize == 0) {

@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.designsystem.component.ContinueListeningHeroCard
 import com.jabook.app.jabook.compose.designsystem.component.UnifiedBookCard
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -58,6 +59,7 @@ public fun EnhancedLibraryContent(
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
+    val wsc = LocalWindowSizeClass.current
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 16.dp),

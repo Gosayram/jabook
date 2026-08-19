@@ -68,7 +68,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -92,6 +91,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.HtmlToAnnotatedString
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
 import com.jabook.app.jabook.ui.theme.LeecherOrange
@@ -257,11 +257,8 @@ private fun TopicDetailsContent(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val wsc = LocalWindowSizeClass.current
+    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val isCompact = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
     val isMediumOrExpanded = windowSizeClass?.widthSizeClass != WindowWidthSizeClass.Compact
 
@@ -689,11 +686,8 @@ private fun DescriptionAndCommentsSection(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val wsc = LocalWindowSizeClass.current
+    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val isNarrow = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
 
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
@@ -771,16 +765,10 @@ private fun ExpandableDescription(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
 
     // Get window size class for adaptive sizing
-    val rawWindowSizeClass =
-        activity?.let {
-            calculateWindowSizeClass(it)
-        }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val wsc = LocalWindowSizeClass.current
+    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val isCompact =
         windowSizeClass?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
 

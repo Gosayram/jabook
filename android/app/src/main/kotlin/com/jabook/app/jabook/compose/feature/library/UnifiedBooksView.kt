@@ -38,7 +38,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -52,6 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.core.util.rememberCoverPreloader
 import com.jabook.app.jabook.compose.core.util.rememberCoverPreloaderForGrid
 import com.jabook.app.jabook.compose.designsystem.component.UnifiedBookCard
@@ -91,12 +91,8 @@ public fun UnifiedBooksView(
     val context = LocalContext.current
     val effectiveWindowSizeClass =
         windowSizeClass
-            ?: run {
-                val activity =
-                    context as? android.app.Activity
-                        ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-                val raw = activity?.let { calculateWindowSizeClass(it) }
-                AdaptiveUtils.resolveWindowSizeClassOrNull(raw, context)
+            ?: LocalWindowSizeClass.current?.let {
+                AdaptiveUtils.resolveWindowSizeClassOrNull(it, context)
             }
 
     when {

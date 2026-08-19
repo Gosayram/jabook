@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -80,6 +81,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
 
@@ -148,7 +151,14 @@ public fun AuthScreen(
                     .padding(paddingValues)
                     .imePadding()
                     .padding(24.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .then(
+                        run {
+                            val wsc = LocalWindowSizeClass.current
+                            val maxW = wsc?.let { AdaptiveUtils.getMaxContentWidth(it) }
+                            if (maxW != null) Modifier.widthIn(max = maxW) else Modifier
+                        },
+                    ),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {

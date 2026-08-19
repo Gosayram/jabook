@@ -44,7 +44,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -119,17 +118,6 @@ public fun UnifiedBookCard(
         }
     }
 
-    // Compute WindowSizeClass once per card, not per child
-    val effectiveWindowSizeClass =
-        windowSizeClass ?: run {
-            val ctx = LocalContext.current
-            val act =
-                ctx as? android.app.Activity
-                    ?: (ctx as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-            val raw = act?.let { calculateWindowSizeClass(it) }
-            AdaptiveUtils.resolveWindowSizeClassOrNull(raw, ctx)
-        }
-
     when {
         displayMode.isGrid() ->
             GridBookCard(
@@ -139,7 +127,7 @@ public fun UnifiedBookCard(
                 isSelectionMode = isSelectionMode,
                 isSelected = isSelected,
                 onToggleSelection = onToggleSelection,
-                windowSizeClass = effectiveWindowSizeClass,
+                windowSizeClass = windowSizeClass,
                 modifier = modifier,
             )
         displayMode.isList() ->
@@ -151,7 +139,7 @@ public fun UnifiedBookCard(
                 isSelectionMode = isSelectionMode,
                 isSelected = isSelected,
                 onToggleSelection = onToggleSelection,
-                windowSizeClass = effectiveWindowSizeClass,
+                windowSizeClass = windowSizeClass,
                 modifier = modifier,
             )
     }

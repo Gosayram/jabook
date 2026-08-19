@@ -93,6 +93,7 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.SideEffect
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.designsystem.component.BookActionsBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.ChipRow
@@ -255,21 +256,14 @@ public fun LibraryScreen(
     val context = LocalContext.current
 
     // Compute WindowSizeClass once at screen level
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass =
-        activity?.let {
-            androidx.compose.material3.windowsizeclass
-                .calculateWindowSizeClass(it)
-        }
+    val wsc = LocalWindowSizeClass.current
     val windowSizeClass =
-        com.jabook.app.jabook.compose.core.util.AdaptiveUtils
-            .resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+        wsc?.let {
+            com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+                .resolveWindowSizeClassOrNull(it, context)
+        } ?: wsc
     val isCompact =
-        com.jabook.app.jabook.compose.core.util.AdaptiveUtils
-            .shouldForceCompact(context) ||
-            (windowSizeClass?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact)
+        windowSizeClass?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
 
     // 🎯 Navigator for ListDetailPaneScaffold
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()

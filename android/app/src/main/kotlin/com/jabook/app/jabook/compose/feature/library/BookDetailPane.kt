@@ -60,7 +60,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -87,6 +86,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioQualityInfo
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.designsystem.component.MetadataPill
 import com.jabook.app.jabook.compose.designsystem.component.QualityBadge
@@ -127,14 +127,13 @@ public fun BookDetailPane(
     embedded: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     val context = LocalContext.current
     val windowSizeClass =
-        calculateWindowSizeClass(
-            context as? android.app.Activity
-                ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-                ?: throw IllegalStateException("Cannot get Activity from context"),
-        )
+        LocalWindowSizeClass.current
+            ?: androidx.compose.material3.windowsizeclass.WindowSizeClass.calculateFromSize(
+                androidx.compose.ui.unit
+                    .DpSize(360.dp, 800.dp),
+            )
     val maxContentWidth = AdaptiveUtils.getMaxContentWidth(windowSizeClass)
     Scaffold(
         topBar = {
