@@ -17,7 +17,6 @@ package com.jabook.app.jabook.audio
 import android.content.Intent
 import android.os.Build
 import androidx.annotation.OptIn
-import androidx.annotation.RequiresApi
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSessionService
 import com.jabook.app.jabook.R
@@ -50,8 +49,7 @@ public class MediaSessionServiceListener(
             "onForegroundServiceStartNotAllowedException: System doesn't allow foreground service start",
         )
 
-        // Check if notification permission is required but not granted (Android 13+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (service.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
                 android.content.pm.PackageManager.PERMISSION_GRANTED
             ) {
@@ -76,15 +74,13 @@ public class MediaSessionServiceListener(
             service.notificationHelper?.let { helper ->
                 // NotificationHelper already has channel creation logic
                 // We can reuse it or create channel directly
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val channel =
-                        android.app.NotificationChannel(
-                            NotificationHelper.CHANNEL_ID,
-                            "JaBook Audio Playback",
-                            android.app.NotificationManager.IMPORTANCE_DEFAULT,
-                        )
-                    notificationManagerCompat.createNotificationChannel(channel)
-                }
+                val channel =
+                    android.app.NotificationChannel(
+                        NotificationHelper.CHANNEL_ID,
+                        "JaBook Audio Playback",
+                        android.app.NotificationManager.IMPORTANCE_DEFAULT,
+                    )
+                notificationManagerCompat.createNotificationChannel(channel)
             }
 
             val builder =

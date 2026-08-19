@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.data.local.migration
 
-import android.os.Build
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
@@ -92,5 +91,5 @@ private fun checkFts4Support(db: SupportSQLiteDatabase): Boolean {
     } catch (_: Exception) {
         return true
     }
-    return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+    return true
 }

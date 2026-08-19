@@ -23,10 +23,8 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Build
 import android.os.SystemClock
 import android.widget.RemoteViews
-import androidx.annotation.RequiresApi
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -746,19 +744,13 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
     /**
      * Sets up click intents for widget buttons.
      */
-    @RequiresApi(Build.VERSION_CODES.M)
     private suspend fun setupClickIntents(
         context: Context,
         views: RemoteViews,
         currentBookId: String?,
         appWidgetId: Int,
     ) {
-        val pendingIntentFlags =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                PendingIntent.FLAG_IMMUTABLE
-            } else {
-                0
-            }
+        val pendingIntentFlags = PendingIntent.FLAG_IMMUTABLE
 
         // Play/Pause button (always present)
         views.setOnClickPendingIntent(

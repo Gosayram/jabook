@@ -17,7 +17,6 @@ package com.jabook.app.jabook.compose.data.torrent
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -367,19 +366,14 @@ public class TorrentManager
             }
         }
 
-        @RequiresApi(android.os.Build.VERSION_CODES.O)
         private fun startDownloadService() {
             try {
                 val intent =
                     Intent(context, TorrentDownloadService::class.java).apply {
                         action = TorrentDownloadService.ACTION_START
                     }
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    androidx.core.content.ContextCompat
-                        .startForegroundService(context, intent)
-                } else {
-                    context.startService(intent)
-                }
+                androidx.core.content.ContextCompat
+                    .startForegroundService(context, intent)
             } catch (e: android.app.ForegroundServiceStartNotAllowedException) {
                 // Android 12+ blocks FGS start from background — reschedule via WorkManager
                 logger.w {

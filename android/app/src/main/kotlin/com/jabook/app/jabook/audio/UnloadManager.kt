@@ -15,12 +15,9 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import com.jabook.app.jabook.util.LogUtils
-import android.app.NotificationManager as AndroidNotificationManager
 
 /**
  * Manages player unloading and resource cleanup.
@@ -60,7 +57,6 @@ internal class UnloadManager(
      * Note: Position saving is handled by Media3PlayerService (Dart) which saves
      * periodically and on app lifecycle events. This method focuses on resource cleanup.
      */
-    @RequiresApi(Build.VERSION_CODES.O)
     public fun unloadPlayerDueToInactivity() {
         LogUtils.i("AudioPlayerService", "Unloading player due to inactivity")
 
@@ -129,16 +125,8 @@ internal class UnloadManager(
 
             // Remove notification
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    stopForeground(android.app.Service.STOP_FOREGROUND_REMOVE)
-                    LogUtils.d("AudioPlayerService", "Foreground service stopped and notification removed")
-                } else {
-                    // Use AndroidNotificationManager to cancel notification
-                    val androidNotificationManager =
-                        context.getSystemService(Context.NOTIFICATION_SERVICE) as AndroidNotificationManager
-                    androidNotificationManager.cancel(NotificationHelper.NOTIFICATION_ID)
-                    LogUtils.d("AudioPlayerService", "Notification cancelled")
-                }
+                stopForeground(android.app.Service.STOP_FOREGROUND_REMOVE)
+                LogUtils.d("AudioPlayerService", "Foreground service stopped and notification removed")
             } catch (e: Exception) {
                 LogUtils.w("AudioPlayerService", "Failed to remove notification", e)
             }

@@ -95,9 +95,24 @@ public class DataManagementActivity : AppCompatActivity() {
                 val totalSize = cacheSize + dataSize
 
                 runOnUiThread {
-                    cacheSizeText.text = getString(R.string.cacheSizeLabel, com.jabook.app.jabook.compose.core.util.UiFormatters.formatFileSize(cacheSize))
-                    dataSizeText.text = getString(R.string.dataSizeLabel, com.jabook.app.jabook.compose.core.util.UiFormatters.formatFileSize(dataSize))
-                    totalSizeText.text = getString(R.string.totalSizeLabel, com.jabook.app.jabook.compose.core.util.UiFormatters.formatFileSize(totalSize))
+                    cacheSizeText.text =
+                        getString(
+                            R.string.cacheSizeLabel,
+                            com.jabook.app.jabook.compose.core.util.UiFormatters
+                                .formatFileSize(cacheSize),
+                        )
+                    dataSizeText.text =
+                        getString(
+                            R.string.dataSizeLabel,
+                            com.jabook.app.jabook.compose.core.util.UiFormatters
+                                .formatFileSize(dataSize),
+                        )
+                    totalSizeText.text =
+                        getString(
+                            R.string.totalSizeLabel,
+                            com.jabook.app.jabook.compose.core.util.UiFormatters
+                                .formatFileSize(totalSize),
+                        )
                     progressBar.visibility = View.GONE
                 }
             } catch (e: Exception) {

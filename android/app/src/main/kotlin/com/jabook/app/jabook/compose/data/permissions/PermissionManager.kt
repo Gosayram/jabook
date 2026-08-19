@@ -19,8 +19,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.Settings
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -57,8 +59,7 @@ public class PermissionManager
          * Checks if the app has the comprehensive storage permission required for operation.
          * Checks Environment.isExternalStorageManager() (Android 11+).
          */
-        public fun hasStoragePermission(): Boolean =
-            Environment.isExternalStorageManager()
+        public fun hasStoragePermission(): Boolean = Environment.isExternalStorageManager()
 
         /**
          * Checks if the app has notification permission (Android 13+).
@@ -88,17 +89,9 @@ public class PermissionManager
         /**
          * Returns the Intent to request the "All Files Access" permission (Android 11+).
          */
-        @RequiresApi(Build.VERSION_CODES.R)
         public fun getManageExternalStorageIntent(): Intent =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
-                    data = Uri.parse("package:${context.packageName}")
-                }
-            } else {
-                // Fallback to app settings if called on unsupported version, though it shouldn't be
-                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                    data = Uri.parse("package:${context.packageName}")
-                }
+            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                data = Uri.parse("package:${context.packageName}")
             }
 
         /**
