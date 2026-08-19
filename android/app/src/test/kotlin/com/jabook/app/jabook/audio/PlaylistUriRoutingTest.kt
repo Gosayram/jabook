@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.audio
 
-import android.net.Uri
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,23 +38,4 @@ class PlaylistUriRoutingTest {
         assertEquals("/storage/emulated/0/Audiobooks/book.mp3", uri.path)
     }
 
-    @Test
-    fun `resolveMediaDataSourceRoute selects expected route`() {
-        assertEquals(
-            MediaDataSourceRoute.NETWORK_CACHED,
-            resolveMediaDataSourceRoute(Uri.parse("https://example.com/book.mp3")),
-        )
-        assertEquals(
-            MediaDataSourceRoute.LOCAL_FILE,
-            resolveMediaDataSourceRoute(Uri.parse("file:///storage/emulated/0/book.mp3")),
-        )
-        assertEquals(
-            MediaDataSourceRoute.LOCAL_CONTENT,
-            resolveMediaDataSourceRoute(Uri.parse("content://media/external/audio/media/1")),
-        )
-        assertEquals(
-            MediaDataSourceRoute.DEFAULT,
-            resolveMediaDataSourceRoute(Uri.parse("ftp://example.com/book.mp3")),
-        )
-    }
 }

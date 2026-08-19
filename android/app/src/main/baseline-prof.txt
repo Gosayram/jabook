@@ -16,8 +16,3 @@ HSPLcom/jabook/app/jabook/compose/ComposeMainActivity;->onCreate(Landroid/os/Bun
 HSPLcom/jabook/app/jabook/compose/JabookAppKt;->JabookApp(Landroidx/compose/material3/windowsizeclass/WindowSizeClass;Landroid/content/Intent;Lkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function1;Lcom/jabook/app/jabook/compose/JabookAppState;Lcom/jabook/app/jabook/compose/MainViewModel;Lcom/jabook/app/jabook/compose/feature/permissions/PermissionViewModel;)V
 HSPLcom/jabook/app/jabook/audio/AudioPlayerService;->onCreate()V
 HSPLcom/jabook/app/jabook/audio/AudioPlayerService;->onStartCommand(Landroid/content/Intent;II)I
-HSPLcom/jabook/app/jabook/audio/AudioPlayerService;->setPlaylist(Ljava/util/List;Ljava/util/Map;Ljava/lang/Integer;Ljava/lang/Long;Ljava/lang/String;Lkotlin/jvm/functions/Function2;)V
-HSPLcom/jabook/app/jabook/audio/AudioPlayerService;->play()V
-HSPLcom/jabook/app/jabook/audio/AudioServiceCommandRouter;->play()V
-HSPLcom/jabook/app/jabook/audio/AudioPlayerLibrarySessionCallback;->onPlaybackResumption(Landroidx/media3/session/MediaSession;Landroidx/media3/session/MediaSession$ControllerInfo;)Lcom/google/common/util/concurrent/ListenableFuture;
-HSPLcom/jabook/app/jabook/compose/feature/player/PlayerScreenKt;->PlayerScreen(Lkotlin/jvm/functions/Function0;Lcom/jabook/app/jabook/compose/feature/player/PlayerViewModel;)V

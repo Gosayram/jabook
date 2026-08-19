@@ -458,6 +458,22 @@ class AudioPlayerLibrarySessionCallbackTest {
     }
 
     @Test
+    fun `onGetItem returns every browsable library root for MediaBrowser subscriptions`() {
+        listOf(
+            AudioPlayerLibrarySessionCallback.ROOT_ID,
+            AudioPlayerLibrarySessionCallback.ROOT_ID_RECENT,
+            AudioPlayerLibrarySessionCallback.ROOT_ID_OFFLINE,
+            AudioPlayerLibrarySessionCallback.ROOT_ID_SUGGESTED,
+        ).forEach { rootId ->
+            val result = callback.onGetItem(librarySession, controller, rootId).get(1, TimeUnit.SECONDS)
+
+            assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
+            assertEquals(rootId, result.value?.mediaId)
+            assertTrue(result.value?.mediaMetadata?.isBrowsable == true)
+        }
+    }
+
+    @Test
     fun `onGetChildren root offline returns only downloaded and seeding torrents`() =
         runTest {
             whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(null)

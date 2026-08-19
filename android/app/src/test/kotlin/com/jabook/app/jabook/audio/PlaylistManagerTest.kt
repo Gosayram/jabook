@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
-import android.net.Uri
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.test.core.app.ApplicationProvider
@@ -103,15 +102,6 @@ class PlaylistManagerTest {
         val local = buildPlaybackUri("/storage/emulated/0/Books/ch1.mp3")
         assertEquals("file", local.scheme)
         assertTrue(local.path?.endsWith("/storage/emulated/0/Books/ch1.mp3") == true)
-    }
-
-    @Test
-    fun `resolveMediaDataSourceRoute maps schemes to expected routes`() {
-        assertEquals(MediaDataSourceRoute.NETWORK_CACHED, resolveMediaDataSourceRoute(Uri.parse("https://a/b.mp3")))
-        assertEquals(MediaDataSourceRoute.NETWORK_CACHED, resolveMediaDataSourceRoute(Uri.parse("http://a/b.mp3")))
-        assertEquals(MediaDataSourceRoute.LOCAL_CONTENT, resolveMediaDataSourceRoute(Uri.parse("content://a/b")))
-        assertEquals(MediaDataSourceRoute.LOCAL_FILE, resolveMediaDataSourceRoute(Uri.parse("file:///a/b.mp3")))
-        assertEquals(MediaDataSourceRoute.DEFAULT, resolveMediaDataSourceRoute(Uri.parse("ftp://a/b.mp3")))
     }
 
     @Test

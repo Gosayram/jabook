@@ -25,7 +25,6 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.session.CommandButton
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaConstants
 import androidx.media3.session.MediaLibraryService
@@ -72,22 +71,6 @@ public class AudioPlayerLibrarySessionCallback(
         SUGGESTED,
     }
 
-    public val customCommands: List<CommandButton> =
-        listOf(
-            CommandButton
-                .Builder(CommandButton.ICON_SKIP_BACK)
-                .setDisplayName(service.getString(com.jabook.app.jabook.R.string.rewind))
-                .setSessionCommand(
-                    androidx.media3.session.SessionCommand(CUSTOM_COMMAND_REWIND, Bundle.EMPTY),
-                ).build(),
-            CommandButton
-                .Builder(CommandButton.ICON_SKIP_FORWARD)
-                .setDisplayName(service.getString(com.jabook.app.jabook.R.string.forward))
-                .setSessionCommand(
-                    androidx.media3.session.SessionCommand(CUSTOM_COMMAND_FORWARD, Bundle.EMPTY),
-                ).build(),
-        )
-
     @OptIn(UnstableApi::class)
     override fun onConnectAsync(
         session: MediaSession,
@@ -96,14 +79,8 @@ public class AudioPlayerLibrarySessionCallback(
         // Following Media3 official pattern: only add custom commands for system controllers
         // (notification, automotive, auto companion). Regular app controllers get default commands.
         //
-        // CRITICAL FIX: Removed setCustomLayout() from onConnect() (following Rhythm pattern)
-        // Reason: Media3's MediaSessionLegacyStub cannot properly convert CommandButton to
-        // PlaybackStateCompat.CustomAction during controller connection, causing crashes.
-        // CustomLayout is now set separately after MediaController initialization to avoid
-        // timing issues with MediaSessionLegacyStub conversion.
-        //
-        // Custom commands (rewind/forward) are still available via SessionCommands,
-        // and CustomLayout will be set after initialization completes.
+        // Media button preferences are applied after the controller connects. Media3 ignores
+        // controller updates while onConnectAsync is running.
         val isSystemController =
             session.isMediaNotificationController(controller) ||
                 session.isAutomotiveController(controller) ||
@@ -608,11 +585,11 @@ public class AudioPlayerLibrarySessionCallback(
         mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> =
         service.playerServiceScope.future(Dispatchers.IO) {
-            if (mediaId == "root") {
+            if (isRootId(mediaId)) {
                 val rootItem =
                     MediaItem
                         .Builder()
-                        .setMediaId(ROOT_ID)
+                        .setMediaId(mediaId)
                         .setMediaMetadata(
                             MediaMetadata
                                 .Builder()

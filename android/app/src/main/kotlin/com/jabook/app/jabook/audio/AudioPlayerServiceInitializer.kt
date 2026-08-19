@@ -330,7 +330,6 @@ public class AudioPlayerServiceInitializer(
     public fun postInitialize() {
         restorePlaybackSpeed()
         setupAudioOutputManager()
-        service.playbackEnhancerService.initialize()
         initializeVisualizer()
     }
 

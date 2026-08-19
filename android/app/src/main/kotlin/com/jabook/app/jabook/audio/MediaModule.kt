@@ -233,12 +233,13 @@ public object MediaModule {
                         override fun buildAudioSink(
                             context: Context,
                             enableFloatOutput: Boolean,
-                            enableAudioOffload: Boolean,
+                            enableAudioOutputPlaybackParams: Boolean,
                         ): androidx.media3.exoplayer.audio.AudioSink =
                             androidx.media3.exoplayer.audio.DefaultAudioSink
                                 .Builder(context)
                                 .setAudioProcessors(processors.toTypedArray())
                                 .setEnableFloatOutput(enableFloatOutput)
+                                .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
                                 .build()
                     }
 

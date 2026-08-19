@@ -17,13 +17,6 @@ package com.jabook.app.jabook.audio
 import android.net.Uri
 import java.io.File
 
-internal enum class MediaDataSourceRoute {
-    NETWORK_CACHED,
-    LOCAL_FILE,
-    LOCAL_CONTENT,
-    DEFAULT,
-}
-
 internal fun buildPlaybackUri(path: String): Uri {
     val isUrl = path.startsWith("http://") || path.startsWith("https://")
     if (isUrl || path.startsWith("content://") || path.startsWith("file://")) {
@@ -32,22 +25,6 @@ internal fun buildPlaybackUri(path: String): Uri {
 
     return Uri.fromFile(File(path))
 }
-
-internal fun resolveMediaDataSourceRoute(uri: Uri): MediaDataSourceRoute =
-    when (uri.scheme) {
-        "http",
-        "https",
-        -> MediaDataSourceRoute.NETWORK_CACHED
-
-        "file",
-        null,
-        -> MediaDataSourceRoute.LOCAL_FILE
-
-        "content",
-        -> MediaDataSourceRoute.LOCAL_CONTENT
-
-        else -> MediaDataSourceRoute.DEFAULT
-    }
 
 /**
  * Sorts file paths using natural sort order (numeric-aware).

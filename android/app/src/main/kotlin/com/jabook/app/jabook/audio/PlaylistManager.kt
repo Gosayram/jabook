@@ -19,17 +19,17 @@ import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.ContentDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.datasource.FileDataSource
 import androidx.media3.datasource.cache.Cache
 import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
-import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.extractor.mp3.Mp3Extractor
 import com.jabook.app.jabook.audio.ErrorHandler
 import com.jabook.app.jabook.audio.SavedPlaybackState
 import com.jabook.app.jabook.compose.core.di.AppDispatchers
@@ -76,6 +76,30 @@ internal class PlaylistManager(
 ) {
     private val preloadExecutor by lazy {
         PlaylistPreloadExecutor(mainDispatcher = dispatchers.main)
+    }
+
+    // DefaultDataSource keeps local files, content URIs and Android resources on Media3's native
+    // sources. Its base factory is used for network media, where we add the shared playback cache.
+    private val playbackDataSourceFactory: DataSource.Factory by lazy {
+        val networkFactory =
+            OkHttpDataSource.Factory(
+                OkHttpClient
+                    .Builder()
+                    .connectTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .readTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .writeTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .build(),
+            )
+        val cachedNetworkFactory =
+            CacheDataSource
+                .Factory()
+                .setCache(mediaCache)
+                .setUpstreamDataSourceFactory(networkFactory)
+                .setCacheWriteDataSinkFactory(
+                    CacheDataSink.Factory().setCache(mediaCache).setFragmentSize(CacheDataSink.DEFAULT_FRAGMENT_SIZE),
+                ).setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE or CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+
+        DefaultDataSource.Factory(context, cachedNetworkFactory)
     }
 
     internal data class QueueSnapshot(
@@ -256,10 +280,9 @@ internal class PlaylistManager(
             } else {
                 0L
             }
-        val dataSourceFactory = SimpleMediaDataSourceFactory()
         val mediaSources =
             updatedPaths.mapIndexed { index, _ ->
-                createMediaSourceForIndex(updatedItems, index, currentMetadata, dataSourceFactory)
+                createMediaSourceForIndex(updatedItems, index, currentMetadata, playbackDataSourceFactory)
             }
 
         withContext(dispatchers.main) {
@@ -626,12 +649,10 @@ internal class PlaylistManager(
         loadStartTime: Long,
     ) = withContext(mediaItemDispatcher) {
         LogUtils.d("AudioPlayerService", "Using synchronous loading for small playlist (${filePaths.size} tracks)")
-        val dataSourceFactory = SimpleMediaDataSourceFactory()
-
         // Create all MediaSources synchronously so the configured cache route is retained.
         val mediaSources =
             filePaths.mapIndexed { index, _ ->
-                createMediaSourceForIndex(playlistItems, index, metadata, dataSourceFactory)
+                createMediaSourceForIndex(playlistItems, index, metadata, playbackDataSourceFactory)
             }
 
         // Apply to player on main thread
@@ -688,8 +709,6 @@ internal class PlaylistManager(
     ) = withContext(dispatchers.io) {
         try {
             LogUtils.d("AudioPlayerService", "Using async loading for large playlist (${filePaths.size} tracks)")
-            val dataSourceFactory = SimpleMediaDataSourceFactory()
-
             // Determine which track to load first
             // CRITICAL: Always load track 0 first, then switch to target track after all tracks are loaded
             // This ensures ExoPlayer has a valid playlist structure before switching tracks
@@ -706,7 +725,7 @@ internal class PlaylistManager(
                     playlistItems,
                     firstTrackIndex,
                     metadata,
-                    dataSourceFactory,
+                    playbackDataSourceFactory,
                 )
 
             // Set first MediaSource and prepare player immediately
@@ -793,7 +812,7 @@ internal class PlaylistManager(
                                         playlistItems,
                                         index,
                                         metadata,
-                                        dataSourceFactory,
+                                        playbackDataSourceFactory,
                                     )
 
                                 withContext(dispatchers.main) {
@@ -1358,7 +1377,7 @@ internal class PlaylistManager(
         playlistItems: List<PlaylistItem>,
         index: Int,
         metadata: Map<String, String>?,
-        dataSourceFactory: SimpleMediaDataSourceFactory,
+        dataSourceFactory: DataSource.Factory,
     ): MediaSource {
         val item = playlistItems[index]
         val path = item.path
@@ -1396,9 +1415,12 @@ internal class PlaylistManager(
                     }
                 }.build()
 
-        val sourceFactory = dataSourceFactory.createDataSourceFactoryForUri(uri)
-        return ProgressiveMediaSource
-            .Factory(sourceFactory)
+        return DefaultMediaSourceFactory(
+            dataSourceFactory,
+            DefaultExtractorsFactory().setMp3ExtractorFlags(
+                Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING or Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING,
+            ),
+        )
             .createMediaSource(mediaItem)
     }
 
@@ -1421,7 +1443,7 @@ internal class PlaylistManager(
         metadata: Map<String, String>?,
     ): MediaSource? {
         if (index < 0 || index >= playlistItems.size) return null
-        return createMediaSourceForIndex(playlistItems, index, metadata, SimpleMediaDataSourceFactory())
+        return createMediaSourceForIndex(playlistItems, index, metadata, playbackDataSourceFactory)
     }
 
     /**
@@ -1437,63 +1459,8 @@ internal class PlaylistManager(
             items,
             nextIndex,
             currentMetadata,
-            SimpleMediaDataSourceFactory(),
+            playbackDataSourceFactory,
         )
-    }
-
-    /**
-     * DataSource factory for media playback with caching and network support.
-     * Private inner class to avoid build duplication issues.
-     */
-    private inner class SimpleMediaDataSourceFactory : DataSource.Factory {
-        // OkHttp client for network requests
-        private val okHttpClient by lazy {
-            OkHttpClient
-                .Builder()
-                .connectTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .readTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .writeTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .build()
-        }
-
-        private val okHttpFactory by lazy {
-            OkHttpDataSource.Factory(okHttpClient)
-        }
-
-        private val defaultFactory by lazy {
-            DefaultDataSource.Factory(context)
-        }
-
-        private val cacheFactory by lazy {
-            CacheDataSource
-                .Factory()
-                .setCache(mediaCache)
-                .setUpstreamDataSourceFactory(DefaultDataSource.Factory(context, okHttpFactory))
-                .setCacheWriteDataSinkFactory(
-                    CacheDataSink
-                        .Factory()
-                        .setCache(mediaCache)
-                        .setFragmentSize(CacheDataSink.DEFAULT_FRAGMENT_SIZE),
-                ).setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE or CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-        }
-
-        private val fileDataSourceFactory by lazy {
-            FileDataSource.Factory()
-        }
-
-        private val contentDataSourceFactory by lazy {
-            DataSource.Factory { ContentDataSource(context) }
-        }
-
-        override fun createDataSource(): DataSource = defaultFactory.createDataSource()
-
-        public fun createDataSourceFactoryForUri(uri: Uri): DataSource.Factory =
-            when (resolveMediaDataSourceRoute(uri)) {
-                MediaDataSourceRoute.NETWORK_CACHED -> cacheFactory
-                MediaDataSourceRoute.LOCAL_FILE -> fileDataSourceFactory
-                MediaDataSourceRoute.LOCAL_CONTENT -> contentDataSourceFactory
-                MediaDataSourceRoute.DEFAULT -> defaultFactory
-            }
     }
 
     /**
@@ -1536,7 +1503,6 @@ internal class PlaylistManager(
         // Preload in background to avoid blocking
         playerServiceScope.launch(mediaItemDispatcher) {
             LogUtils.d("AudioPlayerService", "Preloading next track: $nextTrackIndex")
-            val dataSourceFactory = SimpleMediaDataSourceFactory()
             val metadataSnapshot = currentMetadata
             val executionResult =
                 preloadExecutor.execute(
@@ -1545,7 +1511,7 @@ internal class PlaylistManager(
                             playlistItems = nonNullItems,
                             index = nextTrackIndex,
                             metadata = metadataSnapshot,
-                            dataSourceFactory = dataSourceFactory,
+                            dataSourceFactory = playbackDataSourceFactory,
                         )
                     },
                     shouldAttachOnMain = {

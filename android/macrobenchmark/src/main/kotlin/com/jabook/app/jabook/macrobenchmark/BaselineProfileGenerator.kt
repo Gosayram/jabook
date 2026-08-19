@@ -52,17 +52,17 @@ class BaselineProfileGenerator {
 
             // Wait for content to appear (library/catalog screen)
             device.wait(
-                Until.hasObject(By.res("com.jabook.app.jabook", "miniPlayer")),
+                Until.hasObject(By.res(targetPackage, "miniPlayer")),
                 10_000,
             )
 
             // Navigate to player if mini player is visible
-            val miniPlayer = device.findObject(By.res("com.jabook.app.jabook", "miniPlayer"))
+            val miniPlayer = device.findObject(By.res(targetPackage, "miniPlayer"))
             if (miniPlayer != null) {
                 miniPlayer.click()
                 device.waitForIdle()
                 device.wait(
-                    Until.hasObject(By.res("com.jabook.app.jabook", "playerScreen")),
+                    Until.hasObject(By.res(targetPackage, "playerScreen")),
                     5_000,
                 )
                 // Go back
@@ -71,7 +71,7 @@ class BaselineProfileGenerator {
             }
 
             // Navigate through sidebar items
-            val sidebar = device.findObject(By.res("com.jabook.app.jabook", "sidebar"))
+            val sidebar = device.findObject(By.res(targetPackage, "sidebar"))
             if (sidebar != null) {
                 // Click on different navigation items
                 val navItems = sidebar.children
@@ -92,7 +92,7 @@ class BaselineProfileGenerator {
     @Test
     fun startupCompilationBaselineProfile() {
         rule.collect(
-            packageName = TARGET_PACKAGE,
+            packageName = targetPackage,
             includeInStartupProfile = true,
         ) {
             pressHome()
