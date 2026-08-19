@@ -42,38 +42,35 @@ public object NotificationHelper {
      *
      * @param context Application context
      */
-    @RequiresApi(Build.VERSION_CODES.O)
     public fun createNotificationChannels(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-            // Downloads channel
-            val downloadsChannel =
-                NotificationChannel(
-                    CHANNEL_DOWNLOADS,
-                    "Downloads",
-                    NotificationManager.IMPORTANCE_LOW,
-                ).apply {
-                    description = "Book download progress and completion"
-                    setShowBadge(false)
-                }
+        // Downloads channel
+        val downloadsChannel =
+            NotificationChannel(
+                CHANNEL_DOWNLOADS,
+                "Downloads",
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = "Book download progress and completion"
+                setShowBadge(false)
+            }
 
-            // Player channel (for media playback notifications)
-            val playerChannel =
-                NotificationChannel(
-                    CHANNEL_PLAYER,
-                    "Audio Player",
-                    NotificationManager.IMPORTANCE_LOW,
-                ).apply {
-                    description = "Audio playback controls and status"
-                    setShowBadge(false)
-                }
+        // Player channel (for media playback notifications)
+        val playerChannel =
+            NotificationChannel(
+                CHANNEL_PLAYER,
+                "Audio Player",
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = "Audio playback controls and status"
+                setShowBadge(false)
+            }
 
-            notificationManager.createNotificationChannels(
-                listOf(downloadsChannel, playerChannel),
-            )
-        }
+        notificationManager.createNotificationChannels(
+            listOf(downloadsChannel, playerChannel),
+        )
     }
 
     /**

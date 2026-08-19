@@ -26,7 +26,6 @@ public enum class AudioOutputType {
     UNKNOWN,
 }
 
-@RequiresApi(Build.VERSION_CODES.M)
 public fun detectAudioOutputType(context: Context): AudioOutputType {
     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
     val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)

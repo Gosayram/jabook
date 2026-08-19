@@ -30,7 +30,6 @@ internal class ServiceIntentHandler(
     private val widgetActionDeduplicator: WidgetActionDeduplicator = WidgetActionDeduplicator(),
     private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
 ) {
-    @RequiresApi(android.os.Build.VERSION_CODES.N)
     public fun handleStartCommand(
         intent: Intent?,
         flags: Int,

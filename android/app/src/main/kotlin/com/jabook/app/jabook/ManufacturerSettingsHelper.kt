@@ -398,17 +398,15 @@ public object ManufacturerSettingsHelper {
             }
         }
 
-        // Fallback to standard Android battery optimization settings (Android 6.0+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            try {
-                val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                if (isIntentAvailable(context, intent)) {
-                    context.startActivity(intent)
-                    return true
-                }
-            } catch (e: Exception) {
-                // Continue to app details fallback
+        // Fallback to standard Android battery optimization settings
+        try {
+            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            if (isIntentAvailable(context, intent)) {
+                context.startActivity(intent)
+                return true
             }
+        } catch (e: Exception) {
+            // Continue to app details fallback
         }
 
         // Final fallback to app details settings

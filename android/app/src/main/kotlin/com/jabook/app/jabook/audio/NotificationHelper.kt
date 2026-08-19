@@ -96,27 +96,24 @@ internal class NotificationHelper(
      *
      * @param channelId Channel ID to ensure exists
      */
-    @RequiresApi(Build.VERSION_CODES.O)
     internal fun ensureNotificationChannel(channelId: String) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            try {
-                val channel =
-                    NotificationChannel(
-                        channelId,
-                        context.getString(R.string.notification_channel_name),
-                        AndroidNotificationManager.IMPORTANCE_LOW,
-                    ).apply {
-                        description = context.getString(R.string.notification_channel_description)
-                        setShowBadge(false)
-                    }
-                val notificationManager =
-                    context.getSystemService(
-                        Context.NOTIFICATION_SERVICE,
-                    ) as AndroidNotificationManager
-                notificationManager.createNotificationChannel(channel)
-            } catch (e: Exception) {
-                LogUtils.e("AudioPlayerService", "Failed to create notification channel", e)
-            }
+        try {
+            val channel =
+                NotificationChannel(
+                    channelId,
+                    context.getString(R.string.notification_channel_name),
+                    AndroidNotificationManager.IMPORTANCE_LOW,
+                ).apply {
+                    description = context.getString(R.string.notification_channel_description)
+                    setShowBadge(false)
+                }
+            val notificationManager =
+                context.getSystemService(
+                    Context.NOTIFICATION_SERVICE,
+                ) as AndroidNotificationManager
+            notificationManager.createNotificationChannel(channel)
+        } catch (e: Exception) {
+            LogUtils.e("AudioPlayerService", "Failed to create notification channel", e)
         }
     }
 }

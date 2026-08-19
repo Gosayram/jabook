@@ -35,24 +35,21 @@ public object DownloadNotificationHelper {
     /**
      * Create or update notification channel.
      */
-    @RequiresApi(Build.VERSION_CODES.O)
     public fun createNotificationChannel(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel =
-                NotificationChannel(
-                    CHANNEL_ID,
-                    CHANNEL_NAME,
-                    NotificationManager.IMPORTANCE_LOW,
-                ).apply {
-                    description = "Download progress notifications"
-                    setShowBadge(true)
-                    enableLights(false)
-                    enableVibration(false)
-                }
+        val channel =
+            NotificationChannel(
+                CHANNEL_ID,
+                CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = "Download progress notifications"
+                setShowBadge(true)
+                enableLights(false)
+                enableVibration(false)
+            }
 
-            val notificationManager = context.getSystemService(NotificationManager::class.java)
-            notificationManager.createNotificationChannel(channel)
-        }
+        val notificationManager = context.getSystemService(NotificationManager::class.java)
+        notificationManager.createNotificationChannel(channel)
     }
 
     /**
