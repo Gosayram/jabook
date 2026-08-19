@@ -385,8 +385,8 @@ private fun CacheTab(
                     DebugInfoRow(
                         label = stringResource(R.string.estimatedSize),
                         value =
-                            com.jabook.app.jabook.util.FileUtils
-                                .formatSize(stats.estimatedSize),
+                            com.jabook.app.jabook.compose.core.util.UiFormatters
+                                .formatFileSize(stats.estimatedSize),
                     )
                 } else {
                     Text(stringResource(R.string.loadingStats))
