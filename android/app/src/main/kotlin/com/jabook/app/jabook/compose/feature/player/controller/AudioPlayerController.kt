@@ -314,7 +314,9 @@ public class AudioPlayerController
                                 controller.repeatMode = Player.REPEAT_MODE_OFF
                             }
                         }
-                        Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> onChapterChangedCallback?.invoke()
+                        Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,
+                        Player.MEDIA_ITEM_TRANSITION_REASON_SEEK,
+                        -> onChapterChangedCallback?.invoke()
                     }
                     _currentChapterIndex.value = controller.currentMediaItemIndex
                     updateChapterNavigation(controller)
@@ -396,7 +398,9 @@ public class AudioPlayerController
                                 exoPlayer.repeatMode = Player.REPEAT_MODE_OFF
                             }
                         }
-                        Player.MEDIA_ITEM_TRANSITION_REASON_AUTO -> onChapterChangedCallback?.invoke()
+                        Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,
+                        Player.MEDIA_ITEM_TRANSITION_REASON_SEEK,
+                        -> onChapterChangedCallback?.invoke()
                     }
                     _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
                     updateChapterNavigation(exoPlayer)
