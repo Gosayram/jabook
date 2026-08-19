@@ -431,6 +431,28 @@ class AudioPlayerLibrarySessionCallbackTest {
         }
 
     @Test
+    fun `onPlaybackResumption clamps a negative persisted index`() =
+        runTest {
+            whenever(service.isBookCompleted).thenReturn(false)
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val chapter = File(context.cacheDir, "resume_negative_index.mp3").apply { writeText("audio") }
+            whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(
+                PlayerPersistenceManager.PersistedPlayerState(
+                    groupPath = "book://negative-index",
+                    filePaths = listOf(chapter.absolutePath),
+                    currentIndex = -1,
+                    currentPosition = 42_000L,
+                    metadata = null,
+                ),
+            )
+
+            val result = callback.onPlaybackResumption(session, controller, true).get(1, TimeUnit.SECONDS)
+
+            assertEquals(0, result.startIndex)
+            assertEquals(listOf(chapter.absolutePath), result.mediaItems.map { it.mediaId })
+        }
+
+    @Test
     fun `onPlaybackResumption returns only current item when playback is not requested`() =
         runTest {
             whenever(service.isBookCompleted).thenReturn(false)

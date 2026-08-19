@@ -1113,7 +1113,7 @@ public class AudioPlayerLibrarySessionCallback(
 
                 if (playlist.isNotEmpty()) {
                     var correctedIndex = persistedState.currentIndex
-                    if (persistedState.currentIndex < persistedState.filePaths.size) {
+                    if (persistedState.currentIndex in persistedState.playlistItems.indices) {
                         val currentMediaId = persistedState.playlistItems[persistedState.currentIndex].mediaId
                         val newIndex = playlist.indexOfFirst { it.mediaId == currentMediaId }
                         if (newIndex >= 0) {
