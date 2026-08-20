@@ -78,11 +78,17 @@ DEFAULT_TOML_PATH = (
     SCRIPT_PATH.parent.parent / "android" / "gradle" / "libs.versions.toml"
 )
 
-MAVEN_REPOSITORIES = (
-    "https://repo1.maven.org/maven2",
-    "https://dl.google.com/dl/android/maven2",
-)
-GRADLE_PLUGIN_PORTAL_M2 = ("https://plugins.gradle.org/m2",)
+MAVEN_CENTRAL = "https://repo1.maven.org/maven2"
+GOOGLE_MAVEN = "https://dl.google.com/dl/android/maven2"
+GRADLE_PLUGIN_PORTAL = "https://plugins.gradle.org/m2"
+JITPACK = "https://jitpack.io"
+
+MAVEN_REPOSITORIES = (MAVEN_CENTRAL, GOOGLE_MAVEN)
+GRADLE_PLUGIN_PORTAL_M2 = (GRADLE_PLUGIN_PORTAL,)
+
+# Plugins: GPP first (most markers), Google Maven + Maven Central as fallback (android, google plugins)
+ALL_PLUGIN_REPOS = (GRADLE_PLUGIN_PORTAL, GOOGLE_MAVEN, MAVEN_CENTRAL)
+JITPACK_REPOS = (JITPACK,)
 
 PRERELEASE_PATTERN = re.compile(
     r"(alpha|beta|rc|dev|snapshot|eap|preview|m\d+)", re.IGNORECASE
@@ -154,6 +160,15 @@ def _extract_version(entry: dict) -> tuple[str | None, str | None]:
     return None, None
 
 
+def _repo_for_group(group: str, kind: str) -> tuple[str, ...]:
+    """Pick the right repo(s) for a given component."""
+    if kind == "plugin":
+        return ALL_PLUGIN_REPOS
+    if group.startswith("com.github."):
+        return JITPACK_REPOS + MAVEN_REPOSITORIES
+    return MAVEN_REPOSITORIES
+
+
 def collect_components(data: dict, source: Path) -> list[Component]:
     versions_table = data.get("versions", {})
     seen_refs: set[str] = set()
@@ -173,8 +188,9 @@ def collect_components(data: dict, source: Path) -> list[Component]:
             name, current = key, direct_version
         else:
             continue
+        repos = _repo_for_group(group, "library")
         components.append(
-            Component(name, "library", group, artifact, current, MAVEN_REPOSITORIES)
+            Component(name, "library", group, artifact, current, repos)
         )
 
     for key, entry in data.get("plugins", {}).items():
@@ -192,10 +208,9 @@ def collect_components(data: dict, source: Path) -> list[Component]:
         else:
             continue
         artifact = f"{plugin_id}.gradle.plugin"
+        repos = _repo_for_group(plugin_id, "plugin")
         components.append(
-            Component(
-                name, "plugin", plugin_id, artifact, current, GRADLE_PLUGIN_PORTAL_M2
-            )
+            Component(name, "plugin", plugin_id, artifact, current, repos)
         )
 
     if not components:
