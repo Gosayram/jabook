@@ -25,6 +25,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.cache.Cache
 import com.jabook.app.jabook.R
@@ -33,6 +34,9 @@ import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Activity for managing app storage space.
@@ -88,43 +92,43 @@ public class DataManagementActivity : AppCompatActivity() {
      * Loads storage information asynchronously.
      */
     private fun loadStorageInfo() {
-        Thread {
-            try {
-                val cacheSize = calculateCacheSize()
-                val dataSize = calculateDataSize()
-                val totalSize = cacheSize + dataSize
-
-                runOnUiThread {
-                    cacheSizeText.text =
-                        getString(
-                            R.string.cacheSizeLabel,
-                            com.jabook.app.jabook.compose.core.util.UiFormatters
-                                .formatFileSize(cacheSize),
-                        )
-                    dataSizeText.text =
-                        getString(
-                            R.string.dataSizeLabel,
-                            com.jabook.app.jabook.compose.core.util.UiFormatters
-                                .formatFileSize(dataSize),
-                        )
-                    totalSizeText.text =
-                        getString(
-                            R.string.totalSizeLabel,
-                            com.jabook.app.jabook.compose.core.util.UiFormatters
-                                .formatFileSize(totalSize),
-                        )
-                    progressBar.visibility = View.GONE
+        lifecycleScope.launch {
+            val result =
+                try {
+                    withContext(Dispatchers.IO) {
+                        Triple(calculateCacheSize(), calculateDataSize(), null as Exception?)
+                    }
+                } catch (e: Exception) {
+                    LogUtils.e("DataManagementActivity", "Error loading storage info", e)
+                    Triple(0L, 0L, e)
                 }
-            } catch (e: Exception) {
-                LogUtils.e("DataManagementActivity", "Error loading storage info", e)
-                runOnUiThread {
-                    cacheSizeText.text = getString(R.string.cacheError)
-                    dataSizeText.text = getString(R.string.dataError)
-                    totalSizeText.text = getString(R.string.totalError)
-                    progressBar.visibility = View.GONE
-                }
+            val (cacheSize, dataSize, error) = result
+            if (error == null) {
+                cacheSizeText.text =
+                    getString(
+                        R.string.cacheSizeLabel,
+                        com.jabook.app.jabook.compose.core.util.UiFormatters
+                            .formatFileSize(cacheSize),
+                    )
+                dataSizeText.text =
+                    getString(
+                        R.string.dataSizeLabel,
+                        com.jabook.app.jabook.compose.core.util.UiFormatters
+                            .formatFileSize(dataSize),
+                    )
+                totalSizeText.text =
+                    getString(
+                        R.string.totalSizeLabel,
+                        com.jabook.app.jabook.compose.core.util.UiFormatters
+                            .formatFileSize(cacheSize + dataSize),
+                    )
+            } else {
+                cacheSizeText.text = getString(R.string.cacheError)
+                dataSizeText.text = getString(R.string.dataError)
+                totalSizeText.text = getString(R.string.totalError)
             }
-        }.start()
+            progressBar.visibility = View.GONE
+        }
     }
 
     /**
@@ -219,54 +223,48 @@ public class DataManagementActivity : AppCompatActivity() {
         progressBar.visibility = View.VISIBLE
         clearCacheButton.isEnabled = false
 
-        Thread {
+        lifecycleScope.launch {
             try {
-                var clearedSize = 0L
+                withContext(Dispatchers.IO) {
+                    // Clear internal cache
+                    val internalCache = cacheDir
+                    clearMediaCache()
+                    deleteDirectory(internalCache, preservePlaybackCache = true)
 
-                // Clear internal cache
-                val internalCache = cacheDir
-                clearedSize += getDirectorySize(internalCache)
-                clearMediaCache()
-                deleteDirectory(internalCache, preservePlaybackCache = true)
-
-                // Clear external cache
-                externalCacheDir?.let {
-                    if (it.exists()) {
-                        clearedSize += getDirectorySize(it)
-                        deleteDirectory(it)
+                    // Clear external cache
+                    externalCacheDir?.let {
+                        if (it.exists()) {
+                            deleteDirectory(it)
+                        }
                     }
                 }
 
-                runOnUiThread {
-                    progressBar.visibility = View.GONE
-                    clearCacheButton.isEnabled = true
-                    Toast
-                        .makeText(
-                            this@DataManagementActivity,
-                            getString(R.string.cacheClearedSuccessMessage),
-                            Toast.LENGTH_SHORT,
-                        ).show()
+                progressBar.visibility = View.GONE
+                clearCacheButton.isEnabled = true
+                Toast
+                    .makeText(
+                        this@DataManagementActivity,
+                        getString(R.string.cacheClearedSuccessMessage),
+                        Toast.LENGTH_SHORT,
+                    ).show()
 
-                    // Reload storage info
-                    loadStorageInfo()
-                }
+                // Reload storage info
+                loadStorageInfo()
             } catch (e: Exception) {
                 LogUtils.e("DataManagementActivity", "Error clearing cache", e)
-                runOnUiThread {
-                    progressBar.visibility = View.GONE
-                    clearCacheButton.isEnabled = true
-                    Toast
-                        .makeText(
-                            this@DataManagementActivity,
-                            getString(
-                                R.string.cacheClearErrorMessage,
-                                e.message ?: getString(R.string.unknownError),
-                            ),
-                            Toast.LENGTH_SHORT,
-                        ).show()
-                }
+                progressBar.visibility = View.GONE
+                clearCacheButton.isEnabled = true
+                Toast
+                    .makeText(
+                        this@DataManagementActivity,
+                        getString(
+                            R.string.cacheClearErrorMessage,
+                            e.message ?: getString(R.string.unknownError),
+                        ),
+                        Toast.LENGTH_SHORT,
+                    ).show()
             }
-        }.start()
+        }
     }
 
     /**

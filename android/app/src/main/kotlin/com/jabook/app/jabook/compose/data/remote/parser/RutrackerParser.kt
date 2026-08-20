@@ -1964,15 +1964,11 @@ public class RutrackerParser
 
                         // Extract avatar URL and normalize CDN domain
                         val avatarElement = parentRow.selectFirst("p.avatar img")
-                        var avatarUrl =
+                        // absUrl resolves against base URI (active mirror) set in Jsoup.parse()
+                        val avatarUrl =
                             avatarElement
-                                ?.attr("src")
+                                ?.absUrl("src")
                                 ?.takeIf { it.isNotEmpty() }
-
-                        // Root relative URLs
-                        if (avatarUrl != null && avatarUrl.startsWith("/")) {
-                            avatarUrl = "https://rutracker.net$avatarUrl"
-                        }
 
                         val normalizedAvatarUrl = avatarUrl?.let { coverExtractor.normalizeUrl(it) }
 
@@ -2065,15 +2061,11 @@ public class RutrackerParser
 
                     // Extract avatar URL and normalize CDN domain
                     val avatarElement = postRow.selectFirst("p.avatar img")
-                    var avatarUrl =
+                    // absUrl resolves against base URI (active mirror) set in Jsoup.parse()
+                    val avatarUrl =
                         avatarElement
-                            ?.attr("src")
+                            ?.absUrl("src")
                             ?.takeIf { it.isNotEmpty() }
-
-                    // Root relative URLs
-                    if (avatarUrl != null && avatarUrl.startsWith("/")) {
-                        avatarUrl = "https://rutracker.net$avatarUrl"
-                    }
 
                     val normalizedAvatarUrl = avatarUrl?.let { coverExtractor.normalizeUrl(it) }
 

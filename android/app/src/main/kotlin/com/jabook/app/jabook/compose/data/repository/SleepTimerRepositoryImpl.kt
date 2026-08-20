@@ -29,15 +29,15 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -202,13 +202,10 @@ public class SleepTimerRepositoryImpl
                 val controller = mediaController
                 if (controller != null) {
                     try {
-                        val future = MediaControllerExtensions.setSleepTimerMinutes(controller, durationMinutes)
                         val result =
-                            future.get(
-                                com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS
-                                    .toLong(),
-                                TimeUnit.SECONDS,
-                            )
+                            withTimeout(com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS * 1000L) {
+                                MediaControllerExtensions.setSleepTimerMinutes(controller, durationMinutes).await()
+                            }
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
                             // State will be updated by polling, but eagerly update for responsiveness
                             _timerState.value =
@@ -218,12 +215,11 @@ public class SleepTimerRepositoryImpl
                                 )
                             persistLastFixedDurationMinutes(durationMinutes)
                         }
-                    } catch (e: InterruptedException) {
-                        Thread.currentThread().interrupt()
-                        throw CancellationException("Interrupted while setting sleep timer").apply { initCause(e) }
-                    } catch (e: TimeoutException) {
+                    } catch (e: TimeoutCancellationException) {
                         logger.e({ "Timed out while setting sleep timer" }, e)
-                    } catch (e: ExecutionException) {
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
                         logger.e({ "Failed to set sleep timer" }, e)
                     }
                 } else {
@@ -238,13 +234,10 @@ public class SleepTimerRepositoryImpl
                 val controller = mediaController
                 if (controller != null) {
                     try {
-                        val future = MediaControllerExtensions.setSleepTimerEndOfChapter(controller)
                         val result =
-                            future.get(
-                                com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS
-                                    .toLong(),
-                                TimeUnit.SECONDS,
-                            )
+                            withTimeout(com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS * 1000L) {
+                                MediaControllerExtensions.setSleepTimerEndOfChapter(controller).await()
+                            }
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
                             val fallbackToTrackEnd =
                                 result.extras.getBoolean(
@@ -259,14 +252,11 @@ public class SleepTimerRepositoryImpl
                                     SleepTimerState.EndOfChapter
                                 }
                         }
-                    } catch (e: InterruptedException) {
-                        Thread.currentThread().interrupt()
-                        throw CancellationException("Interrupted while setting sleep timer end of chapter").apply {
-                            initCause(e)
-                        }
-                    } catch (e: TimeoutException) {
+                    } catch (e: TimeoutCancellationException) {
                         logger.e({ "Timed out while setting sleep timer end of chapter" }, e)
-                    } catch (e: ExecutionException) {
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
                         logger.e({ "Failed to set sleep timer end of chapter" }, e)
                     }
                 } else {
@@ -280,22 +270,18 @@ public class SleepTimerRepositoryImpl
                 val controller = mediaController
                 if (controller != null) {
                     try {
-                        val future = MediaControllerExtensions.setSleepTimerEndOfTrack(controller)
                         val result =
-                            future.get(
-                                com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS
-                                    .toLong(),
-                                TimeUnit.SECONDS,
-                            )
+                            withTimeout(com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS * 1000L) {
+                                MediaControllerExtensions.setSleepTimerEndOfTrack(controller).await()
+                            }
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
                             _timerState.value = SleepTimerState.EndOfTrack()
                         }
-                    } catch (e: InterruptedException) {
-                        Thread.currentThread().interrupt()
-                        throw CancellationException("Interrupted while setting sleep timer end of track").apply { initCause(e) }
-                    } catch (e: TimeoutException) {
+                    } catch (e: TimeoutCancellationException) {
                         logger.e({ "Timed out while setting sleep timer end of track" }, e)
-                    } catch (e: ExecutionException) {
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
                         logger.e({ "Failed to set sleep timer end of track" }, e)
                     }
                 } else {
@@ -310,22 +296,18 @@ public class SleepTimerRepositoryImpl
                 val controller = mediaController
                 if (controller != null) {
                     try {
-                        val future = MediaControllerExtensions.cancelSleepTimer(controller)
                         val result =
-                            future.get(
-                                com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS
-                                    .toLong(),
-                                TimeUnit.SECONDS,
-                            )
+                            withTimeout(com.jabook.app.jabook.audio.MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS * 1000L) {
+                                MediaControllerExtensions.cancelSleepTimer(controller).await()
+                            }
                         if (result.resultCode == androidx.media3.session.SessionResult.RESULT_SUCCESS) {
                             _timerState.value = SleepTimerState.Idle
                         }
-                    } catch (e: InterruptedException) {
-                        Thread.currentThread().interrupt()
-                        throw CancellationException("Interrupted while cancelling sleep timer").apply { initCause(e) }
-                    } catch (e: TimeoutException) {
+                    } catch (e: TimeoutCancellationException) {
                         logger.e({ "Timed out while cancelling sleep timer" }, e)
-                    } catch (e: ExecutionException) {
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
                         logger.e({ "Failed to cancel sleep timer" }, e)
                     }
                 } else {

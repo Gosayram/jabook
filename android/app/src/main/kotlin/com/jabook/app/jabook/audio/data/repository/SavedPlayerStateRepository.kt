@@ -20,8 +20,6 @@ import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEn
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -150,12 +148,9 @@ public class SavedPlayerStateRepository
          * Parses metadata from JSON string.
          */
         public fun parseMetadata(metadataJson: String?): Map<String, String>? {
+            if (metadataJson.isNullOrEmpty()) return null
             return try {
-                if (metadataJson == null || metadataJson.isEmpty()) {
-                    return null
-                }
-                val jsonObject = Json.parseToJsonElement(metadataJson).jsonObject
-                jsonObject.mapValues { it.value.jsonPrimitive.content }
+                Json.decodeFromString<Map<String, String>>(metadataJson)
             } catch (e: Exception) {
                 null
             }

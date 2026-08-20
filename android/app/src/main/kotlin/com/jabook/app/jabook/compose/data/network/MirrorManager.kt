@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.network
 
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.core.network.NetworkRuntimePolicy
@@ -179,7 +180,7 @@ public class MirrorManager
                         Request
                             .Builder()
                             .url("https://$domain/forum/")
-                            .header("User-Agent", "JaBook/1.2.7")
+                            .header("User-Agent", "JaBook/${BuildConfig.VERSION_NAME}")
                             .head() // HEAD request for faster response
                             .build()
 

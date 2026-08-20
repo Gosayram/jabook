@@ -18,6 +18,7 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import java.nio.charset.Charset
 import javax.inject.Inject
 import javax.inject.Singleton
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 
 /**
  * Simple decoder for RuTracker responses.
@@ -66,17 +67,18 @@ public class RutrackerSimpleDecoder
                 return ""
             }
 
-            // Extract charset from Content-Type header
-            val detectedEncoding = extractCharsetFromContentType(contentType)
+            // Extract charset from Content-Type header (OkHttp parses parameters correctly)
+            val detectedCharset = contentType?.toMediaTypeOrNull()?.charset()
+            val detectedEncoding = detectedCharset?.name()
 
             val result =
                 try {
                     when {
-                        detectedEncoding != null && isWindows1251(detectedEncoding) -> {
+                        detectedCharset != null && detectedCharset.name().contains("1251") -> {
                             String(bytes, CP1251)
                         }
-                        detectedEncoding != null && isUtf8(detectedEncoding) -> {
-                            String(bytes, UTF8)
+                        detectedCharset != null -> {
+                            String(bytes, detectedCharset)
                         }
                         else -> {
                             // No encoding specified - use Windows-1251 (RuTracker default)
@@ -110,38 +112,4 @@ public class RutrackerSimpleDecoder
 
             return result
         }
-
-        /**
-         * Extract charset from Content-Type header.
-         *
-         * Examples:
-         * - "text/html; charset=windows-1251"
-         * - "text/html; charset=utf-8"
-         *
-         * @param contentType Content-Type header value
-         * @return Charset name if found, null otherwise
-         */
-        private fun extractCharsetFromContentType(contentType: String?): String? {
-            if (contentType == null) return null
-
-            val charsetMatch =
-                Regex("""charset=([^;\s]+)""", RegexOption.IGNORE_CASE)
-                    .find(contentType)
-                    ?: return null
-
-            return charsetMatch.groupValues[1].lowercase()
-        }
-
-        /**
-         * Check if encoding is Windows-1251.
-         */
-        private fun isWindows1251(encoding: String): Boolean =
-            encoding.contains("windows-1251") ||
-                encoding.contains("cp1251") ||
-                encoding.contains("1251")
-
-        /**
-         * Check if encoding is UTF-8.
-         */
-        private fun isUtf8(encoding: String): Boolean = encoding.contains("utf-8") || encoding.contains("utf8")
     }

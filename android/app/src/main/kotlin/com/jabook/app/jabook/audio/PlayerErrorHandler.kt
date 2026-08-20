@@ -52,7 +52,7 @@ internal class PlayerErrorHandler(
     private var retryJob: Job? = null
     private val maxRetries = 3
     private val maxSkips = 5
-    private val retryDelayMs = 2000L
+    private val retryConfig = RetryConfig(maxRetries = maxRetries, initialDelayMs = 2000L)
 
     /** Resets retry and skip counts on successful playback. */
     fun resetCounts() {
@@ -110,7 +110,7 @@ internal class PlayerErrorHandler(
                 PlaybackRecoveryAction.RETRY -> {
                     retryCount++
                     LogUtils.w(TAG, "${resolution.userMessage} ($retryCount/$maxRetries)")
-                    val backoffDelay = retryDelayMs * retryCount
+                    val backoffDelay = retryConfig.calculateDelayWithJitter(retryCount - 1)
                     val failedPlayer = getActivePlayer()
                     val failedMediaId = failedPlayer.currentMediaItem?.mediaId
                     cancelPendingRetry()
