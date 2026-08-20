@@ -341,9 +341,10 @@ public class PlayerViewModel
             settingsRepository.userPreferences
                 .map { prefs ->
                     AudioSettingsState(
-                        volumeBoostLevel = prefs.volumeBoostLevel.safeEnum(
-                            com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off,
-                        ),
+                        volumeBoostLevel =
+                            prefs.volumeBoostLevel.safeEnum(
+                                com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off,
+                            ),
                         skipSilence = prefs.skipSilence,
                         skipSilenceThresholdDb = prefs.skipSilenceThresholdDb,
                         skipSilenceMinMs = prefs.skipSilenceMinMs,

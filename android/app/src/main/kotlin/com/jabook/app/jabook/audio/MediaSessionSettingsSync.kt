@@ -84,15 +84,18 @@ public class MediaSessionSettingsSync(
                 .map { prefs ->
                     com.jabook.app.jabook.audio.processors.AudioProcessingSettings(
                         normalizeVolume = prefs.normalizeVolume,
-                        speechCompressorLevel = prefs.speechCompressorLevel.safeEnum(
-                            com.jabook.app.jabook.audio.processors.SpeechCompressorLevel.Off,
-                        ),
-                        volumeBoostLevel = prefs.volumeBoostLevel.safeEnum(
-                            com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off,
-                        ),
-                        drcLevel = prefs.drcLevel.safeEnum(
-                            com.jabook.app.jabook.audio.processors.DRCLevel.Off,
-                        ),
+                        speechCompressorLevel =
+                            prefs.speechCompressorLevel.safeEnum(
+                                com.jabook.app.jabook.audio.processors.SpeechCompressorLevel.Off,
+                            ),
+                        volumeBoostLevel =
+                            prefs.volumeBoostLevel.safeEnum(
+                                com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off,
+                            ),
+                        drcLevel =
+                            prefs.drcLevel.safeEnum(
+                                com.jabook.app.jabook.audio.processors.DRCLevel.Off,
+                            ),
                         speechEnhancer = prefs.speechEnhancer,
                         autoVolumeLeveling = prefs.autoVolumeLeveling,
                         skipSilence = prefs.skipSilence,
@@ -112,9 +115,10 @@ public class MediaSessionSettingsSync(
                         isCrossfadeEnabled = prefs.crossfadeEnabled,
                         crossfadeDurationMs = if (prefs.crossfadeDurationMs > 0) prefs.crossfadeDurationMs else 2000L,
                         crossfadeBetweenBooksMs = prefs.crossfadeBetweenBooksMs.coerceAtLeast(0),
-                        noiseGateLevel = prefs.noiseGateLevel.safeEnum(
-                            com.jabook.app.jabook.audio.processors.NoiseGateLevel.Off,
-                        ),
+                        noiseGateLevel =
+                            prefs.noiseGateLevel.safeEnum(
+                                com.jabook.app.jabook.audio.processors.NoiseGateLevel.Off,
+                            ),
                     )
                 }.distinctUntilChanged()
                 .collect { settings ->
