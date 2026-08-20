@@ -1140,21 +1140,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .getInt(PREFS_KEY_DOMINANT_COLOR, 0)
 
-        private fun storeLastBookId(
-            context: Context,
-            bookId: String,
-        ) {
-            context
-                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .edit()
-                .putString(PREFS_KEY_BOOK_ID, bookId)
-                .apply()
-        }
 
-        private fun getLastBookId(context: Context): String? =
-            context
-                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                .getString(PREFS_KEY_BOOK_ID, null)
     }
 }
 

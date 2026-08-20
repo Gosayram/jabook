@@ -404,34 +404,6 @@ public class AuthRepositoryImpl
             cookieManager.flush()
         }
 
-        private fun parseCookieString(
-            url: String,
-            cookieHeader: String,
-        ): List<okhttp3.Cookie> {
-            val cookies = mutableListOf<okhttp3.Cookie>()
-            val httpUrl = url.toHttpUrl()
-            cookieHeader.split(";").forEach { pair ->
-                // Format: name=value
-                // WebView cookies don't have detailed attributes in getCookie() result (only name=value)
-                // We assume domain is the url host and path is /
-                val parts = pair.trim().split("=", limit = 2)
-                if (parts.size == 2) {
-                    val name = parts[0]
-                    val value = parts[1]
-                    val cookie =
-                        okhttp3.Cookie
-                            .Builder()
-                            .name(name)
-                            .value(value)
-                            .domain(httpUrl.host)
-                            .path("/")
-                            .build()
-                    cookies.add(cookie)
-                }
-            }
-            return cookies
-        }
-
         override suspend fun clearStoredCredentials() {
             secureStorage.clearCredentials()
         }

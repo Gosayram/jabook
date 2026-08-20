@@ -198,39 +198,6 @@ internal class PlayerStateHelper(
         // but the playlist is actually built from chapters array using chapter.fileIndex.
         // The real fix for chapter selection is in player_screen.dart (_seekToChapter)
         // where we now use chapter.fileIndex instead of chapters.indexOf(chapter).
-        //
-        // Keeping this code commented for reference, but it should NOT be used:
-
-        /*
-        if (currentIndex == 0 && totalTracks > 1) {
-            val currentItem = player.currentMediaItem
-            val currentUri = currentItem?.localConfiguration?.uri
-            val filePaths = getCurrentFilePaths?.invoke()
-
-            if (currentUri != null && filePaths != null && filePaths.isNotEmpty()) {
-                val currentPath = currentUri.path
-                if (currentPath != null) {
-                    // Find the index of the current file in filePaths
-                    val realIndex =
-                        filePaths.indexOfFirst { filePath ->
-                            // Compare paths (handle both absolute and relative paths)
-                            filePath == currentPath ||
-                            filePath.endsWith(currentPath) ||
-                            currentPath.endsWith(filePath)
-                        }
-
-                    if (realIndex >= 0 && realIndex != currentIndex) {
-                        LogUtils.d(
-                            "AudioPlayerService",
-                            "Found real index by URI: currentIndex=$currentIndex, realIndex=$realIndex, " +
-                                "file=${currentPath.substringAfterLast('/')}",
-                        )
-                        currentIndex = realIndex
-                    }
-                }
-            }
-        }
-         */
 
         // Log current state for debugging
         LogUtils.v(

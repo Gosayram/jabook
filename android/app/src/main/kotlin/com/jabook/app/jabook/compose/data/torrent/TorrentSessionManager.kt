@@ -1124,15 +1124,7 @@ public class TorrentSessionManager
                         -1L
                     }
 
-                // val state = mapTorrentStatus(status) // Unused and unresolved
-
                 val dateAdded = System.currentTimeMillis() // creationDate not resolved in TorrentInfo
-                    /* try {
-                        torrentInfo?.creationDate?.let { it * 1000L } ?: System.currentTimeMillis()
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to get creation date for torrent $hash" }
-                        System.currentTimeMillis()
-                    } */
 
                 // Get files with error handling
                 val files =

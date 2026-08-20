@@ -159,7 +159,6 @@ public class ForumIndexer
             private const val JITTER_RANGE_MS = 150L // ±150ms random jitter
             private const val MAX_PAGES_PER_FORUM = 100_000
 
-            private const val FULL_UPDATE_INTERVAL_DAYS = 7L
             private const val INCREMENTAL_UPDATE_INTERVAL_HOURS = 24L
             private const val MAX_AGE_FOR_UPDATE_MS = INCREMENTAL_UPDATE_INTERVAL_HOURS * 60 * 60 * 1000
 
@@ -168,7 +167,6 @@ public class ForumIndexer
 
             private const val MAX_CONCURRENT_FORUMS = 3
             private const val BATCH_SIZE_FOR_DB = 100
-            private const val MAX_MEMORY_TOPICS = 200
 
             private const val INITIAL_BACKOFF_MS = 1000L
             private const val MAX_BACKOFF_MS = 30_000L

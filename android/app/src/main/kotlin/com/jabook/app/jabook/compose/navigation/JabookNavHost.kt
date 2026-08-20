@@ -555,24 +555,3 @@ private fun String?.isTopLevelRoute(): Boolean =
         this?.contains("SettingsRoute", ignoreCase = true) == true
 
 private fun String?.isPlayerRoute(): Boolean = this?.contains("PlayerRoute", ignoreCase = true) == true
-
-/**
- * Temporary placeholder screen for navigation testing.
- * Will be replaced with actual screens in later phases.
- */
-@Composable
-private fun PlaceholderScreen(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-    }
-}

@@ -44,7 +44,6 @@ internal class MetadataManager(
         setCurrentMetadata(metadata)
         // MediaSession automatically updates metadata from ExoPlayer
         // Manual notification update removed - no longer needed with MediaLibraryService
-        // getNotificationManager()?.updateMetadata(metadata, getEmbeddedArtworkPath())
     }
 
     /**

@@ -299,14 +299,6 @@ private fun CircularVisualizer(
                         androidx.compose.ui.geometry
                             .CornerRadius(barWidth / 2),
                 )
-
-                // Reflection (inner bar or opacity variation)
-                /* drawRoundRect(
-                    color = color.copy(alpha = 0.3f),
-                    topLeft = Offset(centerX - barWidth / 2, centerY - innerRadius + 2f),
-                    size = androidx.compose.ui.geometry.Size(barWidth, barHeight * 0.3f), // Small reflection inside
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(barWidth / 2)
-                ) */
             }
         }
     }

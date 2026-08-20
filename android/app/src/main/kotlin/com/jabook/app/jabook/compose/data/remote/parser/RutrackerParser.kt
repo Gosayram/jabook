@@ -70,16 +70,12 @@ public class RutrackerParser
 
             private const val TITLE_SELECTOR = "a[id^='tt-'], a.tt-text, a.torTopic:not(.t-is-unread)"
             private const val AUTHOR_SELECTOR = "a.topicAuthor, a.pmed, a[href*='profile.php']"
-            private const val SIZE_SELECTOR = "a.f-dl, a.dl-stub, span.small, td.small, div.small"
 
             // Seeders/Leechers: include both with and without 'b' tag, and generic classes
-            private const val SEEDERS_SELECTOR = "span.seedmed b, b.seedmed, span.seed b, .seed b, .seedmed, .seed"
-            private const val LEECHERS_SELECTOR = "span.leechmed b, b.leechmed, span.leech b, .leech b, .leechmed, .leech"
 
             // Additional selectors
             private const val TOPIC_ID_ATTR = "data-topic_id"
             private const val MAGNET_LINK_SELECTOR = "a.magnet-link, a[href^='magnet:']"
-            private const val DOWNLOADS_SELECTOR = "td.vf-col-replies b"
             private const val DOWNLOAD_HREF_SELECTOR = "a[href^=\"dl.php?t=\"]"
 
             // CSS Selectors for topic details

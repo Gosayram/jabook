@@ -55,7 +55,6 @@ public class MediaSessionManager(
     private var playCallback: (() -> Unit)? = null,
     private var pauseCallback: (() -> Unit)? = null,
 ) {
-    // private var mediaSession: MediaSession? = null // Removed duplicate session
     private var rewindCallback: (() -> Unit)? = null
     private var forwardCallback: (() -> Unit)? = null
     private var rewindSeconds: Long = 0L
@@ -63,22 +62,10 @@ public class MediaSessionManager(
     private var lastPlayWhenReady: Boolean = player.playWhenReady
 
     public companion object {
-        private const val REWIND_COMMAND = "com.jabook.app.jabook.audio.REWIND"
-        private const val FORWARD_COMMAND = "com.jabook.app.jabook.audio.FORWARD"
         private const val DEFAULT_REWIND_SECONDS = 15L
         private const val DEFAULT_FORWARD_SECONDS = 30L
 
-        /**
-         * Provides rewind command icon.
-         * Inspired by lissen-android implementation.
-         */
-        private fun provideRewindCommand(): Int = CommandButton.ICON_SKIP_BACK
 
-        /**
-         * Provides forward command icon.
-         * Inspired by lissen-android implementation.
-         */
-        private fun provideForwardCommand(): Int = CommandButton.ICON_SKIP_FORWARD
     }
 
     /**
@@ -127,7 +114,7 @@ public class MediaSessionManager(
         forwardSeconds = DEFAULT_FORWARD_SECONDS
         lastPlayWhenReady = player.playWhenReady
         setupPlayerListener()
-        // initializeMediaSession() // Removed duplicate session creation
+
     }
 
     /**
@@ -196,36 +183,9 @@ public class MediaSessionManager(
     // initializeMediaSession removed to prevent duplicate session
     // Logic moved/handled by AudioPlayerLibrarySessionCallback and AudioPlayerService
 
-    /**
-     * Default rewind action: seek back by configured seconds.
-     */
-    private fun defaultRewind() {
-        val currentPosition = player.currentPosition
-        val newPosition = (currentPosition - rewindSeconds * 1000).coerceAtLeast(0L)
-        player.seekTo(newPosition)
-        LogUtils.d("MediaSessionManager", "Rewind: ${rewindSeconds}s")
-    }
 
-    /**
-     * Default forward action: seek forward by configured seconds.
-     */
-    private fun defaultForward() {
-        val currentPosition = player.currentPosition
-        val duration = player.duration
-        if (duration != C.TIME_UNSET) {
-            val newPosition = (currentPosition + forwardSeconds * 1000).coerceAtMost(duration)
-            player.seekTo(newPosition)
-            LogUtils.d("MediaSessionManager", "Forward: ${forwardSeconds}s")
-        }
-    }
 
-    /**
-     * Updates media metadata.
-     */
-    public fun updateMetadata() {
-        // Metadata is automatically updated from ExoPlayer
-        // This method can be used for custom metadata updates if needed
-    }
+
 
     public fun release() {
         try {

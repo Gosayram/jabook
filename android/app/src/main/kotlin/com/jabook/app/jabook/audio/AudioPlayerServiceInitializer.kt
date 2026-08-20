@@ -519,23 +519,6 @@ public class AudioPlayerServiceInitializer(
             service.setInitialMediaButtonPreferences()
             service.isFullyInitializedFlag = true
 
-            // Legacy NotificationManager is NO LONGER NEEDED for Media3 system notifications
-            // Migration Phase 1: DISABLED to prevent conflicts with MediaNotification.Provider
-            /*
-            service.notificationManager =
-                NotificationManager(
-                    context = service,
-                    player = service.exoPlayer,
-                    mediaSession = service.mediaLibrarySession, // Use available session
-                    metadata = service.currentMetadata,
-                    embeddedArtworkPath = service.embeddedArtworkPath,
-                    rewindSeconds = 15, // Default
-                    forwardSeconds = 30, // Default
-                )
-            // Inject scope for async bitmap loading
-            service.notificationManager?.setCoroutineScope(service.playerServiceScope)
-             */
-
             // Allow updating player reference if crossfade happens
             // service.crossFadePlayer?.onPlayerChanged will handle this via updatePlayer()
 

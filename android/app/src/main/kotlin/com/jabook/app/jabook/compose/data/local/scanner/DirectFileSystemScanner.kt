@@ -439,41 +439,6 @@ public class DirectFileSystemScanner
             }
 
         /**
-         * Group audio files by album name, with directory fallback.
-         *
-         * Uses composite key (album/directory + artist) to avoid duplicates.
-         */
-        private fun groupFilesByAlbum(files: List<AudioFileInfo>): Map<String, List<AudioFileInfo>> {
-            val totalFiles = files.size
-            logger.d { "Grouping $totalFiles files into books..." }
-
-            // Group by composite key (album or directory + artist)
-            val grouped =
-                files.groupBy { fileInfo ->
-                    val directory = java.io.File(fileInfo.filePath).parent ?: ""
-                    bookIdentifier.generateGroupingKey(
-                        directory = directory,
-                        album = fileInfo.album,
-                        artist = fileInfo.artist,
-                    )
-                }
-
-            // Log files without album metadata
-            val filesWithoutAlbum = files.count { it.album.isNullOrBlank() }
-            if (filesWithoutAlbum > 0) {
-                logger.w {
-                    "$filesWithoutAlbum files have no album metadata (will group by directory)"
-                }
-            }
-
-            logger.d {
-                "Grouped into ${grouped.size} books (before: $totalFiles files)"
-            }
-
-            return grouped
-        }
-
-        /**
          * Create scanned book with LAZY metadata parsing.
          * Only parses metadata for FIRST file (20× faster!)
          * Other chapters use filename without metadata parsing

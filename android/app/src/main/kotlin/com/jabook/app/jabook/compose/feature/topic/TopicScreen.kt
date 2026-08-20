@@ -633,41 +633,6 @@ private fun TopicDetailsContent(
 }
 
 /**
- * Seeders and Leechers chips.
- */
-@Composable
-private fun SeedersLeechersChip(
-    seeders: Int,
-    leechers: Int,
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        AssistChip(
-            onClick = {},
-            label = { Text(seeders.toString()) },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.ArrowUpward,
-                    contentDescription = stringResource(R.string.seeders),
-                    tint = SeederGreen,
-                )
-            },
-        )
-
-        AssistChip(
-            onClick = {},
-            label = { Text(leechers.toString()) },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.ArrowDownward,
-                    contentDescription = stringResource(R.string.leechers),
-                    tint = LeecherOrange,
-                )
-            },
-        )
-    }
-}
-
-/**
  * Description and Comments section with adaptive layout.
  * Shows side by side on larger screens, stacked on smaller screens.
  */
@@ -844,27 +809,6 @@ private fun ExpandableDescription(
             )
         }
     }
-}
-
-/**
- * File list item showing file name and size.
- */
-@Composable
-private fun FileListItem(
-    file: String,
-    modifier: Modifier = Modifier,
-) {
-    ListItem(
-        headlineContent = { Text(file) },
-        leadingContent = {
-            Icon(
-                Icons.Filled.AudioFile,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        },
-        modifier = modifier,
-    )
 }
 
 /**

@@ -524,9 +524,6 @@ internal class PlaylistManager(
             activePlayer.setMediaSources(mediaSources, startIndex, startPosition)
             activePlayer.prepare()
 
-            // MediaSession handles notification updates automatically - manual update removed
-            // getNotificationManager()?.updateNotification()
-
             val loadDuration = System.currentTimeMillis() - loadStartTime
             LogUtils.i(
                 "AudioPlayerService",
@@ -603,9 +600,6 @@ internal class PlaylistManager(
                     // Apply position after all tracks are loaded to prevent track switching
                     // This is handled in the async loading coroutine after all MediaItems are added
                 }
-
-                // MediaSession handles notification updates automatically - manual update removed
-                // getNotificationManager()?.updateNotification()
 
                 LogUtils.i(
                     "AudioPlayerService",
