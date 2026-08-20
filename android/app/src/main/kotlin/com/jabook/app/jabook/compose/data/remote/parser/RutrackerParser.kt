@@ -109,6 +109,19 @@ public class RutrackerParser
             private val BR_REGEX = Regex("<br\\s*/?>", RegexOption.IGNORE_CASE)
             private val POST_BR_REGEX = Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE)
             private val WHITESPACE_REGEX = Regex("\\s+")
+
+            /** Title cleaning: precompiled so cleanTitle() does not rebuild 30+ patterns per topic. */
+            private val QUALITY_INDICATOR_REGEX =
+                Regex(
+                    "\\b(WEB-DL|WEBRip|BDRip|DVDRip|HDTV|BluRay|Blu-Ray|BD-Rip|Web-DL|WebRip)\\b",
+                    RegexOption.IGNORE_CASE,
+                )
+            private val FILE_FORMAT_REGEX =
+                Regex(
+                    "\\b(MKV|MP4|AVI|MOV|WMV|FLV|M4V|MP3|AAC|FLAC|OGG|WAV|M4A)\\b",
+                    RegexOption.IGNORE_CASE,
+                )
+            private val RESOLUTION_REGEX = Regex("\\b\\d{3,4}[pi]\\b", RegexOption.IGNORE_CASE)
         }
 
         /**
@@ -2237,49 +2250,16 @@ public class RutrackerParser
             cleaned = cleaned.replace(SQUARE_BRACKETS_REGEX, "")
 
             // Remove quality indicators
-            val qualityPatterns =
-                listOf(
-                    "WEB-DL",
-                    "WEBRip",
-                    "BDRip",
-                    "DVDRip",
-                    "HDTV",
-                    "BluRay",
-                    "Blu-Ray",
-                    "BD-Rip",
-                    "Web-DL",
-                    "WebRip",
-                )
-            for (pattern in qualityPatterns) {
-                cleaned = cleaned.replace(Regex("\\b$pattern\\b", RegexOption.IGNORE_CASE), "")
-            }
+            cleaned = cleaned.replace(QUALITY_INDICATOR_REGEX, "")
 
             // Remove resolutions: 1080p, 720p, 2160p, etc.
-            cleaned = cleaned.replace(Regex("\\b\\d{3,4}[pi]\\b", RegexOption.IGNORE_CASE), "")
+            cleaned = cleaned.replace(RESOLUTION_REGEX, "")
 
             // Remove file formats
-            val formatPatterns =
-                listOf(
-                    "MKV",
-                    "MP4",
-                    "AVI",
-                    "MOV",
-                    "WMV",
-                    "FLV",
-                    "M4V",
-                    "MP3",
-                    "AAC",
-                    "FLAC",
-                    "OGG",
-                    "WAV",
-                    "M4A",
-                )
-            for (pattern in formatPatterns) {
-                cleaned = cleaned.replace(Regex("\\b$pattern\\b", RegexOption.IGNORE_CASE), "")
-            }
+            cleaned = cleaned.replace(FILE_FORMAT_REGEX, "")
 
             // Remove extra whitespace and trim
-            cleaned = cleaned.replace(Regex("\\s+"), " ").trim()
+            cleaned = cleaned.replace(WHITESPACE_REGEX, " ").trim()
 
             // Remove trailing/leading dashes, commas, and periods
             cleaned = cleaned.trim('-', ',', '.', ' ')

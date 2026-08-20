@@ -271,22 +271,12 @@ public class MediaStoreBookScanner
         private fun extractChapterInfo(filename: String): ChapterInfo {
             val clean = filename.lowercase()
 
-            val partMatch =
-                Regex("""част[\u044cяи]\s*(\d+)""").find(clean)
-                    ?: Regex("""part\s*(\d+)""").find(clean)
+            val partMatch = PART_RU_REGEX.find(clean) ?: PART_EN_REGEX.find(clean)
             val partNum = partMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
-
-            val patterns =
-                listOf(
-                    Regex("""глава\s*(\d+)""", RegexOption.IGNORE_CASE),
-                    Regex("""chapter\s*(\d+)""", RegexOption.IGNORE_CASE),
-                    Regex("""(\d+)\s*[-._]"""),
-                    Regex("""^(\d+)"""),
-                )
 
             var chapterNum = 0
             var found = false
-            for (pattern in patterns) {
+            for (pattern in CHAPTER_NUMBER_PATTERNS) {
                 pattern.find(clean)?.let {
                     chapterNum = it.groupValues[1].toIntOrNull() ?: 0
                     found = true
@@ -334,5 +324,16 @@ public class MediaStoreBookScanner
         private companion object {
             /** Extensions that may contain embedded Nero chapter atoms. */
             private val EMBEDDED_CHAPTER_EXTENSIONS = setOf("m4b", "m4a")
+
+            /** Precompiled once: extractChapterInfo runs per comparison inside sort. */
+            private val PART_RU_REGEX = Regex("""част[\u044cяи]\s*(\d+)""")
+            private val PART_EN_REGEX = Regex("""part\s*(\d+)""")
+            private val CHAPTER_NUMBER_PATTERNS =
+                listOf(
+                    Regex("""глава\s*(\d+)"""),
+                    Regex("""chapter\s*(\d+)"""),
+                    Regex("""(\d+)\s*[-._]"""),
+                    Regex("""^(\d+)"""),
+                )
         }
     }

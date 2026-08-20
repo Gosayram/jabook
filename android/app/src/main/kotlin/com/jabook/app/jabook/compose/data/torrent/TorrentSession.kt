@@ -90,17 +90,6 @@ public interface TorrentSession {
     public fun pauseForMemoryPressure()
 
     /**
-     * Move torrent storage to a new path.
-     *
-     * @param hash Info-hash of the torrent.
-     * @param newPath Absolute directory path.
-     */
-    public fun moveTorrentStorage(
-        hash: String,
-        newPath: String,
-    )
-
-    /**
      * Enable or disable sequential download for a torrent.
      *
      * @param hash Info-hash of the torrent.

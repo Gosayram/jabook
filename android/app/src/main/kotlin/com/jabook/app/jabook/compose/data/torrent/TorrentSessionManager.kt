@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.libtorrent4j.AddTorrentParams
 import org.libtorrent4j.AlertListener
 import org.libtorrent4j.LibTorrent
@@ -159,10 +160,13 @@ public class TorrentSessionManager
                             is DhtErrorAlert -> handleDhtError(alert)
                             is StateUpdateAlert -> handleStateUpdate(alert)
                             is SaveResumeDataAlert -> handleSaveResumeData(alert)
-                            is SaveResumeDataFailedAlert ->
+                            is SaveResumeDataFailedAlert -> {
                                 logger.w {
                                     "Save resume data failed for ${alert.handle().infoHash().toHex()}"
                                 }
+                                // Failed saves must also release the latch, or stopSession() waits the full timeout.
+                                pendingResumeDataLatch?.countDown()
+                            }
                             is PeerLogAlert -> {
                                 // Log peer-level debugging (can be verbose, so use debug level)
                                 logger.d { "PEER_LOG: ${alert.logMessage()}" }
@@ -486,10 +490,11 @@ public class TorrentSessionManager
             hash: String,
             deleteFiles: Boolean = false,
         ) {
-            val handle = torrents.remove(hash) ?: return
-            topicIds.remove(hash)
+            val handle = torrents[hash] ?: return
 
             try {
+                // Remove natively first: if that throws, the handle stays in the map so
+                // stopSession() can still request its resume data and session.stop() cleans it up.
                 session?.remove(handle)
 
                 if (deleteFiles) {
@@ -497,6 +502,8 @@ public class TorrentSessionManager
                     File(savePath).deleteRecursively()
                 }
 
+                torrents.remove(hash)
+                topicIds.remove(hash)
                 updateDownloads()
                 logger.i { "Removed torrent: $hash (deleteFiles=$deleteFiles)" }
             } catch (e: Exception) {
@@ -531,27 +538,6 @@ public class TorrentSessionManager
                 logger.i { "Resumed torrent: $hash" }
             } catch (e: Exception) {
                 logger.e({ "Failed to resume torrent" }, e)
-            }
-        }
-
-        /**
-         * Move torrent storage to new path
-         */
-        public fun moveTorrentStorage(
-            hash: String,
-            newPath: String,
-        ) {
-            val handle = torrents[hash] ?: return
-            val newDir = File(newPath)
-            if (!newDir.exists()) {
-                newDir.mkdirs()
-            }
-
-            try {
-                handle.moveStorage(newPath)
-                logger.i { "Moving storage for $hash to $newPath" }
-            } catch (e: Exception) {
-                logger.e({ "Failed to move storage" }, e)
             }
         }
 
@@ -665,6 +651,8 @@ public class TorrentSessionManager
                 logger.i { "Session stopped" }
             } catch (e: Exception) {
                 logger.e({ "Error stopping session" }, e)
+            } finally {
+                pendingResumeDataLatch = null
             }
         }
 
@@ -759,7 +747,10 @@ public class TorrentSessionManager
                 if (!handle.isValid) return
                 val hash = handle.infoHash().toHex()
                 val resumeBytes = AddTorrentParams.writeResumeDataBuf(alert.params())
-                sessionScope.launch {
+                // Write synchronously on the alert thread: stopSession() counts down the
+                // same latch and then cancels sessionScope, so an async launch here could
+                // be cancelled mid-write and lose the resume BLOB.
+                runBlocking {
                     try {
                         torrentDownloadDao.updateResumeData(hash, resumeBytes)
                         logger.d { "Resume data saved for $hash (${resumeBytes.size} bytes)" }
@@ -1398,150 +1389,6 @@ public class TorrentSessionManager
             val handle = torrents[hash] ?: return 0L
             val progress = handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
             return if (fileIndex < progress.size) progress[fileIndex] else 0L
-        }
-
-        // ========================================
-        // Streaming-specific operations
-        // ========================================
-
-        /**
-         * Set sequential download range for a specific piece range.
-         *
-         * Limits sequential download to [range] pieces only, leaving the rest
-         * of the torrent in normal download mode. Pass `null` to reset.
-         */
-        public fun setSequentialRange(
-            hash: String,
-            range: Pair<Int, Int>?,
-        ) {
-            val handle = torrents[hash] ?: return
-            try {
-                if (range != null) {
-                    // Enable sequential for the torrent, then set piece priorities
-                    // to only sequence within the specified range
-                    val flags = org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
-                    val mask = org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
-                    handle.setFlags(flags, mask)
-
-                    val ti = handle.torrentFile()
-                    if (ti != null) {
-                        val totalPieces = ti.numPieces()
-                        // Lower priority for pieces outside the range
-                        for (i in 0 until range.first) {
-                            if (i < totalPieces) {
-                                handle.piecePriority(i, org.libtorrent4j.Priority.LOW)
-                            }
-                        }
-                        for (i in (range.second + 1) until totalPieces) {
-                            handle.piecePriority(i, org.libtorrent4j.Priority.LOW)
-                        }
-                    }
-                    logger.i { "Set sequential range for $hash: ${range.first}..${range.second}" }
-                } else {
-                    // Reset: disable sequential and restore normal priorities
-                    val flags = org.libtorrent4j.swig.torrent_flags_t()
-                    val mask = org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
-                    handle.setFlags(flags, mask)
-                    logger.i { "Reset sequential range for $hash" }
-                }
-            } catch (e: Exception) {
-                logger.e({ "Failed to set sequential range for $hash" }, e)
-            }
-        }
-
-        /**
-         * Set a deadline for a specific piece.
-         *
-         * Time-critical pieces with sooner deadlines are prioritized by libtorrent.
-         * A deadline of 0 means immediate/highest priority.
-         */
-        public fun setPieceDeadline(
-            hash: String,
-            pieceIndex: Int,
-            deadlineMs: Int,
-        ) {
-            val handle = torrents[hash] ?: return
-            try {
-                handle.setPieceDeadline(pieceIndex, deadlineMs)
-                logger.d { "Set piece deadline: hash=$hash piece=$pieceIndex deadline=${deadlineMs}ms" }
-            } catch (e: Exception) {
-                logger.e({ "Failed to set piece deadline for $hash piece $pieceIndex" }, e)
-            }
-        }
-
-        /**
-         * Clear all piece deadlines for a torrent.
-         */
-        public fun clearPieceDeadlines(hash: String) {
-            val handle = torrents[hash] ?: return
-            try {
-                handle.clearPieceDeadlines()
-                logger.d { "Cleared piece deadlines for $hash" }
-            } catch (e: Exception) {
-                logger.e({ "Failed to clear piece deadlines for $hash" }, e)
-            }
-        }
-
-        /**
-         * Check if a specific piece has been downloaded.
-         */
-        public fun havePiece(
-            hash: String,
-            pieceIndex: Int,
-        ): Boolean {
-            val handle = torrents[hash] ?: return false
-            return try {
-                handle.havePiece(pieceIndex)
-            } catch (e: Exception) {
-                logger.e({ "Failed to check piece $pieceIndex for $hash" }, e)
-                false
-            }
-        }
-
-        /**
-         * Read data from a downloaded piece.
-         *
-         * Returns empty array if the piece is not available or read fails.
-         */
-        public fun readPiece(
-            hash: String,
-            pieceIndex: Int,
-        ): ByteArray {
-            val handle = torrents[hash] ?: return ByteArray(0)
-            return try {
-                if (!handle.havePiece(pieceIndex)) return ByteArray(0)
-                // ponytail: stub always returns empty — libtorrent4j readPiece is alert-driven
-                // (async ReadPieceAlert) and has no production caller yet; build a pending-read
-                // queue keyed by piece index when torrent streaming needs real data.
-                ByteArray(0)
-            } catch (e: Exception) {
-                logger.e({ "Failed to read piece $pieceIndex for $hash" }, e)
-                ByteArray(0)
-            }
-        }
-
-        /**
-         * Get the piece range `(firstPiece..lastPiece)` for a file within a torrent.
-         *
-         * Returns null if metadata is not yet available.
-         */
-        public fun getFilePieceRange(
-            hash: String,
-            fileIndex: Int,
-        ): Pair<Int, Int>? {
-            val handle = torrents[hash] ?: return null
-            return try {
-                val ti = handle.torrentFile() ?: return null
-                if (fileIndex < 0 || fileIndex >= ti.numFiles()) return null
-                val firstPiece = ti.mapFile(fileIndex, 0, 0).piece()
-                val fileSize = ti.files().fileSize(fileIndex)
-                val lastByteOffset = (fileSize - 1).coerceAtLeast(0)
-                val lastPiece = ti.mapFile(fileIndex, lastByteOffset, 0).piece()
-                Pair(firstPiece, lastPiece)
-            } catch (e: Exception) {
-                logger.e({ "Failed to get piece range for file $fileIndex in $hash" }, e)
-                null
-            }
         }
 
         private fun calculateEta(status: TorrentStatus): Long {

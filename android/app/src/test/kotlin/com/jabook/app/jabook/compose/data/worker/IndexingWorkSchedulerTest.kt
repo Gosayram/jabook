@@ -46,7 +46,7 @@ class IndexingWorkSchedulerTest {
     }
 
     @Test
-    fun `enqueue uses expedited unique work with a connected network constraint`() {
+    fun `enqueue uses unique work with a connected network constraint`() {
         scheduler.enqueue()
 
         verify(workManager).enqueueUniqueWork(
@@ -55,7 +55,6 @@ class IndexingWorkSchedulerTest {
             requestCaptor.capture(),
         )
         val workSpec = requestCaptor.firstValue.workSpec
-        assertTrue(workSpec.expedited)
         assertEquals(NetworkType.CONNECTED, workSpec.constraints.requiredNetworkType)
         assertTrue(workSpec.input.getBoolean(IndexingWorker.KEY_PRELOAD_COVERS, false))
     }

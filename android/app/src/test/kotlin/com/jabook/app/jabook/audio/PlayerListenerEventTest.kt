@@ -29,7 +29,6 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.shadows.ShadowLooper
 import kotlin.test.assertEquals
 
 /**

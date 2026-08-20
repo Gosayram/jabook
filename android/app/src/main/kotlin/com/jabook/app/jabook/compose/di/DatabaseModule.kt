@@ -19,6 +19,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.local.dao.BookmarkDao
@@ -439,64 +440,65 @@ public object DatabaseModule {
 
         // Detect and log slow queries (>16ms) in debug builds only
         // Query callbacks have a small performance cost, so only enable in debug
-        try {
-            val isDebug =
-                Class
-                    .forName("com.jabook.app.jabook.BuildConfig")
-                    .getField("DEBUG")
-                    .get(null) as? Boolean ?: false
-            if (isDebug) {
-                builder.setQueryCallback(
-                    RoomDatabase.QueryCallback { sqlQuery: String, bindArgs: List<Any?> ->
-                        logger.d { "RoomSlowQuery: $sqlQuery" }
-                    },
-                    Executors.newSingleThreadExecutor(),
-                )
-            }
-        } catch (e: Exception) {
-            // BuildConfig not available, skip query callback
-            logger.e({ "BuildConfig not available, skipping query callback" }, e)
+        if (BuildConfig.DEBUG) {
+            builder.setQueryCallback(
+                RoomDatabase.QueryCallback { sqlQuery: String, bindArgs: List<Any?> ->
+                    logger.d { "RoomSlowQuery: $sqlQuery" }
+                },
+                Executors.newSingleThreadExecutor(),
+            )
         }
 
         return builder.build()
     }
 
     @Provides
+    @Singleton
     public fun provideOfflineSearchDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao =
         database.offlineSearchDao()
 
     @Provides
+    @Singleton
     public fun provideBooksDao(database: JabookDatabase): BooksDao = database.booksDao()
 
     @Provides
+    @Singleton
     public fun provideBookmarkDao(database: JabookDatabase): BookmarkDao = database.bookmarkDao()
 
     @Provides
+    @Singleton
     public fun provideChaptersDao(database: JabookDatabase): ChaptersDao = database.chaptersDao()
 
     @Provides
+    @Singleton
     public fun provideSearchHistoryDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao =
         database.searchHistoryDao()
 
     @Provides
+    @Singleton
     public fun provideDownloadQueueDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao =
         database.downloadQueueDao()
 
     @Provides
+    @Singleton
     public fun provideDownloadHistoryDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao =
         database.downloadHistoryDao()
 
     @Provides
+    @Singleton
     public fun provideFavoriteDao(database: JabookDatabase): FavoriteDao = database.favoriteDao()
 
     @Provides
+    @Singleton
     public fun provideScanPathDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.ScanPathDao =
         database.scanPathDao()
 
     @Provides
+    @Singleton
     public fun provideTorrentDownloadDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.torrent.TorrentDownloadDao =
         database.torrentDownloadDao()
 
     @Provides
+    @Singleton
     public fun provideUserEqPresetDao(database: JabookDatabase): UserEqPresetDao = database.userEqPresetDao()
 }

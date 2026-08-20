@@ -35,6 +35,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -67,6 +68,11 @@ public class TorrentManager
                 SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("ComposeTorrentManager"),
             )
 
+        // Observation jobs are restarted on every initialize() after a shutdown(),
+        // so they must be cancelled first or each service lifecycle would add duplicate collectors.
+        private var dbSyncJob: Job? = null
+        private var networkConstraintJob: Job? = null
+
         /**
          * Initialize torrent system
          */
@@ -84,10 +90,12 @@ public class TorrentManager
                 logger.i { "TorrentManager initialized" }
 
                 // Start observing downloads for DB sync
-                observeAndSyncToDatabase()
+                dbSyncJob?.cancel()
+                dbSyncJob = observeAndSyncToDatabase()
 
                 // Start observing network constraints
-                observeNetworkConstraints()
+                networkConstraintJob?.cancel()
+                networkConstraintJob = observeNetworkConstraints()
             } catch (e: NoSuchMethodError) {
                 logger.e({ "libtorrent4j version mismatch - native library incompatible" }, e)
                 // Don't throw - allow app to continue without torrent functionality
@@ -148,57 +156,6 @@ public class TorrentManager
         }
 
         /**
-         * Pause download (compatibility alias for pauseTorrent).
-         */
-        public fun pauseDownload(hash: String) {
-            pauseTorrent(hash)
-        }
-
-        /**
-         * Resume download (compatibility alias for resumeTorrent).
-         */
-        public fun resumeDownload(hash: String) {
-            resumeTorrent(hash)
-        }
-
-        /**
-         * Remove download (compatibility alias for removeTorrent).
-         */
-        public fun removeDownload(
-            hash: String,
-            deleteFiles: Boolean = false,
-        ) {
-            removeTorrent(hash, deleteFiles)
-        }
-
-        /**
-         * Get downloads state flow (compatibility property).
-         */
-        public val downloads: StateFlow<Map<String, TorrentDownload>>
-            get() = downloadsFlow
-
-        /**
-         * Add torrent and start download service (original implementation).
-         */
-        public fun addTorrentOriginal(
-            magnetUri: String,
-            savePath: String,
-            selectedFileIndices: List<Int>? = null,
-            topicId: String? = null,
-        ): Result<String> {
-            ensureInitialized()
-
-            val result = session.addTorrent(magnetUri, savePath, selectedFileIndices, topicId)
-
-            if (result.isSuccess) {
-                // Start foreground service
-                startDownloadService()
-            }
-
-            return result
-        }
-
-        /**
          * Remove torrent
          */
         public fun removeTorrent(
@@ -246,16 +203,6 @@ public class TorrentManager
         }
 
         /**
-         * Move torrent to new path
-         */
-        public fun moveTorrent(
-            hash: String,
-            newPath: String,
-        ) {
-            session.moveTorrentStorage(hash, newPath)
-        }
-
-        /**
          * Resume all torrents
          */
         public fun resumeAll() {
@@ -267,17 +214,6 @@ public class TorrentManager
          * Get specific download
          */
         public fun getDownload(hash: String): TorrentDownload? = session.getDownload(hash)
-
-        /**
-         * Get download progress as Flow for a specific torrent.
-         * This is a convenience method for compatibility with legacy code.
-         */
-        public fun getDownloadProgress(hash: String): kotlinx.coroutines.flow.Flow<TorrentDownload> =
-            kotlinx.coroutines.flow.flow {
-                downloadsFlow.collect { downloads ->
-                    downloads[hash]?.let { emit(it) }
-                }
-            }
 
         /**
          * Enable streaming mode for torrent
@@ -335,12 +271,18 @@ public class TorrentManager
         }
 
         /**
-         * Shutdown torrent system
+         * Shutdown torrent system: persists resume data via [TorrentSession.stopSession]
+         * and releases the native session. Safe to call repeatedly; a later
+         * [initialize] restarts the session and its observers.
          */
         @Synchronized
         public fun shutdown() {
             try {
                 session.stopSession()
+                dbSyncJob?.cancel()
+                dbSyncJob = null
+                networkConstraintJob?.cancel()
+                networkConstraintJob = null
                 stopDownloadService()
                 isInitialized = false
                 logger.i { "TorrentManager shut down" }
@@ -416,7 +358,7 @@ public class TorrentManager
         /**
          * Start observing downloads and sync to database
          */
-        private fun observeAndSyncToDatabase() {
+        private fun observeAndSyncToDatabase(): Job =
             scope.launch {
                 downloadsFlow.collect { downloads ->
                     if (downloads.isNotEmpty()) {
@@ -424,12 +366,11 @@ public class TorrentManager
                     }
                 }
             }
-        }
 
         private val networkPausedTorrents = mutableSetOf<String>()
         private var pausedByNetwork = false
 
-        private fun observeNetworkConstraints() {
+        private fun observeNetworkConstraints(): Job =
             scope.launch {
                 combine(
                     settingsRepository.userPreferences,
@@ -440,7 +381,6 @@ public class TorrentManager
                     handleNetworkChange(wifiOnly, net)
                 }
             }
-        }
 
         private fun handleNetworkChange(
             wifiOnly: Boolean,

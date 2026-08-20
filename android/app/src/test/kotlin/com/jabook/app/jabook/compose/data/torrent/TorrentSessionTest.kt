@@ -231,15 +231,6 @@ class TorrentSessionTest {
         assertEquals(1, fakeSession.downloadsFlow.value.size)
     }
 
-    @Test
-    fun `moveTorrentStorage propagates to fake`() {
-        fakeSession.initSession()
-        val hash = fakeSession.addTorrent("magnet:?xt=urn:btih:" + "bb".repeat(20), "/old").getOrThrow()
-
-        fakeSession.moveTorrentStorage(hash, "/new")
-        assertEquals("/new", fakeSession.getSavePath(hash))
-    }
-
     // --- Edge cases ---
 
     @Test
@@ -282,7 +273,6 @@ public class FakeTorrentSession : TorrentSession {
 
     private val sequentialFlags = mutableMapOf<String, Boolean>()
     private val filePriorities = mutableMapOf<String, MutableList<Int>>()
-    private val savePaths = mutableMapOf<String, String>()
 
     override fun initSession() {
         if (!isInitialized) {
@@ -320,7 +310,6 @@ public class FakeTorrentSession : TorrentSession {
                 topicId = topicId,
             )
         _downloadsFlow.value = _downloadsFlow.value + (hash to download)
-        savePaths[hash] = savePath
         return Result.success(hash)
     }
 
@@ -332,7 +321,6 @@ public class FakeTorrentSession : TorrentSession {
         _downloadsFlow.value = _downloadsFlow.value - hash
         sequentialFlags.remove(hash)
         filePriorities.remove(hash)
-        savePaths.remove(hash)
     }
 
     override fun pauseTorrent(hash: String) {
@@ -353,13 +341,6 @@ public class FakeTorrentSession : TorrentSession {
 
     override fun pauseForMemoryPressure() {
         pauseAll()
-    }
-
-    override fun moveTorrentStorage(
-        hash: String,
-        newPath: String,
-    ) {
-        savePaths[hash] = newPath
     }
 
     override fun setSequentialDownload(
@@ -415,7 +396,6 @@ public class FakeTorrentSession : TorrentSession {
         _downloadsFlow.value = emptyMap()
         sequentialFlags.clear()
         filePriorities.clear()
-        savePaths.clear()
     }
 
     // --- Test helpers ---
@@ -429,7 +409,6 @@ public class FakeTorrentSession : TorrentSession {
 
     public fun getAllFilePriorities(hash: String): List<Int> = filePriorities[hash]?.toList() ?: emptyList()
 
-    public fun getSavePath(hash: String): String? = savePaths[hash]
 
     private fun updateState(
         hash: String,

@@ -35,6 +35,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
@@ -128,8 +129,12 @@ public class TorrentDownloadService : Service() {
         serviceScope.cancel()
         releaseWakeLock()
 
-        // Don't stop session - it should persist
-        // torrentManager.shutdown()
+        // Shut down the torrent session so libtorrent persists resume data before the
+        // process can die; a later service start re-initializes it. Off the main thread
+        // because stopSession() blocks up to 5s awaiting SaveResumeDataAlerts.
+        CoroutineScope(Dispatchers.IO + loggingCoroutineExceptionHandler("TorrentServiceShutdown")).launch {
+            torrentManager.shutdown()
+        }
     }
 
     private fun startForeground() {

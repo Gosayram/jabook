@@ -41,14 +41,6 @@ public class TorrentDownloadRepository
             }
 
         /**
-         * Get active downloads
-         */
-        public fun getActiveFlow(): Flow<List<TorrentDownload>> =
-            dao.getActiveFlow().map { entities ->
-                entities.map { it.toDomain() }
-            }
-
-        /**
          * Get all downloads (synchronous)
          */
         public suspend fun getAll(): List<TorrentDownload> = dao.getAll().map { it.toDomain() }
@@ -59,26 +51,32 @@ public class TorrentDownloadRepository
         public suspend fun getByHash(hash: String): TorrentDownload? = dao.getByHash(hash)?.toDomain()
 
         /**
-         * Save download
-         */
-        public suspend fun save(download: TorrentDownload) {
-            try {
-                val entity = TorrentDownloadEntity.fromDomain(download)
-                dao.insert(entity)
-                logger.d { "Saved torrent: ${download.hash}" }
-            } catch (e: Exception) {
-                logger.e({ "Failed to save torrent: ${download.hash}" }, e)
-            }
-        }
-
-        /**
-         * Save multiple downloads
+         * Sync live download snapshots to the database.
+         *
+         * Inserts rows for new torrents and updates the synced columns of existing ones
+         * without touching resumeData, so libtorrent resume BLOBs survive progress writes.
          */
         public suspend fun saveAll(downloads: List<TorrentDownload>) {
             try {
-                val entities = downloads.map { TorrentDownloadEntity.fromDomain(it) }
-                dao.insertAll(entities)
-                logger.d { "Saved ${downloads.size} torrents" }
+                dao.insertAll(downloads.map { TorrentDownloadEntity.fromDomain(it) })
+                downloads.forEach { download ->
+                    dao.updateSyncFields(
+                        hash = download.hash,
+                        name = download.name,
+                        state = download.state,
+                        progress = download.progress,
+                        totalSize = download.totalSize,
+                        downloadedSize = download.downloadedSize,
+                        uploadedSize = download.uploadedSize,
+                        savePath = download.savePath,
+                        files = download.files,
+                        errorMessage = download.errorMessage,
+                        addedTime = download.addedTime,
+                        completedTime = download.completedTime,
+                        pauseReason = download.pauseReason,
+                        topicId = download.topicId,
+                    )
+                }
             } catch (e: Exception) {
                 logger.e({ "Failed to save torrents" }, e)
             }
@@ -93,47 +91,6 @@ public class TorrentDownloadRepository
                 logger.d { "Deleted torrent: $hash" }
             } catch (e: Exception) {
                 logger.e({ "Failed to delete torrent: $hash" }, e)
-            }
-        }
-
-        /**
-         * Update download state
-         */
-        public suspend fun updateState(
-            hash: String,
-            state: TorrentState,
-        ) {
-            try {
-                dao.updateState(hash, state)
-            } catch (e: Exception) {
-                logger.e({ "Failed to update state for: $hash" }, e)
-            }
-        }
-
-        /**
-         * Update download progress
-         */
-        public suspend fun updateProgress(
-            hash: String,
-            progress: Float,
-            downloadedSize: Long,
-        ) {
-            try {
-                dao.updateProgress(hash, progress, downloadedSize)
-            } catch (e: Exception) {
-                logger.e({ "Failed to update progress for: $hash" }, e)
-            }
-        }
-
-        /**
-         * Delete all completed downloads
-         */
-        public suspend fun deleteAllCompleted() {
-            try {
-                dao.deleteAllCompleted()
-                logger.d { "Deleted all completed torrents" }
-            } catch (e: Exception) {
-                logger.e({ "Failed to delete completed torrents" }, e)
             }
         }
     }

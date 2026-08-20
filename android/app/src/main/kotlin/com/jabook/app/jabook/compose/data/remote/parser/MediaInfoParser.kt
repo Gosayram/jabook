@@ -42,8 +42,6 @@ public class MediaInfoParser
             private val SECTION_AUDIO = Regex("^(Audio|Аудио).*[#№]?\\s*\\d*", RegexOption.IGNORE_CASE)
             private val SECTION_TEXT = Regex("^(Text|Текст|Субтитры).*[#№]?\\s*\\d*", RegexOption.IGNORE_CASE)
             private val TRACK_NUM_REGEX = Regex("\\d+")
-            private val FIELD_PATTERN_COLON = Regex("%s\\s*[:：]\\s*(.+?)(?=(\\n|$))", RegexOption.IGNORE_CASE)
-            private val FIELD_PATTERN_DOTS = Regex("%s\\s*[:：]\\s*(.+?)\\.\\.\\..*", RegexOption.IGNORE_CASE)
             private val RESOLUTION_DIRECT = Regex("(\\d+)\\s*[xх×]\\s*(\\d+)", RegexOption.IGNORE_CASE)
         }
 
@@ -199,16 +197,16 @@ public class MediaInfoParser
             vararg fieldNames: String,
         ): String? {
             for (fieldName in fieldNames) {
+                val escaped = Regex.escape(fieldName)
+
                 // Try exact match with colon
-                val pattern1 = Regex(fieldName.replace("?", "\\?") + "\\s*[:：]\\s*(.+?)(?=(\\n|$))", RegexOption.IGNORE_CASE)
-                val match1 = pattern1.find(text)
+                val match1 = Regex("$escaped\\s*[:：]\\s*(.+?)(?=(\\n|$))", RegexOption.IGNORE_CASE).find(text)
                 if (match1 != null) {
                     return match1.groupValues[1].trim()
                 }
 
                 // Try with "..." at end
-                val pattern2 = Regex(fieldName.replace("?", "\\?") + "\\s*[:：]\\s*(.+?)\\.\\.\\..*", RegexOption.IGNORE_CASE)
-                val match2 = pattern2.find(text)
+                val match2 = Regex("$escaped\\s*[:：]\\s*(.+?)\\.\\.\\..*", RegexOption.IGNORE_CASE).find(text)
                 if (match2 != null) {
                     return match2.groupValues[1].trim()
                 }

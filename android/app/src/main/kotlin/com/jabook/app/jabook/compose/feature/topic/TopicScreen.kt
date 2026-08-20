@@ -892,14 +892,15 @@ private fun ExpandableComments(
     val listState = rememberLazyListState()
 
     // Auto-load more when scrolled near bottom
-    LaunchedEffect(listState.canScrollForward, listState.isScrollInProgress) {
-        if (!listState.canScrollForward &&
-            !listState.isScrollInProgress &&
-            !isLoadingMore &&
-            currentPage < totalPages
-        ) {
-            onLoadMore?.invoke()
-        }
+    LaunchedEffect(listState, isLoadingMore, currentPage, totalPages) {
+        snapshotFlow { listState.canScrollForward to listState.isScrollInProgress }
+            .distinctUntilChanged()
+            .filter { (canScrollForward, isScrolling) -> !canScrollForward && !isScrolling }
+            .collect {
+                if (!isLoadingMore && currentPage < totalPages) {
+                    onLoadMore?.invoke()
+                }
+            }
     }
 
     Column(modifier = modifier) {

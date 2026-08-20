@@ -18,6 +18,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.room.withTransaction
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.debug.DebugRuntimeOverrides
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
@@ -281,42 +282,7 @@ public class BackupService
             val versionName = packageInfo.versionName ?: "unknown"
             val versionCode = packageInfo.longVersionCode.toInt()
 
-            val flavor =
-                try {
-                    // Try to get flavor from BuildConfig.APPLICATION_ID
-                    // Each flavor has a different applicationId suffix:
-                    // - dev: .dev
-                    // - stage: .stage
-                    // - beta: .beta
-                    // - prod: no suffix
-                    val buildConfigClass = Class.forName("com.jabook.app.jabook.BuildConfig")
-                    val applicationId = buildConfigClass.getField("APPLICATION_ID").get(null) as? String
-
-                    when {
-                        applicationId?.endsWith(".dev") == true -> "dev"
-                        applicationId?.endsWith(".stage") == true -> "stage"
-                        applicationId?.endsWith(".beta") == true -> "beta"
-                        applicationId == "com.jabook.app.jabook" -> "prod"
-                        else -> {
-                            // Fallback: try to get from versionName suffix
-                            when {
-                                versionName.endsWith("-dev") -> "dev"
-                                versionName.endsWith("-stage") -> "stage"
-                                versionName.endsWith("-beta") -> "beta"
-                                else -> "prod" // Default to prod if no suffix
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    logger.e({ "Could not get BuildConfig.APPLICATION_ID, using versionName fallback" }, e)
-                    // Fallback: determine from versionName suffix
-                    when {
-                        versionName.endsWith("-dev") -> "dev"
-                        versionName.endsWith("-stage") -> "stage"
-                        versionName.endsWith("-beta") -> "beta"
-                        else -> "prod" // Default to prod if no suffix
-                    }
-                }
+            val flavor = BuildConfig.FLAVOR.ifEmpty { "prod" }
 
             return AppInfo(
                 versionName = versionName,
