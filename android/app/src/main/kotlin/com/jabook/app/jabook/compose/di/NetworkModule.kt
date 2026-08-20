@@ -23,7 +23,6 @@ import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.NetworkTelemetryEventListenerFactory
 import com.jabook.app.jabook.compose.data.network.RutrackerCertificatePinningPolicy
-import com.jabook.app.jabook.compose.data.network.RutrackerConnectionPoolPolicy
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.network.PersistentCookieJar
@@ -36,6 +35,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
 import okhttp3.Cache
+import okhttp3.ConnectionPool
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.brotli.BrotliInterceptor
@@ -108,7 +108,7 @@ public object NetworkModule {
             OkHttpClient
                 .Builder()
                 .dns(dohDns)
-                .connectionPool(RutrackerConnectionPoolPolicy.create())
+                .connectionPool(ConnectionPool(3, 2, TimeUnit.MINUTES))
                 .certificatePinner(rutrackerCertificatePinner)
                 .callTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .connectTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -159,7 +159,7 @@ public object NetworkModule {
             .Builder()
             .dns(dohDns)
             .cache(apiCache)
-            .connectionPool(RutrackerConnectionPoolPolicy.create())
+            .connectionPool(ConnectionPool(3, 2, TimeUnit.MINUTES))
             .cookieJar(cookieJar)
             .certificatePinner(rutrackerCertificatePinner)
             .apply {

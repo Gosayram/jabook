@@ -52,12 +52,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
-import okhttp3.Response
 import javax.inject.Inject
 import javax.inject.Singleton
+import retrofit2.Response as RetrofitResponse
 
 /** Map HTTP status code to a domain-specific error. */
-private fun Response.toRuTrackerError(): RuTrackerError =
+private fun <T> RetrofitResponse<T>.toRuTrackerError(): RuTrackerError =
     when (code()) {
         401 -> RuTrackerError.Unauthorized
         403 -> RuTrackerError.Forbidden
