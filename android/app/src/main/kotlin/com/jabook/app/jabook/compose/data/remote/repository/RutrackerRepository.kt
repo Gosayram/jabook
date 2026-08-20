@@ -52,8 +52,19 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import okhttp3.Response
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/** Map HTTP status code to a domain-specific error. */
+private fun Response.toRuTrackerError(): RuTrackerError =
+    when (code()) {
+        401 -> RuTrackerError.Unauthorized
+        403 -> RuTrackerError.Forbidden
+        404 -> RuTrackerError.NotFound
+        400 -> RuTrackerError.BadRequest
+        else -> RuTrackerError.Unknown("HTTP ${code()}: ${message()}")
+    }
 
 /**
  * Repository for RuTracker operations.
@@ -361,14 +372,7 @@ public class RutrackerRepository
             logger.log(opId, "Final URL: ${response.raw().request.url}", LogLevel.DEBUG)
 
             if (!response.isSuccessful) {
-                val error =
-                    when (response.code()) {
-                        401 -> RuTrackerError.Unauthorized
-                        403 -> RuTrackerError.Forbidden
-                        404 -> RuTrackerError.NotFound
-                        400 -> RuTrackerError.BadRequest
-                        else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
-                    }
+                val error = response.toRuTrackerError()
                 logger.logError(opId, "Request failed: ${error.message}", error)
                 if (operationId == null) logger.endOperation(opId, success = false)
                 return Result.failure(error)
@@ -569,14 +573,7 @@ public class RutrackerRepository
 
                         if (!response.isSuccessful) {
                             logger.logWarning(operationId, "Topic details failed: HTTP ${response.code()}")
-                            val rutrackerError =
-                                when (response.code()) {
-                                    401 -> RuTrackerError.Unauthorized
-                                    403 -> RuTrackerError.Forbidden
-                                    404 -> RuTrackerError.NotFound
-                                    400 -> RuTrackerError.BadRequest
-                                    else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
-                                }
+                            val rutrackerError = response.toRuTrackerError()
                             logger.logError(operationId, "Failed to fetch topic details", rutrackerError)
                             Result.failure(rutrackerError)
                         } else {
@@ -642,14 +639,7 @@ public class RutrackerRepository
 
                         if (!response.isSuccessful) {
                             logger.logWarning(operationId, "Categories failed: HTTP ${response.code()}")
-                            val error =
-                                when (response.code()) {
-                                    401 -> RuTrackerError.Unauthorized
-                                    403 -> RuTrackerError.Forbidden
-                                    404 -> RuTrackerError.NotFound
-                                    400 -> RuTrackerError.BadRequest
-                                    else -> RuTrackerError.Unknown("HTTP ${response.code()}: ${response.message()}")
-                                }
+                            val error = response.toRuTrackerError()
                             logger.logError(operationId, "Failed to fetch categories", error)
                             Result.failure(error)
                         } else {

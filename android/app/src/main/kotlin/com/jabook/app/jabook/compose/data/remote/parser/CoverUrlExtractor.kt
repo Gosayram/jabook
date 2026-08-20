@@ -51,6 +51,10 @@ public class CoverUrlExtractor
                     "32x32",
                     "48x48",
                 )
+
+            /** Precompiled: normalizeUrl() is called per cover URL — avoid recompiling 3 Regex per call. */
+            private val CDN_ABS_REGEX = Regex("https?://static\\.rutracker\\.(org|net|me|nl)")
+            private val CDN_PROTOCOL_RELATIVE_REGEX = Regex("//static\\.rutracker\\.(org|net|me|nl)")
         }
 
         /**
@@ -218,10 +222,7 @@ public class CoverUrlExtractor
             if (url.startsWith("http://") || url.startsWith("https://")) {
                 // Replace static.rutracker.* domains with static.rutracker.cc (CDN is always available)
                 // This ensures images load even if main mirror is blocked
-                return url.replace(
-                    Regex("https?://static\\.rutracker\\.(org|net|me|nl)"),
-                    "https://static.rutracker.cc",
-                )
+                return url.replace(CDN_ABS_REGEX, "https://static.rutracker.cc")
             }
 
             val baseUrl = mirrorManager.getBaseUrl()
@@ -233,10 +234,7 @@ public class CoverUrlExtractor
                         if (url.contains("static.rutracker.", ignoreCase = true)) {
                             // Replace domain with static.rutracker.cc (CDN is always available)
                             "https:" +
-                                url.replace(
-                                    Regex("//static\\.rutracker\\.(org|net|me|nl)"),
-                                    "//static.rutracker.cc",
-                                )
+                                url.replace(CDN_PROTOCOL_RELATIVE_REGEX, "//static.rutracker.cc")
                         } else {
                             "https:$url"
                         }
@@ -250,9 +248,6 @@ public class CoverUrlExtractor
                 }
 
             // Final CDN normalization (in case baseUrl contained static.rutracker.*)
-            return normalized.replace(
-                Regex("https?://static\\.rutracker\\.(org|net|me|nl)"),
-                "https://static.rutracker.cc",
-            )
+            return normalized.replace(CDN_ABS_REGEX, "https://static.rutracker.cc")
         }
     }

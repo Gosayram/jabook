@@ -126,7 +126,7 @@ internal object ParsingValidators {
         // Check for specific RuTracker error patterns (usually in a message box or title)
         // More strict to avoid false positives in forum posts
         return (lowerHtml.contains("неверный запрос") && lowerHtml.contains("class=\"maintitle\"")) ||
-            (lowerHtml.contains("bad request") && lowerHtml.contains("<title>rubet.org :: 400 bad request</title>")) ||
+            (lowerHtml.contains("bad request") && lowerHtml.contains("<title>rutracker.org :: 400 bad request</title>")) ||
             (lowerHtml.contains("bad request") && lowerHtml.contains("<h1>400 bad request</h1>")) ||
             (lowerHtml.contains("error 400") && lowerHtml.contains("bad request"))
     }

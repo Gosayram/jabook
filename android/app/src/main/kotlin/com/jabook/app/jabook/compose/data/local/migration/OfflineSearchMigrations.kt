@@ -44,9 +44,10 @@ public val MIGRATION_14_15: Migration =
                 )
 
                 // Log progress to verify migration success
-                val cursor = db.query("SELECT COUNT(*) FROM cached_topics WHERE category = 'Аудиокниги'")
-                val updatedCount = if (cursor.moveToFirst()) cursor.getInt(0) else 0
-                cursor.close()
+                val updatedCount =
+                    db.query("SELECT COUNT(*) FROM cached_topics WHERE category = 'Аудиокниги'").use {
+                        if (it.moveToFirst()) it.getInt(0) else 0
+                    }
 
                 val duration = System.currentTimeMillis() - startTime
                 logger.i { "Migration 14->15 completed: updated $updatedCount topics (${duration}ms)" }

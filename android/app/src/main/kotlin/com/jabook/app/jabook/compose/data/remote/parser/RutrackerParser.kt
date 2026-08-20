@@ -308,9 +308,7 @@ public class RutrackerParser
                                 val topicIdFromLink =
                                     row
                                         .selectFirst(TITLE_SELECTOR)
-                                        ?.absUrl("href")
-                                        ?.substringAfter("t=")
-                                        ?.substringBefore("&")
+                                        ?.queryParamOrNull("t")
                                         ?: ""
 
                                 val finalTopicId = topicId.ifEmpty { topicIdFromLink }
@@ -912,12 +910,9 @@ public class RutrackerParser
                     // Fallback: extract from row id attribute
                     extractTopicIdFromRowId(row.attr("id")).orEmpty().ifEmpty {
                         // Last resort: extract from title link href
-                        // Use absUrl() for proper absolute URL resolution
                         row
                             .selectFirst(TITLE_SELECTOR)
-                            ?.absUrl("href")
-                            ?.substringAfter("t=")
-                            ?.substringBefore("&")
+                            ?.queryParamOrNull("t")
                             ?: run {
                                 logger.d { "No topicId found in row" }
                                 return null
@@ -1581,15 +1576,6 @@ public class RutrackerParser
             return metadata
         }
 
-        private fun extractCoverUrl(postBody: Element?): String? {
-            if (postBody == null) return null
-
-            // Look for first image in post
-            // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
-            val img = postBody.selectFirst("img[src]")
-            return img?.absUrl("src")
-        }
-
         private fun extractGenres(postBody: Element?): List<String> {
             if (postBody == null) return emptyList()
 
@@ -2204,12 +2190,10 @@ public class RutrackerParser
             // Use selectStream() for lazy evaluation of large lists (jsoup 1.19.1+)
             val links = postBody.select("a[href*=\"viewtopic.php?t=\"]")
             for (link in links) {
-                // Use absUrl() for proper absolute URL resolution
-                val href = link.absUrl("href")
-                val topicId = href.substringAfter("t=").substringBefore("&")
+                val topicId = link.queryParamOrNull("t") ?: continue
                 val title = link.text()
 
-                if (topicId.isNotEmpty() && title.isNotEmpty()) {
+                if (title.isNotEmpty()) {
                     related.add(RelatedBook(topicId, title))
                 }
             }

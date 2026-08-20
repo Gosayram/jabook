@@ -185,34 +185,35 @@ public class MirrorManager
                             .build()
 
                     val response = okHttpClient.newCall(request).execute()
-                    val code = response.code
-                    val body = response.peekBody(4096).string()
-                    val cfRay = response.header("cf-ray")
-                    val isCfProtected =
-                        cfRay != null ||
-                            body.contains("Just a moment", ignoreCase = true) ||
-                            body.contains("Checking your browser", ignoreCase = true) ||
-                            body.contains("cf-browser-verification", ignoreCase = true)
+                    response.use {
+                        val code = it.code
+                        val body = it.peekBody(4096).string()
+                        val cfRay = it.header("cf-ray")
+                        val isCfProtected =
+                            cfRay != null ||
+                                body.contains("Just a moment", ignoreCase = true) ||
+                                body.contains("Checking your browser", ignoreCase = true) ||
+                                body.contains("cf-browser-verification", ignoreCase = true)
 
-                    val health =
-                        when {
-                            code in 200..299 -> MirrorHealth.Healthy
-                            (code == 403 || code == 503) && isCfProtected -> MirrorHealth.CloudflareProtected
-                            code == 403 || code == 503 -> MirrorHealth.Dead
-                            else -> MirrorHealth.Dead
+                        val health =
+                            when {
+                                code in 200..299 -> MirrorHealth.Healthy
+                                (code == 403 || code == 503) && isCfProtected -> MirrorHealth.CloudflareProtected
+                                code == 403 || code == 503 -> MirrorHealth.Dead
+                                else -> MirrorHealth.Dead
+                            }
+
+                        logger.d { "Mirror $domain health: ${health::class.simpleName} ($code)" }
+
+                        // Only count DNS/TLS/timeout failures for circuit breaker — CF-protected is not a failure
+                        when (health) {
+                            is MirrorHealth.Healthy -> recordCircuitSuccess(domain)
+                            is MirrorHealth.CloudflareProtected -> recordCircuitSuccess(domain)
+                            is MirrorHealth.Dead -> recordCircuitFailure(domain)
+                            is MirrorHealth.Unknown -> recordCircuitFailure(domain)
                         }
-
-                    logger.d { "Mirror $domain health: ${health::class.simpleName} ($code)" }
-                    response.close()
-
-                    // Only count DNS/TLS/timeout failures for circuit breaker — CF-protected is not a failure
-                    when (health) {
-                        is MirrorHealth.Healthy -> recordCircuitSuccess(domain)
-                        is MirrorHealth.CloudflareProtected -> recordCircuitSuccess(domain)
-                        is MirrorHealth.Dead -> recordCircuitFailure(domain)
-                        is MirrorHealth.Unknown -> recordCircuitFailure(domain)
+                        health
                     }
-                    health
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
