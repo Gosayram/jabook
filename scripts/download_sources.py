@@ -2,35 +2,69 @@
 """
 download_sources.py
 
-Читает libs.versions.toml (формат Gradle Version Catalog), для каждой
-библиотеки из секции [libraries] пытается скачать *-sources.jar
-из Google Maven / Maven Central / JitPack (по очереди) и распаковывает
-исходники в:
-
-    test_results/<artifactId>-<version>/
-
-Использование:
-    pip install requests tomli   # tomli не нужен на Python 3.11+
-    python download_sources.py libs.versions.toml
-
-Требования: Python 3.9+, пакет `requests`.
+Reads libs.versions.toml (Gradle Version Catalog) and downloads *-sources.jar
+for every library from Google Maven / Maven Central / JitPack, extracting
+sources into test_results/<artifactId>-<version>/.
 """
 
-import sys
 import os
+import sys
+from pathlib import Path
+
+SCRIPT_PATH = Path(__file__).resolve()
+VENV_DIR = SCRIPT_PATH.parent / ".venv"
+VENV_PYTHON = VENV_DIR / ("Scripts/python.exe" if os.name == "nt" else "bin/python3")
+REQUIREMENTS_FILE = SCRIPT_PATH.parent / "requirements.txt"
+
+
+def _running_in_target_venv() -> bool:
+    return (
+        sys.prefix != sys.base_prefix
+        and Path(sys.prefix).resolve() == VENV_DIR.resolve()
+    )
+
+
+if not _running_in_target_venv() and VENV_PYTHON.exists():
+    try:
+        os.execv(str(VENV_PYTHON), [str(VENV_PYTHON), str(SCRIPT_PATH), *sys.argv[1:]])
+    except OSError as exc:
+        sys.stderr.write(
+            f"error: could not launch venv interpreter {VENV_PYTHON}: {exc}\n"
+        )
+        raise SystemExit(1) from exc
+
+MIN_PYTHON = (3, 11)
+
+if sys.version_info < MIN_PYTHON:
+    sys.stderr.write(
+        f"error: Python {MIN_PYTHON[0]}.{MIN_PYTHON[1]}+ is required, "
+        f"got {sys.version.split()[0]} ({sys.executable})\n"
+        f"Create the venv and install requirements:\n"
+        f"  python3 -m venv {VENV_DIR}\n"
+        f"  {VENV_PYTHON} -m pip install -r {REQUIREMENTS_FILE}\n"
+    )
+    raise SystemExit(1)
+
+import argparse
+import concurrent.futures
 import io
 import zipfile
-import concurrent.futures
-import argparse
 from dataclasses import dataclass
 
+import tomllib
+
 try:
-    import tomllib  # Python 3.11+
-except ModuleNotFoundError:
-    import tomli as tomllib  # pip install tomli
+    import requests
+except ImportError as exc:
+    sys.stderr.write(
+        f"error: missing dependency '{exc.name}'\n"
+        f"Currently running: {sys.executable}\n"
+        f"Install the requirements into your venv:\n"
+        f"  {VENV_PYTHON} -m pip install -r {REQUIREMENTS_FILE}\n"
+    )
+    raise SystemExit(1) from exc
 
-import requests
-
+DEFAULT_TOML_PATH = SCRIPT_PATH.parent.parent / "android" / "gradle" / "libs.versions.toml"
 OUTPUT_DIR = "test_results"
 
 # Репозитории, которые пробуем по очереди для скачивания sources.jar.
@@ -86,8 +120,9 @@ def collect_libs(catalog: dict) -> list[Lib]:
         if not group or not artifact:
             continue
         if not version:
-            # библиотека без явной версии (версия берётся из BOM) — пропускаем,
-            # для неё нет фиксированной версии в каталоге
+            continue
+        # BOMs are pom-only — no sources.jar exists
+        if artifact.endswith("-bom"):
             continue
         libs.append(Lib(key=key, group=group, artifact=artifact, version=version))
     return libs
@@ -143,9 +178,16 @@ def _extract(jar_bytes: bytes, dest_dir: str) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("toml_path", nargs="?", default="libs.versions.toml")
-    parser.add_argument("--workers", type=int, default=8, help="Число параллельных загрузок")
+    parser = argparse.ArgumentParser(
+        description="Download *-sources.jar for every library in libs.versions.toml."
+    )
+    parser.add_argument(
+        "toml_path",
+        nargs="?",
+        default=str(DEFAULT_TOML_PATH),
+        help="Path to libs.versions.toml.",
+    )
+    parser.add_argument("--workers", type=int, default=8, help="Parallel downloads.")
     args = parser.parse_args()
 
     catalog = load_catalog(args.toml_path)
