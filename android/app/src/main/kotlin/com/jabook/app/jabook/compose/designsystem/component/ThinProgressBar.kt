@@ -14,23 +14,22 @@
 
 package com.jabook.app.jabook.compose.designsystem.component
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
  * Thin progress bar for cards, mini-player, detail progress, and downloads.
  *
- * Renders a rounded track with a filled portion. Uses [Color] directly
- * instead of MaterialTheme so callers can customize per context.
+ * Delegates to Material3 [LinearProgressIndicator] so it gains progress
+ * semantics (screen-reader announcements) and RTL support for free, while
+ * keeping the rounded, no-gap, no-stop-dot look via explicit stroke config.
  *
  * @param progress Progress fraction 0..1
  * @param modifier Modifier for width/height
@@ -46,27 +45,13 @@ public fun ThinProgressBar(
     progressColor: Color = Color.White.copy(alpha = 0.8f),
     height: Dp = 3.dp,
 ) {
-    val fraction = progress.coerceIn(0f, 1f)
-    Canvas(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .height(height),
-    ) {
-        val cornerRadius = size.height / 2f
-        drawRoundRect(
-            color = trackColor,
-            topLeft = Offset.Zero,
-            size = size,
-            cornerRadius = CornerRadius(cornerRadius, cornerRadius),
-        )
-        if (fraction > 0f) {
-            drawRoundRect(
-                color = progressColor,
-                topLeft = Offset.Zero,
-                size = Size(size.width * fraction, size.height),
-                cornerRadius = CornerRadius(cornerRadius, cornerRadius),
-            )
-        }
-    }
+    LinearProgressIndicator(
+        progress = { progress.coerceIn(0f, 1f) },
+        modifier = modifier.fillMaxWidth().height(height),
+        color = progressColor,
+        trackColor = trackColor,
+        strokeCap = StrokeCap.Round,
+        gapSize = 0.dp,
+        drawStopIndicator = {},
+    )
 }

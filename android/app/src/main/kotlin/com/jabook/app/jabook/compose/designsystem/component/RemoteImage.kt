@@ -40,7 +40,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil3.asImage
-import coil3.compose.AsyncImage
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -183,56 +182,5 @@ private fun ShimmerLoadingBox(modifier: Modifier = Modifier) {
                     ),
                 )
             },
-    )
-}
-
-/**
- * Simplified version of RemoteImage that uses AsyncImage directly.
- * Use this when you don't need custom loading/error states.
- *
- * @param src Image URL or path
- * @param contentDescription Content description for accessibility
- * @param modifier Modifier for styling
- * @param contentScale Content scale for image
- * @param cornerRadius Optional corner radius in dp
- * @param placeholderColor Color for placeholder
- * @param errorColor Color for error state
- * @param fallbackColor Color for fallback when no image available
- */
-@Composable
-public fun SimpleRemoteImage(
-    src: String?,
-    contentDescription: String?,
-    modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Fit,
-    cornerRadius: Float? = null,
-    placeholderColor: Color = MaterialTheme.colorScheme.surfaceVariant,
-    errorColor: Color = MaterialTheme.colorScheme.error,
-    fallbackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
-) {
-    val context = LocalContext.current
-
-    val imageRequest =
-        ImageRequest
-            .Builder(context)
-            .data(src)
-            .crossfade(true)
-            .allowHardware(true)
-            .placeholder(ColorDrawable(placeholderColor.toArgb()).asImage())
-            .error(ColorDrawable(errorColor.toArgb()).asImage())
-            .fallback(ColorDrawable(fallbackColor.toArgb()).asImage())
-            .apply {
-                if (cornerRadius != null && cornerRadius > 0) {
-                    val density = context.resources.displayMetrics.density
-                    val radiusPx = cornerRadius * density
-                    transformations(RoundedCornersTransformation(radiusPx))
-                }
-            }.build()
-
-    AsyncImage(
-        model = imageRequest,
-        contentDescription = contentDescription,
-        modifier = modifier,
-        contentScale = contentScale,
     )
 }

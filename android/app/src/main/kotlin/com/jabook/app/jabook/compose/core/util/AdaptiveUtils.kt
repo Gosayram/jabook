@@ -30,27 +30,6 @@ import androidx.compose.ui.unit.dp
  */
 public object AdaptiveUtils {
     /**
-     * Checks if the device should be forced to Compact size class based on
-     * physical screen characteristics rather than just WindowSizeClass calculation.
-     *
-     * This method detects phones that have high-resolution displays which
-     * WindowSizeClass incorrectly classifies as tablets (Medium/Expanded).
-     *
-     * Detection logic:
-     * 1. If smallestScreenWidthDp < 600dp, it's definitely a phone
-     * 2. If smallestScreenWidthDp >= 600dp but has very tall aspect ratio (> 2.5:1),
-     *    it's likely a phone (modern phones are tall and narrow)
-     * 3. If smallestScreenWidthDp >= 600dp but has very high density (>= 420dpi)
-     *    and narrow width, it's likely a phone
-     *
-     * @param context Android context to get screen configuration
-     * @return true if device should be treated as Compact (phone)
-     */
-    public fun shouldForceCompact(
-        @Suppress("UNUSED_PARAMETER") context: Context,
-    ): Boolean = false
-
-    /**
      * Gets effective window size class, applying device-specific overrides.
      *
      * @param windowSizeClass Original WindowSizeClass from calculateWindowSizeClass
