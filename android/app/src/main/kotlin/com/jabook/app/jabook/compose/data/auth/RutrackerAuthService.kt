@@ -30,6 +30,7 @@ import com.jabook.app.jabook.compose.domain.model.UserCredentials
 import com.jabook.app.jabook.utils.RetryConfig
 import com.jabook.app.jabook.utils.RetryableHttpException
 import com.jabook.app.jabook.utils.retryWithBackoff
+import com.jabook.app.jabook.utils.throwIfRateLimited
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -121,16 +122,7 @@ public class RutrackerAuthService
                             // Apply timeout for the network call
                             withContext(Dispatchers.IO) {
                                 kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
-                                    val response = api.login(body)
-                                    if (response.code() == 429 || response.code() == 503) {
-                                        val retryAfterMs = parseRetryAfterToMs(response.headers()["Retry-After"])
-                                        throw RetryableHttpException(
-                                            statusCode = response.code(),
-                                            retryAfterMs = retryAfterMs,
-                                            message = "HTTP ${response.code()} from login endpoint",
-                                        )
-                                    }
-                                    response
+                                    api.login(body).throwIfRateLimited()
                                 }
                             }
                         }
@@ -289,11 +281,6 @@ public class RutrackerAuthService
             }
 
             return sb.toString()
-        }
-
-        private fun parseRetryAfterToMs(retryAfterHeader: String?): Long? {
-            val seconds = retryAfterHeader?.trim()?.toLongOrNull() ?: return null
-            return if (seconds > 0L) seconds * 1000L else 0L
         }
 
         public sealed interface AuthResult {

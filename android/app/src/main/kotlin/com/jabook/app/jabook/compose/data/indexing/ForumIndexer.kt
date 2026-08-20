@@ -27,6 +27,7 @@ import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
+import com.jabook.app.jabook.utils.parseRetryAfterMs
 import com.jabook.app.jabook.utils.retryWithBackoff
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -497,7 +498,7 @@ public class ForumIndexer
                         }
                         // Adaptive backoff for rate-limit responses
                         if (response.code() == 429 || response.code() == 503) {
-                            val retryAfter = response.headers()["Retry-After"]?.toLongOrNull()?.let { it * 1000 }
+                            val retryAfter = parseRetryAfterMs(response.headers()["Retry-After"])
                             logger.i { "Rate-limited (${response.code()}), backing off..." }
                             adaptiveBackoff(attempt = page, retryAfterMs = retryAfter)
                             continue // Retry same page
@@ -646,7 +647,7 @@ public class ForumIndexer
                         logger.w { "Failed to fetch forum $forumId page $page: HTTP ${response.code()}" }
                         // Adaptive backoff for rate-limit responses
                         if (response.code() == 429 || response.code() == 503) {
-                            val retryAfter = response.headers()["Retry-After"]?.toLongOrNull()?.let { it * 1000 }
+                            val retryAfter = parseRetryAfterMs(response.headers()["Retry-After"])
                             logger.i { "Rate-limited (${response.code()}), backing off..." }
                             adaptiveBackoff(attempt = page, retryAfterMs = retryAfter)
                             continue // Retry same page

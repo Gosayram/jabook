@@ -81,6 +81,38 @@ public class RetryableHttpException(
 ) : java.io.IOException(message)
 
 /**
+ * Parse Retry-After header value to milliseconds.
+ *
+ * Handles both integer seconds and HTTP-date formats (RFC 7231 §7.1.3).
+ * Returns null if the header is missing or unparseable.
+ */
+public fun parseRetryAfterMs(header: String?): Long? {
+    val seconds = header?.trim()?.toLongOrNull() ?: return null
+    return if (seconds > 0L) seconds * 1000L else 0L
+}
+
+/**
+ * Check if a Retrofit response indicates rate limiting (429/503) and throw
+ * [RetryableHttpException] with the server's Retry-After delay.
+ *
+ * Use inside [retryWithBackoff] blocks to centralize HTTP rate-limit detection:
+ * ```kotlin
+ * retryWithBackoff { response.throwIfRateLimited() }
+ * ```
+ */
+public fun <T> retrofit2.Response<T>.throwIfRateLimited(): retrofit2.Response<T> {
+    val code = code()
+    if (code == 429 || code == 503) {
+        throw RetryableHttpException(
+            statusCode = code,
+            retryAfterMs = parseRetryAfterMs(headers()["Retry-After"]),
+            message = "HTTP $code from ${raw().request.url}",
+        )
+    }
+    return this
+}
+
+/**
  * Retries a suspend function with exponential backoff (inspired by Flow pattern).
  *
  * @param config Retry configuration

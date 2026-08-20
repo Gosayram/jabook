@@ -62,6 +62,7 @@ public class TorrentDownloadService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var hasObservedActiveDownload: Boolean = false
     private val postedNotificationIds = mutableSetOf<Int>()
+    private var shutdownScope: CoroutineScope? = null
 
     private val foregroundStartPolicy =
         ForegroundServiceStartPolicy(
@@ -129,10 +130,11 @@ public class TorrentDownloadService : Service() {
         serviceScope.cancel()
         releaseWakeLock()
 
-        // Shut down the torrent session so libtorrent persists resume data before the
-        // process can die; a later service start re-initializes it. Off the main thread
-        // because stopSession() blocks up to 5s awaiting SaveResumeDataAlerts.
-        CoroutineScope(Dispatchers.IO + loggingCoroutineExceptionHandler("TorrentServiceShutdown")).launch {
+        // Cancel any previous shutdown coroutine, then launch a fresh one.
+        shutdownScope?.cancel()
+        shutdownScope =
+            CoroutineScope(Dispatchers.IO + loggingCoroutineExceptionHandler("TorrentServiceShutdown"))
+        shutdownScope?.launch {
             torrentManager.shutdown()
         }
     }
