@@ -27,19 +27,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 public val MIGRATION_29_30: Migration =
     object : Migration(29, 30) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            val existing =
-                db.query("PRAGMA table_info(chapters)").use { cursor ->
-                    buildSet {
-                        while (cursor.moveToNext()) {
-                            add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
-                        }
-                    }
-                }
-            if ("start_position_ms" !in existing) {
-                db.execSQL("ALTER TABLE chapters ADD COLUMN start_position_ms INTEGER")
+            if (!db.hasColumn("chapters", "start_position_ms")) {
+                db.addColumn("chapters", "start_position_ms", "INTEGER")
             }
-            if ("end_position_ms" !in existing) {
-                db.execSQL("ALTER TABLE chapters ADD COLUMN end_position_ms INTEGER")
+            if (!db.hasColumn("chapters", "end_position_ms")) {
+                db.addColumn("chapters", "end_position_ms", "INTEGER")
             }
             // ponytail: drop dead cookies table (replaced by PersistentCookieJar)
             db.execSQL("DROP TABLE IF EXISTS cookies")

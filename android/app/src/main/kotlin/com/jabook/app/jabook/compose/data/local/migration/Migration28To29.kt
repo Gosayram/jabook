@@ -26,16 +26,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 public val MIGRATION_28_29: Migration =
     object : Migration(28, 29) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            val existing =
-                db.query("PRAGMA table_info(bookmarks)").use { cursor ->
-                    buildSet {
-                        while (cursor.moveToNext()) {
-                            add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
-                        }
-                    }
-                }
-            if ("normalized_position" !in existing) {
-                db.execSQL("ALTER TABLE bookmarks ADD COLUMN normalized_position REAL NOT NULL DEFAULT 0.0")
+            if (!db.hasColumn("bookmarks", "normalized_position")) {
+                db.addColumn("bookmarks", "normalized_position", "REAL", default = "0.0")
             }
         }
     }

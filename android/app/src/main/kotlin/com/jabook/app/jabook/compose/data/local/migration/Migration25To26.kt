@@ -26,16 +26,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 public val MIGRATION_25_26: Migration =
     object : Migration(25, 26) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            val existing =
-                db.query("PRAGMA table_info(chapters)").use { cursor ->
-                    buildSet {
-                        while (cursor.moveToNext()) {
-                            add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
-                        }
-                    }
-                }
-            if ("lufs_value" !in existing) {
-                db.execSQL("ALTER TABLE chapters ADD COLUMN lufs_value REAL DEFAULT NULL")
+            if (!db.hasColumn("chapters", "lufs_value")) {
+                db.addColumn("chapters", "lufs_value", "REAL")
             }
         }
     }

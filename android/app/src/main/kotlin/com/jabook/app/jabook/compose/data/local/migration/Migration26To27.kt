@@ -26,16 +26,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 public val MIGRATION_26_27: Migration =
     object : Migration(26, 27) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            val existing =
-                db.query("PRAGMA table_info(books)").use { cursor ->
-                    buildSet {
-                        while (cursor.moveToNext()) {
-                            add(cursor.getString(cursor.getColumnIndexOrThrow("name")))
-                        }
-                    }
-                }
-            if ("eq_preset_override" !in existing) {
-                db.execSQL("ALTER TABLE books ADD COLUMN eq_preset_override TEXT DEFAULT NULL")
+            if (!db.hasColumn("books", "eq_preset_override")) {
+                db.addColumn("books", "eq_preset_override", "TEXT")
             }
         }
     }

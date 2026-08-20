@@ -53,6 +53,24 @@ public fun SupportSQLiteDatabase.addColumn(
 }
 
 /**
+ * Check if a column exists in a table.
+ *
+ * Usage: `if (!db.hasColumn("chapters", "lufs_value")) { db.addColumn(...) }`
+ */
+public fun SupportSQLiteDatabase.hasColumn(
+    table: String,
+    column: String,
+): Boolean {
+    val cursor = query("PRAGMA table_info($table)")
+    return cursor.use {
+        while (it.moveToNext()) {
+            if (it.getString(it.getColumnIndexOrThrow("name")) == column) return true
+        }
+        false
+    }
+}
+
+/**
  * Extension to create an index.
  *
  * Usage: `db.createIndex("books", "title", "author")`

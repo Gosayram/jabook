@@ -50,8 +50,8 @@ public class CacheManager
         public suspend fun getTotalCacheSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    val appCache = context.cacheDir.walkFileTree().sumOf { it.length() }
-                    val externalCache = context.externalCacheDir?.walkFileTree()?.sumOf { it.length() } ?: 0L
+                    val appCache = context.cacheDir.walkTopDown().sumOf { it.length() }
+                    val externalCache = context.externalCacheDir?.walkTopDown()?.sumOf { it.length() } ?: 0L
                     appCache + externalCache
                 } catch (e: Exception) {
                     logger.e({ "Failed to calculate cache size" }, e)
@@ -236,7 +236,7 @@ public class CacheManager
                 try {
                     val tempDir = File(context.cacheDir, "downloads")
                     if (tempDir.exists()) {
-                        tempDir.walkFileTree().sumOf { it.length() }
+                        tempDir.walkTopDown().sumOf { it.length() }
                     } else {
                         0L
                     }
@@ -263,7 +263,7 @@ public class CacheManager
                 try {
                     val imageCacheDir = File(context.cacheDir, "image_cache")
                     if (imageCacheDir.exists()) {
-                        imageCacheDir.walkFileTree().sumOf { it.length() }
+                        imageCacheDir.walkTopDown().sumOf { it.length() }
                     } else {
                         0L
                     }
@@ -311,21 +311,4 @@ public enum class CacheType {
     LOGS,
 }
 
-/**
- * Helper extension to walk file tree and collect all files.
- */
-private fun File.walkFileTree(): Sequence<File> =
-    sequence {
-        if (exists()) {
-            if (isDirectory) {
-                val children = listFiles()
-                if (children != null) {
-                    for (child in children) {
-                        yieldAll(child.walkFileTree())
-                    }
-                }
-            } else {
-                yield(this@walkFileTree)
-            }
-        }
-    }
+

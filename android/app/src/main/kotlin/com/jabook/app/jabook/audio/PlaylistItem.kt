@@ -14,12 +14,16 @@
 
 package com.jabook.app.jabook.audio
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
 /** A playable source; a chapter in one M4B is represented by its clip window. */
+@Serializable
 public data class PlaylistItem(
-    val path: String,
-    val mediaId: String = path,
-    val clipStartPositionMs: Long? = null,
-    val clipEndPositionMs: Long? = null,
+    @SerialName("path") val path: String,
+    @SerialName("mediaId") val mediaId: String = path,
+    @SerialName("clipStartPositionMs") val clipStartPositionMs: Long? = null,
+    @SerialName("clipEndPositionMs") val clipEndPositionMs: Long? = null,
 ) {
     init {
         require(path.isNotBlank()) { "path must not be blank" }

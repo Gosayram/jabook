@@ -22,8 +22,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -183,17 +189,7 @@ public class PlayerPersistenceManager
             withContext(Dispatchers.IO) {
                 try {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    val json =
-                        JSONObject().apply {
-                            put("bookId", state.bookId)
-                            put("positionMs", state.positionMs)
-                            put("durationMs", state.durationMs)
-                            put("lastPlayedTimestamp", state.lastPlayedTimestamp)
-                            put("completedTimestamp", state.completedTimestamp)
-                            put("playCount", state.playCount)
-                            // We don't necessarily need filePaths in this light state
-                        }
-                    prefs.edit().putString("book_state_${state.bookId}", json.toString()).apply()
+                    prefs.edit().putString("book_state_${state.bookId}", Json.encodeToString(state)).apply()
                 } catch (e: Exception) {
                     LogUtils.e("PlayerPersistence", "Failed to save player state", e)
                 }
@@ -204,17 +200,7 @@ public class PlayerPersistenceManager
                 try {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                     val jsonString = prefs.getString("book_state_$bookId", null) ?: return@withContext null
-                    val json = JSONObject(jsonString)
-
-                    PlayerState(
-                        bookId = json.getString("bookId"),
-                        positionMs = json.optLong("positionMs", 0),
-                        durationMs = json.optLong("durationMs", 0),
-                        filePaths = emptyList(), // Not stored here
-                        lastPlayedTimestamp = json.optLong("lastPlayedTimestamp", 0),
-                        completedTimestamp = json.optLong("completedTimestamp", 0),
-                        playCount = json.optLong("playCount", 0),
-                    )
+                    Json.decodeFromString<PlayerState>(jsonString)
                 } catch (e: Exception) {
                     LogUtils.e("PlayerPersistence", "Failed to get player state", e)
                     null
@@ -320,13 +306,7 @@ public class PlayerPersistenceManager
                     error("filePaths is missing")
                 }
 
-                val filePathsArray = JSONArray(filePathsJson)
-                val filePaths =
-                    buildList {
-                        for (i in 0 until filePathsArray.length()) {
-                            add(filePathsArray.getString(i))
-                        }
-                    }
+                val filePaths = Json.decodeFromString<List<String>>(filePathsJson)
                 if (filePaths.isEmpty()) {
                     error("filePaths is empty")
                 }
@@ -336,7 +316,7 @@ public class PlayerPersistenceManager
                 val playlistItems =
                     prefs
                         .getString(KEY_PLAYBACK_SNAPSHOT_PLAYLIST_ITEMS, null)
-                        ?.let(::parsePlaylistItemsJson)
+                        ?.let { Json.decodeFromString<List<PlaylistItem>>(it) }
                         ?: filePaths.map(::PlaylistItem)
                 if (playlistItems.map(PlaylistItem::path) != filePaths) {
                     error("playlistItems do not match filePaths")
@@ -368,13 +348,13 @@ public class PlayerPersistenceManager
             val metadataJson =
                 state.metadata
                     ?.takeIf { it.isNotEmpty() }
-                    ?.let { JSONObject(it).toString() }
+                    ?.let { Json.encodeToString(it) }
             prefs
                 .edit()
                 .putInt(KEY_PLAYBACK_SNAPSHOT_VERSION, PLAYBACK_SNAPSHOT_VERSION_V1)
                 .putString(KEY_PLAYBACK_SNAPSHOT_GROUP_PATH, state.groupPath)
-                .putString(KEY_PLAYBACK_SNAPSHOT_FILE_PATHS, JSONArray(state.filePaths).toString())
-                .putString(KEY_PLAYBACK_SNAPSHOT_PLAYLIST_ITEMS, playlistItemsToJson(state.playlistItems))
+                .putString(KEY_PLAYBACK_SNAPSHOT_FILE_PATHS, Json.encodeToString(state.filePaths))
+                .putString(KEY_PLAYBACK_SNAPSHOT_PLAYLIST_ITEMS, Json.encodeToString(state.playlistItems))
                 .putInt(KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX, state.currentIndex)
                 .putLong(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION, state.currentPosition)
                 .putString(KEY_PLAYBACK_SNAPSHOT_METADATA, metadataJson)
@@ -395,75 +375,33 @@ public class PlayerPersistenceManager
         }
 
         private fun parseLegacySnapshot(legacyJson: String): PersistedPlayerState {
-            val json = JSONObject(legacyJson)
-            val groupPath = json.getString("groupPath")
-            val currentIndex = json.optInt("currentIndex", 0)
-            val currentPosition = json.optLong("currentPosition", 0L)
-            val filePathsJson = json.getJSONArray("filePaths")
+            val json = Json.parseToJsonElement(legacyJson).jsonObject
+            val groupPath = json["groupPath"]?.jsonPrimitive?.content ?: error("groupPath is missing")
+            val currentIndex = json["currentIndex"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
+            val currentPosition = json["currentPosition"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
             val filePaths =
-                buildList {
-                    for (i in 0 until filePathsJson.length()) {
-                        add(filePathsJson.getString(i))
-                    }
-                }
+                json["filePaths"]?.jsonArray?.map { it.jsonPrimitive.content }
+                    ?: error("filePaths is missing")
             if (filePaths.isEmpty()) {
                 error("legacy snapshot contains empty filePaths")
             }
+
+            val metadata = json["metadata"]?.jsonObject?.mapValues { it.value.jsonPrimitive.content }
 
             return PersistedPlayerState(
                 groupPath = groupPath,
                 filePaths = filePaths,
                 currentIndex = currentIndex,
                 currentPosition = currentPosition,
-                metadata = parseMetadataJson(json.optJSONObject("metadata")?.toString()),
+                metadata = metadata,
             )
         }
 
-        private fun playlistItemsToJson(items: List<PlaylistItem>): String =
-            JSONArray()
-                .apply {
-                    items.forEach { item ->
-                        put(
-                            JSONObject()
-                                .put("path", item.path)
-                                .put("mediaId", item.mediaId)
-                                .put("clipStartPositionMs", item.clipStartPositionMs)
-                                .put("clipEndPositionMs", item.clipEndPositionMs),
-                        )
-                    }
-                }.toString()
-
-        private fun parsePlaylistItemsJson(json: String): List<PlaylistItem> {
-            val items = JSONArray(json)
-            return buildList(items.length()) {
-                for (index in 0 until items.length()) {
-                    val item = items.getJSONObject(index)
-                    add(
-                        PlaylistItem(
-                            path = item.getString("path"),
-                            mediaId = item.optString("mediaId").ifBlank { item.getString("path") },
-                            clipStartPositionMs = item.optLongOrNull("clipStartPositionMs"),
-                            clipEndPositionMs = item.optLongOrNull("clipEndPositionMs"),
-                        ),
-                    )
-                }
-            }
-        }
-
-        private fun JSONObject.optLongOrNull(name: String): Long? = if (isNull(name) || !has(name)) null else getLong(name)
-
         private fun parseMetadataJson(metadataJson: String?): Map<String, String>? {
-            if (metadataJson.isNullOrBlank()) {
-                return null
-            }
-            val metadataObject = JSONObject(metadataJson)
-            val metadata = mutableMapOf<String, String>()
-            val keys = metadataObject.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                metadata[key] = metadataObject.getString(key)
-            }
-            return metadata.ifEmpty { null }
+            if (metadataJson.isNullOrBlank()) return null
+            return runCatching {
+                Json.parseToJsonElement(metadataJson).jsonObject.mapValues { it.value.jsonPrimitive.content }
+            }.getOrNull()
         }
 
         private fun recordCorruption(
@@ -485,12 +423,13 @@ public class PlayerPersistenceManager
 /**
  * Lightweight state for backup and sorting
  */
+@Serializable
 public data class PlayerState(
-    val bookId: String,
-    val positionMs: Long,
-    val durationMs: Long,
-    val filePaths: List<String>,
-    val lastPlayedTimestamp: Long = 0L,
-    val completedTimestamp: Long = 0L,
-    val playCount: Long = 0L,
+    @SerialName("bookId") val bookId: String,
+    @SerialName("positionMs") val positionMs: Long,
+    @SerialName("durationMs") val durationMs: Long,
+    val filePaths: List<String> = emptyList(),
+    @SerialName("lastPlayedTimestamp") val lastPlayedTimestamp: Long = 0L,
+    @SerialName("completedTimestamp") val completedTimestamp: Long = 0L,
+    @SerialName("playCount") val playCount: Long = 0L,
 )
