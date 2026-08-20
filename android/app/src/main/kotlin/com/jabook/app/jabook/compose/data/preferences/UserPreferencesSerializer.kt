@@ -39,7 +39,7 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setSpeechEnhancer(false)
             .setAutoVolumeLeveling(false)
             .setNormalizeVolume(true)
-            .setLanguageCode("en")
+            .setLanguageCode("ru")
             .setNotificationsEnabled(true)
             .setDownloadNotifications(true)
             .setPlayerNotifications(true)

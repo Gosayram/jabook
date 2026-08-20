@@ -18,18 +18,14 @@ import java.io.File
 
 public object FileUtils {
     /**
-     * Calculate total size of a directory recursively
+     * Calculate total size of a directory recursively.
      */
-    public fun getDirectorySize(directory: File): Long {
-        if (!directory.exists()) return 0
-        if (!directory.isDirectory) return directory.length()
-
-        var length: Long = 0L
-        directory.listFiles()?.forEach { file ->
-            length += if (file.isDirectory) getDirectorySize(file) else file.length()
+    public fun getDirectorySize(directory: File): Long =
+        if (!directory.exists()) {
+            0L
+        } else {
+            directory.walkTopDown().filter { it.isFile }.sumOf { it.length() }
         }
-        return length
-    }
 
     /**
      * Resolve file path from URI string

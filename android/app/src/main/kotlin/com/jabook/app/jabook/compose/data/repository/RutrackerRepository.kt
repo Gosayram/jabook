@@ -30,6 +30,7 @@ import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
 import com.jabook.app.jabook.compose.domain.model.toAppError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -158,15 +159,15 @@ public class RutrackerRepositoryImpl
                                 )
 
                             // Emit Flow from Room
-                            offlineSearchDao
-                                .searchIndexedTopicsRaw(simpleQuery)
-                                .map { entities ->
-                                    val dtoResults = entities.map { it.toSearchResult() }
-                                    val domainResults = dtoResults.toDomainFromIndex()
-                                    Result.Success(domainResults)
-                                }.collect {
-                                    emit(it)
-                                }
+                            emitAll(
+                                offlineSearchDao
+                                    .searchIndexedTopicsRaw(simpleQuery)
+                                    .map { entities ->
+                                        val dtoResults = entities.map { it.toSearchResult() }
+                                        val domainResults = dtoResults.toDomainFromIndex()
+                                        Result.Success(domainResults)
+                                    },
+                            )
                         }
                     } else {
                         // Index is empty - return empty results
@@ -353,15 +354,15 @@ public class RutrackerRepositoryImpl
                                 args.toArray(),
                             )
 
-                        offlineSearchDao
-                            .searchIndexedTopicsRaw(simpleQuery)
-                            .map { entities ->
-                                val dtoResults = entities.map { it.toSearchResult() }
-                                val domainResults = dtoResults.toDomainFromIndex()
-                                Result.Success(domainResults)
-                            }.collect {
-                                emit(it)
-                            }
+                        emitAll(
+                            offlineSearchDao
+                                .searchIndexedTopicsRaw(simpleQuery)
+                                .map { entities ->
+                                    val dtoResults = entities.map { it.toSearchResult() }
+                                    val domainResults = dtoResults.toDomainFromIndex()
+                                    Result.Success(domainResults)
+                                },
+                        )
                     } else {
                         emit(Result.Success(emptyList()))
                     }
