@@ -58,8 +58,6 @@ public interface SettingsRepository {
 
     public suspend fun updatePlayerCoverMode(mode: Int)
 
-    public suspend fun updatePlaybackSpeed(speed: Float)
-
     public suspend fun updateAudioSettings(
         rewindSeconds: Int? = null,
         forwardSeconds: Int? = null,
@@ -122,8 +120,6 @@ public interface SettingsRepository {
 
     public suspend fun updateSpotlightCompleted(completed: Boolean)
 
-    public suspend fun updateHapticsEnabled(enabled: Boolean)
-
     public suspend fun updateEqualizerPreset(preset: String)
 
     public val bassBoostStrength: Flow<Int>
@@ -137,8 +133,6 @@ public interface SettingsRepository {
     public val customEqBands: Flow<List<Int>>
 
     public suspend fun updateCustomEqBands(bands: List<Int>)
-
-    public suspend fun updateOnboardingCompleted(completed: Boolean)
 
     public suspend fun updatePlayerStateSnapshot(snapshot: PlayerStateSnapshotPreference)
 
@@ -219,12 +213,6 @@ public class ProtoSettingsRepository
             val safeMode = mode.coerceIn(0, 1)
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setPlayerCoverMode(safeMode).build()
-            }
-        }
-
-        override suspend fun updatePlaybackSpeed(speed: Float) {
-            dataStore.updateData { preferences ->
-                preferences.toBuilder().setPlaybackSpeed(speed).build()
             }
         }
 
@@ -399,12 +387,6 @@ public class ProtoSettingsRepository
             }
         }
 
-        override suspend fun updateHapticsEnabled(enabled: Boolean) {
-            dataStore.updateData { preferences ->
-                preferences.toBuilder().setHapticsEnabled(enabled).build()
-            }
-        }
-
         override val bassBoostStrength: Flow<Int> =
             userPreferences.map { it.bassBoostStrength }
 
@@ -440,12 +422,6 @@ public class ProtoSettingsRepository
                     .clearCustomEqBands()
                     .addAllCustomEqBands(bands)
                     .build()
-            }
-        }
-
-        override suspend fun updateOnboardingCompleted(completed: Boolean) {
-            dataStore.updateData { preferences ->
-                preferences.toBuilder().setOnboardingCompleted(completed).build()
             }
         }
 

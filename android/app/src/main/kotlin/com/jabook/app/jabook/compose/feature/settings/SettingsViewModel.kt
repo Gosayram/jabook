@@ -317,8 +317,6 @@ public class SettingsViewModel
         public fun updatePlaybackSpeed(speed: Float) {
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)
-                // Also update in Proto DataStore
-                settingsRepository.updatePlaybackSpeed(speed)
             }
         }
 
