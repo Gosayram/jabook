@@ -22,12 +22,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.anyString
-import org.mockito.Mock
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.never
-import org.mockito.Mockito.verify
-import org.mockito.Mockito.`when`
-import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
@@ -43,15 +41,13 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 @org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class MediaSessionServiceListenerTest {
-    @Mock
     private lateinit var service: AudioPlayerService
-
-    @Mock
     private lateinit var notificationManager: NotificationManager
 
     @Before
     fun setUp() {
-        MockitoAnnotations.openMocks(this)
+        service = mock()
+        notificationManager = mock()
     }
 
     @Test
@@ -63,11 +59,11 @@ class MediaSessionServiceListenerTest {
 
     @Test
     fun `onForegroundServiceStartNotAllowedException handles missing notification helper`() {
-        `when`(service.notificationHelper).thenReturn(null)
-        `when`(service.checkSelfPermission(anyString())).thenReturn(PackageManager.PERMISSION_GRANTED)
-        `when`(service.getString(anyInt())).thenReturn("Test message")
-        `when`(service.packageManager).thenReturn(mock(android.content.pm.PackageManager::class.java))
-        `when`(service.packageName).thenReturn("com.jabook.app.jabook")
+        whenever(service.notificationHelper).thenReturn(null)
+        whenever(service.checkSelfPermission(anyString())).thenReturn(PackageManager.PERMISSION_GRANTED)
+        whenever(service.getString(anyInt())).thenReturn("Test message")
+        whenever(service.packageManager).thenReturn(mock<android.content.pm.PackageManager>())
+        whenever(service.packageName).thenReturn("com.jabook.app.jabook")
 
         val listener = MediaSessionServiceListener(service)
         // Should not throw - graceful handling when notificationHelper is null
@@ -76,10 +72,10 @@ class MediaSessionServiceListenerTest {
 
     @Test
     fun `onForegroundServiceStartNotAllowedException returns early when notification permission not granted`() {
-        `when`(service.notificationHelper).thenReturn(null)
-        `when`(service.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS))
+        whenever(service.notificationHelper).thenReturn(null)
+        whenever(service.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS))
             .thenReturn(PackageManager.PERMISSION_DENIED)
-        `when`(service.packageName).thenReturn("com.jabook.app.jabook")
+        whenever(service.packageName).thenReturn("com.jabook.app.jabook")
 
         val listener = MediaSessionServiceListener(service)
         listener.onForegroundServiceStartNotAllowedException()
