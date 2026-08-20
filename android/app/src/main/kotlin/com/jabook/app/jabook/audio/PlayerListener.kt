@@ -164,16 +164,6 @@ internal class PlayerListener(
             onIsPlayingChanged = onIsPlayingChanged,
         )
 
-    private val audioFocusDuckingController =
-        AudioFocusDuckingController(
-            getActivePlayer = getActivePlayer,
-            scope = coroutineScope,
-            onDuckApplied = {
-                saveCurrentPosition()
-                LogUtils.d("AudioPlayerService", "Saved position on transient audio focus duck event")
-            },
-        )
-
     /** Backward-compatible accessor for LoudnessNormalizer injection from PlayerConfigurator. */
     var loudnessNormalizer: com.jabook.app.jabook.audio.processors.LoudnessNormalizer?
         get() = metadataHandler.loudnessNormalizer
@@ -224,10 +214,6 @@ internal class PlayerListener(
             LogUtils.d("AudioPlayerService", "Playback paused (reason=$reasonText), saving position")
             capturedSavePosition()
         }
-    }
-
-    override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
-        audioFocusDuckingController.onPlaybackSuppressionReasonChanged(playbackSuppressionReason)
     }
 
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
@@ -294,7 +280,6 @@ internal class PlayerListener(
     fun release() {
         bookCompletionTracker.stopPositionCheck()
         playerErrorHandler.cancelPendingRetry()
-        audioFocusDuckingController.release()
         ownedScope?.cancel()
     }
 }
