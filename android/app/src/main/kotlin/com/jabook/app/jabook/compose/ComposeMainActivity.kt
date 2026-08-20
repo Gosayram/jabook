@@ -140,7 +140,6 @@ public class ComposeMainActivity : ComponentActivity() {
         // Handle initial intent
         deepLinkIntent = sanitizeNavigableIntent(intent)
         handleIntent(intent)
-        handleIntentExtras(intent)
         observeAutoPipSettings()
 
         setContent {
@@ -175,7 +174,6 @@ public class ComposeMainActivity : ComponentActivity() {
         deepLinkIntent = sanitizeNavigableIntent(intent)
         // Handle intent when activity is already running (singleTop mode)
         handleIntent(intent)
-        handleIntentExtras(intent)
     }
 
     /**
@@ -216,16 +214,6 @@ public class ComposeMainActivity : ComponentActivity() {
             else -> {
                 logger.w { "Unknown scheme: ${data.scheme}" }
             }
-        }
-    }
-
-    // Handle special intent extras that don't use a scheme
-    private fun handleIntentExtras(intent: Intent?) {
-        if (intent?.getBooleanExtra("navigate_to_player", false) == true) {
-            logger.d { "Handling navigate_to_player extra" }
-            // Navigation provided by JabookApp.LaunchedEffect(intent) which handles
-            // this specific extra and navigates to PlayerRoute.
-            // deepLinkIntent is already updated in onNewIntent/onCreate.
         }
     }
 

@@ -498,11 +498,7 @@ public object AudioRepositoryModule {
 
     @Provides
     @Singleton
-    public fun provideSavedPlayerStateRepository(
+    public fun provideSavedPlayerStateDao(
         database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
-    ): com.jabook.app.jabook.audio.data.repository.SavedPlayerStateRepository {
-        val dao = database.savedPlayerStateDao()
-        return com.jabook.app.jabook.audio.data.repository
-            .SavedPlayerStateRepository(dao)
-    }
+    ): com.jabook.app.jabook.audio.data.local.dao.SavedPlayerStateDao = database.savedPlayerStateDao()
 }

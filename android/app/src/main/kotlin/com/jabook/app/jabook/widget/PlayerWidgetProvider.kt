@@ -40,6 +40,10 @@ import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -1047,22 +1051,11 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         private const val PREFS_NAME = "widget_player_prefs"
         private const val PREFS_KEY_DOMINANT_COLOR = "dominant_color"
         private const val PREFS_KEY_BOOK_ID = "last_book_id"
-        private const val DATABASE_NAME = "jabook-database"
 
-        private var cachedDatabase: JabookDatabase? = null
-
-        private fun getDatabase(context: Context): JabookDatabase {
-            cachedDatabase?.let { return it }
-            val db =
-                androidx.room.Room
-                    .databaseBuilder(
-                        context.applicationContext,
-                        JabookDatabase::class.java,
-                        DATABASE_NAME,
-                    ).build()
-            cachedDatabase = db
-            return db
-        }
+        private fun getDatabase(context: Context): JabookDatabase =
+            EntryPointAccessors
+                .fromApplication(context, WidgetDatabaseEntryPoint::class.java)
+                .jabookDatabase()
 
         /**
          * Requests widget update from anywhere in the app.
@@ -1150,4 +1143,16 @@ private enum class WidgetSize {
     SMALL, // Small widget: cover + title + progress + basic controls
     MEDIUM, // Medium widget: full features
     LARGE, // Large square widget: all features with better layout
+}
+
+/**
+ * Exposes the Hilt-managed [JabookDatabase] to the widget, which cannot use
+ * constructor injection. Resolving the shared instance ensures the widget sees
+ * the same migrated, WAL-enabled database as the app instead of building a
+ * second migration-less instance.
+ */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+internal interface WidgetDatabaseEntryPoint {
+    fun jabookDatabase(): JabookDatabase
 }

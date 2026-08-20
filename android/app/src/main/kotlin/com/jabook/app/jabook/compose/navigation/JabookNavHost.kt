@@ -18,6 +18,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -78,7 +80,7 @@ public fun JabookNavHost(
         modifier = modifier,
         enterTransition = {
             when {
-                initialState.destination.route.isTopLevelRoute() && targetState.destination.route.isTopLevelRoute() ->
+                initialState.destination.isTopLevelRoute() && targetState.destination.isTopLevelRoute() ->
                     androidx.compose.animation.fadeIn(
                         animationSpec =
                             androidx.compose.animation.core.tween(
@@ -86,7 +88,7 @@ public fun JabookNavHost(
                                 easing = MotionTokens.Emphasized,
                             ),
                     )
-                targetState.destination.route.isPlayerRoute() ->
+                targetState.destination.isPlayerRoute() ->
                     slideIntoContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Up,
                         animationSpec =
@@ -122,7 +124,7 @@ public fun JabookNavHost(
         },
         exitTransition = {
             when {
-                initialState.destination.route.isTopLevelRoute() && targetState.destination.route.isTopLevelRoute() ->
+                initialState.destination.isTopLevelRoute() && targetState.destination.isTopLevelRoute() ->
                     androidx.compose.animation.fadeOut(
                         animationSpec =
                             androidx.compose.animation.core.tween(
@@ -130,7 +132,7 @@ public fun JabookNavHost(
                                 easing = MotionTokens.Emphasized,
                             ),
                     )
-                targetState.destination.route.isPlayerRoute() ->
+                targetState.destination.isPlayerRoute() ->
                     slideOutOfContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Up,
                         animationSpec =
@@ -166,7 +168,7 @@ public fun JabookNavHost(
         },
         popEnterTransition = {
             when {
-                initialState.destination.route.isTopLevelRoute() && targetState.destination.route.isTopLevelRoute() ->
+                initialState.destination.isTopLevelRoute() && targetState.destination.isTopLevelRoute() ->
                     androidx.compose.animation.fadeIn(
                         animationSpec =
                             androidx.compose.animation.core.tween(
@@ -174,7 +176,7 @@ public fun JabookNavHost(
                                 easing = MotionTokens.Emphasized,
                             ),
                     )
-                initialState.destination.route.isPlayerRoute() ->
+                initialState.destination.isPlayerRoute() ->
                     slideIntoContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Down,
                         animationSpec =
@@ -210,7 +212,7 @@ public fun JabookNavHost(
         },
         popExitTransition = {
             when {
-                initialState.destination.route.isTopLevelRoute() && targetState.destination.route.isTopLevelRoute() ->
+                initialState.destination.isTopLevelRoute() && targetState.destination.isTopLevelRoute() ->
                     androidx.compose.animation.fadeOut(
                         animationSpec =
                             androidx.compose.animation.core.tween(
@@ -218,7 +220,7 @@ public fun JabookNavHost(
                                 easing = MotionTokens.Emphasized,
                             ),
                     )
-                initialState.destination.route.isPlayerRoute() ->
+                initialState.destination.isPlayerRoute() ->
                     slideOutOfContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Down,
                         animationSpec =
@@ -544,9 +546,6 @@ public fun JabookNavHost(
     }
 }
 
-private fun String?.isTopLevelRoute(): Boolean =
-    this?.contains("LibraryRoute", ignoreCase = true) == true ||
-        this?.contains("SearchRoute", ignoreCase = true) == true ||
-        this?.contains("SettingsRoute", ignoreCase = true) == true
+private fun NavDestination.isTopLevelRoute(): Boolean = hasRoute<LibraryRoute>() || hasRoute<SearchRoute>() || hasRoute<SettingsRoute>()
 
-private fun String?.isPlayerRoute(): Boolean = this?.contains("PlayerRoute", ignoreCase = true) == true
+private fun NavDestination.isPlayerRoute(): Boolean = hasRoute<PlayerRoute>()

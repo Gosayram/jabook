@@ -53,13 +53,15 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavDestination.Companion.hierarchy
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
-import com.jabook.app.jabook.compose.navigation.DeepLinkDispatchPolicy
 import com.jabook.app.jabook.compose.navigation.JabookAppState
 import com.jabook.app.jabook.compose.navigation.JabookNavHost
 import com.jabook.app.jabook.compose.navigation.LibraryRoute
 import com.jabook.app.jabook.compose.navigation.PlayerRoute
+import com.jabook.app.jabook.compose.navigation.SettingsRoute
 import com.jabook.app.jabook.compose.navigation.TopLevelDestination
 import com.jabook.app.jabook.compose.navigation.rememberJabookAppState
 import com.jabook.app.jabook.ui.theme.JabookTheme
@@ -160,24 +162,7 @@ public fun JabookApp(
     // Handle deep links when intent changes
     androidx.compose.runtime.LaunchedEffect(intent) {
         if (intent != null) {
-            val isCustomPlayerIntent = intent.getBooleanExtra("navigate_to_player", false)
-            if (isCustomPlayerIntent) {
-                // Check if book_id is passed for direct navigation
-                val bookId = intent.getStringExtra("book_id")
-
-                if (bookId != null) {
-                    // Navigate directly to the player screen for this book
-                    appState.navController.navigate(PlayerRoute(bookId = bookId))
-                } else {
-                    // Fallback to library if no book ID (or maybe last played book?)
-                    // Without book ID we can't open the player screen directly as it requires an ID
-                    appState.navController.navigate(LibraryRoute)
-                }
-            }
-
-            if (DeepLinkDispatchPolicy.shouldDelegateToNavController(isCustomPlayerIntent)) {
-                appState.navController.handleDeepLink(intent)
-            }
+            appState.navController.handleDeepLink(intent)
         }
     }
 
@@ -235,7 +220,7 @@ public fun JabookApp(
             val currentOnPlayerScreenVisibilityChanged by rememberUpdatedState(onPlayerScreenVisibilityChanged)
 
             // Check if we're on the player screen - hide mini player in that case
-            val isOnPlayerScreen = currentDestination?.route?.contains("player", ignoreCase = true) == true
+            val isOnPlayerScreen = currentDestination?.hierarchy?.any { it.hasRoute<PlayerRoute>() } == true
             androidx.compose.runtime.DisposableEffect(isOnPlayerScreen) {
                 currentOnPlayerScreenVisibilityChanged(isOnPlayerScreen)
                 onDispose {
@@ -451,4 +436,9 @@ internal fun TopLevelDestinationIcon(
  * @return true if the current destination is part of this top-level destination's hierarchy
  */
 private fun androidx.navigation.NavDestination?.isTopLevelDestinationInHierarchy(destination: TopLevelDestination): Boolean =
-    this?.route?.contains(destination.name, ignoreCase = true) == true
+    this?.hierarchy?.any { navDestination ->
+        when (destination) {
+            TopLevelDestination.LIBRARY -> navDestination.hasRoute<LibraryRoute>()
+            TopLevelDestination.SETTINGS -> navDestination.hasRoute<SettingsRoute>()
+        }
+    } == true

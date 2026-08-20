@@ -55,8 +55,8 @@ public fun rememberCoverPreloader(
     preloadAhead: Int = 5,
 ) {
     val preloader =
-        remember(context, preloadAhead) {
-            CoverPreloader(context, preloadAhead)
+        remember(context) {
+            CoverPreloader(context)
         }
 
     LaunchedEffect(books, listState, preloadAhead) {
@@ -88,8 +88,8 @@ public fun rememberCoverPreloaderForGrid(
     preloadAhead: Int = 10,
 ) {
     val preloader =
-        remember(context, preloadAhead) {
-            CoverPreloader(context, preloadAhead)
+        remember(context) {
+            CoverPreloader(context)
         }
 
     LaunchedEffect(books, gridState, preloadAhead) {
@@ -110,7 +110,6 @@ public fun rememberCoverPreloaderForGrid(
  */
 private class CoverPreloader(
     private val context: Context,
-    private val preloadAhead: Int,
 ) {
     private val imageLoader by lazy { SingletonImageLoader.get(context) }
     private val preloadedIds = mutableSetOf<String>()

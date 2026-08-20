@@ -15,9 +15,8 @@
 package com.jabook.app.jabook.audio.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningDayStatEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningSessionEntity
 import kotlinx.coroutines.flow.Flow
@@ -25,7 +24,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Dao
 public interface ListeningSessionDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun upsert(session: ListeningSessionEntity)
 
     @Query("SELECT * FROM listening_sessions WHERE id = :sessionId")

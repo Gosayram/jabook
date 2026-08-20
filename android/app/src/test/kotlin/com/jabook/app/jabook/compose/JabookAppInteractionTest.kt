@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose
 
-import com.jabook.app.jabook.compose.navigation.DeepLinkDispatchPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -26,46 +25,14 @@ import org.robolectric.RobolectricTestRunner
  * Unit tests for JabookApp interaction policies.
  *
  * Tests the pure-logic components that drive app-level interactions:
- * - Deep-link dispatch policy (custom player intent bypass)
  * - Settings badge test tag constant
- * - Intent extra parsing logic
+ * - Mini-player visibility/disposal state logic
  */
 @RunWith(RobolectricTestRunner::class)
 class JabookAppInteractionTest {
     @Test
-    fun `custom player intent bypasses generic deep-link dispatch`() {
-        assertFalse(DeepLinkDispatchPolicy.shouldDelegateToNavController(isCustomPlayerIntent = true))
-    }
-
-    @Test
-    fun `non-player intent delegates to nav controller`() {
-        assertTrue(DeepLinkDispatchPolicy.shouldDelegateToNavController(isCustomPlayerIntent = false))
-    }
-
-    @Test
     fun `settings badge test tag is correct`() {
         assertEquals("settings_badge", SETTINGS_BADGE_TEST_TAG)
-    }
-
-    @Test
-    fun `navigate_to_player extra extraction logic`() {
-        // Simulate the intent extra check done in JabookApp
-        val extras: Map<String, Any?> = mapOf("navigate_to_player" to true, "book_id" to "book-123")
-        val isCustomPlayer = extras["navigate_to_player"] as? Boolean ?: false
-        val bookId = extras["book_id"] as? String
-
-        assertTrue(isCustomPlayer)
-        assertEquals("book-123", bookId)
-    }
-
-    @Test
-    fun `missing book_id falls back to library navigation`() {
-        val extras: Map<String, Any?> = mapOf("navigate_to_player" to true)
-        val isCustomPlayer = extras["navigate_to_player"] as? Boolean ?: false
-        val bookId = extras["book_id"] as? String
-
-        assertTrue(isCustomPlayer)
-        assertEquals(null, bookId)
     }
 
     @Test

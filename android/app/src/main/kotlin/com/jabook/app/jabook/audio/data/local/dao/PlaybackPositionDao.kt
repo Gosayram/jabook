@@ -15,9 +15,8 @@
 package com.jabook.app.jabook.audio.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.jabook.app.jabook.audio.data.local.database.entity.PlaybackPositionEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -38,7 +37,7 @@ public interface PlaybackPositionDao {
     /**
      * Inserts or updates a playback position.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun upsertPosition(position: PlaybackPositionEntity)
 
     /**

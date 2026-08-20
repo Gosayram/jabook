@@ -302,12 +302,6 @@ public class IndexingViewModel
                 }
         }
 
-        override fun onCleared() {
-            super.onCleared()
-            indexingMonitorJob?.cancel()
-            indexingMonitorJob = null
-        }
-
         private fun WorkInfo.toIndexingProgress(): IndexingProgress {
             val percent = progress.getInt("progress_percent", 0).coerceIn(0, 100)
             return IndexingProgress.InProgress(

@@ -171,9 +171,9 @@ public class RutrackerRepository
                                     "JOIN topics_fts ON topics_fts.rowid = t.rowid " +
                                     "WHERE topics_fts MATCH ? " +
                                     "AND t.category IS NOT NULL AND t.category != '' " +
-                                    "ORDER BY bm25(topics_fts), t.seeders DESC LIMIT $limit"
+                                    "ORDER BY bm25(topics_fts), t.seeders DESC LIMIT ?"
                             offlineSearchDao.searchIndexedTopicsFtsRaw(
-                                androidx.sqlite.db.SimpleSQLiteQuery(ftsSql, arrayOf<Any>(ftsQuery)),
+                                androidx.sqlite.db.SimpleSQLiteQuery(ftsSql, arrayOf<Any>(ftsQuery, limit)),
                             )
                         } catch (e: CancellationException) {
                             throw e

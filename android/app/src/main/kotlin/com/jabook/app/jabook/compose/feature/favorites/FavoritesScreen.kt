@@ -78,7 +78,6 @@ public fun FavoritesScreen(
 ) {
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle()
-    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
 
@@ -94,11 +93,8 @@ public fun FavoritesScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Show error messages
-    LaunchedEffect(errorMessage) {
-        errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearErrorMessage()
-        }
+    LaunchedEffect(viewModel) {
+        viewModel.errorMessages.collect { snackbarHostState.showSnackbar(it) }
     }
 
     Scaffold(

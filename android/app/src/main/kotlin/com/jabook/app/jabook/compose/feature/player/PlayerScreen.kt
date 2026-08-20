@@ -131,7 +131,6 @@ import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
@@ -1267,7 +1266,7 @@ private fun PlayerLandscapeLayout(
             AssistChip(
                 onClick = onChapterClick,
                 label = { Text(text = stringResource(R.string.chapterOf, state.currentChapterIndex + 1, state.chapters.size)) },
-                modifier = Modifier.semantics { role = androidx.compose.ui.semantics.Role.Button },
+                modifier = Modifier,
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -1854,7 +1853,7 @@ private fun PlayerContent(
                                     ),
                             )
                         },
-                        modifier = Modifier.semantics { role = androidx.compose.ui.semantics.Role.Button },
+                        modifier = Modifier,
                     )
                 }
 
