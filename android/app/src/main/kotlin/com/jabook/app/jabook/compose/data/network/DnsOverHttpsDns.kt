@@ -14,98 +14,55 @@
 
 package com.jabook.app.jabook.compose.data.network
 
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Dns
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
-import okhttp3.Request
+import okhttp3.dnsoverhttps.DnsOverHttps
 import java.net.InetAddress
-import java.net.UnknownHostException
+import java.util.concurrent.TimeUnit
 
 /**
- * DNS-over-HTTPS resolver using Google Public DNS.
+ * DNS-over-HTTPS resolver that bypasses ISP DNS blocks (common for torrent sites)
+ * without a VPN, falling back to system DNS if DoH is unavailable.
  *
- * Bypasses ISP DNS blocks (common in Russia for torrent sites) without VPN.
- * Falls back to system DNS if DoH fails.
- *
- * Uses JSON API: https://dns.google/resolve?name=example.com&type=A
+ * The DNS wire-format lookup is delegated to OkHttp's [DnsOverHttps]; this class
+ * only adds the fallback-to-system-DNS resilience that OkHttp does not provide.
  */
 public class DnsOverHttpsDns(
-    private val client: OkHttpClient =
-        OkHttpClient
-            .Builder()
-            .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
-            .readTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
-            .build(),
-    private val dohEndpoint: HttpUrl = "https://dns.google/resolve".toHttpUrl(),
+    private val dohDns: Dns,
     private val fallbackDns: Dns = Dns.SYSTEM,
 ) : Dns {
-    @Throws(UnknownHostException::class)
-    override fun lookup(hostname: String): List<InetAddress> {
-        // Try DoH first
+    override fun lookup(hostname: String): List<InetAddress> =
         try {
-            val dohResult = resolveViaDoH(hostname)
-            if (dohResult.isNotEmpty()) return dohResult
+            dohDns.lookup(hostname).ifEmpty { fallbackDns.lookup(hostname) }
         } catch (_: Exception) {
-            // DoH failed, fall through to system DNS
+            fallbackDns.lookup(hostname)
         }
 
-        // Fallback to system DNS
-        return fallbackDns.lookup(hostname)
-    }
-
-    private fun resolveViaDoH(hostname: String): List<InetAddress> {
-        val url =
-            dohEndpoint
-                .newBuilder()
-                .addQueryParameter("name", hostname)
-                .addQueryParameter("type", "A")
-                .build()
-        val request =
-            Request
-                .Builder()
-                .url(url)
-                .header("Accept", "application/dns-json")
-                .build()
-
-        return try {
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return emptyList()
-
-                val bodyString = response.body.string()
-                val json = Json.parseToJsonElement(bodyString).jsonObject
-
-                // Check status (0 = NOERROR)
-                val status = json["Status"]?.jsonPrimitive?.intOrNull ?: return emptyList()
-                if (status != 0) return emptyList()
-
-                val answers = json["Answer"]?.jsonArray ?: return emptyList()
-                val results = mutableListOf<InetAddress>()
-
-                for (answer in answers) {
-                    val answerObject = runCatching { answer.jsonObject }.getOrNull() ?: continue
-                    val type = answerObject["type"]?.jsonPrimitive?.intOrNull ?: continue
-                    val data = answerObject["data"]?.jsonPrimitive?.contentOrNull ?: continue
-                    // Type 1 = A record, Type 28 = AAAA
-                    if (type == 1 || type == 28) {
-                        try {
-                            results.add(InetAddress.getByName(data))
-                        } catch (_: Exception) {
-                            // Skip invalid addresses
-                        }
-                    }
-                }
-
-                results
-            }
-        } catch (_: Exception) {
-            emptyList()
+    public companion object {
+        /**
+         * Builds the default resolver backed by Google Public DNS over HTTPS.
+         *
+         * The DoH client resolves the DoH endpoint itself via system DNS (OkHttp's
+         * [DnsOverHttps.Builder.systemDns] default), avoiding any circular dependency.
+         */
+        public fun create(): DnsOverHttpsDns {
+            val dohClient =
+                OkHttpClient
+                    .Builder()
+                    .connectTimeout(3, TimeUnit.SECONDS)
+                    .readTimeout(3, TimeUnit.SECONDS)
+                    .build()
+            val doh =
+                DnsOverHttps
+                    .Builder()
+                    .client(dohClient)
+                    .url(DOH_ENDPOINT)
+                    .build()
+            return DnsOverHttpsDns(dohDns = doh, fallbackDns = Dns.SYSTEM)
         }
+
+        private val DOH_ENDPOINT: HttpUrl = "https://dns.google/dns-query".toHttpUrl()
     }
 }

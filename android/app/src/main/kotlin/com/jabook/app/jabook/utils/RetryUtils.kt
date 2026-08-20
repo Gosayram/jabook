@@ -83,12 +83,14 @@ public class RetryableHttpException(
 /**
  * Parse Retry-After header value to milliseconds.
  *
- * Handles both integer seconds and HTTP-date formats (RFC 7231 §7.1.3).
+ * Handles both delta-seconds and HTTP-date formats (RFC 7231 §7.1.3).
  * Returns null if the header is missing or unparseable.
  */
-public fun parseRetryAfterMs(header: String?): Long? {
-    val seconds = header?.trim()?.toLongOrNull() ?: return null
-    return if (seconds > 0L) seconds * 1000L else 0L
+public fun parseRetryAfterMs(headers: okhttp3.Headers): Long? {
+    val header = headers["Retry-After"]?.trim() ?: return null
+    header.toLongOrNull()?.let { return if (it > 0L) it * 1000L else 0L }
+    val instant = headers.getInstant("Retry-After") ?: return null
+    return (instant.toEpochMilli() - System.currentTimeMillis()).coerceAtLeast(0L)
 }
 
 /**
@@ -105,7 +107,7 @@ public fun <T> retrofit2.Response<T>.throwIfRateLimited(): retrofit2.Response<T>
     if (code == 429 || code == 503) {
         throw RetryableHttpException(
             statusCode = code,
-            retryAfterMs = parseRetryAfterMs(headers()["Retry-After"]),
+            retryAfterMs = parseRetryAfterMs(headers()),
             message = "HTTP $code from ${raw().request.url}",
         )
     }

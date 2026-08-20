@@ -15,154 +15,75 @@
 package com.jabook.app.jabook.compose.data.network
 
 import okhttp3.Dns
-import okhttp3.OkHttpClient
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
-import okhttp3.mockwebserver.SocketPolicy
-import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
-import java.net.Inet4Address
-import java.net.Inet6Address
+import java.io.IOException
 import java.net.InetAddress
 
+/**
+ * Unit tests for [DnsOverHttpsDns].
+ *
+ * The DNS wire-format lookup is owned by OkHttp's `DnsOverHttps`; these tests
+ * verify only the fallback-to-system-DNS resilience added by this wrapper.
+ */
 class DnsOverHttpsDnsTest {
-    private lateinit var server: MockWebServer
+    private val dohAddress: InetAddress = InetAddress.getByName("93.184.216.34")
     private val fallbackAddress: InetAddress = InetAddress.getByName("203.0.113.10")
-    private var fallbackLookups = 0
-    private val fallbackDns =
-        Dns { hostname ->
-            fallbackLookups++
-            assertEquals("example.com", hostname)
-            listOf(fallbackAddress)
-        }
 
-    @Before
-    fun setUp() {
-        server = MockWebServer()
-        server.start()
-        fallbackLookups = 0
-    }
+    @Test
+    fun `lookup returns DoH result when available`() {
+        val resolver =
+            DnsOverHttpsDns(
+                dohDns = Dns { listOf(dohAddress) },
+                fallbackDns = Dns { listOf(fallbackAddress) },
+            )
 
-    @After
-    fun tearDown() {
-        server.shutdown()
+        val result = resolver.lookup("example.com")
+
+        assertEquals(listOf(dohAddress), result)
     }
 
     @Test
-    fun `lookup returns IPv4 and IPv6 answers from DoH JSON`() {
-        server.enqueue(
-            MockResponse()
-                .setResponseCode(200)
-                .setHeader("Content-Type", "application/dns-json; charset=utf-8")
-                .setBody(
-                    """
-                    {
-                      "Status": 0,
-                      "Answer": [
-                        {"name": "example.com.", "type": 1, "data": "93.184.216.34"},
-                        {"name": "example.com.", "type": 28, "data": "2606:2800:220:1:248:1893:25c8:1946"}
-                      ]
-                    }
-                    """.trimIndent(),
-                ),
-        )
+    fun `lookup falls back to system DNS when DoH returns empty`() {
+        val resolver =
+            DnsOverHttpsDns(
+                dohDns = Dns { emptyList() },
+                fallbackDns = Dns { listOf(fallbackAddress) },
+            )
 
-        val result = resolver().lookup("example.com")
-
-        val addresses = result.map(InetAddress::getHostAddress)
-        assertTrue("Expected IPv4 in $addresses", addresses.contains("93.184.216.34"))
-        assertTrue("Expected Inet4Address in $result", result.any { it is Inet4Address })
-        assertTrue("Expected Inet6Address in $result", result.any { it is Inet6Address })
-        assertEquals(0, fallbackLookups)
-    }
-
-    @Test
-    fun `lookup falls back to system DNS delegate on HTTP failure`() {
-        server.enqueue(MockResponse().setResponseCode(500))
-
-        val result = resolver().lookup("example.com")
+        val result = resolver.lookup("example.com")
 
         assertEquals(listOf(fallbackAddress), result)
-        assertEquals(1, fallbackLookups)
     }
 
     @Test
-    fun `lookup falls back to system DNS delegate on network exception`() {
-        server.enqueue(
-            MockResponse()
-                .setSocketPolicy(SocketPolicy.DISCONNECT_AT_START),
-        )
+    fun `lookup falls back to system DNS when DoH throws`() {
+        val resolver =
+            DnsOverHttpsDns(
+                dohDns = Dns { throw IOException("DoH unreachable") },
+                fallbackDns = Dns { listOf(fallbackAddress) },
+            )
 
-        val result = resolver().lookup("example.com")
+        val result = resolver.lookup("example.com")
 
         assertEquals(listOf(fallbackAddress), result)
-        assertEquals(1, fallbackLookups)
     }
 
     @Test
-    fun `lookup falls back to system DNS delegate when DoH status is non zero`() {
-        server.enqueue(
-            MockResponse()
-                .setResponseCode(200)
-                .setBody("""{"Status": 3, "Answer": []}"""),
-        )
+    fun `lookup passes hostname through to DoH resolver`() {
+        var seenHostname: String? = null
+        val resolver =
+            DnsOverHttpsDns(
+                dohDns =
+                    Dns { hostname ->
+                        seenHostname = hostname
+                        listOf(dohAddress)
+                    },
+                fallbackDns = Dns { listOf(fallbackAddress) },
+            )
 
-        val result = resolver().lookup("example.com")
+        resolver.lookup("example.com")
 
-        assertEquals(listOf(fallbackAddress), result)
-        assertEquals(1, fallbackLookups)
+        assertEquals("example.com", seenHostname)
     }
-
-    @Test
-    fun `lookup ignores malformed answers when valid records remain`() {
-        server.enqueue(
-            MockResponse()
-                .setResponseCode(200)
-                .setBody("""{"Status":0,"Answer":["invalid",{"type":1,"data":"93.184.216.34"}]}"""),
-        )
-
-        val result = resolver().lookup("example.com")
-
-        assertEquals(listOf("93.184.216.34"), result.map(InetAddress::getHostAddress))
-        assertEquals(0, fallbackLookups)
-    }
-
-    @Test
-    fun `lookup falls back to system DNS delegate on malformed DoH JSON`() {
-        server.enqueue(
-            MockResponse()
-                .setResponseCode(200)
-                .setBody("not-json"),
-        )
-
-        val result = resolver().lookup("example.com")
-
-        assertEquals(listOf(fallbackAddress), result)
-        assertEquals(1, fallbackLookups)
-    }
-
-    @Test
-    fun `lookup uses expected DoH query parameters`() {
-        server.enqueue(
-            MockResponse()
-                .setResponseCode(200)
-                .setBody("""{"Status": 0, "Answer": []}"""),
-        )
-
-        resolver().lookup("example.com")
-
-        val request = server.takeRequest()
-        assertEquals("/resolve?name=example.com&type=A", request.path)
-        assertTrue(request.getHeader("Accept") == "application/dns-json")
-    }
-
-    private fun resolver(): DnsOverHttpsDns =
-        DnsOverHttpsDns(
-            client = OkHttpClient(),
-            dohEndpoint = server.url("/resolve"),
-            fallbackDns = fallbackDns,
-        )
 }

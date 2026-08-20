@@ -496,7 +496,7 @@ public class ForumIndexer
                         }
                         // Adaptive backoff for rate-limit responses
                         if (response.code() == 429 || response.code() == 503) {
-                            val retryAfter = parseRetryAfterMs(response.headers()["Retry-After"])
+                            val retryAfter = parseRetryAfterMs(response.headers())
                             logger.i { "Rate-limited (${response.code()}), backing off..." }
                             adaptiveBackoff(attempt = page, retryAfterMs = retryAfter)
                             continue // Retry same page
@@ -645,7 +645,7 @@ public class ForumIndexer
                         logger.w { "Failed to fetch forum $forumId page $page: HTTP ${response.code()}" }
                         // Adaptive backoff for rate-limit responses
                         if (response.code() == 429 || response.code() == 503) {
-                            val retryAfter = parseRetryAfterMs(response.headers()["Retry-After"])
+                            val retryAfter = parseRetryAfterMs(response.headers())
                             logger.i { "Rate-limited (${response.code()}), backing off..." }
                             adaptiveBackoff(attempt = page, retryAfterMs = retryAfter)
                             continue // Retry same page

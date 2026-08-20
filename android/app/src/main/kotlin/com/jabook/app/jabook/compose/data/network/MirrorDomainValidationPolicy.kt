@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.data.network
 
+import okhttp3.HttpUrl.Companion.toHttpUrl
+
 /**
  * Policy for validating custom mirror domains before they are persisted.
  *
@@ -72,26 +74,16 @@ public object MirrorDomainValidationPolicy {
             )
         }
 
-        // Strip protocol
-        val withoutProtocol =
-            trimmed
-                .removePrefix("https://")
-                .removePrefix("http://")
-
-        // Strip path, query, fragment, port — keep only the host
-        val domain =
-            withoutProtocol
-                .substringBefore("/")
-                .substringBefore("?")
-                .substringBefore("#")
-                .substringBefore(":")
-                .lowercase()
-
-        if (domain.isBlank()) {
+        // Parse via OkHttp's HttpUrl to extract only the bare host — strips
+        // protocol, path, query, fragment, port, and userinfo in one step, and
+        // normalizes case. Returns null for anything that isn't a valid URL
+        // (e.g. embedded spaces).
+        val domain = parseHost(trimmed)
+        if (domain.isNullOrBlank()) {
             return ValidationResult(
                 sanitizedDomain = null,
                 isWarning = false,
-                rejectionReason = "Domain must not be empty after sanitization",
+                rejectionReason = "Domain must be a valid hostname (e.g., rutracker.nl)",
             )
         }
 
@@ -139,6 +131,18 @@ public object MirrorDomainValidationPolicy {
             rejectionReason = if (!looksLikeRutracker) "Domain does not appear to be a RuTracker mirror" else null,
         )
     }
+
+    /**
+     * Extracts the normalized host from a raw domain/URL string, or null if
+     * the input cannot be parsed as a URL.
+     */
+    private fun parseHost(raw: String): String? =
+        try {
+            val url = if (raw.startsWith("http://") || raw.startsWith("https://")) raw else "https://$raw"
+            url.toHttpUrl().host.lowercase()
+        } catch (_: Exception) {
+            null
+        }
 
     /**
      * Checks whether the given domain is a raw IPv4 or IPv6 address

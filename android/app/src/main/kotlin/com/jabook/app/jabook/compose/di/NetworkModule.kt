@@ -103,7 +103,8 @@ public object NetworkModule {
         // Lightweight OkHttpClient for health checks only
         val dohDns =
             com.jabook.app.jabook.compose.data.network
-                .DnsOverHttpsDns()
+                .DnsOverHttpsDns
+                .create()
         val healthCheckClient =
             OkHttpClient
                 .Builder()
@@ -152,7 +153,8 @@ public object NetworkModule {
         // Uses Google Public DNS over HTTPS; falls back to system DNS on failure
         val dohDns =
             com.jabook.app.jabook.compose.data.network
-                .DnsOverHttpsDns()
+                .DnsOverHttpsDns
+                .create()
         val apiCache = Cache(context.cacheDir.resolve("rutracker_http"), HTTP_CACHE_SIZE_BYTES)
 
         return OkHttpClient
