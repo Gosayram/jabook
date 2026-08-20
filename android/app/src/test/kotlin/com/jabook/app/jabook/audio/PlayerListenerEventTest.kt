@@ -20,6 +20,8 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
@@ -259,10 +261,12 @@ class PlayerListenerEventTest {
         whenever(player.playerError).thenReturn(error)
         whenever(player.currentMediaItemIndex).thenReturn(0)
         whenever(player.playWhenReady).thenReturn(true)
+        val testScope = TestScope(UnconfinedTestDispatcher())
 
         val listener =
             PlayerListener(
                 context = context,
+                coroutineScope = testScope,
                 getActivePlayer = { player },
                 getIsBookCompleted = { false },
                 setIsBookCompleted = { },
@@ -279,7 +283,7 @@ class PlayerListenerEventTest {
 
         listener.onPlayerError(error)
         listener.onEvents(player, events)
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        testScope.testScheduler.advanceUntilIdle()
 
         verify(player).prepare()
     }
@@ -295,10 +299,12 @@ class PlayerListenerEventTest {
             )
         whenever(player.currentMediaItemIndex).thenReturn(0)
         whenever(player.playWhenReady).thenReturn(true)
+        val testScope = TestScope(UnconfinedTestDispatcher())
 
         val listener =
             PlayerListener(
                 context = context,
+                coroutineScope = testScope,
                 getActivePlayer = { player },
                 getIsBookCompleted = { false },
                 setIsBookCompleted = { },
@@ -315,7 +321,7 @@ class PlayerListenerEventTest {
 
         listener.onPlayerError(error)
         whenever(player.playWhenReady).thenReturn(false)
-        ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        testScope.testScheduler.advanceUntilIdle()
 
         verify(player, never()).prepare()
     }
