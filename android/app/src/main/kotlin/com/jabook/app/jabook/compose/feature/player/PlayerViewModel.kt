@@ -86,9 +86,17 @@ public class PlayerViewModel
         private val audioVisualizerStateBridge: com.jabook.app.jabook.audio.AudioVisualizerStateBridge,
         private val listeningSessionRepository: ListeningSessionRepository,
         private val loggerFactory: LoggerFactory,
+        private val audioMetadataParser: com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser,
         @param:ApplicationContext private val context: Context,
     ) : ViewModel() {
         private val logger = loggerFactory.get("PlayerViewModel")
+
+        /**
+         * Parses audio metadata (artist/title) for a chapter file. Used to fall
+         * back to file-embedded artist when book metadata lacks an author.
+         */
+        public suspend fun parseChapterMetadata(fileUrl: String): com.jabook.app.jabook.compose.data.local.parser.AudioMetadata? =
+            audioMetadataParser.parseMetadata(fileUrl)
 
         // Get bookId from navigation arguments
         private val args = savedStateHandle.toRoute<PlayerRoute>()

@@ -159,16 +159,11 @@ import com.jabook.app.jabook.compose.core.util.HapticManager
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
-import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.domain.model.BookmarkItem
 import com.jabook.app.jabook.compose.feature.player.SquigglySlider
 import com.jabook.app.jabook.compose.util.rememberClickDebouncer
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.android.EntryPointAccessors
-import dagger.hilt.components.SingletonComponent
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.rememberHazeState
@@ -183,15 +178,6 @@ import java.io.File
  * Logger for PlayerScreen Composable functions.
  */
 private val playerScreenLogger by lazy { LoggerFactoryImpl().get("PlayerScreen") }
-
-/**
- * EntryPoint to access AudioMetadataParser from Hilt in Composable.
- */
-@EntryPoint
-@InstallIn(SingletonComponent::class)
-public interface AudioMetadataParserEntryPoint {
-    public fun audioMetadataParser(): AudioMetadataParser
-}
 
 /**
  * Player screen - full screen audio player.
@@ -859,6 +845,7 @@ public fun PlayerScreen(
                                     ) {
                                         PlayerContent(
                                             state = state,
+                                            parseChapterMetadata = viewModel::parseChapterMetadata,
                                             playbackSpeed = playbackSpeed,
                                             reduceMotion = reduceMotion,
                                             hazeState = overlayHazeState,
@@ -1496,6 +1483,7 @@ private fun PlayerLandscapeLayout(
 @Composable
 private fun PlayerContent(
     state: PlayerState.Active,
+    parseChapterMetadata: suspend (String) -> com.jabook.app.jabook.compose.data.local.parser.AudioMetadata?,
     playbackSpeed: Float,
     reduceMotion: Boolean,
     hazeState: HazeState?,
@@ -1612,14 +1600,6 @@ private fun PlayerContent(
 
     // Get author from audio metadata if available
     var authorFromMetadata by remember { mutableStateOf<String?>(null) }
-    val metadataParser =
-        remember {
-            EntryPointAccessors
-                .fromApplication(
-                    context.applicationContext,
-                    AudioMetadataParserEntryPoint::class.java,
-                ).audioMetadataParser()
-        }
 
     LaunchedEffect(state.currentChapter?.fileUrl) {
         authorFromMetadata = null
@@ -1629,7 +1609,7 @@ private fun PlayerContent(
             if (file.exists()) {
                 val metadata =
                     withContext(Dispatchers.IO) {
-                        metadataParser.parseMetadata(fileUrl)
+                        parseChapterMetadata(fileUrl)
                     }
                 authorFromMetadata = metadata?.artist?.takeIf { it.isNotBlank() }
             }

@@ -406,7 +406,6 @@ public class SettingsViewModel
 
         public fun updateLanguage(languageCode: String) {
             viewModelScope.launch {
-                settingsRepository.updateLanguage(languageCode)
                 userPreferencesRepository.setLanguage(languageCode)
             }
         }

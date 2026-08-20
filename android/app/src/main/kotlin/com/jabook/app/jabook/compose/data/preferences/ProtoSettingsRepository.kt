@@ -88,8 +88,6 @@ public interface SettingsRepository {
         notificationActionSlots: List<Int>? = null,
     )
 
-    public suspend fun updateLanguage(languageCode: String)
-
     public suspend fun updateNotificationSettings(
         notificationsEnabled: Boolean?,
         downloadNotifications: Boolean?,
@@ -278,12 +276,6 @@ public class ProtoSettingsRepository
                     builder.addAllNotificationActionSlots(slots)
                 }
                 builder.build()
-            }
-        }
-
-        override suspend fun updateLanguage(languageCode: String) {
-            dataStore.updateData { preferences ->
-                preferences.toBuilder().setLanguageCode(languageCode).build()
             }
         }
 

@@ -752,7 +752,7 @@ private fun SearchDiscoverySection(
         androidx.compose.foundation.lazy.LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(genres.size) { index ->
+            items(genres.size, key = { it }) { index ->
                 val (_, label) = genres[index]
                 androidx.compose.material3.FilterChip(
                     selected = false,

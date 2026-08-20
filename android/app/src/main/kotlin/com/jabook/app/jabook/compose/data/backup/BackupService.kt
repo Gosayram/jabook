@@ -353,7 +353,7 @@ public class BackupService
                 maxConcurrentDownloads = protoSettings.maxConcurrentDownloads,
                 rewindDurationSeconds = protoSettings.rewindDurationSeconds,
                 forwardDurationSeconds = protoSettings.forwardDurationSeconds,
-                languageCode = protoSettings.languageCode,
+                languageCode = userPrefs.languageCode,
                 useDynamicColors = protoSettings.useDynamicColors,
                 notificationsEnabled = protoSettings.notificationsEnabled,
                 downloadNotifications = protoSettings.downloadNotifications,
@@ -539,7 +539,6 @@ public class BackupService
                     rewindSeconds = settings.rewindDurationSeconds,
                     forwardSeconds = settings.forwardDurationSeconds,
                 )
-                protoSettingsRepository.updateLanguage(settings.languageCode)
                 userPreferencesRepository.setLanguage(settings.languageCode)
                 protoSettingsRepository.updateDynamicColors(settings.useDynamicColors)
                 protoSettingsRepository.updateNotificationSettings(

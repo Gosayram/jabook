@@ -253,8 +253,6 @@ private class FakeSettingsRepository(
         notificationActionSlots: List<Int>?,
     ) = Unit
 
-    override suspend fun updateLanguage(languageCode: String) = Unit
-
     override suspend fun updateNotificationSettings(
         notificationsEnabled: Boolean?,
         downloadNotifications: Boolean?,
