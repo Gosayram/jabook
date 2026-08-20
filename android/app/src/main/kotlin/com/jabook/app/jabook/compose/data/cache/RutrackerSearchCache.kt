@@ -31,9 +31,7 @@ public class RutrackerSearchCache
         // accessOrder=true → get/put moves entry to end (most-recently used)
         private val cache =
             object : LinkedHashMap<String, CacheEntry>(64, 0.75f, true) {
-                override fun removeEldestEntry(
-                    eldest: MutableMap.MutableEntry<String, CacheEntry>?,
-                ): Boolean = size > MAX_CACHE_SIZE
+                override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CacheEntry>?): Boolean = size > MAX_CACHE_SIZE
             }
 
         /**
@@ -74,8 +72,7 @@ public class RutrackerSearchCache
         /**
          * Clear all cached search results.
          */
-        public fun clear(): Unit =
-            synchronized(cache) { cache.clear() }
+        public fun clear(): Unit = synchronized(cache) { cache.clear() }
 
         /**
          * Get approximate cache size in bytes.

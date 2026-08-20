@@ -310,5 +310,3 @@ public enum class CacheType {
     TEMP_DOWNLOADS,
     LOGS,
 }
-
-
