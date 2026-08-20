@@ -115,6 +115,7 @@ class PlaybackControllerRegressionTest {
             var activePlayer: Player = originalPlayer
             val errorHandler =
                 PlayerErrorHandler(
+                    scope = backgroundScope,
                     getActivePlayer = { activePlayer },
                     getActualPlaylistSize = { 2 },
                     getCurrentMetadata = { null },
@@ -150,6 +151,7 @@ class PlaybackControllerRegressionTest {
                 )
             val errorHandler =
                 PlayerErrorHandler(
+                    scope = backgroundScope,
                     getActivePlayer = { player },
                     getActualPlaylistSize = { 1 },
                     getCurrentMetadata = { null },

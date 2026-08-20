@@ -32,11 +32,11 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.ComposeMainActivity
 import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.AndroidEntryPoint
-import java.io.File
-import javax.inject.Inject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import javax.inject.Inject
 
 /**
  * Activity for managing app storage space.

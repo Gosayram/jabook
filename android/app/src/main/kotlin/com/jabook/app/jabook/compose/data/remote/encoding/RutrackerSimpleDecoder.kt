@@ -15,10 +15,10 @@
 package com.jabook.app.jabook.compose.data.remote.encoding
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import java.nio.charset.Charset
 import javax.inject.Inject
 import javax.inject.Singleton
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
 
 /**
  * Simple decoder for RuTracker responses.

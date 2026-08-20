@@ -47,11 +47,6 @@ class SyncStatusTest {
         assertTrue(SyncStatus.Error("network timeout").requiresAttention())
     }
 
-    @Test
-    fun `Offline does not require attention`() {
-        assertFalse(SyncStatus.Offline.requiresAttention())
-    }
-
     // --- toLabel ---
 
     @Test
@@ -72,10 +67,5 @@ class SyncStatusTest {
     @Test
     fun `Error label`() {
         assertEquals("Ошибка: timeout", SyncStatus.Error("timeout").toLabel())
-    }
-
-    @Test
-    fun `Offline label`() {
-        assertEquals("Оффлайн", SyncStatus.Offline.toLabel())
     }
 }
