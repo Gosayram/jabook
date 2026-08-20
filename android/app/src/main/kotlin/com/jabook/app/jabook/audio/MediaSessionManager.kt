@@ -16,11 +16,9 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import androidx.annotation.OptIn
-import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.session.CommandButton
 import com.jabook.app.jabook.util.LogUtils
 
 /**
@@ -64,8 +62,6 @@ public class MediaSessionManager(
     public companion object {
         private const val DEFAULT_REWIND_SECONDS = 15L
         private const val DEFAULT_FORWARD_SECONDS = 30L
-
-
     }
 
     /**
@@ -114,7 +110,6 @@ public class MediaSessionManager(
         forwardSeconds = DEFAULT_FORWARD_SECONDS
         lastPlayWhenReady = player.playWhenReady
         setupPlayerListener()
-
     }
 
     /**
@@ -182,10 +177,6 @@ public class MediaSessionManager(
 
     // initializeMediaSession removed to prevent duplicate session
     // Logic moved/handled by AudioPlayerLibrarySessionCallback and AudioPlayerService
-
-
-
-
 
     public fun release() {
         try {

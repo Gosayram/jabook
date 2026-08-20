@@ -24,6 +24,7 @@ import com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.core.util.safeEnum
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookmarkItem
 import com.jabook.app.jabook.compose.domain.model.Chapter
@@ -340,17 +341,9 @@ public class PlayerViewModel
             settingsRepository.userPreferences
                 .map { prefs ->
                     AudioSettingsState(
-                        volumeBoostLevel =
-                            try {
-                                if (prefs.volumeBoostLevel.isNotEmpty()) {
-                                    com.jabook.app.jabook.audio.processors.VolumeBoostLevel
-                                        .valueOf(prefs.volumeBoostLevel)
-                                } else {
-                                    com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
-                                }
-                            } catch (e: Exception) {
-                                com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
-                            },
+                        volumeBoostLevel = prefs.volumeBoostLevel.safeEnum(
+                            com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off,
+                        ),
                         skipSilence = prefs.skipSilence,
                         skipSilenceThresholdDb = prefs.skipSilenceThresholdDb,
                         skipSilenceMinMs = prefs.skipSilenceMinMs,

@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import com.jabook.app.jabook.compose.core.util.safeEnum
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -83,39 +84,15 @@ public class MediaSessionSettingsSync(
                 .map { prefs ->
                     com.jabook.app.jabook.audio.processors.AudioProcessingSettings(
                         normalizeVolume = prefs.normalizeVolume,
-                        speechCompressorLevel =
-                            try {
-                                if (prefs.speechCompressorLevel.isNotEmpty()) {
-                                    com.jabook.app.jabook.audio.processors.SpeechCompressorLevel
-                                        .valueOf(prefs.speechCompressorLevel)
-                                } else {
-                                    com.jabook.app.jabook.audio.processors.SpeechCompressorLevel.Off
-                                }
-                            } catch (e: Exception) {
-                                com.jabook.app.jabook.audio.processors.SpeechCompressorLevel.Off
-                            },
-                        volumeBoostLevel =
-                            try {
-                                if (prefs.volumeBoostLevel.isNotEmpty()) {
-                                    com.jabook.app.jabook.audio.processors.VolumeBoostLevel
-                                        .valueOf(prefs.volumeBoostLevel)
-                                } else {
-                                    com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
-                                }
-                            } catch (e: Exception) {
-                                com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
-                            },
-                        drcLevel =
-                            try {
-                                if (prefs.drcLevel.isNotEmpty()) {
-                                    com.jabook.app.jabook.audio.processors.DRCLevel
-                                        .valueOf(prefs.drcLevel)
-                                } else {
-                                    com.jabook.app.jabook.audio.processors.DRCLevel.Off
-                                }
-                            } catch (e: Exception) {
-                                com.jabook.app.jabook.audio.processors.DRCLevel.Off
-                            },
+                        speechCompressorLevel = prefs.speechCompressorLevel.safeEnum(
+                            com.jabook.app.jabook.audio.processors.SpeechCompressorLevel.Off,
+                        ),
+                        volumeBoostLevel = prefs.volumeBoostLevel.safeEnum(
+                            com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off,
+                        ),
+                        drcLevel = prefs.drcLevel.safeEnum(
+                            com.jabook.app.jabook.audio.processors.DRCLevel.Off,
+                        ),
                         speechEnhancer = prefs.speechEnhancer,
                         autoVolumeLeveling = prefs.autoVolumeLeveling,
                         skipSilence = prefs.skipSilence,
@@ -135,17 +112,9 @@ public class MediaSessionSettingsSync(
                         isCrossfadeEnabled = prefs.crossfadeEnabled,
                         crossfadeDurationMs = if (prefs.crossfadeDurationMs > 0) prefs.crossfadeDurationMs else 2000L,
                         crossfadeBetweenBooksMs = prefs.crossfadeBetweenBooksMs.coerceAtLeast(0),
-                        noiseGateLevel =
-                            try {
-                                if (prefs.noiseGateLevel.isNotEmpty()) {
-                                    com.jabook.app.jabook.audio.processors.NoiseGateLevel
-                                        .valueOf(prefs.noiseGateLevel)
-                                } else {
-                                    com.jabook.app.jabook.audio.processors.NoiseGateLevel.Off
-                                }
-                            } catch (e: Exception) {
-                                com.jabook.app.jabook.audio.processors.NoiseGateLevel.Off
-                            },
+                        noiseGateLevel = prefs.noiseGateLevel.safeEnum(
+                            com.jabook.app.jabook.audio.processors.NoiseGateLevel.Off,
+                        ),
                     )
                 }.distinctUntilChanged()
                 .collect { settings ->

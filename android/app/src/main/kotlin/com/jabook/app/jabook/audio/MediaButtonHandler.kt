@@ -43,7 +43,6 @@ public class MediaButtonHandler
         public companion object {
             private const val TAB_TIMEOUT_MS = 400L
             private const val LONG_PRESS_MS = 500L
-            private const val TAG = "MediaButtonHandler"
         }
 
         private val scope =

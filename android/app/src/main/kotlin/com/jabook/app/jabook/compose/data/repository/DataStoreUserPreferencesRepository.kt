@@ -20,6 +20,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.jabook.app.jabook.compose.core.util.safeEnum
 import com.jabook.app.jabook.compose.data.model.AppFont
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
@@ -60,41 +61,13 @@ public class DataStoreUserPreferencesRepository
         override val userData: Flow<UserData> =
             dataStore.data.map { preferences ->
                 UserData(
-                    theme =
-                        preferences[THEME]?.let { themeName ->
-                            try {
-                                AppTheme.valueOf(themeName)
-                            } catch (e: IllegalArgumentException) {
-                                AppTheme.SYSTEM
-                            }
-                        } ?: AppTheme.SYSTEM,
-                    sortOrder =
-                        preferences[SORT_ORDER]?.let { sortName ->
-                            try {
-                                BookSortOrder.valueOf(sortName)
-                            } catch (e: IllegalArgumentException) {
-                                BookSortOrder.BY_ACTIVITY
-                            }
-                        } ?: BookSortOrder.BY_ACTIVITY,
-                    viewMode =
-                        preferences[VIEW_MODE]?.let { modeName ->
-                            try {
-                                LibraryViewMode.valueOf(modeName)
-                            } catch (e: IllegalArgumentException) {
-                                LibraryViewMode.LIST_COMPACT
-                            }
-                        } ?: LibraryViewMode.LIST_COMPACT,
+                    theme = preferences[THEME].safeEnum(AppTheme.SYSTEM),
+                    sortOrder = preferences[SORT_ORDER].safeEnum(BookSortOrder.BY_ACTIVITY),
+                    viewMode = preferences[VIEW_MODE].safeEnum(LibraryViewMode.LIST_COMPACT),
                     autoPlayNext = preferences[AUTO_PLAY_NEXT] ?: true,
                     playbackSpeed = preferences[PLAYBACK_SPEED] ?: 1.0f,
                     pitchCorrectionEnabled = preferences[PITCH_CORRECTION_ENABLED] ?: true,
-                    font =
-                        preferences[FONT]?.let { fontName ->
-                            try {
-                                AppFont.valueOf(fontName)
-                            } catch (e: IllegalArgumentException) {
-                                AppFont.DEFAULT
-                            }
-                        } ?: AppFont.DEFAULT,
+                    font = preferences[FONT].safeEnum(AppFont.DEFAULT),
                     normalizeChapterTitles = preferences[NORMALIZE_CHAPTER_TITLES] ?: false,
                     onboardingCompleted = preferences[ONBOARDING_COMPLETED] ?: false,
                     storageFallbackEnabled = preferences[STORAGE_FALLBACK_ENABLED] ?: false,

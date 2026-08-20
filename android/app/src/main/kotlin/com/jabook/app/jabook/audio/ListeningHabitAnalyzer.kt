@@ -109,7 +109,6 @@ public class ListeningHabitAnalyzer
         }
 
         public companion object {
-            private const val TAG = "ListeningHabitAnalyzer"
             private const val MIN_SESSIONS_FOR_SUGGESTION = 10
             private const val MIN_SIMILAR_SESSIONS = 3
             private const val HOUR_TOLERANCE = 2

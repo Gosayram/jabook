@@ -102,6 +102,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -254,11 +255,12 @@ public fun PlayerScreen(
 
     // Auto-initialize player when book data is ready
     // Only initialize once when we have Success state with actual chapters
-    // Use specific keys to avoid unnecessary recomposition
-    val shouldInitializePlayer =
-        remember(uiState) {
+    // Use derivedStateOf to avoid recomputing on every uiState emission (hot path)
+    val shouldInitializePlayer by remember {
+        derivedStateOf {
             uiState is PlayerState.Active && (uiState as? PlayerState.Active)?.chapters?.isNotEmpty() == true
         }
+    }
     androidx.compose.runtime.LaunchedEffect(shouldInitializePlayer) {
         if (shouldInitializePlayer) {
             viewModel.dispatch(PlayerIntent.InitializePlayer)

@@ -266,15 +266,4 @@ class MediaSessionManagerTest {
         // Then - should not throw exception
         // MediaSession release is handled internally
     }
-
-    // ============ Update Metadata Tests ============
-
-    @Test
-    fun `updateMetadata does not throw exception`() {
-        // When
-        mediaSessionManager.updateMetadata()
-
-        // Then - should not throw exception
-        // Metadata is automatically updated from ExoPlayer
-    }
 }

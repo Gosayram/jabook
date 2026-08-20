@@ -1139,8 +1139,6 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             context
                 .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .getInt(PREFS_KEY_DOMINANT_COLOR, 0)
-
-
     }
 }
 

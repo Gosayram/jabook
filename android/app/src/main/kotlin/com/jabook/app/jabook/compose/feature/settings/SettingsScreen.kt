@@ -83,6 +83,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -334,7 +335,7 @@ public fun SettingsScreen(
 
             // State for health checks and dialog
             var showAddMirrorDialog by remember { mutableStateOf(false) }
-            var customMirrorUrl by remember { mutableStateOf("") }
+            var customMirrorUrl by rememberSaveable { mutableStateOf("") }
             var healthCheckInProgress by remember { mutableStateOf<String?>(null) }
             val healthStatus = remember { mutableStateOf<Map<String, MirrorHealth?>>(emptyMap()) }
 

@@ -20,7 +20,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -169,7 +168,7 @@ public fun LibraryScreen(
     val safeNavigateToAuth = dropUnlessResumed { navigationClickGuard.run(onNavigateToAuth) }
     var activeQuickFilter by remember { mutableStateOf(LibraryQuickFilter.ALL) }
     var showSortBottomSheet by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchBarExpanded by remember { mutableStateOf(false) }
     val spotlightCompleted by viewModel.spotlightCompleted.collectAsStateWithLifecycle()
     var spotlightStep by rememberSaveable { mutableStateOf(0) }
