@@ -468,14 +468,6 @@ public object AudioDataModule {
 
         return builder.build()
     }
-
-    @Provides
-    @Singleton
-    public fun provideAudioPreferences(
-        @ApplicationContext context: Context,
-    ): com.jabook.app.jabook.audio.data.local.datastore.AudioPreferences =
-        com.jabook.app.jabook.audio.data.local.datastore
-            .AudioPreferences(context)
 }
 
 /**

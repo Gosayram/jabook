@@ -22,12 +22,9 @@ import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * Handles initialization logic for AudioPlayerService.
@@ -317,7 +314,6 @@ public class AudioPlayerServiceInitializer(
      * Handles: playback speed restore, notification provider, audio output, visualizer, enhancer.
      */
     public fun postInitialize() {
-        restorePlaybackSpeed()
         setupAudioOutputManager()
         initializeVisualizer()
     }
@@ -366,22 +362,6 @@ public class AudioPlayerServiceInitializer(
                 throw e
             } catch (e: Exception) {
                 LogUtils.e("AudioPlayerService", "User preferences cache collector failed", e)
-            }
-        }
-    }
-
-    private fun restorePlaybackSpeed() {
-        service.playerServiceScope.launch {
-            try {
-                val savedSpeed = service.audioPreferences.playbackSpeed.first()
-                withContext(Dispatchers.Main) {
-                    LogUtils.d("AudioPlayerService", "Restoring playback speed: ${savedSpeed}x")
-                    service.setSpeed(savedSpeed)
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                LogUtils.e("AudioPlayerService", "Failed to restore playback speed", e)
             }
         }
     }

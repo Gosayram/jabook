@@ -540,6 +540,7 @@ public class BackupService
                     forwardSeconds = settings.forwardDurationSeconds,
                 )
                 protoSettingsRepository.updateLanguage(settings.languageCode)
+                userPreferencesRepository.setLanguage(settings.languageCode)
                 protoSettingsRepository.updateDynamicColors(settings.useDynamicColors)
                 protoSettingsRepository.updateNotificationSettings(
                     notificationsEnabled = settings.notificationsEnabled,

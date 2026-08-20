@@ -90,9 +90,6 @@ public class AudioPlayerService : MediaLibraryService() {
     internal var audioOutputPlayerTarget: ExoPlayer? = null
 
     @Inject
-    public lateinit var audioPreferences: com.jabook.app.jabook.audio.data.local.datastore.AudioPreferences
-
-    @Inject
     public lateinit var audioVisualizerStateBridge: AudioVisualizerStateBridge
 
     // Audio fader for smooth volume transitions (P-14: fade out before sleep timer expiry)
