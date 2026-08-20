@@ -20,12 +20,14 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import coil3.SingletonImageLoader
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.withContext
 
 /**
@@ -57,16 +59,16 @@ public fun rememberCoverPreloader(
             CoverPreloader(context, preloadAhead)
         }
 
-    LaunchedEffect(books, listState.firstVisibleItemIndex, listState.layoutInfo.visibleItemsInfo.size) {
-        val firstVisible = listState.firstVisibleItemIndex
-        val visibleCount = listState.layoutInfo.visibleItemsInfo.size
-        val lastVisible = firstVisible + visibleCount
-
-        // Preload covers for visible items and items ahead
-        val preloadEnd = (lastVisible + preloadAhead).coerceAtMost(books.size)
-        val booksToPreload = books.subList(firstVisible.coerceAtLeast(0), preloadEnd)
-
-        preloader.preloadCovers(booksToPreload)
+    LaunchedEffect(books, listState, preloadAhead) {
+        snapshotFlow {
+            val firstVisible = listState.firstVisibleItemIndex
+            val visibleCount = listState.layoutInfo.visibleItemsInfo.size
+            (firstVisible + visibleCount + preloadAhead).coerceAtMost(books.size) to firstVisible
+        }.distinctUntilChanged().collect { (preloadEnd, firstVisible) ->
+            // Preload covers for visible items and items ahead
+            val booksToPreload = books.subList(firstVisible.coerceAtLeast(0), preloadEnd)
+            preloader.preloadCovers(booksToPreload)
+        }
     }
 }
 
@@ -90,16 +92,16 @@ public fun rememberCoverPreloaderForGrid(
             CoverPreloader(context, preloadAhead)
         }
 
-    LaunchedEffect(books, gridState.firstVisibleItemIndex, gridState.layoutInfo.visibleItemsInfo.size) {
-        val firstVisible = gridState.firstVisibleItemIndex
-        val visibleCount = gridState.layoutInfo.visibleItemsInfo.size
-        val lastVisible = firstVisible + visibleCount
-
-        // Preload covers for visible items and items ahead
-        val preloadEnd = (lastVisible + preloadAhead).coerceAtMost(books.size)
-        val booksToPreload = books.subList(firstVisible.coerceAtLeast(0), preloadEnd)
-
-        preloader.preloadCovers(booksToPreload)
+    LaunchedEffect(books, gridState, preloadAhead) {
+        snapshotFlow {
+            val firstVisible = gridState.firstVisibleItemIndex
+            val visibleCount = gridState.layoutInfo.visibleItemsInfo.size
+            (firstVisible + visibleCount + preloadAhead).coerceAtMost(books.size) to firstVisible
+        }.distinctUntilChanged().collect { (preloadEnd, firstVisible) ->
+            // Preload covers for visible items and items ahead
+            val booksToPreload = books.subList(firstVisible.coerceAtLeast(0), preloadEnd)
+            preloader.preloadCovers(booksToPreload)
+        }
     }
 }
 

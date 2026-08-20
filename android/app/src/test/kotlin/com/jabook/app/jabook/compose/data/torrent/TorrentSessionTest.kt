@@ -409,7 +409,6 @@ public class FakeTorrentSession : TorrentSession {
 
     public fun getAllFilePriorities(hash: String): List<Int> = filePriorities[hash]?.toList() ?: emptyList()
 
-
     private fun updateState(
         hash: String,
         state: TorrentState,

@@ -62,6 +62,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -101,9 +102,9 @@ public fun AuthScreen(
     val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
     val currentOnNavigateToWebView by rememberUpdatedState(onNavigateToWebView)
 
-    var username by remember { mutableStateOf("") }
+    var username by rememberSaveable { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var rememberMe by remember { mutableStateOf(true) }
+    var rememberMe by rememberSaveable { mutableStateOf(true) }
     var passwordVisible by remember { mutableStateOf(false) }
 
     // Constants for padding
