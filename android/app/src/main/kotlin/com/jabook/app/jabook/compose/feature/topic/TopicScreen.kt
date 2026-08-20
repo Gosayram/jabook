@@ -118,7 +118,6 @@ public fun TopicScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
-    val message by viewModel.message.collectAsStateWithLifecycle()
     val isLoadingMoreComments by viewModel.isLoadingMoreComments.collectAsStateWithLifecycle()
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
@@ -130,10 +129,8 @@ public fun TopicScreen(
     var commentsExpanded by remember { mutableStateOf(false) }
 
     // Show messages
-    LaunchedEffect(message) {
-        message?.let {
-            snackbarHostState.showSnackbar(it)
-        }
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collect { snackbarHostState.showSnackbar(it) }
     }
 
     Scaffold(

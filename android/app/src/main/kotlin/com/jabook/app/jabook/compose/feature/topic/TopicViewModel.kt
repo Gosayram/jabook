@@ -39,10 +39,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -94,8 +97,12 @@ public class TopicViewModel
         private val _uiState = MutableStateFlow<TopicUiState>(TopicUiState.Loading)
         public val uiState: StateFlow<TopicUiState> = _uiState.asStateFlow()
 
-        private val _message = MutableStateFlow<String?>(null)
-        public val message: StateFlow<String?> = _message.asStateFlow()
+        private val _messages = Channel<String>(Channel.BUFFERED)
+        public val messages: Flow<String> = _messages.receiveAsFlow()
+
+        private fun emitMessage(message: String?) {
+            message?.let { _messages.trySend(it) }
+        }
 
         public val authStatus: StateFlow<AuthStatus> =
             authRepository.authStatus.stateIn(
@@ -233,7 +240,7 @@ public class TopicViewModel
                                 )
                         }
                         is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
-                            _message.value = result.error.message
+                            emitMessage(result.error.message)
                         }
                         is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
                             // Ignore
@@ -243,7 +250,7 @@ public class TopicViewModel
                     throw e
                 } catch (e: Exception) {
                     logger.e({ "Failed to load more comments" }, e)
-                    _message.value = e.message
+                    emitMessage(e.message)
                 } finally {
                     _isLoadingMoreComments.value = false
                 }
@@ -275,7 +282,7 @@ public class TopicViewModel
                             if (!silent) {
                                 _uiState.value = TopicUiState.Error(result.error.message)
                             } else {
-                                _message.value = result.error.message
+                                emitMessage(result.error.message)
                             }
                         }
                         is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
@@ -286,7 +293,7 @@ public class TopicViewModel
                     throw e
                 } catch (e: Exception) {
                     logger.e({ "Failed to refresh topic details" }, e)
-                    if (silent) _message.value = e.message else _uiState.value = TopicUiState.Error(e.message ?: "Unknown error")
+                    if (silent) emitMessage(e.message) else _uiState.value = TopicUiState.Error(e.message ?: "Unknown error")
                 } finally {
                     _isRefreshing.value = false
                 }
@@ -306,13 +313,13 @@ public class TopicViewModel
                     val downloadUrl = magnetUrl ?: torrentUrl
                     if (downloadUrl.isNullOrBlank()) {
                         logger.e { "No download URL available" }
-                        _message.value = context.getString(R.string.failedToStartDownload)
+                        emitMessage(context.getString(R.string.failedToStartDownload))
                         return@launch
                     }
 
                     if (!MagnetUriValidationPolicy.isValidMagnetUri(downloadUrl)) {
                         logger.e { "Invalid download URL format: $downloadUrl" }
-                        _message.value = context.getString(R.string.invalidDownloadUrl)
+                        emitMessage(context.getString(R.string.invalidDownloadUrl))
                         return@launch
                     }
 
@@ -323,7 +330,7 @@ public class TopicViewModel
                         )
                     if (downloadsDir == null || !downloadsDir.exists()) {
                         logger.e { "Downloads directory not available" }
-                        _message.value = context.getString(R.string.downloadsDirectoryNotAvailable)
+                        emitMessage(context.getString(R.string.downloadsDirectoryNotAvailable))
                         return@launch
                     }
 
@@ -333,7 +340,7 @@ public class TopicViewModel
                         val created = baseDir.mkdirs()
                         if (!created && !baseDir.exists()) {
                             logger.e { "Failed to create base directory: ${baseDir.absolutePath}" }
-                            _message.value = context.getString(R.string.failedToStartDownload)
+                            emitMessage(context.getString(R.string.failedToStartDownload))
                             return@launch
                         }
                     }
@@ -357,7 +364,7 @@ public class TopicViewModel
                         val created = bookFolder.mkdirs()
                         if (!created && !bookFolder.exists()) {
                             logger.e { "Failed to create book directory: ${bookFolder.absolutePath}" }
-                            _message.value = context.getString(R.string.failedToStartDownload)
+                            emitMessage(context.getString(R.string.failedToStartDownload))
                             return@launch
                         }
                     }
@@ -386,30 +393,32 @@ public class TopicViewModel
                         if (result.isSuccess) {
                             val hash = result.getOrNull()
                             logger.i { "Torrent download started: $hash" }
-                            _message.value = context.getString(R.string.downloadStarted)
+                            emitMessage(context.getString(R.string.downloadStarted))
                         } else {
                             val exception = result.exceptionOrNull()
                             val error = exception?.message ?: context.getString(R.string.unknownError)
                             logger.e(exception) { "Failed to start torrent download: $error" }
-                            _message.value = context.getString(R.string.failedToStartDownloadWithError, error)
+                            emitMessage(context.getString(R.string.failedToStartDownloadWithError, error))
                         }
                     }
                 } catch (e: RuTrackerError.Unauthorized) {
                     logger.w { "Download requires authentication" }
-                    _message.value = context.getString(R.string.authenticationRequired)
+                    emitMessage(context.getString(R.string.authenticationRequired))
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: IllegalStateException) {
                     logger.e(e) { "Illegal state during torrent download" }
-                    _message.value =
-                        context.getString(R.string.failedToStartDownloadWithError, e.message ?: "Illegal state")
+                    emitMessage(
+                        context.getString(R.string.failedToStartDownloadWithError, e.message ?: "Illegal state"),
+                    )
                 } catch (e: Exception) {
                     logger.e(e) { "Unexpected error starting torrent download" }
-                    _message.value =
+                    emitMessage(
                         context.getString(
                             R.string.failedToStartDownloadWithError,
                             e.message ?: context.getString(R.string.unknownError),
-                        )
+                        ),
+                    )
                 }
             }
         }
@@ -441,21 +450,22 @@ public class TopicViewModel
                                     }
 
                                     logger.i { "Torrent file saved: ${torrentFile.absolutePath}" }
-                                    _message.value = context.getString(R.string.torrentFileSaved)
+                                    emitMessage(context.getString(R.string.torrentFileSaved))
                                 }
                             } else {
                                 logger.e { "Response body is null" }
-                                _message.value = context.getString(R.string.failedToDownloadTorrentFile)
+                                emitMessage(context.getString(R.string.failedToDownloadTorrentFile))
                             }
                         } else {
                             logger.e { "Failed to download torrent file: ${response.code()}" }
-                            _message.value =
-                                context.getString(R.string.failedToDownloadTorrentFileWithCode, response.code())
+                            emitMessage(
+                                context.getString(R.string.failedToDownloadTorrentFileWithCode, response.code()),
+                            )
                         }
                     }
                 } catch (e: RuTrackerError.Unauthorized) {
                     logger.w { "Download torrent file requires authentication" }
-                    _message.value = context.getString(R.string.authenticationRequired)
+                    emitMessage(context.getString(R.string.authenticationRequired))
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -485,7 +495,7 @@ public class TopicViewModel
             val clip = ClipData.newPlainText(context.getString(R.string.magnetLinkLabel), magnetUrl)
             clipboard.setPrimaryClip(clip)
             logger.i { "Magnet link copied to clipboard" }
-            _message.value = context.getString(R.string.magnetLinkCopiedMessage)
+            emitMessage(context.getString(R.string.magnetLinkCopiedMessage))
         }
 
         /**
