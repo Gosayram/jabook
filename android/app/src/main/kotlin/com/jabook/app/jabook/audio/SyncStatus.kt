@@ -37,9 +37,6 @@ public sealed class SyncStatus {
         val message: String,
     ) : SyncStatus()
 
-    /** No sync configured (offline-only mode). */
-    public data object Offline : SyncStatus()
-
     /**
      * Whether the status indicates the user should be notified.
      */
@@ -54,6 +51,5 @@ public sealed class SyncStatus {
             is Syncing -> "Синхронизация…"
             is Pending -> "Ожидает: $count"
             is Error -> "Ошибка: $message"
-            is Offline -> "Оффлайн"
         }
 }

@@ -27,6 +27,7 @@ import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
+import com.jabook.app.jabook.utils.retryWithBackoff
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -195,29 +196,6 @@ public class ForumIndexer
                             .toLong()
                             .coerceAtMost(MAX_BACKOFF_MS)
                 delay(backoff)
-            }
-
-            /**
-             * Retry a block with exponential backoff. Used for transient network errors.
-             */
-            private suspend fun <T> retryWithBackoff(
-                maxRetries: Int = 3,
-                initialDelayMs: Long = 1000L,
-                block: suspend () -> T,
-            ): T {
-                var lastException: Exception? = null
-                repeat(maxRetries) { attempt ->
-                    try {
-                        return block()
-                    } catch (e: Exception) {
-                        if (e is kotlinx.coroutines.CancellationException) throw e
-                        lastException = e
-                        if (attempt < maxRetries - 1) {
-                            delay(initialDelayMs * (1L shl attempt))
-                        }
-                    }
-                }
-                throw lastException ?: IllegalStateException("retryWithBackoff: no retries attempted")
             }
 
             private const val MIN_VALID_TOPICS_ABSOLUTE = 10

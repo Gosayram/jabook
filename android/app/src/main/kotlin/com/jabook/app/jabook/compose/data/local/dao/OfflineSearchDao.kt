@@ -77,7 +77,6 @@ public interface OfflineSearchDao {
      * Get search results for a specific query.
      * Joins CachedTopicEntity with SearchQueryEntity to return ordered topics.
      */
-    @Transaction
     @Query(
         """
         SELECT T.* FROM cached_topics T
