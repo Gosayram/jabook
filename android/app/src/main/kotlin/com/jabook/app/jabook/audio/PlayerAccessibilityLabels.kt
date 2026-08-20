@@ -86,15 +86,7 @@ public object PlayerAccessibilityLabels {
         totalCount: Int,
     ): String = "Глава ${currentIndex + 1} из $totalCount"
 
-    private fun formatTime(ms: Long): String {
-        val totalSeconds = (ms.coerceAtLeast(0L) / 1000L)
-        val hours = totalSeconds / 3600
-        val minutes = (totalSeconds % 3600) / 60
-        val seconds = totalSeconds % 60
-        return if (hours > 0) {
-            "%d:%02d:%02d".format(hours, minutes, seconds)
-        } else {
-            "%d:%02d".format(minutes, seconds)
-        }
-    }
+    private fun formatTime(ms: Long): String =
+        com.jabook.app.jabook.compose.core.util.UiFormatters
+            .formatDuration(ms.coerceAtLeast(0L))
 }

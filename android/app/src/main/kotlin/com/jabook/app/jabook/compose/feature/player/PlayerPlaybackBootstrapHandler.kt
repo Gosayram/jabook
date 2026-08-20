@@ -18,6 +18,7 @@ import com.jabook.app.jabook.audio.PlaylistItem
 import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.core.util.runCatchingCancelable
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController
@@ -98,7 +99,7 @@ internal class PlayerPlaybackBootstrapHandler(
             val shouldSkipHierarchicalSpeedApply = restoredBootstrapSnapshot.value?.hasRestoredSpeed ?: false
             if (!shouldSkipHierarchicalSpeedApply) {
                 viewModelScope.launch {
-                    runCatching {
+                    runCatchingCancelable {
                         val globalSpeed = userPreferencesRepository.userData.first().playbackSpeed
                         val resolvedSpeed =
                             booksRepository.resolvePreferredPlaybackSpeed(

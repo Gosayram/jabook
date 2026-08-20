@@ -18,6 +18,7 @@ import com.jabook.app.jabook.audio.HoldToBoostPolicy
 import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.core.util.runCatchingCancelable
 import com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
@@ -72,7 +73,7 @@ internal class PlayerSpeedHandler(
     ) {
         val clampedSpeed = speed.coerceIn(0.5f, 3.5f)
         viewModelScope.launch {
-            runCatching { playerController.setPlaybackSpeed(clampedSpeed) }
+            runCatchingCancelable { playerController.setPlaybackSpeed(clampedSpeed) }
                 .onFailure { error ->
                     logger.e({ "Failed to set playback speed on player" }, error)
                     dispatchIntent(PlayerIntent.ReportError("Failed to update playback speed"))
@@ -80,7 +81,7 @@ internal class PlayerSpeedHandler(
         }
         if (!rememberForBook) return
         viewModelScope.launch {
-            runCatching {
+            runCatchingCancelable {
                 val activeState = uiState.value as? PlayerState.Active
                 val listenedMs = playerController.currentPosition.value
                 if (
@@ -97,7 +98,7 @@ internal class PlayerSpeedHandler(
             }
         }
         viewModelScope.launch {
-            runCatching { userPreferencesRepository.setPlaybackSpeed(clampedSpeed) }
+            runCatchingCancelable { userPreferencesRepository.setPlaybackSpeed(clampedSpeed) }
                 .onFailure { error ->
                     logger.e({ "Failed to persist playback speed" }, error)
                     dispatchIntent(PlayerIntent.ReportError("Failed to save playback speed"))

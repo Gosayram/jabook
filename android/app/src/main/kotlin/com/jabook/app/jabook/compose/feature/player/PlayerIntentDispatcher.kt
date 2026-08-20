@@ -18,6 +18,7 @@ import android.content.Context
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.core.util.runCatchingCancelable
 import com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -120,7 +121,7 @@ internal class PlayerIntentDispatcher(
             PlayerIntent.ToggleABRepeat -> abRepeatHandler.onToggleABRepeat()
             is PlayerIntent.SetEqualizerPreset -> {
                 viewModelScope.launch {
-                    runCatching { settingsRepository.updateEqualizerPreset(intent.presetName) }
+                    runCatchingCancelable { settingsRepository.updateEqualizerPreset(intent.presetName) }
                         .onFailure { error ->
                             logger.w(error) { "Failed to update EQ preset" }
                         }
@@ -154,7 +155,7 @@ internal class PlayerIntentDispatcher(
 
     private fun dispatchCommand(command: PlayerCommand) {
         viewModelScope.launch {
-            runCatching { commandChannel.send(command) }
+            runCatchingCancelable { commandChannel.send(command) }
                 .onFailure { error ->
                     logger.w(error) { "Command dispatch failed for $command" }
                 }

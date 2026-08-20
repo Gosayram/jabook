@@ -14,10 +14,10 @@
          <trust group="com.android.databinding" reason="AGP internal databinding - version varies with AGP"/>
          <trust group="com.android.test" reason="Android Gradle Test plugin"/>
          <trust group="com.android.tools" reason="AGP internal tools (ddms, etc.) - version varies with AGP"/>
-         <trust group="com.android.tools.ddms" reason="AGP internal DDMS library - version varies with AGP"/>
          <trust group="com.android.tools" reason="Android SDK tools - version varies based on AGP/Gradle"/>
          <trust group="com.android.tools.analytics-library" reason="AGP internal analytics - version varies with AGP"/>
          <trust group="com.android.tools.build" reason="AGP build tools - all versions, sub-artifacts vary with AGP"/>
+         <trust group="com.android.tools.ddms" reason="AGP internal DDMS library - version varies with AGP"/>
          <trust group="com.android.tools.external.com-intellij" reason="IntelliJ dependencies for Android lint - version varies based on AGP"/>
          <trust group="com.android.tools.external.org-jetbrains" reason="JetBrains dependencies for Android lint - version varies based on AGP"/>
          <trust group="com.android.tools.layoutlib" reason="AGP internal layout library - version varies with AGP"/>

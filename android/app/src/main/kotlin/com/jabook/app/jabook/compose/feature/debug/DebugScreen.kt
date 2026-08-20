@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -283,7 +284,7 @@ private fun MirrorsTab(
                     text = stringResource(R.string.mirrorsHealthTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(Modifier.height(8.dp))
 
                 val mirrorConnectivity = authInfo?.mirrorConnectivity
                 if (mirrorConnectivity != null && mirrorConnectivity.isNotEmpty()) {
@@ -333,14 +334,14 @@ private fun MirrorsTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(16.dp))
+        Spacer(Modifier.height(16.dp))
 
         Button(
             onClick = { viewModel.testAllMirrors() },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(Icons.Default.Refresh, contentDescription = null)
-            Spacer(modifier = Modifier.padding(4.dp))
+            Spacer(Modifier.height(4.dp))
             Text(stringResource(R.string.startTest))
         }
     }
@@ -370,7 +371,7 @@ private fun CacheTab(
                     text = stringResource(R.string.cacheStatisticsTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(Modifier.height(8.dp))
 
                 if (cacheStats != null) {
                     val stats = cacheStats!!
@@ -394,7 +395,7 @@ private fun CacheTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(16.dp))
+        Spacer(Modifier.height(16.dp))
 
         Button(
             onClick = { viewModel.clearCache() },
@@ -405,7 +406,7 @@ private fun CacheTab(
                 ),
         ) {
             Icon(androidx.compose.material.icons.Icons.Default.Delete, contentDescription = null)
-            Spacer(modifier = Modifier.padding(4.dp))
+            Spacer(Modifier.height(4.dp))
             Text(stringResource(R.string.clearSearchCache))
         }
     }
@@ -458,7 +459,7 @@ private fun RutrackerTab(
                     text = stringResource(R.string.authStatusTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(4.dp))
+                Spacer(Modifier.height(4.dp))
 
                 Text(
                     text =
@@ -470,7 +471,7 @@ private fun RutrackerTab(
                 )
 
                 authInfo?.lastAuthError?.let { error ->
-                    Spacer(modifier = Modifier.padding(4.dp))
+                    Spacer(Modifier.height(4.dp))
                     Text(
                         text = stringResource(R.string.lastErrorPrefix, error),
                         color = MaterialTheme.colorScheme.error,
@@ -479,7 +480,7 @@ private fun RutrackerTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(8.dp))
+        Spacer(Modifier.height(8.dp))
 
         // Validation Results
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -488,7 +489,7 @@ private fun RutrackerTab(
                     text = stringResource(R.string.validationResultsTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(4.dp))
+                Spacer(Modifier.height(4.dp))
 
                 Text(stringResource(R.string.profilePageCheck, authInfo?.validationResults?.profilePageCheck.toIcon()))
                 Text(stringResource(R.string.searchPageCheck, authInfo?.validationResults?.searchPageCheck.toIcon()))
@@ -496,7 +497,7 @@ private fun RutrackerTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(8.dp))
+        Spacer(Modifier.height(8.dp))
 
         // Mirror Connectivity
         Card(modifier = Modifier.fillMaxWidth()) {
@@ -505,7 +506,7 @@ private fun RutrackerTab(
                     text = stringResource(R.string.mirrorConnectivityTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(4.dp))
+                Spacer(Modifier.height(4.dp))
 
                 val mirrorConnectivity = authInfo?.mirrorConnectivity
                 if (mirrorConnectivity != null && mirrorConnectivity.isNotEmpty()) {
@@ -527,7 +528,7 @@ private fun RutrackerTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(16.dp))
+        Spacer(Modifier.height(16.dp))
 
         // Refresh button
         Button(
@@ -535,7 +536,7 @@ private fun RutrackerTab(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(Icons.Default.Refresh, contentDescription = null)
-            Spacer(modifier = Modifier.padding(4.dp))
+            Spacer(Modifier.height(4.dp))
             Text(stringResource(R.string.refresh))
         }
     }
@@ -567,12 +568,12 @@ private fun SimulatorsTab(
                     text = stringResource(R.string.debugNetworkOverrideTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(4.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.debugEffectiveNetworkValue, effectiveNetworkType.name),
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(Modifier.height(8.dp))
 
                 NetworkOverrideButton(
                     label = stringResource(R.string.debugNetworkOverrideAuto),
@@ -597,7 +598,7 @@ private fun SimulatorsTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(8.dp))
+        Spacer(Modifier.height(8.dp))
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -605,7 +606,7 @@ private fun SimulatorsTab(
                     text = stringResource(R.string.debugStorageOverrideTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(4.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
                     text =
                         stringResource(
@@ -617,7 +618,7 @@ private fun SimulatorsTab(
                         ),
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { viewModel.setForceLowStorage(!forceLowStorage) },
                     modifier = Modifier.fillMaxWidth(),
@@ -636,7 +637,7 @@ private fun SimulatorsTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(8.dp))
+        Spacer(Modifier.height(8.dp))
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -644,21 +645,21 @@ private fun SimulatorsTab(
                     text = stringResource(R.string.debugAudioFocusSimulatorTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { viewModel.simulateAudioFocusDuck() },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.debugSimulateDuck))
                 }
-                Spacer(modifier = Modifier.padding(4.dp))
+                Spacer(Modifier.height(4.dp))
                 OutlinedButton(
                     onClick = { viewModel.simulateAudioFocusLossTransient() },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.debugSimulateFocusLossTransient))
                 }
-                Spacer(modifier = Modifier.padding(4.dp))
+                Spacer(Modifier.height(4.dp))
                 OutlinedButton(
                     onClick = { viewModel.simulateAudioFocusGain() },
                     modifier = Modifier.fillMaxWidth(),
@@ -695,7 +696,7 @@ private fun DatabaseInspectorTab(
                     text = stringResource(R.string.debugDbInspectorStatsTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(Modifier.height(8.dp))
                 DebugInfoRow(stringResource(R.string.debugDbBooksCount), dbSnapshot.booksCount.toString())
                 DebugInfoRow(stringResource(R.string.debugDbFavoritesCount), dbSnapshot.favoritesCount.toString())
                 DebugInfoRow(stringResource(R.string.debugDbIndexedTopicsCount), dbSnapshot.indexedTopicsCount.toString())
@@ -706,7 +707,7 @@ private fun DatabaseInspectorTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(8.dp))
+        Spacer(Modifier.height(8.dp))
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -714,7 +715,7 @@ private fun DatabaseInspectorTab(
                     text = stringResource(R.string.debugDbLiveQueryTitle),
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Spacer(modifier = Modifier.padding(8.dp))
+                Spacer(Modifier.height(8.dp))
                 if (recentSearchPreview.isEmpty()) {
                     Text(
                         text = stringResource(R.string.debugDbLiveQueryEmpty),
@@ -731,14 +732,14 @@ private fun DatabaseInspectorTab(
             }
         }
 
-        Spacer(modifier = Modifier.padding(8.dp))
+        Spacer(Modifier.height(8.dp))
 
         Button(
             onClick = { viewModel.refreshDbInspector() },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(Icons.Default.Refresh, contentDescription = null)
-            Spacer(modifier = Modifier.padding(4.dp))
+            Spacer(Modifier.height(4.dp))
             Text(stringResource(R.string.refresh))
         }
     }
@@ -762,5 +763,5 @@ private fun NetworkOverrideButton(
             }
         Text(text = prefix + label)
     }
-    Spacer(modifier = Modifier.padding(2.dp))
+    Spacer(Modifier.height(2.dp))
 }

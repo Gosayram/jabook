@@ -59,6 +59,10 @@ public class OfflineFirstBooksRepository
         private val loggerFactory: LoggerFactory,
     ) : BooksRepository {
         private val logger = loggerFactory.get("OfflineFirstBooksRepository")
+        private val localeCollator =
+            java.text.Collator.getInstance(java.util.Locale.getDefault()).apply {
+                strength = java.text.Collator.PRIMARY
+            }
 
         override fun getScanProgress(): Flow<com.jabook.app.jabook.compose.data.model.ScanProgress> = localBookScanner.scanProgress
 
@@ -97,33 +101,16 @@ public class OfflineFirstBooksRepository
                         booksWithStatus.sortByActivity()
                     }
                     BookSortOrder.TITLE_ASC -> {
-                        // Use locale-aware collator for proper alphabetical sorting
-                        val collator =
-                            java.text.Collator.getInstance(java.util.Locale.getDefault()).apply {
-                                strength = java.text.Collator.PRIMARY // Ignore case
-                            }
-                        books.sortedWith(compareBy(collator) { it.title })
+                        books.sortedWith(compareBy(localeCollator) { it.title })
                     }
                     BookSortOrder.TITLE_DESC -> {
-                        val collator =
-                            java.text.Collator.getInstance(java.util.Locale.getDefault()).apply {
-                                strength = java.text.Collator.PRIMARY
-                            }
-                        books.sortedWith(compareByDescending(collator) { it.title })
+                        books.sortedWith(compareByDescending(localeCollator) { it.title })
                     }
                     BookSortOrder.AUTHOR_ASC -> {
-                        val collator =
-                            java.text.Collator.getInstance(java.util.Locale.getDefault()).apply {
-                                strength = java.text.Collator.PRIMARY
-                            }
-                        books.sortedWith(compareBy(collator) { it.author })
+                        books.sortedWith(compareBy(localeCollator) { it.author })
                     }
                     BookSortOrder.AUTHOR_DESC -> {
-                        val collator =
-                            java.text.Collator.getInstance(java.util.Locale.getDefault()).apply {
-                                strength = java.text.Collator.PRIMARY
-                            }
-                        books.sortedWith(compareByDescending(collator) { it.author })
+                        books.sortedWith(compareByDescending(localeCollator) { it.author })
                     }
                     BookSortOrder.RECENTLY_ADDED -> books.sortedByDescending { it.addedDate }
                     BookSortOrder.OLDEST_FIRST -> books.sortedBy { it.addedDate }

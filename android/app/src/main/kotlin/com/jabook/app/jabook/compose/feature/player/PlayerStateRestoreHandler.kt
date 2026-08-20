@@ -18,6 +18,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.core.util.runCatchingCancelable
 import com.jabook.app.jabook.compose.data.preferences.PlayerStateSnapshotPreference
 import com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 import com.jabook.app.jabook.compose.data.repository.SleepTimerRepository
@@ -134,7 +135,7 @@ internal class PlayerStateRestoreHandler(
         viewModelScope.launch {
             val bootstrapSnapshot = restoredBootstrapSnapshot.value ?: return@launch
             if (bootstrapSnapshot.playbackSpeed <= 0f) return@launch
-            runCatching {
+            runCatchingCancelable {
                 val currentSpeed = userPreferencesRepository.userData.first().playbackSpeed
                 if (kotlin.math.abs(currentSpeed - bootstrapSnapshot.playbackSpeed) > 0.01f) {
                     userPreferencesRepository.setPlaybackSpeed(bootstrapSnapshot.playbackSpeed)
@@ -248,7 +249,7 @@ internal class PlayerStateRestoreHandler(
                     val persistentSnapshot = PlayerStateSnapshotPolicy.normalizeForPersistence(snapshot)
                     if (PlayerStateSnapshotPolicy.shouldPersistSnapshot(lastPersistedPlayerSnapshot, persistentSnapshot)) {
                         lastPersistedPlayerSnapshot = persistentSnapshot
-                        runCatching {
+                        runCatchingCancelable {
                             settingsRepository.updatePlayerStateSnapshot(
                                 PlayerStateSnapshotPreference(
                                     bookId = persistentSnapshot.bookId,

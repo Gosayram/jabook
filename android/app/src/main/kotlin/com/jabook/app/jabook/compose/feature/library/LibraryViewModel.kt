@@ -25,6 +25,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.jabook.app.jabook.audio.domain.usecase.ListeningStatsUseCase
 import com.jabook.app.jabook.compose.core.SideEffect
+import com.jabook.app.jabook.compose.core.util.runCatchingCancelable
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.data.repository.FavoritesRepository
@@ -383,7 +384,7 @@ public class LibraryViewModel
             coverUri: Uri,
         ): Result<Unit> =
             withContext(kotlinx.coroutines.Dispatchers.IO) {
-                runCatching {
+                runCatchingCancelable {
                     val resolver = application.contentResolver
                     val extension = resolveCoverExtension(resolver.getType(coverUri))
                     val coversDir = File(application.filesDir, "covers").apply { mkdirs() }
