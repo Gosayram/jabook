@@ -241,6 +241,11 @@ public fun JabookApp(
             val scope = rememberCoroutineScope()
             val onMenuClick: () -> Unit = { scope.launch { drawerState.open() } }
 
+            // Back closes the drawer instead of popping the nav stack (Reply pattern).
+            androidx.activity.compose.BackHandler(enabled = drawerState.isOpen) {
+                scope.launch { drawerState.close() }
+            }
+
             ModalNavigationDrawer(
                 drawerState = drawerState,
                 gesturesEnabled = false,

@@ -75,6 +75,20 @@ class CrashDiagnosticsTest {
     }
 
     @Test
+    fun `reportNonFatal suppresses non-actionable network exceptions`() {
+        CrashDiagnostics.reportNonFatal(
+            tag = "network_call_failed",
+            throwable = java.net.SocketTimeoutException("timeout"),
+        )
+        CrashDiagnostics.reportNonFatal(
+            tag = "network_call_failed",
+            throwable = RuntimeException("wrapped", java.net.UnknownHostException("no dns")),
+        )
+
+        assertTrue(fakeSink.recorded.isEmpty())
+    }
+
+    @Test
     fun `configureRuntimeContext stores expected runtime keys`() {
         CrashDiagnostics.configureRuntimeContext(
             buildType = "release",

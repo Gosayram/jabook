@@ -8,6 +8,13 @@ Lcom/jabook/app/jabook/audio/PlaybackController;
 Lcom/jabook/app/jabook/audio/PlaylistManager;
 Lcom/jabook/app/jabook/audio/AudioPlayerLibrarySessionCallback;
 Lcom/jabook/app/jabook/compose/JabookAppKt;
+Lcom/jabook/app/jabook/compose/MainViewModel;
 Lcom/jabook/app/jabook/compose/navigation/JabookNavHostKt;
+# Startup start-destination (LibraryRoute) — first screen composed on launch.
+Lcom/jabook/app/jabook/compose/feature/library/LibraryScreenKt;
+Lcom/jabook/app/jabook/compose/feature/library/LibraryViewModel;
+Lcom/jabook/app/jabook/compose/feature/library/UnifiedBooksViewKt;
+Lcom/jabook/app/jabook/compose/feature/library/EnhancedLibraryContentKt;
 Lcom/jabook/app/jabook/compose/feature/player/PlayerScreenKt;
+Lcom/jabook/app/jabook/compose/feature/player/MiniPlayerKt;
 Lcom/jabook/app/jabook/compose/feature/miniplayer/MiniPlayerViewModel;

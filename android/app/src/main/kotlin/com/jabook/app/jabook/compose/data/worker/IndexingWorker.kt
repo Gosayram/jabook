@@ -114,7 +114,13 @@ public class IndexingWorker
                 val progressMutex = Mutex()
 
                 try {
-                    setForeground(getForegroundInfo())
+                    try {
+                        setForeground(getForegroundInfo())
+                    } catch (e: android.app.ForegroundServiceStartNotAllowedException) {
+                        // Android 12+: FGS start may be denied when worker runs without
+                        // user visibility (e.g. expedited fallback). Degrade to background.
+                        logger.w { "FGS start not allowed for indexing worker: ${e.message}" }
+                    }
                     val forumIds = parseForumIds(inputData.getString(KEY_FORUM_IDS))
                     val preloadCovers = inputData.getBoolean(KEY_PRELOAD_COVERS, false)
 

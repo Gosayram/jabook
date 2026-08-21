@@ -113,7 +113,6 @@ import com.jabook.app.jabook.compose.feature.discovery.ListeningMood
 import com.jabook.app.jabook.compose.feature.onboarding.SpotlightOverlay
 import com.jabook.app.jabook.ui.theme.GenreAccentColors
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
 /**
@@ -267,14 +266,14 @@ public fun LibraryScreen(
     // 🎯 Navigator for ListDetailPaneScaffold
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()
 
-    // Track selected book ID locally since navigator's currentDestination is internal
-    var selectedBookId by rememberSaveable { mutableStateOf<String?>(null) }
+    // The selected book id is the navigator's current detail contentKey — the
+    // navigator is saveable, so this survives configuration change (no mirror state).
+    val selectedBookId: String? = navigator.currentDestination?.contentKey
 
     // Handle back navigation from detail pane
     BackHandler(navigator.canNavigateBack()) {
         scope.launch {
             navigator.navigateBack()
-            selectedBookId = null
         }
     }
 
@@ -874,7 +873,6 @@ public fun LibraryScreen(
                                             remember(viewModel, onBookClick) {
                                                 viewModel.createBookActionsProvider(
                                                     onBookClick = { bookId ->
-                                                        selectedBookId = bookId
                                                         scope.launch {
                                                             navigator.navigateTo(
                                                                 ListDetailPaneScaffoldRole.Detail,
@@ -1009,19 +1007,18 @@ public fun LibraryScreen(
                             val selectedBook = books.find { it.id == selectedBookId }
                             val selectedBookChapters by
                                 remember(selectedBookId) {
-                                    selectedBookId?.let { viewModel.observeBookChapters(it) } ?: flowOf(emptyList())
+                                    viewModel.observeBookChapters(selectedBookId)
                                 }.collectAsStateWithLifecycle(initialValue = emptyList())
 
                             BookDetailPane(
                                 book = selectedBook,
                                 chapters = selectedBookChapters,
                                 onPlayClick = {
-                                    selectedBookId?.let { onBookClick(it) }
+                                    onBookClick(selectedBookId)
                                 },
                                 onClose = {
                                     scope.launch {
                                         navigator.navigateBack()
-                                        selectedBookId = null
                                     }
                                 },
                                 onToggleFavorite = {
