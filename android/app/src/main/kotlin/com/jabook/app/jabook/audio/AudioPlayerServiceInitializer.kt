@@ -161,13 +161,7 @@ public class AudioPlayerServiceInitializer(
             )
 
         // 5. PositionManager
-        service.positionManager =
-            PositionManager(
-                context = service,
-                getActivePlayer = { service.getActivePlayer() },
-                packageName = service.packageName,
-                sendBroadcast = { service.sendBroadcast(it) },
-            )
+        service.positionManager = PositionManager()
 
         // 6. CrossfadeHandler
         // Initialize crossfade handler (requires playlistManager)

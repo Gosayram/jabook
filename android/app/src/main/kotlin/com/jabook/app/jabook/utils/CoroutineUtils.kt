@@ -14,16 +14,18 @@
 
 package com.jabook.app.jabook.utils
 
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineExceptionHandler
 
 /**
- * Creates a [CoroutineExceptionHandler] that logs uncaught exceptions via [LogUtils].
+ * Creates a [CoroutineExceptionHandler] that logs uncaught exceptions via [LogUtils]
+ * and reports them to [CrashDiagnostics].
  *
  * Without an explicit handler, exceptions that escape a `SupervisorJob`-based scope
  * are silently dropped on Android (no crash, no log). This handler guarantees that
- * every uncaught exception is at least logged at ERROR level — making production
- * debugging significantly easier.
+ * every uncaught exception is at least logged at ERROR level — and surfaced as a
+ * non-fatal in production — making debugging significantly easier.
  *
  * @param tag Log tag used in [LogUtils.e]. Defaults to "CoroutineException".
  * @return A [CoroutineExceptionHandler] suitable for inclusion in a scope context.
@@ -38,4 +40,5 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 public fun loggingCoroutineExceptionHandler(tag: String = "CoroutineException"): CoroutineExceptionHandler =
     CoroutineExceptionHandler { _, throwable ->
         LogUtils.e(tag, "Uncaught coroutine exception", throwable)
+        CrashDiagnostics.reportNonFatal(tag, throwable, mapOf("scope" to tag))
     }

@@ -284,7 +284,7 @@ public fun SettingsScreen(
                 itemSpacing = itemSpacing,
             )
 
-            var selectedDeviceMode by remember { mutableStateOf("phone") }
+            var selectedDeviceMode by rememberSaveable { mutableStateOf("phone") }
             StackedSegmentedControl(
                 label = stringResource(R.string.deviceAndLayout),
                 options =

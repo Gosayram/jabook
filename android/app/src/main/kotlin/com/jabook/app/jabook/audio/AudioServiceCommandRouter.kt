@@ -157,15 +157,6 @@ internal class AudioServiceCommandRouter(
         updateCrashPlaybackContext()
     }
 
-    fun setPlaybackProgress(
-        filePaths: List<String>,
-        progressSeconds: Double?,
-    ) {
-        getPositionManager()?.setPlaybackProgress(filePaths, progressSeconds) ?: run {
-            LogUtils.e(TAG, "PositionManager not initialized")
-        }
-    }
-
     fun saveCurrentPosition() {
         getPositionManager()?.saveCurrentPosition() ?: run {
             LogUtils.e(TAG, "PositionManager not initialized")

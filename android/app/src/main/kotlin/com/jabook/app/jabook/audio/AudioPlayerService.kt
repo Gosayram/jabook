@@ -864,11 +864,6 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun seekToTrack(index: Int): Unit = commandRouter.seekToTrack(index)
 
-    public fun setPlaybackProgress(
-        filePaths: List<String>,
-        progressSeconds: Double?,
-    ): Unit = commandRouter.setPlaybackProgress(filePaths, progressSeconds)
-
     public fun rewind(seconds: Int = 15): Unit = commandRouter.rewind(seconds)
 
     public fun forward(seconds: Int = 30): Unit = commandRouter.forward(seconds)

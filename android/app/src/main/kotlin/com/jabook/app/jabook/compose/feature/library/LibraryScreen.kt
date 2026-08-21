@@ -166,7 +166,7 @@ public fun LibraryScreen(
     val safeNavigateToDownloads = dropUnlessResumed { navigationClickGuard.run(onNavigateToDownloads) }
     val safeNavigateToSettings = dropUnlessResumed { navigationClickGuard.run(onNavigateToSettings) }
     val safeNavigateToAuth = dropUnlessResumed { navigationClickGuard.run(onNavigateToAuth) }
-    var activeQuickFilter by remember { mutableStateOf(LibraryQuickFilter.ALL) }
+    var activeQuickFilter by rememberSaveable { mutableStateOf(LibraryQuickFilter.ALL) }
     var showSortBottomSheet by remember { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchBarExpanded by remember { mutableStateOf(false) }
@@ -268,7 +268,7 @@ public fun LibraryScreen(
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()
 
     // Track selected book ID locally since navigator's currentDestination is internal
-    var selectedBookId by remember { mutableStateOf<String?>(null) }
+    var selectedBookId by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Handle back navigation from detail pane
     BackHandler(navigator.canNavigateBack()) {

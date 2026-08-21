@@ -53,6 +53,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -526,7 +527,7 @@ private fun EQCurveVisualizer(
     val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
     val textMeasurer = rememberTextMeasurer()
     val axisStyle = TextStyle(fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    var selectedBand by remember { mutableStateOf(-1) }
+    var selectedBand by rememberSaveable { mutableStateOf(-1) }
 
     Canvas(
         modifier =

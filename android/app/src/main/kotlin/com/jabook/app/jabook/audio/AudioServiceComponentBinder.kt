@@ -106,13 +106,7 @@ internal object AudioServiceComponentBinder {
                 getCurrentTrackIndex = { service.actualTrackIndex },
             )
 
-        service.positionManager =
-            PositionManager(
-                context = service,
-                getActivePlayer = { service.getActivePlayer() },
-                packageName = service.packageName,
-                sendBroadcast = { service.sendBroadcast(it) },
-            )
+        service.positionManager = PositionManager()
 
         service.crossfadeHandler =
             CrossfadeHandler(

@@ -14,118 +14,23 @@
 
 package com.jabook.app.jabook.audio
 
-import android.content.Context
-import android.content.Intent
-import androidx.media3.common.C
-import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.util.LogUtils
 
 /**
- * Constants for position saving broadcasts.
+ * Manages playback position operations.
+ *
+ * The legacy Flutter MethodChannel position bridge (setPlaybackProgress /
+ * ACTION_SAVE_POSITION_BEFORE_UNLOAD broadcast) was removed — it had no callers.
+ * Actual persistence happens via [PeriodicPositionSaver] and [CrashSafePositionWriter].
  */
-public object PositionConstants {
-    public const val ACTION_SAVE_POSITION_BEFORE_UNLOAD: String = "com.jabook.app.jabook.audio.SAVE_POSITION_BEFORE_UNLOAD"
-    public const val EXTRA_TRACK_INDEX: String = "trackIndex"
-    public const val EXTRA_POSITION_MS: String = "positionMs"
-}
-
-/**
- * Manages playback position operations (save, restore, seek).
- */
-internal class PositionManager(
-    context: Context,
-    private val getActivePlayer: () -> ExoPlayer,
-    packageName: String,
-    sendBroadcast: (Intent) -> Unit,
-) {
-    public companion object {
-        // Use PositionConstants for public access
-        public const val ACTION_SAVE_POSITION_BEFORE_UNLOAD = PositionConstants.ACTION_SAVE_POSITION_BEFORE_UNLOAD
-        public const val EXTRA_TRACK_INDEX = PositionConstants.EXTRA_TRACK_INDEX
-        public const val EXTRA_POSITION_MS = PositionConstants.EXTRA_POSITION_MS
-    }
-
+internal class PositionManager {
     /**
      * Saves current playback position.
      *
-     * The legacy Flutter MethodChannel broadcast was removed (no registered receiver).
-     * Persistence happens via PeriodicPositionSaver and CrashSafePositionWriter.
+     * No-op: kept for API compatibility with existing call sites.
+     * Real persistence is handled by the periodic and crash-safe savers.
      */
     public fun saveCurrentPosition() {
-        // No-op: kept for API compatibility with existing call sites.
         LogUtils.d("AudioPlayerService", "saveCurrentPosition: handled by periodic/crash-safe savers")
-    }
-
-    /**
-     * Sets playback progress from saved position.
-     *
-     * Inspired by lissen-android: restores playback position across multiple tracks/chapters
-     * using cumulative durations for accurate seeking.
-     *
-     * @param filePaths List of file paths (for reference, actual durations come from MediaItems)
-     * @param progressSeconds Progress in seconds (overall position across all tracks)
-     */
-    public fun setPlaybackProgress(
-        filePaths: List<String>,
-        progressSeconds: Double?,
-    ) {
-        val player = getActivePlayer()
-
-        if (filePaths.isEmpty() || player.mediaItemCount == 0) {
-            LogUtils.w("AudioPlayerService", "Cannot set playback progress: empty file list or no media items")
-            return
-        }
-
-        when (progressSeconds) {
-            null, 0.0 -> {
-                // No saved progress, start from beginning
-                player.seekTo(0, 0L)
-                LogUtils.d("AudioPlayerService", "No saved progress, starting from beginning")
-            }
-            else -> {
-                // Calculate which track and position to seek to
-                val positionMs = (progressSeconds * 1000).toLong()
-
-                // According to best practices: use only real durations from player
-                // Do NOT use approximate estimates (unreliable for VBR, partial downloads, etc.)
-                //
-                // Strategy: Use current track duration if available
-                // If position is within current track, seek to it
-                // Otherwise, we can't accurately determine position across tracks without knowing all durations
-                val currentTrackDuration = player.duration
-                val currentIndex = player.currentMediaItemIndex
-
-                if (currentTrackDuration != C.TIME_UNSET && currentTrackDuration > 0) {
-                    // We have duration for current track
-                    if (positionMs <= currentTrackDuration) {
-                        // Position is within current track - seek to it
-                        LogUtils.d(
-                            "AudioPlayerService",
-                            "Restoring playback position within current track: position=${positionMs}ms (from ${progressSeconds}s)",
-                        )
-                        player.seekTo(currentIndex, positionMs.coerceAtLeast(0L))
-                    } else {
-                        // Position is beyond current track duration
-                        // Without knowing durations of other tracks, we can't accurately determine target track
-                        // According to best practices: don't use unreliable estimates
-                        // Seek to beginning of current track as safe fallback
-                        LogUtils.w(
-                            "AudioPlayerService",
-                            "Cannot accurately restore position across tracks without knowing all durations. Seeking to beginning of current track.",
-                        )
-                        player.seekTo(currentIndex, 0L)
-                    }
-                } else {
-                    // No duration available - can't determine position accurately
-                    // According to best practices: don't use unreliable estimates
-                    // Just seek to beginning as fallback
-                    LogUtils.w(
-                        "AudioPlayerService",
-                        "Cannot restore playback position: duration not available. Seeking to beginning.",
-                    )
-                    player.seekTo(0, 0L)
-                }
-            }
-        }
     }
 }

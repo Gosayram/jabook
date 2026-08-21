@@ -52,6 +52,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -84,8 +86,15 @@ public fun FavoritesScreen(
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
 
-    var isSelectionMode by remember { mutableStateOf(false) }
-    val selectedIds = remember { mutableSetOf<String>() }
+    var isSelectionMode by rememberSaveable { mutableStateOf(false) }
+    val selectedIds =
+        rememberSaveable(
+            saver =
+                listSaver<MutableSet<String>, String>(
+                    save = { it.toList() },
+                    restore = { it.toMutableSet() },
+                ),
+        ) { mutableSetOf<String>() }
     var showClearAllDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
