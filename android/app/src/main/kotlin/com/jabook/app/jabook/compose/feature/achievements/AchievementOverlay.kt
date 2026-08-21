@@ -32,8 +32,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.R
 
 @Immutable
 public data class AchievementUiModel(
@@ -83,7 +85,7 @@ public fun AchievementOverlay(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "Достижение разблокировано",
+                    text = stringResource(R.string.achievementUnlocked),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -105,7 +107,7 @@ public fun AchievementOverlay(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Отлично")
+                    Text(stringResource(R.string.achievementDismiss))
                 }
             }
         }

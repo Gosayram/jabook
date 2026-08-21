@@ -95,8 +95,8 @@ public class IndexingWorker
                 NotificationCompat
                     .Builder(applicationContext, NOTIFICATION_CHANNEL_ID)
                     .setSmallIcon(com.jabook.app.jabook.R.drawable.ic_notification_logo)
-                    .setContentTitle("Индексация аудиокниг")
-                    .setContentText("Подготавливаем офлайн-поиск")
+                    .setContentTitle(applicationContext.getString(com.jabook.app.jabook.R.string.indexingNotificationTitle))
+                    .setContentText(applicationContext.getString(com.jabook.app.jabook.R.string.indexingNotificationBody))
                     .setOngoing(true)
                     .build()
             return ForegroundInfo(

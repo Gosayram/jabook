@@ -108,6 +108,9 @@ internal class AudioServiceReleaseHandler(
         service.phoneCallListener?.stopListening()
         service.phoneCallListener = null
 
+        service.notificationProviderRef?.release()
+        service.notificationProviderRef = null
+
         service.headsetAutoplayHandler?.stopListening()
         service.headsetAutoplayHandler = null
 

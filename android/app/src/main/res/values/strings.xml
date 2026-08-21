@@ -3054,4 +3054,10 @@
     <string name="cfProtected">CF Protected</string>
     <!-- Fallback chapter name for bookmarks -->
     <string name="chapterFallback">Chapter %1$d</string>
+    <!-- Achievement overlay -->
+    <string name="achievementUnlocked">Achievement unlocked</string>
+    <string name="achievementDismiss">Great</string>
+    <!-- Indexing worker notification -->
+    <string name="indexingNotificationTitle">Indexing audiobooks</string>
+    <string name="indexingNotificationBody">Preparing offline search</string>
 </resources>

@@ -3095,4 +3095,10 @@
     <string name="cfProtected">Защита CF</string>
     <!-- Имя главы по умолчанию для закладок -->
     <string name="chapterFallback">Глава %1$d</string>
+    <!-- Панель достижений -->
+    <string name="achievementUnlocked">Достижение разблокировано</string>
+    <string name="achievementDismiss">Отлично</string>
+    <!-- Уведомление воркера индексации -->
+    <string name="indexingNotificationTitle">Индексация аудиокниг</string>
+    <string name="indexingNotificationBody">Подготавливаем офлайн-поиск</string>
 </resources>

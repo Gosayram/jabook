@@ -205,7 +205,7 @@ public class AudioPlayerService : MediaLibraryService() {
         )
 
     private var chapterNotificationJob: Job? = null
-    private var notificationProviderRef: AudioPlayerNotificationProvider? = null
+    internal var notificationProviderRef: AudioPlayerNotificationProvider? = null
 
     // ponytail: mutable field for notification subtitle override, stored on AudioPlayerNotificationProvider
     @Volatile

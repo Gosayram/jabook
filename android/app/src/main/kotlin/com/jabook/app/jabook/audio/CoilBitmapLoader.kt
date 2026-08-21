@@ -33,6 +33,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
@@ -55,6 +56,13 @@ public class CoilBitmapLoader(
 ) : BitmapLoader {
     // CoroutineScope for Coil operations to avoid blocking UI thread
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    /**
+     * Cancels pending Coil operations. Call when the owning service is released.
+     */
+    public fun release() {
+        scope.cancel()
+    }
 
     // Maximum artwork size for notifications (recommended by Android)
     private val maxArtworkWidth = 512

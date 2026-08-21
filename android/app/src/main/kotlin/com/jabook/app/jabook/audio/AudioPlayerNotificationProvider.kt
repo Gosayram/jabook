@@ -82,6 +82,13 @@ public class AudioPlayerNotificationProvider(
     private var notificationCallback: MediaNotification.Provider.Callback? = null
     private var lastNotification: MediaNotification? = null
 
+    /**
+     * Releases internal resources (Coil scope). Call during service teardown.
+     */
+    public fun release() {
+        coilBitmapLoader.release()
+    }
+
     // Cached notification action slots — kept fresh by a collector in playerServiceScope
     // so filterCustomLayout never blocks the main thread with a DataStore read.
     @Volatile
