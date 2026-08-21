@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.feature.library
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -62,6 +61,8 @@ import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
+import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
+import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldPredictiveBackHandler
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -270,9 +271,16 @@ public fun LibraryScreen(
     // navigator is saveable, so this survives configuration change (no mirror state).
     val selectedBookId: String? = navigator.currentDestination?.contentKey
 
-    // Handle back navigation from detail pane
-    BackHandler(navigator.canNavigateBack()) {
-        scope.launch {
+    // Predictive back: animated detail-pane closure (adaptive-navigation 1.3.0)
+    ThreePaneScaffoldPredictiveBackHandler(
+        navigator,
+        BackNavigationBehavior.PopUntilContentChange,
+    )
+
+    // Clear detail selection when collapsing to compact — the detail pane is
+    // hidden but navigator state persists, causing stale detail on re-expand.
+    LaunchedEffect(isCompact) {
+        if (isCompact && navigator.canNavigateBack()) {
             navigator.navigateBack()
         }
     }

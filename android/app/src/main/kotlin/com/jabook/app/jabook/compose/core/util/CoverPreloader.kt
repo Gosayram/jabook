@@ -134,7 +134,9 @@ private class CoverPreloader(
                 try {
                     val coverModel = CoverUtils.getCoverModel(book, context) ?: return@forEach
 
-                    // Create ImageRequest for preloading
+                    // Create ImageRequest for preloading — constrain decode size so
+                    // standalone enqueue doesn't decode at full resolution (unlike
+                    // AsyncImage which resolves from composition constraints).
                     val imageRequest =
                         CoverUtils
                             .createCoverImageRequest(
@@ -150,7 +152,8 @@ private class CoverPreloader(
                                     androidx.compose.ui.graphics
                                         .Color(0xFFE0E0E0),
                                 cornerRadius = 8f,
-                            ).build()
+                            ).size(200, 280)
+                            .build()
 
                     // Enqueue for background loading
                     imageLoader.enqueue(imageRequest)

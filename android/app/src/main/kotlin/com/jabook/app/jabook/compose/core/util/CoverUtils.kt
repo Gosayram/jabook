@@ -170,8 +170,9 @@ public object CoverUtils {
                 .error(ColorDrawable(errorColor.toArgb()).asImage())
                 .fallback(ColorDrawable(resolvedFallbackColor.toArgb()).asImage())
 
-        // Note: size parameter is kept for API compatibility but not used in Coil3
-        // Coil3 automatically optimizes image sizes based on display requirements
+        // Note: standalone enqueue calls should use .size() on the builder to
+        // constrain decode dimensions. AsyncImage resolves size from composition
+        // constraints automatically; enqueue does not.
 
         if (transformations.isNotEmpty()) {
             builder.transformations(transformations)
