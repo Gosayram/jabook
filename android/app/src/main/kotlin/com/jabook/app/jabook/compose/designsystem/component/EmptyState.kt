@@ -14,6 +14,9 @@
 
 package com.jabook.app.jabook.compose.designsystem.component
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -58,44 +61,49 @@ public fun EmptyState(
 ) {
     val resolvedTitle = title ?: message
     val resolvedSubtitle = subtitle
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+    AnimatedVisibility(
+        visible = true,
+        enter = fadeIn() + slideInVertically(initialOffsetY = { it / 4 }),
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = stringResource(R.string.empty),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 16.dp),
-        )
+        Column(
+            modifier =
+                modifier
+                    .fillMaxSize()
+                    .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = stringResource(R.string.empty),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 16.dp),
+            )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = resolvedTitle,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-        )
-
-        if (!resolvedSubtitle.isNullOrBlank()) {
             Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = resolvedSubtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = resolvedTitle,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )
-        }
 
-        if (!ctaText.isNullOrBlank() && onCta != null) {
-            Spacer(modifier = Modifier.height(20.dp))
-            FilledTonalButton(onClick = onCta) {
-                Text(text = ctaText)
+            if (!resolvedSubtitle.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = resolvedSubtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
+
+            if (!ctaText.isNullOrBlank() && onCta != null) {
+                Spacer(modifier = Modifier.height(20.dp))
+                FilledTonalButton(onClick = onCta) {
+                    Text(text = ctaText)
+                }
             }
         }
     }

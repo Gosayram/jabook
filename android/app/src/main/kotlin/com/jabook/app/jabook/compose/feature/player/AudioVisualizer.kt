@@ -146,7 +146,8 @@ private fun WaveformVisualizer(
         val path =
             Path().apply {
                 val sampleWidth = width / waveformData.size
-                moveTo(0f, centerY)
+                var previousX = 0f
+                var previousY = centerY
 
                 waveformData.forEachIndexed { index, amplitude ->
                     val x = index * sampleWidth
@@ -154,8 +155,12 @@ private fun WaveformVisualizer(
                     if (index == 0) {
                         moveTo(x, y)
                     } else {
-                        lineTo(x, y)
+                        val cp1x = (x + previousX) / 2f
+                        val cp2x = (x + previousX) / 2f
+                        cubicTo(cp1x, previousY, cp2x, y, x, y)
                     }
+                    previousX = x
+                    previousY = y
                 }
             }
 
@@ -323,14 +328,21 @@ private fun MinimalVisualizer(
 
         val path =
             Path().apply {
+                var previousX = 0f
+                var previousY = centerY
+
                 waveformData.forEachIndexed { index, amplitude ->
                     val x = index * stepX
                     val y = centerY - (amplitude * centerY * 0.6f)
                     if (index == 0) {
                         moveTo(x, y)
                     } else {
-                        lineTo(x, y)
+                        val cp1x = (x + previousX) / 2f
+                        val cp2x = (x + previousX) / 2f
+                        cubicTo(cp1x, previousY, cp2x, y, x, y)
                     }
+                    previousX = x
+                    previousY = y
                 }
             }
 
