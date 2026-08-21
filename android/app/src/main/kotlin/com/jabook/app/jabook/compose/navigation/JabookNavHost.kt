@@ -60,11 +60,8 @@ public fun JabookNavHost(
 ) {
     val navController = appState.navController
 
-    // A regular handler is correct until this graph renders a predictive-back preview.
-    val canNavigateBack = navController.previousBackStackEntry != null
-    androidx.activity.compose.BackHandler(enabled = canNavigateBack) {
-        navController.popBackStack()
-    }
+    // NavHost handles back navigation internally via its own BackHandler (dispatcher
+    // callback). No manual handler needed — it would shadow predictive-back support.
 
     // Log navigation changes
     val currentBackStackEntry by navController.currentBackStackEntryAsState()

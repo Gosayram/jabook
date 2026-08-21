@@ -71,6 +71,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -126,7 +127,7 @@ public fun TopicScreen(
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
-    var commentsExpanded by remember { mutableStateOf(false) }
+    var commentsExpanded by rememberSaveable { mutableStateOf(false) }
 
     // Show messages
     LaunchedEffect(viewModel) {
@@ -726,7 +727,7 @@ private fun ExpandableDescription(
     onNavigateToTopic: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
 
     // Get window size class for adaptive sizing
@@ -900,6 +901,7 @@ private fun ExpandableComments(
                 itemsIndexed(
                     items = comments,
                     key = { _, comment -> comment.id },
+                    contentType = { _, _ -> "comment" },
                 ) { _, comment ->
                     CommentItem(
                         comment = comment,
@@ -909,7 +911,7 @@ private fun ExpandableComments(
 
                 // Loading indicator at bottom
                 if (isLoadingMore || currentPage < totalPages) {
-                    item {
+                    item(contentType = { "footer" }) {
                         Box(
                             modifier =
                                 Modifier
