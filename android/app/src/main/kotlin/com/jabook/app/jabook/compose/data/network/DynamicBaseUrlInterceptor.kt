@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.network
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
@@ -93,10 +94,14 @@ public class DynamicBaseUrlInterceptor
                         response.close() // Close failed response
 
                         val switchStartTime = System.currentTimeMillis()
+                        // ponytail: runBlocking is unavoidable in OkHttp interceptors
+                        // (synchronous API). 15s timeout prevents dispatcher starvation.
                         val switched =
                             runBlocking {
-                                mirrorManager.switchToNextMirror()
-                            }
+                                withTimeoutOrNull(15_000L) {
+                                    mirrorManager.switchToNextMirror()
+                                }
+                            } == true
                         val switchDuration = System.currentTimeMillis() - switchStartTime
 
                         if (switched) {
@@ -182,10 +187,14 @@ public class DynamicBaseUrlInterceptor
                     }
 
                     val switchStartTime = System.currentTimeMillis()
+                    // ponytail: runBlocking is unavoidable in OkHttp interceptors
+                    // (synchronous API). 15s timeout prevents dispatcher starvation.
                     val switched =
                         runBlocking {
-                            mirrorManager.switchToNextMirror()
-                        }
+                            withTimeoutOrNull(15_000L) {
+                                mirrorManager.switchToNextMirror()
+                            }
+                        } == true
                     val switchDuration = System.currentTimeMillis() - switchStartTime
 
                     if (switched) {

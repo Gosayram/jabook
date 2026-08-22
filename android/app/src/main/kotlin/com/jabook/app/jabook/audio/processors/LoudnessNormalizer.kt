@@ -148,6 +148,19 @@ public class LoudnessNormalizer(
     override fun getOutput(): ByteBuffer {
         if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
         if (!isActive || queuedInputBytes == 0) {
+            // ponytail: when inactive but input was queued, pass through instead of
+            // returning EMPTY_BUFFER which silently drops audio.
+            if (!isActive && queuedInputBytes > 0) {
+                val passThrough =
+                    ByteBuffer.allocateDirect(queuedInputBytes).order(ByteOrder.nativeOrder())
+                queuedInputBuffer?.let {
+                    it.flip()
+                    passThrough.put(it)
+                }
+                queuedInputBytes = 0
+                queuedInputBuffer = null
+                return passThrough
+            }
             return EMPTY_BUFFER
         }
 

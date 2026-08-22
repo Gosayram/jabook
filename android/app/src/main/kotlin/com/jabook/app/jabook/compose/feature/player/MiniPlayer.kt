@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.graphics.drawable.ColorDrawable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -53,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -67,6 +69,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.crossfade
+import coil3.request.error
+import coil3.request.placeholder
 import coil3.request.transformations
 import coil3.transform.RoundedCornersTransformation
 import com.jabook.app.jabook.R
@@ -252,11 +257,15 @@ public fun MiniPlayer(
             val context = LocalContext.current
             val displayDensity = context.resources.displayMetrics.density
             val cornerRadiusPx = 8f * displayDensity // 8dp rounded corners for mini player
+            val surfaceVariantArgb = MaterialTheme.colorScheme.surfaceVariant.toArgb()
             val imageRequest =
-                remember(coverUrl, context) {
+                remember(coverUrl, context, surfaceVariantArgb) {
                     ImageRequest
                         .Builder(context)
                         .data(coverUrl)
+                        .crossfade(true)
+                        .placeholder(ColorDrawable(surfaceVariantArgb))
+                        .error(ColorDrawable(surfaceVariantArgb))
                         .transformations(RoundedCornersTransformation(cornerRadiusPx))
                         .build()
                 }

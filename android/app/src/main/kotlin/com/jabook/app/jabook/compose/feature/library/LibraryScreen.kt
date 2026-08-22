@@ -14,6 +14,15 @@
 
 package com.jabook.app.jabook.compose.feature.library
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +39,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -55,8 +65,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
@@ -64,19 +78,25 @@ import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import androidx.compose.material3.adaptive.navigation.ThreePaneScaffoldPredictiveBackHandler
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.isCtrlPressed
@@ -87,13 +107,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.SideEffect
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
+import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.designsystem.component.BookActionsBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.ChipRow
@@ -134,7 +157,7 @@ import kotlinx.coroutines.launch
 @OptIn(
     ExperimentalMaterial3Api::class,
     ExperimentalMaterial3AdaptiveApi::class,
-    androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi::class,
+    ExperimentalMaterial3WindowSizeClassApi::class,
 )
 @Composable
 public fun LibraryScreen(
@@ -149,8 +172,8 @@ public fun LibraryScreen(
     onMenuClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
-    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
-    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
@@ -158,8 +181,8 @@ public fun LibraryScreen(
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
     val selectedBook by viewModel.selectedBookForProperties.collectAsStateWithLifecycle()
 
-    val snackbarHostState = androidx.compose.runtime.remember { androidx.compose.material3.SnackbarHostState() }
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateToFavorites = dropUnlessResumed { navigationClickGuard.run(onNavigateToFavorites) }
     val safeNavigateToSearch = dropUnlessResumed { navigationClickGuard.run(onNavigateToSearch) }
@@ -206,9 +229,9 @@ public fun LibraryScreen(
 
     // Permission launcher for scanning
     val permissionLauncher =
-        androidx.activity.compose.rememberLauncherForActivityResult(
+        rememberLauncherForActivityResult(
             contract =
-                androidx.activity.result.contract.ActivityResultContracts
+                ActivityResultContracts
                     .RequestPermission(),
         ) { isGranted ->
             if (isGranted) {
@@ -221,9 +244,9 @@ public fun LibraryScreen(
         }
 
     val coverPickerLauncher =
-        androidx.activity.compose.rememberLauncherForActivityResult(
+        rememberLauncherForActivityResult(
             contract =
-                androidx.activity.result.contract.ActivityResultContracts
+                ActivityResultContracts
                     .PickVisualMedia(),
         ) { uri ->
             val selectedBookId = selectedBook?.id ?: return@rememberLauncherForActivityResult
@@ -243,7 +266,7 @@ public fun LibraryScreen(
         }
 
     // One-shot UI side effects (scan result snackbars) — each consumed once.
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         viewModel.sideEffects.collect { effect ->
             if (effect is SideEffect.ShowSnackbar) {
                 snackbarHostState.showSnackbar(effect.message)
@@ -258,11 +281,11 @@ public fun LibraryScreen(
     val wsc = LocalWindowSizeClass.current
     val windowSizeClass =
         wsc?.let {
-            com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+            AdaptiveUtils
                 .resolveWindowSizeClassOrNull(it, context)
         } ?: wsc
     val isCompact =
-        windowSizeClass?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
+        windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
 
     // 🎯 Navigator for ListDetailPaneScaffold
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()
@@ -287,11 +310,11 @@ public fun LibraryScreen(
 
     // Premium Background Gradient
     val backgroundGradient =
-        androidx.compose.ui.graphics.Brush.verticalGradient(
+        Brush.verticalGradient(
             colors =
                 listOf(
-                    androidx.compose.material3.MaterialTheme.colorScheme.background,
-                    androidx.compose.material3.MaterialTheme.colorScheme.surface,
+                    MaterialTheme.colorScheme.background,
+                    MaterialTheme.colorScheme.surface,
                 ),
         )
 
@@ -316,14 +339,14 @@ public fun LibraryScreen(
             // applies statusBars insets itself (windowInsets below), so they are zeroed here to
             // prevent double inset padding.
             Scaffold(
-                containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 topBar = {
                     TopAppBar(
                         title = {
                             Text(
                                 text = stringResource(R.string.libraryTitle),
-                                style = androidx.compose.material3.MaterialTheme.typography.headlineSmall,
+                                style = MaterialTheme.typography.headlineSmall,
                             )
                         },
                         navigationIcon = {
@@ -336,9 +359,9 @@ public fun LibraryScreen(
                         },
                         windowInsets = WindowInsets.statusBars,
                         colors =
-                            androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                                containerColor = androidx.compose.ui.graphics.Color.Transparent,
-                                scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                            TopAppBarDefaults.topAppBarColors(
+                                containerColor = Color.Transparent,
+                                scrolledContainerColor = Color.Transparent,
                             ),
                         actions = {
                             IconButton(onClick = safeNavigateToSearch) {
@@ -360,31 +383,31 @@ public fun LibraryScreen(
                                 ) {
                                     val currentSortLabel =
                                         when (sortOrder) {
-                                            com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY ->
+                                            BookSortOrder.BY_ACTIVITY ->
                                                 stringResource(
                                                     R.string.sort_by_activity,
                                                 )
-                                            com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_ASC ->
+                                            BookSortOrder.TITLE_ASC ->
                                                 stringResource(
                                                     R.string.sort_title_asc,
                                                 )
-                                            com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_DESC ->
+                                            BookSortOrder.TITLE_DESC ->
                                                 stringResource(
                                                     R.string.sort_title_desc,
                                                 )
-                                            com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_ASC ->
+                                            BookSortOrder.AUTHOR_ASC ->
                                                 stringResource(
                                                     R.string.sort_author_asc,
                                                 )
-                                            com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_DESC ->
+                                            BookSortOrder.AUTHOR_DESC ->
                                                 stringResource(
                                                     R.string.sort_author_desc,
                                                 )
-                                            com.jabook.app.jabook.compose.data.model.BookSortOrder.RECENTLY_ADDED ->
+                                            BookSortOrder.RECENTLY_ADDED ->
                                                 stringResource(
                                                     R.string.sort_recently_added,
                                                 )
-                                            com.jabook.app.jabook.compose.data.model.BookSortOrder.OLDEST_FIRST ->
+                                            BookSortOrder.OLDEST_FIRST ->
                                                 stringResource(
                                                     R.string.sort_oldest_first,
                                                 )
@@ -511,7 +534,7 @@ public fun LibraryScreen(
                 val isRefreshing = scanState is ScanState.Scanning
                 val pullToRefreshState = rememberPullToRefreshState()
                 Column(modifier = Modifier.padding(padding).fillMaxSize()) {
-                    androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                    PullToRefreshBox(
                         state = pullToRefreshState,
                         isRefreshing = isRefreshing,
                         onRefresh = {
@@ -519,17 +542,17 @@ public fun LibraryScreen(
                                 return@PullToRefreshBox
                             }
                             val permission =
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                    android.Manifest.permission.READ_MEDIA_AUDIO
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    Manifest.permission.READ_MEDIA_AUDIO
                                 } else {
-                                    android.Manifest.permission.READ_EXTERNAL_STORAGE
+                                    Manifest.permission.READ_EXTERNAL_STORAGE
                                 }
                             // Check permission and start scan using pre-obtained context
                             val hasPermission =
-                                androidx.core.content.ContextCompat.checkSelfPermission(
+                                ContextCompat.checkSelfPermission(
                                     context,
                                     permission,
-                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                ) == PackageManager.PERMISSION_GRANTED
 
                             if (hasPermission) {
                                 viewModel.startLibraryScan()
@@ -542,8 +565,8 @@ public fun LibraryScreen(
                                 state = pullToRefreshState,
                                 isRefreshing = isRefreshing,
                                 modifier = Modifier.align(Alignment.TopCenter),
-                                containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
-                                color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                color = MaterialTheme.colorScheme.primary,
                             )
                         },
                         modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -678,10 +701,9 @@ public fun LibraryScreen(
                         book = book,
                         onPickCover = {
                             coverPickerLauncher.launch(
-                                androidx.activity.result.PickVisualMediaRequest(
+                                PickVisualMediaRequest(
                                     mediaType =
-                                        androidx.activity.result.contract
-                                            .ActivityResultContracts.PickVisualMedia.ImageOnly,
+                                        ActivityResultContracts.PickVisualMedia.ImageOnly,
                                 ),
                             )
                         },
@@ -698,13 +720,13 @@ public fun LibraryScreen(
                     AnimatedPane {
                         // List pane content - book library
                         Scaffold(
-                            containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                            containerColor = Color.Transparent,
                             topBar = {
                                 TopAppBar(
                                     title = {
                                         Text(
                                             text = stringResource(R.string.libraryTitle),
-                                            style = androidx.compose.material3.MaterialTheme.typography.headlineSmall,
+                                            style = MaterialTheme.typography.headlineSmall,
                                         )
                                     },
                                     navigationIcon = {
@@ -716,9 +738,9 @@ public fun LibraryScreen(
                                         }
                                     },
                                     colors =
-                                        androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
-                                            containerColor = androidx.compose.ui.graphics.Color.Transparent,
-                                            scrolledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                                        TopAppBarDefaults.topAppBarColors(
+                                            containerColor = Color.Transparent,
+                                            scrolledContainerColor = Color.Transparent,
                                         ),
                                     actions = {
                                         IconButton(onClick = safeNavigateToSearch) {
@@ -824,7 +846,7 @@ public fun LibraryScreen(
                         ) { padding ->
                             val isRefreshing = scanState is ScanState.Scanning
                             val pullToRefreshState = rememberPullToRefreshState()
-                            androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                            PullToRefreshBox(
                                 state = pullToRefreshState,
                                 isRefreshing = isRefreshing,
                                 onRefresh = {
@@ -832,16 +854,16 @@ public fun LibraryScreen(
                                         return@PullToRefreshBox
                                     }
                                     val permission =
-                                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                            android.Manifest.permission.READ_MEDIA_AUDIO
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                            Manifest.permission.READ_MEDIA_AUDIO
                                         } else {
-                                            android.Manifest.permission.READ_EXTERNAL_STORAGE
+                                            Manifest.permission.READ_EXTERNAL_STORAGE
                                         }
                                     val hasPermission =
-                                        androidx.core.content.ContextCompat.checkSelfPermission(
+                                        ContextCompat.checkSelfPermission(
                                             context,
                                             permission,
-                                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                        ) == PackageManager.PERMISSION_GRANTED
 
                                     if (hasPermission) {
                                         viewModel.startLibraryScan()
@@ -854,8 +876,8 @@ public fun LibraryScreen(
                                         state = pullToRefreshState,
                                         isRefreshing = isRefreshing,
                                         modifier = Modifier.align(Alignment.TopCenter),
-                                        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        color = MaterialTheme.colorScheme.primary,
                                     )
                                 },
                                 modifier = Modifier.padding(padding).fillMaxSize(),
@@ -995,10 +1017,9 @@ public fun LibraryScreen(
                                     book = book,
                                     onPickCover = {
                                         coverPickerLauncher.launch(
-                                            androidx.activity.result.PickVisualMediaRequest(
+                                            PickVisualMediaRequest(
                                                 mediaType =
-                                                    androidx.activity.result.contract
-                                                        .ActivityResultContracts.PickVisualMedia.ImageOnly,
+                                                    ActivityResultContracts.PickVisualMedia.ImageOnly,
                                             ),
                                         )
                                     },
@@ -1045,22 +1066,21 @@ public fun LibraryScreen(
         }
 
         // Adaptive Snackbar (bottom, compact, themed)
-        androidx.compose.material3.SnackbarHost(
+        SnackbarHost(
             hostState = snackbarHostState,
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
-                    .windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.navigationBars)
+                    .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 16.dp),
             snackbar = { snackbarData ->
-                androidx.compose.material3.Snackbar(
+                Snackbar(
                     snackbarData = snackbarData,
-                    containerColor = androidx.compose.material3.MaterialTheme.colorScheme.inverseSurface,
-                    contentColor = androidx.compose.material3.MaterialTheme.colorScheme.inverseOnSurface,
+                    containerColor = MaterialTheme.colorScheme.inverseSurface,
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
                     shape =
-                        androidx.compose.foundation.shape
-                            .RoundedCornerShape(12.dp),
+                        RoundedCornerShape(12.dp),
                     // Compact on tablets
                     modifier = Modifier.widthIn(max = 600.dp),
                 )
@@ -1082,12 +1102,12 @@ public fun LibraryScreen(
                             .orEmpty(),
                     onShareBook = {
                         val shareIntent =
-                            android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
-                                putExtra(android.content.Intent.EXTRA_TEXT, "${book.title} — ${book.author}")
+                                putExtra(Intent.EXTRA_TEXT, "${book.title} — ${book.author}")
                             }
                         context.startActivity(
-                            android.content.Intent.createChooser(
+                            Intent.createChooser(
                                 shareIntent,
                                 context.getString(R.string.share),
                             ),
@@ -1234,35 +1254,35 @@ private fun LibraryViewMode.isGrid(): Boolean = this == LibraryViewMode.GRID_COM
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 private fun SortOrderBottomSheet(
-    currentSortOrder: com.jabook.app.jabook.compose.data.model.BookSortOrder,
-    onSortOrderChanged: (com.jabook.app.jabook.compose.data.model.BookSortOrder) -> Unit,
+    currentSortOrder: BookSortOrder,
+    onSortOrderChanged: (BookSortOrder) -> Unit,
     onDismiss: () -> Unit,
 ) {
     JabookModalBottomSheet(onDismissRequest = onDismiss) {
         Text(
             text = stringResource(R.string.sort_by),
-            style = androidx.compose.material3.MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
-        com.jabook.app.jabook.compose.data.model.BookSortOrder.entries.forEach { order ->
+        BookSortOrder.entries.forEach { order ->
             ListItem(
                 headlineContent = {
                     Text(
                         text =
                             when (order) {
-                                com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY ->
+                                BookSortOrder.BY_ACTIVITY ->
                                     stringResource(R.string.sort_by_activity)
-                                com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_ASC ->
+                                BookSortOrder.TITLE_ASC ->
                                     stringResource(R.string.sort_title_asc)
-                                com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_DESC ->
+                                BookSortOrder.TITLE_DESC ->
                                     stringResource(R.string.sort_title_desc)
-                                com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_ASC ->
+                                BookSortOrder.AUTHOR_ASC ->
                                     stringResource(R.string.sort_author_asc)
-                                com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_DESC ->
+                                BookSortOrder.AUTHOR_DESC ->
                                     stringResource(R.string.sort_author_desc)
-                                com.jabook.app.jabook.compose.data.model.BookSortOrder.RECENTLY_ADDED ->
+                                BookSortOrder.RECENTLY_ADDED ->
                                     stringResource(R.string.sort_recently_added)
-                                com.jabook.app.jabook.compose.data.model.BookSortOrder.OLDEST_FIRST ->
+                                BookSortOrder.OLDEST_FIRST ->
                                     stringResource(R.string.sort_oldest_first)
                             },
                     )
@@ -1317,7 +1337,7 @@ private fun LibraryQuickFilterChips(
     modifier: Modifier = Modifier,
 ) {
     val currentCount = bookCounts[activeFilter] ?: 0
-    androidx.compose.foundation.layout.Column(
+    Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -1361,9 +1381,9 @@ private fun LibraryQuickFilterChips(
  * Converts LibraryViewMode to BookDisplayMode.
  * Temporary helper during migration period.
  */
-private fun LibraryViewMode.toBookDisplayMode(): com.jabook.app.jabook.compose.domain.model.BookDisplayMode =
+private fun LibraryViewMode.toBookDisplayMode(): BookDisplayMode =
     when (this) {
-        LibraryViewMode.LIST_COMPACT -> com.jabook.app.jabook.compose.domain.model.BookDisplayMode.LIST_COMPACT
-        LibraryViewMode.GRID_COMPACT -> com.jabook.app.jabook.compose.domain.model.BookDisplayMode.GRID_COMPACT
-        LibraryViewMode.GRID_COMFORTABLE -> com.jabook.app.jabook.compose.domain.model.BookDisplayMode.GRID_COMFORTABLE
+        LibraryViewMode.LIST_COMPACT -> BookDisplayMode.LIST_COMPACT
+        LibraryViewMode.GRID_COMPACT -> BookDisplayMode.GRID_COMPACT
+        LibraryViewMode.GRID_COMFORTABLE -> BookDisplayMode.GRID_COMFORTABLE
     }

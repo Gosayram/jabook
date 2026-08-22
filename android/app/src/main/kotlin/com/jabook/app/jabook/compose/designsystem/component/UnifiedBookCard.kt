@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.designsystem.component
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
@@ -37,6 +39,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,9 +48,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -55,6 +60,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -103,7 +109,7 @@ public fun UnifiedBookCard(
     windowSizeClass: WindowSizeClass? = null,
 ) {
     // Log if book has invalid/empty data
-    androidx.compose.runtime.LaunchedEffect(book.id) {
+    LaunchedEffect(book.id) {
         val hasEmptyTitle = book.title.isBlank()
         val hasEmptyAuthor = book.author.isBlank()
         val hasEmptyId = book.id.isBlank()
@@ -164,18 +170,17 @@ private fun GridBookCard(
     // Ponytail: non-null fallback avoids scattering null checks across AdaptiveUtils calls
     val effectiveWSC =
         windowSizeClass ?: WindowSizeClass.calculateFromSize(
-            androidx.compose.ui.unit
-                .DpSize(360.dp, 800.dp),
+            DpSize(360.dp, 800.dp),
         )
     val isFavorite = actionsProvider.isFavorite(book.id)
 
     // Glassmorphic Card Style
     val glassColors =
-        androidx.compose.material3.CardDefaults.cardColors(
+        CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
         )
     val glassBorder =
-        androidx.compose.foundation.BorderStroke(
+        BorderStroke(
             width = 1.dp,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
         )
@@ -240,8 +245,7 @@ private fun GridBookCard(
                             width = 0.5.dp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                             shape =
-                                androidx.compose.foundation.shape
-                                    .RoundedCornerShape(8.dp),
+                                RoundedCornerShape(8.dp),
                         ),
             )
 
@@ -295,15 +299,14 @@ private fun GridBookCard(
                             .padding(8.dp),
                 )
             } else if (book.isCompleted) {
-                androidx.compose.foundation.layout.Box(
+                Box(
                     modifier =
                         Modifier
                             .align(Alignment.TopStart)
                             .padding(8.dp)
                             .background(
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                                androidx.compose.foundation.shape
-                                    .RoundedCornerShape(4.dp),
+                                RoundedCornerShape(4.dp),
                             ).padding(horizontal = 6.dp, vertical = 2.dp),
                 ) {
                     Text(
@@ -323,8 +326,8 @@ private fun GridBookCard(
                             Brush.verticalGradient(
                                 colors =
                                     listOf(
-                                        androidx.compose.ui.graphics.Color.Transparent,
-                                        androidx.compose.ui.graphics.Color.Black
+                                        Color.Transparent,
+                                        Color.Black
                                             .copy(alpha = 0.78f),
                                     ),
                             ),
@@ -338,7 +341,7 @@ private fun GridBookCard(
                                 MaterialTheme.typography.titleSmall,
                                 effectiveWSC,
                             ),
-                        color = androidx.compose.ui.graphics.Color.White,
+                        color = Color.White,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         lineHeight = MaterialTheme.typography.titleSmall.lineHeight,
@@ -352,7 +355,7 @@ private fun GridBookCard(
                                     effectiveWSC,
                                 ),
                             color =
-                                androidx.compose.ui.graphics.Color.White
+                                Color.White
                                     .copy(alpha = 0.85f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -363,7 +366,7 @@ private fun GridBookCard(
                             text = book.narrator,
                             style = MaterialTheme.typography.labelSmall,
                             color =
-                                androidx.compose.ui.graphics.Color.White
+                                Color.White
                                     .copy(alpha = 0.7f),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -380,7 +383,7 @@ private fun GridBookCard(
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth(),
                     trackColor =
-                        androidx.compose.ui.graphics.Color.White
+                        Color.White
                             .copy(alpha = 0.2f),
                     progressColor = MaterialTheme.colorScheme.primary,
                     height = 2.dp,
@@ -410,8 +413,7 @@ private fun ListBookCard(
     // Ponytail: non-null fallback avoids scattering null checks across AdaptiveUtils calls
     val effectiveWSC =
         windowSizeClass ?: WindowSizeClass.calculateFromSize(
-            androidx.compose.ui.unit
-                .DpSize(360.dp, 800.dp),
+            DpSize(360.dp, 800.dp),
         )
     val isFavorite = actionsProvider.isFavorite(book.id)
     // Use adaptive cover size based on WindowSizeClass
@@ -424,11 +426,11 @@ private fun ListBookCard(
 
     // Glassmorphic Card Style
     val glassColors =
-        androidx.compose.material3.CardDefaults.cardColors(
+        CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
         )
     val glassBorder =
-        androidx.compose.foundation.BorderStroke(
+        BorderStroke(
             width = 1.dp,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
         )
@@ -491,8 +493,7 @@ private fun ListBookCard(
                                 width = 0.5.dp,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                                 shape =
-                                    androidx.compose.foundation.shape
-                                        .RoundedCornerShape(8.dp),
+                                    RoundedCornerShape(8.dp),
                             ),
                 )
 
@@ -545,7 +546,7 @@ private fun ListBookCard(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Filled.Headphones,
+                            imageVector = Icons.Filled.Headphones,
                             contentDescription = null,
                             modifier = Modifier.size(14.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -566,7 +567,7 @@ private fun ListBookCard(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Filled.Check,
+                            imageVector = Icons.Filled.Check,
                             contentDescription = null,
                             modifier = Modifier.size(12.dp),
                             tint = MaterialTheme.colorScheme.primary,
@@ -585,7 +586,7 @@ private fun ListBookCard(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Filled.Timer,
+                                imageVector = Icons.Filled.Timer,
                                 contentDescription = null,
                                 modifier = Modifier.size(12.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -606,7 +607,7 @@ private fun ListBookCard(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Filled.Schedule,
+                                imageVector = Icons.Filled.Schedule,
                                 contentDescription = null,
                                 modifier = Modifier.size(12.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
@@ -703,8 +704,7 @@ private fun DownloadStatusBadge(
                 .background(
                     color = containerColor,
                     shape =
-                        androidx.compose.foundation.shape
-                            .RoundedCornerShape(999.dp),
+                        RoundedCornerShape(999.dp),
                 ).padding(horizontal = 8.dp, vertical = 4.dp),
     )
 }
@@ -730,8 +730,7 @@ private fun DownloadProgressBadge(
                     .background(
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f),
                         shape =
-                            androidx.compose.foundation.shape
-                                .RoundedCornerShape(999.dp),
+                            RoundedCornerShape(999.dp),
                     ).padding(horizontal = 8.dp, vertical = 4.dp),
         )
     }

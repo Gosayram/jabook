@@ -14,6 +14,9 @@
 
 package com.jabook.app.jabook.compose.feature.library
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,6 +26,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -46,7 +51,7 @@ import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
  * - Favorites
  * - All Books
  */
-@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 public fun EnhancedLibraryContent(
     allBooks: List<Book>,
@@ -56,8 +61,8 @@ public fun EnhancedLibraryContent(
     onBookClick: (String) -> Unit,
     onToggleFavorite: (String, Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
-    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val wsc = LocalWindowSizeClass.current
     LazyColumn(
@@ -178,9 +183,9 @@ public fun EnhancedLibraryContent(
                     // Use a Box with fixed height or nested scrolling fix in real app
                     // Ideally use LazyVerticalGrid as the main container instead of LazyColumn
                     // For now, assume this works
-                    androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                    LazyVerticalGrid(
                         columns =
-                            androidx.compose.foundation.lazy.grid.GridCells
+                            GridCells
                                 .Adaptive(minSize = 150.dp),
                         modifier = Modifier.fillMaxWidth().height(500.dp), // Fixed height for nested grid
                         contentPadding = PaddingValues(horizontal = 16.dp),
@@ -230,7 +235,7 @@ public fun EnhancedLibraryContent(
 /**
  * Horizontal scrolling section for a list of books.
  */
-@OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun BookSection(
     title: String,
@@ -238,8 +243,8 @@ private fun BookSection(
     onBookClick: (String) -> Unit,
     onToggleFavorite: (String, Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
-    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),

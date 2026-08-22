@@ -48,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
@@ -104,8 +105,7 @@ public fun UnifiedBooksView(
                 windowSizeClass =
                     effectiveWindowSizeClass
                         ?: WindowSizeClass.calculateFromSize(
-                            androidx.compose.ui.unit
-                                .DpSize(360.dp, 800.dp),
+                            DpSize(360.dp, 800.dp),
                         ),
                 isSelectionMode = isSelectionMode,
                 selectedIds = selectedIds,
@@ -120,8 +120,7 @@ public fun UnifiedBooksView(
                 windowSizeClass =
                     effectiveWindowSizeClass
                         ?: WindowSizeClass.calculateFromSize(
-                            androidx.compose.ui.unit
-                                .DpSize(360.dp, 800.dp),
+                            DpSize(360.dp, 800.dp),
                         ),
                 isSelectionMode = isSelectionMode,
                 selectedIds = selectedIds,
@@ -263,7 +262,7 @@ private fun BooksListLayout(
             val gridState = rememberLazyGridState()
             LazyVerticalGrid(
                 columns =
-                    androidx.compose.foundation.lazy.grid.GridCells
+                    GridCells
                         .Fixed(2),
                 state = gridState,
                 modifier = Modifier.fillMaxSize(),

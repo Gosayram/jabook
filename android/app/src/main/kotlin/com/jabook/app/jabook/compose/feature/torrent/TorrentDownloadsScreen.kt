@@ -14,6 +14,9 @@
 
 package com.jabook.app.jabook.compose.feature.torrent
 
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +33,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
@@ -47,6 +51,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -64,6 +69,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -78,6 +85,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
+import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
 
 /**
  * Screen for managing torrent downloads
@@ -102,8 +110,8 @@ public fun TorrentDownloadsScreen(
                 takePermission = { uri ->
                     context.contentResolver.takePersistableUriPermission(
                         uri,
-                        android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                            android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
                     )
                 },
                 releasePermission = {},
@@ -137,9 +145,9 @@ public fun TorrentDownloadsScreen(
 
     // Folder picker launcher for Add Dialog
     val folderLauncher =
-        androidx.activity.compose.rememberLauncherForActivityResult(
+        rememberLauncherForActivityResult(
             contract =
-                androidx.activity.result.contract.ActivityResultContracts
+                ActivityResultContracts
                     .OpenDocumentTree(),
         ) { uri ->
             uri?.takeIf(persistedTreePermissionGuard::take)?.let {
@@ -162,7 +170,7 @@ public fun TorrentDownloadsScreen(
                         text = pendingMagnetLink!!,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 3,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(bottom = 16.dp),
                     )
 
@@ -171,14 +179,14 @@ public fun TorrentDownloadsScreen(
                         style = MaterialTheme.typography.labelMedium,
                     )
 
-                    androidx.compose.material3.OutlinedTextField(
+                    OutlinedTextField(
                         value = pendingDownloadPath,
                         onValueChange = {}, // Read-only
                         readOnly = true,
                         trailingIcon = {
                             IconButton(onClick = { folderLauncher.launch(null) }) {
                                 Icon(
-                                    imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.OpenInNew,
+                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                                     contentDescription = stringResource(R.string.change_folder),
                                 )
                             }
@@ -381,7 +389,7 @@ private fun TorrentDownloadsList(
     pausedDownloads: List<TorrentDownload>,
     completedDownloads: List<TorrentDownload>,
     errorDownloads: List<TorrentDownload>,
-    historyItems: List<com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem>,
+    historyItems: List<DownloadHistoryItem>,
     downloadingCount: Int,
     totalDownloadSpeed: Long,
     queuedCount: Int,
@@ -394,8 +402,8 @@ private fun TorrentDownloadsList(
     onItemClick: (TorrentDownload) -> Unit,
     onOpenBook: (String) -> Unit,
     showCompletedOnly: Boolean,
-    contentPadding: androidx.compose.ui.unit.Dp,
-    itemSpacing: androidx.compose.ui.unit.Dp,
+    contentPadding: Dp,
+    itemSpacing: Dp,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -522,7 +530,7 @@ private fun ActiveDownloadsSummaryCard(
     Card(
         modifier = modifier,
         colors =
-            androidx.compose.material3.CardDefaults.cardColors(
+            CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             ),
     ) {
@@ -572,7 +580,7 @@ private fun StorageSummaryCard(
     Card(
         modifier = modifier,
         colors =
-            androidx.compose.material3.CardDefaults.cardColors(
+            CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             ),
     ) {
@@ -609,7 +617,7 @@ private fun StorageSummaryCard(
                         modifier =
                             Modifier
                                 .size(12.dp)
-                                .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape),
+                                .background(MaterialTheme.colorScheme.primary, CircleShape),
                     )
                     Text(
                         text = stringResource(R.string.storageLegendAudiobooks),
@@ -625,7 +633,7 @@ private fun StorageSummaryCard(
                         modifier =
                             Modifier
                                 .size(12.dp)
-                                .background(MaterialTheme.colorScheme.secondary, androidx.compose.foundation.shape.CircleShape),
+                                .background(MaterialTheme.colorScheme.secondary, CircleShape),
                     )
                     Text(
                         text = stringResource(R.string.storageLegendDownloading),

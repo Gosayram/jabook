@@ -207,7 +207,11 @@ public class JabookApplication :
                 }
                 // Show a short crossfade when loading images asynchronously
                 .crossfade(true)
-                .build()
+                .apply {
+                    if (BuildConfig.DEBUG) {
+                        logger(coil3.util.DebugLogger())
+                    }
+                }.build()
         }
 
         LogUtils.d("JabookApplication", "Application created with Hilt support")

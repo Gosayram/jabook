@@ -15,32 +15,15 @@
 package com.jabook.app.jabook.compose.designsystem.component
 
 import android.graphics.drawable.ColorDrawable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BrokenImage
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import coil3.asImage
-import coil3.compose.SubcomposeAsyncImage
+import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
@@ -111,76 +94,13 @@ public fun RemoteImage(
                 }
             }.build()
 
-    // Use SubcomposeAsyncImage for custom loading/error states
-    SubcomposeAsyncImage(
+    // AsyncImage — avoids subcomposition overhead of SubcomposeAsyncImage (Coil docs warn
+    // against SubcomposeAsyncImage in scrollable lists). Placeholder/error use ColorDrawable
+    // images set on the ImageRequest above.
+    AsyncImage(
         model = imageRequest,
         contentDescription = contentDescription,
         modifier = modifier,
         contentScale = contentScale,
-        loading = {
-            if (showLoadingIndicator) {
-                ShimmerLoadingBox(modifier = Modifier.fillMaxSize())
-            } else {
-                Box(modifier = Modifier.fillMaxSize())
-            }
-        },
-        error = {
-            // Show error icon
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.BrokenImage,
-                    contentDescription = contentDescription,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.Center),
-                )
-            }
-        },
-        success = { state ->
-            // Reuse the already-loaded painter to avoid a second request and transition flicker.
-            Image(
-                painter = state.painter,
-                contentDescription = contentDescription,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = contentScale,
-            )
-        },
-    )
-}
-
-/**
- * Animated shimmer box used as the image loading placeholder.
- *
- * Sweeps a gradient highlight from left to right using [rememberInfiniteTransition].
- * Colors are derived from the Material theme so it respects dark/light mode.
- */
-@Composable
-private fun ShimmerLoadingBox(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val progress by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(durationMillis = 1000, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "shimmer",
-    )
-    val baseColor = MaterialTheme.colorScheme.surfaceVariant
-    val highlightColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-    Box(
-        modifier =
-            modifier.drawBehind {
-                drawRect(
-                    Brush.linearGradient(
-                        colors = listOf(baseColor, highlightColor, baseColor),
-                        start = Offset(x = (progress - 0.5f) * 2f * size.width, y = 0f),
-                        end = Offset(x = (progress + 0.5f) * 2f * size.width, y = size.height),
-                    ),
-                )
-            },
     )
 }

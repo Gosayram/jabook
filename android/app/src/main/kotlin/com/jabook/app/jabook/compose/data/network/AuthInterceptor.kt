@@ -18,6 +18,7 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
@@ -73,32 +74,39 @@ public class AuthInterceptor
                         } else {
                             reauthInProgress = true
                             try {
-                                runBlocking {
-                                    try {
-                                        val credentials = authRepository.get().getStoredCredentials()
-                                        if (credentials != null) {
-                                            logger.i { "Attempting automatic re-authentication..." }
-
-                                            val loginResult = authRepository.get().login(credentials)
-                                            if (loginResult.isSuccess) {
-                                                logger.i { "Automatic re-authentication successful" }
-                                                true
+                                // ponytail: runBlocking is unavoidable in OkHttp interceptors.
+                                // 10s timeout prevents dispatcher starvation on slow auth.
+                                val loginResult =
+                                    runBlocking {
+                                        withTimeoutOrNull(10_000L) {
+                                            val credentials =
+                                                authRepository.get().getStoredCredentials()
+                                            if (credentials != null) {
+                                                logger.i { "Attempting automatic re-authentication..." }
+                                                authRepository.get().login(credentials)
                                             } else {
-                                                logger.e { "Automatic re-authentication failed: ${loginResult.exceptionOrNull()}" }
-                                                false
+                                                logger.w { "No stored credentials available for re-authentication" }
+                                                null
                                             }
-                                        } else {
-                                            logger.w { "No stored credentials available for re-authentication" }
-                                            false
                                         }
-                                    } catch (e: Exception) {
-                                        if (e is CancellationException) {
-                                            throw e
-                                        }
-                                        logger.e({ "Error during automatic re-authentication" }, e)
-                                        false
                                     }
+                                if (loginResult != null && loginResult.isSuccess) {
+                                    logger.i { "Automatic re-authentication successful" }
+                                    true
+                                } else if (loginResult != null) {
+                                    logger.e {
+                                        "Automatic re-authentication failed: ${loginResult.exceptionOrNull()}"
+                                    }
+                                    false
+                                } else {
+                                    false
                                 }
+                            } catch (e: Exception) {
+                                if (e is CancellationException) {
+                                    throw e
+                                }
+                                logger.e({ "Error during automatic re-authentication" }, e)
+                                false
                             } finally {
                                 reauthInProgress = false
                             }
