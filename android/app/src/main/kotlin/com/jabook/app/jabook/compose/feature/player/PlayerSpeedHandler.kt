@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.content.Context
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.HoldToBoostPolicy
 import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
 import com.jabook.app.jabook.compose.core.logger.Logger
@@ -62,6 +64,7 @@ internal class PlayerSpeedHandler(
     private val uiState: StateFlow<PlayerState>,
     private val viewModelScope: CoroutineScope,
     loggerFactory: LoggerFactory,
+    private val context: Context,
     private val dispatchIntent: (PlayerIntent) -> Unit,
 ) {
     private val logger: Logger = loggerFactory.get("PlayerSpeedHandler")
@@ -76,7 +79,7 @@ internal class PlayerSpeedHandler(
             runCatchingCancelable { playerController.setPlaybackSpeed(clampedSpeed) }
                 .onFailure { error ->
                     logger.e({ "Failed to set playback speed on player" }, error)
-                    dispatchIntent(PlayerIntent.ReportError("Failed to update playback speed"))
+                    dispatchIntent(PlayerIntent.ReportError(context.getString(R.string.failed_to_update_playback_speed)))
                 }
         }
         if (!rememberForBook) return
@@ -101,7 +104,7 @@ internal class PlayerSpeedHandler(
             runCatchingCancelable { userPreferencesRepository.setPlaybackSpeed(clampedSpeed) }
                 .onFailure { error ->
                     logger.e({ "Failed to persist playback speed" }, error)
-                    dispatchIntent(PlayerIntent.ReportError("Failed to save playback speed"))
+                    dispatchIntent(PlayerIntent.ReportError(context.getString(R.string.failed_to_save_playback_speed)))
                 }
         }
     }

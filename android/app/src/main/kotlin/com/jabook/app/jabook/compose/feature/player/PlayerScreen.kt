@@ -140,9 +140,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.getSystemService
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
@@ -350,22 +348,13 @@ public fun PlayerScreen(
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED,
         )
     }
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(context, lifecycleOwner) {
-        val observer =
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) {
-                    hasRecordAudioPermission =
-                        androidx.core.content.ContextCompat.checkSelfPermission(
-                            context,
-                            android.Manifest.permission.RECORD_AUDIO,
-                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                }
-            }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+    LifecycleResumeEffect(context) {
+        hasRecordAudioPermission =
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.RECORD_AUDIO,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        onPauseOrDispose { }
     }
 
     val notificationPermissionsLauncher =

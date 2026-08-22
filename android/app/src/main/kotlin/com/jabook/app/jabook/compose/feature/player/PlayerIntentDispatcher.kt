@@ -69,7 +69,7 @@ internal class PlayerIntentDispatcher(
             reducedState is PlayerState.Loading &&
             effectiveIntent.isPlaybackControlIntent()
         ) {
-            emitEffect(PlayerEffect.ShowSnackbar("Player is not ready yet"))
+            emitEffect(PlayerEffect.ShowSnackbar(context.getString(R.string.player_not_ready)))
             return
         }
         handleIntentSideEffects(

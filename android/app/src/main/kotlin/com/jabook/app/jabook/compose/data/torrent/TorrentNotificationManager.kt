@@ -65,7 +65,7 @@ public class TorrentNotificationManager
             if (download.state == TorrentState.PAUSED) {
                 builder.addAction(
                     android.R.drawable.ic_media_play,
-                    "Resume",
+                    context.getString(R.string.resume),
                     createActionIntent(TorrentActionReceiver.ACTION_RESUME_TORRENT, download.hash),
                 )
             } else if (download.state == TorrentState.DOWNLOADING ||
@@ -75,7 +75,7 @@ public class TorrentNotificationManager
             ) {
                 builder.addAction(
                     android.R.drawable.ic_media_pause,
-                    "Pause",
+                    context.getString(R.string.pause),
                     createActionIntent(TorrentActionReceiver.ACTION_PAUSE_TORRENT, download.hash),
                 )
             }
@@ -83,7 +83,7 @@ public class TorrentNotificationManager
             // Allow cancelling from notification
             builder.addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
-                "Cancel",
+                context.getString(R.string.cancel),
                 createActionIntent(TorrentActionReceiver.ACTION_CANCEL_TORRENT, download.hash),
             )
 
@@ -98,7 +98,7 @@ public class TorrentNotificationManager
                 TorrentState.ERROR -> {
                     builder
                         .setColor(Color.RED)
-                        .setContentText(download.errorMessage ?: "Error")
+                        .setContentText(download.errorMessage ?: context.getString(R.string.error))
                 }
                 TorrentState.COMPLETED -> {
                     builder
@@ -143,11 +143,11 @@ public class TorrentNotificationManager
                 .setContentIntent(createOpenDownloadsIntent())
                 .addAction(
                     android.R.drawable.ic_media_pause,
-                    "Pause All",
+                    context.getString(R.string.pauseAll),
                     createActionIntent(TorrentActionReceiver.ACTION_PAUSE_ALL),
                 ).addAction(
                     android.R.drawable.ic_media_play,
-                    "Resume All",
+                    context.getString(R.string.resumeAll),
                     createActionIntent(TorrentActionReceiver.ACTION_RESUME_ALL),
                 ).build()
         }

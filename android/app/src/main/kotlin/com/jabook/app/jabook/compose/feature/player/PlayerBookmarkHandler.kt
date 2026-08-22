@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.content.Context
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.repository.BookmarkRepository
@@ -41,6 +43,7 @@ internal class PlayerBookmarkHandler(
     private val playerController: com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController,
     private val viewModelScope: CoroutineScope,
     private val loggerFactory: LoggerFactory,
+    private val context: Context,
     private val reportError: (String) -> Unit,
 ) {
     private val logger: Logger = loggerFactory.get("PlayerBookmarkHandler")
@@ -59,7 +62,7 @@ internal class PlayerBookmarkHandler(
                     chapterDurationMs = chapterDurationMs,
                 ).onFailure { error ->
                     logger.e({ "Failed to add bookmark" }, error)
-                    reportError("Failed to add bookmark")
+                    reportError(context.getString(R.string.failed_to_add_bookmark))
                 }
         }
     }
@@ -89,7 +92,7 @@ internal class PlayerBookmarkHandler(
                 .onSuccess { bookmark -> onCreated(bookmark) }
                 .onFailure { error ->
                     logger.e({ "Failed to add bookmark at custom position" }, error)
-                    reportError("Failed to add bookmark")
+                    reportError(context.getString(R.string.failed_to_add_bookmark))
                     onCreated(null)
                 }
         }
@@ -110,7 +113,7 @@ internal class PlayerBookmarkHandler(
                     ),
                 ).onFailure { error ->
                     logger.e({ "Failed to update bookmark note" }, error)
-                    reportError("Failed to update bookmark")
+                    reportError(context.getString(R.string.failed_to_update_bookmark))
                 }
         }
     }
@@ -127,5 +130,5 @@ internal class PlayerBookmarkHandler(
     }
 
     private fun resolveDeleteBookmarkFailureReason(result: Result<Unit>): String? =
-        result.exceptionOrNull()?.let { "Failed to delete bookmark: ${it.message}" }
+        result.exceptionOrNull()?.let { "${context.getString(R.string.failed_to_delete_bookmark)}: ${it.message}" }
 }

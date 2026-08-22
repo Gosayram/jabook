@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.content.Context
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.util.runCatchingCancelable
@@ -38,6 +40,7 @@ internal class PlayerSettingsHandler(
     private val settingsRepository: ProtoSettingsRepository,
     private val viewModelScope: CoroutineScope,
     loggerFactory: LoggerFactory,
+    private val context: Context,
     private val reportError: (String) -> Unit,
 ) {
     private val logger: Logger = loggerFactory.get("PlayerSettingsHandler")
@@ -50,7 +53,7 @@ internal class PlayerSettingsHandler(
             runCatchingCancelable { updateBookSettingsUseCase(bookId, rewindSeconds, forwardSeconds) }
                 .onFailure { error ->
                     logger.e({ "Failed to update book seek settings" }, error)
-                    reportError("Failed to update seek settings")
+                    reportError(context.getString(R.string.failed_to_update_seek_settings))
                 }
         }
     }
@@ -60,7 +63,7 @@ internal class PlayerSettingsHandler(
             runCatchingCancelable { updateBookSettingsUseCase.resetForBook(bookId) }
                 .onFailure { error ->
                     logger.e({ "Failed to reset book seek settings" }, error)
-                    reportError("Failed to reset seek settings")
+                    reportError(context.getString(R.string.failed_to_reset_seek_settings))
                 }
         }
     }
@@ -89,7 +92,7 @@ internal class PlayerSettingsHandler(
                 )
             }.onFailure { error ->
                 logger.e({ "Failed to update audio settings" }, error)
-                reportError("Failed to update audio settings")
+                reportError(context.getString(R.string.failed_to_update_audio_settings))
             }
         }
     }

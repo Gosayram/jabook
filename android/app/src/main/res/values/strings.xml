@@ -3060,4 +3060,29 @@
     <!-- Indexing worker notification -->
     <string name="indexingNotificationTitle">Indexing audiobooks</string>
     <string name="indexingNotificationBody">Preparing offline search</string>
+    <!-- Notification strings -->
+    <string name="downloading_book">Downloading: %1$s</string>
+    <string name="download_progress_percent">%1$d%% complete</string>
+    <string name="downloadComplete">Download complete</string>
+    <string name="downloadFailed">Download failed: %1$s</string>
+    <string name="resume">Resume</string>
+    <string name="pauseAll">Pause All</string>
+    <string name="resumeAll">Resume All</string>
+    <!-- Notification channel names -->
+    <string name="notification_channel_downloads">Downloads</string>
+    <string name="notification_channel_downloads_desc">Book download progress and completion</string>
+    <string name="notification_channel_player">Audio Player</string>
+    <string name="notification_channel_player_desc">Audio playback controls and status</string>
+    <!-- Player error messages -->
+    <string name="player_not_ready">Player is not ready yet</string>
+    <string name="book_not_found">Book not found</string>
+    <string name="failed_to_delete_bookmark">Failed to delete bookmark</string>
+    <string name="failed_to_update_seek_settings">Failed to update seek settings</string>
+    <string name="failed_to_reset_seek_settings">Failed to reset seek settings</string>
+    <string name="failed_to_update_audio_settings">Failed to update audio settings</string>
+    <string name="failed_to_add_bookmark">Failed to add bookmark</string>
+    <string name="failed_to_update_bookmark">Failed to update bookmark</string>
+    <string name="failed_to_update_playback_speed">Failed to update playback speed</string>
+    <string name="failed_to_save_playback_speed">Failed to save playback speed</string>
+    <string name="unknown_error">Unknown error</string>
 </resources>

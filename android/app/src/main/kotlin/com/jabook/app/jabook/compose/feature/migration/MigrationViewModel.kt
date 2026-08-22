@@ -14,11 +14,14 @@
 
 package com.jabook.app.jabook.compose.feature.migration
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.migration.DataMigrationManager
 import com.jabook.app.jabook.migration.MigrationResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +37,7 @@ public class MigrationViewModel
     @Inject
     constructor(
         private val migrationManager: DataMigrationManager,
+        @ApplicationContext private val context: Context,
     ) : ViewModel() {
         private val _state = MutableStateFlow<MigrationUiState>(MigrationUiState.Checking)
         public val state: StateFlow<MigrationUiState> = _state.asStateFlow()
@@ -65,16 +69,17 @@ public class MigrationViewModel
                                 )
                         }
                         is MigrationResult.Failure -> {
+                            val msg = result.error.message ?: context.getString(R.string.unknown_error)
                             _state.value =
-                                MigrationUiState.Error(
-                                    message = result.error.message ?: "Unknown error",
-                                )
+                                MigrationUiState.Error(message = msg)
                         }
                     }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    _state.value = MigrationUiState.Error(message = e.message ?: "Unknown error")
+                    val msg = e.message ?: context.getString(R.string.unknown_error)
+                    _state.value =
+                        MigrationUiState.Error(message = msg)
                 }
             }
         }

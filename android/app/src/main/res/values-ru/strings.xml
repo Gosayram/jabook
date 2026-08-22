@@ -3101,4 +3101,29 @@
     <!-- Уведомление воркера индексации -->
     <string name="indexingNotificationTitle">Индексация аудиокниг</string>
     <string name="indexingNotificationBody">Подготавливаем офлайн-поиск</string>
+    <!-- Строки уведомлений -->
+    <string name="downloading_book">Загрузка: %1$s</string>
+    <string name="download_progress_percent">Завершено на %1$d%%</string>
+    <string name="downloadComplete">Загрузка завершена</string>
+    <string name="downloadFailed">Ошибка загрузки: %1$s</string>
+    <string name="resume">Продолжить</string>
+    <string name="pauseAll">Поставить все на паузу</string>
+    <string name="resumeAll">Возобновить все</string>
+    <!-- Названия каналов уведомлений -->
+    <string name="notification_channel_downloads">Загрузки</string>
+    <string name="notification_channel_downloads_desc">Прогресс и завершение загрузок книг</string>
+    <string name="notification_channel_player">Аудиоплеер</string>
+    <string name="notification_channel_player_desc">Управление и статус воспроизведения</string>
+    <!-- Сообщения об ошибках плеера -->
+    <string name="player_not_ready">Плеер ещё не готов</string>
+    <string name="book_not_found">Книга не найдена</string>
+    <string name="failed_to_delete_bookmark">Не удалось удалить закладку</string>
+    <string name="failed_to_update_seek_settings">Не удалось обновить настройки перемотки</string>
+    <string name="failed_to_reset_seek_settings">Не удалось сбросить настройки перемотки</string>
+    <string name="failed_to_update_audio_settings">Не удалось обновить аудионастройки</string>
+    <string name="failed_to_add_bookmark">Не удалось добавить закладку</string>
+    <string name="failed_to_update_bookmark">Не удалось обновить закладку</string>
+    <string name="failed_to_update_playback_speed">Не удалось изменить скорость воспроизведения</string>
+    <string name="failed_to_save_playback_speed">Не удалось сохранить скорость воспроизведения</string>
+    <string name="unknown_error">Неизвестная ошибка</string>
 </resources>

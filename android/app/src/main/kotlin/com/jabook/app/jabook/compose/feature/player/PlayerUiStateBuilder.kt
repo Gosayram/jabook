@@ -118,7 +118,7 @@ internal fun buildPlayerUiState(
         if (!restore.isRestoreReady) {
             PlayerState.Loading
         } else if (playback.book == null) {
-            PlayerState.Error("Book not found")
+            PlayerState.Error(context.getString(R.string.book_not_found))
         } else if (playback.chapters.isEmpty()) {
             PlayerState.Error(context.getString(R.string.noChaptersFoundInSearch))
         } else {

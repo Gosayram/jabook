@@ -19,6 +19,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.PlaylistItem
 import com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
@@ -386,6 +387,7 @@ public class PlayerViewModel
                 uiState = uiState,
                 viewModelScope = viewModelScope,
                 loggerFactory = loggerFactory,
+                context = context,
                 dispatchIntent = ::dispatch,
             )
 
@@ -440,7 +442,7 @@ public class PlayerViewModel
                     playerController.play()
                 }
             } else {
-                emitEffect(PlayerEffect.ShowSnackbar("Player is not ready yet"))
+                emitEffect(PlayerEffect.ShowSnackbar(context.getString(R.string.player_not_ready)))
             }
         }
 
@@ -548,6 +550,7 @@ public class PlayerViewModel
                 playerController = playerController,
                 viewModelScope = viewModelScope,
                 loggerFactory = loggerFactory,
+                context = context,
                 reportError = { msg -> dispatch(PlayerIntent.ReportError(msg)) },
             )
 
@@ -616,6 +619,7 @@ public class PlayerViewModel
                 settingsRepository = settingsRepository,
                 viewModelScope = viewModelScope,
                 loggerFactory = loggerFactory,
+                context = context,
                 reportError = { msg -> dispatch(PlayerIntent.ReportError(msg)) },
             )
 
@@ -813,11 +817,4 @@ public class PlayerViewModel
         private companion object {
             private const val POSITION_UI_EPSILON_MS: Long = 150L
         }
-    }
-
-internal fun resolveDeleteBookmarkFailureReason(deleteResult: Result<Unit>): String? =
-    if (deleteResult.isFailure) {
-        "Failed to delete bookmark"
-    } else {
-        null
     }
