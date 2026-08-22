@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.audio
 
 import androidx.media3.common.Format
-import java.util.Locale
 
 /**
  * Quality tier derived from codec and bitrate.
@@ -62,42 +61,6 @@ public data class AudioQualityInfo(
         buildString {
             append(format)
             bitrateKbps?.let { append(" $it") }
-        }
-
-    /**
-     * Full label for detailed display with tier.
-     * E.g. "MP3 · 256 кбит/с · CBR · 44.1 кГц · стерео"
-     */
-    public fun toFullLabel(): String =
-        buildString {
-            append(format)
-            bitrateKbps?.let { append(" · $it кбит/с") }
-            if (isLossless) append(" · Lossless")
-            sampleRateHz?.let {
-                val khz = it / 1000.0
-                append(" · ${String.format(Locale.US, "%.1f", khz)} кГц")
-            }
-            channels?.let {
-                append(
-                    " · " +
-                        when (it) {
-                            1 -> "моно"
-                            2 -> "стерео"
-                            else -> "$it кан."
-                        },
-                )
-            }
-        }
-
-    /**
-     * Human-readable label for UI display.
-     * E.g. "FLAC · 876 кбит/с · Lossless" or "MP3 · 128 кбит/с"
-     */
-    public fun toLabel(): String =
-        buildString {
-            append(format)
-            bitrateKbps?.let { append(" · $it кбит/с") }
-            if (isLossless) append(" · Lossless")
         }
 
     public companion object {
