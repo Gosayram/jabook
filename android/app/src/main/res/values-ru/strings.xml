@@ -3126,4 +3126,7 @@
     <string name="failed_to_update_playback_speed">Не удалось изменить скорость воспроизведения</string>
     <string name="failed_to_save_playback_speed">Не удалось сохранить скорость воспроизведения</string>
     <string name="unknown_error">Неизвестная ошибка</string>
+    <string name="status_completed">Завершено</string>
+    <string name="minutes_remaining">осталось %1$d мин</string>
+    <string name="total_duration_minutes">%1$d мин</string>
 </resources>

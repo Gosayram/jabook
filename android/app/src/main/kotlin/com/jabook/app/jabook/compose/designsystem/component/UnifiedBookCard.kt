@@ -573,7 +573,7 @@ private fun ListBookCard(
                             tint = MaterialTheme.colorScheme.primary,
                         )
                         Text(
-                            text = "Completed",
+                            text = stringResource(R.string.status_completed),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                         )
@@ -592,7 +592,7 @@ private fun ListBookCard(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             )
                             Text(
-                                text = "${remaining.inWholeMinutes} min left",
+                                text = stringResource(R.string.minutes_remaining, remaining.inWholeMinutes),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             )
@@ -613,7 +613,7 @@ private fun ListBookCard(
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                             )
                             Text(
-                                text = "$totalMin min",
+                                text = stringResource(R.string.total_duration_minutes, totalMin),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                             )

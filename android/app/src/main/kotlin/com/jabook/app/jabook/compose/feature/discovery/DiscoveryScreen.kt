@@ -140,7 +140,7 @@ public fun DiscoveryScreen(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
             }
-            items(uiState.genres, key = { it.id }) { genre ->
+            items(uiState.genres, key = { it.id }, contentType = { "genre_tile" }) { genre ->
                 GenreTile(
                     genre = genre,
                     modifier =
@@ -163,7 +163,7 @@ private fun ListeningMoodChips(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
     ) {
-        items(ListeningMood.entries, key = { it.name }) { mood ->
+        items(ListeningMood.entries, key = { it.name }, contentType = { "mood_chip" }) { mood ->
             FilterChip(
                 selected = selectedMood == mood,
                 onClick = { onMoodChange(mood) },
@@ -208,7 +208,7 @@ private fun DiscoveryShelf(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         contentPadding = PaddingValues(horizontal = 16.dp),
     ) {
-        items(books, key = { it.id }) { book ->
+        items(books, key = { it.id }, contentType = { "discovery_book" }) { book ->
             DiscoveryBookCard(
                 book = book,
                 onClick = { onBookClick(book) },

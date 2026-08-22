@@ -3085,4 +3085,7 @@
     <string name="failed_to_update_playback_speed">Failed to update playback speed</string>
     <string name="failed_to_save_playback_speed">Failed to save playback speed</string>
     <string name="unknown_error">Unknown error</string>
+    <string name="status_completed">Completed</string>
+    <string name="minutes_remaining">%1$d min left</string>
+    <string name="total_duration_minutes">%1$d min</string>
 </resources>

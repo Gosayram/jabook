@@ -210,6 +210,7 @@ public fun TorrentDetailsScreen(
                 items(
                     items = state.files,
                     key = { file -> file.index },
+                    contentType = { "file_item" },
                 ) { file ->
                     FileItem(
                         file = file,

@@ -441,7 +441,7 @@ private fun TorrentDownloadsList(
                 stickyHeader {
                     SectionHeader(title = stringResource(R.string.downloading_state))
                 }
-                items(activeDownloads, key = { it.hash }) { download ->
+                items(activeDownloads, key = { it.hash }, contentType = { "download_item" }) { download ->
                     TorrentDownloadItem(
                         download = download,
                         onPauseClick = { onPauseClick(download.hash) },
@@ -457,7 +457,7 @@ private fun TorrentDownloadsList(
                 stickyHeader {
                     SectionHeader(title = stringResource(R.string.paused_state))
                 }
-                items(pausedDownloads, key = { it.hash }) { download ->
+                items(pausedDownloads, key = { it.hash }, contentType = { "download_item" }) { download ->
                     TorrentDownloadItem(
                         download = download,
                         onPauseClick = { onPauseClick(download.hash) },
@@ -474,7 +474,7 @@ private fun TorrentDownloadsList(
             stickyHeader {
                 SectionHeader(title = stringResource(R.string.completed_state))
             }
-            items(completedDownloads, key = { it.hash }) { download ->
+            items(completedDownloads, key = { it.hash }, contentType = { "download_item" }) { download ->
                 TorrentDownloadItem(
                     download = download,
                     onPauseClick = { onPauseClick(download.hash) },
@@ -490,7 +490,7 @@ private fun TorrentDownloadsList(
             stickyHeader {
                 SectionHeader(title = stringResource(R.string.error_state))
             }
-            items(errorDownloads, key = { it.hash }) { download ->
+            items(errorDownloads, key = { it.hash }, contentType = { "download_item" }) { download ->
                 TorrentDownloadItem(
                     download = download,
                     onPauseClick = { onPauseClick(download.hash) },
@@ -506,7 +506,7 @@ private fun TorrentDownloadsList(
             stickyHeader {
                 SectionHeader(title = stringResource(R.string.downloadsHistorySection, historyItems.size))
             }
-            items(historyItems, key = { it.id }) { item ->
+            items(historyItems, key = { it.id }, contentType = { "history_item" }) { item ->
                 DownloadHistoryItemRow(
                     item = item,
                     onOpenBook = onOpenBook,
