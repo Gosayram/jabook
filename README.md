@@ -32,7 +32,7 @@ A modern Android audiobook player with RuTracker integration, offline-first libr
 - Fully Compose UI with type-safe navigation and deep links (`magnet:`, `jabook://...`)
 - Native `AudioPlayerService` on Media3 (`MediaLibraryService`) with background playback
 - Torrent downloads via `libtorrent4j` with Room-backed queue/history
-- Offline-first data model: Room (`JabookDatabase`, schema v31) + Proto DataStore
+- Offline-first data model: Room (`JabookDatabase`, schema v32) + Proto DataStore
 - Separate high-performance RuTracker indexing tool: [`rutracker_parser/`](rutracker_parser/README.md)
 - Android flavors: `dev`, `stage`, `beta`, `prod`
 - Advanced audio processing pipeline: loudness normalization, dynamic range compression, equalizer, noise suppression, reverb, skip silence, speech enhancement

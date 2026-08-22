@@ -52,6 +52,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
 
 /**
@@ -179,9 +180,4 @@ public fun SearchFiltersSheet(
     }
 }
 
-private fun formatSize(mb: Float): String {
-    if (mb >= 1024) {
-        return String.format("%.1f GB", mb / 1024)
-    }
-    return String.format("%.0f MB", mb)
-}
+private fun formatSize(mb: Float): String = UiFormatters.formatMegaBytes(mb)

@@ -42,10 +42,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.domain.model.BookmarkItem
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import kotlinx.collections.immutable.ImmutableList
-import java.util.Locale
 import kotlin.math.abs
 
 @Composable
@@ -184,7 +184,7 @@ private fun BookmarkItemRow(
                     maxLines = 1,
                 )
                 Text(
-                    text = formatBookmarkDuration(bookmark.positionMs),
+                    text = UiFormatters.formatDuration(bookmark.positionMs),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -215,17 +215,5 @@ private fun BookmarkItemRow(
                 )
             }
         }
-    }
-}
-
-private fun formatBookmarkDuration(ms: Long): String {
-    val totalSeconds = ms / 1000
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, seconds)
-    } else {
-        String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
     }
 }

@@ -82,6 +82,13 @@ public object UiFormatters {
 
     public fun formatSpeedBytes(bytesPerSecond: Long): String = formatFileSize(bytesPerSecond) + "/s"
 
+    public fun formatMegaBytes(mb: Float): String {
+        if (mb >= 1024) {
+            return String.format(Locale.getDefault(), "%.1f GB", mb / 1024)
+        }
+        return String.format(Locale.getDefault(), "%.0f MB", mb)
+    }
+
     public fun formatPercent(fraction: Float): String = "${(fraction.coerceIn(0f, 1f) * 100).toInt()}%"
 
     public fun formatChapterNumber(
