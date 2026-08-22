@@ -37,6 +37,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.compose.ComposeMainActivity
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
@@ -692,16 +693,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         }
     }
 
-    /**
-     * Formats time in milliseconds to MM:SS format.
-     */
-    private fun formatTime(timeMs: Long): String {
-        if (timeMs <= 0) return "0:00"
-        val totalSeconds = (timeMs / 1000).toInt()
-        val minutes = totalSeconds / 60
-        val seconds = totalSeconds % 60
-        return String.format("%d:%02d", minutes, seconds)
-    }
+    private fun formatTime(timeMs: Long): String = UiFormatters.formatDuration(timeMs)
 
     /**
      * Checks if audio playback is currently active.
