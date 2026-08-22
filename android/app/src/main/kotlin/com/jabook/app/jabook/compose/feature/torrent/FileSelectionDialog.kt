@@ -119,6 +119,7 @@ public fun FileSelectionDialog(
                     items(
                         items = rootNodes,
                         key = { node -> node.path },
+                        contentType = { "file_node" },
                     ) { node ->
                         FileNodeItem(
                             node = node,

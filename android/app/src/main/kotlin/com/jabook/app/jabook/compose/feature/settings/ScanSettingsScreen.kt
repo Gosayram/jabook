@@ -160,6 +160,7 @@ public fun ScanSettingsScreen(
                     items(
                         items = scanPaths,
                         key = { path -> path },
+                        contentType = { "scan_path" },
                     ) { path ->
                         ScanPathItem(
                             path = path,

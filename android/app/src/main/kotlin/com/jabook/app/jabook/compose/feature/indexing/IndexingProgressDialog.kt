@@ -147,7 +147,7 @@ public fun IndexingProgressDialog(
                                         .heightIn(max = 200.dp),
                                 verticalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
-                                items(forumStatuses, key = { it.forumId }) { status ->
+                                items(forumStatuses, key = { it.forumId }, contentType = { "forum_status" }) { status ->
                                     ForumStatusRow(status)
                                 }
                             }

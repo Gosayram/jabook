@@ -601,6 +601,7 @@ private fun SearchHistoryList(
             items(
                 items = history,
                 key = { it.id },
+                contentType = { "history_item" },
             ) { item ->
                 ListItem(
                     headlineContent = { Text(item.query) },
@@ -770,7 +771,7 @@ private fun SearchDiscoverySection(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(genres.size, key = { it }) { index ->
+            items(genres.size, key = { it }, contentType = { "genre_chip" }) { index ->
                 val (_, label) = genres[index]
                 FilterChip(
                     selected = false,

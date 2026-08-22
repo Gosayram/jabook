@@ -248,6 +248,7 @@ private fun LogsTab(
         itemsIndexed(
             items = logLines,
             key = { index, line -> "${index}_${line.hashCode()}" },
+            contentType = { _, _ -> "log_line" },
         ) { _, line ->
             Text(
                 text = line,
