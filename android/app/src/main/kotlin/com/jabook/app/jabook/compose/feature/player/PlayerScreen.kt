@@ -144,6 +144,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
@@ -1074,7 +1075,15 @@ private fun NextBookCountdownCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             AsyncImage(
-                model = CoverUtils.getCoverModel(book, LocalContext.current),
+                model =
+                    ImageRequest
+                        .Builder(LocalContext.current)
+                        .data(CoverUtils.getCoverModel(book, LocalContext.current))
+                        .size(
+                            44 *
+                                LocalContext.current.resources.displayMetrics.density
+                                    .toInt(),
+                        ).build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier =
@@ -1272,7 +1281,7 @@ private fun PlayerLandscapeLayout(
                 chapterMarkersFractions = seekState.timeline.chapterMarkersFractions,
                 bookmarkMarkersFractions = seekState.bookmarkMarkersFractions.value,
                 abRepeatRange = seekState.abRepeatFractions.value,
-                waveformData = FloatArray(0),
+                waveformData = remember { FloatArray(0) },
                 activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
                 inactiveTrackColor = (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(alpha = 0.24f),
                 valueFormatter = seekState.valueFormatter,

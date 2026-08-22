@@ -248,8 +248,7 @@ public fun SettingsScreen(
                 itemSpacing = itemSpacing,
             )
 
-            val userPrefs by viewModel.userPreferences.collectAsStateWithLifecycle()
-            var selectedLang by remember(userPrefs) { mutableStateOf(userPrefs?.languageCode ?: "ru") }
+            var selectedLang by remember(userPreferences) { mutableStateOf(userPreferences?.languageCode ?: "ru") }
             StackedSegmentedControl(
                 label = stringResource(R.string.settingsLanguage),
                 options = listOf("Русский" to "ru", "English" to "en"),
@@ -261,7 +260,7 @@ public fun SettingsScreen(
                 contentPadding = contentPadding,
             )
 
-            var hapticsEnabled by remember(userPrefs) { mutableStateOf(userPrefs?.hapticsEnabled ?: true) }
+            var hapticsEnabled by remember(userPreferences) { mutableStateOf(userPreferences?.hapticsEnabled ?: true) }
             SettingsSwitchItem(
                 title = stringResource(R.string.settingsHaptics),
                 subtitle = stringResource(R.string.settingsHapticsDesc),
@@ -816,7 +815,7 @@ public fun SettingsScreen(
             SettingsSwitchItem(
                 title = stringResource(R.string.normalizeChapterTitles),
                 subtitle = stringResource(R.string.normalizeChapterTitlesDesc),
-                checked = userPrefs?.normalizeChapterTitles ?: false,
+                checked = userPreferences?.normalizeChapterTitles ?: false,
                 onCheckedChange = { viewModel.updateNormalizeChapterTitles(it) },
                 contentPadding = contentPadding,
                 itemSpacing = itemSpacing,

@@ -309,14 +309,14 @@ public fun LibraryScreen(
     }
 
     // Premium Background Gradient
+    val gradientBg = MaterialTheme.colorScheme.background
+    val gradientSurface = MaterialTheme.colorScheme.surface
     val backgroundGradient =
-        Brush.verticalGradient(
-            colors =
-                listOf(
-                    MaterialTheme.colorScheme.background,
-                    MaterialTheme.colorScheme.surface,
-                ),
-        )
+        remember(gradientBg, gradientSurface) {
+            Brush.verticalGradient(
+                colors = listOf(gradientBg, gradientSurface),
+            )
+        }
 
     Box(
         modifier =
@@ -647,10 +647,8 @@ public fun LibraryScreen(
                                                     .padding(horizontal = 16.dp)
                                                     .padding(top = 8.dp, bottom = 8.dp),
                                         ) {}
-                                        LibraryQuickFilterChips(
-                                            activeFilter = activeQuickFilter,
-                                            onFilterChanged = { activeQuickFilter = it },
-                                            bookCounts =
+                                        val bookCounts =
+                                            remember(books) {
                                                 mapOf(
                                                     LibraryQuickFilter.ALL to books.size,
                                                     LibraryQuickFilter.IN_PROGRESS to
@@ -660,7 +658,12 @@ public fun LibraryScreen(
                                                     LibraryQuickFilter.NEW to books.filterBy(LibraryQuickFilter.NEW).size,
                                                     LibraryQuickFilter.FAVORITES to
                                                         books.filterBy(LibraryQuickFilter.FAVORITES).size,
-                                                ),
+                                                )
+                                            }
+                                        LibraryQuickFilterChips(
+                                            activeFilter = activeQuickFilter,
+                                            onFilterChanged = { activeQuickFilter = it },
+                                            bookCounts = bookCounts,
                                             modifier =
                                                 Modifier
                                                     .fillMaxWidth()
@@ -965,10 +968,8 @@ public fun LibraryScreen(
                                                             .padding(horizontal = 16.dp)
                                                             .padding(top = 8.dp, bottom = 8.dp),
                                                 ) {}
-                                                LibraryQuickFilterChips(
-                                                    activeFilter = activeQuickFilter,
-                                                    onFilterChanged = { activeQuickFilter = it },
-                                                    bookCounts =
+                                                val bookCounts =
+                                                    remember(books) {
                                                         mapOf(
                                                             LibraryQuickFilter.ALL to books.size,
                                                             LibraryQuickFilter.IN_PROGRESS to
@@ -978,7 +979,12 @@ public fun LibraryScreen(
                                                             LibraryQuickFilter.NEW to books.filterBy(LibraryQuickFilter.NEW).size,
                                                             LibraryQuickFilter.FAVORITES to
                                                                 books.filterBy(LibraryQuickFilter.FAVORITES).size,
-                                                        ),
+                                                        )
+                                                    }
+                                                LibraryQuickFilterChips(
+                                                    activeFilter = activeQuickFilter,
+                                                    onFilterChanged = { activeQuickFilter = it },
+                                                    bookCounts = bookCounts,
                                                     modifier =
                                                         Modifier
                                                             .fillMaxWidth()

@@ -681,34 +681,36 @@ private fun OnlineSearchResults(
     } else {
         // Convert SearchResults to Books for unified display
         val booksFromResults =
-            results.mapIndexed { index, result ->
-                val book =
-                    Book(
-                        id = result.topicId,
-                        title = result.title,
-                        author = result.uploader ?: result.author,
-                        coverUrl = result.coverUrl,
-                        description = null,
-                        totalDuration = kotlin.time.Duration.ZERO,
-                        currentPosition = kotlin.time.Duration.ZERO,
-                        progress = 0f,
-                        currentChapterIndex = 0,
-                        downloadStatus = DownloadStatus.NOT_DOWNLOADED,
-                        downloadProgress = 0f,
-                        localPath = null,
-                        addedDate = System.currentTimeMillis(),
-                        lastPlayedDate = null,
-                        isFavorite = favoriteIds.contains(result.topicId),
-                        sourceUrl = result.torrentUrl,
-                    )
-                // Log if book has empty/invalid data
-                if (book.title.isBlank() || book.author.isBlank()) {
-                    searchScreenLogger.w {
-                        "Book[$index] has empty data: id='${book.id}', " +
-                            "title='${book.title}', author='${book.author}'"
+            remember(results) {
+                results.mapIndexed { index, result ->
+                    val book =
+                        Book(
+                            id = result.topicId,
+                            title = result.title,
+                            author = result.uploader ?: result.author,
+                            coverUrl = result.coverUrl,
+                            description = null,
+                            totalDuration = kotlin.time.Duration.ZERO,
+                            currentPosition = kotlin.time.Duration.ZERO,
+                            progress = 0f,
+                            currentChapterIndex = 0,
+                            downloadStatus = DownloadStatus.NOT_DOWNLOADED,
+                            downloadProgress = 0f,
+                            localPath = null,
+                            addedDate = System.currentTimeMillis(),
+                            lastPlayedDate = null,
+                            isFavorite = favoriteIds.contains(result.topicId),
+                            sourceUrl = result.torrentUrl,
+                        )
+                    // Log if book has empty/invalid data
+                    if (book.title.isBlank() || book.author.isBlank()) {
+                        searchScreenLogger.w {
+                            "Book[$index] has empty data: id='${book.id}', " +
+                                "title='${book.title}', author='${book.author}'"
+                        }
                     }
+                    book
                 }
-                book
             }
 
         searchScreenLogger.d {

@@ -16,34 +16,23 @@ package com.jabook.app.jabook.compose.data.local.entity
 
 import androidx.annotation.Keep
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
  * Download queue entry for persistent queue management.
  */
 @Keep
-@Entity(tableName = "download_queue")
+@Entity(
+    tableName = "download_queue",
+    indices = [Index(value = ["status"])],
+)
 public data class DownloadQueueEntity(
     @PrimaryKey
     val bookId: String,
-    /**
-     * Priority value (0=LOW, 1=NORMAL, 2=HIGH, 3=URGENT).
-     */
     val priority: Int,
-    /**
-     * Position in queue (lower = earlier).
-     */
     val queuePosition: Int,
-    /**
-     * Current status: "queued", "active", "paused", "completed", "cancelled", "failed".
-     */
     val status: String,
-    /**
-     * When download was added to queue.
-     */
     val createdAt: Long,
-    /**
-     * Last update timestamp.
-     */
     val updatedAt: Long,
 )
