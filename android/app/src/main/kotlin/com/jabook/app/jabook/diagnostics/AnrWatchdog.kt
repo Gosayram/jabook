@@ -87,8 +87,9 @@ public class AnrWatchdog(
      */
     public fun isRunning(): Boolean = isRunning
 
-    private fun checkMainThread() {
-        val startTime = System.currentTimeMillis()
+    private suspend fun checkMainThread() {
+        // Monotonic clock: a wall-clock jump must not extend the ANR wait.
+        val startTime = android.os.SystemClock.elapsedRealtime()
         val completed =
             java.util.concurrent.atomic
                 .AtomicBoolean(false)
@@ -97,19 +98,16 @@ public class AnrWatchdog(
             completed.set(true)
         }
 
-        // Wait for the main thread to respond
+        // Wait for the main thread to respond. delay() suspends instead of
+        // Thread.sleep, so a Default dispatcher thread is never blocked for
+        // up to thresholdMs (and the loop is properly cancellable).
         val waitUntil = startTime + thresholdMs
-        while (!completed.get() && System.currentTimeMillis() < waitUntil && isRunning) {
-            try {
-                Thread.sleep(SAMPLE_INTERVAL_MS)
-            } catch (_: InterruptedException) {
-                Thread.currentThread().interrupt()
-                return
-            }
+        while (!completed.get() && android.os.SystemClock.elapsedRealtime() < waitUntil && isRunning) {
+            delay(SAMPLE_INTERVAL_MS)
         }
 
         if (!completed.get() && isRunning) {
-            val blockedDuration = System.currentTimeMillis() - startTime
+            val blockedDuration = android.os.SystemClock.elapsedRealtime() - startTime
             val stackTrace = getMainThreadStackTrace()
 
             val message = "ANR detected: main thread blocked for ${blockedDuration}ms (threshold=${thresholdMs}ms)"

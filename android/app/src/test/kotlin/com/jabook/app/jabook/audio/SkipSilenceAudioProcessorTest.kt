@@ -400,7 +400,7 @@ class SkipSilenceAudioProcessorTest {
         assertTrue(flushProcessor.getSkippedDurationMs() > 0)
 
         @Suppress("DEPRECATION")
-        flushProcessor.flush()
+        flushProcessor.flush(androidx.media3.common.audio.AudioProcessor.StreamMetadata.DEFAULT)
 
         assertEquals(0L, flushProcessor.getSkippedDurationMs())
     }

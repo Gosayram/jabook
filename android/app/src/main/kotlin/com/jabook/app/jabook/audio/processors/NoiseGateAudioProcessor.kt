@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.AudioProcessor.StreamMetadata
 import androidx.media3.common.util.UnstableApi
 import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
@@ -222,8 +223,7 @@ public class NoiseGateAudioProcessor(
 
     override fun isEnded(): Boolean = inputEnded && queuedInputBytes == 0
 
-    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
-    override fun flush() {
+    override fun flush(streamMetadata: StreamMetadata) {
         autoThresholdComplete = false
         autoThresholdLinear = 0.0
         totalFramesForAutoThreshold = 0L

@@ -99,8 +99,9 @@ public class LibraryScanWorker
                 try {
                     try {
                         setForeground(getForegroundInfo())
-                    } catch (e: android.app.ForegroundServiceStartNotAllowedException) {
-                        // Android 12+: FGS start may be denied without user visibility; degrade to background.
+                    } catch (e: Throwable) {
+                        // Android 12+ FGS start may be denied (or an OEM throws another
+                        // runtime/security variant); degrade to background rather than crash.
                         logger.w { "FGS start not allowed for library scan: ${e.message}" }
                     }
                     setProgress(workDataOf("status" to applicationContext.getString(R.string.scan_status_starting)))

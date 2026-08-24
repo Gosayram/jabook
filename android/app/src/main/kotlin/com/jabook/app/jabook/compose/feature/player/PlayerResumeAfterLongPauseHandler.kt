@@ -53,7 +53,10 @@ internal class PlayerResumeAfterLongPauseHandler(
                 val activeState = state as? PlayerState.Active ?: return@collect
                 if (hasShownResumeAfterLongPause) return@collect
                 val lastTimestamp = listeningSessionRepository.getLastListeningTimestamp(bookId) ?: return@collect
-                val daysAgo = ((System.currentTimeMillis() - lastTimestamp) / 86_400_000L).toInt()
+                val daysAgo =
+                    java.util.concurrent.TimeUnit.MILLISECONDS
+                        .toDays(System.currentTimeMillis() - lastTimestamp)
+                        .toInt()
                 if (daysAgo < 7) return@collect
                 hasShownResumeAfterLongPause = true
                 val chapter = activeState.currentChapter

@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.AudioProcessor.StreamMetadata
 import androidx.media3.common.util.UnstableApi
 import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
@@ -191,8 +192,7 @@ public class SpeechCompressorAudioProcessor(
 
     override fun isEnded(): Boolean = inputEnded && queuedInputBytes == 0
 
-    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
-    override fun flush() {
+    override fun flush(streamMetadata: StreamMetadata) {
         for (state in lpStates) {
             state.x1 = 0f
             state.x2 = 0f

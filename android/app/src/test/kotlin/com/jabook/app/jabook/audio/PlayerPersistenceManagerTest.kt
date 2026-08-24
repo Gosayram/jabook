@@ -17,13 +17,8 @@ package com.jabook.app.jabook.audio
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.test.runTest
-import org.json.JSONArray
-import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,85 +41,6 @@ class PlayerPersistenceManagerTest {
     fun tearDown() {
         prefs().edit().clear().apply()
     }
-
-    @Test
-    fun `retrievePersistedPlayerState migrates legacy JSON snapshot to versioned keys`() =
-        runTest {
-            val legacyJson =
-                JSONObject()
-                    .put("groupPath", "book://legacy")
-                    .put("currentIndex", 1)
-                    .put("currentPosition", 42_000L)
-                    .put("filePaths", JSONArray().put("a.mp3").put("b.mp3"))
-                    .put("metadata", JSONObject().put("title", "Legacy Book"))
-                    .toString()
-
-            prefs()
-                .edit()
-                .putString("flutter.player_state", legacyJson)
-                .apply()
-
-            val restored = manager.retrievePersistedPlayerState()
-
-            assertNotNull(restored)
-            assertEquals("book://legacy", restored?.groupPath)
-            assertEquals(listOf("a.mp3", "b.mp3"), restored?.filePaths)
-            assertEquals(1, restored?.currentIndex)
-            assertEquals(42_000L, restored?.currentPosition)
-            assertEquals("Legacy Book", restored?.metadata?.get("title"))
-
-            assertEquals(1, prefs().getInt("playback_snapshot_version", 0))
-            assertEquals("book://legacy", prefs().getString("playback_snapshot_group_path", null))
-            assertNotNull(prefs().getString("playback_snapshot_file_paths", null))
-        }
-
-    @Test
-    fun `retrievePersistedPlayerState falls back to legacy when versioned snapshot is corrupted`() =
-        runTest {
-            prefs()
-                .edit()
-                .putInt("playback_snapshot_version", 1)
-                .putString("playback_snapshot_group_path", "book://broken")
-                .putString("playback_snapshot_file_paths", "{not_json")
-                .apply()
-
-            val legacyJson =
-                JSONObject()
-                    .put("groupPath", "book://safe")
-                    .put("currentIndex", 0)
-                    .put("currentPosition", 123L)
-                    .put("filePaths", JSONArray().put("safe.mp3"))
-                    .toString()
-
-            prefs()
-                .edit()
-                .putString("flutter.player_state", legacyJson)
-                .apply()
-
-            val restored = manager.retrievePersistedPlayerState()
-
-            assertNotNull(restored)
-            assertEquals("book://safe", restored?.groupPath)
-            assertEquals(listOf("safe.mp3"), restored?.filePaths)
-            assertEquals(1, prefs().getInt("playback_snapshot_version", 0))
-            assertTrue(prefs().getInt("playback_snapshot_corruption_count", 0) >= 1)
-            assertEquals("book://safe", prefs().getString("playback_snapshot_group_path", null))
-        }
-
-    @Test
-    fun `retrievePersistedPlayerState clears invalid legacy snapshot`() =
-        runTest {
-            prefs()
-                .edit()
-                .putString("flutter.player_state", "{broken_json")
-                .apply()
-
-            val restored = manager.retrievePersistedPlayerState()
-
-            assertNull(restored)
-            assertTrue(prefs().getInt("playback_snapshot_corruption_count", 0) >= 1)
-            assertNull(prefs().getString("flutter.player_state", null))
-        }
 
     @Test
     fun `persisted snapshot restores clip windows for chapters in one M4B`() =

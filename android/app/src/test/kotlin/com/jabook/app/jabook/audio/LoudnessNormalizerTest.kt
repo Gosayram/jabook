@@ -75,7 +75,7 @@ class LoudnessNormalizerTest {
     @Test
     fun `flush clears queued buffers`() {
         normalizer.queueInput(pcm16Buffer(1200, -700))
-        normalizer.flush()
+        normalizer.flush(androidx.media3.common.audio.AudioProcessor.StreamMetadata.DEFAULT)
 
         val output = normalizer.getOutput()
 

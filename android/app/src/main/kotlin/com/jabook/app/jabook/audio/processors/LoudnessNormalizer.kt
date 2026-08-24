@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio.processors
 
 import android.util.Log
 import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.AudioProcessor.StreamMetadata
 import androidx.media3.common.util.UnstableApi
 import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
@@ -344,8 +345,7 @@ public class LoudnessNormalizer(
 
     override fun isEnded(): Boolean = inputEnded && queuedInputBytes == 0
 
-    @Suppress("OVERRIDE_DEPRECATION")
-    override fun flush() {
+    override fun flush(streamMetadata: StreamMetadata) {
         rmsBuffer.clear()
         rmsWeightedSum = 0.0f
         rmsWindowFrames = 0
