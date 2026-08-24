@@ -156,6 +156,8 @@ public class TorrentNotificationManager
          * Update notification for download
          */
         public fun updateNotification(download: TorrentDownload) {
+            // Skip building the notification entirely when the user disabled notifications
+            if (!notificationManager.areNotificationsEnabled()) return
             val notification = createProgressNotification(download)
             notificationManager.notify(download.hash.hashCode(), notification)
         }

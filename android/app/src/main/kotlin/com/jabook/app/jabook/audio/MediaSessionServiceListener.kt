@@ -117,7 +117,7 @@ public class MediaSessionServiceListener(
 
             // Show notification
             // Use a specific ID for this error notification
-            notificationManagerCompat.notify(1002, builder.build())
+            notificationManagerCompat.notify(NotificationHelper.RESUME_ERROR_NOTIFICATION_ID, builder.build())
         } catch (e: Exception) {
             LogUtils.e("AudioPlayerService", "Failed to show error notification", e)
         }

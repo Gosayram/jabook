@@ -24,6 +24,7 @@ import android.widget.Toast
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.rethrowCancellation
 import com.jabook.app.jabook.compose.data.preferences.SleepTimerState
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
@@ -433,6 +434,7 @@ internal class SleepTimerManager(
                 editor.putLong(SleepTimerPersistence.KEY_PAUSED_REMAINING_MILLIS, persistedState.pausedRemainingMillis)
                 editor.apply()
             } catch (e: Exception) {
+                e.rethrowCancellation()
                 LogUtils.w("AudioPlayerService", "Failed to backup sleep timer state to SharedPreferences", e)
             }
 
@@ -441,6 +443,7 @@ internal class SleepTimerManager(
                 "Sleep timer state saved: endTime=$sleepTimerEndTime, endOfChapter=$sleepTimerEndOfChapter",
             )
         } catch (e: Exception) {
+            e.rethrowCancellation()
             LogUtils.e("AudioPlayerService", "Failed to save sleep timer state", e)
         }
     }
@@ -468,6 +471,7 @@ internal class SleepTimerManager(
                         return
                     }
                 } catch (e: Exception) {
+                    e.rethrowCancellation()
                     LogUtils.w("AudioPlayerService", "Failed to read sleep timer from DataStore, falling back to SharedPreferences", e)
                 }
             }
@@ -475,6 +479,7 @@ internal class SleepTimerManager(
             // Fallback to SharedPreferences
             restoreFromSharedPreferences()
         } catch (e: Exception) {
+            e.rethrowCancellation()
             LogUtils.e("AudioPlayerService", "Failed to restore sleep timer state", e)
         }
     }

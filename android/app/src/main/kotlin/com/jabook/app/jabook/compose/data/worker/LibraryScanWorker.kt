@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.data.worker
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
@@ -61,6 +62,32 @@ public class LibraryScanWorker
         public companion object {
             public const val WORK_NAME: String = "library_scan_work"
             public const val WORK_TAG: String = "library_scan"
+            private const val NOTIFICATION_ID: Int = 3_105
+            private const val NOTIFICATION_CHANNEL_ID: String = "library_scan_work"
+        }
+
+        override suspend fun getForegroundInfo(): ForegroundInfo {
+            val notificationManager =
+                applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            notificationManager.createNotificationChannel(
+                android.app.NotificationChannel(
+                    NOTIFICATION_CHANNEL_ID,
+                    applicationContext.getString(R.string.scanningLibrary),
+                    android.app.NotificationManager.IMPORTANCE_LOW,
+                ),
+            )
+            val notification =
+                androidx.core.app.NotificationCompat
+                    .Builder(applicationContext, NOTIFICATION_CHANNEL_ID)
+                    .setSmallIcon(R.drawable.ic_notification_logo)
+                    .setContentTitle(applicationContext.getString(R.string.scanningLibrary))
+                    .setOngoing(true)
+                    .build()
+            return ForegroundInfo(
+                NOTIFICATION_ID,
+                notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+            )
         }
 
         override suspend fun doWork(): ListenableWorker.Result =
@@ -69,6 +96,12 @@ public class LibraryScanWorker
                 val stopReasonAtStart = runCatching { stopReason }.getOrDefault(-1)
                 logger.i { "Library scan started attempt=$attempt stopReason=$stopReasonAtStart" }
                 try {
+                    try {
+                        setForeground(getForegroundInfo())
+                    } catch (e: android.app.ForegroundServiceStartNotAllowedException) {
+                        // Android 12+: FGS start may be denied without user visibility; degrade to background.
+                        logger.w { "FGS start not allowed for library scan: ${e.message}" }
+                    }
                     setProgress(workDataOf("status" to applicationContext.getString(R.string.scan_status_starting)))
 
                     // Watchdog: Cancel scan if no progress for 3 minutes

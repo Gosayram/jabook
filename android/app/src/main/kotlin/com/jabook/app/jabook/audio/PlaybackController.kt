@@ -18,6 +18,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.ErrorHandler
+import com.jabook.app.jabook.compose.core.util.rethrowCancellation
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -102,18 +103,21 @@ internal class PlaybackController(
                     try {
                         getResumeRewindSeconds()
                     } catch (e: Exception) {
+                        e.rethrowCancellation()
                         10
                     }
                 val resumeRewindMode =
                     try {
                         getResumeRewindMode()
                     } catch (e: Exception) {
+                        e.rethrowCancellation()
                         ResumeRewindMode.FIXED
                     }
                 val resumeRewindAggressiveness =
                     try {
                         getResumeRewindAggressiveness()
                     } catch (e: Exception) {
+                        e.rethrowCancellation()
                         1.0f
                     }
                 val currentTime = nowMsProvider()
@@ -151,6 +155,7 @@ internal class PlaybackController(
                 // Reset inactivity timer (user action)
                 resetInactivityTimer()
             } catch (e: Exception) {
+                e.rethrowCancellation()
                 LogUtils.e("AudioPlayerService", "Failed to start playback", e)
                 ErrorHandler.handleGeneralError("AudioPlayerService", e, "Play method execution")
             }
@@ -182,6 +187,7 @@ internal class PlaybackController(
                 // Reset inactivity timer (user action - pause is also an interaction)
                 resetInactivityTimer()
             } catch (e: Exception) {
+                e.rethrowCancellation()
                 ErrorHandler.handleGeneralError("AudioPlayerService", e, "Pause method execution")
             }
         }

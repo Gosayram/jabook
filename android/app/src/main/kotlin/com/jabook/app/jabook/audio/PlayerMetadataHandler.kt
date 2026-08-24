@@ -27,6 +27,7 @@ import coil3.request.SuccessResult
 import coil3.size.Scale
 import coil3.toBitmap
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
+import com.jabook.app.jabook.compose.core.util.rethrowCancellation
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -191,6 +192,7 @@ internal class PlayerMetadataHandler(
                 )
             }
         } catch (e: Exception) {
+            e.rethrowCancellation()
             LogUtils.w("PlayerMetadataHandler", "Failed to load lock screen artwork", e)
         }
     }

@@ -34,6 +34,9 @@ internal class NotificationHelper(
     companion object {
         internal const val CHANNEL_ID = "media_playback_channel"
         internal const val NOTIFICATION_ID = 1
+
+        /** Notification ID for the "playback could not be resumed" error notification. */
+        internal const val RESUME_ERROR_NOTIFICATION_ID = 1002
     }
 
     /**
