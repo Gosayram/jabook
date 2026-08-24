@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.data.lyrics
 
+import com.jabook.app.jabook.compose.core.util.rethrowCancellation
 import com.jabook.app.jabook.compose.feature.player.lyrics.LrcParser
 import com.jabook.app.jabook.compose.feature.player.lyrics.LyricLine
 import com.jabook.app.jabook.util.LogUtils
@@ -44,6 +45,7 @@ public class LyricsRepository
                     try {
                         return@withContext LrcParser.parse(lrcFile.readText())
                     } catch (e: Exception) {
+                        e.rethrowCancellation()
                         LogUtils.e("LyricsRepository", "Failed to parse lyrics file: ${lrcFile.name}", e)
                     }
                 }

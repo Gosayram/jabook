@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
+import com.jabook.app.jabook.compose.core.util.rethrowCancellation
 import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -106,6 +107,7 @@ public class PlayerPersistenceManager
                         "Stored current media item for resumption: position=${positionMs}ms",
                     )
                 } catch (e: Exception) {
+                    e.rethrowCancellation()
                     LogUtils.w("PlayerPersistence", "Failed to store current media item for resumption", e)
                 }
             }
@@ -132,6 +134,7 @@ public class PlayerPersistenceManager
                         "groupPath" to groupPath,
                     )
                 } catch (e: Exception) {
+                    e.rethrowCancellation()
                     LogUtils.w("PlayerPersistence", "Failed to retrieve last stored media item", e)
                     null
                 }
@@ -150,6 +153,7 @@ public class PlayerPersistenceManager
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                     saveVersionedSnapshot(prefs = prefs, state = state)
                 } catch (e: Exception) {
+                    e.rethrowCancellation()
                     LogUtils.w("PlayerPersistence", "Failed to save persisted player snapshot", e)
                 }
             }
@@ -161,6 +165,7 @@ public class PlayerPersistenceManager
                 prefs.edit().putString("current_group_path", sanitizedPath).apply()
                 LogUtils.d("PlayerPersistence", "Saved groupPath to SharedPreferences")
             } catch (e: Exception) {
+                e.rethrowCancellation()
                 LogUtils.w("PlayerPersistence", "Failed to save groupPath to SharedPreferences", e)
             }
         }
@@ -172,6 +177,7 @@ public class PlayerPersistenceManager
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                     prefs.edit().putString("book_state_${state.bookId}", Json.encodeToString(state)).apply()
                 } catch (e: Exception) {
+                    e.rethrowCancellation()
                     LogUtils.e("PlayerPersistence", "Failed to save player state", e)
                 }
             }
@@ -183,6 +189,7 @@ public class PlayerPersistenceManager
                     val jsonString = prefs.getString("book_state_$bookId", null) ?: return@withContext null
                     Json.decodeFromString<PlayerState>(jsonString)
                 } catch (e: Exception) {
+                    e.rethrowCancellation()
                     LogUtils.e("PlayerPersistence", "Failed to get player state", e)
                     null
                 }

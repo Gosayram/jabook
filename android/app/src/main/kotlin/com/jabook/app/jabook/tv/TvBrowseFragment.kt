@@ -34,6 +34,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Main browse fragment for Android TV.
@@ -117,6 +118,7 @@ public class TvBrowseFragment : BrowseSupportFragment() {
                     rowsAdapter.add(ListRow(header, listRowAdapter))
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 LogUtils.e("TvBrowseFragment", "Error loading books", e)
                 showEmptyState()
             }

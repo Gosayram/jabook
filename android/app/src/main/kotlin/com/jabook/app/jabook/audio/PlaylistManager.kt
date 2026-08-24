@@ -32,6 +32,7 @@ import androidx.media3.extractor.mp3.Mp3Extractor
 import com.jabook.app.jabook.audio.ErrorHandler
 import com.jabook.app.jabook.audio.SavedPlaybackState
 import com.jabook.app.jabook.compose.core.di.AppDispatchers
+import com.jabook.app.jabook.compose.core.util.rethrowCancellation
 import com.jabook.app.jabook.core.network.NetworkRuntimePolicy
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CancellationException
@@ -884,6 +885,7 @@ internal class PlaylistManager(
             // Verify final state
             verifyPositionApplied(activePlayer, initialTrackIndex, initialPosition)
         } catch (e: Exception) {
+            e.rethrowCancellation()
             LogUtils.w(
                 "AudioPlayerService",
                 "Failed to apply initial position after all tracks loaded: ${e.message}",
@@ -1058,6 +1060,7 @@ internal class PlaylistManager(
                 // Cancel deferred to clean up
                 deferredToAwait.cancel()
             } catch (e: Exception) {
+                e.rethrowCancellation()
                 LogUtils.w(
                     "AudioPlayerService",
                     "Failed to wait for track switch event: ${e.message}, falling back to polling",

@@ -101,8 +101,8 @@ public class AudioPlayerNotificationProvider(
                     val slots = prefs.notificationActionSlotsList
                     cachedNotificationActionSlots = if (slots.isEmpty()) null else slots.toSet()
                 }
-            } catch (_: Exception) {
-                // keep default (null) on failure
+            } catch (e: Exception) {
+                LogUtils.w("AudioPlayerNotificationProvider", "Failed to collect notification action slot preferences", e)
             }
         }
     }

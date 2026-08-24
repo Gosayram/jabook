@@ -457,11 +457,13 @@ internal class PlayerConfigurator(
         playerListener?.let { listener ->
             try {
                 service.exoPlayer.removeListener(listener)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                LogUtils.w("PlayerConfigurator", "Failed to remove listener from singleton ExoPlayer", e)
             }
             try {
                 customExoPlayer?.removeListener(listener)
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                LogUtils.w("PlayerConfigurator", "Failed to remove listener from custom ExoPlayer", e)
             }
             listener.release()
         }
@@ -510,7 +512,8 @@ internal class PlayerConfigurator(
         if (player == null) return
         try {
             player.removeAudioOffloadListener(audioOffloadListener)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            LogUtils.w("PlayerConfigurator", "Failed to unregister audio offload listener", e)
         } finally {
             if (offloadListenerTarget === player) {
                 offloadListenerTarget = null

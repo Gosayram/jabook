@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Activity for managing app storage space.
@@ -251,6 +252,7 @@ public class DataManagementActivity : AppCompatActivity() {
                 // Reload storage info
                 loadStorageInfo()
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 LogUtils.e("DataManagementActivity", "Error clearing cache", e)
                 progressBar.visibility = View.GONE
                 clearCacheButton.isEnabled = true

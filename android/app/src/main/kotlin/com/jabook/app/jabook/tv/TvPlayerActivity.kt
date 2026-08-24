@@ -38,6 +38,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * TV Player Activity for playing audiobooks on Android TV.
@@ -93,6 +94,7 @@ public class TvPlaybackFragment : PlaybackSupportFragment() {
                 book = booksRepository.getBook(bookId).first()
                 book?.let { setupPlayback(it) }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 LogUtils.e("TvPlaybackFragment", "Error loading book", e)
             }
         }

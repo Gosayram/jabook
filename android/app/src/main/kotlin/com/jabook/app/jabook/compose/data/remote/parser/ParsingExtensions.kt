@@ -14,9 +14,9 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Element
 import org.jsoup.select.Elements
-import java.net.URI
 
 /**
  * Safe parsing extensions for Jsoup Elements.
@@ -60,7 +60,7 @@ internal fun Element?.url(): String = requireNotNull(urlOrNull()) { "url not fou
 /**
  * Get query parameter from Element's href URL, or null if not found.
  */
-internal fun Element?.queryParamOrNull(key: String): String? = urlOrNull()?.let { parseUrl(it) }?.get(key)?.firstOrNull()
+internal fun Element?.queryParamOrNull(key: String): String? = urlOrNull()?.toHttpUrlOrNull()?.queryParameter(key)
 
 /**
  * Get query parameter from Element's href URL, or throw if not found.
@@ -98,7 +98,7 @@ internal fun Elements?.url(): String = requireNotNull(urlOrNull()) { "url not fo
 /**
  * Get query parameter from Elements' href URL, or null if not found.
  */
-internal fun Elements?.queryParamOrNull(key: String): String? = urlOrNull()?.let { parseUrl(it) }?.get(key)?.firstOrNull()
+internal fun Elements?.queryParamOrNull(key: String): String? = urlOrNull()?.toHttpUrlOrNull()?.queryParameter(key)
 
 /**
  * Get query parameter from Elements' href URL, or throw if not found.
@@ -107,24 +107,3 @@ internal fun Elements?.queryParam(key: String): String =
     requireNotNull(queryParamOrNull(key)) {
         "query param '$key' not found in $this"
     }
-
-/**
- * Parse URL query parameters.
- *
- * @param url URL string to parse
- * @return Map of query parameters
- */
-private fun parseUrl(url: String): Map<String, List<String>> =
-    runCatching {
-        URI
-            .create(url)
-            .query
-            ?.split("&")
-            ?.associate { queryParam ->
-                val split = queryParam.split("=")
-                val key = java.net.URLDecoder.decode(split[0], "UTF-8")
-                val value = java.net.URLDecoder.decode(split.drop(1).joinToString("="), "UTF-8")
-                key to listOf(value)
-            }
-            ?: emptyMap()
-    }.getOrDefault(emptyMap())
