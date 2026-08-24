@@ -21,11 +21,10 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
 import coil3.SingletonImageLoader
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
-import coil3.request.diskCachePolicy
-import coil3.request.memoryCachePolicy
 import coil3.size.Scale
 import coil3.toBitmap
 import com.google.common.util.concurrent.Futures
@@ -91,8 +90,8 @@ public class CoilBitmapLoader(
                             .size(maxArtworkWidth, maxArtworkHeight)
                             .scale(Scale.FIT)
                             .allowHardware(false)
-                            .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
-                            .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
                             .build()
 
                     val result = loader.execute(request)
