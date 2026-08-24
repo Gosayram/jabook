@@ -47,7 +47,6 @@ import org.libtorrent4j.alerts.AlertType
 import org.libtorrent4j.alerts.BlockFinishedAlert
 import org.libtorrent4j.alerts.DhtErrorAlert
 import org.libtorrent4j.alerts.MetadataReceivedAlert
-import org.libtorrent4j.alerts.PeerLogAlert
 import org.libtorrent4j.alerts.PieceFinishedAlert
 import org.libtorrent4j.alerts.SaveResumeDataAlert
 import org.libtorrent4j.alerts.SaveResumeDataFailedAlert
@@ -55,7 +54,6 @@ import org.libtorrent4j.alerts.StateChangedAlert
 import org.libtorrent4j.alerts.StateUpdateAlert
 import org.libtorrent4j.alerts.TorrentErrorAlert
 import org.libtorrent4j.alerts.TorrentFinishedAlert
-import org.libtorrent4j.alerts.TorrentLogAlert
 import org.libtorrent4j.alerts.TrackerAnnounceAlert
 import org.libtorrent4j.alerts.TrackerErrorAlert
 import org.libtorrent4j.alerts.TrackerReplyAlert
@@ -88,6 +86,11 @@ public class TorrentSessionManager
         private var session: SessionManager? = null
         private val torrents = ConcurrentHashMap<String, TorrentHandle>()
         private val topicIds = ConcurrentHashMap<String, String>()
+
+        // Hashes added via addTorrent() whose ADD_TORRENT alert has not fired yet.
+        // Guards restoreActiveDownloads() (running concurrently after session init)
+        // from re-adding a just-added torrent via a second code path.
+        private val pendingAdds = ConcurrentHashMap.newKeySet<String>()
         private var lastLibrarySyncTriggerAtMs: Long = 0L
 
         private val _downloadsFlow = MutableStateFlow<Map<String, TorrentDownload>>(emptyMap())
@@ -122,7 +125,10 @@ public class TorrentSessionManager
             object : AlertListener {
                 override fun types(): IntArray? {
                     // Specify alert types explicitly like libretorrent does
-                    // This is more efficient and avoids potential issues with null
+                    // This is more efficient and avoids potential issues with null.
+                    // Log alerts (PeerLog/TorrentLog/DhtLog) are excluded — SessionManager(false)
+                    // already removes log categories from the alert mask, so registering them
+                    // here would be dead code that can never fire.
                     return intArrayOf(
                         AlertType.ADD_TORRENT.swig(),
                         AlertType.METADATA_RECEIVED.swig(),
@@ -133,13 +139,10 @@ public class TorrentSessionManager
                         AlertType.PIECE_FINISHED.swig(),
                         AlertType.DHT_ERROR.swig(),
                         AlertType.STATE_UPDATE.swig(),
-                        AlertType.PEER_LOG.swig(),
-                        AlertType.TORRENT_LOG.swig(),
                         AlertType.SAVE_RESUME_DATA.swig(),
                         AlertType.SAVE_RESUME_DATA_FAILED.swig(),
                         AlertType.TRACKER_REPLY.swig(),
                         AlertType.TRACKER_ERROR.swig(),
-                        AlertType.DHT_REPLY.swig(),
                         AlertType.TRACKER_ANNOUNCE.swig(),
                     )
                 }
@@ -166,14 +169,6 @@ public class TorrentSessionManager
                                 }
                                 // Failed saves must also release the latch, or stopSession() waits the full timeout.
                                 pendingResumeDataLatch?.countDown()
-                            }
-                            is PeerLogAlert -> {
-                                // Log peer-level debugging (can be verbose, so use debug level)
-                                logger.d { "PEER_LOG: ${alert.logMessage()}" }
-                            }
-                            is TorrentLogAlert -> {
-                                // Log torrent-level debugging
-                                logger.d { "TORRENT_LOG: ${alert.logMessage()}" }
                             }
                             is TrackerReplyAlert -> {
                                 val hash = alert.handle().infoHash().toHex()
@@ -454,6 +449,9 @@ public class TorrentSessionManager
                         }
 
                     session.download(effectiveMagnetUri, saveDir, flags)
+                    // Track as pending until ADD_TORRENT fires, so a concurrent
+                    // restoreActiveDownloads() doesn't re-add it via a second path.
+                    pendingAdds.add(hash)
                     logger.i {
                         "Successfully called session.download() for hash=$hash. Waiting for ADD_TORRENT alert..."
                     }
@@ -539,6 +537,26 @@ public class TorrentSessionManager
 
                 torrents.remove(hash)
                 topicIds.remove(hash)
+                pendingAdds.remove(hash)
+
+                // Persist the terminal state so restoreActiveDownloads() on the next
+                // start doesn't silently re-add this torrent:
+                //  - deleteFiles=true  -> the torrent is gone, delete the row (+resume).
+                //  - deleteFiles=false -> stopped, keep files/history, mark STOPPED.
+                // Uses statePersistenceScope: it survives stopSession()/shutdown(), which
+                // cancels sessionScope (e.g. deleteAllTorrents() -> stopDownloadService()).
+                statePersistenceScope.launch {
+                    try {
+                        if (deleteFiles) {
+                            torrentResumeDao.deleteTorrent(torrentDownloadDao, hash)
+                        } else {
+                            torrentDownloadDao.updateState(hash, TorrentState.STOPPED)
+                        }
+                    } catch (e: Exception) {
+                        logger.w({ "Failed to persist terminal state for $hash" }, e)
+                    }
+                }
+
                 updateDownloads()
                 logger.i { "Removed torrent: $hash (deleteFiles=$deleteFiles)" }
             } catch (e: Exception) {
@@ -683,6 +701,22 @@ public class TorrentSessionManager
                         logger.w { "Timeout waiting for save resume data alerts (${handles.size} handles)" }
                     }
                 }
+
+                // Save session-level state (DHT routing table, peer lists) BEFORE stopping
+                // so the next start boots with a warm DHT — libtorrent4j best practice.
+                // Written on statePersistenceScope, which stopSession() does NOT cancel.
+                try {
+                    val state = session?.saveState()
+                    if (state != null) {
+                        statePersistenceScope.launch {
+                            persistSessionState(state)
+                        }
+                        logger.i { "Saved torrent session state (${state.size} bytes)" }
+                    }
+                } catch (e: Exception) {
+                    logger.w({ "Failed to save session state on shutdown" }, e)
+                }
+
                 torrents.clear()
                 session?.stop()
                 session = null
@@ -747,7 +781,7 @@ public class TorrentSessionManager
                     val resumeDataByHash = torrentResumeDao.getAllResumeData().associate { it.hash to it.resumeData }
                     active.forEach { row ->
                         try {
-                            if (torrents.containsKey(row.hash)) return@forEach
+                            if (torrents.containsKey(row.hash) || pendingAdds.contains(row.hash)) return@forEach
                             val resumeBytes = resumeDataByHash[row.hash]
                             if (resumeBytes != null) {
                                 val byteVector = Vectors.bytes2byte_vector(resumeBytes)
@@ -828,6 +862,7 @@ public class TorrentSessionManager
                 }
 
                 torrents[hash] = handle
+                pendingAdds.remove(hash)
 
                 // Resume torrent to start downloading (required by libtorrent4j)
                 // According to libtorrent4j examples, handle.resume() must be called after adding
@@ -902,6 +937,13 @@ public class TorrentSessionManager
                             "downloaded=${status.totalDone()} bytes, " +
                             "uploaded=${status.totalUpload()} bytes, " +
                             "downloadRate=${status.downloadRate()} bytes/s"
+                    }
+                    // Persist the final resume state so a completed torrent restores
+                    // with piece hashes (SEEDING) instead of re-checking from scratch.
+                    try {
+                        handle.saveResumeData(TorrentHandle.SAVE_INFO_DICT)
+                    } catch (e: Exception) {
+                        logger.w({ "Failed to request final resume data for $hash" }, e)
                     }
                     scheduleImmediateLibrarySync(hash)
                 }

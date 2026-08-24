@@ -163,13 +163,25 @@ public interface TorrentDownloadDao {
     public suspend fun deleteByHash(hash: String)
 
     /**
-     * Returns all non-completed downloads regardless of resume data, for re-adding on session init.
+     * Persist a state override (e.g. STOPPED when a torrent is removed without
+     * deleting files) so restoreActiveDownloads() won't re-add it on restart.
+     */
+    @Query("UPDATE torrent_downloads SET state = :state WHERE hash = :hash")
+    public suspend fun updateState(
+        hash: String,
+        state: TorrentState,
+    )
+
+    /**
+     * Returns all non-completed/non-error/non-stopped downloads regardless of
+     * resume data, for re-adding on session init. STOPPED torrents were explicitly
+     * removed by the user and must NOT be silently re-added on restart.
      */
     @Query(
         """
         SELECT hash, name, state, progress, totalSize, downloadedSize, uploadedSize,
                savePath, files, errorMessage, addedTime, completedTime, pauseReason, topicId
-        FROM torrent_downloads WHERE state NOT IN ('COMPLETED', 'ERROR')
+        FROM torrent_downloads WHERE state NOT IN ('COMPLETED', 'ERROR', 'STOPPED')
         """,
     )
     public suspend fun getActiveDownloads(): List<TorrentDownloadRow>
