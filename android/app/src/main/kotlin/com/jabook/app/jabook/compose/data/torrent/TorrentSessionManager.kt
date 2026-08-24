@@ -486,6 +486,7 @@ public class TorrentSessionManager
         /**
          * Remove torrent
          */
+        @Synchronized
         public fun removeTorrent(
             hash: String,
             deleteFiles: Boolean = false,
@@ -493,12 +494,20 @@ public class TorrentSessionManager
             val handle = torrents[hash] ?: return
 
             try {
+                // Capture the save path BEFORE removing: after session.remove(handle)
+                // the handle is invalid and savePath() would throw.
+                val savePath =
+                    if (deleteFiles) {
+                        runCatching { handle.savePath() }.getOrNull()
+                    } else {
+                        null
+                    }
+
                 // Remove natively first: if that throws, the handle stays in the map so
                 // stopSession() can still request its resume data and session.stop() cleans it up.
                 session?.remove(handle)
 
-                if (deleteFiles) {
-                    val savePath = handle.savePath()
+                if (deleteFiles && savePath != null) {
                     File(savePath).deleteRecursively()
                 }
 
@@ -514,6 +523,7 @@ public class TorrentSessionManager
         /**
          * Pause torrent
          */
+        @Synchronized
         public fun pauseTorrent(hash: String) {
             val handle = torrents[hash] ?: return
 
@@ -529,6 +539,7 @@ public class TorrentSessionManager
         /**
          * Resume torrent
          */
+        @Synchronized
         public fun resumeTorrent(hash: String) {
             val handle = torrents[hash] ?: return
 
@@ -570,6 +581,7 @@ public class TorrentSessionManager
         /**
          * Pause all torrents
          */
+        @Synchronized
         public fun pauseAll() {
             torrents.values.toList().forEach { it.pause() }
             updateDownloads()
@@ -578,6 +590,7 @@ public class TorrentSessionManager
         /**
          * Resume all torrents
          */
+        @Synchronized
         public fun resumeAll() {
             torrents.values.toList().forEach { it.resume() }
             updateDownloads()
@@ -997,6 +1010,7 @@ public class TorrentSessionManager
 
         // Helper methods
 
+        @Synchronized
         private fun updateDownloads() {
             try {
                 val downloads =
@@ -1139,10 +1153,31 @@ public class TorrentSessionManager
                         emptyList()
                     }
 
+                // State mapping per libtorrent4j: an ERROR is surfaced via
+                // TorrentStatus.errorCode(), and a user/tracker pause is a flag
+                // (TorrentFlags.PAUSED), not a TorrentStatus.State. Neither was
+                // reflected before — errors showed as QUEUED and paused torrents
+                // as DOWNLOADING.
+                val errorCode = runCatching { status.errorCode() }.getOrNull()
+                val isError = errorCode?.isError() == true
+                val isPaused =
+                    runCatching {
+                        handle
+                            .getFlags()
+                            .and_(org.libtorrent4j.TorrentFlags.PAUSED)
+                            .non_zero()
+                    }.getOrDefault(false)
+                val resolvedState =
+                    when {
+                        isError -> TorrentState.ERROR
+                        isPaused -> TorrentState.PAUSED
+                        else -> mapState(status.state())
+                    }
+
                 return TorrentDownload(
                     hash = hash,
                     name = name,
-                    state = mapState(status.state()),
+                    state = resolvedState,
                     progress = progress,
                     downloadSpeed = downloadSpeed.toInt(),
                     uploadSpeed = uploadSpeed.toInt(),
@@ -1154,7 +1189,7 @@ public class TorrentSessionManager
                     eta = eta,
                     savePath = savePath,
                     files = files,
-                    errorMessage = null, // Error tracking not available in current libtorrent4j binding
+                    errorMessage = if (isError) errorCode?.getMessage() else null,
                     topicId = topicIds[hash],
                 )
             } catch (e: Exception) {
@@ -1183,11 +1218,15 @@ public class TorrentSessionManager
 
         private fun mapState(state: TorrentStatus.State): TorrentState =
             when (state) {
-                TorrentStatus.State.CHECKING_FILES -> TorrentState.CHECKING
+                TorrentStatus.State.CHECKING_FILES,
+                TorrentStatus.State.CHECKING_RESUME_DATA,
+                -> TorrentState.CHECKING
                 TorrentStatus.State.DOWNLOADING_METADATA -> TorrentState.DOWNLOADING_METADATA
                 TorrentStatus.State.DOWNLOADING -> TorrentState.DOWNLOADING
                 TorrentStatus.State.SEEDING -> TorrentState.SEEDING
                 TorrentStatus.State.FINISHED -> TorrentState.COMPLETED
+                // Paused/error are flags, handled at the caller; anything else is queued.
+                TorrentStatus.State.UNKNOWN -> TorrentState.QUEUED
                 else -> TorrentState.QUEUED
             }
 

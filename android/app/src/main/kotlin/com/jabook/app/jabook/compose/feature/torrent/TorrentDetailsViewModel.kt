@@ -47,10 +47,13 @@ public class TorrentDetailsViewModel
     constructor(
         @ApplicationContext private val context: Context,
         private val torrentManager: TorrentManager,
+        private val torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository,
         private val booksRepository: BooksRepository,
         savedStateHandle: SavedStateHandle,
         private val streamingMonitor: TorrentStreamingMonitor,
+        private val loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory,
     ) : ViewModel() {
+        private val logger = loggerFactory.get("TorrentDetailsViewModel")
         private val route = savedStateHandle.toRoute<TorrentDetailsRoute>()
         public val hash: String = route.hash
 
@@ -70,7 +73,12 @@ public class TorrentDetailsViewModel
 
         public fun playFile(file: com.jabook.app.jabook.compose.data.torrent.TorrentFile) {
             viewModelScope.launch {
-                val currentDownload = download.value ?: return@launch
+                // The live map is empty when the libtorrent session is stopped (e.g. app
+                // restarted, or session torn down) even though the DB still has the row —
+                // fall back to the persisted row so the file stays playable.
+                val currentDownload =
+                    download.value ?: torrentDownloadRepository.getByHash(hash) ?: return@launch
+                val savePath = currentDownload.savePath.ifBlank { return@launch }
 
                 // 1. Enable streaming
                 torrentManager.enableStreaming(hash)
@@ -88,8 +96,12 @@ public class TorrentDetailsViewModel
                 }
 
                 if (attempts >= maxAttempts) {
-                    // Timeout - try anyway or show error
-                    // For now, proceed but it might fail
+                    // Buffer not ready within 30s — playback will likely stutter. Proceed
+                    // (the buffer monitor will pause/resume), but surface the risk clearly.
+                    logger.w {
+                        "File buffer not ready after 30s for hash=$hash file=${file.index}; " +
+                            "starting playback anyway"
+                    }
                 }
 
                 // 3. Start monitoring
@@ -98,7 +110,7 @@ public class TorrentDetailsViewModel
                 // 4. Prepare Book & Chapter
 
                 val bookId: String = "torrent_${hash}_${file.index}"
-                val absolutePath = File(currentDownload.savePath, file.path).absolutePath
+                val absolutePath = File(savePath, file.path).absolutePath
                 val title = File(file.path).name
 
                 val book =
