@@ -106,9 +106,10 @@ public class CacheManager
                     try {
                         val imageLoader = SingletonImageLoader.get(context)
                         imageLoader.memoryCache?.clear()
-                        logger.d { "Coil memory cache cleared" }
+                        imageLoader.diskCache?.clear()
+                        logger.d { "Coil memory + disk cache cleared" }
                     } catch (e: Exception) {
-                        logger.e({ "Failed to clear Coil memory cache" }, e)
+                        logger.e({ "Failed to clear Coil cache" }, e)
                     }
 
                     // Disk cleanup does not affect this singleton. Clear it explicitly so a

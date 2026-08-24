@@ -24,6 +24,8 @@ import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import coil3.request.allowHardware
+import coil3.request.diskCachePolicy
+import coil3.request.memoryCachePolicy
 import coil3.size.Scale
 import coil3.toBitmap
 import com.google.common.util.concurrent.Futures
@@ -88,8 +90,9 @@ public class CoilBitmapLoader(
                             .data(uri)
                             .size(maxArtworkWidth, maxArtworkHeight)
                             .scale(Scale.FIT)
-                            // Software bitmap required: result crosses into SystemUI's process
                             .allowHardware(false)
+                            .diskCachePolicy(coil3.request.CachePolicy.ENABLED)
+                            .memoryCachePolicy(coil3.request.CachePolicy.ENABLED)
                             .build()
 
                     val result = loader.execute(request)
