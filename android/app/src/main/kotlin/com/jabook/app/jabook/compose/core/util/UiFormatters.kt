@@ -25,6 +25,8 @@ import java.util.Locale
  * duration, speed, size, and other numeric values.
  */
 public object UiFormatters {
+    private val STRIP_NUMERIC_PREFIX_REGEX = Regex("^\\d+[.)\\s]+")
+
     public fun formatDuration(ms: Long): String {
         val totalSeconds = ms / 1000
         val hours = totalSeconds / 3600
@@ -119,5 +121,5 @@ public object UiFormatters {
      * Strips leading numeric prefixes like "1.", "01.", "12) " from strings.
      * Used to avoid duplication when chapter display number is prepended.
      */
-    public fun stripLeadingNumericPrefix(title: String): String = title.replace(Regex("^\\d+[.)\\s]+"), "").trim()
+    public fun stripLeadingNumericPrefix(title: String): String = title.replace(STRIP_NUMERIC_PREFIX_REGEX, "").trim()
 }

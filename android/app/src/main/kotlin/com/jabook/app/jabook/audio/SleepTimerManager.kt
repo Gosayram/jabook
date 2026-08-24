@@ -25,6 +25,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.rethrowCancellation
+import com.jabook.app.jabook.compose.core.util.safeEnum
 import com.jabook.app.jabook.compose.data.preferences.SleepTimerState
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
@@ -483,7 +484,7 @@ internal class SleepTimerManager(
 
     /** Restore sleep timer state from DataStore SleepTimerState proto. */
     internal fun restoreFromDataStoreState(dataStoreState: com.jabook.app.jabook.compose.data.preferences.SleepTimerState) {
-        val mode = enumValueOfOrNull(dataStoreState.mode) ?: SleepTimerMode.NONE
+        val mode = dataStoreState.mode.safeEnum(SleepTimerMode.NONE)
         when (mode) {
             SleepTimerMode.CHAPTER_END -> {
                 sleepTimerEndTime = 0
@@ -535,9 +536,7 @@ internal class SleepTimerManager(
                 endTimeMillis = prefs.getLong(SleepTimerPersistence.KEY_END_TIME, 0L),
                 endOfChapter = prefs.getBoolean(SleepTimerPersistence.KEY_END_OF_CHAPTER, false),
                 mode =
-                    prefs.getString(SleepTimerPersistence.KEY_MODE, null)?.let { modeName ->
-                        enumValueOfOrNull(modeName)
-                    },
+                    prefs.getString(SleepTimerPersistence.KEY_MODE, null)?.safeEnum(SleepTimerMode.NONE),
                 paused = prefs.getBoolean(SleepTimerPersistence.KEY_PAUSED, false),
                 pausedRemainingMillis =
                     prefs.getLong(
@@ -680,11 +679,4 @@ internal class SleepTimerManager(
             callbackGeneration = callbackGeneration,
             activeMode = sleepTimerMode,
         )
-
-    private fun enumValueOfOrNull(modeName: String): SleepTimerMode? =
-        try {
-            SleepTimerMode.valueOf(modeName)
-        } catch (_: IllegalArgumentException) {
-            null
-        }
 }

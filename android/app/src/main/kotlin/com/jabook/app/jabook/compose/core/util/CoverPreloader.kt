@@ -112,31 +112,26 @@ private class CoverPreloader(
     private val context: Context,
 ) {
     private val imageLoader by lazy { SingletonImageLoader.get(context) }
-    private val preloadedIds = mutableSetOf<String>()
 
     /**
      * Preloads covers for the given books.
-     * Skips books that have already been preloaded to avoid duplicate requests.
+     * Coil deduplicates identical requests internally.
      */
     public suspend fun preloadCovers(books: List<Book>) =
         withContext(Dispatchers.IO) {
-            val newBooks =
+            val booksToPreload =
                 books.filter { book ->
-                    val coverModel = CoverUtils.getCoverModel(book, context)
-                    coverModel != null && book.id !in preloadedIds
+                    CoverUtils.getCoverModel(book, context) != null
                 }
 
-            if (newBooks.isEmpty()) {
+            if (booksToPreload.isEmpty()) {
                 return@withContext
             }
 
-            newBooks.forEach { book ->
+            booksToPreload.forEach { book ->
                 try {
                     val coverModel = CoverUtils.getCoverModel(book, context) ?: return@forEach
 
-                    // Create ImageRequest for preloading — constrain decode size so
-                    // standalone enqueue doesn't decode at full resolution (unlike
-                    // AsyncImage which resolves from composition constraints).
                     val imageRequest =
                         CoverUtils
                             .createCoverImageRequest(
@@ -155,17 +150,12 @@ private class CoverPreloader(
                             ).size(200, 280)
                             .build()
 
-                    // Enqueue for background loading
                     imageLoader.enqueue(imageRequest)
-
-                    // Mark as preloaded
-                    preloadedIds.add(book.id)
 
                     coverPreloaderLogger.v { "Preloaded cover for: ${book.title}" }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    // Silently fail - covers will load on demand
                     coverPreloaderLogger.e({ "Failed to preload cover for ${book.title}" }, e)
                     CrashDiagnostics.reportNonFatal(
                         tag = "cover_preload_failed",
@@ -179,17 +169,10 @@ private class CoverPreloader(
                 }
             }
 
-            coverPreloaderLogger.d {
-                "Preloaded ${newBooks.size} covers (total preloaded: ${preloadedIds.size})"
-            }
+            coverPreloaderLogger.d { "Preloaded ${booksToPreload.size} covers" }
         }
 
-    /**
-     * Clears the preloaded IDs cache.
-     * Useful when the book list changes significantly.
-     */
     public fun clearCache() {
-        preloadedIds.clear()
         coverPreloaderLogger.d { "Cleared preload cache" }
     }
 }
