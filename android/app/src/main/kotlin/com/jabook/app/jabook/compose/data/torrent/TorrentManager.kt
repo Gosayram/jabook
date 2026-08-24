@@ -415,13 +415,9 @@ public class TorrentManager
                         active.forEach { pauseTorrent(it) }
                         pausedByNetwork = true
 
-                        // Show notification about paused downloads
-                        Toast
-                            .makeText(
-                                context,
-                                context.getString(R.string.downloadsPausedWifiRequired),
-                                Toast.LENGTH_SHORT,
-                            ).show()
+                        // Debounce toasts: on flappy networks the pause/resume toggles
+                        // repeatedly — don't spam the user with one toast per transition.
+                        showNetworkToast(context, R.string.downloadsPausedWifiRequired)
                     }
                 }
             } else {
@@ -432,14 +428,32 @@ public class TorrentManager
                     networkPausedTorrents.clear()
                     pausedByNetwork = false
 
-                    // Show notification about resumed downloads
-                    Toast
-                        .makeText(
-                            context,
-                            context.getString(R.string.downloadsResumed),
-                            Toast.LENGTH_SHORT,
-                        ).show()
+                    // Debounce toasts: one per transition burst, not per network flap.
+                    showNetworkToast(context, R.string.downloadsResumed)
                 }
             }
+        }
+
+        // Debounce helper: at most one network-restriction toast every 10s.
+        private var lastNetworkToastMs = 0L
+
+        private fun showNetworkToast(
+            context: android.content.Context,
+            resId: Int,
+        ) {
+            val now = System.currentTimeMillis()
+            if (now - lastNetworkToastMs < NETWORK_TOAST_DEBOUNCE_MS) return
+            lastNetworkToastMs = now
+            try {
+                Toast
+                    .makeText(context, context.getString(resId), Toast.LENGTH_SHORT)
+                    .show()
+            } catch (e: Exception) {
+                logger.w({ "Failed to show network toast" }, e)
+            }
+        }
+
+        public companion object {
+            private const val NETWORK_TOAST_DEBOUNCE_MS = 10_000L
         }
     }

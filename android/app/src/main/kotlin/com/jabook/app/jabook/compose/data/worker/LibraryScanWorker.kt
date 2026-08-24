@@ -64,6 +64,7 @@ public class LibraryScanWorker
             public const val WORK_TAG: String = "library_scan"
             private const val NOTIFICATION_ID: Int = 3_105
             private const val NOTIFICATION_CHANNEL_ID: String = "library_scan_work"
+            private const val MAX_SCAN_ATTEMPTS: Int = 3
         }
 
         override suspend fun getForegroundInfo(): ForegroundInfo {
@@ -356,19 +357,19 @@ public class LibraryScanWorker
                         }
                         is DomainResult.Loading -> {
                             val currentStopReason = runCatching { stopReason }.getOrDefault(-1)
-                            logger.w {
-                                "Library scan returned loading, retrying attempt=$attempt stopReason=$currentStopReason"
+                            // Defensive: scanAudiobooks() never returns Loading today, but if it
+                            // ever does, cap the retries so the worker can't loop forever.
+                            if (attempt < MAX_SCAN_ATTEMPTS) {
+                                logger.w {
+                                    "Library scan returned loading, retrying attempt=$attempt stopReason=$currentStopReason"
+                                }
+                                ListenableWorker.Result.retry()
+                            } else {
+                                logger.e { "Library scan stuck in Loading after $attempt attempts" }
+                                ListenableWorker.Result.failure(
+                                    workDataOf("error" to "Library scan stuck in loading state"),
+                                )
                             }
-                            CrashDiagnostics.reportNonFatal(
-                                tag = "library_scan_retry",
-                                throwable = IllegalStateException("Library scan returned loading result"),
-                                attributes =
-                                    mapOf(
-                                        "attempt" to attempt,
-                                        "stop_reason" to currentStopReason,
-                                    ),
-                            )
-                            ListenableWorker.Result.retry()
                         }
                     }
                 } catch (e: Exception) {

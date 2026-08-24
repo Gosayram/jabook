@@ -547,6 +547,32 @@ public interface BooksDao {
     )
 
     /**
+     * Applies a batch of metadata-sync updates (cover URL, author, description,
+     * cover path) in a single transaction — avoids one Room transaction per book
+     * during library sync with a large number of books.
+     */
+    @Transaction
+    public suspend fun applyMetadataSync(updates: List<BookMetadataUpdate>) {
+        updates.forEach { update ->
+            update.coverUrl?.let { updateCoverUrl(update.bookId, it) }
+            update.author?.let { updateAuthor(update.bookId, it) }
+            update.description?.let { updateDescription(update.bookId, it) }
+            update.coverPath?.let { updateCoverPath(update.bookId, it) }
+        }
+    }
+
+    /**
+     * Pending field-level update for [applyMetadataSync].
+     */
+    public data class BookMetadataUpdate(
+        public val bookId: String,
+        public val coverUrl: String? = null,
+        public val author: String? = null,
+        public val description: String? = null,
+        public val coverPath: String? = null,
+    )
+
+    /**
      * Atomically updates both cover URL and cover path for a book.
      *
      * Prevents inconsistent state where one field is updated but the other is not

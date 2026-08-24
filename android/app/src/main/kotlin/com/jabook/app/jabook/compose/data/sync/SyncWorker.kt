@@ -18,6 +18,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.network.CoverDownloadNetworkPolicy
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
@@ -125,6 +126,9 @@ public class SyncWorker
             val books = if (downloads.isEmpty()) emptyList() else booksDao.getAllBooks()
             logger.d { "Found ${downloads.size} downloads to sync" }
 
+            // Batch field-level updates into one Room transaction at the end.
+            val pendingUpdates = mutableListOf<BooksDao.BookMetadataUpdate>()
+
             for (download in downloads) {
                 val topicId = download.topicId ?: continue
 
@@ -150,12 +154,14 @@ public class SyncWorker
                         if (matchedBook != null) {
                             logger.d { "Updating metadata for book: ${matchedBook.title}" }
 
-                            // Update metadata if needed
-                            // For now, we mainly care about missing covers or empty metadata
+                            var update: BooksDao.BookMetadataUpdate? = null
 
                             // Update cover URL if missing
                             if (matchedBook.coverUrl.isNullOrEmpty() && !details.coverUrl.isNullOrEmpty()) {
-                                booksDao.updateCoverUrl(matchedBook.id, details.coverUrl)
+                                update =
+                                    (update ?: BooksDao.BookMetadataUpdate(matchedBook.id)).copy(
+                                        coverUrl = details.coverUrl,
+                                    )
                                 logger.i { "Updated cover URL for ${matchedBook.title}" }
                             }
 
@@ -163,15 +169,23 @@ public class SyncWorker
                             if ((matchedBook.author.isEmpty() || matchedBook.author == "Unknown Author") &&
                                 !details.author.isNullOrEmpty()
                             ) {
-                                booksDao.updateAuthor(matchedBook.id, details.author)
+                                update =
+                                    (update ?: BooksDao.BookMetadataUpdate(matchedBook.id)).copy(
+                                        author = details.author,
+                                    )
                                 logger.i { "Updated author for ${matchedBook.title}: ${details.author}" }
                             }
 
                             // Update description if missing
                             if (matchedBook.description.isNullOrEmpty() && !details.description.isNullOrEmpty()) {
-                                booksDao.updateDescription(matchedBook.id, details.description)
+                                update =
+                                    (update ?: BooksDao.BookMetadataUpdate(matchedBook.id)).copy(
+                                        description = details.description,
+                                    )
                                 logger.i { "Updated description for ${matchedBook.title}" }
                             }
+
+                            update?.let { pendingUpdates.add(it) }
                         }
                     }
                 } catch (e: CancellationException) {
@@ -179,6 +193,11 @@ public class SyncWorker
                 } catch (e: Exception) {
                     logger.e({ "Failed to sync metadata for topic $topicId" }, e)
                 }
+            }
+
+            if (pendingUpdates.isNotEmpty()) {
+                booksDao.applyMetadataSync(pendingUpdates)
+                logger.i { "Applied ${pendingUpdates.size} batched metadata updates" }
             }
         }
 
@@ -207,6 +226,8 @@ public class SyncWorker
                 }
 
             logger.d { "Found ${booksNeedCover.size} books needing cover download" }
+
+            val coverPathUpdates = mutableListOf<BooksDao.BookMetadataUpdate>()
 
             for (book in booksNeedCover) {
                 try {
@@ -246,7 +267,9 @@ public class SyncWorker
 
                         // Update DB only after the complete file has been written.
                         if (coverFile.exists()) {
-                            booksDao.updateCoverPath(book.id, coverFile.absolutePath)
+                            coverPathUpdates.add(
+                                BooksDao.BookMetadataUpdate(bookId = book.id, coverPath = coverFile.absolutePath),
+                            )
                             logger.i { "Downloaded cover for ${book.title}" }
                         } else {
                             error("Cover file was not created")
@@ -257,6 +280,11 @@ public class SyncWorker
                 } catch (e: Exception) {
                     logger.e({ "Failed to download cover for ${book.title}" }, e)
                 }
+            }
+
+            if (coverPathUpdates.isNotEmpty()) {
+                booksDao.applyMetadataSync(coverPathUpdates)
+                logger.i { "Applied ${coverPathUpdates.size} batched cover-path updates" }
             }
         }
 
