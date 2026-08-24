@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.feature.search.rutracker
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Sorting options for RuTracker search results.
  */
@@ -44,6 +46,7 @@ public enum class RutrackerSortOrder {
  * @param minSizeMb Minimum file size in MB (null = no filter)
  * @param maxSizeMb Maximum file size in MB (null = no filter)
  */
+@Immutable
 public data class RutrackerSearchFilters(
     val minSeeders: Int? = null,
     val minSizeMb: Int? = null,

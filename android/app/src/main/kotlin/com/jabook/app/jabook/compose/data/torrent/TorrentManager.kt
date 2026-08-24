@@ -34,6 +34,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
@@ -283,6 +284,7 @@ public class TorrentManager
                 dbSyncJob = null
                 networkConstraintJob?.cancel()
                 networkConstraintJob = null
+                scope.cancel()
                 stopDownloadService()
                 isInitialized = false
                 logger.i { "TorrentManager shut down" }

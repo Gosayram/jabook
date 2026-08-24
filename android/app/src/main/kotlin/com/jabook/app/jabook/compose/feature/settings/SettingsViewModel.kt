@@ -51,6 +51,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -139,6 +140,9 @@ public class SettingsViewModel
                     productivePeriod = resolveProductivePeriod(books),
                     streakDays = summary.activeDays.coerceAtLeast(0),
                 )
+            }.catch {
+                if (it is kotlinx.coroutines.CancellationException) throw it
+                // Recap is optional — keep last known state on upstream failure
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -175,6 +179,9 @@ public class SettingsViewModel
                     sessions = summary.totalSessions.coerceAtLeast(0),
                     topAuthor = topAuthor,
                 )
+            }.catch {
+                if (it is kotlinx.coroutines.CancellationException) throw it
+                // Recap is optional — keep last known state on upstream failure
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),

@@ -14,9 +14,12 @@
 
 package com.jabook.app.jabook.compose.domain.model
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Filter criteria for search results.
  */
+@Immutable
 public data class SearchFilters(
     val categories: Set<String> = emptySet(),
     val minSize: Long? = null,

@@ -41,6 +41,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -182,6 +183,10 @@ public class TorrentDownloadsViewModel
                     logger.e({ "Error processing downloads" }, e)
                     TorrentDownloadsUiState.Error(e.message ?: "Unknown error")
                 }
+            }.catch { e ->
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                logger.e({ "Downloads flow failed" }, e)
+                emit(TorrentDownloadsUiState.Error(e.message ?: "Unknown error"))
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),

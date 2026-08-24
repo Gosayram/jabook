@@ -55,6 +55,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -171,6 +172,9 @@ public class LibraryViewModel
                             LibraryUiState.Error(e.message ?: "Unknown error")
                         }
                     }
+                }.catch { e ->
+                    if (e is CancellationException) throw e
+                    emit(LibraryUiState.Error(e.message ?: "Unknown error"))
                 }.stateIn(
                     scope = viewModelScope,
                     started = SharingStarted.WhileSubscribed(5000),
