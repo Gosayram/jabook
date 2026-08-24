@@ -191,7 +191,7 @@ public class MediaStoreBookScanner
 
             val chapters = mutableListOf<ScannedChapter>()
             files
-                .sortedWith(createChapterComparator())
+                .sortedWith(ChapterOrderPolicy.comparatorForAudioFiles { it.displayName })
                 .forEachIndexed { index, file ->
                     // Use filename without extension if no title tag.
                     var rawTitle =
@@ -244,49 +244,6 @@ public class MediaStoreBookScanner
             )
         }
 
-        private data class ChapterInfo(
-            val partNumber: Int = 0,
-            val chapterNumber: Int = 0,
-            val hasNumber: Boolean = false,
-        ) {
-            public fun toSortKey(): Int = partNumber * 1000 + chapterNumber
-        }
-
-        private fun createChapterComparator(): Comparator<AudioFileInfo> =
-            compareBy<AudioFileInfo> { file ->
-                val filename = file.displayName.lowercase()
-                when {
-                    filename.contains("пролог") || filename.contains("prologue") -> 0
-                    extractChapterInfo(file.displayName).hasNumber -> 1
-                    filename.contains("эпилог") || filename.contains("epilogue") -> 3
-                    else -> 2
-                }
-            }.thenBy { file ->
-                val info = extractChapterInfo(file.displayName)
-                if (info.hasNumber) info.toSortKey() else Int.MAX_VALUE
-            }.thenBy { file ->
-                file.displayName.lowercase()
-            }
-
-        private fun extractChapterInfo(filename: String): ChapterInfo {
-            val clean = filename.lowercase()
-
-            val partMatch = PART_RU_REGEX.find(clean) ?: PART_EN_REGEX.find(clean)
-            val partNum = partMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
-
-            var chapterNum = 0
-            var found = false
-            for (pattern in CHAPTER_NUMBER_PATTERNS) {
-                pattern.find(clean)?.let {
-                    chapterNum = it.groupValues[1].toIntOrNull() ?: 0
-                    found = true
-                    return@let
-                }
-            }
-
-            return ChapterInfo(partNum, chapterNum, found)
-        }
-
         /**
          * For a single-file m4b/m4a, tries to parse embedded Nero chapter
          * markers and expand into multiple [ScannedChapter] entries.
@@ -324,16 +281,5 @@ public class MediaStoreBookScanner
         private companion object {
             /** Extensions that may contain embedded Nero chapter atoms. */
             private val EMBEDDED_CHAPTER_EXTENSIONS = setOf("m4b", "m4a")
-
-            /** Precompiled once: extractChapterInfo runs per comparison inside sort. */
-            private val PART_RU_REGEX = Regex("""част[\u044cяи]\s*(\d+)""")
-            private val PART_EN_REGEX = Regex("""part\s*(\d+)""")
-            private val CHAPTER_NUMBER_PATTERNS =
-                listOf(
-                    Regex("""глава\s*(\d+)"""),
-                    Regex("""chapter\s*(\d+)"""),
-                    Regex("""(\d+)\s*[-._]"""),
-                    Regex("""^(\d+)"""),
-                )
         }
     }

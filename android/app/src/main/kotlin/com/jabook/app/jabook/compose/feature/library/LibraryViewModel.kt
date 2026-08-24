@@ -54,6 +54,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -99,23 +100,23 @@ public class LibraryViewModel
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
-        public val searchQuery: StateFlow<String> = _searchQuery
+        public val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
         // Sort order state
         private val _sortOrder = MutableStateFlow(BookSortOrder.BY_ACTIVITY)
-        public val sortOrder: StateFlow<BookSortOrder> = _sortOrder
+        public val sortOrder: StateFlow<BookSortOrder> = _sortOrder.asStateFlow()
 
         // View mode state
         private val _viewMode = MutableStateFlow(LibraryViewMode.LIST_COMPACT)
-        public val viewMode: StateFlow<LibraryViewMode> = _viewMode
+        public val viewMode: StateFlow<LibraryViewMode> = _viewMode.asStateFlow()
 
         // Selected book for properties dialog
         private val _selectedBookForProperties = MutableStateFlow<Book?>(null)
-        public val selectedBookForProperties: StateFlow<Book?> = _selectedBookForProperties
+        public val selectedBookForProperties: StateFlow<Book?> = _selectedBookForProperties.asStateFlow()
 
         // Spotlight coachmarks completed state
         private val _spotlightCompleted = MutableStateFlow(false)
-        public val spotlightCompleted: StateFlow<Boolean> = _spotlightCompleted
+        public val spotlightCompleted: StateFlow<Boolean> = _spotlightCompleted.asStateFlow()
 
         init {
             // Load saved settings from preferences
@@ -409,7 +410,7 @@ public class LibraryViewModel
 
         // Library scan state
         private val _scanState = MutableStateFlow<ScanState>(ScanState.Idle)
-        public val scanState: StateFlow<ScanState> = _scanState
+        public val scanState: StateFlow<ScanState> = _scanState.asStateFlow()
 
         // One-shot UI events (scan result snackbars). Channel so each is consumed
         // exactly once and buffered while the screen is detached — no loss across

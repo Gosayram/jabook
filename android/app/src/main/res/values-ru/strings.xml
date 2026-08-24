@@ -578,7 +578,7 @@
     <!-- Сообщение об успешной проверке зеркала -->
     <string name="mirrorTestSuccessMessage">Зеркало %1$s проверено успешно</string>
     <!-- Сообщение об ошибке проверки зеркала -->
-    <string name="mirrorTestFailedMessage">Не удалось проверить зеркало %2$s: %1$s</string>
+    <string name="mirrorTestFailedMessage">Не удалось проверить зеркало %1$s: %2$s</string>
     <!-- Статус зеркала -->
     <string name="mirrorStatusText">Зеркало %1$s</string>
     <!-- Сообщение об ошибке обновления зеркала -->
@@ -3133,4 +3133,7 @@
     <string name="open_book_details">Открыть detalles книги</string>
     <string name="browse_genre">Просмотреть жанр</string>
     <string name="open_book">Открыть книгу</string>
+    <!-- Indexing -->
+    <string name="auth_required_for_indexing">Требуется авторизация для индексации форумов. Пожалуйста, войдите в аккаунт.</string>
+    <string name="indexing_not_completed">Индексация не завершилась успешно</string>
 </resources>

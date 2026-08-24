@@ -83,7 +83,6 @@
 -keep class com.google.protobuf.ExtensionRegistryLite { *; }
 
 # -------- Retrofit / OkHttp --------
--keepattributes Signature, InnerClasses, EnclosingMethod
 -keepclassmembers,allowshrinking,allowobfuscation interface * {
     @retrofit2.http.* <methods>;
 }
@@ -96,9 +95,6 @@
 # -------- libtorrent4j (CRITICAL - prevent obfuscation) --------
 # Keep all libtorrent4j classes to prevent NoSuchMethodError
 -keep class org.libtorrent4j.** { *; }
--keep class org.libtorrent4j.swig.** { *; }
--keepclassmembers class org.libtorrent4j.** { *; }
--keepclassmembers class org.libtorrent4j.swig.** { *; }
 # Keep native methods in libtorrent4j
 -keepclasseswithmembernames class org.libtorrent4j.swig.** {
     native <methods>;
@@ -119,7 +115,6 @@
 }
 
 # -------- Entry Points (Activities) --------
--keep class com.jabook.app.jabook.MainActivity
 -keep class com.jabook.app.jabook.compose.ComposeMainActivity
 
 # -------- Android Framework (required) --------

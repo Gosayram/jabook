@@ -11,15 +11,15 @@
 
     <!-- Storage permissions for both internal and SD card access -->
     <!-- READ_EXTERNAL_STORAGE: Required for reading files from internal storage and SD card -->
-    <!-- Works on Android 6.0+ (API 23+) as runtime permission -->
-    <!-- Keep without maxSdkVersion for SD card compatibility on all Android versions -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- Replaced by READ_MEDIA_AUDIO on API 33+; maxSdkVersion=32 avoids lint warning -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
 
     <!-- WRITE_EXTERNAL_STORAGE: Required for writing files to internal storage and SD card -->
-    <!-- Works on Android 6.0+ (API 23+) as runtime permission -->
-    <!-- Keep without maxSdkVersion for SD card write access on all Android versions -->
+    <!-- Deprecated at API 29; maxSdkVersion=28 avoids lint warning -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28"
         tools:ignore="ScopedStorage" />
 
     <!-- MANAGE_EXTERNAL_STORAGE: Required for full filesystem access on Android 11+ (API 30+) -->

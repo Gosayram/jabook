@@ -897,7 +897,7 @@
     <!-- Generic error message -->
     <string name="genericError">Error: %1$s</string>
     <!-- Message for retrying connection -->
-    <string name="retryConnectionMessage">Retrying connection (%2$s/%1$s)...</string>
+    <string name="retryConnectionMessage">Retrying connection (%1$s/%2$s)...</string>
     <!-- Error message for load failure -->
     <string name="loadError">Load error: %1$s</string>
     <!-- Error message for page load failure -->
@@ -3013,19 +3013,19 @@
     <string name="searchQualityChipsTitle">Quality</string>
 
     <!-- MiniPlayer swipe-to-dismiss (TASK-PLAYER-44) -->
-    <string name="mini_player_dismissed_undo">Воспроизведение остановлено</string>
-    <string name="mini_player_dismissed_resume">Возобновить</string>
+    <string name="mini_player_dismissed_undo">Playback stopped</string>
+    <string name="mini_player_dismissed_resume">Resume</string>
 
     <!-- Resume after long pause (TASK-PLAYER-38) -->
-    <string name="resumeLongPauseTitle">Давно не слушали</string>
-    <string name="resumeLongPauseDescription">%1$s • %2$s — %3$d д. назад</string>
-    <string name="resumeLongPauseContinue">Продолжить</string>
-    <string name="resumeLongPauseRestartChapter">Начать главу с начала</string>
-    <string name="resumeLongPauseSelectChapter">Выбрать главу</string>
+    <string name="resumeLongPauseTitle">Haven\'t listened in a while</string>
+    <string name="resumeLongPauseDescription">%1$s • %2$s — %3$d d. ago</string>
+    <string name="resumeLongPauseContinue">Continue</string>
+    <string name="resumeLongPauseRestartChapter">Restart chapter</string>
+    <string name="resumeLongPauseSelectChapter">Select chapter</string>
 
     <!-- Overflow menu content description -->
-    <string name="overflowMenu">Ещё</string>
-    <string name="statistics">Статистика</string>
+    <string name="overflowMenu">More</string>
+    <string name="statistics">Statistics</string>
     <string name="showStatistics">Show statistics</string>
     <string name="hideStatistics">Hide statistics</string>
     <string name="approximateSpeedDistribution">Approximate speed distribution</string>
@@ -3092,4 +3092,7 @@
     <string name="open_book_details">Open book details</string>
     <string name="browse_genre">Browse genre</string>
     <string name="open_book">Open book</string>
+    <!-- Indexing -->
+    <string name="auth_required_for_indexing">Authorization required for forum indexing. Please sign in to your account.</string>
+    <string name="indexing_not_completed">Indexing did not complete successfully</string>
 </resources>

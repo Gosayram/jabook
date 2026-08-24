@@ -470,13 +470,8 @@ public class DirectFileSystemScanner
             // Create chapters - NO METADATA PARSING for other files!
             val chapters =
                 fastFiles
-                    .sortedWith(
-                        compareBy(
-                            { file -> getFileCategory(file.displayName) },
-                            { file -> extractChapterInfo(file.displayName).toSortKey() },
-                            { file -> file.displayName.lowercase() },
-                        ),
-                    ).mapIndexed { index, file ->
+                    .sortedWith(ChapterOrderPolicy.comparatorForAudioFiles { it.displayName })
+                    .mapIndexed { index, file ->
                         // Use filename without extension (NO metadata parsing!)
                         val rawTitle = java.io.File(file.displayName).nameWithoutExtension
 
@@ -541,7 +536,7 @@ public class DirectFileSystemScanner
 
             val chapters =
                 files
-                    .sortedWith(createChapterComparator())
+                    .sortedWith(ChapterOrderPolicy.comparatorForAudioFiles { it.displayName })
                     .mapIndexed { index, file ->
                         // FIX: Use FILENAME not ID3 title tag!
                         // Problem: All files may have same title tag = "Book Name"
@@ -588,88 +583,6 @@ public class DirectFileSystemScanner
             }
 
             return book
-        }
-
-        private data class ChapterInfo(
-            val partNumber: Int = 0,
-            val chapterNumber: Int = 0,
-            val hasNumber: Boolean = false,
-        ) {
-            public fun toSortKey(): Int = partNumber * 1000 + chapterNumber
-        }
-
-        /**
-         * Create comparator for chapter sorting.
-         *
-         * Sort order:
-         * 0. Пролог/Prologue
-         * 1. Numbered chapters (Глава 1-N)
-         * 2. Unnumbered files (alphabetical)
-         * 3. Special content (Приложение/От автора/Послесловие)
-         * 4. Эпилог/Epilogue (always last)
-         */
-        private fun createChapterComparator(): Comparator<AudioFileInfo> =
-            compareBy<AudioFileInfo> { file ->
-                getFileCategory(file.displayName)
-            }.thenBy { file ->
-                val info = extractChapterInfo(file.displayName)
-                if (info.hasNumber) info.toSortKey() else 0
-            }.thenBy { file ->
-                file.displayName.lowercase() // Alphabetical for same category
-            }
-
-        private fun getFileCategory(filename: String): Int {
-            val lower = filename.lowercase()
-            return when {
-                // Prologue - always first
-                lower.contains("пролог") || lower.contains("prologue") -> 0
-
-                // Regular numbered chapters (but not appendices!)
-                extractChapterInfo(filename).hasNumber && !isSpecialContent(lower) -> 1
-
-                // Unnumbered files (alphabetical)
-                !extractChapterInfo(filename).hasNumber && !isSpecialContent(lower) -> 2
-
-                // Special content (appendices, afterwords, etc)
-                isSpecialContent(lower) -> 3
-
-                // Epilogue - always last
-                lower.contains("эпилог") || lower.contains("epilogue") -> 4
-
-                else -> 2 // Default: unnumbered
-            }
-        }
-
-        private fun isSpecialContent(filename: String): Boolean =
-            filename.contains("приложение") ||
-                filename.contains("appendix") ||
-                filename.contains("от автора") ||
-                filename.contains("from the author") ||
-                filename.contains("author") &&
-                filename.contains("note") ||
-                filename.contains("послесловие") ||
-                filename.contains("afterword") ||
-                filename.contains("предисловие") ||
-                filename.contains("foreword") ||
-                filename.contains("preface")
-
-        private fun extractChapterInfo(filename: String): ChapterInfo {
-            val clean = filename.lowercase()
-
-            val partMatch = PART_RU_REGEX.find(clean) ?: PART_EN_REGEX.find(clean)
-            val partNum = partMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
-
-            var chapterNum = 0
-            var found = false
-            for (pattern in CHAPTER_NUMBER_PATTERNS) {
-                pattern.find(clean)?.let {
-                    chapterNum = it.groupValues[1].toIntOrNull() ?: 0
-                    found = true
-                    return@let
-                }
-            }
-
-            return ChapterInfo(partNum, chapterNum, found)
         }
 
         /**
@@ -729,16 +642,5 @@ public class DirectFileSystemScanner
 
             /** Extensions that may contain embedded Nero chapter atoms. */
             private val EMBEDDED_CHAPTER_EXTENSIONS = setOf("m4b", "m4a")
-
-            /** Precompiled once: extractChapterInfo runs per comparison inside sort. */
-            private val PART_RU_REGEX = Regex("""част[\u044cяи]\s*(\d+)""")
-            private val PART_EN_REGEX = Regex("""part\s*(\d+)""")
-            private val CHAPTER_NUMBER_PATTERNS =
-                listOf(
-                    Regex("""глава\s*(\d+)"""),
-                    Regex("""chapter\s*(\d+)"""),
-                    Regex("""(\d+)\s*[-._]"""),
-                    Regex("""^(\d+)"""),
-                )
         }
     }
