@@ -137,6 +137,8 @@ public class TorrentDownloadService : Service() {
         shutdownScope?.launch {
             torrentManager.shutdown()
         }
+        shutdownScope?.cancel()
+        shutdownScope = null
     }
 
     private fun startForeground() {

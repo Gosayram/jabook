@@ -20,12 +20,14 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.jabook.app.jabook.compose.core.util.rethrowCancellation
 import com.jabook.app.jabook.compose.core.util.safeEnum
 import com.jabook.app.jabook.compose.data.model.AppFont
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.data.model.UserData
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -78,80 +80,145 @@ public class DataStoreUserPreferencesRepository
             }
 
         override suspend fun setTheme(theme: AppTheme) {
-            dataStore.edit { preferences ->
-                preferences[THEME] = theme.name
+            try {
+                dataStore.edit { preferences ->
+                    preferences[THEME] = theme.name
+                }
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("DataStorePrefs", "Failed to update preference", e)
             }
         }
 
         override suspend fun setSortOrder(sortOrder: BookSortOrder) {
-            dataStore.edit { preferences ->
-                preferences[SORT_ORDER] = sortOrder.name
+            try {
+                dataStore.edit { preferences ->
+                    preferences[SORT_ORDER] = sortOrder.name
+                }
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("DataStorePrefs", "Failed to update preference", e)
             }
         }
 
         override suspend fun setViewMode(viewMode: LibraryViewMode) {
-            dataStore.edit { preferences ->
-                preferences[VIEW_MODE] = viewMode.name
+            try {
+                dataStore.edit { preferences ->
+                    preferences[VIEW_MODE] = viewMode.name
+                }
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("DataStorePrefs", "Failed to update preference", e)
             }
         }
 
         override suspend fun setAutoPlayNext(enabled: Boolean) {
-            dataStore.edit { preferences ->
-                preferences[AUTO_PLAY_NEXT] = enabled
+            try {
+                dataStore.edit { preferences ->
+                    preferences[AUTO_PLAY_NEXT] = enabled
+                }
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("DataStorePrefs", "Failed to update preference", e)
             }
         }
 
         override suspend fun setPlaybackSpeed(speed: Float) {
-            dataStore.edit { preferences ->
-                preferences[PLAYBACK_SPEED] = speed
+            try {
+                dataStore.edit { preferences ->
+                    preferences[PLAYBACK_SPEED] = speed
+                }
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("DataStorePrefs", "Failed to update preference", e)
             }
         }
 
         override suspend fun setPitchCorrectionEnabled(enabled: Boolean) {
-            dataStore.edit { preferences ->
-                preferences[PITCH_CORRECTION_ENABLED] = enabled
+            try {
+                dataStore.edit { preferences ->
+                    preferences[PITCH_CORRECTION_ENABLED] = enabled
+                }
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("DataStorePrefs", "Failed to update preference", e)
             }
         }
 
         override suspend fun setFont(font: AppFont) {
-            dataStore.edit { preferences ->
-                preferences[FONT] = font.name
+            try {
+                dataStore.edit { preferences ->
+                    preferences[FONT] = font.name
+                }
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("DataStorePrefs", "Failed to update preference", e)
             }
         }
 
         override suspend fun setNormalizeChapterTitles(enabled: Boolean) {
-            dataStore.edit { preferences ->
-                preferences[NORMALIZE_CHAPTER_TITLES] = enabled
+            try {
+                dataStore.edit { preferences ->
+                    preferences[NORMALIZE_CHAPTER_TITLES] = enabled
+                }
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("DataStorePrefs", "Failed to update preference", e)
             }
         }
 
         override suspend fun setOnboardingCompleted(completed: Boolean) {
-            dataStore.edit { preferences ->
-                preferences[ONBOARDING_COMPLETED] = completed
+            try {
+                dataStore.edit { preferences ->
+                    preferences[ONBOARDING_COMPLETED] = completed
+                }
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("DataStorePrefs", "Failed to update preference", e)
             }
         }
 
         override suspend fun setStorageFallbackEnabled(enabled: Boolean) {
-            dataStore.edit { preferences ->
-                preferences[STORAGE_FALLBACK_ENABLED] = enabled
+            try {
+                dataStore.edit { preferences ->
+                    preferences[STORAGE_FALLBACK_ENABLED] = enabled
+                }
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("DataStorePrefs", "Failed to update preference", e)
             }
         }
 
         override suspend fun setSpotlightCompleted(completed: Boolean) {
-            dataStore.edit { preferences ->
-                preferences[SPOTLIGHT_COMPLETED] = completed
+            try {
+                dataStore.edit { preferences ->
+                    preferences[SPOTLIGHT_COMPLETED] = completed
+                }
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("DataStorePrefs", "Failed to update preference", e)
             }
         }
 
         override suspend fun setHapticsEnabled(enabled: Boolean) {
-            dataStore.edit { preferences ->
-                preferences[HAPTICS_ENABLED] = enabled
+            try {
+                dataStore.edit { preferences ->
+                    preferences[HAPTICS_ENABLED] = enabled
+                }
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("DataStorePrefs", "Failed to update preference", e)
             }
         }
 
         override suspend fun setLanguage(languageCode: String) {
-            dataStore.edit { preferences ->
-                preferences[LANGUAGE_CODE] = languageCode
+            try {
+                dataStore.edit { preferences ->
+                    preferences[LANGUAGE_CODE] = languageCode
+                }
+            } catch (e: Exception) {
+                e.rethrowCancellation()
+                LogUtils.e("DataStorePrefs", "Failed to update preference", e)
             }
         }
     }

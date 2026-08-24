@@ -52,6 +52,12 @@ public interface ChaptersDao {
     public suspend fun getChaptersByBookId(bookId: String): List<ChapterEntity>
 
     /**
+     * Gets all chapters across all books (one-shot).
+     */
+    @Query("SELECT * FROM chapters ORDER BY book_id, chapter_index ASC")
+    public suspend fun getAllChapters(): List<ChapterEntity>
+
+    /**
      * Gets a chapter by book ID and chapter index.
      */
     @Query("SELECT * FROM chapters WHERE book_id = :bookId AND chapter_index = :chapterIndex")

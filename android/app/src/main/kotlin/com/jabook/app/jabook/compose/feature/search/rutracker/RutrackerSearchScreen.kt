@@ -606,7 +606,7 @@ private fun SearchResultCard(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick),
+                .clickable(onClickLabel = stringResource(R.string.open_book), onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         // Use adaptive padding and spacing

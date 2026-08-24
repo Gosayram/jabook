@@ -71,7 +71,7 @@ internal class PlayerListener(
     private val managedScope: kotlinx.coroutines.CoroutineScope =
         coroutineScope
             ?: kotlinx.coroutines
-                .CoroutineScope(kotlinx.coroutines.Dispatchers.Default)
+                .CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default)
                 .also { ownedScope = it }
 
     // --- Captured callbacks for direct use in listener overrides ---

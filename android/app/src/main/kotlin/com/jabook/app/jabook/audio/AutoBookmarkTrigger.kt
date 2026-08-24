@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import com.jabook.app.jabook.compose.core.util.rethrowCancellation
 import com.jabook.app.jabook.compose.data.repository.BookmarkRepository
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.sync.Mutex
@@ -86,12 +87,18 @@ public class AutoBookmarkTrigger
 
                 val label = generateAutoLabel(reason, chapterIndex)
 
-                bookmarkRepository.addBookmark(
-                    bookId = bookId,
-                    chapterIndex = chapterIndex,
-                    positionMs = positionMs,
-                    noteText = label,
-                )
+                try {
+                    bookmarkRepository.addBookmark(
+                        bookId = bookId,
+                        chapterIndex = chapterIndex,
+                        positionMs = positionMs,
+                        noteText = label,
+                    )
+                } catch (e: Exception) {
+                    e.rethrowCancellation()
+                    LogUtils.e(TAG, "Failed to create auto-bookmark: book=$bookId pos=${positionMs}ms reason=$reason", e)
+                    return@withLock false
+                }
 
                 recentBookmarks[key] = positionMs
                 LogUtils.d(TAG, "Auto-bookmark created: book=$bookId pos=${positionMs}ms reason=$reason label=$label")

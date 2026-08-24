@@ -1676,7 +1676,7 @@ internal fun SettingsItemWithContent(
                 .fillMaxWidth()
                 .then(
                     if (onClick != null) {
-                        Modifier.clickable(onClick = onClick)
+                        Modifier.clickable(onClickLabel = stringResource(R.string.openSettings), onClick = onClick)
                     } else {
                         Modifier
                     },

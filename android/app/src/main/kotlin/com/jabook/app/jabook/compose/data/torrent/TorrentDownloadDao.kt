@@ -18,6 +18,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.TypeConverters
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -87,6 +88,33 @@ public interface TorrentDownloadDao {
         pauseReason: PauseReason?,
         topicId: String?,
     )
+
+    /**
+     * Insert new downloads then update all live-synced columns.
+     * Runs in a single transaction so callers never see a partial write.
+     */
+    @Transaction
+    public suspend fun upsertSyncFields(downloads: List<TorrentDownloadEntity>) {
+        insertAll(downloads)
+        downloads.forEach { e ->
+            updateSyncFields(
+                hash = e.hash,
+                name = e.name,
+                state = e.state,
+                progress = e.progress,
+                totalSize = e.totalSize,
+                downloadedSize = e.downloadedSize,
+                uploadedSize = e.uploadedSize,
+                savePath = e.savePath,
+                files = e.files,
+                errorMessage = e.errorMessage,
+                addedTime = e.addedTime,
+                completedTime = e.completedTime,
+                pauseReason = e.pauseReason,
+                topicId = e.topicId,
+            )
+        }
+    }
 
     /**
      * Delete by hash

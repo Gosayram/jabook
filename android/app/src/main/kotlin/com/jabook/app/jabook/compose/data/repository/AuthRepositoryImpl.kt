@@ -25,6 +25,7 @@ import com.jabook.app.jabook.compose.domain.model.CaptchaData
 import com.jabook.app.jabook.compose.domain.model.UserCredentials
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.repository.CaptchaRequiredException
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,7 +58,11 @@ public class AuthRepositoryImpl
 
         private val scope =
             kotlinx.coroutines.CoroutineScope(
-                kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO,
+                kotlinx.coroutines.SupervisorJob() +
+                    kotlinx.coroutines.Dispatchers.IO +
+                    kotlinx.coroutines.CoroutineExceptionHandler { _, e ->
+                        LogUtils.e("AuthRepository", "Coroutine exception", e)
+                    },
             )
 
         /**

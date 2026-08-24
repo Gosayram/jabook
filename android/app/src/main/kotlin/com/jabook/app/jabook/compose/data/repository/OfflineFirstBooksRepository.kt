@@ -280,41 +280,47 @@ public class OfflineFirstBooksRepository
             position: Long,
             chapterIndex: Int,
         ) {
-            // Improved progress calculation considering all tracks (inspired by Easybook)
-            val book = booksDao.getBookById(bookId)
-            val chapters = chaptersDao.getChaptersByBookId(bookId)
+            try {
+                // Improved progress calculation considering all tracks (inspired by Easybook)
+                val book = booksDao.getBookById(bookId)
+                val chapters = chaptersDao.getChaptersByBookId(bookId)
 
-            val progress =
-                if (book != null && chapters.isNotEmpty()) {
-                    // Use improved calculation with all track durations
-                    val trackDurations = chapters.sortedBy { it.chapterIndex }.map { it.duration }
-                    val progressPercentage =
-                        CompletionStatusHelper.calculateCompletionPercentageWithTracks(
-                            currentTrackIndex = chapterIndex,
-                            currentPositionMs = position,
-                            trackDurations = trackDurations,
-                        )
-                    progressPercentage.toFloat()
-                } else if (book != null && book.totalDuration > 0) {
-                    // Fallback to simple calculation if chapters are not available
-                    (position.toFloat() / book.totalDuration.toFloat()).coerceIn(0f, 1f)
-                } else {
-                    0f
-                }
+                val progress =
+                    if (book != null && chapters.isNotEmpty()) {
+                        // Use improved calculation with all track durations
+                        val trackDurations = chapters.sortedBy { it.chapterIndex }.map { it.duration }
+                        val progressPercentage =
+                            CompletionStatusHelper.calculateCompletionPercentageWithTracks(
+                                currentTrackIndex = chapterIndex,
+                                currentPositionMs = position,
+                                trackDurations = trackDurations,
+                            )
+                        progressPercentage.toFloat()
+                    } else if (book != null && book.totalDuration > 0) {
+                        // Fallback to simple calculation if chapters are not available
+                        (position.toFloat() / book.totalDuration.toFloat()).coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    }
 
-            booksDao.updatePlaybackProgress(
-                bookId = bookId,
-                position = position,
-                progress = progress,
-                chapterIndex = chapterIndex,
-                timestamp = System.currentTimeMillis(),
-            )
-            chaptersDao.getChapterByIndex(bookId, chapterIndex)?.let { chapter ->
-                chaptersDao.updateChapterProgress(
-                    chapterId = chapter.id,
-                    position = position.coerceIn(0L, chapter.duration),
-                    isCompleted = position >= chapter.duration,
+                booksDao.updatePlaybackProgress(
+                    bookId = bookId,
+                    position = position,
+                    progress = progress,
+                    chapterIndex = chapterIndex,
+                    timestamp = System.currentTimeMillis(),
                 )
+                chaptersDao.getChapterByIndex(bookId, chapterIndex)?.let { chapter ->
+                    chaptersDao.updateChapterProgress(
+                        chapterId = chapter.id,
+                        position = position.coerceIn(0L, chapter.duration),
+                        isCompleted = position >= chapter.duration,
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.e({ "Failed to update playback position for book=$bookId" }, e)
             }
         }
 
@@ -383,10 +389,10 @@ public class OfflineFirstBooksRepository
         }
 
         override suspend fun normalizeAllChapters() {
-            val books = booksDao.getAllBooks()
+            val allChapters = chaptersDao.getAllChapters()
+            val grouped = allChapters.groupBy { it.bookId }
 
-            for (book in books) {
-                val chapters = chaptersDao.getChaptersByBookId(book.id)
+            for ((_, chapters) in grouped) {
                 if (chapters.isEmpty()) continue
 
                 val titles = chapters.map { it.title }

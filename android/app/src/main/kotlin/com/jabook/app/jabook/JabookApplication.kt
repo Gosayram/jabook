@@ -37,6 +37,7 @@ import dagger.hilt.android.HiltAndroidApp
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toPath
@@ -238,7 +239,7 @@ public class JabookApplication :
     }
 
     private fun recoverOpenListeningSessions() {
-        CoroutineScope(Dispatchers.IO).launch {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             val entryPoint =
                 EntryPointAccessors.fromApplication(
                     this@JabookApplication,

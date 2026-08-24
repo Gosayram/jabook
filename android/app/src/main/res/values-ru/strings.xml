@@ -3129,4 +3129,8 @@
     <string name="status_completed">Завершено</string>
     <string name="minutes_remaining">осталось %1$d мин</string>
     <string name="total_duration_minutes">%1$d мин</string>
+    <!-- Accessibility labels -->
+    <string name="open_book_details">Открыть detalles книги</string>
+    <string name="browse_genre">Просмотреть жанр</string>
+    <string name="open_book">Открыть книгу</string>
 </resources>

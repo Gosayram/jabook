@@ -1084,7 +1084,7 @@ private fun NextBookCountdownCard(
                                 LocalContext.current.resources.displayMetrics.density
                                     .toInt(),
                         ).build(),
-                contentDescription = null,
+                contentDescription = book.title,
                 contentScale = ContentScale.Crop,
                 modifier =
                     Modifier

@@ -101,24 +101,19 @@ internal class UnloadManager(
                 LogUtils.w("AudioPlayerService", "Error stopping player", e)
             }
 
-            // Release custom player if exists
-            getCustomExoPlayer()?.release()
+            // Release custom player if exists (lambda handles release + null)
             releaseCustomExoPlayer()
 
-            // Release MediaSession
-            getMediaSession()?.release()
+            // Release MediaSession (lambda handles release + null)
             releaseMediaSession()
             LogUtils.d("AudioPlayerService", "MediaSession released")
 
-            // Release MediaSessionManager
-            getMediaSessionManager()?.release()
+            // Release MediaSessionManager (lambda handles release + null)
             releaseMediaSessionManager()
             LogUtils.d("AudioPlayerService", "MediaSessionManager released")
 
-            // Release timers
-            getInactivityTimer()?.release()
+            // Release timers (lambdas handle release + null)
             releaseInactivityTimer()
-            getPlaybackTimer()?.release()
             releasePlaybackTimer()
             LogUtils.d("AudioPlayerService", "Timers released")
 

@@ -20,6 +20,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.palette.graphics.Palette
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.min
@@ -62,6 +64,7 @@ public object DynamicThemeManager {
     private const val DISLIKE_CHROMA_MIN = 20.0
 
     // LRU cache for extracted colors - 20 entries (fits in ~200KB)
+    private val cacheMutex = Mutex()
     private val cache = LinkedHashMap<String, PlayerThemeColors>(20)
 
     /**
@@ -144,16 +147,16 @@ public object DynamicThemeManager {
     public suspend fun extractColorsCached(
         coverUrl: String,
         bitmap: Bitmap,
-    ): PlayerThemeColors {
-        cache[coverUrl]?.let { return it }
-        val colors = extractColors(bitmap)
-        cache[coverUrl] = colors
-        // Enforce cache size limit
-        if (cache.size > 20) {
-            cache.remove(cache.keys.first())
+    ): PlayerThemeColors =
+        cacheMutex.withLock {
+            cache[coverUrl]?.let { return@withLock it }
+            val colors = extractColors(bitmap)
+            cache[coverUrl] = colors
+            if (cache.size > 20) {
+                cache.remove(cache.keys.first())
+            }
+            colors
         }
-        return colors
-    }
 
     /**
      * Clears the color cache.

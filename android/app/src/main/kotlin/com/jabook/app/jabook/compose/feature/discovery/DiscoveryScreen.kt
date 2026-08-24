@@ -227,7 +227,7 @@ private fun DiscoveryBookCard(
         modifier =
             Modifier
                 .width(148.dp)
-                .clickable(onClick = onClick),
+                .clickable(onClickLabel = stringResource(R.string.open_book_details), onClick = onClick),
     ) {
         Box(
             modifier =
@@ -274,7 +274,7 @@ private fun GenreTile(
             modifier
                 .height(84.dp)
                 .background(genre.color, RoundedCornerShape(14.dp))
-                .clickable(onClick = onClick),
+                .clickable(onClickLabel = stringResource(R.string.browse_genre), onClick = onClick),
     ) {
         Row(
             modifier =

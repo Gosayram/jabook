@@ -58,25 +58,7 @@ public class TorrentDownloadRepository
          */
         public suspend fun saveAll(downloads: List<TorrentDownload>) {
             try {
-                dao.insertAll(downloads.map { TorrentDownloadEntity.fromDomain(it) })
-                downloads.forEach { download ->
-                    dao.updateSyncFields(
-                        hash = download.hash,
-                        name = download.name,
-                        state = download.state,
-                        progress = download.progress,
-                        totalSize = download.totalSize,
-                        downloadedSize = download.downloadedSize,
-                        uploadedSize = download.uploadedSize,
-                        savePath = download.savePath,
-                        files = download.files,
-                        errorMessage = download.errorMessage,
-                        addedTime = download.addedTime,
-                        completedTime = download.completedTime,
-                        pauseReason = download.pauseReason,
-                        topicId = download.topicId,
-                    )
-                }
+                dao.upsertSyncFields(downloads.map { TorrentDownloadEntity.fromDomain(it) })
             } catch (e: Exception) {
                 logger.e({ "Failed to save torrents" }, e)
             }

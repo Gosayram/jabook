@@ -211,9 +211,9 @@ public class AudioPlayerServiceInitializer(
                 getEmbeddedArtworkPath = { service.embeddedArtworkPath },
                 setEmbeddedArtworkPath = { service.embeddedArtworkPath = it },
                 saveCurrentPosition = { service.saveCurrentPosition() },
-                stopForeground = { removeNotification ->
-                    @Suppress("DEPRECATION")
-                    service.stopForeground(removeNotification)
+                stopForeground = { flags ->
+                    androidx.core.app.ServiceCompat
+                        .stopForeground(service, flags)
                 },
                 stopSelf = { service.stopSelf() },
             )

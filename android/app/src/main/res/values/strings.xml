@@ -3088,4 +3088,8 @@
     <string name="status_completed">Completed</string>
     <string name="minutes_remaining">%1$d min left</string>
     <string name="total_duration_minutes">%1$d min</string>
+    <!-- Accessibility labels -->
+    <string name="open_book_details">Open book details</string>
+    <string name="browse_genre">Browse genre</string>
+    <string name="open_book">Open book</string>
 </resources>
