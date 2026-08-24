@@ -140,7 +140,7 @@ public class RutrackerParser
             contentType: String? = null,
         ): ParsingResult<List<SearchResult>> =
             PerfTrace.section(name = "RutrackerParser.parseSearchResultsWithEncoding") {
-                // Decode with simple decoder (matching Flutter implementation)
+                // Decode with simple decoder
                 val decodedHtml = decoder.decode(bytes, contentType)
 
                 // Parse the decoded HTML
@@ -410,7 +410,7 @@ public class RutrackerParser
             bytes: ByteArray,
             contentType: String? = null,
         ): ParsingResult<List<SearchResult>> {
-            // Decode with simple decoder (matching Flutter implementation)
+            // Decode with simple decoder
             val decodedHtml = decoder.decode(bytes, contentType)
 
             // Parse the decoded HTML with forum-specific validation

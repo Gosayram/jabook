@@ -186,7 +186,7 @@ internal class PlaylistManager(
      * @param initialTrackIndex Optional track index to load first (for saved position). If null, loads first track.
      * @param initialPosition Optional position in milliseconds to seek to after loading initial track
      * @param groupPath Optional group path for saving playback position (used for fallback saving)
-     * @param callback Optional callback to notify when playlist is ready (for Flutter)
+     * @param callback Optional callback to notify when playlist is ready
      */
     public fun setPlaylist(
         filePaths: List<String>,
@@ -348,7 +348,7 @@ internal class PlaylistManager(
                 ),
             )
 
-            // Call callback first to unblock Flutter
+            // Call callback to notify caller
             withContext(dispatchers.main) {
                 callback?.invoke(true, null)
             }

@@ -189,7 +189,6 @@ public class AudioPlayerService : MediaLibraryService() {
     // Cache for file durations (filePath -> duration in ms)
     // According to best practices: cache duration after getting it from player (primary source)
     // or MediaMetadataRetriever (fallback). This avoids repeated calls and improves performance.
-    // This cache is synchronized with database via MethodChannel (Flutter side).
     // DurationManager handles caching and database retrieval
     internal val durationManager = DurationManager()
 

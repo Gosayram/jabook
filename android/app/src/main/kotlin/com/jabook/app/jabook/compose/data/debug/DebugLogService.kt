@@ -34,7 +34,6 @@ import javax.inject.Singleton
 
 /**
  * Service for collecting and exporting application logs.
- * Based on Flutter's StructuredLogger implementation.
  */
 @Singleton
 public class DebugLogService

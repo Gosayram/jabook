@@ -23,7 +23,7 @@ import javax.inject.Singleton
 /**
  * Simple decoder for RuTracker responses.
  *
- * Based on Flutter implementation: tries Windows-1251 first (RuTracker default),
+ * Tries Windows-1251 first (RuTracker default),
  * then falls back to UTF-8 if needed.
  *
  * This is a minimal solution that works reliably for RuTracker's encoding.
@@ -45,14 +45,14 @@ public class RutrackerSimpleDecoder
         /**
          * Decode bytes from RuTracker response.
          *
-         * Strategy (matching Flutter implementation exactly):
+         * Strategy:
          * 1. Check Content-Type header for charset
          * 2. If windows-1251/cp1251/1251 -> use Windows-1251
          * 3. If utf-8/utf8 -> use UTF-8
          * 4. If not specified -> use Windows-1251 (RuTracker default)
          *
          * Note: No validation is performed - we trust the decoding result,
-         * just like the Flutter implementation does. The parser will handle any issues.
+         * The parser will handle any issues.
          *
          * @param bytes Raw response bytes
          * @param contentType Optional Content-Type header value

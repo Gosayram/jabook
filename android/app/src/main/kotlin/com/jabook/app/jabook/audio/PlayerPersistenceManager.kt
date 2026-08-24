@@ -26,7 +26,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
@@ -48,7 +47,6 @@ public class PlayerPersistenceManager
             private const val KEY_RESUMPTION_ARTIST = "playback_resumption_artist"
             private const val KEY_RESUMPTION_GROUP_PATH = "playback_resumption_group_path"
             private const val KEY_LAST_PLAYED_BOOK_ID = "last_played_book_id" // NEW for mini player
-            private const val LEGACY_KEY_PLAYER_STATE = "flutter.player_state"
             private const val PLAYBACK_SNAPSHOT_VERSION_V1 = 1
             private const val KEY_PLAYBACK_SNAPSHOT_VERSION = "playback_snapshot_version"
             private const val KEY_PLAYBACK_SNAPSHOT_GROUP_PATH = "playback_snapshot_group_path"
@@ -143,23 +141,7 @@ public class PlayerPersistenceManager
             withContext(Dispatchers.IO) {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-                readVersionedSnapshot(prefs)?.let { return@withContext it }
-
-                val legacyJson = prefs.getString(LEGACY_KEY_PLAYER_STATE, null) ?: return@withContext null
-                val legacyState =
-                    runCatching { parseLegacySnapshot(legacyJson) }
-                        .getOrElse { error ->
-                            recordCorruption(
-                                prefs = prefs,
-                                reason = "legacy_snapshot_parse_failed",
-                                error = error,
-                            )
-                            prefs.edit().remove(LEGACY_KEY_PLAYER_STATE).apply()
-                            return@withContext null
-                        }
-
-                saveVersionedSnapshot(prefs = prefs, state = legacyState)
-                legacyState
+                readVersionedSnapshot(prefs)
             }
 
         public suspend fun savePersistedPlayerState(state: PersistedPlayerState): Unit =
@@ -371,29 +353,6 @@ public class PlayerPersistenceManager
                 .remove(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION)
                 .remove(KEY_PLAYBACK_SNAPSHOT_METADATA)
                 .apply()
-        }
-
-        private fun parseLegacySnapshot(legacyJson: String): PersistedPlayerState {
-            val json = Json.parseToJsonElement(legacyJson).jsonObject
-            val groupPath = json["groupPath"]?.jsonPrimitive?.content ?: error("groupPath is missing")
-            val currentIndex = json["currentIndex"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0
-            val currentPosition = json["currentPosition"]?.jsonPrimitive?.content?.toLongOrNull() ?: 0L
-            val filePaths =
-                json["filePaths"]?.jsonArray?.map { it.jsonPrimitive.content }
-                    ?: error("filePaths is missing")
-            if (filePaths.isEmpty()) {
-                error("legacy snapshot contains empty filePaths")
-            }
-
-            val metadata = json["metadata"]?.jsonObject?.mapValues { it.value.jsonPrimitive.content }
-
-            return PersistedPlayerState(
-                groupPath = groupPath,
-                filePaths = filePaths,
-                currentIndex = currentIndex,
-                currentPosition = currentPosition,
-                metadata = metadata,
-            )
         }
 
         private fun parseMetadataJson(metadataJson: String?): Map<String, String>? {

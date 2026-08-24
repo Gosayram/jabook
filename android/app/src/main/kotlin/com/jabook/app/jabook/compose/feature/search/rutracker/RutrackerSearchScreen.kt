@@ -93,7 +93,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * RuTracker search screen.
  *
  * Demonstrates integration of all RuTracker components:
- * - RutrackerSimpleDecoder (simple encoding decoder matching Flutter)
+ * - RutrackerSimpleDecoder (simple encoding decoder)
  * - RutrackerParser with cascading selectors
  * - ParsingResult error handling
  * - MirrorManager, proper headers

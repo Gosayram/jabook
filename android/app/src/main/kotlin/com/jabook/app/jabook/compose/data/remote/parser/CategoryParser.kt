@@ -28,7 +28,7 @@ import javax.inject.Singleton
  * Parses the category structure from RuTracker forum pages,
  * focusing on the audiobooks section (c=33).
  *
- * Based on Flutter implementation with defensive programming enhancements.
+ * Uses defensive programming patterns for robust parsing.
  */
 @Singleton
 public class CategoryParser

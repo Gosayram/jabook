@@ -62,7 +62,6 @@ public class AuthRepositoryImpl
 
         /**
          * Mutex to prevent concurrent login attempts.
-         * Based on Flutter's _isLoggingIn pattern.
          */
         private val loginMutex = Mutex()
 

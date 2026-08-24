@@ -19,8 +19,6 @@ import com.jabook.app.jabook.util.LogUtils
 /**
  * Manages playback position operations.
  *
- * The legacy Flutter MethodChannel position bridge (setPlaybackProgress /
- * ACTION_SAVE_POSITION_BEFORE_UNLOAD broadcast) was removed — it had no callers.
  * Actual persistence happens via [PeriodicPositionSaver] and [CrashSafePositionWriter].
  */
 internal class PositionManager {

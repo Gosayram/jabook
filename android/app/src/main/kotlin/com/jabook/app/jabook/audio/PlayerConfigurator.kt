@@ -131,7 +131,6 @@ internal class PlayerConfigurator(
                     }, // Delegated to PlaylistManager via Service property
                     getLastCompletedTrackIndex = { service.lastCompletedTrackIndex }, // Delegated
                     getActualPlaylistSize = { service.playlistManager?.currentFilePaths?.size ?: 0 },
-                    // playbackPositionSaver removed - Flutter bridge no longer needed
                     updateActualTrackIndex = { index -> service.updateActualTrackIndex(index) },
                     isPlaylistLoading = { service.playlistManager?.isPlaylistLoading ?: false },
                     updateLastPlayedTimestamp = { bookId ->
@@ -239,7 +238,7 @@ internal class PlayerConfigurator(
                 }
 
             // Save state if we have a playlist AND playlist is not currently loading
-            // This prevents saving incorrect state when Flutter is setting a new playlist
+            // This prevents saving incorrect state when a new playlist is being set
             val filePathsForSave = playlistManager.currentFilePaths
             val isPlaylistLoading = playlistManager.isPlaylistLoading
 
@@ -334,7 +333,7 @@ internal class PlayerConfigurator(
             // Restore playlist and position if we had a playlist before
             // BUT only if we're not already loading a playlist (prevent conflicts)
             // CRITICAL: Also check if playlist was loaded recently (within 2 seconds) - if so, don't restore stale state
-            // This prevents restoration of incorrect state after Flutter loads correct playlist
+            // This prevents restoration of stale state after a new playlist loads
             val lastPlaylistLoadTime: Long = playlistManager.lastPlaylistLoadTime
             val timeSinceLastLoad: Long = System.currentTimeMillis() - lastPlaylistLoadTime
             val wasRecentlyLoaded = timeSinceLastLoad < 2000L // 2 seconds
@@ -439,7 +438,7 @@ internal class PlayerConfigurator(
                 // But if savedStateForRestore is null, we might still log this context
                 LogUtils.d(
                     "AudioPlayerService",
-                    "No saved state to restore (playlist loaded ${timeSinceLastLoad}ms ago), using Flutter-provided position",
+                    "No saved state to restore (playlist loaded ${timeSinceLastLoad}ms ago), using provided position",
                 )
             }
         } catch (e: Exception) {

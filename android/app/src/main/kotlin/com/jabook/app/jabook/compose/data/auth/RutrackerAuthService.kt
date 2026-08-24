@@ -71,7 +71,6 @@ public class RutrackerAuthService
 
         /**
          * Attempt login with detailed logging.
-         * Based on Flutter's robust authentication implementation.
          *
          * @return AuthResult with status and optional captcha data
          */
@@ -141,7 +140,7 @@ public class RutrackerAuthService
                             "isRedirect=$isRedirect, responseSize=${rawBody.size} bytes (${requestDuration}ms)"
                     }
 
-                    // Step 4: Decode response body with simple decoder (matching Flutter implementation)
+                    // Step 4: Decode response body with simple decoder
                     val decodeStart = System.currentTimeMillis()
                     val contentType = response.headers()["Content-Type"]
                     val bodyString = decoder.decode(rawBody, contentType)
@@ -296,8 +295,7 @@ public class RutrackerAuthService
         }
 
         /**
-         * Validate authentication using multi-tier approach.
-         * Based on Flutter's robust 3-tier validation strategy:
+         * Validate authentication using multi-tier approach:
          * 1. Profile page (most reliable)
          * 2. Search page (fallback)
          * 3. Index page (final fallback)

@@ -80,8 +80,7 @@ internal class UnloadManager(
                     "Saving position before unload: track=$currentIndex, position=${currentPosition}ms",
                 )
 
-                // Broadcast intent to trigger position saving through MethodChannel
-                // This will be handled by MainActivity or AudioPlayerMethodHandler if available
+                // Save position before unloading
                 try {
                     saveCurrentPosition()
                 } catch (e: Exception) {

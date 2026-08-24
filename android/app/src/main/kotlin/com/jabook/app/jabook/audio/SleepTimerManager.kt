@@ -247,10 +247,7 @@ internal class SleepTimerManager(
     public fun isSleepTimerActive(): Boolean = sleepTimerMode != SleepTimerMode.NONE
 
     /**
-     * Sends sleep timer expired event to Flutter.
-     *
-     * This method broadcasts an intent that will be handled by Flutter
-     * through MethodChannel or EventChannel.
+     * Sends sleep timer expired broadcast.
      */
     private fun sendTimerExpiredEvent() {
         val intent =

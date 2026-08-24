@@ -120,12 +120,6 @@ public object ScanSettingsRoute
 public object AudioSettingsRoute
 
 /**
- * Migration screen route - shows data migration progress.
- */
-@Serializable
-public object MigrationRoute
-
-/**
  * Onboarding screen route - introduces the app to new users.
  */
 @Serializable

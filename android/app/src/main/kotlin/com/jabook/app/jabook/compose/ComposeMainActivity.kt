@@ -56,17 +56,11 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 /**
- * Compose UI Activity for testing parallel Compose implementation.
+ * Main Compose UI Activity.
  *
- * This activity allows testing the Compose UI in parallel with the existing
- * Flutter implementation. Once the Compose UI is complete and tested,
- * MainActivity will be migrated to use this pattern.
- *
- * This activity also handles deep links:
+ * This activity handles deep links:
  * - magnet: links for torrent downloads
  * - jabook:// custom scheme for app navigation
- *
- * @see MainActivity for the current Flutter-based implementation
  */
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @AndroidEntryPoint
@@ -98,7 +92,6 @@ public class ComposeMainActivity : ComponentActivity() {
                 "search",
                 "favorites",
                 "auth",
-                "migration",
                 "rutracker",
             )
         internal val ALLOWED_JABOOK_PATH_PREFIXES =
@@ -111,7 +104,6 @@ public class ComposeMainActivity : ComponentActivity() {
                 "/search",
                 "/favorites",
                 "/auth",
-                "/migration",
                 "/rutracker",
             )
 
