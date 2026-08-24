@@ -1008,9 +1008,11 @@ public class AudioPlayerService : MediaLibraryService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
         val session = mediaLibrarySession
         if (session == null) {
-            LogUtils.w(
+            LogUtils.e(
                 "AudioPlayerService",
-                "Rejecting controller ${controllerInfo.packageName}: MediaLibrarySession is not ready yet",
+                "Rejecting controller ${controllerInfo.packageName}: MediaLibrarySession is null. " +
+                    "If this happens persistently the player will appear broken — check 'media_session_init_failed' " +
+                    "crash reports (session build failure is no longer swallowed).",
             )
             return null
         }

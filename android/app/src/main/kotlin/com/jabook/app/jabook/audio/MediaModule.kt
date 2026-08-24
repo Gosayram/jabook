@@ -163,6 +163,11 @@ public object MediaModule {
                     .setMediaSourceFactory(mediaSourceFactory)
                     .setHandleAudioBecomingNoisy(true)
                     .setWakeMode(C.WAKE_MODE_LOCAL)
+                    .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
+                    .setSeekForwardIncrementMs(SEEK_INCREMENT_MS)
+                    // We run our own SkipSilenceAudioProcessor in the processor chain —
+                    // Media3's built-in silence skipper must stay off to avoid double-skipping.
+                    .setSkipSilenceEnabled(false)
                     .setAudioAttributes(
                         AudioAttributes
                             .Builder()
@@ -257,6 +262,11 @@ public object MediaModule {
                         .setLoadControl(createOptimizedLoadControl(context))
                         .setHandleAudioBecomingNoisy(true)
                         .setWakeMode(C.WAKE_MODE_LOCAL)
+                        .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
+                        .setSeekForwardIncrementMs(SEEK_INCREMENT_MS)
+                        // Our chain already includes a custom SkipSilenceAudioProcessor
+                        // when enabled; keep Media3's built-in silence skipper off.
+                        .setSkipSilenceEnabled(false)
                         .setAudioAttributes(
                             AudioAttributes
                                 .Builder()
@@ -391,6 +401,9 @@ public object MediaModule {
     }
 
     private const val DEFAULT_CACHE_BYTES = 200L * 1024 * 1024 // 200 MB (fallback if StatFs fails)
+
+    /** Chapter/paragraph seek step for audiobook navigation. */
+    private const val SEEK_INCREMENT_MS = 10_000L
 }
 
 /**

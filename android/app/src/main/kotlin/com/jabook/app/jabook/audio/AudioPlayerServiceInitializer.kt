@@ -396,6 +396,9 @@ public class AudioPlayerServiceInitializer(
     private fun initializeMediaSession() {
         if (service.mediaLibrarySession != null) return
 
+        // Unique session ID: PID + instance hash (survives onCreate() called twice)
+        val sessionId = "jabook_${android.os.Process.myPid()}_${System.identityHashCode(service)}"
+
         try {
             // Create intent for clicking the notification
             val sessionActivity = service.getBackStackedActivity() ?: service.getSingleTopActivity()
@@ -415,7 +418,6 @@ public class AudioPlayerServiceInitializer(
             // CRITICAL FIX: Add BOTH PID AND instance hash to session ID
             // Android can call onCreate() MULTIPLE TIMES with the SAME PID without calling onDestroy()
             // Evidence from logs: PID 8921 had onCreate() called twice (Instance 50442924, then 115225231)
-            val sessionId = "jabook_${android.os.Process.myPid()}_${System.identityHashCode(service)}"
             LogUtils.i("AudioPlayerService", "Creating MediaLibrarySession with ID: $sessionId")
 
             val sessionBuilder =
@@ -499,7 +501,18 @@ public class AudioPlayerServiceInitializer(
             // Note: setMediaNotificationProvider must be called from AudioPlayerService.onCreate()
             // as it's a protected method in MediaSessionService
         } catch (e: Exception) {
-            LogUtils.e("AudioPlayerService", "Failed to create MediaLibrarySession", e)
+            // CRITICAL: never swallow session-init failure. If the session cannot be
+            // built, mediaLibrarySession stays null and every MediaController connection
+            // is silently rejected in onGetSession() — the app looks like "player doesn't
+            // work" with no visible error. Fail loudly so onCreate() rethrows and the
+            // GlobalExceptionHandler surfaces the real cause.
+            LogUtils.e("AudioPlayerService", "FATAL: failed to create MediaLibrarySession", e)
+            com.jabook.app.jabook.crash.CrashDiagnostics.reportNonFatal(
+                tag = "media_session_init_failed",
+                throwable = e,
+                attributes = mapOf("session_id" to sessionId),
+            )
+            throw e
         }
     }
 
