@@ -81,6 +81,7 @@ public class TorrentSessionManager
         @param:ApplicationContext private val context: Context,
         private val loggerFactory: LoggerFactory,
         private val torrentDownloadDao: TorrentDownloadDao,
+        private val torrentResumeDao: TorrentResumeDao,
     ) {
         private val logger = loggerFactory.get("TorrentSessionManager")
 
@@ -268,6 +269,18 @@ public class TorrentSessionManager
                             setInteger(settings_pack.int_types.max_out_request_queue.swigValue(), 100)
                         } catch (_: NoSuchMethodError) {
                             // older libtorrent4j versions lack max_out_request_queue — safe to skip
+                        }
+
+                        // Best practices (libtorrent4j): improve peer discovery and resist
+                        // ISP throttling without forcing encryption (which would shrink
+                        // the reachable peer pool).
+                        try {
+                            setBoolean(settings_pack.bool_types.announce_to_all_trackers.swigValue(), true)
+                            setBoolean(settings_pack.bool_types.strict_end_game_mode.swigValue(), true)
+                            setBoolean(settings_pack.bool_types.announce_crypto_support.swigValue(), true)
+                            setBoolean(settings_pack.bool_types.prefer_rc4.swigValue(), true)
+                        } catch (_: NoSuchMethodError) {
+                            // older libtorrent4j versions lack these flags — safe to skip
                         }
                     }
 
@@ -732,7 +745,7 @@ public class TorrentSessionManager
                     if (active.isEmpty()) return@launch
                     logger.i { "Restoring ${active.size} active torrent downloads" }
                     // Resume BLOBs are read in a single query (not on the list path).
-                    val resumeDataByHash = torrentDownloadDao.getAllResumeData().associate { it.hash to it.resumeData }
+                    val resumeDataByHash = torrentResumeDao.getAllResumeData().associate { it.hash to it.resumeData }
                     active.forEach { row ->
                         try {
                             if (torrents.containsKey(row.hash)) return@forEach
@@ -778,10 +791,11 @@ public class TorrentSessionManager
                 val resumeBytes = AddTorrentParams.writeResumeDataBuf(alert.params())
                 // Write synchronously on the alert thread: stopSession() counts down the
                 // same latch and then cancels sessionScope, so an async launch here could
-                // be cancelled mid-write and lose the resume BLOB.
+                // be cancelled mid-write and lose the resume BLOB. The write targets the
+                // tiny torrent_resume row, never the full torrent row.
                 runBlocking {
                     try {
-                        torrentDownloadDao.updateResumeData(hash, resumeBytes)
+                        torrentResumeDao.updateResumeData(hash, resumeBytes)
                         logger.d { "Resume data saved for $hash (${resumeBytes.size} bytes)" }
                     } catch (e: Exception) {
                         logger.e({ "Failed to persist resume data for $hash" }, e)

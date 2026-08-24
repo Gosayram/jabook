@@ -1258,4 +1258,72 @@ class JabookDatabaseMigrationTest {
         assertTrue(hasColumn("chapters", "end_position_ms"))
         assertTrue(hasIndex("index_cached_topics_last_updated"))
     }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // v33 → v34: resume data moves to a separate torrent_resume table
+    // ══════════════════════════════════════════════════════════════════════
+
+    @Test
+    fun `migration 33 to 34 version contract is correct`() {
+        assertEquals(33, com.jabook.app.jabook.compose.data.local.migration.MIGRATION_33_34.startVersion)
+        assertEquals(34, com.jabook.app.jabook.compose.data.local.migration.MIGRATION_33_34.endVersion)
+    }
+
+    @Test
+    fun `migration 33 to 34 moves resume BLOBs to torrent_resume and drops the column`() {
+        // v33 schema: torrent_downloads still has the resumeData BLOB column.
+        db.execSQL(
+            """
+            CREATE TABLE torrent_downloads (
+                hash TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                state TEXT NOT NULL,
+                progress REAL NOT NULL,
+                totalSize INTEGER NOT NULL,
+                downloadedSize INTEGER NOT NULL,
+                uploadedSize INTEGER NOT NULL,
+                savePath TEXT NOT NULL,
+                files TEXT NOT NULL,
+                errorMessage TEXT,
+                addedTime INTEGER NOT NULL,
+                completedTime INTEGER NOT NULL,
+                pauseReason TEXT,
+                topicId TEXT,
+                resumeData BLOB
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO torrent_downloads
+                (hash, name, state, progress, totalSize, downloadedSize, uploadedSize,
+                 savePath, files, errorMessage, addedTime, completedTime, pauseReason,
+                 topicId, resumeData)
+            VALUES
+                ('hash-a', 'Book A', 'DOWNLOADING', 0.5, 1000, 500, 0, '/a', '[]', NULL, 1, 2, NULL, 'topic-1', X'0102FF'),
+                ('hash-b', 'Book B', 'QUEUED', 0.0, 2000, 0, 0, '/b', '[]', NULL, 3, 4, NULL, NULL, NULL)
+            """.trimIndent(),
+        )
+
+        com.jabook.app.jabook.compose.data.local.migration.MIGRATION_33_34
+            .migrate(db)
+
+        // New table exists and holds the copied BLOB.
+        assertTrue(hasTable("torrent_resume"))
+        val resumeRow =
+            db.query("SELECT resumeData FROM torrent_resume WHERE hash = 'hash-a'").use { cursor ->
+                cursor.moveToFirst()
+                cursor.getBlob(0)
+            }
+        assertTrue(resumeRow.contentEquals(byteArrayOf(0x01.toByte(), 0x02.toByte(), (-0x01).toByte())))
+
+        // Column dropped from torrent_downloads; data preserved.
+        assertFalse(hasColumn("torrent_downloads", "resumeData"))
+        val name =
+            db.query("SELECT name, state FROM torrent_downloads WHERE hash = 'hash-a'").use { cursor ->
+                cursor.moveToFirst()
+                cursor.getString(0) to cursor.getString(1)
+            }
+        assertEquals("Book A" to "DOWNLOADING", name)
+    }
 }

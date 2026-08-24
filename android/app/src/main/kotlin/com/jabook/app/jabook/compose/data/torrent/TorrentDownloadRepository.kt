@@ -28,6 +28,7 @@ public class TorrentDownloadRepository
     @Inject
     constructor(
         private val dao: TorrentDownloadDao,
+        private val resumeDao: TorrentResumeDao,
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get("TorrentDownloadRepository")
@@ -69,7 +70,8 @@ public class TorrentDownloadRepository
          */
         public suspend fun delete(hash: String) {
             try {
-                dao.deleteByHash(hash)
+                // Remove the resume row together with the torrent row (single transaction).
+                resumeDao.deleteTorrent(dao, hash)
                 logger.d { "Deleted torrent: $hash" }
             } catch (e: Exception) {
                 logger.e({ "Failed to delete torrent: $hash" }, e)

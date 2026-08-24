@@ -163,23 +163,6 @@ public interface TorrentDownloadDao {
     public suspend fun deleteByHash(hash: String)
 
     /**
-     * Persist libtorrent resume data so downloads survive process death.
-     * Called whenever libtorrent emits a SaveResumeDataAlert for a torrent.
-     */
-    @Query("UPDATE torrent_downloads SET resumeData = :data WHERE hash = :hash")
-    public suspend fun updateResumeData(
-        hash: String,
-        data: ByteArray,
-    )
-
-    /**
-     * All resume BLOBs in one query (restore path only). Kept off the list-read
-     * path so UI flows never pull BLOBs.
-     */
-    @Query("SELECT hash, resumeData FROM torrent_downloads WHERE resumeData IS NOT NULL")
-    public suspend fun getAllResumeData(): List<ResumeDataRow>
-
-    /**
      * Returns all non-completed downloads regardless of resume data, for re-adding on session init.
      */
     @Query(
@@ -191,9 +174,3 @@ public interface TorrentDownloadDao {
     )
     public suspend fun getActiveDownloads(): List<TorrentDownloadRow>
 }
-
-/** Projection for a single torrent's resume BLOB (restore path only). */
-public data class ResumeDataRow(
-    public val hash: String,
-    public val resumeData: ByteArray,
-)

@@ -45,8 +45,6 @@ public class TorrentDownloadEntity(
     public val completedTime: Long,
     public val pauseReason: PauseReason?,
     public val topicId: String? = null,
-    /** libtorrent resume data BLOB for crash-safe download resumption. Null until first save. */
-    public val resumeData: ByteArray? = null,
 ) {
     /**
      * Convert to domain model
@@ -85,8 +83,7 @@ public class TorrentDownloadEntity(
             addedTime == other.addedTime &&
             completedTime == other.completedTime &&
             pauseReason == other.pauseReason &&
-            topicId == other.topicId &&
-            resumeData.contentEquals(other.resumeData)
+            topicId == other.topicId
     }
 
     override fun hashCode(): Int {
@@ -104,7 +101,6 @@ public class TorrentDownloadEntity(
         result = 31 * result + completedTime.hashCode()
         result = 31 * result + (pauseReason?.hashCode() ?: 0)
         result = 31 * result + (topicId?.hashCode() ?: 0)
-        result = 31 * result + (resumeData?.contentHashCode() ?: 0)
         return result
     }
 
@@ -112,10 +108,7 @@ public class TorrentDownloadEntity(
         /**
          * Create from domain model
          */
-        public fun fromDomain(
-            download: TorrentDownload,
-            resumeData: ByteArray? = null,
-        ): TorrentDownloadEntity =
+        public fun fromDomain(download: TorrentDownload): TorrentDownloadEntity =
             TorrentDownloadEntity(
                 hash = download.hash,
                 name = download.name,
@@ -131,7 +124,6 @@ public class TorrentDownloadEntity(
                 completedTime = download.completedTime,
                 pauseReason = download.pauseReason,
                 topicId = download.topicId,
-                resumeData = resumeData,
             )
     }
 }
