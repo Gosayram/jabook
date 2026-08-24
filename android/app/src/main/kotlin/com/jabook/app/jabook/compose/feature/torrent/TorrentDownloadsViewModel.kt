@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -353,10 +354,15 @@ public class TorrentDownloadsViewModel
 
                 try {
                     checkNetworkAndWarn()
-                    torrentManager
-                        .addTorrent(magnetLink, path)
-                        .onSuccess { _pendingMagnetLink.value = null }
-                        .onFailure { _snackbarEvent.send(context.getString(R.string.failed_to_add_torrent, it.message ?: "")) }
+                    // libtorrent session init + add are native calls — keep off the main thread.
+                    withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        torrentManager
+                            .addTorrent(magnetLink, path)
+                            .onSuccess { _pendingMagnetLink.value = null }
+                            .onFailure {
+                                _snackbarEvent.send(context.getString(R.string.failed_to_add_torrent, it.message ?: ""))
+                            }
+                    }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {

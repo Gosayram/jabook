@@ -159,7 +159,7 @@ public class TorrentNotificationManager
             // Skip building the notification entirely when the user disabled notifications
             if (!notificationManager.areNotificationsEnabled()) return
             val notification = createProgressNotification(download)
-            notificationManager.notify(download.hash.hashCode(), notification)
+            notificationManager.notify(TorrentNotificationIds.forHash(download.hash), notification)
         }
 
         /**
@@ -202,7 +202,7 @@ public class TorrentNotificationManager
                 }
 
             // Use unique request code to distinguish different hashes/actions
-            val requestCode = (hash?.hashCode() ?: 0) + action.hashCode()
+            val requestCode = TorrentNotificationIds.forAction(hash, action)
 
             return PendingIntent.getBroadcast(
                 context,

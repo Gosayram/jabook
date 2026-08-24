@@ -255,7 +255,7 @@ public class TorrentDownloadService : Service() {
         // Update individual notifications
         downloads.forEach { (hash, download) ->
             val notification = notificationManager.createProgressNotification(download)
-            val id = hash.hashCode()
+            val id = TorrentNotificationIds.forHash(hash)
             nm.notify(id, notification)
             currentIds.add(id)
         }

@@ -374,21 +374,25 @@ public class TopicViewModel
 
                     // Use WithAuthorisedCheckUseCase to ensure authentication before downloading
                     withAuthorisedCheckUseCase(operationId = "download_torrent_$topicId") {
-                        // Ensure TorrentManager is initialized
-                        try {
-                            torrentManager.initialize()
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            logger.e(e) { "TorrentManager already initialized or error: ${e.message}" }
-                        }
-
+                        // libtorrent session init + add are native calls that can take
+                        // tens of ms — keep them off the main thread.
                         val result =
-                            torrentManager.addTorrent(
-                                magnetUri = downloadUrl,
-                                savePath = savePath,
-                                topicId = topicId,
-                            )
+                            withContext(Dispatchers.IO) {
+                                // Ensure TorrentManager is initialized
+                                try {
+                                    torrentManager.initialize()
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    logger.e(e) { "TorrentManager already initialized or error: ${e.message}" }
+                                }
+
+                                torrentManager.addTorrent(
+                                    magnetUri = downloadUrl,
+                                    savePath = savePath,
+                                    topicId = topicId,
+                                )
+                            }
 
                         if (result.isSuccess) {
                             val hash = result.getOrNull()

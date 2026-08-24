@@ -69,7 +69,10 @@ public class TorrentActionReceiver : BroadcastReceiver() {
             ACTION_STOP_TORRENT -> {
                 hash?.let {
                     torrentManager.stopTorrent(it, deleteFiles = false)
-                    notificationManager.cancel(it.hashCode())
+                    notificationManager.cancel(
+                        com.jabook.app.jabook.compose.data.torrent.TorrentNotificationIds
+                            .forHash(it),
+                    )
                     logger.i { "Stopped torrent: $it" }
                 }
             }
@@ -83,7 +86,10 @@ public class TorrentActionReceiver : BroadcastReceiver() {
                     CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
                         try {
                             torrentManager.removeTorrent(it, deleteFiles = true)
-                            notificationManager.cancel(it.hashCode())
+                            notificationManager.cancel(
+                                com.jabook.app.jabook.compose.data.torrent.TorrentNotificationIds
+                                    .forHash(it),
+                            )
                             logger.i { "Cancelled torrent: $it" }
                         } finally {
                             pendingResult.finish()
