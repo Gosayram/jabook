@@ -182,16 +182,22 @@ public class PersistentCookieJar
 
             // Cold start fallback: cache not yet warm, load from DataStore once.
             val storedCookies =
-                runBlocking {
-                    val prefs = dataStore.data.first()
-                    val key = stringPreferencesKey(host)
-                    val encrypted: String = prefs[key] ?: return@runBlocking emptyList<Cookie>()
-                    val serialized = decrypt(encrypted) ?: return@runBlocking emptyList<Cookie>()
+                try {
+                    runBlocking {
+                        val prefs = dataStore.data.first()
+                        val key = stringPreferencesKey(host)
+                        val encrypted: String = prefs[key] ?: return@runBlocking emptyList<Cookie>()
+                        val serialized = decrypt(encrypted) ?: return@runBlocking emptyList<Cookie>()
 
-                    serialized
-                        .split(COOKIE_SEPARATOR)
-                        .mapNotNull { cookieString -> deserializeCookie(cookieString) }
-                        .filter { cookie -> !cookie.hasExpiredAt(nowMillis) }
+                        serialized
+                            .split(COOKIE_SEPARATOR)
+                            .mapNotNull { cookieString -> deserializeCookie(cookieString) }
+                            .filter { cookie -> !cookie.hasExpiredAt(nowMillis) }
+                    }
+                } catch (e: java.io.IOException) {
+                    com.jabook.app.jabook.util.LogUtils
+                        .e("PersistentCookieJar", "Failed to load cookies from DataStore", e)
+                    emptyList<Cookie>()
                 }
 
             cache.store(host, storedCookies)

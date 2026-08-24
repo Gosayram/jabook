@@ -769,16 +769,8 @@ private fun ExpandableDescription(
             val linkColor = MaterialTheme.colorScheme.primary
             val blocks =
                 remember(descriptionHtml, linkColor) {
-                    // Clean HTML description before parsing
-                    val cleanedHtml =
-                        descriptionHtml
-                            .replace(
-                                Regex("<span[^>]*class=\"post-br\"[^>]*>.*?</span>", RegexOption.DOT_MATCHES_ALL),
-                                "<br>",
-                            ).replace(Regex("<br\\s*/?>\\s*<br\\s*/?>+"), "<br><br>") // Normalize multiple <br> tags
-                            .trim()
                     com.jabook.app.jabook.compose.core.util.HtmlBlockParser
-                        .parse(cleanedHtml, linkColor)
+                        .parse(descriptionHtml, linkColor)
                 }
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

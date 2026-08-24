@@ -540,11 +540,11 @@ public class RutrackerAuthService
                 if (rawBody.isEmpty()) return null
                 val bodyString = String(rawBody, CP1251)
 
-                val regex = Regex("""id="logged-in-username"[^>]*>([^<]+)</a>""")
-                val match = regex.find(bodyString)
-                match
-                    ?.groupValues
-                    ?.get(1)
+                org.jsoup.Jsoup
+                    .parse(bodyString)
+                    .select("#logged-in-username")
+                    .firstOrNull()
+                    ?.text()
                     ?.trim()
                     ?.takeIf { it.isNotEmpty() }
             } catch (_: Exception) {

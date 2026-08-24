@@ -403,15 +403,8 @@ private fun buildFileTree(files: List<TorrentFile>): List<FileNode> {
 }
 
 @Composable
-private fun formatSize(bytes: Long): String {
-    val kb = bytes / 1024.0
-    val mb = kb / 1024.0
-    val gb = mb / 1024.0
-
-    return when {
-        gb >= 1.0 -> stringResource(R.string.size_gb, gb)
-        mb >= 1.0 -> stringResource(R.string.size_mb, mb)
-        kb >= 1.0 -> stringResource(R.string.size_kb, kb)
-        else -> stringResource(R.string.size_bytes, bytes)
-    }
-}
+private fun formatSize(bytes: Long): String =
+    com.jabook.app.jabook.compose.core.util.UiFormatters.formatFileSize(
+        bytes,
+        androidx.compose.ui.platform.LocalContext.current.resources,
+    )

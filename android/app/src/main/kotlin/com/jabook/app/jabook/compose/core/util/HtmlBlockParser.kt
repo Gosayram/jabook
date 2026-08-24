@@ -55,7 +55,14 @@ public object HtmlBlockParser {
         if (html.isBlank()) return emptyList()
 
         return try {
-            val doc = Jsoup.parse(html)
+            val cleanedHtml =
+                html
+                    .replace(
+                        Regex("<span[^>]*class=\"post-br\"[^>]*>.*?</span>", RegexOption.DOT_MATCHES_ALL),
+                        "<br>",
+                    ).replace(Regex("<br\\s*/?>\\s*<br\\s*/?>+"), "<br><br>")
+                    .trim()
+            val doc = Jsoup.parse(cleanedHtml)
             parseNodes(doc.body().childNodes(), linkColor)
         } catch (e: Exception) {
             // Fallback: return as single text block

@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.core.util
 
+import android.content.res.Resources
+import com.jabook.app.jabook.R
 import java.util.Locale
 
 /**
@@ -77,6 +79,23 @@ public object UiFormatters {
             mb >= 1.0 -> String.format(Locale.getDefault(), "%.1f MB", mb)
             kb >= 1.0 -> String.format(Locale.getDefault(), "%.0f KB", kb)
             else -> "$safeBytes B"
+        }
+    }
+
+    /** Localized variant for user-visible size display. */
+    public fun formatFileSize(
+        bytes: Long,
+        resources: Resources,
+    ): String {
+        val safeBytes = bytes.coerceAtLeast(0L)
+        val kb = safeBytes / 1024.0
+        val mb = kb / 1024.0
+        val gb = mb / 1024.0
+        return when {
+            gb >= 1.0 -> resources.getString(R.string.size_gb, gb)
+            mb >= 1.0 -> resources.getString(R.string.size_mb, mb)
+            kb >= 1.0 -> resources.getString(R.string.size_kb, kb)
+            else -> resources.getString(R.string.size_bytes, safeBytes)
         }
     }
 

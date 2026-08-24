@@ -18,11 +18,11 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.util.PerfTrace
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.domain.model.Result
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -93,7 +93,7 @@ public class HybridBookScanner
                     }
 
                 // Forward progress from active scanner without unscoped coroutine
-                coroutineScope {
+                supervisorScope {
                     val progressJob =
                         launch {
                             activeScanner.scanProgress.collect { _scanProgress.value = it }

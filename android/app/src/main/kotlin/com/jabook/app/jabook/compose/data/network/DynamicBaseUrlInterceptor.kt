@@ -214,8 +214,8 @@ public class DynamicBaseUrlInterceptor
                         logger.i {
                             "Switched to mirror: $newMirror (took ${switchDuration}ms), retrying after ${e.javaClass.simpleName}: ${originalUrl.encodedPath}"
                         }
+                        val retryStartTime = System.currentTimeMillis()
                         try {
-                            val retryStartTime = System.currentTimeMillis()
                             val retryResponse = chain.proceed(retryRequest)
                             val retryDuration = System.currentTimeMillis() - retryStartTime
                             if (retryResponse.isSuccessful) {
@@ -225,8 +225,9 @@ public class DynamicBaseUrlInterceptor
                             }
                             return retryResponse
                         } catch (retryException: Exception) {
+                            val retryDuration = System.currentTimeMillis() - retryStartTime
                             logger.e {
-                                "Retry also failed with ${retryException.javaClass.simpleName}: ${retryException.message}"
+                                "Retry also failed with ${retryException.javaClass.simpleName}: ${retryException.message} (${retryDuration}ms) with mirror $newMirror"
                             }
                             throw retryException
                         }

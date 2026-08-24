@@ -402,7 +402,7 @@ public class RutrackerRepository
             // Store bytes immediately and reuse
             // Note: OkHttp BrotliInterceptor automatically decompresses Brotli responses
             // After decompression, we get raw bytes that need to be decoded with Windows-1251
-            val rawBytes = response.body()?.bytes() ?: ByteArray(0)
+            val rawBytes = response.body()?.use { it.bytes() } ?: ByteArray(0)
             logger.w { "Response Size: ${rawBytes.size} bytes (should be decompressed if was Brotli)" }
 
             // Check if bytes look like compressed data (Brotli magic bytes)
@@ -578,7 +578,7 @@ public class RutrackerRepository
                             Result.failure(rutrackerError)
                         } else {
                             // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
-                            val rawBytes = response.body()?.bytes() ?: byteArrayOf()
+                            val rawBytes = response.body()?.use { it.bytes() } ?: byteArrayOf()
                             if (rawBytes.isEmpty()) {
                                 logger.logError(
                                     operationId,
@@ -644,7 +644,7 @@ public class RutrackerRepository
                             Result.failure(error)
                         } else {
                             // Get raw bytes (OkHttp BrotliInterceptor automatically decompresses Brotli)
-                            val rawBytes = response.body()?.bytes() ?: ByteArray(0)
+                            val rawBytes = response.body()?.use { it.bytes() } ?: ByteArray(0)
                             // Decode HTML (CategoryParser expects decoded string)
                             val html = String(rawBytes, Charsets.UTF_8)
 
@@ -690,6 +690,7 @@ public class RutrackerRepository
             withContext(Dispatchers.IO) {
                 try {
                     val response = api.getProfile()
+                    response.body()?.close()
                     response.isSuccessful
                 } catch (e: Exception) {
                     logger.w(

@@ -297,19 +297,9 @@ private fun formatBytes(bytes: Long): String = formatBytes(bytes, LocalContext.c
 internal fun formatBytes(
     bytes: Long,
     resources: Resources,
-): String {
-    val safeBytes = bytes.coerceAtLeast(0L)
-    val kb = safeBytes / 1024.0
-    val mb = kb / 1024.0
-    val gb = mb / 1024.0
-
-    return when {
-        gb >= 1.0 -> resources.getString(R.string.size_gb, gb)
-        mb >= 1.0 -> resources.getString(R.string.size_mb, mb)
-        kb >= 1.0 -> resources.getString(R.string.size_kb, kb)
-        else -> resources.getString(R.string.size_bytes, safeBytes)
-    }
-}
+): String =
+    com.jabook.app.jabook.compose.core.util.UiFormatters
+        .formatFileSize(bytes, resources)
 
 /**
  * Streaming badge — shown when playback-while-downloading is active.
@@ -456,7 +446,9 @@ private fun formatSpeed(bytesPerSecond: Long): String = formatSpeed(bytesPerSeco
 internal fun formatSpeed(
     bytesPerSecond: Long,
     resources: Resources,
-): String = formatBytes(bytesPerSecond, resources)
+): String =
+    com.jabook.app.jabook.compose.core.util.UiFormatters
+        .formatFileSize(bytesPerSecond, resources)
 
 /**
  * Format ETA in human-readable format
