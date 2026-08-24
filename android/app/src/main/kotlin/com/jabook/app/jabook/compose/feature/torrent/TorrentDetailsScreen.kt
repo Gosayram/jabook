@@ -228,6 +228,7 @@ private fun FileItem(
     file: TorrentFile,
     onPlay: () -> Unit,
 ) {
+    val fileName = remember(file.path) { File(file.path).name }
     val isAudio =
         remember(file.path) {
             val ext = File(file.path).extension.lowercase()
@@ -235,7 +236,7 @@ private fun FileItem(
         }
 
     ListItem(
-        headlineContent = { Text(File(file.path).name) },
+        headlineContent = { Text(fileName) },
         supportingContent = {
             Column {
                 Text(UiFormatters.formatFileSize(file.size))

@@ -597,8 +597,6 @@ dependencies {
     implementation(libs.bundles.network)
     // Jsoup for HTML parsing (Rutracker scraping)
     implementation(libs.jsoup)
-    // Jsoup optional regex backend required for R8 minify (Re2jRegex)
-    implementation(libs.re2j)
 
     // libtorrent4j for torrent downloads
     implementation(libs.bundles.libtorrent4j)
@@ -655,9 +653,6 @@ dependencies {
 
     // LeakCanary - Memory leak detection for debug builds (BP-6.4)
     debugImplementation(libs.leakcanary.android)
-
-    // Detekt API for custom rules (compileOnly - only needed for compilation)
-    compileOnly(libs.detekt.api)
 
     // Testing dependencies
     testImplementation(platform(libs.androidx.compose.bom))

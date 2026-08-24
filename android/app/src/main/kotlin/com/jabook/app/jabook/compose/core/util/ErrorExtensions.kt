@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.core.util
 
-import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
@@ -25,12 +24,6 @@ import com.jabook.app.jabook.compose.data.remote.RuTrackerError
  * Based on Flow project analysis - provides centralized error message
  * and icon mapping for different error types.
  */
-
-/**
- * Get string resource ID for error title.
- */
-@StringRes
-public fun Throwable?.getErrorTitleRes(): Int = R.string.error_title
 
 /**
  * Get string resource ID for error message.
@@ -64,12 +57,3 @@ public fun Throwable?.getErrorMessage(): String =
         is RuTrackerError.Unknown -> this.message
         else -> this?.message ?: "Something went wrong"
     }
-
-/**
- * Get drawable resource ID for error illustration.
- *
- * Note: If custom illustrations are not available, returns 0
- * and UI should handle it gracefully.
- */
-@DrawableRes
-public fun Throwable?.getIllRes(): Int = 0 // Custom illustrations not yet implemented

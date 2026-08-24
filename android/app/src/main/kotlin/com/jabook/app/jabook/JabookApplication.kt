@@ -268,7 +268,12 @@ public class JabookApplication :
                 return
             }
 
-            val report = file.readText()
+            val report =
+                try {
+                    file.readText()
+                } catch (_: Exception) {
+                    return
+                }
 
             LogUtils.w("JabookApplication", "Found crash report from previous session, launching CrashActivity")
             val intent =

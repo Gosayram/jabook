@@ -174,13 +174,12 @@ public object AtomicFileWriter {
      */
     public fun tryAcquireLock(lockFile: File): FileLock? =
         try {
-            val channel =
-                java.nio.file.Files.newByteChannel(
+            java.nio.file.Files
+                .newByteChannel(
                     lockFile.toPath(),
                     StandardOpenOption.CREATE,
                     StandardOpenOption.WRITE,
-                )
-            (channel as FileChannel).tryLock()
+                ).use { (it as? FileChannel)?.tryLock() }
         } catch (_: Exception) {
             null
         }

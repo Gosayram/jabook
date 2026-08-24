@@ -65,9 +65,6 @@ public class TvBrowseFragment : BrowseSupportFragment() {
         headersState = HEADERS_ENABLED
         isHeadersTransitionOnBackEnabled = true
 
-        // Set search affordance (optional - can implement search later)
-        // setOnSearchClickedListener { /* Navigate to search */ }
-
         // Row click listener
         onItemViewClickedListener =
             OnItemViewClickedListener { _: Presenter.ViewHolder?, item: Any?, _: RowPresenter.ViewHolder?, _: Row? ->

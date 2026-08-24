@@ -101,13 +101,14 @@ internal class PlaylistManager(
     }
 
     // State managed by PlaylistManager
-    var currentFilePaths: List<String>? = null
+    @Volatile var currentFilePaths: List<String>? = null
         internal set
     var currentPlaylistItems: List<PlaylistItem>? = null
         internal set
     var currentMetadata: Map<String, String>? = null
         internal set
-    var currentGroupPath: String? = null
+
+    @Volatile var currentGroupPath: String? = null
         internal set
     internal var isPlaylistLoading = false
         internal set
@@ -115,9 +116,12 @@ internal class PlaylistManager(
         internal set
     var lastPlaylistLoadTime: Long = 0L
         private set
-    var lastCompletedTrackIndex: Int = -1
-    var isBookCompleted = false
-    var actualTrackIndex: Int = 0
+
+    @Volatile var lastCompletedTrackIndex: Int = -1
+
+    @Volatile var isBookCompleted = false
+
+    @Volatile var actualTrackIndex: Int = 0
 
     // Progress tracking for playlist loading
     data class PlaylistLoadProgress(

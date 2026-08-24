@@ -980,7 +980,7 @@ public class AudioPlayerController
                     val isSamePlaylist =
                         currentPaths != null &&
                             currentPaths.size == request.filePaths.size &&
-                            currentPaths.sorted() == request.filePaths.sorted()
+                            currentPaths.toSet() == request.filePaths.toSet()
 
                     if ((isSameBook || isSamePlaylist) && !isBookChanged) {
                         logger.i {
