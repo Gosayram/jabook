@@ -32,7 +32,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.libtorrent4j.AddTorrentParams
 import org.libtorrent4j.AlertListener
 import org.libtorrent4j.LibTorrent
@@ -822,11 +821,10 @@ public class TorrentSessionManager
                 if (!handle.isValid) return
                 val hash = handle.infoHash().toHex()
                 val resumeBytes = AddTorrentParams.writeResumeDataBuf(alert.params())
-                // Write synchronously on the alert thread: stopSession() counts down the
-                // same latch and then cancels sessionScope, so an async launch here could
-                // be cancelled mid-write and lose the resume BLOB. The write targets the
-                // tiny torrent_resume row, never the full torrent row.
-                runBlocking {
+                // Write on statePersistenceScope: it is NEVER cancelled (not even by
+                // stopSession()), so the BLOB always lands — while the libtorrent alert
+                // thread stays responsive instead of blocking on the DB write.
+                statePersistenceScope.launch {
                     try {
                         torrentResumeDao.updateResumeData(hash, resumeBytes)
                         logger.d { "Resume data saved for $hash (${resumeBytes.size} bytes)" }
