@@ -32,7 +32,7 @@ import javax.inject.Provider
 class AuthInterceptorTest {
     @Test(expected = CancellationException::class)
     fun `cancellation while loading credentials is propagated`() {
-        val request = Request.Builder().url("https://rutracker.net/forum/viewtopic.php?t=1").build()
+        val request = Request.Builder().url("https://mirror.example/forum/viewtopic.php?t=1").build()
         val chain = mock<Interceptor.Chain>()
         val authRepository = mock<AuthRepository>()
         whenever(chain.request()).thenReturn(request)
@@ -47,7 +47,7 @@ class AuthInterceptorTest {
 
     @Test
     fun `expired response without stored credentials is returned without a duplicate request`() {
-        val request = Request.Builder().url("https://rutracker.net/forum/viewtopic.php?t=1").build()
+        val request = Request.Builder().url("https://mirror.example/forum/viewtopic.php?t=1").build()
         val expiredResponse = response(request, 401)
         val chain = mock<Interceptor.Chain>()
         val authRepository = mock<AuthRepository>()

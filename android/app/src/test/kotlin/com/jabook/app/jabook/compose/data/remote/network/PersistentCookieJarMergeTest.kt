@@ -56,7 +56,7 @@ class PersistentCookieJarMergeTest {
             .Builder()
             .name(name)
             .value(value)
-            .domain("rutracker.org")
+            .domain("mirror.example")
             .path("/")
             .expiresAt(expiresAt)
             .build()

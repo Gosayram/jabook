@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import org.jsoup.nodes.Element
@@ -52,9 +53,39 @@ public class CoverUrlExtractor
                     "48x48",
                 )
 
-            /** Precompiled: normalizeUrl() is called per cover URL — avoid recompiling 3 Regex per call. */
-            private val CDN_ABS_REGEX = Regex("https?://static\\.rutracker\\.(org|net|me|nl)")
-            private val CDN_PROTOCOL_RELATIVE_REGEX = Regex("//static\\.rutracker\\.(org|net|me|nl)")
+            /** Precompiled: normalizeUrl() is called per cover URL — avoid recompiling Regex per call. */
+            // CDN hosts are derived from build config (.env) — no mirror/CDN domains in source.
+            private val cdnHosts: List<String> =
+                BuildConfig.RUTRACKER_DEFAULT_MIRRORS
+                    .split(',')
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() }
+                    .map { "static.$it" }
+
+            private val cdnSelectorTokens: List<String> =
+                listOf(
+                    longestCommonPrefix(cdnHosts),
+                    longestCommonPrefix(BuildConfig.RUTRACKER_DEFAULT_MIRRORS.split(',').map { "i.${it.trim()}" }),
+                ).filter { it.isNotBlank() }.ifEmpty { listOf("static.") }
+
+            private val cdnTarget: String = BuildConfig.RUTRACKER_COVER_CDN
+
+            private val CDN_ABS_REGEX =
+                Regex("https?://(${cdnHosts.joinToString("|") { Regex.escape(it) }})")
+            private val CDN_PROTOCOL_RELATIVE_REGEX =
+                Regex("//(${cdnHosts.joinToString("|") { Regex.escape(it) }})")
+
+            private fun longestCommonPrefix(strings: List<String>): String {
+                if (strings.isEmpty()) return ""
+                var prefix = strings.first()
+                for (s in strings.drop(1)) {
+                    while (!s.startsWith(prefix)) {
+                        prefix = prefix.dropLast(1)
+                        if (prefix.isEmpty()) return ""
+                    }
+                }
+                return prefix
+            }
         }
 
         /**
@@ -63,7 +94,7 @@ public class CoverUrlExtractor
          * Priority order (based on Flow project analysis):
          * 1. img.postImg.postImgAligned.img-right with title (MOST RELIABLE - как в Flow)
          * 2. var.postImg with title (fallback для старых форматов)
-         * 3. img from static.rutracker or fastpic
+         * 3. img from mirror CDN or fastpic
          * 4. img with data-src (lazy loading)
          * 5. img with srcset
          * 6. First valid img (last resort, with filtering)
@@ -115,14 +146,16 @@ public class CoverUrlExtractor
                 }
             }
 
-            // Priority 3: img from static.rutracker or fastpic (Highly reliable)
+            // Priority 3: img from mirror CDN or fastpic (Highly reliable)
             // Use absUrl() for proper absolute URL resolution (requires baseUri in parse())
             container
-                .selectFirst("img[src*='static.rutracker'], img[src*='fastpic'], img[src*='i.rutracker']")
-                ?.let { imgElement ->
+                .selectFirst(
+                    (cdnSelectorTokens + "fastpic")
+                        .joinToString { "img[src*='$it']" },
+                )?.let { imgElement ->
                     val url = imgElement.absUrl("src")
                     if (isValidImageUrl(url) && !isIconOrSmile(url)) {
-                        logger.d { "Cover found via static.rutracker/fastpic: $url" }
+                        logger.d { "Cover found via mirror CDN/fastpic: $url" }
                         return normalizeUrl(url)
                     }
                 }
@@ -209,10 +242,10 @@ public class CoverUrlExtractor
          * Normalize URL to absolute form using CDN when possible.
          *
          * Handles:
-         * - Protocol-relative URLs (//static.rutracker.org/...) - как в Flow
+         * - Protocol-relative URLs (//static.<static-asset-host>/...) - как в Flow
          * - Relative URLs (/forum/...)
          * - Already absolute URLs
-         * - CDN normalization: replaces static.rutracker.* with static.rutracker.cc (always available)
+         * - CDN normalization: replaces mirror CDN hosts with the configured cover CDN
          *
          * Note: This method should be called after absUrl() when possible,
          * as absUrl() handles relative URLs better when baseUri is set in Jsoup.parse().
@@ -220,9 +253,9 @@ public class CoverUrlExtractor
         public fun normalizeUrl(url: String): String {
             // If URL is already absolute and valid, just normalize CDN domain
             if (url.startsWith("http://") || url.startsWith("https://")) {
-                // Replace static.rutracker.* domains with static.rutracker.cc (CDN is always available)
-                // This ensures images load even if main mirror is blocked
-                return url.replace(CDN_ABS_REGEX, "https://static.rutracker.cc")
+                // Replace mirror CDN domains with the configured cover CDN
+                // (always available even if the main mirror is blocked)
+                return url.replace(CDN_ABS_REGEX, cdnTarget)
             }
 
             val baseUrl = mirrorManager.getBaseUrl()
@@ -230,24 +263,23 @@ public class CoverUrlExtractor
                 when {
                     url.startsWith("//") -> {
                         // Protocol-relative URL - как в Flow
-                        // Check if it's static.rutracker CDN
-                        if (url.contains("static.rutracker.", ignoreCase = true)) {
-                            // Replace domain with static.rutracker.cc (CDN is always available)
-                            "https:" +
-                                url.replace(CDN_PROTOCOL_RELATIVE_REGEX, "//static.rutracker.cc")
+                        // Check if it's a mirror static CDN
+                        if (cdnSelectorTokens.any { token -> url.contains(token, ignoreCase = true) }) {
+                            // Replace domain with configured cover CDN
+                            "https:" + url.replace(CDN_PROTOCOL_RELATIVE_REGEX, "//" + cdnTarget.removePrefix("https://"))
                         } else {
                             "https:$url"
                         }
                     }
                     url.startsWith("/avatars/") || url.startsWith("/tt/") || url.startsWith("/sm/") -> {
-                        // Static content paths should use static.rutracker.cc CDN
-                        "https://static.rutracker.cc$url"
+                        // Static content paths should use configured cover CDN
+                        cdnTarget + url
                     }
                     url.startsWith("/") -> "$baseUrl$url"
                     else -> "$baseUrl/$url"
                 }
 
-            // Final CDN normalization (in case baseUrl contained static.rutracker.*)
-            return normalized.replace(CDN_ABS_REGEX, "https://static.rutracker.cc")
+            // Final CDN normalization (in case baseUrl contained a mirror CDN)
+            return normalized.replace(CDN_ABS_REGEX, cdnTarget)
         }
     }

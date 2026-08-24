@@ -123,6 +123,57 @@ val googleServicesCandidates =
 
 val hasGoogleServicesJson = googleServicesCandidates.any { relativePath -> file(relativePath).exists() }
 
+// Load runtime configuration from the gitignored .env at the repo root.
+// Keys override defaults and must never be committed. RuTracker mirror URLs are
+// exposed to the app as BuildConfig fields so no connection URLs are hardcoded
+// in source. Config-cache friendly: read via providers.fileContents.
+val envText: String =
+    try {
+        providers
+            .fileContents(rootProject.layout.projectDirectory.file("../.env"))
+            .asText
+            .get()
+    } catch (_: Exception) {
+        ""
+    }
+
+val envConfig: Map<String, String> =
+    envText
+        .lines()
+        .mapNotNull { rawLine ->
+            val line = rawLine.trim()
+            if (line.isBlank() || line.startsWith("#")) return@mapNotNull null
+            val eq = line.indexOf('=')
+            if (eq <= 0) return@mapNotNull null
+            val key = line.substring(0, eq).trim()
+            var value = line.substring(eq + 1).trim()
+            if (value.length >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+                value = value.substring(1, value.length - 1)
+            }
+            key to value
+        }.toMap()
+
+// RuTracker mirrors and base URL MUST be supplied via ../.env — real connection
+// URLs are never hardcoded in source (including comments and fallbacks).
+//   RUTRACKER_DEFAULT_MIRRORS=comma,separated,mirror,domains
+//   RUTRACKER_BASE_URL=https://<mirror>/forum/
+//   RUTRACKER_COVER_CDN=https://static.<cdn-host>/   (cover image CDN)
+val rutrackerDefaultMirrors: String =
+    envConfig["RUTRACKER_DEFAULT_MIRRORS"]?.takeIf { it.isNotBlank() }
+        ?: throw GradleException(
+            "Missing required RuTracker config in ../.env — set RUTRACKER_DEFAULT_MIRRORS (see .env-example).",
+        )
+val rutrackerBaseUrl: String =
+    envConfig["RUTRACKER_BASE_URL"]?.takeIf { it.isNotBlank() }
+        ?: throw GradleException(
+            "Missing required RuTracker config in ../.env — set RUTRACKER_BASE_URL (see .env-example).",
+        )
+val rutrackerCoverCdn: String =
+    envConfig["RUTRACKER_COVER_CDN"]?.takeIf { it.isNotBlank() }
+        ?: throw GradleException(
+            "Missing required RuTracker config in ../.env — set RUTRACKER_COVER_CDN (see .env-example).",
+        )
+
 if (hasGoogleServicesJson) {
     apply(plugin = "com.google.gms.google-services")
     apply(plugin = "com.google.firebase.crashlytics")
@@ -316,6 +367,9 @@ android {
         // Enable explicit intent handling for Android 14+
         manifestPlaceholders["enableExplicitIntentHandling"] = "true"
         buildConfigField("boolean", "HAS_GOOGLE_SERVICES", hasGoogleServicesJson.toString())
+        buildConfigField("String", "RUTRACKER_DEFAULT_MIRRORS", "\"$rutrackerDefaultMirrors\"")
+        buildConfigField("String", "RUTRACKER_BASE_URL", "\"$rutrackerBaseUrl\"")
+        buildConfigField("String", "RUTRACKER_COVER_CDN", "\"$rutrackerCoverCdn\"")
     }
 
     // Ponytail: strip unused locale resources for smaller APK.

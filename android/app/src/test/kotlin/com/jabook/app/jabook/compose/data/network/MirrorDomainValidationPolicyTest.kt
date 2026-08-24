@@ -28,80 +28,83 @@ import org.junit.Test
  * and warning detection for non-rutracker domains.
  */
 class MirrorDomainValidationPolicyTest {
+    // Mirror-looking keyword, derived from build config (.env) — no literals in source.
+    private val keyword: String = MirrorDomainValidationPolicy.KNOWN_RUTRACKER_KEYWORDS.first()
+
     // --- Sanitization ---
 
     @Test
     fun `bare domain passes sanitization`() {
-        val result = MirrorDomainValidationPolicy.validate("rutracker.nl")
+        val result = MirrorDomainValidationPolicy.validate("$keyword.example")
         assertTrue(result.isValid)
-        assertEquals("rutracker.nl", result.sanitizedDomain)
+        assertEquals("$keyword.example", result.sanitizedDomain)
         assertFalse(result.isWarning)
         assertNull(result.rejectionReason)
     }
 
     @Test
     fun `https prefix is stripped`() {
-        val result = MirrorDomainValidationPolicy.validate("https://rutracker.org")
+        val result = MirrorDomainValidationPolicy.validate("https://$keyword.example")
         assertTrue(result.isValid)
-        assertEquals("rutracker.org", result.sanitizedDomain)
+        assertEquals("$keyword.example", result.sanitizedDomain)
         assertFalse(result.isWarning)
     }
 
     @Test
     fun `http prefix is stripped`() {
-        val result = MirrorDomainValidationPolicy.validate("http://rutracker.net")
+        val result = MirrorDomainValidationPolicy.validate("http://$keyword.example")
         assertTrue(result.isValid)
-        assertEquals("rutracker.net", result.sanitizedDomain)
+        assertEquals("$keyword.example", result.sanitizedDomain)
         assertFalse(result.isWarning)
     }
 
     @Test
     fun `trailing path is stripped`() {
-        val result = MirrorDomainValidationPolicy.validate("rutracker.nl/forum/index.php")
+        val result = MirrorDomainValidationPolicy.validate("$keyword.example/forum/index.php")
         assertTrue(result.isValid)
-        assertEquals("rutracker.nl", result.sanitizedDomain)
+        assertEquals("$keyword.example", result.sanitizedDomain)
     }
 
     @Test
     fun `query string is stripped`() {
-        val result = MirrorDomainValidationPolicy.validate("rutracker.org?foo=bar")
+        val result = MirrorDomainValidationPolicy.validate("$keyword.example?foo=bar")
         assertTrue(result.isValid)
-        assertEquals("rutracker.org", result.sanitizedDomain)
+        assertEquals("$keyword.example", result.sanitizedDomain)
     }
 
     @Test
     fun `fragment is stripped`() {
-        val result = MirrorDomainValidationPolicy.validate("rutracker.me#section")
+        val result = MirrorDomainValidationPolicy.validate("$keyword.example#section")
         assertTrue(result.isValid)
-        assertEquals("rutracker.me", result.sanitizedDomain)
+        assertEquals("$keyword.example", result.sanitizedDomain)
     }
 
     @Test
     fun `port is stripped`() {
-        val result = MirrorDomainValidationPolicy.validate("rutracker.org:8080")
+        val result = MirrorDomainValidationPolicy.validate("$keyword.example:8080")
         assertTrue(result.isValid)
-        assertEquals("rutracker.org", result.sanitizedDomain)
+        assertEquals("$keyword.example", result.sanitizedDomain)
     }
 
     @Test
     fun `full url is sanitized to domain`() {
-        val result = MirrorDomainValidationPolicy.validate("https://rutracker.nl/forum/viewtopic.php?t=123#top")
+        val result = MirrorDomainValidationPolicy.validate("https://$keyword.example/forum/viewtopic.php?t=123#top")
         assertTrue(result.isValid)
-        assertEquals("rutracker.nl", result.sanitizedDomain)
+        assertEquals("$keyword.example", result.sanitizedDomain)
     }
 
     @Test
     fun `domain is lowercased`() {
-        val result = MirrorDomainValidationPolicy.validate("Rutracker.NL")
+        val result = MirrorDomainValidationPolicy.validate("${keyword.replaceFirstChar { it.uppercase() }}.example")
         assertTrue(result.isValid)
-        assertEquals("rutracker.nl", result.sanitizedDomain)
+        assertEquals("$keyword.example", result.sanitizedDomain)
     }
 
     @Test
     fun `leading and trailing whitespace is trimmed`() {
-        val result = MirrorDomainValidationPolicy.validate("  rutracker.org  ")
+        val result = MirrorDomainValidationPolicy.validate("  $keyword.example  ")
         assertTrue(result.isValid)
-        assertEquals("rutracker.org", result.sanitizedDomain)
+        assertEquals("$keyword.example", result.sanitizedDomain)
     }
 
     // --- Rejections ---
@@ -167,14 +170,14 @@ class MirrorDomainValidationPolicyTest {
 
     @Test
     fun `domain without TLD is rejected`() {
-        val result = MirrorDomainValidationPolicy.validate("rutracker")
+        val result = MirrorDomainValidationPolicy.validate("$keyword")
         assertFalse(result.isValid)
         assertTrue(result.rejectionReason!!.contains("TLD", ignoreCase = true))
     }
 
     @Test
     fun `domain with spaces is rejected`() {
-        val result = MirrorDomainValidationPolicy.validate("rut tracker.org")
+        val result = MirrorDomainValidationPolicy.validate("$keyword tracker.example")
         assertFalse(result.isValid)
     }
 
@@ -191,14 +194,14 @@ class MirrorDomainValidationPolicyTest {
 
     @Test
     fun `rutracker subdomain does not trigger warning`() {
-        val result = MirrorDomainValidationPolicy.validate("mirror.rutracker.org")
+        val result = MirrorDomainValidationPolicy.validate("mirror.$keyword.example")
         assertTrue(result.isValid)
         assertFalse(result.isWarning)
     }
 
     @Test
     fun `rutracker in path does not cause false negative for warning`() {
-        val result = MirrorDomainValidationPolicy.validate("rutracker.nl")
+        val result = MirrorDomainValidationPolicy.validate("$keyword.example")
         assertTrue(result.isValid)
         assertFalse(result.isWarning)
     }

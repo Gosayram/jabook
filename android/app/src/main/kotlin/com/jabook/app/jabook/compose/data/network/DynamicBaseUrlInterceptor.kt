@@ -176,14 +176,11 @@ public class DynamicBaseUrlInterceptor
                 // Check if auto-switch is enabled (sync read from in-memory cache)
                 val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabledSync()
 
-                if (autoSwitchEnabled) {
-                    // Auto-switch is enabled - attempt to switch mirror for any error
-                    if (isNetworkError) {
-                        logger.i {
-                            "Network/DNS error detected (${e.javaClass.simpleName}), auto-switch enabled, attempting mirror switch"
-                        }
-                    } else {
-                        logger.i { "Auto-switch enabled, attempting mirror switch for ${e.javaClass.simpleName}" }
+                // Only transport failures (DNS/connect/timeout/TLS) justify a mirror
+                // switch — mirror failover cannot fix an application-level error.
+                if (autoSwitchEnabled && isNetworkError) {
+                    logger.i {
+                        "Network/DNS error detected (${e.javaClass.simpleName}), auto-switch enabled, attempting mirror switch"
                     }
 
                     val switchStartTime = System.currentTimeMillis()
@@ -234,7 +231,7 @@ public class DynamicBaseUrlInterceptor
                     } else {
                         logger.w { "Failed to switch to working mirror (took ${switchDuration}ms)" }
                     }
-                } else {
+                } else if (!autoSwitchEnabled) {
                     // Auto-switch is disabled - log but don't switch
                     if (isNetworkError) {
                         logger.w {
@@ -242,8 +239,12 @@ public class DynamicBaseUrlInterceptor
                         }
                     } else {
                         logger.d {
-                            "Auto-switch is disabled, not attempting mirror switch for ${e.javaClass.simpleName}"
+                            "Non-transport error ${e.javaClass.simpleName}, mirror switch not applicable"
                         }
+                    }
+                } else {
+                    logger.d {
+                        "Non-transport error ${e.javaClass.simpleName}, mirror switch not applicable"
                     }
                 }
 
@@ -254,16 +255,15 @@ public class DynamicBaseUrlInterceptor
         /**
          * Determine if the response code should trigger auto-switch.
          *
-         * Triggers on:
-         * - 5xx server errors
-         * - 403 Forbidden (might be blocking)
-         * - 404 Not Found (mirror might be outdated)
+         * Follows OkHttp's retry semantics: only transport/server-side failures
+         * (5xx) indicate a possibly-dead mirror. 4xx is deliberately excluded:
+         * - 403 on RuTracker means expired session / user block — every mirror
+         *   shares the same backend, switching just ping-pongs.
+         * - 404 means the page/topic doesn't exist — the mirror is alive.
          */
         private fun shouldTriggerAutoSwitch(code: Int): Boolean =
             when (code) {
-                in 500..599 -> true // Server errors
-                403 -> true // Forbidden (blocking?)
-                404 -> true // Not found (mirror structure changed?)
+                in 500..599 -> true // Server errors — mirror may be down
                 else -> false
             }
     }

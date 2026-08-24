@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.network
 
+import com.jabook.app.jabook.BuildConfig
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
 /**
@@ -48,7 +49,21 @@ public object MirrorDomainValidationPolicy {
      * Domains not matching any of these trigger a [isWarning] flag so the UI
      * can ask for explicit user confirmation.
      */
-    public val KNOWN_RUTRACKER_KEYWORDS: List<String> = listOf("rutracker")
+
+    /**
+     * Keywords that make a domain "look like" a known mirror, derived at build
+     * time from the configured mirrors (.env) — no mirror names in source.
+     */
+    public val KNOWN_RUTRACKER_KEYWORDS: List<String> =
+        BuildConfig.RUTRACKER_DEFAULT_MIRRORS
+            .split(',')
+            .mapNotNull { domain ->
+                domain
+                    .trim()
+                    .split('.')
+                    .firstOrNull()
+                    ?.takeIf { it.isNotBlank() }
+            }.distinct()
 
     /**
      * Validates and sanitizes a raw user-supplied mirror input.
@@ -61,7 +76,7 @@ public object MirrorDomainValidationPolicy {
      * 5. Reject domains without a TLD (no dot)
      * 6. Flag non-rutracker domains as suspicious ([isWarning])
      *
-     * @param input Raw user input (e.g., "https://rutracker.nl/forum/", "rutracker.nl")
+     * @param input Raw user input (e.g., "https://<mirror-domain>/forum/", "<mirror-domain>")
      * @return [ValidationResult] with sanitized domain or rejection reason
      */
     public fun validate(input: String): ValidationResult {
@@ -83,7 +98,7 @@ public object MirrorDomainValidationPolicy {
             return ValidationResult(
                 sanitizedDomain = null,
                 isWarning = false,
-                rejectionReason = "Domain must be a valid hostname (e.g., rutracker.nl)",
+                rejectionReason = "Domain must be a valid hostname (e.g., mirror.example)",
             )
         }
 
@@ -110,7 +125,7 @@ public object MirrorDomainValidationPolicy {
             return ValidationResult(
                 sanitizedDomain = null,
                 isWarning = false,
-                rejectionReason = "Domain must contain a valid TLD (e.g., rutracker.nl)",
+                rejectionReason = "Domain must contain a valid TLD (e.g., mirror.example)",
             )
         }
 

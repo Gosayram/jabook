@@ -61,7 +61,7 @@ class SearchRutrackerUseCaseTest {
             seeders = 15,
             leechers = 3,
             magnetUrl = "magnet:?xt=urn:btih:abc",
-            torrentUrl = "https://rutracker.org/forum/viewtopic.php?t=12345",
+            torrentUrl = "https://mirror.example/forum/viewtopic.php?t=12345",
             coverUrl = "https://example.com/cover.jpg",
         )
 

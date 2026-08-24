@@ -2161,7 +2161,7 @@ private fun AddMirrorDialog(
                 )
                 Spacer(modifier = Modifier.height(smallSpacing))
                 Text(
-                    "Примеры: rutracker.nl, rutracker.ru, rutracker.net.ru",
+                    "Примеры: mirror1.example, mirror2.example",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -2183,8 +2183,8 @@ private fun AddMirrorDialog(
 /**
  * Extract domain from URL or domain string.
  *
- * Accepts: "rutracker.nl", "https://rutracker.nl", "rutracker.nl/forum"
- * Returns: "rutracker.nl" or null if invalid
+ * Accepts: "<mirror-domain>", "https://<mirror-domain>", "<mirror-domain>/forum"
+ * Returns: "<mirror-domain>" or null if invalid
  */
 private fun extractDomain(input: String): String? {
     val trimmed = input.trim()

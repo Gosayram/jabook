@@ -227,8 +227,9 @@ public object NetworkModule {
         val contentType = "application/json".toMediaType()
         return Retrofit
             .Builder()
-            // Base URL is a placeholder - DynamicBaseUrlInterceptor replaces host with current mirror
-            .baseUrl("https://rutracker.org/forum/")
+            // Base URL is a placeholder - DynamicBaseUrlInterceptor replaces host with current mirror.
+            // Supplied at build time from .env (RUTRACKER_BASE_URL) — never hardcoded in source.
+            .baseUrl(BuildConfig.RUTRACKER_BASE_URL)
             .client(okHttpClient)
             // Scalar converter first for HTML responses
             .addConverterFactory(ScalarsConverterFactory.create())

@@ -113,8 +113,8 @@ public object DnsPrefetchPolicy {
     /**
      * Extracts the hostname from a full URL for prefetch purposes.
      *
-     * @param url Full URL (e.g., "https://rutracker.org/forum/...")
-     * @return Hostname (e.g., "rutracker.org") or null if parsing fails.
+     * @param url Full URL (e.g., "https://<mirror-domain>/forum/...")
+     * @return Hostname (e.g., "<mirror-domain>") or null if parsing fails.
      */
     public fun extractHost(url: String): String? {
         return try {

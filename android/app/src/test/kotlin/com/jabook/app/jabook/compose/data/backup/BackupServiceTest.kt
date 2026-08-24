@@ -250,7 +250,7 @@ class BackupServiceTest {
                     playbackSpeed = 1.0f,
                     wifiOnlyDownload = false,
                     downloadPath = "/storage/emulated/0/Books",
-                    currentMirror = "rutracker.org",
+                    currentMirror = "mirror.example",
                     autoSwitchMirror = true,
                 ),
             bookMetadata = emptyList(),

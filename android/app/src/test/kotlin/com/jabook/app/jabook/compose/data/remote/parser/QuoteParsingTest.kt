@@ -52,7 +52,7 @@ class QuoteParsingTest {
         whenever(mockLoggerFactory.get(org.mockito.kotlin.any<String>())).thenReturn(
             com.jabook.app.jabook.compose.core.logger.NoOpLogger,
         )
-        whenever(mirrorManager.getBaseUrl()).thenReturn("https://rutracker.org")
+        whenever(mirrorManager.getBaseUrl()).thenReturn("https://mirror.example")
 
         parser =
             RutrackerParser(
@@ -145,11 +145,11 @@ class QuoteParsingTest {
         assertTrue("Signature should be present", comment?.html?.contains("sig-body") == true)
 
         // Assert link is absolute and correct
-        // getBaseUrl returns https://rutracker.org/forum/
-        // So link should be https://rutracker.org/forum/search.php?uid=123
+        // getBaseUrl returns https://mirror.example/forum/
+        // So link should be https://mirror.example/forum/search.php?uid=123
         assertTrue(
             "Link should be absolute to forum",
-            comment?.html?.contains("https://rutracker.org/forum/search.php?uid=123") == true,
+            comment?.html?.contains("https://mirror.example/forum/search.php?uid=123") == true,
         )
     }
 }

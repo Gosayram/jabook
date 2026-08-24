@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.network
 
+import com.jabook.app.jabook.BuildConfig
 import okhttp3.CertificatePinner
 
 /**
@@ -26,21 +27,32 @@ import okhttp3.CertificatePinner
  * This keeps validation strict while reducing breakage during routine leaf renewals.
  */
 public object RutrackerCertificatePinningPolicy {
-    private const val MIRROR_ORG: String = "rutracker.org"
-    private const val MIRROR_NET: String = "rutracker.net"
-
-    // Leaf SPKI pins (captured on 2026-04-10).
+    // Leaf SPKI pins (captured on 2026-04-10), in the same order as the
+    // canonical mirrors from .env (RUTRACKER_DEFAULT_MIRRORS).
     private const val PIN_LEAF_ORG: String = "sha256/q9Z3qXo6SZEcRaCl+/dSuiMZXX8dSrZDQC7+pZugV5U="
     private const val PIN_LEAF_NET: String = "sha256/tOFeRzloarPYX5mQ9ksIypCp36vLupuTvOo8sF4Ka2I="
 
     // Google Trust Services WE1 intermediate SPKI pin (backup for renewals).
     private const val PIN_INTERMEDIATE_WE1: String = "sha256/kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4="
 
+    // Canonical mirrors, supplied at build time from .env — never hardcoded.
+    // Only the first two (which carry leaf pins) are pinned; any additional
+    // custom mirrors fall back to standard validation.
+    private val canonicalMirrors: List<String> =
+        BuildConfig.RUTRACKER_DEFAULT_MIRRORS
+            .split(',')
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .take(2)
+
+    private val leafPins: List<String> = listOf(PIN_LEAF_ORG, PIN_LEAF_NET)
+
     public val hostPins: Map<String, Set<String>> =
-        mapOf(
-            MIRROR_ORG to setOf(PIN_LEAF_ORG, PIN_INTERMEDIATE_WE1),
-            MIRROR_NET to setOf(PIN_LEAF_NET, PIN_INTERMEDIATE_WE1),
-        )
+        canonicalMirrors
+            .mapIndexedNotNull { index, host ->
+                val leaf = leafPins.getOrNull(index) ?: return@mapIndexedNotNull null
+                host to setOf(leaf, PIN_INTERMEDIATE_WE1)
+            }.toMap()
 
     public val pinnedHosts: Set<String> = hostPins.keys
 

@@ -238,7 +238,7 @@ class RutrackerAuthServiceTest {
             // Regex extraction test without HTTP layer (MockWebServer + ResponseBody interaction
             // causes null response in unit tests; real-world integration works correctly)
             val html =
-                """<a id="logged-in-username" class="truncated-text" href="https://rutracker.net/forum/profile.php?mode=viewprofile&amp;u=42989632">atlet99</a>"""
+                """<a id="logged-in-username" class="truncated-text" href="https://mirror.example/forum/profile.php?mode=viewprofile&amp;u=42989632">atlet99</a>"""
             val regex = Regex("""id="logged-in-username"[^>]*>([^<]+)</a>""")
             val match = regex.find(html)
             val username =

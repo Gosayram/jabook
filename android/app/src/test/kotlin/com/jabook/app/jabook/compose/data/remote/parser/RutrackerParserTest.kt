@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.encoding.RutrackerSimpleDecoder
 import okhttp3.MediaType.Companion.toMediaType
@@ -65,7 +66,7 @@ class RutrackerParserTest {
         // Mock getBaseUrl behavior
         org.mockito.kotlin
             .whenever(mirrorManager.getBaseUrl())
-            .thenReturn("https://rutracker.org")
+            .thenReturn("https://mirror.example")
 
         // CoverUrlExtractor requires MirrorManager
         coverExtractor = CoverUrlExtractor(mirrorManager, mockLoggerFactory)
@@ -480,6 +481,7 @@ class RutrackerParserTest {
 
     @Test
     fun `parseTopicDetails extracts comments with avatars`() {
+        val cdn = BuildConfig.RUTRACKER_COVER_CDN
         val html =
             """
             <html>
@@ -499,7 +501,7 @@ class RutrackerParserTest {
                         <tr>
                             <td class="poster_info td1">
                                 <p class="nick"><a href="#">UserWithAvatar</a></p>
-                                <p class="avatar"><img src="https://static.rutracker.cc/avatars/1/1/1234.png" alt=""></p>
+                                <p class="avatar"><img src="$cdn/avatars/1/1/1234.png" alt=""></p>
                             </td>
                             <td class="message td2">
                                 <div class="post_body" id="p-123456">Comment text</div>
@@ -530,7 +532,7 @@ class RutrackerParserTest {
 
         val comment1 = details?.comments?.get(0)
         assertEquals("UserWithAvatar", comment1?.author)
-        assertEquals("https://static.rutracker.cc/avatars/1/1/1234.png", comment1?.avatarUrl)
+        assertEquals("$cdn/avatars/1/1/1234.png", comment1?.avatarUrl)
 
         val comment2 = details?.comments?.get(1)
         assertEquals("UserNoAvatar", comment2?.author)
@@ -951,7 +953,7 @@ class RutrackerParserTest {
             <html>
             <body>
                 <h1 class="maintitle">
-                    <a id="topic-title" href="https://rutracker.net/forum/viewtopic.php?t=5532748">Атаманов Михаил – Искажающие реальность 1</a>
+                    <a id="topic-title" href="https://mirror.example/forum/viewtopic.php?t=5532748">Атаманов Михаил – Искажающие реальность 1</a>
                 </h1>
                 <div class="post_body" id="p-74963777">
                     <span style="font-size: 24px;">Искажающие реальность Книга 1</span><br>

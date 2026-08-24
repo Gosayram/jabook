@@ -4,12 +4,11 @@
 
     Security policy:
     - Base config: cleartext traffic DENIED by default (HTTPS required)
-    - Only known RuTracker mirror domains are allowlisted for HTTP cleartext
     - System certificate trust anchors for all connections
+    - RuTracker mirror domains come from build config (.env) and are HTTPS-only,
+      so no per-domain cleartext exceptions are needed.
 
     For Android 9+ (API 28+), cleartext traffic is disabled by default.
-    Domain-specific overrides are the minimal exception set for mirrors
-    that do not yet support HTTPS.
 -->
 <network-security-config>
     <!-- Base configuration: deny cleartext for all domains by default -->
@@ -18,22 +17,4 @@
             <certificates src="system" />
         </trust-anchors>
     </base-config>
-
-    <!--
-        Domain-specific allowlist for RuTracker mirrors.
-        Only these domains are permitted to use cleartext HTTP.
-        All other connections must use HTTPS.
-    -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">rutracker.net</domain>
-        <domain includeSubdomains="true">rutracker.org</domain>
-        <domain includeSubdomains="true">rutracker.me</domain>
-        <domain includeSubdomains="true">rutracker.nl</domain>
-        <domain includeSubdomains="true">rutracker.ru</domain>
-        <domain includeSubdomains="true">rutracker.lib</domain>
-        <domain includeSubdomains="true">rutracker.info</domain>
-        <trust-anchors>
-            <certificates src="system" />
-        </trust-anchors>
-    </domain-config>
 </network-security-config>

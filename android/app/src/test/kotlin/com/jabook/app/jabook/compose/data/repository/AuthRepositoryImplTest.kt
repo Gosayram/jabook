@@ -45,7 +45,7 @@ class AuthRepositoryImplTest {
     @Test
     fun `validated WebView session authenticates without saved credentials`() =
         runTest {
-            whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("rutracker.org"))
+            whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("mirror.example"))
             whenever(cookieJar.loadForRequest(any())).thenReturn(listOf(sessionCookie()))
             whenever(authService.validateAuth()).thenReturn(true)
             whenever(secureStorage.getCredentials()).thenReturn(null)
@@ -60,7 +60,7 @@ class AuthRepositoryImplTest {
     @Test
     fun `invalid WebView session is rejected and cleared`() =
         runTest {
-            whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("rutracker.org"))
+            whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("mirror.example"))
             whenever(cookieJar.loadForRequest(any())).thenReturn(listOf(sessionCookie()))
             whenever(authService.validateAuth()).thenReturn(false)
             whenever(secureStorage.getCredentials()).thenReturn(null)
@@ -74,7 +74,7 @@ class AuthRepositoryImplTest {
     @Test
     fun `syncCookiesFromWebView extracts real username from forum page`() =
         runTest {
-            whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("rutracker.org"))
+            whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("mirror.example"))
             whenever(cookieJar.loadForRequest(any())).thenReturn(listOf(sessionCookie()))
             whenever(secureStorage.getCredentials()).thenReturn(null)
             whenever(authService.fetchUsername()).thenReturn("atlet99")
@@ -90,7 +90,7 @@ class AuthRepositoryImplTest {
     @Test
     fun `syncCookiesFromWebView falls back to User when username fetch fails`() =
         runTest {
-            whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("rutracker.org"))
+            whenever(mirrorManager.currentMirror).thenReturn(MutableStateFlow("mirror.example"))
             whenever(cookieJar.loadForRequest(any())).thenReturn(listOf(sessionCookie()))
             whenever(secureStorage.getCredentials()).thenReturn(null)
             whenever(authService.fetchUsername()).thenThrow(RuntimeException("network error"))
@@ -131,6 +131,6 @@ class AuthRepositoryImplTest {
             .Builder()
             .name("bb_session")
             .value("session")
-            .domain("rutracker.org")
+            .domain("mirror.example")
             .build()
 }

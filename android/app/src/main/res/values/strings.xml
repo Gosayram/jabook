@@ -612,7 +612,7 @@
     <!-- Label for mirror URL field -->
     <string name="mirrorUrlLabelText">Mirror URL</string>
     <!-- Hint for mirror URL field -->
-    <string name="mirrorUrlHintText">https://rutracker.example.com</string>
+    <string name="mirrorUrlHintText">https://mirror.example.com</string>
     <!-- Label for priority field -->
     <string name="priorityLabelText">Priority (1-10)</string>
     <!-- Hint for priority field -->
@@ -2315,8 +2315,8 @@
     <string name="priorityDownloadinfopriorityname">Priority: ${downloadInfo.priority.name}</string>
     <!-- Priority menu -->
     <string name="priorityMenu">Priority menu</string>
-    <!-- rutracker.nl -->
-    <string name="rutrackernl">rutracker.nl</string>
+    <!-- example mirror domain -->
+    <string name="rutrackernl">mirror.example.com</string>
     <!-- Search books... -->
     <string name="searchBooks">Search books, authors, narrators…</string>
     <!-- $seeders -->
@@ -2526,7 +2526,7 @@
     <string name="torrentDetailsTitle">Torrent Details</string>
     <string name="backButton">Back</string>
     <string name="settings">Settings</string>
-    <string name="invalidUrlFormatError">Invalid URL. Use format: rutracker.example</string>
+    <string name="invalidUrlFormatError">Invalid URL. Use format: mirror.example</string>
     <string name="unknownStat">Unknown</string>
     <string name="noAudiobooksFound">No audiobooks</string>
     <string name="aboutApp">About app</string>

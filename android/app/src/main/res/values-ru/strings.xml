@@ -588,7 +588,7 @@
     <!-- Метка для поля URL зеркала -->
     <string name="mirrorUrlLabelText">URL зеркала</string>
     <!-- Подсказка для поля URL зеркала -->
-    <string name="mirrorUrlHintText">https://rutracker.example.com</string>
+    <string name="mirrorUrlHintText">https://mirror.example.com</string>
     <!-- Метка для поля приоритета -->
     <string name="priorityLabelText">Приоритет (1-10)</string>
     <!-- Подсказка для поля приоритета -->
@@ -2178,7 +2178,7 @@
     <string name="errorWithMessage">Ошибка: %1$s</string>
     <!-- Строки экрана аутентификации -->
     <string name="rutrackerAuth">Rutracker Auth</string>
-    <string name="rutrackernl">rutracker.nl</string>
+    <string name="rutrackernl">mirror.example.com</string>
     <string name="username">Имя пользователя</string>
     <string name="password">Пароль</string>
     <string name="rememberMe">Запомнить меня</string>
@@ -2512,8 +2512,8 @@
     <string name="backButton">Назад</string>
     <!-- Настройки -->
     <string name="settings">Настройки</string>
-    <!-- Неверный URL. Используйте формат: rutracker.example -->
-    <string name="invalidUrlFormatError">Неверный URL. Используйте формат: rutracker.example</string>
+    <!-- Неверный URL. Используйте формат: mirror.example -->
+    <string name="invalidUrlFormatError">Неверный URL. Используйте формат: mirror.example</string>
     <!-- Неизвестно -->
     <string name="unknownStat">Неизвестно</string>
     <!-- Нет аудиокнига -->

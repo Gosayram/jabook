@@ -25,10 +25,10 @@ class CookieMemoryCacheTest {
         val cache = CookieMemoryCache()
         val cookies = mutableListOf(cookie(name = "session", value = "first"))
 
-        cache.store("rutracker.org", cookies)
+        cache.store("mirror.example", cookies)
         cookies += cookie(name = "other", value = "mutated")
 
-        val loaded = cache.load("rutracker.org")
+        val loaded = cache.load("mirror.example")
 
         assertEquals(listOf(cookie(name = "session", value = "first")), loaded)
     }
@@ -36,11 +36,11 @@ class CookieMemoryCacheTest {
     @Test
     fun `clear removes all host snapshots`() {
         val cache = CookieMemoryCache()
-        cache.store("rutracker.org", listOf(cookie(name = "session", value = "value")))
+        cache.store("mirror.example", listOf(cookie(name = "session", value = "value")))
 
         cache.clear()
 
-        assertNull(cache.load("rutracker.org"))
+        assertNull(cache.load("mirror.example"))
     }
 
     private fun cookie(
@@ -51,6 +51,6 @@ class CookieMemoryCacheTest {
             .Builder()
             .name(name)
             .value(value)
-            .domain("rutracker.org")
+            .domain("mirror.example")
             .build()
 }

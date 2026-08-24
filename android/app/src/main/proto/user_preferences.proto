@@ -28,7 +28,7 @@ message UserPreferences {
   bool player_notifications = 14;
   
   // Network settings
-  string selected_mirror = 15;  // Selected mirror domain: "rutracker.org", "rutracker.net", "rutracker.me", or custom
+  string selected_mirror = 15;  // Selected mirror domain (configured via .env at build time) or custom
   repeated string custom_mirrors = 16;  // User-added custom mirrors
   bool auto_switch_mirror = 17;  // Auto-switch to working mirror on failure
   

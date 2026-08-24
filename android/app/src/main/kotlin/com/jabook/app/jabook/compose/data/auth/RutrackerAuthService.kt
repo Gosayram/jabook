@@ -563,7 +563,8 @@ public class RutrackerAuthService
                     }
                 if (response.isSuccessful) {
                     val bodyString = response.body()?.string()?.lowercase() ?: ""
-                    val isValidIndex = bodyString.contains("форум") || bodyString.contains("rutracker.org")
+                    // Index page title contains "Форум" on every mirror
+                    val isValidIndex = bodyString.contains("форум")
                     logger.log(
                         operationId,
                         "Index check: HTTP ${response.code()}, validContent=$isValidIndex",

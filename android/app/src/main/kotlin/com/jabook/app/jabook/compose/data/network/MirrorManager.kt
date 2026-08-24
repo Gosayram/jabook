@@ -28,11 +28,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -74,15 +78,25 @@ public class MirrorManager
 
         public companion object {
             /**
-             * Default list of RuTracker mirrors.
+             * Default list of RuTracker mirrors, supplied at build time from .env
+             * (`RUTRACKER_DEFAULT_MIRRORS`). Never hardcoded in source.
              */
             public val DEFAULT_MIRRORS: List<String> =
-                listOf(
-                    "rutracker.org",
-                    "rutracker.net",
-                )
+                BuildConfig.RUTRACKER_DEFAULT_MIRRORS
+                    .split(',')
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() }
 
-            private const val DEFAULT_MIRROR = "rutracker.org"
+            private val DEFAULT_MIRROR: String = DEFAULT_MIRRORS.firstOrNull().orEmpty()
+
+            // Health-check tuning
+            private const val HEALTH_CHECK_CONNECT_TIMEOUT_MS = 5_000L
+            private const val HEALTH_CHECK_READ_TIMEOUT_MS = 8_000L
+
+            // Anti-flap tuning (mirrors share one backend: 4xx is an application
+            // response, not a mirror failure, so switching must be conservative)
+            private const val SWITCH_SUCCESS_GRACE_MS = 10_000L
+            private const val SWITCH_FAILURE_BACKOFF_MS = 60_000L
         }
 
         private val scope =
@@ -92,15 +106,36 @@ public class MirrorManager
 
         private val circuitFailureCounts = ConcurrentHashMap<String, AtomicInteger>()
         private val circuitOpenSince = ConcurrentHashMap<String, Long>()
+        private val halfOpenProbes = ConcurrentHashMap.newKeySet<String>()
         private val circuitResetTimeoutMs = 60_000L
         private val circuitFailureThreshold = 3
+
+        // Single-flight guard: prevents N parallel interceptor threads from
+        // running the (expensive) health-check switch dance at once.
+        private val switchMutex = Mutex()
+
+        // Cooldowns to stop mirror flapping (mirrors are one backend — a 4xx
+        // won't be fixed by switching, so rapid re-switching is pure churn):
+        //  - grace after a successful switch before switching again
+        //  - backoff after a failed switch attempt (no mirror worked)
+        private val lastSuccessfulSwitchMs = AtomicLong(0L)
+        private val lastFailedSwitchMs = AtomicLong(0L)
+
+        // Dedicated health-check client with short timeouts. Shares the
+        // connection pool/dispatcher of the main client (newBuilder()).
+        private val healthCheckClient: OkHttpClient =
+            okHttpClient
+                .newBuilder()
+                .connectTimeout(HEALTH_CHECK_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .readTimeout(HEALTH_CHECK_READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .build()
 
         private val _currentMirror = MutableStateFlow(DEFAULT_MIRROR)
 
         /**
          * Current active mirror domain (reactive).
          *
-         * Example: "rutracker.org"
+         * Example: "<mirror-domain>"
          */
         public val currentMirror: StateFlow<String> = _currentMirror.asStateFlow()
 
@@ -138,7 +173,7 @@ public class MirrorManager
         /**
          * Set the current mirror.
          *
-         * @param domain Mirror domain (e.g., "rutracker.org")
+         * @param domain Mirror domain (e.g., "<mirror-domain>")
          */
         public suspend fun setMirror(domain: String) {
             if (domain.isBlank()) {
@@ -181,19 +216,29 @@ public class MirrorManager
                             .Builder()
                             .url("https://$domain/forum/")
                             .header("User-Agent", "JaBook/${BuildConfig.VERSION_NAME}")
-                            .head() // HEAD request for faster response
+                            // GET, not HEAD: Cloudflare challenge pages carry no body on
+                            // HEAD responses, so body-based detection would never fire.
+                            .get()
                             .build()
 
-                    val response = okHttpClient.newCall(request).execute()
+                    val response = healthCheckClient.newCall(request).execute()
                     response.use {
                         val code = it.code
-                        val body = it.peekBody(4096).string()
-                        val cfRay = it.header("cf-ray")
+                        val body = runCatching { it.peekBody(8192).string() }.getOrDefault("")
+
+                        // Cloudflare's explicit "this is a challenge" signal. cf-ray alone
+                        // must NOT be used: every Cloudflare-proxied response carries it,
+                        // including healthy ones, which would misclassify real origin 403s
+                        // (expired session / user block) as "protected" and switch mirrors
+                        // to a backend that behaves identically.
+                        val cfMitigated =
+                            it.header("cf-mitigated")?.equals("challenge", ignoreCase = true) == true
                         val isCfProtected =
-                            cfRay != null ||
+                            cfMitigated ||
                                 body.contains("Just a moment", ignoreCase = true) ||
                                 body.contains("Checking your browser", ignoreCase = true) ||
-                                body.contains("cf-browser-verification", ignoreCase = true)
+                                body.contains("cf-browser-verification", ignoreCase = true) ||
+                                body.contains("cf-chl", ignoreCase = true)
 
                         val health =
                             when {
@@ -235,11 +280,22 @@ public class MirrorManager
                 true
             } else {
                 circuitOpenSince.remove(domain) // half-open: allow one probe
+                halfOpenProbes.add(domain)
                 false
             }
         }
 
         private fun recordCircuitFailure(domain: String) {
+            // A failed half-open probe means the mirror is still dead — re-open
+            // immediately so dead mirrors don't get a full-timeout check on every
+            // switch attempt (RouteSelector-style: don't re-select a failed route
+            // while others remain).
+            if (halfOpenProbes.remove(domain)) {
+                circuitOpenSince[domain] = System.currentTimeMillis()
+                logger.w { "Half-open probe failed for $domain, circuit re-opened" }
+                return
+            }
+
             val count = circuitFailureCounts.getOrPut(domain) { AtomicInteger(0) }.incrementAndGet()
             if (count >= circuitFailureThreshold) {
                 circuitOpenSince[domain] = System.currentTimeMillis()
@@ -249,6 +305,7 @@ public class MirrorManager
         }
 
         private fun recordCircuitSuccess(domain: String) {
+            halfOpenProbes.remove(domain)
             circuitFailureCounts.remove(domain)
             circuitOpenSince.remove(domain)
         }
@@ -260,49 +317,69 @@ public class MirrorManager
          *
          * @return true if switched successfully, false if no mirrors are available
          */
-        public suspend fun switchToNextMirror(): Boolean {
-            syncStateFromPreferencesSnapshot()
-            val currentDomain = _currentMirror.value
-            val mirrors = _availableMirrors.value
-            val currentIndex = mirrors.indexOf(currentDomain)
+        public suspend fun switchToNextMirror(): Boolean =
+            switchMutex.withLock {
+                val now = System.currentTimeMillis()
 
-            logger.i { "Attempting to switch from $currentDomain to next mirror" }
-
-            // Try all mirrors starting from next one
-            val mirrorsToTry =
-                if (currentIndex >= 0) {
-                    // Start from next mirror, wrap around
-                    mirrors.drop(currentIndex + 1) + mirrors.take(currentIndex + 1)
-                } else {
-                    mirrors
+                // Anti-flap: mirrors share one backend, so rapid re-switching on 4xx
+                // only ping-pongs between domains. If we just switched, stay put and
+                // let the application layer surface the error instead.
+                if (now - lastSuccessfulSwitchMs.get() < SWITCH_SUCCESS_GRACE_MS) {
+                    logger.d { "Mirror switched recently, staying on ${_currentMirror.value} (grace period)" }
+                    return@withLock false
                 }
 
-            for (mirror in mirrorsToTry) {
-                if (mirror == currentDomain) continue // Skip current
+                // After a failed switch (no mirror worked), back off so dead mirrors
+                // aren't re-probed (with full timeouts) on every single request.
+                if (now - lastFailedSwitchMs.get() < SWITCH_FAILURE_BACKOFF_MS) {
+                    logger.d { "Switch attempt on cooldown (backoff), keeping ${_currentMirror.value}" }
+                    return@withLock false
+                }
 
-                val healthCheckStart = System.currentTimeMillis()
-                logger.d { "Trying mirror: $mirror" }
+                syncStateFromPreferencesSnapshot()
+                val currentDomain = _currentMirror.value
+                val mirrors = _availableMirrors.value
+                val currentIndex = mirrors.indexOf(currentDomain)
 
-                val health = checkMirrorHealth(mirror)
-                if (health is MirrorHealth.Healthy || health is MirrorHealth.CloudflareProtected) {
-                    val healthCheckDuration = System.currentTimeMillis() - healthCheckStart
-                    logger.i {
-                        "Mirror $mirror is ${health::class.simpleName} (health check: ${healthCheckDuration}ms), switching and saving to settings..."
+                logger.i { "Attempting to switch from $currentDomain to next mirror" }
+
+                // Try all mirrors starting from next one
+                val mirrorsToTry =
+                    if (currentIndex >= 0) {
+                        // Start from next mirror, wrap around
+                        mirrors.drop(currentIndex + 1) + mirrors.take(currentIndex + 1)
+                    } else {
+                        mirrors
                     }
-                    setMirror(mirror) // This will save to settings via settingsRepository.updateSelectedMirror()
-                    logger.i { "Successfully switched from $currentDomain to $mirror and saved to settings" }
-                    return true
-                }
-            }
 
-            logger.e { "Failed to find any working mirror after trying ${availableMirrors.value.size} mirrors" }
-            return false
-        }
+                for (mirror in mirrorsToTry) {
+                    if (mirror == currentDomain) continue // Skip current
+
+                    val healthCheckStart = System.currentTimeMillis()
+                    logger.d { "Trying mirror: $mirror" }
+
+                    val health = checkMirrorHealth(mirror)
+                    if (health is MirrorHealth.Healthy || health is MirrorHealth.CloudflareProtected) {
+                        val healthCheckDuration = System.currentTimeMillis() - healthCheckStart
+                        logger.i {
+                            "Mirror $mirror is ${health::class.simpleName} (health check: ${healthCheckDuration}ms), switching and saving to settings..."
+                        }
+                        setMirror(mirror) // This will save to settings via settingsRepository.updateSelectedMirror()
+                        lastSuccessfulSwitchMs.set(now)
+                        logger.i { "Successfully switched from $currentDomain to $mirror and saved to settings" }
+                        return@withLock true
+                    }
+                }
+
+                logger.e { "Failed to find any working mirror after trying ${availableMirrors.value.size} mirrors" }
+                lastFailedSwitchMs.set(now)
+                return@withLock false
+            }
 
         /**
          * Add a custom mirror domain.
          *
-         * @param domain Custom mirror domain (e.g., "rutracker.nl")
+         * @param domain Custom mirror domain (e.g., "<mirror-domain>")
          */
 
         /**
@@ -313,7 +390,7 @@ public class MirrorManager
          * - Local/private addresses are rejected
          * - Non-rutracker domains are accepted but logged as a warning
          *
-         * @param domain Raw user input (e.g., "https://rutracker.nl/forum/")
+         * @param domain Raw user input (e.g., "https://<mirror-domain>/forum/")
          * @return [MirrorDomainValidationPolicy.ValidationResult] indicating success or rejection
          */
         public suspend fun addCustomMirror(domain: String): MirrorDomainValidationPolicy.ValidationResult {
@@ -353,7 +430,7 @@ public class MirrorManager
         /**
          * Get current mirror domain synchronously.
          *
-         * @return Current mirror domain (e.g., "rutracker.org")
+         * @return Current mirror domain (e.g., "<mirror-domain>")
          */
         public fun getCurrentMirrorDomain(): String = _currentMirror.value
 

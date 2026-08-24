@@ -62,13 +62,13 @@ class CrashDiagnosticsTest {
             throwable = error,
             attributes =
                 mapOf(
-                    "mirror_domain" to "rutracker.org",
+                    "mirror_domain" to "mirror.example",
                     "attempt" to 2,
                 ),
         )
 
         assertEquals("mirror_health_check_failed", fakeSink.keys["non_fatal_tag"])
-        assertEquals("rutracker.org", fakeSink.keys["nf_mirror_domain"])
+        assertEquals("mirror.example", fakeSink.keys["nf_mirror_domain"])
         assertEquals("2", fakeSink.keys["nf_attempt"])
         assertTrue(fakeSink.logs.any { it.contains("non_fatal:mirror_health_check_failed") })
         assertEquals(error, fakeSink.recorded.single())

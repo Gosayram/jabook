@@ -22,11 +22,11 @@ import org.junit.Test
 class CookiePersistenceManagerTest {
     @Test
     fun `captured session is restricted to the trusted HTTPS host`() {
-        val cookies = captureWebViewCookies("https://rutracker.org/forum/login.php", "bb_session=token; other=value")
+        val cookies = captureWebViewCookies("https://mirror.example/forum/login.php", "bb_session=token; other=value")
 
         assertTrue(cookies.isNotEmpty())
         val bbSession = cookies.first { it.name == "bb_session" }
-        assertEquals("rutracker.org", bbSession.domain)
+        assertEquals("mirror.example", bbSession.domain)
         assertFalse(bbSession.hostOnly)
         assertTrue(bbSession.secure)
         assertTrue(bbSession.httpOnly)
@@ -34,7 +34,7 @@ class CookiePersistenceManagerTest {
 
     @Test
     fun `captures cloudflare cookies`() {
-        val cookies = captureWebViewCookies("https://rutracker.org/forum/", "__cf_bm=abc123; cf_clearance=xyz789; bb_session=tok")
+        val cookies = captureWebViewCookies("https://mirror.example/forum/", "__cf_bm=abc123; cf_clearance=xyz789; bb_session=tok")
 
         assertTrue(cookies.any { it.name == "__cf_bm" })
         assertTrue(cookies.any { it.name == "cf_clearance" })

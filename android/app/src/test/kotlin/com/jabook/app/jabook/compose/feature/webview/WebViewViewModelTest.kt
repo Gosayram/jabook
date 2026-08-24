@@ -55,16 +55,17 @@ class WebViewViewModelTest {
 
     @Test
     fun `only canonical RuTracker HTTPS origins are trusted`() {
-        assertTrue(viewModel.isTrustedAuthenticationUrl("https://rutracker.org/forum/login.php"))
-        assertTrue(viewModel.isTrustedAuthenticationUrl("https://rutracker.net/"))
+        val mirrors = MirrorManager.DEFAULT_MIRRORS
+        assertTrue(mirrors.size >= 2)
+        assertTrue(viewModel.isTrustedAuthenticationUrl("https://${mirrors[0]}/forum/login.php"))
+        assertTrue(viewModel.isTrustedAuthenticationUrl("https://${mirrors[1]}/"))
 
         listOf(
-            "http://rutracker.org/forum/login.php",
-            "https://rutracker.org:8443/forum/login.php",
-            "https://user:password@rutracker.org/forum/login.php",
-            "https://evilrutracker.org/forum/login.php",
-            "https://rutracker.ru/forum/login.php",
-            "https://rutracker.info/forum/login.php",
+            "http://${mirrors[0]}/forum/login.php",
+            "https://${mirrors[0]}:8443/forum/login.php",
+            "https://user:password@${mirrors[0]}/forum/login.php",
+            "https://evil${mirrors[0]}/forum/login.php",
+            "https://not${mirrors[0]}/forum/login.php",
             "file:///android_asset/login.html",
             "javascript:alert(1)",
         ).forEach { url -> assertFalse(url, viewModel.isTrustedAuthenticationUrl(url)) }
@@ -72,7 +73,7 @@ class WebViewViewModelTest {
 
     @Test
     fun `malformed percent encoded deep link URL is rejected without throwing`() {
-        assertNull(decodeWebViewUrl("https%3A%2F%2Frutracker.org%2F%"))
+        assertNull(decodeWebViewUrl("https%3A%2F%2Fmirror.example%2F%"))
     }
 
     @Test
@@ -81,11 +82,12 @@ class WebViewViewModelTest {
             val authStatus = MutableStateFlow<AuthStatus>(AuthStatus.Authenticated("test"))
             whenever(authRepository.authStatus).thenReturn(authStatus)
             var result: Boolean? = null
+            val loginUrl = "https://${MirrorManager.DEFAULT_MIRRORS.first()}/forum/"
 
-            viewModel.completeLogin("https://rutracker.org/forum/") { result = it }
+            viewModel.completeLogin(loginUrl) { result = it }
             advanceUntilIdle()
 
-            verify(authRepository).syncCookiesFromWebView("https://rutracker.org/forum/")
+            verify(authRepository).syncCookiesFromWebView(loginUrl)
             assertTrue(result == true)
         }
 
@@ -95,11 +97,12 @@ class WebViewViewModelTest {
             val authStatus = MutableStateFlow<AuthStatus>(AuthStatus.Unauthenticated)
             whenever(authRepository.authStatus).thenReturn(authStatus)
             var result: Boolean? = null
+            val loginUrl = "https://${MirrorManager.DEFAULT_MIRRORS.first()}/forum/"
 
-            viewModel.completeLogin("https://rutracker.org/forum/") { result = it }
+            viewModel.completeLogin(loginUrl) { result = it }
             advanceUntilIdle()
 
-            verify(authRepository).syncCookiesFromWebView("https://rutracker.org/forum/")
+            verify(authRepository).syncCookiesFromWebView(loginUrl)
             assertFalse(result == true)
         }
 }
