@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.torrent
 import android.content.ComponentName
 import android.content.Context
 import androidx.core.content.ContextCompat
+import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
@@ -81,7 +82,15 @@ public class TorrentStreamingMonitor
             private const val BUFFER_LOW_THRESHOLD_BYTES = 1 * 1024 * 1024L // 1MB
             private const val BUFFER_RESUME_THRESHOLD_BYTES = 5 * 1024 * 1024L // 5MB
             private const val POLLING_INTERVAL_MS = 1000L
+
+            // Auto-stop polling when the player is genuinely stopped (STATE_IDLE/STATE_ENDED)
+            // for this long — prevents endless 1s wake-ups after playback ends.
+            private const val STOPPED_GRACE_PERIOD_MS = 5 * 60_000L
+            private const val STOPPED_GRACE_TICKS = STOPPED_GRACE_PERIOD_MS / POLLING_INTERVAL_MS
         }
+
+        // Consecutive polls where the player was truly stopped (not paused)
+        private var stoppedTickCount = 0L
 
         public fun startMonitoring(
             hash: String,
@@ -92,6 +101,7 @@ public class TorrentStreamingMonitor
             currentFileIndex = fileIndex
             isPausedForBuffering = false
             pausedByUser = false
+            stoppedTickCount = 0L
 
             // Initialize MediaController for service access
             initMediaController()
@@ -100,7 +110,11 @@ public class TorrentStreamingMonitor
                 scope.launch {
                     while (isActive) {
                         try {
-                            checkBufferState()
+                            val shouldStop = checkBufferState()
+                            if (shouldStop) {
+                                logger.i { "Player stopped for $STOPPED_GRACE_PERIOD_MS ms — stopping stream monitor" }
+                                break
+                            }
                         } catch (e: Exception) {
                             logger.e({ "Buffer state check failed: ${e.message}" }, e)
                         }
@@ -181,10 +195,14 @@ public class TorrentStreamingMonitor
             mediaControllerFuture = null
         }
 
-        private fun checkBufferState() {
-            val hash = currentHash ?: return
+        /**
+         * Checks buffer state.
+         * @return true when the monitor should auto-stop (player stopped beyond grace period).
+         */
+        private fun checkBufferState(): Boolean {
+            val hash = currentHash ?: return false
             val fileIndex = currentFileIndex
-            if (fileIndex < 0) return
+            if (fileIndex < 0) return false
 
             // Use MediaController instead of getInstance()
             val controller =
@@ -193,18 +211,26 @@ public class TorrentStreamingMonitor
                     if (mediaControllerFuture == null) {
                         initMediaController()
                     }
-                    return
+                    return false
                 }
+
+            // Player genuinely stopped (not paused) — track grace period, then auto-stop
+            val playbackState = controller.playbackState
+            if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
+                stoppedTickCount++
+                return stoppedTickCount >= STOPPED_GRACE_TICKS
+            }
+            stoppedTickCount = 0L
 
             val currentDuration = controller.duration
             val currentPosition = controller.currentPosition
 
             // Only if we are playing the file we think we are monitoring?
             // Ideally check metadata or path, but simplified for now:
-            if (currentDuration <= 0) return // Not playing or unknown
+            if (currentDuration <= 0) return false // Not playing or unknown
 
-            val download = torrentManager.getDownload(hash) ?: return
-            val torrentFile = download.files.find { it.index == fileIndex } ?: return
+            val download = torrentManager.getDownload(hash) ?: return false
+            val torrentFile = download.files.find { it.index == fileIndex } ?: return false
 
             val totalBytes = torrentFile.size
 
@@ -238,5 +264,6 @@ public class TorrentStreamingMonitor
                 // Reset buffering flag if user manually paused
                 isPausedForBuffering = false
             }
+            return false
         }
     }

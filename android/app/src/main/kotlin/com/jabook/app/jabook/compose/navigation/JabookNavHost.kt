@@ -261,25 +261,39 @@ public fun JabookNavHost(
         ) {
             LibraryScreen(
                 onBookClick = { bookId ->
-                    navController.navigate(PlayerRoute(bookId = bookId))
+                    navController.navigate(PlayerRoute(bookId = bookId)) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToSearch = {
-                    navController.navigate(SearchRoute)
+                    navController.navigate(SearchRoute) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToDownloads = {
-                    navController.navigate(DownloadsRoute())
+                    navController.navigate(DownloadsRoute()) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToFavorites = {
-                    navController.navigate(FavoritesRoute)
+                    navController.navigate(FavoritesRoute) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToAudioSettings = {
-                    navController.navigate(AudioSettingsRoute)
+                    navController.navigate(AudioSettingsRoute) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToSettings = {
-                    navController.navigate(SettingsRoute)
+                    navController.navigate(SettingsRoute) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToAuth = {
-                    navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute)
+                    navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute) {
+                        launchSingleTop = true
+                    }
                 },
                 onFirstMeaningfulContentDrawn = onFirstMeaningfulContentDrawn,
                 onMenuClick = onMenuClick,
@@ -329,6 +343,7 @@ public fun JabookNavHost(
                 },
                 onNavigateToBook = { bookId ->
                     navController.navigate(PlayerRoute(bookId = bookId)) {
+                        launchSingleTop = true
                         popUpTo<PlayerRoute> { inclusive = true }
                     }
                 },
@@ -351,7 +366,9 @@ public fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onMagnetLinkDetected = { magnetUrl ->
-                    navController.navigate(DownloadsRoute(magnetLink = magnetUrl))
+                    navController.navigate(DownloadsRoute(magnetLink = magnetUrl)) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -365,19 +382,29 @@ public fun JabookNavHost(
         ) {
             SettingsScreen(
                 onNavigateToAuth = {
-                    navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute)
+                    navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToDebug = {
-                    navController.navigate(DebugRoute)
+                    navController.navigate(DebugRoute) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToScanSettings = {
-                    navController.navigate(ScanSettingsRoute)
+                    navController.navigate(ScanSettingsRoute) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToAudioSettings = {
-                    navController.navigate(AudioSettingsRoute)
+                    navController.navigate(AudioSettingsRoute) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToDownloads = {
-                    navController.navigate(DownloadsRoute())
+                    navController.navigate(DownloadsRoute()) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -410,7 +437,9 @@ public fun JabookNavHost(
                     navController.navigate(
                         com.jabook.app.jabook.compose.navigation
                             .WebViewRoute(url, isAuthentication = true),
-                    )
+                    ) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -422,11 +451,15 @@ public fun JabookNavHost(
                     navController.navigateUp()
                 },
                 onBookClick = { bookId ->
-                    navController.navigate(PlayerRoute(bookId = bookId))
+                    navController.navigate(PlayerRoute(bookId = bookId)) {
+                        launchSingleTop = true
+                    }
                 },
                 onOnlineBookClick = { searchResult ->
                     // Navigate to Topic Screen
-                    navController.navigate(TopicRoute(topicId = searchResult.topicId))
+                    navController.navigate(TopicRoute(topicId = searchResult.topicId)) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -444,7 +477,9 @@ public fun JabookNavHost(
                 },
                 onTopicClick = { topicId ->
                     navigationLogger.d { "Navigating to Topic: topicId=$topicId" }
-                    navController.navigate(TopicRoute(topicId = topicId))
+                    navController.navigate(TopicRoute(topicId = topicId)) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -461,7 +496,9 @@ public fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onNavigateToDetails = { hash ->
-                    navController.navigate(TorrentDetailsRoute(hash))
+                    navController.navigate(TorrentDetailsRoute(hash)) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -473,7 +510,9 @@ public fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onPlayBook = { bookId ->
-                    navController.navigate(PlayerRoute(bookId = bookId))
+                    navController.navigate(PlayerRoute(bookId = bookId)) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -503,7 +542,9 @@ public fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onNavigateToTopic = { topicId ->
-                    navController.navigate(TopicRoute(topicId = topicId))
+                    navController.navigate(TopicRoute(topicId = topicId)) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -520,7 +561,9 @@ public fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onNavigateToTopic = { topicId: String ->
-                    navController.navigate(TopicRoute(topicId = topicId))
+                    navController.navigate(TopicRoute(topicId = topicId)) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
