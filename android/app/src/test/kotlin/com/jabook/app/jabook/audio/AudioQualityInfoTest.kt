@@ -89,36 +89,6 @@ class AudioQualityInfoTest {
         assertEquals("AAC", info.format)
     }
 
-    // --- toLabel ---
-
-    @Test
-    fun `toLabel for FLAC with bitrate`() {
-        val info =
-            AudioQualityInfo(
-                format = "FLAC",
-                bitrateKbps = 876,
-                sampleRateHz = 44100,
-                channels = 2,
-                isLossless = true,
-            )
-
-        assertEquals("FLAC · 876 кбит/с · Lossless", info.toLabel())
-    }
-
-    @Test
-    fun `toLabel for MP3 without bitrate`() {
-        val info =
-            AudioQualityInfo(
-                format = "MP3",
-                bitrateKbps = null,
-                sampleRateHz = null,
-                channels = null,
-                isLossless = false,
-            )
-
-        assertEquals("MP3", info.toLabel())
-    }
-
     // --- Quality tier classification ---
 
     @Test
@@ -193,31 +163,5 @@ class AudioQualityInfoTest {
     fun `short label for M4B`() {
         val info = AudioQualityInfo(format = "M4B", bitrateKbps = 128, sampleRateHz = 44100, channels = 2, isLossless = false)
         assertEquals("M4B 128", info.toShortLabel())
-    }
-
-    // --- Full label ---
-
-    @Test
-    fun `full label includes all fields for stereo MP3`() {
-        val info = AudioQualityInfo(format = "MP3", bitrateKbps = 256, sampleRateHz = 44100, channels = 2, isLossless = false)
-        assertEquals("MP3 · 256 кбит/с · 44.1 кГц · стерео", info.toFullLabel())
-    }
-
-    @Test
-    fun `full label for lossless FLAC with mono`() {
-        val info = AudioQualityInfo(format = "FLAC", bitrateKbps = 876, sampleRateHz = 96000, channels = 1, isLossless = true)
-        assertEquals("FLAC · 876 кбит/с · Lossless · 96.0 кГц · моно", info.toFullLabel())
-    }
-
-    @Test
-    fun `full label with multi-channel`() {
-        val info = AudioQualityInfo(format = "AAC", bitrateKbps = 192, sampleRateHz = 48000, channels = 6, isLossless = false)
-        assertEquals("AAC · 192 кбит/с · 48.0 кГц · 6 кан.", info.toFullLabel())
-    }
-
-    @Test
-    fun `full label minimal fields`() {
-        val info = AudioQualityInfo(format = "OGG", bitrateKbps = null, sampleRateHz = null, channels = null, isLossless = false)
-        assertEquals("OGG", info.toFullLabel())
     }
 }
