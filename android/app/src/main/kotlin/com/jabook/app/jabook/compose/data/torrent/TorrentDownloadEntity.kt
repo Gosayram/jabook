@@ -137,6 +137,48 @@ public class TorrentDownloadEntity(
 }
 
 /**
+ * Room projection for torrent_downloads WITHOUT the resumeData BLOB.
+ *
+ * Used by all list/read queries so hot UI flows never materialize the
+ * multi-KB libtorrent resume BLOBs for every row. Resume data is only read
+ * via [getAllResumeData] on the session-restore path.
+ */
+public data class TorrentDownloadRow(
+    public val hash: String,
+    public val name: String,
+    public val state: TorrentState,
+    public val progress: Float,
+    public val totalSize: Long,
+    public val downloadedSize: Long,
+    public val uploadedSize: Long,
+    public val savePath: String,
+    public val files: List<TorrentFile>,
+    public val errorMessage: String?,
+    public val addedTime: Long,
+    public val completedTime: Long,
+    public val pauseReason: PauseReason?,
+    public val topicId: String? = null,
+) {
+    public fun toDomain(): TorrentDownload =
+        TorrentDownload(
+            hash = hash,
+            name = name,
+            state = state,
+            progress = progress,
+            totalSize = totalSize,
+            downloadedSize = downloadedSize,
+            uploadedSize = uploadedSize,
+            savePath = savePath,
+            files = files,
+            errorMessage = errorMessage,
+            addedTime = addedTime,
+            completedTime = completedTime,
+            pauseReason = pauseReason,
+            topicId = topicId,
+        )
+}
+
+/**
  * Type converters for Room
  */
 public class TorrentDownloadConverters {

@@ -445,6 +445,20 @@ public class TorrentSessionManager
                     logger.i {
                         "Successfully called session.download() for hash=$hash. Waiting for ADD_TORRENT alert..."
                     }
+                    // Persist a placeholder row immediately so a process death before the
+                    // ADD_TORRENT alert cannot lose the download (the alert overwrites it).
+                    sessionScope.launch {
+                        try {
+                            torrentDownloadDao.insertPendingRow(
+                                hash = hash,
+                                savePath = savePath,
+                                topicId = topicId,
+                                now = System.currentTimeMillis(),
+                            )
+                        } catch (e: Exception) {
+                            logger.e({ "Failed to persist pending torrent row for $hash" }, e)
+                        }
+                    }
                     // Note: The actual torrent handle will be available in ADD_TORRENT alert
                     // We return the hash now, but the torrent won't be in torrents map until alert fires
                     Result.success(hash)
@@ -717,33 +731,35 @@ public class TorrentSessionManager
                     val active = torrentDownloadDao.getActiveDownloads()
                     if (active.isEmpty()) return@launch
                     logger.i { "Restoring ${active.size} active torrent downloads" }
-                    active.forEach { entity ->
+                    // Resume BLOBs are read in a single query (not on the list path).
+                    val resumeDataByHash = torrentDownloadDao.getAllResumeData().associate { it.hash to it.resumeData }
+                    active.forEach { row ->
                         try {
-                            if (torrents.containsKey(entity.hash)) return@forEach
-                            val resumeBytes = entity.resumeData
+                            if (torrents.containsKey(row.hash)) return@forEach
+                            val resumeBytes = resumeDataByHash[row.hash]
                             if (resumeBytes != null) {
                                 val byteVector = Vectors.bytes2byte_vector(resumeBytes)
                                 val errorCode = error_code()
                                 val swigParams = libtorrent.read_resume_data_ex(byteVector, errorCode)
                                 if (errorCode.failed()) {
-                                    logger.w { "Resume data rejected for ${entity.hash}: ${errorCode.message()}" }
+                                    logger.w { "Resume data rejected for ${row.hash}: ${errorCode.message()}" }
                                     return@forEach
                                 }
                                 val params =
                                     AddTorrentParams(swigParams).apply {
-                                        setSavePath(entity.savePath)
+                                        setSavePath(row.savePath)
                                     }
                                 session?.swig()?.async_add_torrent(params.swig())
-                                logger.d { "Restored torrent with resume data: ${entity.hash}" }
+                                logger.d { "Restored torrent with resume data: ${row.hash}" }
                             } else {
-                                val magnetUri = "magnet:?xt=urn:btih:" + entity.hash
+                                val magnetUri = "magnet:?xt=urn:btih:" + row.hash
                                 val params = AddTorrentParams.parseMagnetUri(magnetUri)
-                                params.setSavePath(entity.savePath)
+                                params.setSavePath(row.savePath)
                                 session?.swig()?.async_add_torrent(params.swig())
-                                logger.d { "Restored torrent via magnet URI fallback: ${entity.hash}" }
+                                logger.d { "Restored torrent via magnet URI fallback: ${row.hash}" }
                             }
                         } catch (e: Exception) {
-                            logger.e({ "Failed to restore torrent ${entity.hash}" }, e)
+                            logger.e({ "Failed to restore torrent ${row.hash}" }, e)
                         }
                     }
                 } catch (e: Exception) {
