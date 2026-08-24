@@ -3060,6 +3060,8 @@
     <!-- Indexing worker notification -->
     <string name="indexingNotificationTitle">Indexing audiobooks</string>
     <string name="indexingNotificationBody">Preparing offline search</string>
+    <string name="indexingNotificationCompleted">Indexing complete</string>
+    <string name="indexingNotificationError">Indexing error: %1$s</string>
     <!-- Notification strings -->
     <string name="downloading_book">Downloading: %1$s</string>
     <string name="download_progress_percent">%1$d%% complete</string>

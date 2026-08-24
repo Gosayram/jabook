@@ -28,6 +28,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
+import com.jabook.app.jabook.compose.data.indexing.IndexingInProgressException
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import dagger.assisted.Assisted
@@ -145,6 +146,10 @@ public class IndexingWorker
                                             .build(),
                                     )
                                 }
+                                // Keep the foreground notification live with real progress —
+                                // otherwise it stays on the static "Preparing offline search"
+                                // text and looks stuck.
+                                updateNotification(percent, progress.detail.currentForumName)
                             }
                             is IndexingProgress.Completed -> {
                                 progressMutex.withLock {
@@ -156,10 +161,22 @@ public class IndexingWorker
                                             .build(),
                                     )
                                 }
+                                updateNotification(
+                                    100,
+                                    applicationContext.getString(com.jabook.app.jabook.R.string.indexingNotificationCompleted),
+                                )
                             }
                             is IndexingProgress.Error -> {
                                 errorOccurred = true
                                 logger.e({ "Indexing error: ${progress.message}" })
+                                updateNotification(
+                                    percent = -1,
+                                    text =
+                                        applicationContext.getString(
+                                            com.jabook.app.jabook.R.string.indexingNotificationError,
+                                            progress.message,
+                                        ),
+                                )
                             }
                             else -> { /* Idle */ }
                         }
@@ -178,6 +195,12 @@ public class IndexingWorker
                         logger.i { "Indexing worker completed successfully" }
                         Result.success()
                     }
+                } catch (e: IndexingInProgressException) {
+                    // Another indexing run (periodic worker / UI) already owns the mutex.
+                    // Nothing to do — succeed so our foreground notification is dismissed
+                    // immediately instead of hanging.
+                    logger.i { "Indexing already in progress elsewhere; worker skipped" }
+                    Result.success()
                 } catch (e: CancellationException) {
                     logger.w({ "Indexing worker cancelled" })
                     throw e
@@ -206,5 +229,37 @@ public class IndexingWorker
                         NotificationManager.IMPORTANCE_LOW,
                     ),
                 )
+        }
+
+        /**
+         * Re-posts the foreground notification with live progress so it never
+         * sits on the static "Preparing offline search" text. `percent < 0`
+         * hides the progress bar (error case).
+         */
+        private fun updateNotification(
+            percent: Int,
+            text: String,
+        ) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    createNotificationChannel()
+                }
+                val builder =
+                    NotificationCompat
+                        .Builder(applicationContext, NOTIFICATION_CHANNEL_ID)
+                        .setSmallIcon(com.jabook.app.jabook.R.drawable.ic_notification_logo)
+                        .setContentTitle(applicationContext.getString(com.jabook.app.jabook.R.string.indexingNotificationTitle))
+                        .setContentText(text)
+                        .setOngoing(true)
+                        .setOnlyAlertOnce(true)
+                if (percent >= 0) {
+                    builder.setProgress(100, percent, false)
+                }
+                applicationContext
+                    .getSystemService(NotificationManager::class.java)
+                    .notify(NOTIFICATION_ID, builder.build())
+            } catch (e: Exception) {
+                logger.w({ "Failed to update indexing notification" }, e)
+            }
         }
     }

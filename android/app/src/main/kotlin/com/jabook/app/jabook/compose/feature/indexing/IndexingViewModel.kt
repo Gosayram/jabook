@@ -137,6 +137,9 @@ public class IndexingViewModel
                             IndexingProgress.Error(
                                 message = "Требуется авторизация для индексации форумов. Пожалуйста, войдите в аккаунт.",
                             )
+                    } catch (e: com.jabook.app.jabook.compose.data.indexing.IndexingInProgressException) {
+                        logger.i { "Indexing already in progress elsewhere; direct run skipped" }
+                        _indexingProgress.value = IndexingProgress.Idle
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {

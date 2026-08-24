@@ -3101,6 +3101,8 @@
     <!-- Уведомление воркера индексации -->
     <string name="indexingNotificationTitle">Индексация аудиокниг</string>
     <string name="indexingNotificationBody">Подготавливаем офлайн-поиск</string>
+    <string name="indexingNotificationCompleted">Индексация завершена</string>
+    <string name="indexingNotificationError">Ошибка индексации: %1$s</string>
     <!-- Строки уведомлений -->
     <string name="downloading_book">Загрузка: %1$s</string>
     <string name="download_progress_percent">Завершено на %1$d%%</string>

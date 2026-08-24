@@ -40,8 +40,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -91,6 +91,10 @@ public class ForumIndexer
 
         // Prevent concurrent indexForums() calls from ViewModel + WorkManager
         private val indexingMutex = Mutex()
+
+        // How long a second indexing caller waits for the mutex before bailing
+        // with IndexingInProgressException (prevents stuck foreground workers).
+        private val mutexAcquireTimeoutMs = 15_000L
 
         // Real-time progress state — collected by ViewModel
         private val _indexProgress = MutableStateFlow(IndexProgress())
@@ -213,8 +217,15 @@ public class ForumIndexer
             forumIds: String,
             preloadCovers: Boolean = true,
             onProgress: (suspend (IndexingProgress) -> Unit)? = null,
-        ): Int =
-            indexingMutex.withLock {
+        ): Int {
+            // Bounded wait: a second caller (periodic worker, one-time worker, or a
+            // direct UI run) must never block forever on the singleton mutex while
+            // another long index is running — that would leave its foreground
+            // notification stuck indefinitely.
+            if (withTimeoutOrNull(mutexAcquireTimeoutMs) { indexingMutex.lock() } == null) {
+                throw IndexingInProgressException()
+            }
+            return try {
                 withContext(Dispatchers.IO) {
                     val startTime = System.currentTimeMillis()
                     val currentIndexVersion = getCurrentIndexVersion() + 1
@@ -411,7 +422,10 @@ public class ForumIndexer
 
                     actualCountInDb
                 }
+            } finally {
+                indexingMutex.unlock()
             }
+        }
 
         /**
          * Incremental update: only update topics that are old or missing.
@@ -876,3 +890,10 @@ public class ForumIndexer
                 else -> false
             }
     }
+
+/**
+ * Thrown when [ForumIndexer.indexForums] cannot acquire the indexing mutex within
+ * [ForumIndexer.mutexAcquireTimeoutMs] because another indexing run is in progress.
+ * Callers should treat this as a benign "nothing to do" condition — never a stuck worker.
+ */
+public class IndexingInProgressException : Exception("Indexing already in progress; another index run owns the mutex")
