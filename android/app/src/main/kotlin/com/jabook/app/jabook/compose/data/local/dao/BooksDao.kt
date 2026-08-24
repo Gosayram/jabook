@@ -401,6 +401,45 @@ public interface BooksDao {
     )
 
     /**
+     * Atomically updates the book's playback progress AND the current chapter's
+     * progress in a single transaction — the hot 5-second save path must not
+     * issue two separate commits.
+     */
+    @Transaction
+    public suspend fun updatePlaybackPositionAtomic(
+        bookId: String,
+        position: Long,
+        progress: Float,
+        chapterIndex: Int,
+        timestamp: Long,
+        chapterId: String?,
+        chapterPosition: Long,
+        chapterCompleted: Boolean,
+    ) {
+        updatePlaybackProgress(
+            bookId = bookId,
+            position = position,
+            progress = progress,
+            chapterIndex = chapterIndex,
+            timestamp = timestamp,
+        )
+        if (chapterId != null) {
+            updateChapterProgressForBook(
+                chapterId = chapterId,
+                position = chapterPosition,
+                isCompleted = chapterCompleted,
+            )
+        }
+    }
+
+    @Query("UPDATE chapters SET position = :position, is_completed = :isCompleted WHERE id = :chapterId")
+    public suspend fun updateChapterProgressForBook(
+        chapterId: String,
+        position: Long,
+        isCompleted: Boolean,
+    )
+
+    /**
      * Updates download status and progress.
      */
     @Query(

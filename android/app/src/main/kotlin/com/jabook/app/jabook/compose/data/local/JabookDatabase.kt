@@ -44,7 +44,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Current Jabook database schema version. Single source of truth for [Database]'s `version`
  * and crash-diagnostics reporting. Bump together with a new [MIGRATION] and a changelog line.
  */
-public const val JABOOK_DB_VERSION: Int = 32
+public const val JABOOK_DB_VERSION: Int = 33
 
 /**
  * The Room database for this app.
@@ -81,6 +81,7 @@ public const val JABOOK_DB_VERSION: Int = 32
  * Database version 30: Added start_position_ms/end_position_ms columns to chapters for embedded M4B/MP4 chapters.
  * Database version 31: Added index on last_updated column for faster getTopicsNeedingUpdate() queries.
  * Database version 32: Added indices on download_history (status, completedAt) and download_queue (status) for faster queries.
+ * Database version 33: Scoped books_fts UPDATE trigger to title/author/description so playback-progress saves stop rewriting the FTS row.
  */
 @Database(
     entities = [

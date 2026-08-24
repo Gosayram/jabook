@@ -64,6 +64,21 @@ public class OfflineFirstBooksRepository
                 strength = java.text.Collator.PRIMARY
             }
 
+        // Chapter durations per book don't change between saves — cache them so the
+        // 5-second playback-position save doesn't re-read every chapter on the hot path.
+        // Access-order LRU, bounded, thread-safe (repository is a singleton).
+        private val chapterDurationsCache: MutableMap<String, List<Long>> =
+            java.util.Collections.synchronizedMap(
+                object : java.util.LinkedHashMap<String, List<Long>>(16, 0.75f, true) {
+                    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<Long>>): Boolean =
+                        size > MAX_CACHED_BOOK_DURATIONS
+                },
+            )
+
+        public companion object {
+            private const val MAX_CACHED_BOOK_DURATIONS = 32
+        }
+
         override fun getScanProgress(): Flow<com.jabook.app.jabook.compose.data.model.ScanProgress> = localBookScanner.scanProgress
 
         override fun getAllBooks(sortOrder: BookSortOrder): Flow<List<Book>> =
@@ -283,40 +298,45 @@ public class OfflineFirstBooksRepository
             try {
                 // Improved progress calculation considering all tracks (inspired by Easybook)
                 val book = booksDao.getBookById(bookId)
-                val chapters = chaptersDao.getChaptersByBookId(bookId)
 
                 val progress =
-                    if (book != null && chapters.isNotEmpty()) {
-                        // Use improved calculation with all track durations
-                        val trackDurations = chapters.sortedBy { it.chapterIndex }.map { it.duration }
-                        val progressPercentage =
-                            CompletionStatusHelper.calculateCompletionPercentageWithTracks(
-                                currentTrackIndex = chapterIndex,
-                                currentPositionMs = position,
-                                trackDurations = trackDurations,
-                            )
-                        progressPercentage.toFloat()
-                    } else if (book != null && book.totalDuration > 0) {
-                        // Fallback to simple calculation if chapters are not available
-                        (position.toFloat() / book.totalDuration.toFloat()).coerceIn(0f, 1f)
+                    if (book != null && book.totalDuration > 0) {
+                        // Track-duration-aware calculation: load chapter durations from cache
+                        // (they don't change between saves) to avoid reading ALL chapters
+                        // on the every-5-seconds hot path.
+                        val trackDurations =
+                            chapterDurationsCache.getOrPut(bookId) {
+                                chaptersDao
+                                    .getChaptersByBookId(bookId)
+                                    .sortedBy { it.chapterIndex }
+                                    .map { it.duration }
+                            }
+                        if (trackDurations.isNotEmpty()) {
+                            CompletionStatusHelper
+                                .calculateCompletionPercentageWithTracks(
+                                    currentTrackIndex = chapterIndex,
+                                    currentPositionMs = position,
+                                    trackDurations = trackDurations,
+                                ).toFloat()
+                        } else {
+                            // Fallback to simple calculation if chapters are not available
+                            (position.toFloat() / book.totalDuration.toFloat()).coerceIn(0f, 1f)
+                        }
                     } else {
                         0f
                     }
 
-                booksDao.updatePlaybackProgress(
+                val chapter = chaptersDao.getChapterByIndex(bookId, chapterIndex)
+                booksDao.updatePlaybackPositionAtomic(
                     bookId = bookId,
                     position = position,
                     progress = progress,
                     chapterIndex = chapterIndex,
                     timestamp = System.currentTimeMillis(),
+                    chapterId = chapter?.id,
+                    chapterPosition = position.coerceIn(0L, chapter?.duration ?: position),
+                    chapterCompleted = chapter != null && position >= chapter.duration,
                 )
-                chaptersDao.getChapterByIndex(bookId, chapterIndex)?.let { chapter ->
-                    chaptersDao.updateChapterProgress(
-                        chapterId = chapter.id,
-                        position = position.coerceIn(0L, chapter.duration),
-                        isCompleted = position >= chapter.duration,
-                    )
-                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

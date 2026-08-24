@@ -362,10 +362,17 @@ public class TorrentManager
          */
         private fun observeAndSyncToDatabase(): Job =
             scope.launch {
+                var lastDbSyncMs = 0L
                 downloadsFlow.collect { downloads ->
-                    if (downloads.isNotEmpty()) {
-                        repository.saveAll(downloads.values.toList())
-                    }
+                    if (downloads.isEmpty()) return@collect
+                    // libtorrent alerts can emit many times/sec during an active
+                    // transfer; persisting every emission rewrites all active rows
+                    // each time (write amplification). Throttle to ~1 batch/sec —
+                    // resume data is persisted separately via SAVE_RESUME_DATA.
+                    val now = android.os.SystemClock.elapsedRealtime()
+                    if (now - lastDbSyncMs < DB_SYNC_THROTTLE_MS) return@collect
+                    lastDbSyncMs = now
+                    repository.saveAll(downloads.values.toList())
                 }
             }
 
@@ -455,5 +462,6 @@ public class TorrentManager
 
         public companion object {
             private const val NETWORK_TOAST_DEBOUNCE_MS = 10_000L
+            private const val DB_SYNC_THROTTLE_MS = 1_000L
         }
     }

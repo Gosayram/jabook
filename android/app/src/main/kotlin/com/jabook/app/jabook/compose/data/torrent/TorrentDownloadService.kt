@@ -130,15 +130,19 @@ public class TorrentDownloadService : Service() {
         serviceScope.cancel()
         releaseWakeLock()
 
-        // Cancel any previous shutdown coroutine, then launch a fresh one.
+        // Run shutdown on a detached scope so it can complete even as the service
+        // tears down — torrentManager.shutdown() saves resume data. A re-entered
+        // onDestroy cancels the in-flight shutdown and starts a fresh one.
         shutdownScope?.cancel()
         shutdownScope =
             CoroutineScope(Dispatchers.IO + loggingCoroutineExceptionHandler("TorrentServiceShutdown"))
         shutdownScope?.launch {
-            torrentManager.shutdown()
+            try {
+                torrentManager.shutdown()
+            } catch (e: Exception) {
+                logger.e({ "Torrent shutdown failed" }, e)
+            }
         }
-        shutdownScope?.cancel()
-        shutdownScope = null
     }
 
     private fun startForeground() {
