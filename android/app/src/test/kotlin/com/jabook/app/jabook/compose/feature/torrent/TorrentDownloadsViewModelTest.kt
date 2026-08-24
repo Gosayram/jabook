@@ -48,6 +48,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -57,6 +58,7 @@ import org.robolectric.RobolectricTestRunner
 @OptIn(ExperimentalCoroutinesApi::class)
 @org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class TorrentDownloadsViewModelTest {
+    private val context: android.content.Context = mock()
     private val torrentManager: TorrentManager = mock()
     private val repository: TorrentDownloadRepository = mock()
     private val settingsRepository: SettingsRepository = mock()
@@ -84,6 +86,13 @@ class TorrentDownloadsViewModelTest {
         whenever(downloadHistoryRepository.getHistoryWithFilter(any(), any())).thenReturn(flowOf(emptyList()))
         whenever(settingsRepository.userPreferences).thenReturn(preferencesFlow)
         whenever(networkMonitor.networkType).thenReturn(networkTypeFlow)
+        whenever(context.getString(com.jabook.app.jabook.R.string.download_queued_waiting_wifi))
+            .thenReturn("Download queued: Waiting for WiFi connection")
+        whenever(context.getString(com.jabook.app.jabook.R.string.unknown_error)).thenReturn("Unknown error")
+        whenever(context.getString(eq(com.jabook.app.jabook.R.string.failed_to_add_torrent), any()))
+            .thenAnswer { invocation ->
+                "Failed to add torrent: " + (invocation.getArgument<Any>(1) ?: "")
+            }
     }
 
     @After
@@ -96,6 +105,7 @@ class TorrentDownloadsViewModelTest {
         runTest(testDispatcher) {
             val viewModel =
                 TorrentDownloadsViewModel(
+                    context = context,
                     torrentManager = torrentManager,
                     repository = repository,
                     settingsRepository = settingsRepository,
@@ -129,6 +139,7 @@ class TorrentDownloadsViewModelTest {
         runTest(testDispatcher) {
             val viewModel =
                 TorrentDownloadsViewModel(
+                    context = context,
                     torrentManager = torrentManager,
                     repository = repository,
                     settingsRepository = settingsRepository,
@@ -172,6 +183,7 @@ class TorrentDownloadsViewModelTest {
             scenarios.forEachIndexed { index, (wifiOnly, networkType, shouldWarn) ->
                 val viewModel =
                     TorrentDownloadsViewModel(
+                        context = context,
                         torrentManager = torrentManager,
                         repository = repository,
                         settingsRepository = settingsRepository,
@@ -210,6 +222,7 @@ class TorrentDownloadsViewModelTest {
         runTest(testDispatcher) {
             val viewModel =
                 TorrentDownloadsViewModel(
+                    context = context,
                     torrentManager = torrentManager,
                     repository = repository,
                     settingsRepository = settingsRepository,
@@ -295,6 +308,7 @@ class TorrentDownloadsViewModelTest {
 
             val viewModel =
                 TorrentDownloadsViewModel(
+                    context = context,
                     torrentManager = torrentManager,
                     repository = repository,
                     settingsRepository = settingsRepository,
@@ -371,6 +385,7 @@ class TorrentDownloadsViewModelTest {
 
             val viewModel =
                 TorrentDownloadsViewModel(
+                    context = context,
                     torrentManager = torrentManager,
                     repository = repository,
                     settingsRepository = settingsRepository,
@@ -424,6 +439,7 @@ class TorrentDownloadsViewModelTest {
 
             val viewModel =
                 TorrentDownloadsViewModel(
+                    context = context,
                     torrentManager = torrentManager,
                     repository = repository,
                     settingsRepository = settingsRepository,
@@ -460,6 +476,7 @@ class TorrentDownloadsViewModelTest {
 
             val viewModel =
                 TorrentDownloadsViewModel(
+                    context = context,
                     torrentManager = torrentManager,
                     repository = repository,
                     settingsRepository = settingsRepository,
@@ -493,6 +510,7 @@ class TorrentDownloadsViewModelTest {
 
             val viewModel =
                 TorrentDownloadsViewModel(
+                    context = context,
                     torrentManager = torrentManager,
                     repository = repository,
                     settingsRepository = settingsRepository,

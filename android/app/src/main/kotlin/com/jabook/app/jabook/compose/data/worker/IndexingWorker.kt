@@ -166,7 +166,14 @@ public class IndexingWorker
                     }
 
                     if (errorOccurred) {
-                        Result.failure()
+                        // Errors surfaced via the progress callback (often transient
+                        // network issues) deserve the same capped retry as exceptions.
+                        if (runAttemptCount < 3) {
+                            logger.w { "Indexing error occurred, scheduling retry (attempt=$runAttemptCount)" }
+                            Result.retry()
+                        } else {
+                            Result.failure()
+                        }
                     } else {
                         logger.i { "Indexing worker completed successfully" }
                         Result.success()

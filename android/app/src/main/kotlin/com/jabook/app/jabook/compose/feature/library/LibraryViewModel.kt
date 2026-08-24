@@ -169,12 +169,12 @@ public class LibraryViewModel
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
-                            LibraryUiState.Error(e.message ?: "Unknown error")
+                            LibraryUiState.Error(e.message ?: application.getString(com.jabook.app.jabook.R.string.unknown_error))
                         }
                     }
                 }.catch { e ->
                     if (e is CancellationException) throw e
-                    emit(LibraryUiState.Error(e.message ?: "Unknown error"))
+                    emit(LibraryUiState.Error(e.message ?: application.getString(com.jabook.app.jabook.R.string.unknown_error)))
                 }.stateIn(
                     scope = viewModelScope,
                     started = SharingStarted.WhileSubscribed(5000),
@@ -219,11 +219,11 @@ public class LibraryViewModel
                     books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= yearStartEpochMs }
                 val topAuthor =
                     books
-                        .groupingBy { it.author.ifBlank { "Unknown author" } }
+                        .groupingBy { it.author.ifBlank { application.getString(com.jabook.app.jabook.R.string.unknownAuthor) } }
                         .eachCount()
                         .maxByOrNull { it.value }
                         ?.key
-                        ?: "Unknown author"
+                        ?: application.getString(com.jabook.app.jabook.R.string.unknownAuthor)
 
                 YearRecapState(
                     year =

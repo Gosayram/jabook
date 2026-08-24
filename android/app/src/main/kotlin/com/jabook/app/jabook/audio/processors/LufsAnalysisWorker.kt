@@ -95,6 +95,9 @@ public class LufsAnalysisWorker
             /** Maximum number of sample data buffers to read per chunk. */
             private const val MAX_BUFFERS_PER_CHUNK: Int = 50
 
+            /** Cap for transient-failure retries before giving up on a book. */
+            private const val MAX_ANALYSIS_ATTEMPTS: Int = 3
+
             /** Supported audio file extensions for LUFS analysis. */
             private val SUPPORTED_EXTENSIONS =
                 setOf(
@@ -145,6 +148,13 @@ public class LufsAnalysisWorker
                 logger.i { "LUFS analysis cancelled for book=$bookId" }
                 throw e
             } catch (e: Exception) {
+                // Transient failures (I/O hiccup, one-off decoder error) get a capped
+                // retry — a permanent failure here would block the book from ever
+                // getting loudness normalization.
+                if (runAttemptCount < MAX_ANALYSIS_ATTEMPTS) {
+                    logger.w({ "LUFS analysis attempt ${runAttemptCount + 1} failed for book=$bookId, retrying" }, e)
+                    return Result.retry()
+                }
                 logger.e({ "LUFS analysis failed for book=$bookId" }, e)
                 CrashDiagnostics.reportNonFatal(
                     tag = "lufs_analysis_failure",

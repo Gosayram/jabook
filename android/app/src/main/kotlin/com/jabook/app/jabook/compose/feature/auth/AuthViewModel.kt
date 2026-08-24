@@ -14,9 +14,11 @@
 
 package com.jabook.app.jabook.compose.feature.auth
 
+import android.content.Context
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
@@ -24,6 +26,7 @@ import com.jabook.app.jabook.compose.domain.model.UserCredentials
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.repository.CaptchaRequiredException
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -49,6 +52,7 @@ public data class AuthUiState(
 public class AuthViewModel
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val authRepository: AuthRepository,
         private val mirrorManager: MirrorManager,
     ) : ViewModel() {
@@ -104,11 +108,11 @@ public class AuthViewModel
                                 it.copy(
                                     isLoading = false,
                                     captchaData = e.captchaData,
-                                    error = "Captcha required",
+                                    error = context.getString(R.string.captchaRequired),
                                 )
                             }
                         } else {
-                            requestWebViewLogin(e.message ?: "Unknown error")
+                            requestWebViewLogin(e.message ?: context.getString(R.string.unknown_error))
                         }
                     }
             }

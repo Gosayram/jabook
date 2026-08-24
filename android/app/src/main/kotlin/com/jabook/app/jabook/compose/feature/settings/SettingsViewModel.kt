@@ -14,12 +14,14 @@
 
 package com.jabook.app.jabook.compose.feature.settings
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.domain.usecase.ListeningStatsUseCase
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.backup.BackupService
@@ -46,6 +48,7 @@ import com.jabook.app.jabook.compose.feature.library.WeeklyRecapState
 import com.jabook.app.jabook.compose.feature.library.YearRecapState
 import com.jabook.app.jabook.util.FileUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -70,6 +73,7 @@ import javax.inject.Inject
 public class SettingsViewModel
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val settingsRepository: SettingsRepository,
         private val userPreferencesRepository: UserPreferencesRepository, // Keep for migration
         private val authRepository: com.jabook.app.jabook.compose.domain.repository.AuthRepository,
@@ -162,11 +166,11 @@ public class SettingsViewModel
                     books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= yearStartEpochMs }
                 val topAuthor =
                     books
-                        .groupingBy { it.author.ifBlank { "Unknown author" } }
+                        .groupingBy { it.author.ifBlank { context.getString(R.string.unknownAuthor) } }
                         .eachCount()
                         .maxByOrNull { it.value }
                         ?.key
-                        ?: "Unknown author"
+                        ?: context.getString(R.string.unknownAuthor)
 
                 YearRecapState(
                     year =
@@ -606,7 +610,7 @@ public class SettingsViewModel
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    _backupState.value = BackupUiState.Error(e.message ?: "Export failed")
+                    _backupState.value = BackupUiState.Error(e.message ?: context.getString(R.string.export_failed))
                 }
             }
         }
@@ -623,7 +627,7 @@ public class SettingsViewModel
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    _backupState.value = BackupUiState.Error(e.message ?: "Import failed: ${e.message}")
+                    _backupState.value = BackupUiState.Error(e.message ?: context.getString(R.string.import_failed))
                 }
             }
         }
@@ -656,7 +660,7 @@ public class SettingsViewModel
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    _cacheOperation.value = CacheOperationState.Error(e.message ?: "Failed to load cache stats")
+                    _cacheOperation.value = CacheOperationState.Error(e.message ?: context.getString(R.string.failed_to_load_cache_stats))
                 }
             }
         }
@@ -687,12 +691,12 @@ public class SettingsViewModel
                         loadCacheStatistics() // Reload stats
                         _cacheOperation.value = CacheOperationState.Success
                     } else {
-                        _cacheOperation.value = CacheOperationState.Error("Failed to clear cache")
+                        _cacheOperation.value = CacheOperationState.Error(context.getString(R.string.failed_to_clear_cache))
                     }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    _cacheOperation.value = CacheOperationState.Error(e.message ?: "Failed to clear cache")
+                    _cacheOperation.value = CacheOperationState.Error(e.message ?: context.getString(R.string.failed_to_clear_cache))
                 }
             }
         }

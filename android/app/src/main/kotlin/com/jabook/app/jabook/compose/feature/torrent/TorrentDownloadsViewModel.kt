@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.feature.torrent
 
+import android.content.Context
 import android.os.Environment
 import android.os.StatFs
 import androidx.compose.runtime.Immutable
@@ -21,6 +22,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.TorrentDownloadNetworkPolicy
@@ -33,6 +35,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
 import com.jabook.app.jabook.compose.navigation.DownloadsRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.channels.Channel
@@ -88,6 +91,7 @@ public sealed interface TorrentDownloadsUiState {
 public class TorrentDownloadsViewModel
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val torrentManager: TorrentManager,
         private val repository: TorrentDownloadRepository,
         private val settingsRepository: SettingsRepository,
@@ -181,12 +185,12 @@ public class TorrentDownloadsViewModel
                     }
                 } catch (e: Exception) {
                     logger.e({ "Error processing downloads" }, e)
-                    TorrentDownloadsUiState.Error(e.message ?: "Unknown error")
+                    TorrentDownloadsUiState.Error(e.message ?: context.getString(R.string.unknown_error))
                 }
             }.catch { e ->
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 logger.e({ "Downloads flow failed" }, e)
-                emit(TorrentDownloadsUiState.Error(e.message ?: "Unknown error"))
+                emit(TorrentDownloadsUiState.Error(e.message ?: context.getString(R.string.unknown_error)))
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -352,11 +356,11 @@ public class TorrentDownloadsViewModel
                     torrentManager
                         .addTorrent(magnetLink, path)
                         .onSuccess { _pendingMagnetLink.value = null }
-                        .onFailure { _snackbarEvent.send("Failed to add torrent: ${it.message}") }
+                        .onFailure { _snackbarEvent.send(context.getString(R.string.failed_to_add_torrent, it.message ?: "")) }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    _snackbarEvent.send("Failed to add torrent: ${e.message}")
+                    _snackbarEvent.send(context.getString(R.string.failed_to_add_torrent, e.message ?: ""))
                 }
             }
         }
@@ -375,7 +379,7 @@ public class TorrentDownloadsViewModel
                     networkType = networkType,
                 )
             ) {
-                _snackbarEvent.send("Download queued: Waiting for WiFi connection")
+                _snackbarEvent.send(context.getString(R.string.download_queued_waiting_wifi))
             }
         }
 

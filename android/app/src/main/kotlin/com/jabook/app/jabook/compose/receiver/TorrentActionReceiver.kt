@@ -21,6 +21,10 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentNotificationManager
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -72,9 +76,19 @@ public class TorrentActionReceiver : BroadcastReceiver() {
 
             ACTION_CANCEL_TORRENT -> {
                 hash?.let {
-                    torrentManager.removeTorrent(it, deleteFiles = true)
-                    notificationManager.cancel(it.hashCode())
-                    logger.i { "Cancelled torrent: $it" }
+                    // deleteRecursively() on a downloaded audiobook can touch
+                    // hundreds of files — must stay off the main thread
+                    // (broadcast window is ~10s before ANR).
+                    val pendingResult = goAsync()
+                    CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                        try {
+                            torrentManager.removeTorrent(it, deleteFiles = true)
+                            notificationManager.cancel(it.hashCode())
+                            logger.i { "Cancelled torrent: $it" }
+                        } finally {
+                            pendingResult.finish()
+                        }
+                    }
                 }
             }
 

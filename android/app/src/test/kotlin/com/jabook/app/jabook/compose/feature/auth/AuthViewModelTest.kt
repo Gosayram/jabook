@@ -45,6 +45,7 @@ import org.mockito.kotlin.whenever
 class AuthViewModelTest {
     private val authRepository: AuthRepository = mock()
     private val mirrorManager: MirrorManager = mock()
+    private val context: android.content.Context = mock()
     private lateinit var viewModel: AuthViewModel
     private val testDispatcher = StandardTestDispatcher()
 
@@ -54,7 +55,9 @@ class AuthViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         whenever(authRepository.authStatus).thenReturn(authStatusFlow)
-        viewModel = AuthViewModel(authRepository, mirrorManager)
+        whenever(context.getString(com.jabook.app.jabook.R.string.captchaRequired)).thenReturn("Captcha required")
+        whenever(context.getString(com.jabook.app.jabook.R.string.unknown_error)).thenReturn("Unknown error")
+        viewModel = AuthViewModel(context, authRepository, mirrorManager)
     }
 
     @After
@@ -83,7 +86,7 @@ class AuthViewModelTest {
             // Since loadSavedCredentials is async in init, we need to advance dispatcher.
 
             // Let's create a new VM instance for this test to correctly capture init behavior
-            viewModel = AuthViewModel(authRepository, mirrorManager)
+            viewModel = AuthViewModel(context, authRepository, mirrorManager)
             advanceUntilIdle()
 
             assertEquals(credentials.username, viewModel.uiState.value.savedUsername)

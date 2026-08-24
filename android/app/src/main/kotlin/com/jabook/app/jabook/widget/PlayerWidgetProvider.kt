@@ -66,14 +66,12 @@ import java.util.concurrent.TimeUnit
  * Clicking the widget opens the player screen.
  */
 public class PlayerWidgetProvider : AppWidgetProvider() {
-    private val scope =
-        CoroutineScope(
-            SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("PlayerWidgetProvider"),
-        )
-
-    // Debounce updates to prevent excessive widget refreshes
-    private val updateJobRegistry = WidgetUpdateJobRegistry()
-    private val debounceDelayMs = 300L
+    // Android instantiates a NEW AppWidgetProvider per broadcast —
+    // scope and debounce registry MUST live in the companion to be
+    // shared across instances, otherwise debouncing never cancels anything.
+    private val scope get() = Companion.scope
+    private val updateJobRegistry get() = Companion.updateJobRegistry
+    private val debounceDelayMs get() = DEBOUNCE_DELAY_MS
 
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
@@ -162,128 +160,128 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
     /**
      * Internal method that performs the actual widget update.
+     * Runs in the SAME coroutine as the debounce delay so that
+     * cancelling the registered job actually stops the work.
      */
-    private fun updateAppWidgetInternal(
+    private suspend fun updateAppWidgetInternal(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
     ) {
-        scope.launch(Dispatchers.IO) {
-            LogUtils.d(
-                "PlayerWidget",
-                WidgetObservabilityPolicy.providerMessage(
-                    event = "update_start",
-                    widgetId = appWidgetId,
-                ),
-            )
-            var controller: MediaController? = null
-            var controllerFuture: ListenableFuture<MediaController>? = null
+        LogUtils.d(
+            "PlayerWidget",
+            WidgetObservabilityPolicy.providerMessage(
+                event = "update_start",
+                widgetId = appWidgetId,
+            ),
+        )
+        var controller: MediaController? = null
+        var controllerFuture: ListenableFuture<MediaController>? = null
+        try {
+            // Determine widget size and select appropriate layout
+            val widgetSize = getWidgetSize(context, appWidgetManager, appWidgetId)
+            val layoutResId = getLayoutForSize(widgetSize)
+            val views = RemoteViews(context.packageName, layoutResId)
+
+            // Try to get MediaController for AudioPlayerService
             try {
-                // Determine widget size and select appropriate layout
-                val widgetSize = getWidgetSize(context, appWidgetManager, appWidgetId)
-                val layoutResId = getLayoutForSize(widgetSize)
-                val views = RemoteViews(context.packageName, layoutResId)
+                val sessionToken =
+                    SessionToken(
+                        context,
+                        ComponentName(context, AudioPlayerService::class.java),
+                    )
 
-                // Try to get MediaController for AudioPlayerService
-                try {
-                    val sessionToken =
-                        SessionToken(
-                            context,
-                            ComponentName(context, AudioPlayerService::class.java),
-                        )
+                controllerFuture =
+                    MediaController
+                        .Builder(context, sessionToken)
+                        .buildAsync()
 
-                    controllerFuture =
-                        MediaController
-                            .Builder(context, sessionToken)
-                            .buildAsync()
+                // Wait for controller with timeout (faster for widget UX)
+                controller =
+                    controllerFuture.get(
+                        com.jabook.app.jabook.audio.MediaControllerConstants.WIDGET_TIMEOUT_SECONDS
+                            .toLong(),
+                        TimeUnit.SECONDS,
+                    )
 
-                    // Wait for controller with timeout (faster for widget UX)
-                    controller =
-                        controllerFuture.get(
-                            com.jabook.app.jabook.audio.MediaControllerConstants.WIDGET_TIMEOUT_SECONDS
-                                .toLong(),
-                            TimeUnit.SECONDS,
-                        )
-
-                    if (controller != null) {
-                        updateWidgetFromController(
-                            context,
-                            views,
-                            controller,
-                            widgetSize,
-                            appWidgetManager,
-                            appWidgetId,
-                        )
-                    } else {
-                        LogUtils.w(
-                            "PlayerWidget",
-                            WidgetObservabilityPolicy.providerMessage(
-                                event = "controller_fallback",
-                                widgetId = appWidgetId,
-                                source = WidgetUpdateSource.SERVICE_FALLBACK,
-                                reason = WidgetFallbackReason.CONTROLLER_UNAVAILABLE,
-                            ),
-                        )
-                        // Fallback to service instance if MediaController is not available
-                        updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId)
-                    }
-                } catch (e: Exception) {
+                if (controller != null) {
+                    updateWidgetFromController(
+                        context,
+                        views,
+                        controller,
+                        widgetSize,
+                        appWidgetManager,
+                        appWidgetId,
+                    )
+                } else {
                     LogUtils.w(
                         "PlayerWidget",
                         WidgetObservabilityPolicy.providerMessage(
                             event = "controller_fallback",
                             widgetId = appWidgetId,
                             source = WidgetUpdateSource.SERVICE_FALLBACK,
-                            reason = WidgetFallbackReason.CONTROLLER_EXCEPTION,
-                            detail = e.javaClass.simpleName,
+                            reason = WidgetFallbackReason.CONTROLLER_UNAVAILABLE,
                         ),
-                        e,
                     )
-                    // Fallback to service instance
+                    // Fallback to service instance if MediaController is not available
                     updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId)
-                } finally {
-                    // Release MediaController
-                    controllerFuture?.let {
-                        MediaController.releaseFuture(it)
-                    }
                 }
-
-                // Update widget immediately (Coil will update cover asynchronously)
-                appWidgetManager.updateAppWidget(appWidgetId, views)
-
-                // Note: Coil will update cover asynchronously and re-post the widget
             } catch (e: Exception) {
-                LogUtils.e(
+                LogUtils.w(
                     "PlayerWidget",
                     WidgetObservabilityPolicy.providerMessage(
-                        event = "update_failed",
+                        event = "controller_fallback",
                         widgetId = appWidgetId,
-                        source = WidgetUpdateSource.DEFAULT_STATE,
-                        reason = WidgetFallbackReason.UPDATE_EXCEPTION,
+                        source = WidgetUpdateSource.SERVICE_FALLBACK,
+                        reason = WidgetFallbackReason.CONTROLLER_EXCEPTION,
                         detail = e.javaClass.simpleName,
                     ),
                     e,
                 )
-                // Show default state on error
-                try {
-                    val widgetSize = getWidgetSize(context, appWidgetManager, appWidgetId)
-                    val layoutResId = getLayoutForSize(widgetSize)
-                    val views = RemoteViews(context.packageName, layoutResId)
-                    setDefaultWidgetState(context, views, appWidgetId)
-                    appWidgetManager.updateAppWidget(appWidgetId, views)
-                } catch (e2: Exception) {
-                    LogUtils.e(
-                        "PlayerWidget",
-                        WidgetObservabilityPolicy.providerMessage(
-                            event = "default_state_failed",
-                            widgetId = appWidgetId,
-                            source = WidgetUpdateSource.DEFAULT_STATE,
-                            reason = WidgetFallbackReason.UPDATE_EXCEPTION,
-                            detail = e2.javaClass.simpleName,
-                        ),
-                        e2,
-                    )
+                // Fallback to service instance
+                updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId)
+            } finally {
+                // Release MediaController
+                controllerFuture?.let {
+                    MediaController.releaseFuture(it)
                 }
+            }
+
+            // Update widget immediately (Coil will update cover asynchronously)
+            appWidgetManager.updateAppWidget(appWidgetId, views)
+
+            // Note: Coil will update cover asynchronously and re-post the widget
+        } catch (e: Exception) {
+            LogUtils.e(
+                "PlayerWidget",
+                WidgetObservabilityPolicy.providerMessage(
+                    event = "update_failed",
+                    widgetId = appWidgetId,
+                    source = WidgetUpdateSource.DEFAULT_STATE,
+                    reason = WidgetFallbackReason.UPDATE_EXCEPTION,
+                    detail = e.javaClass.simpleName,
+                ),
+                e,
+            )
+            // Show default state on error
+            try {
+                val widgetSize = getWidgetSize(context, appWidgetManager, appWidgetId)
+                val layoutResId = getLayoutForSize(widgetSize)
+                val views = RemoteViews(context.packageName, layoutResId)
+                setDefaultWidgetState(context, views, appWidgetId)
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+            } catch (e2: Exception) {
+                LogUtils.e(
+                    "PlayerWidget",
+                    WidgetObservabilityPolicy.providerMessage(
+                        event = "default_state_failed",
+                        widgetId = appWidgetId,
+                        source = WidgetUpdateSource.DEFAULT_STATE,
+                        reason = WidgetFallbackReason.UPDATE_EXCEPTION,
+                        detail = e2.javaClass.simpleName,
+                    ),
+                    e2,
+                )
             }
         }
     }
@@ -937,15 +935,11 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 if (result is SuccessResult) {
                     val bitmap = result.image.toBitmap()
                     extractAndStoreDominantColor(context, bitmap)
-                    val updatedViews =
-                        RemoteViews(
-                            context.packageName,
-                            getLayoutForSize(
-                                getWidgetSize(context, AppWidgetManager.getInstance(context), appWidgetId),
-                            ),
-                        )
-                    updatedViews.setImageViewBitmap(R.id.widget_cover, bitmap)
-                    AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, updatedViews)
+                    // Re-apply the full existing views (title, buttons, progress,
+                    // PendingIntents) plus the cover — building a fresh RemoteViews
+                    // here would reset the whole widget to layout defaults.
+                    views.setImageViewBitmap(R.id.widget_cover, bitmap)
+                    AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, views)
                 } else {
                     applyCoverFallback(context, views, appWidgetId, artworkUri)
                 }
@@ -1046,6 +1040,14 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         private const val UPDATE_INTERVAL_MS = 30000L
         private const val PREFS_NAME = "widget_player_prefs"
         private const val PREFS_KEY_DOMINANT_COLOR = "dominant_color"
+
+        // Shared across provider instances (one instance is created per broadcast)
+        private const val DEBOUNCE_DELAY_MS = 300L
+        private val scope =
+            CoroutineScope(
+                SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("PlayerWidgetProvider"),
+            )
+        private val updateJobRegistry = WidgetUpdateJobRegistry()
         private const val PREFS_KEY_BOOK_ID = "last_book_id"
 
         private fun getDatabase(context: Context): JabookDatabase =

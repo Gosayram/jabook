@@ -14,10 +14,12 @@
 
 package com.jabook.app.jabook.compose.feature.torrent
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.model.DownloadStatus
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
@@ -26,6 +28,7 @@ import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import com.jabook.app.jabook.compose.navigation.TorrentDetailsRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -42,6 +45,7 @@ import kotlin.time.Duration.Companion.seconds
 public class TorrentDetailsViewModel
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val torrentManager: TorrentManager,
         private val booksRepository: BooksRepository,
         savedStateHandle: SavedStateHandle,
@@ -101,9 +105,9 @@ public class TorrentDetailsViewModel
                     Book(
                         id = bookId,
                         title = title,
-                        author = "Torrent Stream",
+                        author = context.getString(R.string.torrent_stream_author),
                         coverUrl = null,
-                        description = "Streaming from torrent: ${currentDownload.name}",
+                        description = context.getString(R.string.streaming_from_torrent, currentDownload.name),
                         totalDuration = 0.seconds,
                         currentPosition = 0.seconds,
                         progress = 0f,

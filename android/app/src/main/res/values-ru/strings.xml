@@ -3136,4 +3136,12 @@
     <!-- Indexing -->
     <string name="auth_required_for_indexing">Требуется авторизация для индексации форумов. Пожалуйста, войдите в аккаунт.</string>
     <string name="indexing_not_completed">Индексация не завершилась успешно</string>
+    <string name="failed_to_add_torrent">Не удалось добавить торрент: %1$s</string>
+    <string name="download_queued_waiting_wifi">Загрузка в очереди: ожидание Wi-Fi</string>
+    <string name="export_failed">Не удалось экспортировать</string>
+    <string name="import_failed">Не удалось импортировать</string>
+    <string name="failed_to_load_cache_stats">Не удалось загрузить статистику кэша</string>
+    <string name="failed_to_clear_cache">Не удалось очистить кэш</string>
+    <string name="torrent_stream_author">Торрент-стрим</string>
+    <string name="streaming_from_torrent">Стриминг из торрента: %1$s</string>
 </resources>

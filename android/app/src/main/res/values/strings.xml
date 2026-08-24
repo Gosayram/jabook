@@ -3095,4 +3095,12 @@
     <!-- Indexing -->
     <string name="auth_required_for_indexing">Authorization required for forum indexing. Please sign in to your account.</string>
     <string name="indexing_not_completed">Indexing did not complete successfully</string>
+    <string name="failed_to_add_torrent">Failed to add torrent: %1$s</string>
+    <string name="download_queued_waiting_wifi">Download queued: Waiting for WiFi connection</string>
+    <string name="export_failed">Export failed</string>
+    <string name="import_failed">Import failed</string>
+    <string name="failed_to_load_cache_stats">Failed to load cache stats</string>
+    <string name="failed_to_clear_cache">Failed to clear cache</string>
+    <string name="torrent_stream_author">Torrent Stream</string>
+    <string name="streaming_from_torrent">Streaming from torrent: %1$s</string>
 </resources>
