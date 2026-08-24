@@ -32,6 +32,7 @@ import androidx.palette.graphics.Palette
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import coil3.request.allowHardware
 import coil3.toBitmap
 import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.R
@@ -927,6 +928,9 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                         .Builder(context.applicationContext)
                         .data(artworkUri)
                         .size(WidgetCoverLoadPolicy.COVER_SIZE_PX, WidgetCoverLoadPolicy.COVER_SIZE_PX)
+                        // Software bitmap required: RemoteViews crosses into the launcher
+                        // process and Palette reads pixels on the CPU
+                        .allowHardware(false)
                         .build()
 
                 val result = loader.execute(request)

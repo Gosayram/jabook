@@ -102,10 +102,21 @@ internal class MetadataManager(
                     if (picture != null && picture.isNotEmpty()) {
                         // Validate cover data before saving (minimum 1KB to avoid corrupted images)
                         if (picture.size >= 1024) {
-                            // Save artwork to cache
+                            // Content-addressed filename: avoids String.hashCode collisions
+                            // across books and makes Coil's cache key track artwork changes
+                            val contentDigest =
+                                java.security.MessageDigest
+                                    .getInstance("SHA-256")
+                                    .digest(picture)
+                            val contentKey =
+                                contentDigest
+                                    .take(8)
+                                    .joinToString("") { byte -> "%02x".format(byte) }
                             val cacheDir = context.cacheDir
-                            val artworkFile = File(cacheDir, "embedded_artwork_${filePath.hashCode()}.jpg")
-                            artworkFile.outputStream().use { it.write(picture) }
+                            val artworkFile = File(cacheDir, "embedded_artwork_$contentKey.jpg")
+                            if (!artworkFile.exists() || artworkFile.length() != picture.size.toLong()) {
+                                artworkFile.outputStream().use { it.write(picture) }
+                            }
                             LogUtils.i(
                                 "AudioPlayerService",
                                 "Extracted and saved embedded artwork from ID3 tags: $filePath (${picture.size} bytes) -> ${artworkFile.absolutePath}",

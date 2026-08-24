@@ -24,6 +24,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import coil3.request.allowHardware
 import coil3.size.Scale
 import coil3.toBitmap
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
@@ -162,6 +163,8 @@ internal class PlayerMetadataHandler(
                     .data(artworkUri)
                     .size(512, 512)
                     .scale(Scale.FILL)
+                    // Software bitmap required: re-encoded via Bitmap.compress below
+                    .allowHardware(false)
                     .build()
             val result = loader.execute(request)
             if (result is SuccessResult) {
