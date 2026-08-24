@@ -1159,7 +1159,8 @@ public class TorrentSessionManager
                 // reflected before — errors showed as QUEUED and paused torrents
                 // as DOWNLOADING.
                 val errorCode = runCatching { status.errorCode() }.getOrNull()
-                val isError = errorCode?.isError() == true
+                val errorMessage = errorCode?.takeIf { it.isError() }?.getMessage()
+                val isError = errorMessage != null
                 val isPaused =
                     runCatching {
                         handle
@@ -1189,7 +1190,7 @@ public class TorrentSessionManager
                     eta = eta,
                     savePath = savePath,
                     files = files,
-                    errorMessage = if (isError) errorCode?.getMessage() else null,
+                    errorMessage = errorMessage,
                     topicId = topicIds[hash],
                 )
             } catch (e: Exception) {
