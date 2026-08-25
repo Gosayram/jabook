@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -380,7 +381,16 @@ public fun JabookApp(
                                             }
                                         }
                                     },
-                                    modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
+                                    modifier =
+                                        Modifier.fillMaxWidth().let { m ->
+                                            // Compact: NavigationSuiteScaffold's bottom bar already
+                                            // consumes navbar insets — extra padding would double the gap.
+                                            if (windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact) {
+                                                m
+                                            } else {
+                                                m.navigationBarsPadding()
+                                            }
+                                        },
                                     currentPositionMs = miniPlayerViewModel.currentPosition,
                                     durationMs = miniPlayerViewModel.duration,
                                 )

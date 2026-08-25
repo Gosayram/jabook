@@ -33,7 +33,7 @@ public class UserEqPresetRepository
             bands: List<Int>,
             preampMillibels: Int,
         ) {
-            userEqPresetDao.insert(
+            userEqPresetDao.upsertByName(
                 UserEqPresetEntity(
                     name = name,
                     bands = bands.joinToString(","),

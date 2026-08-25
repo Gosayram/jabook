@@ -72,6 +72,7 @@ class LibraryViewModelTest {
     private val workManager: WorkManager = mock()
     private val userPreferencesRepository: UserPreferencesRepository = mock()
     private val booksDao: BooksDao = mock()
+    private val playbackPositionDao: com.jabook.app.jabook.audio.data.local.dao.PlaybackPositionDao = mock()
     private val scanPathDao: ScanPathDao = mock()
     private val application: Application = mock()
     private val listeningStatsUseCase: ListeningStatsUseCase = mock()
@@ -174,6 +175,7 @@ class LibraryViewModelTest {
             workManager,
             userPreferencesRepository,
             booksDao,
+            playbackPositionDao,
             scanPathDao,
             application,
             listeningStatsUseCase,

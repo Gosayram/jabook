@@ -29,6 +29,7 @@ import com.jabook.app.jabook.compose.domain.model.Chapter
 import com.jabook.app.jabook.compose.navigation.TorrentDetailsRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -67,92 +68,116 @@ public class TorrentDetailsViewModel
                 )
 
         public val isBuffering: StateFlow<Boolean> = streamingMonitor.isBuffering
+        public val monitoredHash: StateFlow<String?> = streamingMonitor.monitoredHash
 
         private val _navigationEvent = Channel<String>(Channel.BUFFERED)
         public val navigationEvent: Flow<String> = _navigationEvent.receiveAsFlow()
 
+        private val _messages = Channel<String>(Channel.BUFFERED)
+        public val messages: Flow<String> = _messages.receiveAsFlow()
+
+        private fun emitMessage(message: String?) {
+            message?.let { _messages.trySend(it) }
+        }
+
         public fun playFile(file: com.jabook.app.jabook.compose.data.torrent.TorrentFile) {
             viewModelScope.launch {
-                // The live map is empty when the libtorrent session is stopped (e.g. app
-                // restarted, or session torn down) even though the DB still has the row —
-                // fall back to the persisted row so the file stays playable.
-                val currentDownload =
-                    download.value ?: torrentDownloadRepository.getByHash(hash) ?: return@launch
-                val savePath = currentDownload.savePath.ifBlank { return@launch }
-
-                // 1. Enable streaming
-                torrentManager.enableStreaming(hash)
-                // Prioritize this file (7 = top priority)
-                torrentManager.prioritizeFile(hash, file.index, 7)
-
-                // 2. Wait for buffer
-                // Monitor will update isBuffering state automatically
-
-                var attempts: Int = 0
-                val maxAttempts: Int = 60 // 30 seconds (500ms * 60)
-                while (!torrentManager.isFileReadyForStreaming(hash, file.index) && attempts < maxAttempts) {
-                    kotlinx.coroutines.delay(500L)
-                    attempts++
-                }
-
-                if (attempts >= maxAttempts) {
-                    // Buffer not ready within 30s — playback will likely stutter. Proceed
-                    // (the buffer monitor will pause/resume), but surface the risk clearly.
-                    logger.w {
-                        "File buffer not ready after 30s for hash=$hash file=${file.index}; " +
-                            "starting playback anyway"
-                    }
-                }
-
-                // 3. Start monitoring
-                streamingMonitor.startMonitoring(hash, file.index)
-
-                // 4. Prepare Book & Chapter
-
-                val bookId: String = "torrent_${hash}_${file.index}"
-                val absolutePath = File(savePath, file.path).absolutePath
-                val title = File(file.path).name
-
-                val book =
-                    Book(
-                        id = bookId,
-                        title = title,
-                        author = context.getString(R.string.torrent_stream_author),
-                        coverUrl = null,
-                        description = context.getString(R.string.streaming_from_torrent, currentDownload.name),
-                        totalDuration = 0.seconds,
-                        currentPosition = 0.seconds,
-                        progress = 0f,
-                        currentChapterIndex = 0,
-                        downloadStatus = DownloadStatus.DOWNLOADED, // Mark as downloaded to allow playback
-                        downloadProgress = file.progress,
-                        localPath = absolutePath,
-                        addedDate = System.currentTimeMillis(),
-                        lastPlayedDate = System.currentTimeMillis(),
-                        isFavorite = false,
-                        sourceUrl = null,
+                try {
+                    playFileInternal(file)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logger.e(e) { "Failed to play torrent file ${file.path}" }
+                    emitMessage(
+                        context.getString(
+                            R.string.failedToStartDownloadWithError,
+                            e.message ?: context.getString(R.string.unknownError),
+                        ),
                     )
-
-                val chapter =
-                    Chapter(
-                        id = "${bookId}_ch1",
-                        bookId = bookId,
-                        title = title,
-                        chapterIndex = 0,
-                        fileIndex = 0,
-                        duration = 0.seconds,
-                        fileUrl = absolutePath,
-                        position = 0.seconds,
-                        isCompleted = false,
-                        isDownloaded = true,
-                    )
-
-                // 5. Save to repository (Using addBooks because it handles chapters)
-                booksRepository.addBooks(listOf(book to listOf(chapter)))
-
-                // 6. Navigate
-                _navigationEvent.send(bookId)
+                }
             }
+        }
+
+        private suspend fun playFileInternal(file: com.jabook.app.jabook.compose.data.torrent.TorrentFile) {
+            // The live map is empty when the libtorrent session is stopped (e.g. app
+            // restarted, or session torn down) even though the DB still has the row —
+            // fall back to the persisted row so the file stays playable.
+            val currentDownload =
+                download.value ?: torrentDownloadRepository.getByHash(hash) ?: return
+            val savePath = currentDownload.savePath.ifBlank { return }
+
+            // 1. Enable streaming
+            torrentManager.enableStreaming(hash)
+            // Prioritize this file (7 = top priority)
+            torrentManager.prioritizeFile(hash, file.index, 7)
+
+            // 2. Wait for buffer
+            // Monitor will update isBuffering state automatically
+
+            var attempts: Int = 0
+            val maxAttempts: Int = 60 // 30 seconds (500ms * 60)
+            while (!torrentManager.isFileReadyForStreaming(hash, file.index) && attempts < maxAttempts) {
+                kotlinx.coroutines.delay(500L)
+                attempts++
+            }
+
+            if (attempts >= maxAttempts) {
+                // Buffer not ready within 30s — playback will likely stutter. Proceed
+                // (the buffer monitor will pause/resume), but surface the risk clearly.
+                logger.w {
+                    "File buffer not ready after 30s for hash=$hash file=${file.index}; " +
+                        "starting playback anyway"
+                }
+            }
+
+            // 3. Start monitoring
+            streamingMonitor.startMonitoring(hash, file.index)
+
+            // 4. Prepare Book & Chapter
+
+            val bookId: String = "torrent_${hash}_${file.index}"
+            val absolutePath = File(savePath, file.path).absolutePath
+            val title = File(file.path).name
+
+            val book =
+                Book(
+                    id = bookId,
+                    title = title,
+                    author = context.getString(R.string.torrent_stream_author),
+                    coverUrl = null,
+                    description = context.getString(R.string.streaming_from_torrent, currentDownload.name),
+                    totalDuration = 0.seconds,
+                    currentPosition = 0.seconds,
+                    progress = 0f,
+                    currentChapterIndex = 0,
+                    downloadStatus = DownloadStatus.DOWNLOADED, // Mark as downloaded to allow playback
+                    downloadProgress = file.progress,
+                    localPath = absolutePath,
+                    addedDate = System.currentTimeMillis(),
+                    lastPlayedDate = System.currentTimeMillis(),
+                    isFavorite = false,
+                    sourceUrl = null,
+                )
+
+            val chapter =
+                Chapter(
+                    id = "${bookId}_ch1",
+                    bookId = bookId,
+                    title = title,
+                    chapterIndex = 0,
+                    fileIndex = 0,
+                    duration = 0.seconds,
+                    fileUrl = absolutePath,
+                    position = 0.seconds,
+                    isCompleted = false,
+                    isDownloaded = true,
+                )
+
+            // 5. Save to repository (Using addBooks because it handles chapters)
+            booksRepository.addBooks(listOf(book to listOf(chapter)))
+
+            // 6. Navigate
+            _navigationEvent.send(bookId)
         }
 
         override fun onCleared() {
@@ -177,19 +202,28 @@ public class TorrentDetailsViewModel
         }
 
         public fun updateFileSelection(selectedIndices: Set<Int>) {
-            val currentDownload = download.value ?: return
-            val files = currentDownload.files
-
-            // Map to priorities list matching file order
-            val priorities =
-                files.map { file ->
-                    if (selectedIndices.contains(file.index)) {
-                        4 // Default/Normal priority
-                    } else {
-                        0 // Do not download
-                    }
+            viewModelScope.launch {
+                // Same fallback as playFile: the live map is empty after a session
+                // restart, but the DB row still has the file list.
+                val currentDownload = download.value ?: torrentDownloadRepository.getByHash(hash)
+                if (currentDownload == null) {
+                    logger.e { "Cannot update file selection: download $hash not found" }
+                    emitMessage(context.getString(R.string.downloadNotFoundTorrent))
+                    return@launch
                 }
+                val files = currentDownload.files
 
-            torrentManager.prioritizeFiles(hash, priorities)
+                // Map to priorities list matching file order
+                val priorities =
+                    files.map { file ->
+                        if (selectedIndices.contains(file.index)) {
+                            4 // Default/Normal priority
+                        } else {
+                            0 // Do not download
+                        }
+                    }
+
+                torrentManager.prioritizeFiles(hash, priorities)
+            }
         }
     }

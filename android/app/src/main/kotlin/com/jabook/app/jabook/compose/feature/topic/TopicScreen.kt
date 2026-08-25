@@ -420,8 +420,10 @@ private fun TopicDetailsContent(
                         expanded = showDownloadMenu,
                         onDismissRequest = { showDownloadMenu = false },
                     ) {
-                        // 1. Download torrent release (content) - highest priority
-                        if (details.magnetUrl != null || details.torrentUrl.isNotBlank()) {
+                        // 1. Download torrent release (content) - requires a magnet URI;
+                        // with only an https .torrent URL this would always fail validation
+                        // (item #3 below covers that path).
+                        if (details.magnetUrl != null) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.downloadTorrentRelease)) },
                                 leadingIcon = {
@@ -821,9 +823,12 @@ private fun ExpandableComments(
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Refresh when expanded
+    // Refresh only on the FIRST expand — re-running onRefresh resets loadedComments
+    // to page 1 and wipes accumulated reverse-pagination pages.
+    var hasTriggeredInitialRefresh by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(expanded) {
-        if (expanded) {
+        if (expanded && !hasTriggeredInitialRefresh) {
+            hasTriggeredInitialRefresh = true
             onRefresh()
         }
     }

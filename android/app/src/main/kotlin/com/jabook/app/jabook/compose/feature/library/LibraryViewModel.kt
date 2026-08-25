@@ -59,6 +59,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -95,6 +96,7 @@ public class LibraryViewModel
         private val workManager: WorkManager,
         private val userPreferencesRepository: UserPreferencesRepository,
         private val booksDao: com.jabook.app.jabook.compose.data.local.dao.BooksDao,
+        private val playbackPositionDao: com.jabook.app.jabook.audio.data.local.dao.PlaybackPositionDao,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val application: android.app.Application,
         private val listeningStatsUseCase: ListeningStatsUseCase,
@@ -182,65 +184,74 @@ public class LibraryViewModel
                 )
 
         public val weeklyRecapState: StateFlow<WeeklyRecapState?> =
-            combine(
-                uiState,
-                listeningStatsUseCase.observeSummary(
-                    fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
-                    toEpochMs = System.currentTimeMillis(),
-                ),
-            ) { state, summary ->
-                val books = (state as? LibraryUiState.Success)?.books ?: return@combine null
-                val fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
-                val weeklyCompletedBooks =
-                    books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= fromEpochMs }
-                WeeklyRecapState(
-                    minutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt(),
-                    booksCompleted = weeklyCompletedBooks,
-                    productivePeriod = resolveProductivePeriod(books),
-                    streakDays = summary.activeDays.coerceAtLeast(0),
+            // Boundaries computed per subscription so the window tracks "now"
+            // instead of freezing at ViewModel construction.
+            uiState
+                .flatMapLatest { state ->
+                    listeningStatsUseCase
+                        .observeSummary(
+                            fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
+                            toEpochMs = System.currentTimeMillis(),
+                        ).map { summary ->
+                            val books = (state as? LibraryUiState.Success)?.books ?: return@map null
+                            val fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
+                            val weeklyCompletedBooks =
+                                books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= fromEpochMs }
+                            WeeklyRecapState(
+                                minutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt(),
+                                booksCompleted = weeklyCompletedBooks,
+                                productivePeriod = resolveProductivePeriod(books),
+                                streakDays = summary.activeDays.coerceAtLeast(0),
+                            )
+                        }
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = null,
                 )
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = null,
-            )
 
         public val yearRecapState: StateFlow<YearRecapState?> =
-            combine(
-                uiState,
-                listeningStatsUseCase.observeSummary(
-                    fromEpochMs = resolveYearStartEpochMs(),
-                    toEpochMs = System.currentTimeMillis(),
-                ),
-            ) { state, summary ->
-                val books = (state as? LibraryUiState.Success)?.books ?: return@combine null
-                val yearStartEpochMs = resolveYearStartEpochMs()
-                val completedBooks =
-                    books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= yearStartEpochMs }
-                val topAuthor =
-                    books
-                        .groupingBy { it.author.ifBlank { application.getString(com.jabook.app.jabook.R.string.unknownAuthor) } }
-                        .eachCount()
-                        .maxByOrNull { it.value }
-                        ?.key
-                        ?: application.getString(com.jabook.app.jabook.R.string.unknownAuthor)
+            uiState
+                .flatMapLatest { state ->
+                    listeningStatsUseCase
+                        .observeSummary(
+                            fromEpochMs = resolveYearStartEpochMs(),
+                            toEpochMs = System.currentTimeMillis(),
+                        ).map { summary ->
+                            val books = (state as? LibraryUiState.Success)?.books ?: return@map null
+                            val yearStartEpochMs = resolveYearStartEpochMs()
+                            val completedBooks =
+                                books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= yearStartEpochMs }
+                            val topAuthor =
+                                books
+                                    .groupingBy {
+                                        it.author.ifBlank {
+                                            application.getString(
+                                                com.jabook.app.jabook.R.string.unknownAuthor,
+                                            )
+                                        }
+                                    }.eachCount()
+                                    .maxByOrNull { it.value }
+                                    ?.key
+                                    ?: application.getString(com.jabook.app.jabook.R.string.unknownAuthor)
 
-                YearRecapState(
-                    year =
-                        java.time.LocalDate
-                            .now()
-                            .year,
-                    totalMinutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt().coerceAtLeast(0),
-                    booksCompleted = completedBooks.coerceAtLeast(0),
-                    activeDays = summary.activeDays.coerceAtLeast(0),
-                    sessions = summary.totalSessions.coerceAtLeast(0),
-                    topAuthor = topAuthor,
+                            YearRecapState(
+                                year =
+                                    java.time.LocalDate
+                                        .now()
+                                        .year,
+                                totalMinutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt().coerceAtLeast(0),
+                                booksCompleted = completedBooks.coerceAtLeast(0),
+                                activeDays = summary.activeDays.coerceAtLeast(0),
+                                sessions = summary.totalSessions.coerceAtLeast(0),
+                                topAuthor = topAuthor,
+                            )
+                        }
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = null,
                 )
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = null,
-            )
 
         /**
          * Update search query.
@@ -351,7 +362,13 @@ public class LibraryViewModel
         public fun deleteBook(bookId: String) {
             viewModelScope.launch {
                 deleteBookUseCase(bookId)
-                // Result handling can be added if needed for user feedback
+                // Clean up rows/files not covered by the books-table FK cascade
+                favoritesRepository.removeFromFavorites(bookId)
+                runCatching { playbackPositionDao.deletePosition(bookId) }
+                // ponytail: covers are named "$bookId.$ext" with unknown ext — glob by prefix
+                File(application.filesDir, "covers")
+                    .listFiles { file -> file.nameWithoutExtension == bookId }
+                    ?.forEach { it.delete() }
             }
         }
 
@@ -460,7 +477,8 @@ public class LibraryViewModel
                     currentScanWorkId = scanRequest.id
                     workManager.enqueueUniqueWork(
                         LibraryScanWorker.WORK_NAME,
-                        ExistingWorkPolicy.REPLACE,
+                        // KEEP: don't cancel an in-flight auto-scan when user pulls to refresh
+                        ExistingWorkPolicy.KEEP,
                         scanRequest,
                     )
 

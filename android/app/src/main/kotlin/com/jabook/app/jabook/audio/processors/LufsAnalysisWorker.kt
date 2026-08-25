@@ -14,12 +14,18 @@
 
 package com.jabook.app.jabook.audio.processors
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.ServiceInfo
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import android.os.Build
+import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
@@ -66,6 +72,10 @@ public class LufsAnalysisWorker
         private val logger = loggerFactory.get("LufsAnalysisWorker")
 
         public companion object {
+            /** Distinct from IndexingWorker's id (3104) so notifications never race. */
+            private const val NOTIFICATION_ID: Int = 3_105
+            private const val NOTIFICATION_CHANNEL_ID: String = "lufs_analysis_work"
+
             /** Input data key for the book ID to analyze. */
             public const val KEY_BOOK_ID: String = "book_id"
 
@@ -113,12 +123,36 @@ public class LufsAnalysisWorker
                 )
         }
 
+        override suspend fun getForegroundInfo(): ForegroundInfo {
+            createNotificationChannel()
+            val notification =
+                NotificationCompat
+                    .Builder(applicationContext, NOTIFICATION_CHANNEL_ID)
+                    .setSmallIcon(com.jabook.app.jabook.R.drawable.ic_notification_logo)
+                    .setContentTitle(applicationContext.getString(com.jabook.app.jabook.R.string.indexingNotificationTitle))
+                    .setContentText(applicationContext.getString(com.jabook.app.jabook.R.string.indexingNotificationBody))
+                    .setOngoing(true)
+                    .build()
+            return ForegroundInfo(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+            )
+        }
+
         override suspend fun doWork(): Result {
             val bookId =
                 inputData.getString(KEY_BOOK_ID)
                     ?: return Result.failure()
 
             return try {
+                // Minutes-long MediaCodec work — promote to FGS like the other
+                // workers; degrade to background if the start is denied.
+                try {
+                    setForeground(getForegroundInfo())
+                } catch (e: Throwable) {
+                    logger.w { "FGS start not allowed for LUFS worker: ${e.message}" }
+                }
                 val lufsValue =
                     withContext(Dispatchers.IO) {
                         val bookLufs = analyzeBookLoudness(bookId)
@@ -403,6 +437,19 @@ public class LufsAnalysisWorker
             }
 
             return if (pcmBuffer.isNotEmpty()) pcmBuffer.toShortArray() else null
+        }
+
+        private fun createNotificationChannel() {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+            applicationContext
+                .getSystemService(NotificationManager::class.java)
+                .createNotificationChannel(
+                    NotificationChannel(
+                        NOTIFICATION_CHANNEL_ID,
+                        "Анализ громкости",
+                        NotificationManager.IMPORTANCE_LOW,
+                    ),
+                )
         }
 
         /**

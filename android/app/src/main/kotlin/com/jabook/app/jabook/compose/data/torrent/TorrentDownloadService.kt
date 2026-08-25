@@ -122,7 +122,7 @@ public class TorrentDownloadService : Service() {
                 // Already started in onCreate
             }
             ACTION_STOP -> {
-                stopSelf()
+                stopSelf(startId)
             }
         }
 
@@ -186,7 +186,8 @@ public class TorrentDownloadService : Service() {
         fgsType: Int,
     ) {
         logger.w { "Foreground service timed out (type=$fgsType); stopping download service" }
-        stopSelf(startId)
+        // ponytail: plain stopSelf() — startId here may be stale if later deliveries bumped it
+        stopSelf()
     }
 
     private fun createNotificationChannel() {

@@ -111,10 +111,13 @@ public class BackupService
                         }
                     logger.d { "Serialized backup: ${jsonString.length} bytes" }
 
-                    // 3. Write to file
+                    // 3. Write to file — filesDir (NOT cacheDir: Clear-Cache/OS trim
+                    // would destroy a just-exported backup before it's shared)
                     val timestamp = DateTimeFormatter.formatCurrentForFilename()
                     val fileName: String = "jabook_backup_$timestamp.json"
-                    val file = File(context.cacheDir, fileName)
+                    val backupsDir = File(context.filesDir, "backups")
+                    backupsDir.mkdirs()
+                    val file = File(backupsDir, fileName)
                     val encoded = jsonString.toByteArray(Charsets.UTF_8)
                     AtomicFileWriter.writeWithLock(file) { output ->
                         output.write(encoded)

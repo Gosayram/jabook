@@ -57,6 +57,8 @@ public class TorrentStreamingMonitor
         private val logger = loggerFactory.get("TorrentMonitor")
         private val _isBuffering = kotlinx.coroutines.flow.MutableStateFlow(false)
         public val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
+        private val _monitoredHash = MutableStateFlow<String?>(null)
+        public val monitoredHash: StateFlow<String?> = _monitoredHash.asStateFlow()
 
         // MediaController is built with the main looper — polling it from any
         // other dispatcher throws IllegalStateException. Keep the loop on Main.
@@ -116,6 +118,7 @@ public class TorrentStreamingMonitor
             stopMonitoring()
             currentHash = hash
             currentFileIndex = fileIndex
+            _monitoredHash.value = hash
             isPausedForBuffering = false
             pausedByUser = false
             stoppedTickCount = 0L
@@ -147,6 +150,7 @@ public class TorrentStreamingMonitor
             monitoringJob = null
             currentHash = null
             currentFileIndex = -1
+            _monitoredHash.value = null
             isPausedForBuffering = false
             pausedByUser = false
             releaseMediaController()

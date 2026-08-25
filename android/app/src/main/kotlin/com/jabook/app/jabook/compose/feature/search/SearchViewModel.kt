@@ -150,7 +150,12 @@ public class SearchViewModel
          * Update search query.
          */
         public fun onSearchQueryChanged(query: String) {
-            if (query != _searchQuery.value) onlineSearchJob?.cancel()
+            if (query != _searchQuery.value) {
+                onlineSearchJob?.cancel()
+                rawOnlineResults.value = emptyList()
+                // Reset stale Success/Error from previous query so local results are reachable
+                if (_uiState.value !is SearchUiState.Idle) _uiState.value = SearchUiState.Idle
+            }
             _searchQuery.value = query
         }
 

@@ -40,6 +40,8 @@ class AudioEqualizerManagerTest {
         val settingsRepository: SettingsRepository = mock()
         whenever(settingsRepository.userPreferences)
             .thenReturn(flowOf(UserPreferences.newBuilder().setEqualizerPreset("NIGHT").build()))
+        whenever(settingsRepository.customEqBands)
+            .thenReturn(flowOf(List(10) { 0 }))
 
         val equalizer = mock<android.media.audiofx.Equalizer>()
         whenever(equalizer.numberOfBands).thenReturn(2.toShort())
@@ -70,6 +72,8 @@ class AudioEqualizerManagerTest {
         val settingsRepository: SettingsRepository = mock()
         whenever(settingsRepository.userPreferences)
             .thenReturn(flowOf(UserPreferences.newBuilder().setEqualizerPreset("FLAT").build()))
+        whenever(settingsRepository.customEqBands)
+            .thenReturn(flowOf(List(10) { 0 }))
 
         var factoryCalls = 0
         val manager =

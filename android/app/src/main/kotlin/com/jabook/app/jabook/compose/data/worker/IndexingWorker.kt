@@ -161,22 +161,13 @@ public class IndexingWorker
                                             .build(),
                                     )
                                 }
-                                updateNotification(
-                                    100,
-                                    applicationContext.getString(com.jabook.app.jabook.R.string.indexingNotificationCompleted),
-                                )
+                                // No manual notify on terminal states: WorkManager owns
+                                // this notification id once FGS started and removes it
+                                // when the worker finishes.
                             }
                             is IndexingProgress.Error -> {
                                 errorOccurred = true
                                 logger.e({ "Indexing error: ${progress.message}" })
-                                updateNotification(
-                                    percent = -1,
-                                    text =
-                                        applicationContext.getString(
-                                            com.jabook.app.jabook.R.string.indexingNotificationError,
-                                            progress.message,
-                                        ),
-                                )
                             }
                             else -> { /* Idle */ }
                         }

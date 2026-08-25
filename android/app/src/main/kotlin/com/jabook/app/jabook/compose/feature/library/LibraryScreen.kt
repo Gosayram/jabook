@@ -177,6 +177,7 @@ public fun LibraryScreen(
     val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+    val favoriteBooks by viewModel.favoriteBooks.collectAsStateWithLifecycle()
     val selectedBook by viewModel.selectedBookForProperties.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -188,14 +189,14 @@ public fun LibraryScreen(
     val safeNavigateToSettings = dropUnlessResumed { navigationClickGuard.run(onNavigateToSettings) }
     val safeNavigateToAuth = dropUnlessResumed { navigationClickGuard.run(onNavigateToAuth) }
     var activeQuickFilter by rememberSaveable { mutableStateOf(LibraryQuickFilter.ALL) }
-    var showSortBottomSheet by remember { mutableStateOf(false) }
+    var showSortBottomSheet by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
-    var searchBarExpanded by remember { mutableStateOf(false) }
+    var searchBarExpanded by rememberSaveable { mutableStateOf(false) }
     val spotlightCompleted by viewModel.spotlightCompleted.collectAsStateWithLifecycle()
     var spotlightStep by rememberSaveable { mutableStateOf(0) }
     var selectedBookForActions by remember { mutableStateOf<Book?>(null) }
     var showDiscovery by rememberSaveable { mutableStateOf(false) }
-    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showOverflowMenu by rememberSaveable { mutableStateOf(false) }
 
     var listeningMood by rememberSaveable { mutableStateOf(ListeningMood.RELAXING) }
 
@@ -584,7 +585,7 @@ public fun LibraryScreen(
                                         buildDiscoveryUiState(books, listeningMood)
                                     }
                                 val actionsProvider =
-                                    remember(viewModel, onBookClick) {
+                                    remember(viewModel, onBookClick, books, favoriteBooks) {
                                         viewModel.createBookActionsProvider(
                                             onBookClick = onBookClick,
                                             onBookLongPress = { bookId ->
@@ -665,12 +666,19 @@ public fun LibraryScreen(
                                                     .padding(horizontal = 16.dp)
                                                     .padding(top = 4.dp, bottom = 8.dp),
                                         )
-                                        UnifiedBooksView(
-                                            books = filteredBooks,
-                                            displayMode = viewMode.toBookDisplayMode(),
-                                            actionsProvider = actionsProvider,
-                                            modifier = Modifier.weight(1f).fillMaxWidth(),
-                                        )
+                                        if (filteredBooks.isEmpty()) {
+                                            EmptyState(
+                                                message = stringResource(R.string.noBooksMatchFilter),
+                                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                            )
+                                        } else {
+                                            UnifiedBooksView(
+                                                books = filteredBooks,
+                                                displayMode = viewMode.toBookDisplayMode(),
+                                                actionsProvider = actionsProvider,
+                                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -898,7 +906,7 @@ public fun LibraryScreen(
                                                 buildDiscoveryUiState(books, listeningMood)
                                             }
                                         val actionsProvider =
-                                            remember(viewModel, onBookClick) {
+                                            remember(viewModel, onBookClick, books, favoriteBooks) {
                                                 viewModel.createBookActionsProvider(
                                                     onBookClick = { bookId ->
                                                         scope.launch {
@@ -986,12 +994,19 @@ public fun LibraryScreen(
                                                             .padding(horizontal = 16.dp)
                                                             .padding(top = 4.dp, bottom = 8.dp),
                                                 )
-                                                UnifiedBooksView(
-                                                    books = filteredBooks,
-                                                    displayMode = viewMode.toBookDisplayMode(),
-                                                    actionsProvider = actionsProvider,
-                                                    modifier = Modifier.weight(1f).fillMaxWidth(),
-                                                )
+                                                if (filteredBooks.isEmpty()) {
+                                                    EmptyState(
+                                                        message = stringResource(R.string.noBooksMatchFilter),
+                                                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                                                    )
+                                                } else {
+                                                    UnifiedBooksView(
+                                                        books = filteredBooks,
+                                                        displayMode = viewMode.toBookDisplayMode(),
+                                                        actionsProvider = actionsProvider,
+                                                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                                                    )
+                                                }
                                             }
                                         }
                                     }

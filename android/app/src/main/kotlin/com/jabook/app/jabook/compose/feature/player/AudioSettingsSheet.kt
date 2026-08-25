@@ -31,7 +31,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -42,7 +41,6 @@ import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.processors.VolumeBoostLevel
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
-import com.jabook.app.jabook.compose.designsystem.component.VerticalEqSlider
 
 /**
  * Audio settings sheet for configuring audio effects.
@@ -72,8 +70,6 @@ public fun AudioSettingsSheet(
         speechEnhancer: Boolean?,
         autoVolumeLeveling: Boolean?,
     ) -> Unit,
-    eqBands: FloatArray? = null,
-    onEqBandChange: ((index: Int, value: Float) -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
     JabookModalBottomSheet(onDismissRequest = onDismiss) {
@@ -165,69 +161,6 @@ public fun AudioSettingsSheet(
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-            // Equalizer Section
-            val validEqBands = remember(eqBands) { eqBands?.take(5) ?: listOf(0f, 0f, 0f, 0f, 0f) }
-            if (eqBands != null && onEqBandChange != null) {
-                Text(
-                    text = stringResource(R.string.equalizer_section_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-
-                // EQ Presets
-                val presetStandard = stringResource(R.string.eqPresetStandard)
-                val presetVoice = stringResource(R.string.eqPresetVoice)
-                val presetBass = stringResource(R.string.eqPresetBass)
-                val presetConcert = stringResource(R.string.eqPresetConcert)
-                val presets =
-                    remember(presetStandard, presetVoice, presetBass, presetConcert) {
-                        listOf(
-                            presetStandard to floatArrayOf(0f, 0f, 0f, 0f, 0f),
-                            presetVoice to floatArrayOf(-2f, 0f, 4f, 3f, 1f),
-                            presetBass to floatArrayOf(6f, 4f, 0f, -1f, -2f),
-                            presetConcert to floatArrayOf(3f, 1f, -1f, 2f, 4f),
-                        )
-                    }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    presets.forEach { (name, values) ->
-                        val isActive =
-                            eqBands.size == values.size && eqBands.indices.all { eqBands[it] == values[it] }
-                        FilterChip(
-                            selected = isActive,
-                            onClick = {
-                                values.forEachIndexed { index, value ->
-                                    onEqBandChange(index, value)
-                                }
-                            },
-                            label = { Text(name, style = MaterialTheme.typography.labelSmall) },
-                        )
-                    }
-                }
-
-                // 5-Band EQ Sliders
-                val frequencies = remember { intArrayOf(60, 230, 910, 3600, 14000) }
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                ) {
-                    frequencies.forEachIndexed { index, freq ->
-                        VerticalEqSlider(
-                            frequencyHz = freq,
-                            value = validEqBands.getOrElse(index) { 0f },
-                            onValueChange = { onEqBandChange(index, it) },
-                        )
-                    }
-                }
-
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            }
 
             // Smart Effects Section
             Text(

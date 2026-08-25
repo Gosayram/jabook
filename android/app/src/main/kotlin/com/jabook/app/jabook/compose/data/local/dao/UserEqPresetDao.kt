@@ -18,6 +18,7 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Transaction
 import com.jabook.app.jabook.compose.data.local.entity.UserEqPresetEntity
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -31,6 +32,16 @@ public interface UserEqPresetDao {
 
     @Insert
     public suspend fun insert(preset: UserEqPresetEntity)
+
+    @Query("DELETE FROM user_eq_presets WHERE name = :name")
+    public suspend fun deleteByName(name: String)
+
+    /** Replaces any existing preset with the same name. */
+    @Transaction
+    public suspend fun upsertByName(preset: UserEqPresetEntity) {
+        deleteByName(preset.name)
+        insert(preset)
+    }
 
     @Delete
     public suspend fun delete(preset: UserEqPresetEntity)

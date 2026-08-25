@@ -276,29 +276,6 @@ public fun SettingsScreen(
 
             HorizontalDivider()
 
-            // Device and Layout Section
-            SettingsSection(
-                title = stringResource(R.string.deviceAndLayout),
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-            )
-
-            var selectedDeviceMode by rememberSaveable { mutableStateOf("phone") }
-            StackedSegmentedControl(
-                label = stringResource(R.string.deviceAndLayout),
-                options =
-                    listOf(
-                        stringResource(R.string.settingsPhone) to "phone",
-                        stringResource(R.string.settingsTablet) to "tablet",
-                        stringResource(R.string.settingsDesktopMode) to "desktop",
-                    ),
-                selectedValue = selectedDeviceMode,
-                onSelect = { value: String -> selectedDeviceMode = value },
-                contentPadding = contentPadding,
-            )
-
-            HorizontalDivider()
-
             // Authentication Section
             val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
             SettingsSection(

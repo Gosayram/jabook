@@ -53,7 +53,14 @@ public class MediaStoreBookScanner
                     _scanProgress.value = ScanProgress.Discovery(0)
 
                     val allowedPaths = scanPathDao.getAllPathsList().map { it.path }
-                    val audioFiles = queryAudioFiles(allowedPaths)
+                    // null = query failed (e.g. permission revoked) — propagate as Error,
+                    // empty list legitimately means "no matching files"
+                    val audioFiles =
+                        queryAudioFiles(allowedPaths)
+                            ?: return@withContext Result.Error(
+                                com.jabook.app.jabook.compose.domain.model.AppError.DataError
+                                    .Generic("MediaStore query failed (storage permission denied?)"),
+                            )
                     _scanProgress.value = ScanProgress.Discovery(audioFiles.size)
 
                     val groupedByAlbum = groupFilesByAlbum(audioFiles)
@@ -77,7 +84,8 @@ public class MediaStoreBookScanner
                 }
             }
 
-        private fun queryAudioFiles(allowedPaths: List<String>): List<AudioFileInfo> {
+        /** @return files or null when the MediaStore query failed (e.g. permission revoked). */
+        private fun queryAudioFiles(allowedPaths: List<String>): List<AudioFileInfo>? {
             val projection =
                 arrayOf(
                     MediaStore.Audio.Media._ID,
@@ -91,7 +99,8 @@ public class MediaStoreBookScanner
 
             // We query all music/audio files and filter in code for flexibility
             // Ideally we would add selection for paths, but LIKE with many paths is complex in SQL
-            val selection = "${MediaStore.Audio.Media.IS_MUSIC} = 1 OR ${MediaStore.Audio.Media.IS_AUDIOBOOK} = 1"
+            val selection =
+                "(${MediaStore.Audio.Media.IS_MUSIC} = 1 OR ${MediaStore.Audio.Media.IS_AUDIOBOOK} = 1)"
 
             val audioFiles = mutableListOf<AudioFileInfo>()
 
@@ -127,8 +136,12 @@ public class MediaStoreBookScanner
                                         filePath.contains(it, ignoreCase = true)
                                     }
                                 } else {
-                                    // Custom: Must start with one of the allowed paths
-                                    allowedPaths.any { filePath.startsWith(it) }
+                                    // Custom: Must be inside one of the allowed paths
+                                    // (trimEnd avoids sibling false positives like /Books vs /BooksBackup)
+                                    allowedPaths.any {
+                                        val prefix = it.trimEnd('/')
+                                        filePath == prefix || filePath.startsWith("$prefix/")
+                                    }
                                 }
 
                             if (shouldInclude) {
@@ -146,23 +159,29 @@ public class MediaStoreBookScanner
                             }
                         }
                     }
+            } catch (e: SecurityException) {
+                // Permission revoked — must not look like "no audiobooks found"
+                logger.e(e) { "MediaStore query denied: missing read permission" }
+                _scanProgress.value = ScanProgress.Error("Storage permission denied")
+                return null
             } catch (e: Exception) {
-                // Handle IllegalArgumentException for IS_AUDIOBOOK on older APIs if needed
-                // But MediaStore should just ignore valid columns?
-                // Actually IS_AUDIOBOOK was added in API 29.
-                // If running on older API, this might throw IllegalArgumentException "Invalid column IS_AUDIOBOOK".
-                // We should safeguard the selection string.
-                logger.e({ "Error querying MediaStore" }, e)
-                return emptyList()
+                logger.e(e) { "Error querying MediaStore" }
+                return null
             }
 
             return audioFiles
         }
 
         private fun groupFilesByAlbum(files: List<AudioFileInfo>): Map<String, List<AudioFileInfo>> =
-            files
-                .filter { it.album != null && it.album.isNotBlank() }
-                .groupBy { it.album!! }
+            files.groupBy { file ->
+                // Fall back to parent-directory name for untagged albums
+                val album = file.album?.takeIf { it.isNotBlank() }
+                album ?: File(file.filePath)
+                    .parent
+                    ?.substringAfterLast(File.separator)
+                    .orEmpty()
+                    .ifBlank { "Unknown Album" }
+            }
 
         private suspend fun createScannedBook(
             album: String,

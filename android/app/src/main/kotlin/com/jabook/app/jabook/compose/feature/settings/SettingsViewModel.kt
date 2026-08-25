@@ -50,12 +50,13 @@ import com.jabook.app.jabook.util.FileUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -69,6 +70,7 @@ import javax.inject.Inject
  * Manages both old preferences (UserPreferencesRepository) and new Proto DataStore settings.
  * Gradually migrating to Proto DataStore.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 public class SettingsViewModel
     @Inject
@@ -129,68 +131,74 @@ public class SettingsViewModel
             )
 
         public val weeklyRecapState: StateFlow<WeeklyRecapState?> =
-            combine(
-                getLibraryUseCase(com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY),
-                listeningStatsUseCase.observeSummary(
-                    fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
-                    toEpochMs = System.currentTimeMillis(),
-                ),
-            ) { books, summary ->
-                val weeklyCompletedBooks =
-                    books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7) }
-                WeeklyRecapState(
-                    minutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt(),
-                    booksCompleted = weeklyCompletedBooks,
-                    productivePeriod = resolveProductivePeriod(books),
-                    streakDays = summary.activeDays.coerceAtLeast(0),
+            // Boundaries computed per subscription so the window tracks "now"
+            getLibraryUseCase(com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY)
+                .flatMapLatest { books ->
+                    listeningStatsUseCase
+                        .observeSummary(
+                            fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
+                            toEpochMs = System.currentTimeMillis(),
+                        ).map { summary ->
+                            val weeklyCompletedBooks =
+                                books.count {
+                                    it.isCompleted &&
+                                        (it.lastPlayedDate ?: 0L) >= System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
+                                }
+                            WeeklyRecapState(
+                                minutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt(),
+                                booksCompleted = weeklyCompletedBooks,
+                                productivePeriod = resolveProductivePeriod(books),
+                                streakDays = summary.activeDays.coerceAtLeast(0),
+                            )
+                        }
+                }.catch {
+                    if (it is kotlinx.coroutines.CancellationException) throw it
+                    // Recap is optional — keep last known state on upstream failure
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = null,
                 )
-            }.catch {
-                if (it is kotlinx.coroutines.CancellationException) throw it
-                // Recap is optional — keep last known state on upstream failure
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = null,
-            )
 
         public val yearRecapState: StateFlow<YearRecapState?> =
-            combine(
-                getLibraryUseCase(com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY),
-                listeningStatsUseCase.observeSummary(
-                    fromEpochMs = resolveYearStartEpochMs(),
-                    toEpochMs = System.currentTimeMillis(),
-                ),
-            ) { books, summary ->
-                val yearStartEpochMs = resolveYearStartEpochMs()
-                val completedBooks =
-                    books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= yearStartEpochMs }
-                val topAuthor =
-                    books
-                        .groupingBy { it.author.ifBlank { context.getString(R.string.unknownAuthor) } }
-                        .eachCount()
-                        .maxByOrNull { it.value }
-                        ?.key
-                        ?: context.getString(R.string.unknownAuthor)
+            getLibraryUseCase(com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY)
+                .flatMapLatest { books ->
+                    listeningStatsUseCase
+                        .observeSummary(
+                            fromEpochMs = resolveYearStartEpochMs(),
+                            toEpochMs = System.currentTimeMillis(),
+                        ).map { summary ->
+                            val yearStartEpochMs = resolveYearStartEpochMs()
+                            val completedBooks =
+                                books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= yearStartEpochMs }
+                            val topAuthor =
+                                books
+                                    .groupingBy { it.author.ifBlank { context.getString(R.string.unknownAuthor) } }
+                                    .eachCount()
+                                    .maxByOrNull { it.value }
+                                    ?.key
+                                    ?: context.getString(R.string.unknownAuthor)
 
-                YearRecapState(
-                    year =
-                        java.time.LocalDate
-                            .now()
-                            .year,
-                    totalMinutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt().coerceAtLeast(0),
-                    booksCompleted = completedBooks.coerceAtLeast(0),
-                    activeDays = summary.activeDays.coerceAtLeast(0),
-                    sessions = summary.totalSessions.coerceAtLeast(0),
-                    topAuthor = topAuthor,
+                            YearRecapState(
+                                year =
+                                    java.time.LocalDate
+                                        .now()
+                                        .year,
+                                totalMinutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt().coerceAtLeast(0),
+                                booksCompleted = completedBooks.coerceAtLeast(0),
+                                activeDays = summary.activeDays.coerceAtLeast(0),
+                                sessions = summary.totalSessions.coerceAtLeast(0),
+                                topAuthor = topAuthor,
+                            )
+                        }
+                }.catch {
+                    if (it is kotlinx.coroutines.CancellationException) throw it
+                    // Recap is optional — keep last known state on upstream failure
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = null,
                 )
-            }.catch {
-                if (it is kotlinx.coroutines.CancellationException) throw it
-                // Recap is optional — keep last known state on upstream failure
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = null,
-            )
 
         /** Real minutes listened per day (from listening_sessions), feeding the settings heatmap. */
         public val dailyListeningMinutes: StateFlow<Map<java.time.LocalDate, Int>> =
@@ -585,11 +593,17 @@ public class SettingsViewModel
         }
 
         public fun deleteAllTorrents(deleteFiles: Boolean) {
+            if (_cacheOperation.value == CacheOperationState.Clearing) return
             viewModelScope.launch {
-                torrentManager.deleteAllTorrents(deleteFiles)
-                // Refresh size after a short delay to allow file system ops
-                kotlinx.coroutines.delay(500L)
-                loadTorrentStorageSize()
+                _cacheOperation.value = CacheOperationState.Clearing
+                try {
+                    torrentManager.deleteAllTorrents(deleteFiles)
+                    // Refresh size after a short delay to allow file system ops
+                    kotlinx.coroutines.delay(500L)
+                    loadTorrentStorageSize()
+                } finally {
+                    _cacheOperation.value = CacheOperationState.Idle
+                }
             }
         }
 
@@ -602,6 +616,7 @@ public class SettingsViewModel
          * Export app data to JSON backup file.
          */
         public fun exportData() {
+            if (_backupState.value is BackupUiState.Exporting || _backupState.value is BackupUiState.Importing) return
             viewModelScope.launch {
                 try {
                     _backupState.value = BackupUiState.Exporting
@@ -619,6 +634,7 @@ public class SettingsViewModel
          * Import app data from JSON backup file.
          */
         public fun importData(uri: android.net.Uri) {
+            if (_backupState.value is BackupUiState.Exporting || _backupState.value is BackupUiState.Importing) return
             viewModelScope.launch {
                 try {
                     _backupState.value = BackupUiState.Importing
@@ -669,6 +685,7 @@ public class SettingsViewModel
          * Clear cache (all or specific type).
          */
         public fun clearCache(type: String? = null) {
+            if (_cacheOperation.value == CacheOperationState.Clearing) return
             viewModelScope.launch {
                 try {
                     _cacheOperation.value = CacheOperationState.Clearing

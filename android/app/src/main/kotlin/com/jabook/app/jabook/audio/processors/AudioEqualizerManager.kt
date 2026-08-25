@@ -28,7 +28,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -73,10 +73,22 @@ public open class AudioEqualizerManager
         /** The last preset that was applied — used to restore after session change. */
         private var currentPreset: EqualizerPreset = EqualizerPreset.DEFAULT
 
-        /** Flow of EQ presets from user preferences. */
-        private val presetFlow: Flow<EqualizerPreset> =
-            settingsRepository.userPreferences.map { preferences ->
-                mapPresetName(preferences.equalizerPreset)
+        /**
+         * Persisted custom band gains (mB) from `customEqBands`, padded/truncated
+         * to [EqualizerPreset.BAND_COUNT]. Used only when preset is CUSTOM.
+         */
+        private var customBandGainsMb: IntArray = IntArray(0)
+
+        /** Flow of EQ presets combined with persisted custom band gains. */
+        private val presetFlow: Flow<Pair<EqualizerPreset, IntArray>> =
+            combine(
+                settingsRepository.userPreferences,
+                settingsRepository.customEqBands,
+            ) { preferences, bands ->
+                val preset = mapPresetName(preferences.equalizerPreset)
+                val gains =
+                    IntArray(EqualizerPreset.BAND_COUNT) { i -> bands.getOrElse(i) { 0 } }
+                preset to gains
             }
 
         /** Player listener that re-attaches the Equalizer when audio session changes. */
@@ -102,8 +114,9 @@ public open class AudioEqualizerManager
             presetCollectionJob?.cancel()
             presetCollectionJob =
                 scope.launch {
-                    presetFlow.collectLatest { preset ->
+                    presetFlow.collectLatest { (preset, gains) ->
                         currentPreset = preset
+                        customBandGainsMb = gains
                         applyPreset(preset)
                     }
                 }
@@ -223,8 +236,14 @@ public open class AudioEqualizerManager
             // Enable the equalizer
             eq.enabled = true
 
-            val presetGains = preset.bandGainsMb
-            val preamp = preset.effectivePreamp()
+            val isCustom = preset == EqualizerPreset.CUSTOM && customBandGainsMb.isNotEmpty()
+            val presetGains = if (isCustom) customBandGainsMb else preset.bandGainsMb
+            val preamp =
+                if (isCustom) {
+                    EqualizerPreset.calculateSafePreamp(customBandGainsMb)
+                } else {
+                    preset.effectivePreamp()
+                }
 
             for (i in 0 until numBands) {
                 // Map device band index to preset index (evenly distributed)

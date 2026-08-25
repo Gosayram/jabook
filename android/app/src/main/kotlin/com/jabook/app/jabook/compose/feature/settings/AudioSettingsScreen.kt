@@ -18,6 +18,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -447,7 +448,10 @@ public fun AudioSettingsScreen(
                 title = stringResource(R.string.equalizer_preset_title),
                 subtitle = stringResource(R.string.equalizer_preset_desc),
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                ) {
                     EqualizerPreset.entries.forEach { preset ->
                         FilterChip(
                             selected = selectedEqPreset == preset,
@@ -724,7 +728,9 @@ private fun CustomEqSliderRow(
                     (kotlin.math.round(newValue / 0.5f) * 0.5f)
                         .coerceIn(-12f, 12f)
                 currentDb.floatValue = rounded
-                val mb = (rounded * 100).toInt()
+            },
+            onValueChangeFinished = {
+                val mb = (currentDb.floatValue * 100).toInt()
                 onBandChanged(mb)
             },
             valueRange = -12f..12f,

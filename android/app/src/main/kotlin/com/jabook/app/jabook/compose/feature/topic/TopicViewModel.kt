@@ -511,6 +511,7 @@ public class TopicViewModel
 
             if (magnetUrl.isNullOrBlank()) {
                 logger.e { "No magnet URL available" }
+                emitMessage(context.getString(R.string.noMagnetLinkAvailable))
                 return
             }
 
@@ -535,6 +536,7 @@ public class TopicViewModel
 
             if (magnetUrl.isNullOrBlank()) {
                 logger.e { "No magnet URL available" }
+                emitMessage(context.getString(R.string.noMagnetLinkAvailable))
                 return
             }
 

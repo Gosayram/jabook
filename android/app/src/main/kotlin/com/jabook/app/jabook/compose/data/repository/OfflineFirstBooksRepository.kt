@@ -208,7 +208,8 @@ public class OfflineFirstBooksRepository
         override fun searchBooks(query: String): Flow<List<Book>> {
             val variants = TransliterationSearchPolicy.buildVariants(query)
             val primary = variants.firstOrNull().orEmpty()
-            val fallback = variants.getOrNull(1).orEmpty()
+            // Avoid LIKE '%%' whole-table scan when no transliterated variant exists
+            val fallback = variants.getOrNull(1).orEmpty().ifBlank { primary }
             val ftsMatchQuery = TransliterationSearchPolicy.buildFtsMatchQuery(variants)
 
             // Fall back to LIKE queries if FTS is not available or query is blank

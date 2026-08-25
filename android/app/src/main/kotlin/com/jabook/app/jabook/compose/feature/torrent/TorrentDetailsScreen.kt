@@ -39,6 +39,8 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -49,6 +51,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -94,9 +97,17 @@ public fun TorrentDetailsScreen(
         }
     }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(Unit) {
+        viewModel.messages.collect { message ->
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
     Scaffold(
         // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -115,7 +126,7 @@ public fun TorrentDetailsScreen(
     ) { padding ->
         val state = download
 
-        var showFileSelection by remember { mutableStateOf(false) }
+        var showFileSelection by rememberSaveable { mutableStateOf(false) }
 
         if (showFileSelection && state != null) {
             FileSelectionDialog(
@@ -134,8 +145,11 @@ public fun TorrentDetailsScreen(
             }
         } else {
             val isBuffering by viewModel.isBuffering.collectAsStateWithLifecycle()
+            val monitoredHash by viewModel.monitoredHash.collectAsStateWithLifecycle()
 
-            if (isBuffering) {
+            // Only show the buffering dialog for THIS screen's torrent — the monitor
+            // is a singleton and may be streaming a different hash in background.
+            if (isBuffering && monitoredHash == viewModel.hash) {
                 AlertDialog(
                     onDismissRequest = { /* Disable dismiss */ },
                     title = { Text(stringResource(R.string.torrentBufferingTitle)) },

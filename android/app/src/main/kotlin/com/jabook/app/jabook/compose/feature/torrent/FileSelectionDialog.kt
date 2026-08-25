@@ -84,10 +84,10 @@ public fun FileSelectionDialog(
     val trailingSelectionState = remember { mutableStateMapOf<String, Boolean>() } // For restoring selection when unchecked
     val expansionState = remember { mutableStateMapOf<String, Boolean>() }
 
-    // Initialize selection (select all by default)
+    // Initialize selection from live priorities (isSelected is derived from them)
     remember(files) {
         files.forEach { file ->
-            selectionState[file.path] = true
+            selectionState[file.path] = file.isSelected
         }
         true
     }
