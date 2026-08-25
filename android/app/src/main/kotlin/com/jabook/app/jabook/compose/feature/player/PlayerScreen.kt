@@ -991,6 +991,7 @@ public fun PlayerScreen(
                                     val state = animatedState
                                     ErrorScreen(
                                         message = state.message,
+                                        onRetry = viewModel::retryAfterError,
                                     )
                                 }
                             }
@@ -1183,6 +1184,7 @@ private fun PlayerLandscapeLayout(
     onBookmarkNoteSheetVisibilityChanged: (Boolean) -> Unit,
     snackbarHostState: androidx.compose.material3.SnackbarHostState,
     currentPositionMs: Long,
+    seekbarWaveformData: FloatArray,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope?,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope?,
 ) {
@@ -1281,7 +1283,7 @@ private fun PlayerLandscapeLayout(
                 chapterMarkersFractions = seekState.timeline.chapterMarkersFractions,
                 bookmarkMarkersFractions = seekState.bookmarkMarkersFractions.value,
                 abRepeatRange = seekState.abRepeatFractions.value,
-                waveformData = remember { FloatArray(0) },
+                waveformData = seekbarWaveformData,
                 activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
                 inactiveTrackColor = (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(alpha = 0.24f),
                 valueFormatter = seekState.valueFormatter,
@@ -1727,6 +1729,7 @@ private fun PlayerContent(
                 onBookmarkNoteSheetVisibilityChanged = onBookmarkNoteSheetVisibilityChanged,
                 snackbarHostState = snackbarHostState,
                 currentPositionMs = currentPositionMs,
+                seekbarWaveformData = seekbarWaveformData,
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = animatedVisibilityScope,
             )
@@ -2085,10 +2088,10 @@ private fun PlayerContent(
                                     .wrapContentWidth(Alignment.CenterHorizontally)
                                     .height(if (isCompact) 44.dp else 52.dp),
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
                             colors =
                                 ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f),
                                     contentColor = MaterialTheme.colorScheme.onSurface,
                                 ),
                         ) {

@@ -446,6 +446,26 @@ public class PlayerViewModel
             }
         }
 
+        /**
+         * Retries loading the current book after a playback/bootstrap error.
+         * Re-runs the same bootstrap path that initializePlayer() uses, so a
+         * transient failure (service cold-start, file briefly unavailable) recovers.
+         */
+        public fun retryAfterError() {
+            logger.i { "Action: Retry after error" }
+            val state = uiState.value
+            if (state is PlayerState.Error) {
+                // Re-run the loading pipeline from the DB book details.
+                initializePlayer()
+            } else if (state is PlayerState.Active && playerController.currentBookId.value != bookId) {
+                playbackBootstrapHandler.loadBookForPlayback(
+                    state = state,
+                    autoPlay = false,
+                    resolveHierarchicalSpeed = false,
+                )
+            }
+        }
+
         public fun pause() {
             logger.d { "Action: Pause requested" }
             playerController.pause()
