@@ -67,7 +67,7 @@ public fun StatsOverlay(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.75f))
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.75f))
                 .clickable(onClick = onDismiss),
         contentAlignment = Alignment.Center,
     ) {
@@ -76,7 +76,7 @@ public fun StatsOverlay(
                 Modifier
                     .fillMaxWidth(0.9f)
                     .background(
-                        color = Color.Black.copy(alpha = 0.85f),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
                         shape = RoundedCornerShape(16.dp),
                     ).clickable(onClick = { })
                     .padding(16.dp),
@@ -94,7 +94,7 @@ public fun StatsOverlay(
                 Text(
                     text = stringResource(R.string.statsForNerds),
                     style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f),
                 )
@@ -102,7 +102,7 @@ public fun StatsOverlay(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = stringResource(R.string.close),
-                        tint = Color.White.copy(alpha = 0.7f),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -145,7 +145,11 @@ public fun StatsOverlay(
             )
 
             if (stats.droppedFrames > 0) {
-                StatItem(label = stringResource(R.string.droppedFrames), value = stats.droppedFrames.toString(), color = Color.Red)
+                StatItem(
+                    label = stringResource(R.string.droppedFrames),
+                    value = stats.droppedFrames.toString(),
+                    color = MaterialTheme.colorScheme.error,
+                )
             }
         }
     }
@@ -167,7 +171,7 @@ private fun StatItem(
         Text(
             text = "$label:",
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.7f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontFamily = FontFamily.Monospace,
             fontSize = 12.sp,
             modifier = Modifier.weight(1f),

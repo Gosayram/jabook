@@ -19,7 +19,9 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.ExoPlayer
@@ -362,6 +364,13 @@ public class AudioPlayerController
                     this@AudioPlayerController.isAudioOffloaded = isOffloadedPlayback
                     logger.d { "MediaController audio offload: $isOffloadedPlayback" }
                 }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    // Actual playback failures (decode/codec/IO) surface here — onError is
+                    // session-level only and never fires for e.g. an undecodable file.
+                    logger.e({ "Playback error: ${error.errorCodeName} - ${error.message}" }, error)
+                    _terminalPlaybackErrors.tryEmit(error.message ?: "Playback error")
+                }
             }
 
         private val mediaControllerCallback =
@@ -371,6 +380,19 @@ public class AudioPlayerController
                     sessionError: SessionError,
                 ) {
                     _terminalPlaybackErrors.tryEmit(sessionError.message)
+                }
+
+                override fun onDisconnected(controller: MediaController) {
+                    // Service died (swipe, system trim, crash). Reset the controller so the
+                    // UI can reconnect on the next command instead of going stale forever.
+                    logger.w { "MediaController disconnected — resetting for reconnect" }
+                    if (mediaController === controller) {
+                        mediaController = null
+                    }
+                    _connectionState.value = ConnectionState.DISCONNECTED
+                    controller.release()
+                    mediaControllerFuture?.let { MediaController.releaseFuture(it) }
+                    mediaControllerFuture = null
                 }
             }
 
@@ -468,11 +490,19 @@ public class AudioPlayerController
         }
 
         private fun updateStats(controller: Player = mediaController ?: exoPlayer) {
-            // audioFormat and audioSessionId are only available in ExoPlayer, not in Player interface
-            // Use exoPlayer as fallback for stats when using MediaController
-            val exoPlayerForStats = if (controller is ExoPlayer) controller else exoPlayer
+            // The selected audio Format must come from getCurrentTracks(), which IS
+            // forwarded over the MediaController session proxy — unlike ExoPlayer-only
+            // getAudioFormat(), which reads null from the idle injected singleton and
+            // left the stats overlay permanently "Unknown".
+            val format: Format? =
+                controller.currentTracks.groups
+                    .firstOrNull { it.type == C.TRACK_TYPE_AUDIO && it.isSelected() }
+                    ?.let { group ->
+                        (0 until group.length)
+                            .firstOrNull { group.isTrackSelected(it) }
+                            ?.let(group::getTrackFormat)
+                    }
 
-            val format = exoPlayerForStats.audioFormat
             val audioFormat =
                 "${format?.sampleMimeType ?: "Unknown"} ${format?.bitrate?.let {
                     if (it > 0) "${it / 1000}kbps" else ""
@@ -510,17 +540,18 @@ public class AudioPlayerController
                     channelLayout = channelLayout,
                     bufferHealth = "${bufferMs / 1000}s",
                     audioSessionId =
-                        if (exoPlayerForStats.audioSessionId !=
+                        if (exoPlayer.audioSessionId !=
                             C.AUDIO_SESSION_ID_UNSET
                         ) {
-                            exoPlayerForStats.audioSessionId.toString()
+                            exoPlayer.audioSessionId.toString()
                         } else {
                             "None"
                         },
-                    decoderName = "ExoPlayer Audio Decoder",
+                    decoderName = format?.codecs?.takeIf { it.isNotBlank() } ?: "Unknown",
                     droppedFrames = 0,
                     isStreaming = isStreaming,
                     isAudioOffloaded = isAudioOffloaded,
+                    audioQuality = format?.let(com.jabook.app.jabook.audio.AudioQualityInfo::fromFormat),
                 )
         }
 
@@ -1271,9 +1302,12 @@ public class AudioPlayerController
                         val player = mediaController ?: exoPlayer
                         if (!player.isPlaying) {
                             updatePlaybackState(false)
+                            // Keep bufferHealth/format stats live even when paused.
+                            updateStats(player)
                             break
                         }
                         publishCurrentPosition(player.currentPosition)
+                        updateStats(player)
                         delay(POSITION_UPDATE_INTERVAL_MS)
                     }
                 }
