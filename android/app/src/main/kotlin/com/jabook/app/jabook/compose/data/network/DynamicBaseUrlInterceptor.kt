@@ -90,8 +90,14 @@ public class DynamicBaseUrlInterceptor
                     val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabledSync()
 
                     if (autoSwitchEnabled) {
+                        // Grace/backoff check before blocking: a switch attempt
+                        // during these windows is guaranteed to fail anyway.
+                        if (!mirrorManager.canSwitchNowSync()) {
+                            logger.d { "Mirror switch in grace/backoff window, skipping switch attempt" }
+                            return response
+                        }
+
                         logger.i { "Auto-switch enabled, attempting to find working mirror" }
-                        response.close() // Close failed response
 
                         val switchStartTime = System.currentTimeMillis()
                         // ponytail: runBlocking is unavoidable in OkHttp interceptors
@@ -105,6 +111,10 @@ public class DynamicBaseUrlInterceptor
                         val switchDuration = System.currentTimeMillis() - switchStartTime
 
                         if (switched) {
+                            // Close the failed response ONLY now — if the switch
+                            // fails we must return it open to the caller.
+                            response.close()
+
                             val newMirror = mirrorManager.currentMirror.value
                             // Retry with new mirror
                             val retryUrl =
@@ -179,6 +189,13 @@ public class DynamicBaseUrlInterceptor
                 // Only transport failures (DNS/connect/timeout/TLS) justify a mirror
                 // switch — mirror failover cannot fix an application-level error.
                 if (autoSwitchEnabled && isNetworkError) {
+                    // Grace/backoff check before blocking: a switch attempt
+                    // during these windows is guaranteed to fail anyway.
+                    if (!mirrorManager.canSwitchNowSync()) {
+                        logger.d { "Mirror switch in grace/backoff window, skipping switch attempt" }
+                        throw e
+                    }
+
                     logger.i {
                         "Network/DNS error detected (${e.javaClass.simpleName}), auto-switch enabled, attempting mirror switch"
                     }

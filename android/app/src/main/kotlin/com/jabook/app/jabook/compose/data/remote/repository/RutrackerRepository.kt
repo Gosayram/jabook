@@ -34,6 +34,7 @@ import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.network.SearchStaleWhileRevalidatePolicy
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
+import com.jabook.app.jabook.compose.data.remote.encoding.RutrackerSimpleDecoder
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomainFromIndex
 import com.jabook.app.jabook.compose.data.remote.model.AudiobookCategory
@@ -88,6 +89,7 @@ public class RutrackerRepository
         private val searchCache: RutrackerSearchCache,
         private val offlineSearchDao: OfflineSearchDao,
         private val mirrorManager: MirrorManager,
+        private val decoder: RutrackerSimpleDecoder,
         private val loggerFactory: LoggerFactory,
     ) {
         private val logger = loggerFactory.get(TAG)
@@ -588,7 +590,7 @@ public class RutrackerRepository
                                 return@withOperation Result.failure(IllegalArgumentException("Response body is empty"))
                             }
 
-                            val html = String(rawBytes, charset("windows-1251"))
+                            val html = decoder.decode(rawBytes, response.headers()["Content-Type"])
                             val dtoDetails = rutrackerParser.parseTopicDetails(html, topicId)
 
                             if (dtoDetails != null) {

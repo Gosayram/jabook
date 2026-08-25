@@ -18,6 +18,7 @@ import okio.FileSystem
 import okio.Path.Companion.toOkioPath
 import java.io.File
 import java.security.MessageDigest
+import java.util.Locale
 
 /**
  * Policy for resolving book cover art through a prioritized waterfall strategy.
@@ -162,8 +163,8 @@ public object CoverWaterfallPolicy {
             val meta = FileSystem.SYSTEM.metadataOrNull(path) ?: continue
             if (!meta.isRegularFile) continue
             val fileName = path.name
-            val nameWithoutExt = fileName.substringBeforeLast('.', "").lowercase()
-            val ext = fileName.substringAfterLast('.', "").lowercase()
+            val nameWithoutExt = fileName.substringBeforeLast('.', "").lowercase(Locale.ROOT)
+            val ext = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
 
             if (ext !in COVER_EXTENSIONS) continue
 

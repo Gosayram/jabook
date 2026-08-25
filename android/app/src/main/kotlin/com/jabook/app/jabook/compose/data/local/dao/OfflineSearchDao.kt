@@ -29,11 +29,35 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 @Dao
 public interface OfflineSearchDao {
     /**
-     * Insert or update cached topics.
-     * Uses OnConflictStrategy.REPLACE to update existing topics with fresh data.
+     * Insert or update cached topics, preserving any cover URL already saved
+     * by fetchAndSaveCover when the incoming row has none (index rows don't).
      */
+    @Transaction
+    public suspend fun upsertTopics(topics: List<CachedTopicEntity>) {
+        if (topics.isEmpty()) return
+        val existingCovers =
+            getExistingCoverUrls(topics.map { it.topicId })
+                .associate { it.topicId to it.coverUrl }
+        upsertTopicsInternal(
+            topics.map { topic ->
+                if (topic.coverUrl == null) topic.copy(coverUrl = existingCovers[topic.topicId]) else topic
+            },
+        )
+    }
+
     @Upsert
-    public suspend fun upsertTopics(topics: List<CachedTopicEntity>)
+    public suspend fun upsertTopicsInternal(topics: List<CachedTopicEntity>)
+
+    /**
+     * Cover URLs already stored for the given topics (nulls excluded).
+     */
+    @Query(
+        """
+        SELECT topic_id AS topicId, cover_url AS coverUrl FROM cached_topics
+        WHERE topic_id IN (:topicIds) AND cover_url IS NOT NULL
+    """,
+    )
+    public suspend fun getExistingCoverUrls(topicIds: List<String>): List<TopicCoverUrl>
 
     /**
      * Insert search query mappings.
@@ -259,6 +283,14 @@ public interface OfflineSearchDao {
     @Query("SELECT COALESCE(MAX(index_version), 0) FROM cached_topics")
     public suspend fun getMaxIndexVersion(): Int
 }
+
+/**
+ * Cover URL projection for [OfflineSearchDao.getExistingCoverUrls].
+ */
+public data class TopicCoverUrl(
+    val topicId: String,
+    val coverUrl: String,
+)
 
 /**
  * Index metadata for monitoring.

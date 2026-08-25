@@ -572,10 +572,6 @@ public class ForumIndexer
                         val newEntities = validTopics.map { it.toCachedTopicEntity(indexVersion) }
                         entitiesBuffer.addAll(newEntities)
                         totalTopics += validTopics.size
-                        coversToPreload.addAll(
-                            newEntities
-                                .mapNotNull { it.coverUrl?.takeIf(String::isNotBlank) },
-                        )
 
                         if (entitiesBuffer.size >= BATCH_SIZE_FOR_DB || !hasMorePages) {
                             val dbWriteStartTime = System.currentTimeMillis()

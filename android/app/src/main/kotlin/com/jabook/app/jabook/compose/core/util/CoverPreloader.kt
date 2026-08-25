@@ -66,7 +66,9 @@ public fun rememberCoverPreloader(
             (firstVisible + visibleCount + preloadAhead).coerceAtMost(books.size) to firstVisible
         }.distinctUntilChanged().collect { (preloadEnd, firstVisible) ->
             // Preload covers for visible items and items ahead
-            val booksToPreload = books.subList(firstVisible.coerceAtLeast(0), preloadEnd)
+            // Guard against the list shrinking between snapshot and collect
+            val start = firstVisible.coerceIn(0, preloadEnd)
+            val booksToPreload = books.subList(start, preloadEnd)
             preloader.preloadCovers(booksToPreload)
         }
     }
@@ -99,7 +101,9 @@ public fun rememberCoverPreloaderForGrid(
             (firstVisible + visibleCount + preloadAhead).coerceAtMost(books.size) to firstVisible
         }.distinctUntilChanged().collect { (preloadEnd, firstVisible) ->
             // Preload covers for visible items and items ahead
-            val booksToPreload = books.subList(firstVisible.coerceAtLeast(0), preloadEnd)
+            // Guard against the list shrinking between snapshot and collect
+            val start = firstVisible.coerceIn(0, preloadEnd)
+            val booksToPreload = books.subList(start, preloadEnd)
             preloader.preloadCovers(booksToPreload)
         }
     }

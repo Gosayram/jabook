@@ -39,12 +39,17 @@ public class AuthInterceptor
         private val reauthLock = Any()
         private var reauthInProgress = false
 
+        // Timestamp of the last successful login (guarded by reauthLock).
+        // Lets concurrent 401s reuse one login instead of re-login churn.
+        private var lastReauthSuccessMs = 0L
+
         public companion object {
             private const val LOGIN_PAGE_MARKER = "login.php"
         }
 
         override fun intercept(chain: Interceptor.Chain): Response {
             val request = chain.request()
+            val requestStartedAt = System.currentTimeMillis()
 
             // Skip auth check for login endpoint itself
             if (request.url.encodedPath.contains(LOGIN_PAGE_MARKER)) {
@@ -53,10 +58,11 @@ public class AuthInterceptor
 
             val response = chain.proceed(request)
 
-            // Check if session has expired
+            // Check if session has expired. A 403 from a Cloudflare challenge is
+            // NOT an expired session — re-login would churn against the same wall.
             val sessionExpired =
                 response.code == 401 ||
-                    response.code == 403 ||
+                    (response.code == 403 && !isCloudflareChallenge(response)) ||
                     response.request.url.encodedPath
                         .contains(LOGIN_PAGE_MARKER)
 
@@ -68,7 +74,12 @@ public class AuthInterceptor
                 // starve the OkHttp dispatcher if login uses the same client.
                 val reauthenticated =
                     synchronized(reauthLock) {
-                        if (reauthInProgress) {
+                        // Short-circuit: another thread already re-authenticated
+                        // after our request was sent — session is fresh, reuse it.
+                        if (lastReauthSuccessMs > requestStartedAt) {
+                            logger.d { "Re-authentication already completed by another thread, reusing session" }
+                            true
+                        } else if (reauthInProgress) {
                             logger.d { "Re-authentication already in progress, skipping" }
                             false
                         } else {
@@ -92,6 +103,7 @@ public class AuthInterceptor
                                     }
                                 if (loginResult != null && loginResult.isSuccess) {
                                     logger.i { "Automatic re-authentication successful" }
+                                    lastReauthSuccessMs = System.currentTimeMillis()
                                     true
                                 } else if (loginResult != null) {
                                     logger.e {
@@ -126,4 +138,16 @@ public class AuthInterceptor
 
             return response
         }
+
+        /**
+         * Cloudflare challenge detection — same markers as MirrorManager health checks
+         * (explicit cf-mitigated header or challenge-page body fragments).
+         */
+        private fun isCloudflareChallenge(response: Response): Boolean =
+            response.header("cf-mitigated")?.equals("challenge", ignoreCase = true) == true ||
+                runCatching { response.peekBody(8192).string() }.getOrDefault("").let { body ->
+                    body.contains("Just a moment", ignoreCase = true) ||
+                        body.contains("Checking your browser", ignoreCase = true) ||
+                        body.contains("cf-chl", ignoreCase = true)
+                }
     }

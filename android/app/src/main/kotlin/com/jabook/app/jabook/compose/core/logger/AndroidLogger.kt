@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.core.logger
 
 import android.util.Log
 import com.jabook.app.jabook.BuildConfig
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Log level for filtering logs.
@@ -33,17 +34,12 @@ public enum class LogLevel {
  * Android implementation of Logger using android.util.Log.
  *
  * Provides lazy evaluation - messages are only evaluated if logging is enabled.
- * Enables DEBUG level logging for all non-prod flavors (dev, stage, beta).
+ * Enables DEBUG level logging for debug builds only.
  */
 public class AndroidLogger(
     private val tag: String,
     private val minLevel: LogLevel =
-        if (
-            BuildConfig.DEBUG ||
-            BuildConfig.APPLICATION_ID.endsWith(".dev") ||
-            BuildConfig.APPLICATION_ID.endsWith(".stage") ||
-            BuildConfig.APPLICATION_ID.endsWith(".beta")
-        ) {
+        if (BuildConfig.DEBUG) {
             LogLevel.DEBUG
         } else {
             LogLevel.ERROR
@@ -204,22 +200,17 @@ public object NoOpLoggerFactory : LoggerFactory {
 
 /**
  * Android implementation of LoggerFactory.
- * Enables DEBUG level logging for all non-prod flavors (dev, stage, beta).
+ * Enables DEBUG level logging for debug builds only.
  */
 public class LoggerFactoryImpl(
     private val minLevel: LogLevel =
-        if (
-            BuildConfig.DEBUG ||
-            BuildConfig.APPLICATION_ID.endsWith(".dev") ||
-            BuildConfig.APPLICATION_ID.endsWith(".stage") ||
-            BuildConfig.APPLICATION_ID.endsWith(".beta")
-        ) {
+        if (BuildConfig.DEBUG) {
             LogLevel.DEBUG
         } else {
             LogLevel.ERROR
         },
 ) : LoggerFactory {
-    private val loggers = mutableMapOf<String, Logger>()
+    private val loggers = ConcurrentHashMap<String, Logger>()
 
     override fun get(tag: String): Logger =
         loggers.getOrPut(tag) {

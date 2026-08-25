@@ -30,6 +30,8 @@ import org.jsoup.nodes.TextNode
  * Utility for converting HTML to AnnotatedString with clickable links.
  */
 public object HtmlToAnnotatedString {
+    private val TOPIC_ID_PATTERN = Regex("[?&]t=(\\d+)")
+
     /**
      * Convert HTML string to AnnotatedString with clickable links.
      *
@@ -192,8 +194,7 @@ public object HtmlToAnnotatedString {
      */
     private fun extractTopicId(url: String): String? =
         if (url.contains("viewtopic.php")) {
-            val regex = Regex("[?&]t=(\\d+)")
-            regex.find(url)?.groupValues?.get(1)
+            TOPIC_ID_PATTERN.find(url)?.groupValues?.get(1)
         } else {
             null
         }

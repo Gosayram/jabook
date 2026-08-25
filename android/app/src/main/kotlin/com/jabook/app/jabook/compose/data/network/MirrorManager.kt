@@ -34,7 +34,6 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
@@ -89,10 +88,6 @@ public class MirrorManager
 
             private val DEFAULT_MIRROR: String = DEFAULT_MIRRORS.firstOrNull().orEmpty()
 
-            // Health-check tuning
-            private const val HEALTH_CHECK_CONNECT_TIMEOUT_MS = 5_000L
-            private const val HEALTH_CHECK_READ_TIMEOUT_MS = 8_000L
-
             // Anti-flap tuning (mirrors share one backend: 4xx is an application
             // response, not a mirror failure, so switching must be conservative)
             private const val SWITCH_SUCCESS_GRACE_MS = 10_000L
@@ -121,14 +116,10 @@ public class MirrorManager
         private val lastSuccessfulSwitchMs = AtomicLong(0L)
         private val lastFailedSwitchMs = AtomicLong(0L)
 
-        // Dedicated health-check client with short timeouts. Shares the
-        // connection pool/dispatcher of the main client (newBuilder()).
-        private val healthCheckClient: OkHttpClient =
-            okHttpClient
-                .newBuilder()
-                .connectTimeout(HEALTH_CHECK_CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                .readTimeout(HEALTH_CHECK_READ_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-                .build()
+        // Dedicated health-check client built in NetworkModule (short call/connect/read
+        // timeouts, DoH, cert pinning). No re-wrapping here: a newBuilder() layer would
+        // stack a second timeout configuration over the purpose-built one.
+        private val healthCheckClient: OkHttpClient = okHttpClient
 
         private val _currentMirror = MutableStateFlow(DEFAULT_MIRROR)
 
@@ -148,6 +139,9 @@ public class MirrorManager
 
         // Cached auto-switch flag, kept in sync by the settings collector.
         // Read synchronously by DynamicBaseUrlInterceptor to avoid runBlocking.
+        // @Volatile: written on the settings collector (IO) thread, read from
+        // OkHttp worker threads — plain field has no cross-thread visibility.
+        @Volatile
         private var cachedAutoSwitchEnabled = false
 
         init {
@@ -447,6 +441,11 @@ public class MirrorManager
 
             settingsRepository.removeCustomMirror(domain)
 
+            // Drop circuit-breaker state so a re-added mirror starts clean
+            circuitFailureCounts.remove(domain)
+            circuitOpenSince.remove(domain)
+            halfOpenProbes.remove(domain)
+
             // If current mirror is being removed, switch to default
             if (_currentMirror.value == domain) {
                 setMirror(DEFAULT_MIRROR)
@@ -470,6 +469,19 @@ public class MirrorManager
          * where runBlocking would risk dispatcher starvation.
          */
         public fun isAutoSwitchEnabledSync(): Boolean = cachedAutoSwitchEnabled
+
+        /**
+         * Synchronous anti-flap check: true when a switch attempt is outside the
+         * post-success grace period and the post-failure backoff window.
+         *
+         * Use from OkHttp interceptor threads to skip a doomed (blocking) switch
+         * attempt before paying for it.
+         */
+        public fun canSwitchNowSync(): Boolean {
+            val now = System.currentTimeMillis()
+            return now - lastSuccessfulSwitchMs.get() >= SWITCH_SUCCESS_GRACE_MS &&
+                now - lastFailedSwitchMs.get() >= SWITCH_FAILURE_BACKOFF_MS
+        }
 
         /**
          * Synchronize in-memory state with latest persisted preferences snapshot.

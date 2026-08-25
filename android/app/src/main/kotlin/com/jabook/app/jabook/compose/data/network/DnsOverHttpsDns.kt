@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.network
 
 import okhttp3.Dns
+import okhttp3.DnsCache
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -59,6 +60,9 @@ public class DnsOverHttpsDns(
                     .Builder()
                     .client(dohClient)
                     .url(DOH_ENDPOINT)
+                    // TTL-honoring cache (10s..300s bounds, single-flight, stale-while-
+                    // revalidate): without it every new connection pays a DoH round trip.
+                    .cache(DnsCache())
                     .build()
             return DnsOverHttpsDns(dohDns = doh, fallbackDns = Dns.SYSTEM)
         }

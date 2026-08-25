@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.network
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.net.InetAddress
 
 /**
@@ -116,17 +117,7 @@ public object DnsPrefetchPolicy {
      * @param url Full URL (e.g., "https://<mirror-domain>/forum/...")
      * @return Hostname (e.g., "<mirror-domain>") or null if parsing fails.
      */
-    public fun extractHost(url: String): String? {
-        return try {
-            val afterScheme = url.substringAfter("://")
-            if (afterScheme == url) return null // No scheme found
-            val beforePath = afterScheme.substringBefore('/')
-            val beforePort = beforePath.substringBefore(':')
-            beforePort.takeIf { it.isNotBlank() }
-        } catch (_: Exception) {
-            null
-        }
-    }
+    public fun extractHost(url: String): String? = url.toHttpUrlOrNull()?.host
 
     /**
      * Performs a best-effort DNS prefetch for the given host.

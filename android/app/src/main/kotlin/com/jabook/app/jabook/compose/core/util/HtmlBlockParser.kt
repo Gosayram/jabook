@@ -45,6 +45,10 @@ public sealed interface DescriptionBlock {
  * Utility for parsing HTML into structured blocks (Text and Spoilers).
  */
 public object HtmlBlockParser {
+    private val POST_BR_PATTERN = Regex("<span[^>]*class=\"post-br\"[^>]*>.*?</span>", RegexOption.DOT_MATCHES_ALL)
+
+    private val REPEATED_BR_PATTERN = Regex("<br\\s*/?>\\s*<br\\s*/?>+")
+
     /**
      * Parse HTML string into a list of DescriptionBlocks.
      */
@@ -57,10 +61,8 @@ public object HtmlBlockParser {
         return try {
             val cleanedHtml =
                 html
-                    .replace(
-                        Regex("<span[^>]*class=\"post-br\"[^>]*>.*?</span>", RegexOption.DOT_MATCHES_ALL),
-                        "<br>",
-                    ).replace(Regex("<br\\s*/?>\\s*<br\\s*/?>+"), "<br><br>")
+                    .replace(POST_BR_PATTERN, "<br>")
+                    .replace(REPEATED_BR_PATTERN, "<br><br>")
                     .trim()
             val doc = Jsoup.parse(cleanedHtml)
             parseNodes(doc.body().childNodes(), linkColor)

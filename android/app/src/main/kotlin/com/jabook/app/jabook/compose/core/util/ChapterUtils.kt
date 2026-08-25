@@ -84,8 +84,6 @@ public object ChapterUtils {
             return chapter.title
         }
 
-        val number = extractChapterNumber(chapter.title, index)
-
         val match = GENERIC_CHAPTER_TITLE_PATTERN.find(chapter.title)
 
         if (match != null) {
@@ -95,9 +93,10 @@ public object ChapterUtils {
             return "$localizedPrefix $matchedNumber$suffix"
         }
 
-        // If the title is just a number (e.g. "01", "1")
+        // If the title is just a number (e.g. "01", "1"); guard against Int overflow
         if (NUMERIC_TITLE_PATTERN.matches(chapter.title)) {
-            return "$localizedPrefix ${chapter.title.toInt()}"
+            val number = chapter.title.toIntOrNull() ?: return chapter.title
+            return "$localizedPrefix $number"
         }
 
         // If the title contains the number but isn't a direct generic match,

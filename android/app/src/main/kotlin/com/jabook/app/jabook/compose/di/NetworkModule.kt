@@ -36,6 +36,7 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
 import okhttp3.Cache
 import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.brotli.BrotliInterceptor
@@ -164,7 +165,11 @@ public object NetworkModule {
             .connectionPool(ConnectionPool(3, 2, TimeUnit.MINUTES))
             .cookieJar(cookieJar)
             .certificatePinner(rutrackerCertificatePinner)
-            .apply {
+            // Re-auth logins issued from AuthInterceptor run on this same client;
+            // the default perHost limit of 5 can starve them under load.
+            .dispatcher(
+                Dispatcher().apply { maxRequestsPerHost = 16 },
+            ).apply {
                 if (BuildConfig.DEBUG) {
                     eventListenerFactory(networkTelemetryEventListenerFactory)
                 }

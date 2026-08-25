@@ -283,6 +283,8 @@ public class OfflineFirstBooksRepository
                 // Use Upsert instead of Insert(REPLACE) to avoid unnecessary deletions/re-insertions
                 // which is safer for foreign keys and generally more performant
                 booksDao.upsertBooksWithChapters(bookEntities, chapterEntities)
+                // Chapters (and their durations) may have changed — drop stale cache entries
+                batch.forEach { chapterDurationsCache.remove(it.first.id) }
             }
         }
 
@@ -364,6 +366,7 @@ public class OfflineFirstBooksRepository
         }
 
         override suspend fun deleteBook(bookId: String) {
+            chapterDurationsCache.remove(bookId)
             booksDao.deleteById(bookId)
         }
 
