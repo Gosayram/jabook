@@ -32,6 +32,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import okio.FileSystem
+import okio.Path.Companion.toOkioPath
 import org.libtorrent4j.AddTorrentParams
 import org.libtorrent4j.AlertListener
 import org.libtorrent4j.LibTorrent
@@ -531,7 +533,9 @@ public class TorrentSessionManager
                 session?.remove(handle)
 
                 if (deleteFiles && savePath != null) {
-                    File(savePath).deleteRecursively()
+                    // okio: throws on failure (instead of silently returning false),
+                    // symlink-safe traversal.
+                    okio.FileSystem.SYSTEM.deleteRecursively(File(savePath).toOkioPath())
                 }
 
                 torrents.remove(hash)

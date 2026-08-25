@@ -180,28 +180,11 @@ public class DataManagementActivity : AppCompatActivity() {
 
     /**
      * Recursively calculates directory size.
+     * Delegates to FileUtils (okio listRecursively) instead of hand-rolled recursion.
      */
-    private fun getDirectorySize(directory: File): Long {
-        var size = 0L
-        try {
-            if (directory.exists() && directory.isDirectory) {
-                val files = directory.listFiles()
-                if (files != null) {
-                    for (file in files) {
-                        size +=
-                            if (file.isDirectory) {
-                                getDirectorySize(file)
-                            } else {
-                                file.length()
-                            }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            LogUtils.w("DataManagementActivity", "Error calculating size for ${directory.path}", e)
-        }
-        return size
-    }
+    private fun getDirectorySize(directory: File): Long =
+        com.jabook.app.jabook.util.FileUtils
+            .getDirectorySize(directory)
 
     /**
      * Shows dialog to confirm cache clearing.

@@ -55,9 +55,15 @@ public class CacheManager
         public suspend fun getTotalCacheSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    val appCache = context.cacheDir.walkTopDown().sumOf { it.length() }
-                    val externalCache = context.externalCacheDir?.walkTopDown()?.sumOf { it.length() } ?: 0L
-                    appCache + externalCache
+                    val appCache =
+                        com.jabook.app.jabook.util.FileUtils
+                            .getDirectorySize(context.cacheDir)
+                    val external =
+                        context.externalCacheDir?.let {
+                            com.jabook.app.jabook.util.FileUtils
+                                .getDirectorySize(it)
+                        } ?: 0L
+                    appCache + external
                 } catch (e: Exception) {
                     logger.e({ "Failed to calculate cache size" }, e)
                     0L
@@ -242,12 +248,8 @@ public class CacheManager
         private suspend fun getTempDownloadsSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    val tempDir = File(context.cacheDir, "downloads")
-                    if (tempDir.exists()) {
-                        tempDir.walkTopDown().sumOf { it.length() }
-                    } else {
-                        0L
-                    }
+                    com.jabook.app.jabook.util.FileUtils
+                        .getDirectorySize(File(context.cacheDir, "downloads"))
                 } catch (e: Exception) {
                     0L
                 }
