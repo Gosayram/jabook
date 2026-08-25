@@ -33,6 +33,7 @@ import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.launchIn
@@ -63,6 +64,7 @@ public class TorrentDownloadService : Service() {
     private var hasObservedActiveDownload: Boolean = false
     private val postedNotificationIds = mutableSetOf<Int>()
     private var shutdownScope: CoroutineScope? = null
+    private var shutdownJob: Job? = null
 
     private val foregroundStartPolicy =
         ForegroundServiceStartPolicy(
@@ -75,6 +77,12 @@ public class TorrentDownloadService : Service() {
         super.onCreate()
         logger.i { "Service created" }
         startForeground()
+
+        // If the service was destroyed and is immediately recreated, a still-pending
+        // async shutdown from the previous onDestroy would kill the fresh session
+        // initialized below — cancel it first.
+        shutdownJob?.cancel()
+        shutdownJob = null
 
         // Initialize torrent manager with error handling
         // Wrap in try-catch to prevent crashes from libtorrent4j initialization errors
@@ -136,13 +144,14 @@ public class TorrentDownloadService : Service() {
         shutdownScope?.cancel()
         shutdownScope =
             CoroutineScope(Dispatchers.IO + loggingCoroutineExceptionHandler("TorrentServiceShutdown"))
-        shutdownScope?.launch {
-            try {
-                torrentManager.shutdown()
-            } catch (e: Exception) {
-                logger.e({ "Torrent shutdown failed" }, e)
+        shutdownJob =
+            shutdownScope?.launch {
+                try {
+                    torrentManager.shutdown()
+                } catch (e: Exception) {
+                    logger.e({ "Torrent shutdown failed" }, e)
+                }
             }
-        }
     }
 
     private fun startForeground() {
@@ -229,6 +238,11 @@ public class TorrentDownloadService : Service() {
                 // Completed and paused entries stay in the manager for history.
                 val hasActiveDownloads = downloads.values.any(TorrentDownload::isActive)
                 hasObservedActiveDownload = hasObservedActiveDownload || hasActiveDownloads
+                if (hasActiveDownloads) {
+                    // Renew the 10-minute wake lock window while work remains
+                    // (Doze would otherwise stall long downloads mid-FGS).
+                    acquireWakeLock()
+                }
                 if (hasObservedActiveDownload && !hasActiveDownloads) {
                     logger.i { "No active downloads, stopping service" }
                     stopSelf()

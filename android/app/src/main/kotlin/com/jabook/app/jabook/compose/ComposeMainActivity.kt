@@ -222,10 +222,12 @@ public class ComposeMainActivity : ComponentActivity() {
         val savePath = "${getExternalFilesDir(null)}/JabookAudio/downloads"
 
         lifecycleScope.launch {
-            runCatching { torrentManager.addMagnetLink(magnetUrl, savePath) }
-                .onSuccess {
-                    Toast.makeText(this@ComposeMainActivity, getString(R.string.downloadStarted), Toast.LENGTH_SHORT).show()
-                }.onFailure { logger.e({ "Failed to start torrent download" }, it) }
+            runCatching {
+                // addMagnetLink does disk work (mkdirs/canWrite) + native session calls — off Main
+                withContext(Dispatchers.IO) { torrentManager.addMagnetLink(magnetUrl, savePath) }
+            }.onSuccess {
+                Toast.makeText(this@ComposeMainActivity, getString(R.string.downloadStarted), Toast.LENGTH_SHORT).show()
+            }.onFailure { logger.e({ "Failed to start torrent download" }, it) }
         }
 
         logger.i { "Started torrent download: $magnetUrl" }

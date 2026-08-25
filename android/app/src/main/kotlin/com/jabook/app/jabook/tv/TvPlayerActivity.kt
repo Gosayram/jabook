@@ -15,8 +15,10 @@
 package com.jabook.app.jabook.tv
 
 import android.os.Bundle
+import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
+import androidx.leanback.app.ErrorSupportFragment
 import androidx.leanback.app.PlaybackSupportFragment
 import androidx.leanback.widget.Action
 import androidx.leanback.widget.ArrayObjectAdapter
@@ -30,6 +32,7 @@ import androidx.leanback.widget.PlaybackControlsRowPresenter
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController
@@ -92,12 +95,26 @@ public class TvPlaybackFragment : PlaybackSupportFragment() {
         lifecycleScope.launch {
             try {
                 book = booksRepository.getBook(bookId).first()
-                book?.let { setupPlayback(it) }
+                val loaded = book
+                if (loaded == null) {
+                    showErrorState()
+                } else {
+                    setupPlayback(loaded)
+                }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 LogUtils.e("TvPlaybackFragment", "Error loading book", e)
+                showErrorState()
             }
         }
+    }
+
+    private fun showErrorState() {
+        if (!isAdded) return
+        parentFragmentManager
+            .beginTransaction()
+            .replace(android.R.id.content, TvErrorFragment())
+            .commitAllowingStateLoss()
     }
 
     private fun setupPlayback(book: Book) {
@@ -201,5 +218,19 @@ public class TvPlaybackFragment : PlaybackSupportFragment() {
                         putString(ARG_BOOK_ID, bookId)
                     }
             }
+    }
+}
+
+/**
+ * Error screen shown on TV when the requested book cannot be loaded.
+ * Provides a focusable Back button so the screen is never a dead end for d-pad users.
+ */
+public class TvErrorFragment : ErrorSupportFragment() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        title = getString(R.string.error)
+        message = getString(R.string.book_not_found)
+        buttonText = getString(R.string.backAction)
+        buttonClickListener = View.OnClickListener { requireActivity().finish() }
     }
 }

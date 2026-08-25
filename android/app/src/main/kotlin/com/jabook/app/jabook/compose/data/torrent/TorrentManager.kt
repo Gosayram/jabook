@@ -32,12 +32,15 @@ import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -279,6 +282,9 @@ public class TorrentManager
         @Synchronized
         public fun shutdown() {
             try {
+                // Persist final states synchronously — sampling may still hold
+                // the last emission (e.g. COMPLETED/PAUSED) unsaved.
+                runBlocking { repository.saveAll(downloadsFlow.value.values.toList()) }
                 session.stopSession()
                 dbSyncJob?.cancel()
                 dbSyncJob = null
@@ -364,20 +370,21 @@ public class TorrentManager
         /**
          * Start observing downloads and sync to database
          */
+        @OptIn(FlowPreview::class)
         private fun observeAndSyncToDatabase(): Job =
             scope.launch {
-                var lastDbSyncMs = 0L
-                downloadsFlow.collect { downloads ->
-                    if (downloads.isEmpty()) return@collect
-                    // libtorrent alerts can emit many times/sec during an active
-                    // transfer; persisting every emission rewrites all active rows
-                    // each time (write amplification). Throttle to ~1 batch/sec —
-                    // resume data is persisted separately via SAVE_RESUME_DATA.
-                    val now = android.os.SystemClock.elapsedRealtime()
-                    if (now - lastDbSyncMs < DB_SYNC_THROTTLE_MS) return@collect
-                    lastDbSyncMs = now
-                    repository.saveAll(downloads.values.toList())
-                }
+                // libtorrent alerts can emit many times/sec during an active
+                // transfer; persisting every emission rewrites all active rows
+                // each time (write amplification). Sample to ~1 batch/sec —
+                // unlike a drop-based throttle, the trailing emission (final
+                // COMPLETED/PAUSED state) is always delivered.
+                // Resume data is persisted separately via SAVE_RESUME_DATA.
+                downloadsFlow
+                    .sample(DB_SYNC_THROTTLE_MS)
+                    .collect { downloads ->
+                        if (downloads.isEmpty()) return@collect
+                        repository.saveAll(downloads.values.toList())
+                    }
             }
 
         private val networkPausedTorrents = mutableSetOf<String>()
@@ -455,12 +462,16 @@ public class TorrentManager
             val now = System.currentTimeMillis()
             if (now - lastNetworkToastMs < NETWORK_TOAST_DEBOUNCE_MS) return
             lastNetworkToastMs = now
-            try {
-                Toast
-                    .makeText(context, context.getString(resId), Toast.LENGTH_SHORT)
-                    .show()
-            } catch (e: Exception) {
-                logger.w({ "Failed to show network toast" }, e)
+            // Toast requires a Looper thread; this is called from the
+            // Dispatchers.IO collector — post to the main looper.
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                try {
+                    Toast
+                        .makeText(context, context.getString(resId), Toast.LENGTH_SHORT)
+                        .show()
+                } catch (e: Exception) {
+                    logger.w({ "Failed to show network toast" }, e)
+                }
             }
         }
 

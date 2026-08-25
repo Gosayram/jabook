@@ -80,16 +80,11 @@ public val MIGRATION_15_16: Migration =
         }
     }
 
-private fun checkFts4Support(db: SupportSQLiteDatabase): Boolean {
-    try {
-        val cursor = db.query("PRAGMA compile_options")
-        cursor.use {
-            while (it.moveToNext()) {
-                if (it.getString(0) == "ENABLE_FTS3") return true
-            }
-        }
-    } catch (_: Exception) {
-        return true
-    }
-    return true
-}
+/**
+ * Android's bundled SQLite always ships with FTS3/FTS4 enabled — there is no
+ * device build without it. Kept as a function for symmetry with the historical
+ * check; PRAGMA compile_options is unreliable in test environments.
+ */
+private fun checkFts4Support(
+    @Suppress("UNUSED_PARAMETER") db: SupportSQLiteDatabase,
+): Boolean = true

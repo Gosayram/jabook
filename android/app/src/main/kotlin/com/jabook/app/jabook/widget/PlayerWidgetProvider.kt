@@ -52,6 +52,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Widget provider for quick access to audio player controls.
@@ -170,6 +171,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
     ) {
+        val gen = updateGeneration.incrementAndGet()
         LogUtils.d(
             "PlayerWidget",
             WidgetObservabilityPolicy.providerMessage(
@@ -214,6 +216,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                         widgetSize,
                         appWidgetManager,
                         appWidgetId,
+                        gen,
                     )
                 } else {
                     LogUtils.w(
@@ -226,7 +229,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                         ),
                     )
                     // Fallback to service instance if MediaController is not available
-                    updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId)
+                    updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId, gen)
                 }
             } catch (e: Exception) {
                 LogUtils.w(
@@ -241,7 +244,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                     e,
                 )
                 // Fallback to service instance
-                updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId)
+                updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId, gen)
             } finally {
                 // Release MediaController
                 controllerFuture?.let {
@@ -249,7 +252,9 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 }
             }
 
-            // Update widget immediately (Coil will update cover asynchronously)
+            // Update widget immediately (Coil will update cover asynchronously);
+            // bail if a newer update superseded this one while we hopped threads
+            if (gen != updateGeneration.get()) return
             appWidgetManager.updateAppWidget(appWidgetId, views)
 
             // Note: Coil will update cover asynchronously and re-post the widget
@@ -335,6 +340,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         widgetSize: WidgetSize,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
+        gen: Long,
     ) = withContext(Dispatchers.Main) {
         val isPlaying = controller.isPlaying
         val currentMediaItem = controller.currentMediaItem
@@ -354,7 +360,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                     reason = WidgetFallbackReason.CONTROLLER_STALE_SNAPSHOT,
                 ),
             )
-            updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId)
+            updateWidgetFromService(context, views, widgetSize, appWidgetManager, appWidgetId, gen)
             return@withContext
         }
         val mediaMetadata = currentMediaItem?.mediaMetadata
@@ -380,7 +386,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         // Update cover image (if present in layout) - load with Coil for better compatibility
         val artworkUri = mediaMetadata?.artworkUri
         safeUpdateView(views, R.id.widget_cover) {
-            updateCoverImage(context, views, appWidgetId, artworkUri)
+            updateCoverImage(context, views, appWidgetId, artworkUri, gen)
         }
 
         // Get book ID from metadata or service
@@ -416,7 +422,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
         // Update repeat button state (if present in layout)
         safeUpdateView(views, R.id.widget_repeat) {
-            val repeatIcon = getRepeatIcon(context, repeatMode)
+            val repeatIcon = getRepeatIcon(repeatMode)
             views.setImageViewResource(R.id.widget_repeat, repeatIcon)
         }
 
@@ -460,6 +466,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         widgetSize: WidgetSize,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
+        gen: Long,
     ) = withContext(Dispatchers.Main) {
         // Media3 players are main-thread confined — service.getPlayerState() and
         // friends read player.duration/currentMediaItem directly. This fallback runs
@@ -514,7 +521,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
             // Update cover image (if present in layout) - load with Coil
             safeUpdateView(views, R.id.widget_cover) {
-                updateCoverImage(context, views, appWidgetId, coverUri)
+                updateCoverImage(context, views, appWidgetId, coverUri, gen)
             }
 
             // Update progress (if present in layout)
@@ -545,7 +552,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
 
             // Update repeat button state (if present in layout)
             safeUpdateView(views, R.id.widget_repeat) {
-                val repeatIcon = getRepeatIcon(context, repeatMode)
+                val repeatIcon = getRepeatIcon(repeatMode)
                 views.setImageViewResource(R.id.widget_repeat, repeatIcon)
             }
 
@@ -553,10 +560,9 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             setupClickIntents(context, views, currentBookId, appWidgetId)
 
             // Update widget immediately (Coil will update cover asynchronously)
-            appWidgetManager.updateAppWidget(appWidgetId, views)
-
-            // Note: Coil will update cover asynchronously
-            // No need for second update - Coil handles it automatically
+            if (gen == updateGeneration.get()) {
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+            }
 
             LogUtils.d(
                 "PlayerWidget",
@@ -579,7 +585,9 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                 ),
             )
             setDefaultWidgetState(context, views, appWidgetId)
-            appWidgetManager.updateAppWidget(appWidgetId, views)
+            if (gen == updateGeneration.get()) {
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+            }
         }
     }
 
@@ -620,7 +628,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         }
 
         safeUpdateView(views, R.id.widget_repeat) {
-            views.setImageViewResource(R.id.widget_repeat, getRepeatIcon(context, Player.REPEAT_MODE_OFF))
+            views.setImageViewResource(R.id.widget_repeat, getRepeatIcon(Player.REPEAT_MODE_OFF))
         }
 
         // Set up click intents (will start service)
@@ -728,30 +736,11 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
     /**
      * Gets repeat icon based on repeat mode.
      */
-    private fun getRepeatIcon(
-        context: Context,
-        repeatMode: Int,
-    ): Int =
+    private fun getRepeatIcon(repeatMode: Int): Int =
         when (repeatMode) {
-            Player.REPEAT_MODE_ONE -> {
-                // Try ic_repeat_one, fallback to ic_repeat if not available
-                try {
-                    val resId = context.resources.getIdentifier("ic_repeat_one", "drawable", context.packageName)
-                    if (resId != 0) resId else R.drawable.ic_repeat
-                } catch (e: Exception) {
-                    R.drawable.ic_repeat
-                }
-            }
+            Player.REPEAT_MODE_ONE -> R.drawable.ic_repeat_one
             Player.REPEAT_MODE_ALL -> R.drawable.ic_repeat
-            else -> {
-                // Try ic_repeat_off, fallback to ic_repeat if not available
-                try {
-                    val resId = context.resources.getIdentifier("ic_repeat_off", "drawable", context.packageName)
-                    if (resId != 0) resId else R.drawable.ic_repeat
-                } catch (e: Exception) {
-                    R.drawable.ic_repeat
-                }
-            }
+            else -> R.drawable.ic_repeat_off
         }
 
     /**
@@ -923,6 +912,7 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         views: RemoteViews,
         appWidgetId: Int,
         artworkUri: Uri?,
+        gen: Long,
     ) {
         if (artworkUri == null) {
             views.setImageViewResource(R.id.widget_cover, R.drawable.ic_launcher_foreground)
@@ -950,6 +940,9 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
                         .build()
 
                 val result = loader.execute(request)
+                // Coil load is async — a newer update may have started meanwhile;
+                // applying this bitmap would show the old book's cover
+                if (gen != updateGeneration.get()) return@launch
                 if (result is SuccessResult) {
                     val bitmap = result.image.toBitmap()
                     extractAndStoreDominantColor(context, bitmap)
@@ -1067,6 +1060,10 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             )
         private val updateJobRegistry = WidgetUpdateJobRegistry()
         private const val PREFS_KEY_BOOK_ID = "last_book_id"
+
+        // Bumped on every widget update start; in-flight updates bail out when
+        // a newer one has begun, so a stale cover bitmap can't land last.
+        private val updateGeneration = AtomicLong()
 
         private fun getDatabase(context: Context): JabookDatabase =
             EntryPointAccessors

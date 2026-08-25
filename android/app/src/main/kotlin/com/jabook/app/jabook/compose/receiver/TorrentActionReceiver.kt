@@ -91,6 +91,8 @@ public class TorrentActionReceiver : BroadcastReceiver() {
                                     .forHash(it),
                             )
                             logger.i { "Cancelled torrent: $it" }
+                        } catch (e: Exception) {
+                            logger.e({ "Failed to cancel torrent: $it" }, e)
                         } finally {
                             pendingResult.finish()
                         }

@@ -57,9 +57,11 @@ public class TorrentStreamingMonitor
         private val _isBuffering = kotlinx.coroutines.flow.MutableStateFlow(false)
         public val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
 
+        // MediaController is built with the main looper — polling it from any
+        // other dispatcher throws IllegalStateException. Keep the loop on Main.
         private val scope =
             CoroutineScope(
-                SupervisorJob() + Dispatchers.Default + loggingCoroutineExceptionHandler("TorrentStreamingMonitor"),
+                SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("TorrentStreamingMonitor"),
             )
         private var monitoringJob: Job? = null
 

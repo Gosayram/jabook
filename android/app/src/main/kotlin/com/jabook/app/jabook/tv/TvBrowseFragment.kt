@@ -25,13 +25,14 @@ import androidx.leanback.widget.OnItemViewClickedListener
 import androidx.leanback.widget.Presenter
 import androidx.leanback.widget.Row
 import androidx.leanback.widget.RowPresenter
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -81,43 +82,46 @@ public class TvBrowseFragment : BrowseSupportFragment() {
 
     private fun loadData() {
         lifecycleScope.launch {
-            try {
-                val books = booksRepository.getAllBooks().first()
-
-                if (books.isEmpty()) {
-                    showEmptyState()
-                    return@launch
-                }
-
-                // Create book presenter
-                val cardPresenter = TvCardPresenter()
-
-                // Group books by author or show all in one row
-                val booksByAuthor: Map<String, List<Book>> = books.groupBy { book -> book.author }
-
-                if (booksByAuthor.size > 1) {
-                    // Multiple authors - show rows per author
-                    booksByAuthor.forEach { (author: String, authorBooks: List<Book>) ->
-                        val header = HeaderItem(author)
-                        val listRowAdapter = ArrayObjectAdapter(cardPresenter)
-                        authorBooks.forEach { book: Book ->
-                            listRowAdapter.add(book)
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                try {
+                    booksRepository.getAllBooks().collect { books ->
+                        rowsAdapter.clear()
+                        if (books.isEmpty()) {
+                            showEmptyState()
+                            return@collect
                         }
-                        rowsAdapter.add(ListRow(header, listRowAdapter))
+
+                        // Create book presenter
+                        val cardPresenter = TvCardPresenter()
+
+                        // Group books by author or show all in one row
+                        val booksByAuthor: Map<String, List<Book>> = books.groupBy { book -> book.author }
+
+                        if (booksByAuthor.size > 1) {
+                            // Multiple authors - show rows per author
+                            booksByAuthor.forEach { (author: String, authorBooks: List<Book>) ->
+                                val header = HeaderItem(author)
+                                val listRowAdapter = ArrayObjectAdapter(cardPresenter)
+                                authorBooks.forEach { book: Book ->
+                                    listRowAdapter.add(book)
+                                }
+                                rowsAdapter.add(ListRow(header, listRowAdapter))
+                            }
+                        } else {
+                            // Single author or all books - show in one row
+                            val header = HeaderItem(getString(R.string.library))
+                            val listRowAdapter = ArrayObjectAdapter(cardPresenter)
+                            books.forEach { book: Book ->
+                                listRowAdapter.add(book)
+                            }
+                            rowsAdapter.add(ListRow(header, listRowAdapter))
+                        }
                     }
-                } else {
-                    // Single author or all books - show in one row
-                    val header = HeaderItem(getString(R.string.library))
-                    val listRowAdapter = ArrayObjectAdapter(cardPresenter)
-                    books.forEach { book: Book ->
-                        listRowAdapter.add(book)
-                    }
-                    rowsAdapter.add(ListRow(header, listRowAdapter))
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    LogUtils.e("TvBrowseFragment", "Error loading books", e)
+                    showEmptyState()
                 }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                LogUtils.e("TvBrowseFragment", "Error loading books", e)
-                showEmptyState()
             }
         }
     }

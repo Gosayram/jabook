@@ -23,6 +23,7 @@ import java.io.IOException
 import java.nio.channels.FileChannel
 import java.nio.channels.FileLock
 import java.nio.file.StandardOpenOption
+import java.util.UUID
 
 /**
  * Result of an atomic file write operation.
@@ -91,7 +92,9 @@ public object AtomicFileWriter {
             throw IOException("Target file already exists: ${targetFile.absolutePath}")
         }
 
-        val tempFile = File(parentDir, "${targetFile.name}.tmp")
+        // Unique suffix: two concurrent writers targeting the same file must not
+        // interleave on a shared temp path before the atomic rename.
+        val tempFile = File(parentDir, "${targetFile.name}.tmp.${UUID.randomUUID()}")
 
         try {
             // Step 1: Write to temp file

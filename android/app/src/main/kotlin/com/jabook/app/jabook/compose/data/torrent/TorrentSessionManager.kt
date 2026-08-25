@@ -84,6 +84,9 @@ public class TorrentSessionManager
         private val logger = loggerFactory.get("TorrentSessionManager")
 
         // Use SessionManager(false) like libretorrent to avoid automatic alert listener issues
+        // @Volatile: initSession() is @Synchronized, but the field is also read from
+        // alert/IO threads without the monitor, so writes must be visible without it.
+        @Volatile
         private var session: SessionManager? = null
         private val torrents = ConcurrentHashMap<String, TorrentHandle>()
         private val topicIds = ConcurrentHashMap<String, String>()
@@ -104,6 +107,8 @@ public class TorrentSessionManager
         private val statePersistenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         // Tracks pending SaveResumeDataAlerts so stopSession() can await them before shutting down.
+        // @Volatile: set under the class monitor, counted down from the libtorrent alert thread.
+        @Volatile
         private var pendingResumeDataLatch: CountDownLatch? = null
 
         private companion object {
@@ -196,8 +201,13 @@ public class TorrentSessionManager
             }
 
         /**
-         * Initialize libtorrent session
+         * Initialize libtorrent session.
+         *
+         * @Synchronized: without it, two concurrent callers can both pass the
+         * null-check and leak one native session. stopSession()'s teardown phase
+         * uses the same monitor, so init and teardown cannot interleave.
          */
+        @Synchronized
         public fun initSession() {
             if (session != null) {
                 logger.w { "Session already initialized" }
@@ -519,23 +529,31 @@ public class TorrentSessionManager
             val handle = torrents[hash] ?: return
 
             try {
-                // Capture the save path BEFORE removing: after session.remove(handle)
-                // the handle is invalid and savePath() would throw.
-                val savePath =
-                    if (deleteFiles) {
-                        runCatching { handle.savePath() }.getOrNull()
-                    } else {
-                        null
+                // Capture the save path, per-file paths and name BEFORE removing: after
+                // session.remove(handle) the handle is invalid and its accessors throw.
+                var savePath: String? = null
+                var torrentFilePaths: List<String> = emptyList()
+                var torrentName: String? = null
+                if (deleteFiles) {
+                    savePath = runCatching { handle.savePath() }.getOrNull()
+                    val storage = runCatching { handle.torrentFile()?.files() }.getOrNull()
+                    if (storage != null) {
+                        torrentFilePaths =
+                            (0 until storage.numFiles())
+                                .filterNot { storage.padFileAt(it) }
+                                .mapNotNull { index -> runCatching { storage.filePath(index) }.getOrNull() }
                     }
+                    torrentName = runCatching { handle.getName() }.getOrNull()
+                }
 
                 // Remove natively first: if that throws, the handle stays in the map so
                 // stopSession() can still request its resume data and session.stop() cleans it up.
                 session?.remove(handle)
 
                 if (deleteFiles && savePath != null) {
-                    // okio: throws on failure (instead of silently returning false),
-                    // symlink-safe traversal.
-                    okio.FileSystem.SYSTEM.deleteRecursively(File(savePath).toOkioPath())
+                    // NEVER delete the save root itself — it is shared by all torrents
+                    // (deleting it would wipe every other download in the directory).
+                    deleteTorrentFiles(savePath, torrentFilePaths, torrentName)
                 }
 
                 torrents.remove(hash)
@@ -564,6 +582,68 @@ public class TorrentSessionManager
                 logger.i { "Removed torrent: $hash (deleteFiles=$deleteFiles)" }
             } catch (e: Exception) {
                 logger.e({ "Failed to remove torrent" }, e)
+            }
+        }
+
+        /**
+         * Deletes only this torrent's files from disk.
+         *
+         * The save root is shared by all torrents and is NEVER deleted: with known file
+         * paths only the leaf files are removed (plus now-empty parent directories up
+         * to, but never including, the root); without metadata the fallback is the
+         * torrent's own name directory. Every resolved path is guarded against escape
+         * (symlinks, "..", absolute paths) — it must resolve strictly under the root.
+         */
+        private fun deleteTorrentFiles(
+            savePath: String,
+            filePaths: List<String>,
+            torrentName: String?,
+        ) {
+            val root =
+                runCatching { File(savePath).canonicalFile }.getOrNull()
+                    ?: run {
+                        logger.w { "Cannot resolve save root for file deletion: $savePath" }
+                        return
+                    }
+            val rootPrefix = root.path + File.separator
+            val fs = FileSystem.SYSTEM
+
+            if (filePaths.isNotEmpty()) {
+                for (path in filePaths) {
+                    val raw = File(path)
+                    val file = if (raw.isAbsolute) raw else File(root, path)
+                    // canonicalFile resolves ".." and symlinks, so a torrent with
+                    // crafted paths cannot make us delete outside the save root.
+                    val resolved = runCatching { file.canonicalFile }.getOrNull() ?: continue
+                    if (!resolved.path.startsWith(rootPrefix)) continue
+
+                    try {
+                        // okio: throws on failure, symlink-safe.
+                        fs.delete(resolved.toOkioPath(), mustExist = false)
+                        // Clean up now-empty parent dirs up to (never including) the root.
+                        var dir = resolved.parentFile
+                        while (dir != null && dir != root && dir.path.startsWith(rootPrefix)) {
+                            if (!dir.delete()) break // not empty (or IO error) — stop climbing
+                            dir = dir.parentFile
+                        }
+                    } catch (e: Exception) {
+                        logger.w({ "Failed to delete torrent file ${resolved.path}" }, e)
+                    }
+                }
+            } else if (!torrentName.isNullOrBlank()) {
+                // No metadata yet (magnet-only torrent): fall back to the torrent's
+                // own name directory under the save root.
+                val dir = File(root, torrentName)
+                val resolved = runCatching { dir.canonicalFile }.getOrNull() ?: return
+                if (resolved.path.startsWith(rootPrefix)) {
+                    try {
+                        fs.deleteRecursively(resolved.toOkioPath())
+                    } catch (e: Exception) {
+                        logger.w({ "Failed to delete torrent directory ${resolved.path}" }, e)
+                    }
+                } else {
+                    logger.w { "Refusing to delete path outside save root: ${resolved.path}" }
+                }
             }
         }
 
@@ -678,57 +758,72 @@ public class TorrentSessionManager
          * Requests resume data for all active torrents before stopping so that
          * downloads can be resumed on next session start without re-downloading
          * already-completed pieces.
+         *
+         * Structured as three phases: the up-to-5s wait for SaveResumeDataAlerts
+         * happens OUTSIDE the class monitor — holding it for the full wait would
+         * block main-thread callers of sibling synchronized methods
+         * (pause/resume/pauseAll from TorrentActionReceiver) and risk an ANR.
          */
-        @Synchronized
         public fun stopSession() {
-            try {
-                // Request resume data for all active handles before stopping.
-                // saveResumeData is async — alerts arrive via the alert queue, so we
-                // use a CountDownLatch to await all SaveResumeDataAlerts before stop().
-                val handles = torrents.values.filter { it.isValid }
-                if (handles.isNotEmpty()) {
-                    val latch = CountDownLatch(handles.size)
-                    pendingResumeDataLatch = latch
-                    handles.forEach { handle ->
-                        try {
-                            handle.saveResumeData(TorrentHandle.SAVE_INFO_DICT)
-                        } catch (e: Exception) {
-                            latch.countDown()
-                            logger.w {
-                                "Could not request resume data for ${handle.infoHash().toHex()}: ${e.message}"
+            // Phase 1 (short, under lock): request resume data for all active handles.
+            // saveResumeData is async — alerts arrive via the alert queue.
+            val latch =
+                synchronized(this) {
+                    val handles = torrents.values.filter { it.isValid }
+                    if (handles.isEmpty()) {
+                        null
+                    } else {
+                        val newLatch = CountDownLatch(handles.size)
+                        pendingResumeDataLatch = newLatch
+                        handles.forEach { handle ->
+                            try {
+                                handle.saveResumeData(TorrentHandle.SAVE_INFO_DICT)
+                            } catch (e: Exception) {
+                                newLatch.countDown()
+                                logger.w {
+                                    "Could not request resume data for ${handle.infoHash().toHex()}: ${e.message}"
+                                }
                             }
                         }
-                    }
-                    // Wait up to 5 seconds for all SaveResumeDataAlerts to arrive
-                    if (!latch.await(5, TimeUnit.SECONDS)) {
-                        logger.w { "Timeout waiting for save resume data alerts (${handles.size} handles)" }
+                        newLatch
                     }
                 }
 
-                // Save session-level state (DHT routing table, peer lists) BEFORE stopping
-                // so the next start boots with a warm DHT — libtorrent4j best practice.
-                // Written on statePersistenceScope, which stopSession() does NOT cancel.
+            // Phase 2 (no lock): wait up to 5 seconds for all SaveResumeDataAlerts
+            // to arrive. The alert thread counts the latch down without needing the
+            // monitor, and other session operations stay responsive meanwhile.
+            if (latch != null && !latch.await(5, TimeUnit.SECONDS)) {
+                logger.w { "Timeout waiting for save resume data alerts (${latch.count} remaining)" }
+            }
+
+            // Phase 3 (short, under lock): final teardown.
+            synchronized(this) {
                 try {
-                    val state = session?.saveState()
-                    if (state != null) {
-                        statePersistenceScope.launch {
-                            persistSessionState(state)
+                    // Save session-level state (DHT routing table, peer lists) BEFORE stopping
+                    // so the next start boots with a warm DHT — libtorrent4j best practice.
+                    // Written on statePersistenceScope, which stopSession() does NOT cancel.
+                    try {
+                        val state = session?.saveState()
+                        if (state != null) {
+                            statePersistenceScope.launch {
+                                persistSessionState(state)
+                            }
+                            logger.i { "Saved torrent session state (${state.size} bytes)" }
                         }
-                        logger.i { "Saved torrent session state (${state.size} bytes)" }
+                    } catch (e: Exception) {
+                        logger.w({ "Failed to save session state on shutdown" }, e)
                     }
-                } catch (e: Exception) {
-                    logger.w({ "Failed to save session state on shutdown" }, e)
-                }
 
-                torrents.clear()
-                session?.stop()
-                session = null
-                sessionScope.cancel()
-                logger.i { "Session stopped" }
-            } catch (e: Exception) {
-                logger.e({ "Error stopping session" }, e)
-            } finally {
-                pendingResumeDataLatch = null
+                    torrents.clear()
+                    session?.stop()
+                    session = null
+                    sessionScope.cancel()
+                    logger.i { "Session stopped" }
+                } catch (e: Exception) {
+                    logger.e({ "Error stopping session" }, e)
+                } finally {
+                    pendingResumeDataLatch = null
+                }
             }
         }
 
