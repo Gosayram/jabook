@@ -23,6 +23,7 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
@@ -43,6 +44,10 @@ public class CacheManager
         private val mediaCache: Cache,
     ) {
         private val logger = loggerFactory.get("CacheManager")
+
+        // Serializes clearAllCache() so a concurrent full-cache wipe can't race an
+        // in-flight Media3 read (mediaCache.keys + removeResource are not atomic).
+        private val clearCacheMutex = kotlinx.coroutines.sync.Mutex()
 
         /**
          * Get total cache size in bytes.
@@ -98,45 +103,47 @@ public class CacheManager
          * Clear all cache.
          */
         public suspend fun clearAllCache(): Boolean =
-            withContext(Dispatchers.IO) {
-                try {
-                    logger.d { "Clearing all cache" }
-
-                    // Clear Coil memory cache first (before deleting directories)
+            clearCacheMutex.withLock {
+                withContext(Dispatchers.IO) {
                     try {
-                        val imageLoader = SingletonImageLoader.get(context)
-                        imageLoader.memoryCache?.clear()
-                        imageLoader.diskCache?.clear()
-                        logger.d { "Coil memory + disk cache cleared" }
-                    } catch (e: Exception) {
-                        logger.e({ "Failed to clear Coil cache" }, e)
-                    }
+                        logger.d { "Clearing all cache" }
 
-                    // Disk cleanup does not affect this singleton. Clear it explicitly so a
-                    // subsequent search cannot surface results the user just asked to remove.
-                    rutrackerSearchCache.clear()
-
-                    clearMediaCache()
-
-                    // The active Media3 cache owns playback_cache and must only be cleared via
-                    // its API. Deleting its files while it is open corrupts its index.
-                    context.cacheDir.listFiles()?.forEach { directory ->
-                        if (directory.name != PLAYBACK_CACHE_DIRECTORY) {
-                            directory.deleteRecursively()
+                        // Clear Coil memory cache first (before deleting directories)
+                        try {
+                            val imageLoader = SingletonImageLoader.get(context)
+                            imageLoader.memoryCache?.clear()
+                            imageLoader.diskCache?.clear()
+                            logger.d { "Coil memory + disk cache cleared" }
+                        } catch (e: Exception) {
+                            logger.e({ "Failed to clear Coil cache" }, e)
                         }
+
+                        // Disk cleanup does not affect this singleton. Clear it explicitly so a
+                        // subsequent search cannot surface results the user just asked to remove.
+                        rutrackerSearchCache.clear()
+
+                        clearMediaCache()
+
+                        // The active Media3 cache owns playback_cache and must only be cleared via
+                        // its API. Deleting its files while it is open corrupts its index.
+                        context.cacheDir.listFiles()?.forEach { directory ->
+                            if (directory.name != PLAYBACK_CACHE_DIRECTORY) {
+                                directory.deleteRecursively()
+                            }
+                        }
+                        context.externalCacheDir?.deleteRecursively()
+
+                        // Recreate directories
+                        context.cacheDir.mkdirs()
+                        context.externalCacheDir?.mkdirs()
+
+                        saveLastCleanupTimestamp()
+                        logger.d { "All cache cleared successfully" }
+                        true
+                    } catch (e: Exception) {
+                        logger.e({ "Failed to clear cache" }, e)
+                        false
                     }
-                    context.externalCacheDir?.deleteRecursively()
-
-                    // Recreate directories
-                    context.cacheDir.mkdirs()
-                    context.externalCacheDir?.mkdirs()
-
-                    saveLastCleanupTimestamp()
-                    logger.d { "All cache cleared successfully" }
-                    true
-                } catch (e: Exception) {
-                    logger.e({ "Failed to clear cache" }, e)
-                    false
                 }
             }
 

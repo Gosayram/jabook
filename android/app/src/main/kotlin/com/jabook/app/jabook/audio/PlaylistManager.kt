@@ -95,7 +95,10 @@ internal class PlaylistManager(
                 .Factory()
                 .setCache(mediaCache)
                 .setUpstreamDataSourceFactory(networkFactory)
-                .setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE or CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+                // FLAG_IGNORE_CACHE_ON_ERROR: a corrupt cache entry is silently re-fetched
+                // instead of erroring — keeps audiobook streaming resilient. (FLAG_BLOCK_ON_CACHE
+                // is a no-op for CacheDataSource.Factory; it always blocks on the cache.)
+                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
         DefaultDataSource.Factory(context, cachedNetworkFactory)
     }
