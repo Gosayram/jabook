@@ -20,6 +20,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
 import android.media.AudioManager
+import android.os.Build
 import android.os.PowerManager
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
@@ -114,8 +115,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -981,7 +985,25 @@ public fun PlayerScreen(
                                             onBookmarkNoteSheetVisibilityChanged = { isBookmarkNoteSheetVisible = it },
                                             snackbarHostState = snackbarHostState,
                                             currentPositionMs = currentPosition,
-                                            modifier = Modifier.hazeEffect(state = overlayHazeState),
+                                            modifier =
+                                                Modifier.hazeEffect(
+                                                    state = overlayHazeState,
+                                                    style =
+                                                        dev.chrisbanes.haze.HazeDefaults.style(
+                                                            backgroundColor =
+                                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
+                                                            tint =
+                                                                dev.chrisbanes.haze.HazeTint(
+                                                                    Brush.verticalGradient(
+                                                                        listOf(
+                                                                            Color.Black.copy(alpha = 0.35f),
+                                                                            Color.Black.copy(alpha = 0.55f),
+                                                                        ),
+                                                                    ),
+                                                                ),
+                                                            blurRadius = 24.dp,
+                                                        ),
+                                                ),
                                             sharedTransitionScope = sharedTransitionScope,
                                             animatedVisibilityScope = animatedVisibilityScope,
                                         )
@@ -1221,11 +1243,52 @@ private fun PlayerLandscapeLayout(
                         fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
                         cornerRadius = 16f,
                     ).build()
+
+            // Full-bleed blurred cover as the column background (Spotify-style),
+            // with the full cover shown un-cropped on top.
+            val bgRequest =
+                coil3.request.ImageRequest
+                    .Builder(context)
+                    .data(state.book)
+                    .size(512)
+                    .scale(coil3.size.Scale.FILL)
+                    .build()
+            AsyncImage(
+                model = bgRequest,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (Build.VERSION.SDK_INT >= 31) {
+                                Modifier.blur(radiusX = 24.dp, radiusY = 24.dp)
+                            } else {
+                                Modifier
+                            },
+                        ).graphicsLayer(alpha = 0.35f, scaleX = 1.1f, scaleY = 1.1f),
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colorStops =
+                                    arrayOf(
+                                        0.0f to Color.Transparent,
+                                        0.6f to Color.Black.copy(alpha = 0.3f),
+                                        1.0f to Color.Black.copy(alpha = 0.6f),
+                                    ),
+                            ),
+                        ),
+            )
+
             val coverScale = 0.85f
             AsyncImage(
                 model = imageRequest,
                 contentDescription = stringResource(R.string.playerCoverAccessibilityDescription, state.book.title, state.book.author),
-                contentScale = ContentScale.Crop,
+                contentScale = ContentScale.Fit,
                 modifier =
                     imageModifier
                         .fillMaxWidth(coverScale)

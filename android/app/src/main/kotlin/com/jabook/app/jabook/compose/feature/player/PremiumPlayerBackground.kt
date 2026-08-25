@@ -27,8 +27,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.size.Scale
 import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
 import com.jabook.app.jabook.compose.feature.player.components.HypnoticBackground
 import dev.chrisbanes.haze.HazeState
@@ -89,20 +91,29 @@ public fun PremiumPlayerBackground(
         }
 
         if (coverImageModel != null) {
+            // Downscale the background decode — it is blurred + dimmed + zoomed, so
+            // nobody can see full-res pixels; decoding at 512px is a big GPU/memory win.
+            val bgModel =
+                coil3.request.ImageRequest
+                    .Builder(LocalContext.current)
+                    .data(coverImageModel)
+                    .size(512)
+                    .scale(coil3.size.Scale.FILL)
+                    .build()
             AsyncImage(
-                model = coverImageModel,
+                model = bgModel,
                 contentDescription = null,
                 modifier =
                     Modifier
                         .fillMaxSize()
                         .then(
                             if (Build.VERSION.SDK_INT >= 31) {
-                                Modifier.blur(radiusX = 40.dp, radiusY = 40.dp)
+                                Modifier.blur(radiusX = 24.dp, radiusY = 24.dp)
                             } else {
                                 Modifier
                             },
                         ).graphicsLayer(
-                            alpha = 0.28f,
+                            alpha = 0.32f,
                             scaleX = 1.1f,
                             scaleY = 1.1f,
                         ),
@@ -110,12 +121,22 @@ public fun PremiumPlayerBackground(
             )
         }
 
-        // Scrim overlay for text legibility
+        // Gradient scrim for legibility — bottom-heavy (controls/text dock there),
+        // instead of a flat 0.6 black that flattens the whole artwork.
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f)),
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops =
+                                arrayOf(
+                                    0.0f to Color.Transparent,
+                                    0.55f to Color.Black.copy(alpha = 0.35f),
+                                    1.0f to Color.Black.copy(alpha = 0.85f),
+                                ),
+                        ),
+                    ),
         )
 
         content()
