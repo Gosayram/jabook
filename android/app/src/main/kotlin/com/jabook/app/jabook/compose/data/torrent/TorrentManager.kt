@@ -64,7 +64,7 @@ public class TorrentManager
 
         @Volatile
         private var isInitialized = false
-        private val scope =
+        private var scope =
             CoroutineScope(
                 SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("ComposeTorrentManager"),
             )
@@ -285,6 +285,10 @@ public class TorrentManager
                 networkConstraintJob?.cancel()
                 networkConstraintJob = null
                 scope.cancel()
+                scope =
+                    CoroutineScope(
+                        SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("ComposeTorrentManager"),
+                    )
                 stopDownloadService()
                 isInitialized = false
                 logger.i { "TorrentManager shut down" }

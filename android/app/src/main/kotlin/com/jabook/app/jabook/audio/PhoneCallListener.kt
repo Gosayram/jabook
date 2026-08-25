@@ -18,7 +18,6 @@ import android.content.Context
 import android.os.Build
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
-import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -27,6 +26,7 @@ import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -96,7 +96,6 @@ public class PhoneCallListener(
      * Starts listening for phone call state changes.
      * Should be called when playback starts or service is created.
      */
-    @RequiresApi(Build.VERSION_CODES.S)
     public fun startListening() {
         if (isRegistered) {
             LogUtils.w("PhoneCallListener", "Already listening for phone calls")
@@ -152,7 +151,6 @@ public class PhoneCallListener(
      * Stops listening for phone call state changes.
      * Should be called when playback stops or service is destroyed.
      */
-    @RequiresApi(Build.VERSION_CODES.S)
     public fun stopListening() {
         if (!isRegistered) {
             return
@@ -181,6 +179,14 @@ public class PhoneCallListener(
         } catch (e: Exception) {
             LogUtils.e("PhoneCallListener", "Failed to stop listening for phone calls", e)
         }
+    }
+
+    public fun release() {
+        try {
+            if (isRegistered) stopListening()
+        } catch (_: Exception) {
+        }
+        scope.cancel()
     }
 
     /**

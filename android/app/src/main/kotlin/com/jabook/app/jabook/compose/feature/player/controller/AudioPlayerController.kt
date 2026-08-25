@@ -51,9 +51,9 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import javax.inject.Inject
@@ -1050,11 +1050,8 @@ public class AudioPlayerController
                             groupPath = request.bookId,
                         )
 
-                    // Wait for result
-                    val result =
-                        withContext(Dispatchers.IO) {
-                            future.get(30, TimeUnit.SECONDS)
-                        }
+                    // Wait for result without blocking thread (Guava await)
+                    val result = future.await()
                     val loaded = result.resultCode == SessionResult.RESULT_SUCCESS
                     if (!LoadBookRequestPolicy.shouldCommitBook(
                             activeRequestId = nextLoadRequestId,

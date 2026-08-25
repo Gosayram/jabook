@@ -105,7 +105,7 @@ internal class AudioServiceReleaseHandler(
             service.audioVisualizerStateBridge.reset()
         }
 
-        service.phoneCallListener?.stopListening()
+        service.phoneCallListener?.release()
         service.phoneCallListener = null
 
         service.notificationProviderRef?.release()

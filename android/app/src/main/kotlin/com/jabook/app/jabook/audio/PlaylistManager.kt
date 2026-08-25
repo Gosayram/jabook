@@ -692,8 +692,9 @@ internal class PlaylistManager(
                                     "Failed to load track $index: $fileName (${loadDuration}ms): ${e.message}",
                                     e,
                                 )
-                                // Preserve a valid index-to-chapter mapping instead of appending later tracks.
-                                return@launch
+                                // Skip failed track and continue with remaining chapters instead of aborting
+                                // the whole load and leaving a sparse timeline with holes.
+                                continue
                             }
                         }
                         completed = true

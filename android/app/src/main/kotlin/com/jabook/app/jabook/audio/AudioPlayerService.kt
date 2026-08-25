@@ -344,11 +344,10 @@ public class AudioPlayerService : MediaLibraryService() {
         return wasSet
     }
 
-    // Limited dispatcher for MediaItem creation (max 16 parallel tasks)
-    // Increased parallelism for faster loading on modern devices with fast storage
-    // Modern devices can handle more concurrent I/O operations efficiently
+    // Limited dispatcher for MediaItem creation — cap at 4 to avoid OOM on low-RAM
+    // (each task does MediaMetadataRetriever + OkHttp HEAD). Matches Coil's cap.
     @OptIn(ExperimentalCoroutinesApi::class)
-    internal val mediaItemDispatcher = Dispatchers.IO.limitedParallelism(16)
+    internal val mediaItemDispatcher = Dispatchers.IO.limitedParallelism(4)
 
     public companion object {
         // TASK-PLAYER-40: set when auto-bookmark was created during a call
