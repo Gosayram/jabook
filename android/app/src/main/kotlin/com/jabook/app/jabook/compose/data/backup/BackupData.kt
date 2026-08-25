@@ -83,18 +83,20 @@ public data class BookBackup(
     val id: String,
     val title: String,
     val author: String,
-    val lastPosition: Int = 0,
-    val duration: Int = 0,
+    // Millisecond values must stay Long — epoch millis (~1.7e12) overflow Int,
+    // which corrupted backups and broke KEEP_NEWER conflict resolution.
+    val lastPosition: Long = 0,
+    val duration: Long = 0,
     val coverPath: String? = null,
     val totalProgress: Float = 0f,
     val isCompleted: Boolean = false,
     val downloadStatus: String = "NOT_DOWNLOADED",
-    val addedDate: Int = 0,
+    val addedDate: Long = 0,
     val rewindDuration: Int? = null,
     val forwardDuration: Int? = null,
     // Activity timestamps for sorting by activity
-    val lastPlayedTimestamp: Int = 0, // When last played
-    val completedTimestamp: Int = 0, // When completed (if completed)
+    val lastPlayedTimestamp: Long = 0, // When last played
+    val completedTimestamp: Long = 0, // When completed (if completed)
     // NEW Phase 9B: Torrent metadata for re-download capability
     val torrentPath: String? = null, // Path to .torrent file
     val sourceUrl: String? = null, // RuTracker topic URL
@@ -185,6 +187,6 @@ public data class BackupStatistics(
     val favoritesCount: Int = 0,
     val historyCount: Int = 0,
     val scanPathsCount: Int = 0,
-    val totalDuration: Int = 0, // Total duration of all books in ms
+    val totalDuration: Long = 0, // Total duration of all books in ms (Long — millis overflow Int)
     val backupSizeBytes: Int = 0, // Estimated backup size
 )

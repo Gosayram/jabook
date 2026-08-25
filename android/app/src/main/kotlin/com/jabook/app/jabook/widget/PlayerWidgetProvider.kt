@@ -458,7 +458,10 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         widgetSize: WidgetSize,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
-    ) {
+    ) = withContext(Dispatchers.Main) {
+        // Media3 players are main-thread confined — service.getPlayerState() and
+        // friends read player.duration/currentMediaItem directly. This fallback runs
+        // from a Debounce coroutine on Dispatchers.IO, so hop to Main first.
         // Fallback: try to get service instance only if MediaController failed
         // This should rarely be needed now that we use custom commands
         @Suppress("DEPRECATION")

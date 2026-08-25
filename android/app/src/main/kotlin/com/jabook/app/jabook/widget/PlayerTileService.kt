@@ -24,14 +24,23 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
 public class PlayerTileService : TileService() {
+    private val tileScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
     override fun onStartListening() {
         updateTileFromPlayer()
     }
 
     override fun onStopListening() {
+        tileScope.cancel()
         // no-op, tile will be updated on next onStartListening
     }
 
@@ -51,41 +60,48 @@ public class PlayerTileService : TileService() {
         tile.subtitle = getString(R.string.no_book_playing)
         tile.contentDescription = getString(R.string.app_name)
 
-        var controller: MediaController? = null
-        var controllerFuture: ListenableFuture<MediaController>? = null
+        // controllerFuture.get() blocks up to 2s — never on the QS-tile main thread
+        // (that is an ANR). Await off-main, then mutate the tile back on Main.
+        tileScope.launch {
+            var controller: MediaController? = null
+            var controllerFuture: ListenableFuture<MediaController>? = null
 
-        try {
-            val sessionToken =
-                SessionToken(this, ComponentName(this, AudioPlayerService::class.java))
-            controllerFuture =
-                MediaController.Builder(this, sessionToken).buildAsync()
+            try {
+                val sessionToken =
+                    SessionToken(this@PlayerTileService, ComponentName(this@PlayerTileService, AudioPlayerService::class.java))
+                controllerFuture =
+                    MediaController.Builder(this@PlayerTileService, sessionToken).buildAsync()
 
-            controller =
-                controllerFuture.get(TILE_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
-
-            if (controller != null) {
-                val isPlaying = controller.isPlaying
-                val metadata = controller.currentMediaItem?.mediaMetadata
-
-                tile.state = if (isPlaying) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
-                tile.label =
-                    metadata?.albumTitle?.toString()
-                        ?: metadata?.title?.toString()
-                        ?: getString(R.string.app_name)
-                tile.subtitle =
-                    if (isPlaying) {
-                        getString(R.string.quick_tile_playing)
-                    } else {
-                        getString(R.string.quick_tile_paused)
+                controller =
+                    withContext(Dispatchers.IO) {
+                        controllerFuture.get(TILE_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
                     }
-            }
-        } catch (e: Exception) {
-            LogUtils.w("PlayerTile", "Failed to get player state", e)
-        } finally {
-            controllerFuture?.let { MediaController.releaseFuture(it) }
-        }
 
-        tile.updateTile()
+                if (controller != null) {
+                    val isPlaying = controller.isPlaying
+                    val metadata = controller.currentMediaItem?.mediaMetadata
+
+                    tile.state = if (isPlaying) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE
+                    tile.label =
+                        metadata?.albumTitle?.toString()
+                            ?: metadata?.title?.toString()
+                            ?: getString(R.string.app_name)
+                    tile.subtitle =
+                        if (isPlaying) {
+                            getString(R.string.quick_tile_playing)
+                        } else {
+                            getString(R.string.quick_tile_paused)
+                        }
+                }
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                LogUtils.w("PlayerTile", "Failed to get player state", e)
+            } finally {
+                controllerFuture?.let { MediaController.releaseFuture(it) }
+            }
+
+            tile.updateTile()
+        }
     }
 
     public companion object {

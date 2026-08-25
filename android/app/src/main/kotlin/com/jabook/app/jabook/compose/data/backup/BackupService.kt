@@ -396,6 +396,8 @@ public class BackupService
                     try {
                         playerPersistenceManager.getPlayerState(entity.id)
                     } catch (e: Exception) {
+                        rethrowIfCancellation(e)
+                        logger.e({ "Failed to read player state for ${entity.id}" }, e)
                         null
                     }
 
@@ -403,18 +405,18 @@ public class BackupService
                     id = entity.id,
                     title = entity.title,
                     author = entity.author,
-                    lastPosition = entity.currentPosition.toInt(),
-                    duration = entity.totalDuration.toInt(),
+                    lastPosition = entity.currentPosition,
+                    duration = entity.totalDuration,
                     coverPath = entity.coverUrl,
                     totalProgress = entity.totalProgress,
                     isCompleted = entity.currentPosition >= entity.totalDuration * 0.98,
                     downloadStatus = entity.downloadStatus,
-                    addedDate = entity.addedDate.toInt(),
+                    addedDate = entity.addedDate,
                     rewindDuration = entity.rewindDuration,
                     forwardDuration = entity.forwardDuration,
                     // Save activity timestamps
-                    lastPlayedTimestamp = (playerState?.lastPlayedTimestamp ?: 0L).toInt(),
-                    completedTimestamp = (playerState?.completedTimestamp ?: 0L).toInt(),
+                    lastPlayedTimestamp = playerState?.lastPlayedTimestamp ?: 0L,
+                    completedTimestamp = playerState?.completedTimestamp ?: 0L,
                     // Torrent metadata from torrent_downloads (joined by topicId/path).
                     // magnetUrl stays null: torrent_downloads stores the info-hash, not the magnet URI.
                     torrentPath = torrent?.savePath,
@@ -456,8 +458,11 @@ public class BackupService
                     )
                 }
             } catch (e: Exception) {
-                logger.e({ "Failed to collect favorites" }, e)
-                return emptyList()
+                rethrowIfCancellation(e)
+                // A silent emptyList() here would export an "empty favorites" backup that
+                // later overwrites real favorites on restore (KEEP_REMOTE). Fail the export.
+                logger.e({ "Failed to collect favorites — failing export" }, e)
+                throw e
             }
         }
 
