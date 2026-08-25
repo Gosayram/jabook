@@ -653,11 +653,15 @@ public class AudioPlayerLibrarySessionCallback(
             // 2. Check Repository for Download (Album/Book)
             val download = torrentDownloadRepository.getByHash(mediaId)
             if (download != null) {
+                // Contract (MediaLibraryService.java:163-165): every returned item must
+                // specify BOTH isBrowsable and isPlayable.
                 val metadataBuilder =
                     MediaMetadata
                         .Builder()
                         .setTitle(download.name)
                         .setIsBrowsable(true)
+                        .setIsPlayable(false)
+                        .setFolderType(MediaMetadata.FOLDER_TYPE_ALBUMS)
                         .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
 
                 // Add extras if needed (download status etc.)

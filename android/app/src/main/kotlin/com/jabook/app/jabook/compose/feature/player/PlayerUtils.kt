@@ -18,6 +18,8 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import com.jabook.app.jabook.compose.feature.player.PlayerTimeFormatter
+import okio.FileSystem
+import okio.Path.Companion.toOkioPath
 import java.io.File
 
 internal fun formatDuration(durationMs: Long): String = PlayerTimeFormatter.formatDuration(durationMs)
@@ -31,8 +33,12 @@ internal fun deleteBookmarkVoiceNotes(
     bookmarkId: String,
 ) {
     runCatching {
-        val dir = bookmarkVoiceNoteDirectory(filesDir)
-        dir.listFiles()?.filter { it.name.startsWith("bookmark_${bookmarkId}_") && it.name.endsWith(".m4a") }?.forEach { it.delete() }
+        val dir = bookmarkVoiceNoteDirectory(filesDir).toOkioPath()
+        val fs = FileSystem.SYSTEM
+        fs
+            .list(dir)
+            .filter { it.name.startsWith("bookmark_${bookmarkId}_") && it.name.endsWith(".m4a") }
+            .forEach { runCatching { fs.delete(it) } }
     }
 }
 

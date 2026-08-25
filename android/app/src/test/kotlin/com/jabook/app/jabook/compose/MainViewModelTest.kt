@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose
 
+import app.cash.turbine.test
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
@@ -24,7 +25,6 @@ import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -75,29 +75,31 @@ class MainViewModelTest {
     fun `state transitions to Success with correct userData and dynamic colors`() =
         runTest(testDispatcher.scheduler) {
             val viewModel = createViewModel()
-            val collector = launch { viewModel.uiState.collect {} }
-            advanceUntilIdle()
-
-            val state = viewModel.uiState.value as MainActivityUiState.Success
-            assertEquals(defaultUserData, state.userData)
-            assertTrue(state.useDynamicColors)
-            collector.cancel()
+            viewModel.uiState.test {
+                advanceUntilIdle()
+                awaitItem() // Loading (initial StateFlow value)
+                val state = awaitItem() as MainActivityUiState.Success
+                assertEquals(defaultUserData, state.userData)
+                assertTrue(state.useDynamicColors)
+            }
         }
 
     @Test
     fun `userData change updates state`() =
         runTest(testDispatcher.scheduler) {
             val viewModel = createViewModel()
-            val collector = launch { viewModel.uiState.collect {} }
-            advanceUntilIdle()
+            viewModel.uiState.test {
+                advanceUntilIdle()
+                awaitItem() // Loading (initial StateFlow value)
+                awaitItem() // Success with default userData
 
-            val updatedUserData = defaultUserData.copy(theme = AppTheme.AMOLED)
-            userDataFlow.value = updatedUserData
-            advanceUntilIdle()
+                val updatedUserData = defaultUserData.copy(theme = AppTheme.AMOLED)
+                userDataFlow.value = updatedUserData
+                advanceUntilIdle()
 
-            val state = viewModel.uiState.value as MainActivityUiState.Success
-            assertEquals(AppTheme.AMOLED, state.userData.theme)
-            collector.cancel()
+                val state = awaitItem() as MainActivityUiState.Success
+                assertEquals(AppTheme.AMOLED, state.userData.theme)
+            }
         }
 
     @Test
@@ -110,46 +112,48 @@ class MainViewModelTest {
                     .build()
 
             val viewModel = createViewModel()
-            val collector = launch { viewModel.uiState.collect {} }
-            advanceUntilIdle()
-
-            val state = viewModel.uiState.value as MainActivityUiState.Success
-            assertFalse(state.useDynamicColors)
-            collector.cancel()
+            viewModel.uiState.test {
+                advanceUntilIdle()
+                awaitItem() // Loading (initial StateFlow value)
+                val state = awaitItem() as MainActivityUiState.Success
+                assertFalse(state.useDynamicColors)
+            }
         }
 
     @Test
     fun `default userData has expected values`() =
         runTest(testDispatcher.scheduler) {
             val viewModel = createViewModel()
-            val collector = launch { viewModel.uiState.collect {} }
-            advanceUntilIdle()
-
-            val state = viewModel.uiState.value as MainActivityUiState.Success
-            assertEquals(AppTheme.SYSTEM, state.userData.theme)
-            assertEquals(BookSortOrder.BY_ACTIVITY, state.userData.sortOrder)
-            assertEquals(LibraryViewMode.LIST_COMPACT, state.userData.viewMode)
-            assertTrue(state.userData.autoPlayNext)
-            assertEquals(1.0f, state.userData.playbackSpeed, 0.001f)
-            assertEquals("ru", state.userData.languageCode)
-            collector.cancel()
+            viewModel.uiState.test {
+                advanceUntilIdle()
+                awaitItem() // Loading (initial StateFlow value)
+                val state = awaitItem() as MainActivityUiState.Success
+                assertEquals(AppTheme.SYSTEM, state.userData.theme)
+                assertEquals(BookSortOrder.BY_ACTIVITY, state.userData.sortOrder)
+                assertEquals(LibraryViewMode.LIST_COMPACT, state.userData.viewMode)
+                assertTrue(state.userData.autoPlayNext)
+                assertEquals(1.0f, state.userData.playbackSpeed, 0.001f)
+                assertEquals("ru", state.userData.languageCode)
+            }
         }
 
     @Test
     fun `multiple rapid userData emissions settle to latest`() =
         runTest(testDispatcher.scheduler) {
             val viewModel = createViewModel()
-            val collector = launch { viewModel.uiState.collect {} }
-            advanceUntilIdle()
+            viewModel.uiState.test {
+                advanceUntilIdle()
+                awaitItem() // Loading (initial StateFlow value)
+                awaitItem() // Success with default userData
 
-            userDataFlow.value = defaultUserData.copy(playbackSpeed = 1.5f)
-            userDataFlow.value = defaultUserData.copy(playbackSpeed = 2.0f)
-            userDataFlow.value = defaultUserData.copy(playbackSpeed = 0.75f)
-            advanceUntilIdle()
+                userDataFlow.value = defaultUserData.copy(playbackSpeed = 1.5f)
+                userDataFlow.value = defaultUserData.copy(playbackSpeed = 2.0f)
+                userDataFlow.value = defaultUserData.copy(playbackSpeed = 0.75f)
+                advanceUntilIdle()
 
-            val state = viewModel.uiState.value as MainActivityUiState.Success
-            assertEquals(0.75f, state.userData.playbackSpeed, 0.001f)
-            collector.cancel()
+                val state = awaitItem() as MainActivityUiState.Success
+                assertEquals(0.75f, state.userData.playbackSpeed, 0.001f)
+            }
         }
 
     private fun createViewModel(): MainViewModel =

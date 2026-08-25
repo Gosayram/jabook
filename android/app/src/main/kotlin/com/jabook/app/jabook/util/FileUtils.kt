@@ -14,18 +14,24 @@
 
 package com.jabook.app.jabook.util
 
+import okio.FileSystem
+import okio.Path.Companion.toOkioPath
 import java.io.File
 
 public object FileUtils {
     /**
      * Calculate total size of a directory recursively.
+     * Uses okio: single-syscall metadata, symlink-safe, no intermediate File objects.
      */
-    public fun getDirectorySize(directory: File): Long =
-        if (!directory.exists()) {
-            0L
-        } else {
-            directory.walkTopDown().filter { it.isFile }.sumOf { it.length() }
-        }
+    public fun getDirectorySize(directory: File): Long {
+        val path = directory.toOkioPath()
+        val fs = FileSystem.SYSTEM
+        if (!fs.exists(path)) return 0L
+        return fs
+            .listRecursively(path)
+            .mapNotNull { fs.metadataOrNull(it)?.let { m -> if (m.isRegularFile) m.size else null } }
+            .sum()
+    }
 
     /**
      * Resolve file path from URI string

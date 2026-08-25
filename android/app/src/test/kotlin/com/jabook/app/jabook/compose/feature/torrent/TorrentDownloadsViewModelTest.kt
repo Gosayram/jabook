@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.feature.torrent
 
 import androidx.lifecycle.SavedStateHandle
+import app.cash.turbine.test
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.logger.NoOpLogger
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
@@ -33,7 +34,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -318,20 +318,21 @@ class TorrentDownloadsViewModelTest {
                     savedStateHandle = savedStateHandle,
                 )
 
-            // Subscribe to trigger WhileSubscribed collection
-            val collectJob = backgroundScope.launch { viewModel.uiState.collect { } }
-            advanceUntilIdle()
+            // Subscribe to trigger WhileSubscribed collection (turbine auto-cancels)
+            viewModel.uiState.test {
+                advanceUntilIdle()
+                awaitItem() // Loading
 
-            val success = viewModel.uiState.value as TorrentDownloadsUiState.Success
+                val success = awaitItem() as TorrentDownloadsUiState.Success
 
-            assertEquals(1, success.activeDownloads.size) // downloading
-            assertEquals(1, success.pausedDownloads.size) // paused
-            assertEquals(1, success.completedDownloads.size) // completed
-            assertEquals(1, success.errorDownloads.size) // error
-            assertEquals(1, success.queuedCount) // queued
-            assertEquals(1, success.downloadingCount)
-            assertEquals(100L, success.totalDownloadSpeed)
-            collectJob.cancel()
+                assertEquals(1, success.activeDownloads.size) // downloading
+                assertEquals(1, success.pausedDownloads.size) // paused
+                assertEquals(1, success.completedDownloads.size) // completed
+                assertEquals(1, success.errorDownloads.size) // error
+                assertEquals(1, success.queuedCount) // queued
+                assertEquals(1, success.downloadingCount)
+                assertEquals(100L, success.totalDownloadSpeed)
+            }
         }
 
     @Test
@@ -395,17 +396,19 @@ class TorrentDownloadsViewModelTest {
                     savedStateHandle = savedStateHandle,
                 )
 
-            // Subscribe to trigger WhileSubscribed collection
-            val collectJob = backgroundScope.launch { viewModel.uiState.collect { } }
-            advanceUntilIdle()
+            // Subscribe to trigger WhileSubscribed collection (turbine auto-cancels)
+            viewModel.uiState.test {
+                advanceUntilIdle()
+                awaitItem() // Loading
+                awaitItem() // Success
 
-            val success = viewModel.uiState.value as TorrentDownloadsUiState.Success
+                val success = viewModel.uiState.value as TorrentDownloadsUiState.Success
 
-            assertEquals(3, success.historyItems.size)
-            assertEquals("completed", success.historyItems[0].status)
-            assertEquals("failed", success.historyItems[1].status)
-            assertEquals("cancelled", success.historyItems[2].status)
-            collectJob.cancel()
+                assertEquals(3, success.historyItems.size)
+                assertEquals("completed", success.historyItems[0].status)
+                assertEquals("failed", success.historyItems[1].status)
+                assertEquals("cancelled", success.historyItems[2].status)
+            }
         }
 
     @Test
@@ -449,19 +452,21 @@ class TorrentDownloadsViewModelTest {
                     savedStateHandle = savedStateHandle,
                 )
 
-            // Subscribe to trigger WhileSubscribed collection
-            val collectJob = backgroundScope.launch { viewModel.uiState.collect { } }
-            advanceUntilIdle()
+            // Subscribe to trigger WhileSubscribed collection (turbine auto-cancels)
+            viewModel.uiState.test {
+                advanceUntilIdle()
+                awaitItem() // Loading
+                awaitItem() // Success
 
-            val success = viewModel.uiState.value as TorrentDownloadsUiState.Success
+                val success = viewModel.uiState.value as TorrentDownloadsUiState.Success
 
-            // Audiobook storage = only completed downloads
-            assertEquals(50_000_000L, success.audiobookStorageUsed)
-            // Total storage = all downloads
-            assertEquals(80_000_000L, success.totalStorageUsed)
-            // Available storage should be non-negative (StatFs may return 0 in test env)
-            assertTrue(success.availableStorage >= 0L)
-            collectJob.cancel()
+                // Audiobook storage = only completed downloads
+                assertEquals(50_000_000L, success.audiobookStorageUsed)
+                // Total storage = all downloads
+                assertEquals(80_000_000L, success.totalStorageUsed)
+                // Available storage should be non-negative (StatFs may return 0 in test env)
+                assertTrue(success.availableStorage >= 0L)
+            }
         }
 
     @Test
@@ -487,14 +492,18 @@ class TorrentDownloadsViewModelTest {
                 )
 
             // Subscribe to trigger WhileSubscribed collection before checking state
-            val collectJob = backgroundScope.launch { viewModel.uiState.collect { } }
-            advanceUntilIdle()
-            viewModel.pauseAll()
-            advanceUntilIdle()
+            viewModel.uiState.test {
+                advanceUntilIdle()
+                awaitItem()
+                viewModel.pauseAll()
+                advanceUntilIdle()
+                // This test verifies manager calls, not state values — drop the
+                // pause-triggered emissions instead of asserting each one.
+                cancelAndIgnoreRemainingEvents()
 
-            verify(torrentManager).pauseTorrent("h1")
-            verify(torrentManager).pauseTorrent("h2")
-            collectJob.cancel()
+                verify(torrentManager).pauseTorrent("h1")
+                verify(torrentManager).pauseTorrent("h2")
+            }
         }
 
     @Test

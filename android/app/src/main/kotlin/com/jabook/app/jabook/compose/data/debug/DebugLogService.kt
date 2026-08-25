@@ -23,9 +23,9 @@ import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
+import okio.buffer
+import okio.source
 import java.io.File
-import java.io.InputStreamReader
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -128,7 +128,7 @@ public class DebugLogService
 
                     val process = Runtime.getRuntime().exec(logcatArgs.toTypedArray())
                     try {
-                        val bufferedReader = BufferedReader(InputStreamReader(process.inputStream))
+                        val source = process.inputStream.source().buffer()
                         try {
                             val logs = StringBuilder()
 
@@ -189,7 +189,7 @@ public class DebugLogService
                             val maxLinesToRead = MAX_LOG_LINES * 2 // Safety limit (twice the requested lines)
 
                             while (totalLines < maxLinesToRead) {
-                                val line = bufferedReader.readLine() ?: break
+                                val line = source.readUtf8Line() ?: break
                                 totalLines++
 
                                 // Skip empty lines
@@ -228,7 +228,7 @@ public class DebugLogService
 
                             logs.toString()
                         } finally {
-                            bufferedReader.close()
+                            source.close()
                         }
                     } finally {
                         val processExited = process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)
