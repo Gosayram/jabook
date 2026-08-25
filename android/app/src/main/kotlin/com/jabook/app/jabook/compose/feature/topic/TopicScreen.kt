@@ -512,6 +512,7 @@ private fun TopicDetailsContent(
                     onRefresh = onRefresh,
                     currentPage = details.currentPage,
                     totalPages = details.totalPages,
+                    hasMorePages = (viewModel.uiState.value as? TopicUiState.Success)?.hasMorePages == true,
                     isLoadingMore = isLoadingMoreComments,
                     onLoadMore = { viewModel.loadMoreComments() },
                     onNavigateToTopic = onNavigateToTopic,
@@ -642,6 +643,7 @@ private fun DescriptionAndCommentsSection(
     onRefresh: () -> Unit,
     currentPage: Int = 1,
     totalPages: Int = 1,
+    hasMorePages: Boolean = false,
     isLoadingMore: Boolean = false,
     onLoadMore: (() -> Unit)? = null,
     onNavigateToTopic: (String) -> Unit = {},
@@ -673,6 +675,7 @@ private fun DescriptionAndCommentsSection(
                     onNavigateToTopic = onNavigateToTopic,
                     currentPage = currentPage,
                     totalPages = totalPages,
+                    hasMorePages = hasMorePages,
                     isLoadingMore = isLoadingMore,
                     onLoadMore = onLoadMore,
                     expanded = commentsExpanded,
@@ -706,6 +709,7 @@ private fun DescriptionAndCommentsSection(
                     onNavigateToTopic = onNavigateToTopic,
                     currentPage = currentPage,
                     totalPages = totalPages,
+                    hasMorePages = hasMorePages,
                     isLoadingMore = isLoadingMore,
                     onLoadMore = onLoadMore,
                     expanded = commentsExpanded,
@@ -810,6 +814,7 @@ private fun ExpandableComments(
     onNavigateToTopic: (String) -> Unit,
     currentPage: Int = 1,
     totalPages: Int = 1,
+    hasMorePages: Boolean = false,
     isLoadingMore: Boolean = false,
     onLoadMore: (() -> Unit)? = null,
     expanded: Boolean,
@@ -832,7 +837,7 @@ private fun ExpandableComments(
             .distinctUntilChanged()
             .filter { (canScrollForward, isScrolling) -> !canScrollForward && !isScrolling }
             .collect {
-                if (!isLoadingMore && currentPage < totalPages) {
+                if (!isLoadingMore && hasMorePages) {
                     onLoadMore?.invoke()
                 }
             }
@@ -902,7 +907,7 @@ private fun ExpandableComments(
                 }
 
                 // Loading indicator at bottom
-                if (isLoadingMore || currentPage < totalPages) {
+                if (isLoadingMore || hasMorePages) {
                     item(contentType = { "footer" }) {
                         Box(
                             modifier =

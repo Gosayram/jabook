@@ -101,8 +101,10 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             intent.action == "com.jabook.app.jabook.PLAYBACK_STATE_CHANGED" ||
             intent.action == "com.jabook.app.jabook.MEDIA_ITEM_CHANGED"
         ) {
-            // For periodic alarm: skip if nothing is playing to save battery
-            if (intent.action == ACTION_UPDATE_WIDGET && !isPlaybackActive(context)) {
+            // For periodic alarm: skip if no player session exists at all to save battery.
+            // A paused-but-loaded book still counts — cancelling here would freeze the
+            // widget until launcher restart even after playback resumes.
+            if (intent.action == ACTION_UPDATE_WIDGET && !isServiceInitialized(context)) {
                 cancelPeriodicUpdate(context)
                 return
             }
@@ -706,6 +708,19 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             @Suppress("DEPRECATION")
             val service = AudioPlayerService.getInstance()
             service != null && service.isFullyInitialized() && service.isPlaying
+        } catch (e: Exception) {
+            false
+        }
+
+    /**
+     * True when the audio service session exists (playing OR paused-but-loaded).
+     * Used to decide whether the periodic update alarm should keep running.
+     */
+    private fun isServiceInitialized(context: Context): Boolean =
+        try {
+            @Suppress("DEPRECATION")
+            val service = AudioPlayerService.getInstance()
+            service != null && service.isFullyInitialized()
         } catch (e: Exception) {
             false
         }

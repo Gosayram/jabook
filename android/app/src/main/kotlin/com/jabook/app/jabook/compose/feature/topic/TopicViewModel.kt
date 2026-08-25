@@ -63,6 +63,8 @@ public sealed interface TopicUiState {
     @Immutable
     public data class Success(
         val details: RutrackerTopicDetails,
+        /** True when older comment pages remain (reverse pagination N-1 … 1). */
+        val hasMorePages: Boolean = false,
     ) : TopicUiState
 
     @Immutable
@@ -161,6 +163,7 @@ public class TopicViewModel
                                                 comments = loadedComments.toList(),
                                                 currentPage = totalPages,
                                             ),
+                                            hasMorePages = nextPageToLoad != null,
                                         )
                                 }
                                 is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
@@ -188,6 +191,7 @@ public class TopicViewModel
                             _uiState.value =
                                 TopicUiState.Success(
                                     details.copy(comments = reversedComments),
+                                    hasMorePages = false,
                                 )
                         }
                     }
@@ -221,10 +225,16 @@ public class TopicViewModel
                             // Preload avatars for new comments
                             avatarPreloader.preloadAvatars(context, result.data.comments)
 
-                            // Add older comments to the end of the list
+                            // Add older comments to the end of the list, skipping any ids
+                            // already present (silent refresh may have replaced the visible
+                            // list — duplicate LazyColumn keys would crash recomposition).
                             // Comments on each page are oldest-to-newest naturally, so we reverse them
                             // to maintain newest-to-oldest order in the combined list
-                            val reversedPageComments = result.data.comments.reversed()
+                            val seenIds = loadedComments.mapTo(mutableSetOf()) { it.id }
+                            val reversedPageComments =
+                                result.data.comments
+                                    .reversed()
+                                    .filterNot { it.id in seenIds }
                             loadedComments.addAll(reversedPageComments)
 
                             // Update pagination state
@@ -237,6 +247,7 @@ public class TopicViewModel
                                         comments = loadedComments.toList(),
                                         currentPage = currentLoadedPage, // Keep original page (last page)
                                     ),
+                                    hasMorePages = nextPageToLoad != null,
                                 )
                         }
                         is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
@@ -271,11 +282,19 @@ public class TopicViewModel
                             // Preload avatars for comments (offline support)
                             avatarPreloader.preloadAvatars(context, result.data.comments)
 
+                            // Reset reverse-pagination tracking so loadMore stays consistent
+                            // with the freshly replaced page-1 list.
+                            loadedComments.clear()
+                            loadedComments.addAll(result.data.comments.reversed())
+                            currentLoadedPage = 1
+                            nextPageToLoad = result.data.totalPages.takeIf { it > 1 }
+
                             _uiState.value =
                                 TopicUiState.Success(
                                     result.data.copy(
                                         comments = result.data.comments.reversed(), // Sort comments newest first
                                     ),
+                                    hasMorePages = nextPageToLoad != null,
                                 )
                         }
                         is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
