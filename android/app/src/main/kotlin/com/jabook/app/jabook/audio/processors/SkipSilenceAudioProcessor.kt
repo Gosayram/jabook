@@ -353,6 +353,13 @@ public class SkipSilenceAudioProcessor(
     }
 
     /**
+     * Net number of output frames skipped since the last flush — fed back to the
+     * sink's [androidx.media3.common.audio.AudioProcessorChain.getSkippedOutputFrameCount]
+     * so Media3 can compensate the media position (prevents seek/bookmark drift).
+     */
+    public fun getSkippedFrames(): Long = totalSkippedFrames
+
+    /**
      * Resets the cumulative skipped-duration counter.
      */
     public fun resetSkippedMetric() {

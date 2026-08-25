@@ -110,6 +110,10 @@ public class AudioPlayerService : MediaLibraryService() {
     @Inject
     public lateinit var workManager: WorkManager
 
+    // System equalizer attached to the ACTIVE player's audio session (feature wiring)
+    @Inject
+    public lateinit var audioEqualizerManager: com.jabook.app.jabook.audio.processors.AudioEqualizerManager
+
     internal val bookLoudnessCompensator: BookLoudnessCompensator = BookLoudnessCompensator()
 
     @Volatile
@@ -474,6 +478,10 @@ public class AudioPlayerService : MediaLibraryService() {
                 initializer.initialize()
                 initializer.postInitialize()
             }
+            // Wire the system equalizer to the active player's session (feature was
+            // otherwise dead code — never initialized anywhere).
+            audioEqualizerManager.initialize()
+            audioEqualizerManager.attachToAudioSession(getActivePlayer().audioSessionId)
             // User actions must never be silently dropped on the outgoing player during
             // a crossfade: finalize (or cancel) an in-flight transition first.
             playbackController?.finalizeActiveTransition = { crossFadePlayer?.finalizeTransitionNow() }
@@ -522,6 +530,9 @@ public class AudioPlayerService : MediaLibraryService() {
         playerConfigurator?.rebindListeners(player)
         rebindAudioOutputPlayer(player)
         audioVisualizerManager?.initialize(player.audioSessionId)
+        // Attach the system equalizer to the ACTIVE player's session — the injected
+        // singleton player is idle while the custom processor player is in use.
+        audioEqualizerManager.attachToAudioSession(player.audioSessionId)
     }
 
     internal fun rebindAudioOutputPlayer(player: ExoPlayer = getActivePlayer()) {
@@ -992,6 +1003,10 @@ public class AudioPlayerService : MediaLibraryService() {
 
     override fun onDestroy() {
         instance = null
+        // Guard: onDestroy can run before Hilt injects (teardown tests, early death).
+        if (::audioEqualizerManager.isInitialized) {
+            audioEqualizerManager.release()
+        }
         // Persist the active player's position before releaseHandler can release a custom player.
         lifecycleManager?.onDestroy()
         releaseHandler.releaseRuntimeComponents(cancelServiceScopeChildren = true)

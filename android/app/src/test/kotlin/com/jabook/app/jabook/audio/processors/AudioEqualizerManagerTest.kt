@@ -46,11 +46,12 @@ class AudioEqualizerManagerTest {
         whenever(equalizer.bandLevelRange).thenReturn(shortArrayOf(-1000, 1000))
 
         val manager =
-            AudioEqualizerManager(
+            object : AudioEqualizerManager(
                 player = player,
                 settingsRepository = settingsRepository,
-                eqFactory = { equalizer },
-            )
+            ) {
+                override fun createEqualizer(sessionId: Int): android.media.audiofx.Equalizer = equalizer
+            }
 
         manager.initialize()
         manager.release()
@@ -72,14 +73,15 @@ class AudioEqualizerManagerTest {
 
         var factoryCalls = 0
         val manager =
-            AudioEqualizerManager(
+            object : AudioEqualizerManager(
                 player = player,
                 settingsRepository = settingsRepository,
-                eqFactory = {
+            ) {
+                override fun createEqualizer(sessionId: Int): android.media.audiofx.Equalizer {
                     factoryCalls += 1
-                    mock()
-                },
-            )
+                    return mock()
+                }
+            }
 
         manager.initialize()
         manager.release()

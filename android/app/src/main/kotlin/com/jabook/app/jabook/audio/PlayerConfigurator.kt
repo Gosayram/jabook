@@ -202,8 +202,13 @@ internal class PlayerConfigurator(
             // resolve the initially empty CrossFadePlayer instead of the current player.
             val activePlayer = service.getActivePlayer()
 
-            // Create processor chain
-            val chainResult = AudioProcessorFactory.createProcessorChain(settings)
+            // Create processor chain — pass the device output buffer size so
+            // SkipSilenceAudioProcessor can align silence-transition boundaries.
+            val chainResult =
+                AudioProcessorFactory.createProcessorChain(
+                    settings,
+                    AudioOutputBufferInfo.outputFramesPerBuffer(service),
+                )
             val processors = chainResult.processors
             loudnessNormalizer = chainResult.loudnessNormalizer
 
@@ -267,7 +272,12 @@ internal class PlayerConfigurator(
 
                 crossFadePlayer.recreatePlayers(
                     factory = { context, handleAudioFocus ->
-                        val chain = firstChain ?: AudioProcessorFactory.createProcessorChain(settings)
+                        val chain =
+                            firstChain
+                                ?: AudioProcessorFactory.createProcessorChain(
+                                    settings,
+                                    AudioOutputBufferInfo.outputFramesPerBuffer(context),
+                                )
                         firstChain = null
                         MediaModule
                             .createExoPlayerWithProcessors(
@@ -374,8 +384,8 @@ internal class PlayerConfigurator(
                             initialPosition = savedStateForRestore.currentPosition,
                         )
 
-                        // Position is already applied in preparePlaybackOptimized if firstTrackIndex == savedState.currentIndex
-                        // Only wait for player to be ready and restore playback state
+                        // Position is already applied in preparePlaybackOptimized when the target
+                        // track is the first loaded track, so wait for READY then restore.
                         var attempts = 0
                         while (attempts < 50) {
                             val newPlayer = service.getActivePlayer()
@@ -388,29 +398,13 @@ internal class PlayerConfigurator(
                             attempts++
                         }
 
-                        // Check if position needs to be applied (if target track differs from first loaded track)
-                        val newPlayer = service.getActivePlayer()
-                        val firstTrackIndex =
-                            savedStateForRestore.currentIndex.coerceIn(
-                                0,
-                                filePathsForRestore.size - 1,
-                            )
-                        if (firstTrackIndex != savedStateForRestore.currentIndex &&
-                            newPlayer.mediaItemCount > savedStateForRestore.currentIndex
-                        ) {
-                            newPlayer.seekTo(savedStateForRestore.currentIndex, savedStateForRestore.currentPosition)
-                            LogUtils.d(
-                                "AudioPlayerService",
-                                "Restored position (target differs from first track): index=${savedStateForRestore.currentIndex}, position=${savedStateForRestore.currentPosition}",
-                            )
-                        } else {
-                            LogUtils.d(
-                                "AudioPlayerService",
-                                "Position already applied in preparePlaybackOptimized: index=${savedStateForRestore.currentIndex}, position=${savedStateForRestore.currentPosition}",
-                            )
-                        }
+                        LogUtils.d(
+                            "AudioPlayerService",
+                            "Position applied in preparePlaybackOptimized: index=${savedStateForRestore.currentIndex}, position=${savedStateForRestore.currentPosition}",
+                        )
 
                         // Restore playback state
+                        val newPlayer = service.getActivePlayer()
                         if (savedStateForRestore.isPlaying) {
                             newPlayer.playWhenReady = true
                             LogUtils.d("AudioPlayerService", "Restored playback: playing")

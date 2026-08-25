@@ -239,13 +239,26 @@ public object MediaModule {
                             context: Context,
                             enableFloatOutput: Boolean,
                             enableAudioOutputPlaybackParams: Boolean,
-                        ): androidx.media3.exoplayer.audio.AudioSink =
-                            androidx.media3.exoplayer.audio.DefaultAudioSink
+                        ): androidx.media3.exoplayer.audio.AudioSink {
+                            // Media3 bypasses the user AudioProcessor chain entirely when
+                            // float output is active (high-resolution PCM) — our processors
+                            // (loudness, skip-silence, compression) would silently no-op.
+                            if (enableFloatOutput && processors.isNotEmpty()) {
+                                LogUtils.w(
+                                    "MediaModule",
+                                    "Float output enabled with ${processors.size} audio processors — processors will be bypassed; consider disabling float output for audiobooks",
+                                )
+                            }
+                            return androidx.media3.exoplayer.audio.DefaultAudioSink
                                 .Builder(context)
-                                .setAudioProcessors(processors.toTypedArray())
-                                .setEnableFloatOutput(enableFloatOutput)
+                                // TrackedAudioProcessorChain feeds our custom skip-silence's
+                                // skipped frames back to Media3's position tracking.
+                                .setAudioProcessorChain(
+                                    TrackedAudioProcessorChain(processors.toTypedArray()),
+                                ).setEnableFloatOutput(enableFloatOutput)
                                 .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
                                 .build()
+                        }
                     }
 
                 val mediaSourceFactory =

@@ -54,12 +54,11 @@ import javax.inject.Singleton
  * @property eqFactory Factory for creating [Equalizer] instances (injectable for testing).
  */
 @Singleton
-public class AudioEqualizerManager
+public open class AudioEqualizerManager
     @Inject
     constructor(
         private val player: ExoPlayer,
         private val settingsRepository: com.jabook.app.jabook.compose.data.preferences.SettingsRepository,
-        private val eqFactory: (Int) -> Equalizer = { sessionId -> Equalizer(0, sessionId) },
     ) {
         private val scopeJob = SupervisorJob()
         private val scope =
@@ -124,6 +123,15 @@ public class AudioEqualizerManager
             LogUtils.d(TAG, "Equalizer released")
         }
 
+/**
+         * Re-attaches the Equalizer to a specific audio session — called by the service
+         * whenever the ACTIVE player changes (the injected singleton player's session is
+         * idle while the custom processor player is in use).
+         */
+        public fun attachToAudioSession(audioSessionId: Int) {
+            attachEqualizer(audioSessionId, currentPreset)
+        }
+
         /**
          * Returns the number of EQ bands supported by the device, or 0 if
          * the Equalizer is not currently attached.
@@ -174,7 +182,7 @@ public class AudioEqualizerManager
             if (sessionId == C.AUDIO_SESSION_ID_UNSET) return
 
             try {
-                val eq = eqFactory(sessionId)
+                val eq = createEqualizer(sessionId)
                 equalizer = eq
                 applyPresetToEq(eq, preset)
                 LogUtils.d(TAG, "Equalizer attached to session $sessionId, preset=${preset.name}")
@@ -183,6 +191,9 @@ public class AudioEqualizerManager
                 CrashDiagnostics.reportNonFatal("audio_equalizer_attach", ex)
             }
         }
+
+        /** Factory hook — overridable for tests. */
+        protected open fun createEqualizer(sessionId: Int): Equalizer = Equalizer(0, sessionId)
 
         private fun applyPreset(preset: EqualizerPreset) {
             val eq = equalizer ?: return
