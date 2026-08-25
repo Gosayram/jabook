@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.core.util
 
+import okio.FileSystem
+import okio.Path.Companion.toOkioPath
 import java.io.File
 import java.security.MessageDigest
 
@@ -108,9 +110,10 @@ public object CoverWaterfallPolicy {
         bookId: String,
         coversDir: File,
     ): CoverWaterfallResult? {
-        val coverFile = File(coversDir, "$bookId.jpg")
-        if (coverFile.exists() && coverFile.length() > 0) {
-            return CoverWaterfallResult(CoverSource.EMBEDDED, coverFile)
+        val path = (coversDir.toOkioPath() / "$bookId.jpg")
+        val metadata = FileSystem.SYSTEM.metadataOrNull(path)
+        if (metadata?.isRegularFile == true && (metadata.size ?: 0L) > 0L) {
+            return CoverWaterfallResult(CoverSource.EMBEDDED, File(coversDir, "$bookId.jpg"))
         }
         return null
     }
@@ -127,8 +130,9 @@ public object CoverWaterfallPolicy {
      * @return result with [CoverSource.FOLDER_IMAGE] if found, null otherwise
      */
     public fun resolveFolderImage(directoryPath: String): CoverWaterfallResult? {
-        val folder = File(directoryPath)
-        if (!folder.exists() || !folder.isDirectory) return null
+        val dirPath = File(directoryPath).toOkioPath()
+        val dirMeta = FileSystem.SYSTEM.metadataOrNull(dirPath)
+        if (dirMeta?.isDirectory != true) return null
 
         // Step 1: Exact case match (fastest path on case-sensitive filesystems)
         val exactCandidates =
@@ -136,34 +140,43 @@ public object CoverWaterfallPolicy {
                 COVER_EXTENSIONS.map { ext -> "$name.$ext" }
             }
         for (candidate in exactCandidates) {
-            val file = File(folder, candidate)
-            if (file.exists() && file.isFile) {
-                return CoverWaterfallResult(CoverSource.FOLDER_IMAGE, file)
+            val candidatePath = dirPath / candidate
+            val meta = FileSystem.SYSTEM.metadataOrNull(candidatePath)
+            if (meta?.isRegularFile == true) {
+                return CoverWaterfallResult(CoverSource.FOLDER_IMAGE, File(directoryPath, candidate))
             }
         }
 
         // Step 2 & 3: Scan directory for case-insensitive matches + collect image files
-        val files = folder.listFiles() ?: return null
+        val files =
+            try {
+                FileSystem.SYSTEM.list(dirPath)
+            } catch (_: Exception) {
+                return null
+            }
         var caseInsensitiveMatch: File? = null
         var largestImage: File? = null
         var largestImageSize = 0L
 
-        for (file in files) {
-            if (!file.isFile) continue
-            val nameWithoutExt = file.nameWithoutExtension.lowercase()
-            val ext = file.extension.lowercase()
+        for (path in files) {
+            val meta = FileSystem.SYSTEM.metadataOrNull(path) ?: continue
+            if (!meta.isRegularFile) continue
+            val fileName = path.name
+            val nameWithoutExt = fileName.substringBeforeLast('.', "").lowercase()
+            val ext = fileName.substringAfterLast('.', "").lowercase()
 
             if (ext !in COVER_EXTENSIONS) continue
 
             // Case-insensitive match against common names
             if (caseInsensitiveMatch == null && nameWithoutExt in COMMON_COVER_NAMES) {
-                caseInsensitiveMatch = file
+                caseInsensitiveMatch = File(path.toString())
             }
 
             // Track largest image as heuristic fallback
-            if (file.length() > largestImageSize) {
-                largestImage = file
-                largestImageSize = file.length()
+            val size = meta.size ?: 0L
+            if (size > largestImageSize) {
+                largestImage = File(path.toString())
+                largestImageSize = size
             }
         }
 

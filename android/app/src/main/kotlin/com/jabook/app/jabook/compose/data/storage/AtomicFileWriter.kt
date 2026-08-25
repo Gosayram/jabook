@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.compose.data.storage
 
 import kotlinx.coroutines.CancellationException
+import okio.FileSystem
+import okio.Path.Companion.toOkioPath
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -77,11 +79,15 @@ public object AtomicFileWriter {
         block: (FileOutputStream) -> Long,
     ): AtomicWriteResult {
         val parentDir = targetFile.parentFile
-        require(parentDir != null && (parentDir.exists() || parentDir.mkdirs())) {
-            "Cannot access parent directory for ${targetFile.absolutePath}"
+        requireNotNull(parentDir) { "Cannot access parent directory for ${targetFile.absolutePath}" }
+        val parentPath = parentDir.toOkioPath()
+        try {
+            FileSystem.SYSTEM.createDirectories(parentPath)
+        } catch (e: IOException) {
+            throw IOException("Cannot create parent directory for ${targetFile.absolutePath}", e)
         }
 
-        if (!overwrite && targetFile.exists()) {
+        if (!overwrite && FileSystem.SYSTEM.exists(targetFile.toOkioPath())) {
             throw IOException("Target file already exists: ${targetFile.absolutePath}")
         }
 
@@ -97,11 +103,18 @@ public object AtomicFileWriter {
                     written
                 }
 
-            // Step 3: Atomic rename (same filesystem guarantee)
-            if (!tempFile.renameTo(targetFile)) {
-                throw IOException(
-                    "Atomic rename failed: ${tempFile.absolutePath} -> ${targetFile.absolutePath}",
-                )
+            // Step 3: Atomic move via okio — handles cross-filesystem fallback (copy+delete)
+            // and is more robust than File.renameTo. Uses FileSystem.SYSTEM for platform FS.
+            try {
+                FileSystem.SYSTEM.atomicMove(tempFile.toOkioPath(), targetFile.toOkioPath())
+            } catch (e: IOException) {
+                // Fallback: renameTo for edge cases where okio atomicMove reports failure
+                if (!tempFile.renameTo(targetFile)) {
+                    throw IOException(
+                        "Atomic move failed: ${tempFile.absolutePath} -> ${targetFile.absolutePath}",
+                        e,
+                    )
+                }
             }
 
             // Step 4: Sync parent directory for rename durability

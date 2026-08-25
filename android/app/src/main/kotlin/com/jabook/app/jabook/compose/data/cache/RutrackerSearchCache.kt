@@ -28,10 +28,12 @@ import javax.inject.Singleton
 public class RutrackerSearchCache
     @Inject
     constructor() {
-        // accessOrder=true → get/put moves entry to end (most-recently used)
         private val cache =
-            object : LinkedHashMap<String, CacheEntry>(64, 0.75f, true) {
-                override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CacheEntry>?): Boolean = size > MAX_CACHE_SIZE
+            object : android.util.LruCache<String, CacheEntry>(MAX_CACHE_SIZE) {
+                override fun sizeOf(
+                    key: String,
+                    value: CacheEntry,
+                ): Int = 1
             }
 
         /**
@@ -40,16 +42,15 @@ public class RutrackerSearchCache
         public fun get(
             query: String,
             forumIds: String? = null,
-        ): List<SearchResult>? =
-            synchronized(cache) {
-                val entry = cache[generateKey(query, forumIds)] ?: return null
-                if (entry.isExpired()) {
-                    cache.remove(generateKey(query, forumIds))
-                    null
-                } else {
-                    entry.results.toList()
-                }
+        ): List<SearchResult>? {
+            val key = generateKey(query, forumIds)
+            val entry = cache.get(key) ?: return null
+            if (entry.isExpired()) {
+                cache.remove(key)
+                return null
             }
+            return entry.results.toList()
+        }
 
         /**
          * Store search results in cache.
@@ -60,42 +61,44 @@ public class RutrackerSearchCache
             results: List<SearchResult>,
         ) {
             if (results.isEmpty()) return
-            synchronized(cache) {
-                cache[generateKey(query, forumIds)] =
-                    CacheEntry(
-                        results = results.toList(),
-                        timestamp = System.currentTimeMillis(),
-                    )
-            }
+            cache.put(
+                generateKey(query, forumIds),
+                CacheEntry(
+                    results = results.toList(),
+                    timestamp = System.currentTimeMillis(),
+                ),
+            )
         }
 
         /**
          * Clear all cached search results.
          */
-        public fun clear(): Unit = synchronized(cache) { cache.clear() }
+        public fun clear() {
+            cache.evictAll()
+        }
 
         /**
          * Get approximate cache size in bytes.
          */
-        public fun getCacheSize(): Long =
-            synchronized(cache) {
-                cache.values.sumOf { it.results.size } * AVERAGE_RESULT_SIZE_BYTES
-            }
+        public fun getCacheSize(): Long {
+            val snapshot = cache.snapshot()
+            return snapshot.values.sumOf { it.results.size } * AVERAGE_RESULT_SIZE_BYTES
+        }
 
         /**
          * Get cache statistics.
          */
-        public fun getStatistics(): CacheStatistics =
-            synchronized(cache) {
-                val entries = cache.values.toList()
-                CacheStatistics(
-                    entriesCount = cache.size,
-                    totalResults = entries.sumOf { it.results.size },
-                    estimatedSize = getCacheSize(),
-                    oldestEntry = entries.minOfOrNull { it.timestamp } ?: 0L,
-                    newestEntry = entries.maxOfOrNull { it.timestamp } ?: 0L,
-                )
-            }
+        public fun getStatistics(): CacheStatistics {
+            val snapshot = cache.snapshot()
+            val entries = snapshot.values.toList()
+            return CacheStatistics(
+                entriesCount = snapshot.size,
+                totalResults = entries.sumOf { it.results.size },
+                estimatedSize = getCacheSize(),
+                oldestEntry = entries.minOfOrNull { it.timestamp } ?: 0L,
+                newestEntry = entries.maxOfOrNull { it.timestamp } ?: 0L,
+            )
+        }
 
         private fun generateKey(
             query: String,

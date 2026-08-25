@@ -18,10 +18,9 @@ import android.graphics.Bitmap
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.core.graphics.ColorUtils
 import androidx.palette.graphics.Palette
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.min
@@ -64,8 +63,7 @@ public object DynamicThemeManager {
     private const val DISLIKE_CHROMA_MIN = 20.0
 
     // LRU cache for extracted colors - 20 entries (fits in ~200KB)
-    private val cacheMutex = Mutex()
-    private val cache = LinkedHashMap<String, PlayerThemeColors>(20)
+    private val cache = android.util.LruCache<String, PlayerThemeColors>(20)
 
     /**
      * Extracts a color palette from the given bitmap asynchronously.
@@ -147,23 +145,19 @@ public object DynamicThemeManager {
     public suspend fun extractColorsCached(
         coverUrl: String,
         bitmap: Bitmap,
-    ): PlayerThemeColors =
-        cacheMutex.withLock {
-            cache[coverUrl]?.let { return@withLock it }
-            val colors = extractColors(bitmap)
-            cache[coverUrl] = colors
-            if (cache.size > 20) {
-                cache.remove(cache.keys.first())
-            }
-            colors
-        }
+    ): PlayerThemeColors {
+        cache.get(coverUrl)?.let { return it }
+        val colors = extractColors(bitmap)
+        cache.put(coverUrl, colors)
+        return colors
+    }
 
     /**
      * Clears the color cache.
      * Call during theme changes or when memory pressure is high.
      */
     public fun clearCache() {
-        cache.clear()
+        cache.evictAll()
     }
 
     /**
@@ -270,55 +264,17 @@ public object DynamicThemeManager {
         return hslToColor(floatArrayOf(hsl[0], hsl[1], best))
     }
 
-    /**
-     * Convert Color to HSL array [hue(0-360), saturation(0-1), lightness(0-1)].
-     */
-    private fun colorToHsl(color: Color): FloatArray {
-        val r = color.red
-        val g = color.green
-        val b = color.blue
-        val max = max(r, max(g, b))
-        val min = min(r, min(g, b))
-        val l = (max + min) / 2f
-
-        if (max == min) {
-            return floatArrayOf(0f, 0f, l) // achromatic
+    private fun colorToHsl(color: Color): FloatArray =
+        FloatArray(3).also {
+            ColorUtils.RGBToHSL(
+                (color.red * 255).toInt(),
+                (color.green * 255).toInt(),
+                (color.blue * 255).toInt(),
+                it,
+            )
         }
 
-        val d = max - min
-        val s = if (l > 0.5f) d / (2f - max - min) else d / (max + min)
-
-        val h =
-            when (max) {
-                r -> ((g - b) / d + (if (g < b) 6f else 0f)) * 60f
-                g -> ((b - r) / d + 2f) * 60f
-                else -> ((r - g) / d + 4f) * 60f
-            }
-
-        return floatArrayOf(h, s, l)
-    }
-
-    /**
-     * Convert HSL array back to Color.
-     */
-    private fun hslToColor(hsl: FloatArray): Color {
-        val h = hsl[0]
-        val s = hsl[1]
-        val l = hsl[2]
-
-        if (s == 0f) {
-            return Color(l, l, l) // achromatic
-        }
-
-        val q = if (l < 0.5f) l * (1f + s) else l + s - l * s
-        val p = 2f * l - q
-
-        val r = hueToRgb(p, q, h / 360f + 1f / 3f)
-        val g = hueToRgb(p, q, h / 360f)
-        val b = hueToRgb(p, q, h / 360f - 1f / 3f)
-
-        return Color(r, g, b)
-    }
+    private fun hslToColor(hsl: FloatArray): Color = Color(ColorUtils.HSLToColor(hsl))
 
     /**
      * Determine if a color is considered dark based on luminance.
@@ -328,18 +284,4 @@ public object DynamicThemeManager {
      * @return true if luminance is below 0.5 (dark), false otherwise.
      */
     public fun isDark(color: Color): Boolean = color.luminance() < 0.5
-
-    private fun hueToRgb(
-        p: Float,
-        q: Float,
-        t: Float,
-    ): Float {
-        var tt = t
-        if (tt < 0f) tt += 1f
-        if (tt > 1f) tt -= 1f
-        if (tt < 1f / 6f) return p + (q - p) * 6f * tt
-        if (tt < 1f / 2f) return q
-        if (tt < 2f / 3f) return p + (q - p) * (2f / 3f - tt) * 6f
-        return p
-    }
 }

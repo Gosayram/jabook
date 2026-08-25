@@ -34,6 +34,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
@@ -85,6 +87,43 @@ public class PersistentCookieJar
             private const val PREFERENCE_FILE = "cookies_keyset_prefs"
             private const val MASTER_KEY_URI = "android-keystore://cookies_master_key"
         }
+
+        @Serializable
+        private data class PersistedCookie(
+            val name: String,
+            val value: String,
+            val domain: String,
+            val path: String,
+            val expiresAt: Long? = null,
+            val secure: Boolean = false,
+            val httpOnly: Boolean = false,
+        )
+
+        private fun Cookie.toPersisted(): PersistedCookie =
+            PersistedCookie(
+                name = name,
+                value = value,
+                domain = domain,
+                path = path,
+                expiresAt = expiresAt.takeIf { it != Long.MIN_VALUE },
+                secure = secure,
+                httpOnly = httpOnly,
+            )
+
+        private fun PersistedCookie.toCookie(): Cookie =
+            Cookie
+                .Builder()
+                .name(name)
+                .value(value)
+                .domain(domain)
+                .path(path)
+                .apply {
+                    if (expiresAt != null) expiresAt(expiresAt)
+                    if (secure) secure()
+                    if (httpOnly) httpOnly()
+                }.build()
+
+        private val cookieJson = Json { ignoreUnknownKeys = true }
 
         private val dataStore: DataStore<Preferences> by lazy {
             PreferenceDataStoreFactory.create(
@@ -212,51 +251,34 @@ public class PersistentCookieJar
             dataStore.edit { it.clear() }
         }
 
-        private fun serializeCookie(cookie: Cookie): String =
-            buildString {
-                append(cookie.name)
-                append("=")
-                append(cookie.value)
-                append(";domain=")
-                append(cookie.domain)
-                append(";path=")
-                append(cookie.path)
-                if (cookie.expiresAt != Long.MIN_VALUE) {
-                    append(";expires=")
-                    append(cookie.expiresAt)
-                }
-                if (cookie.secure) append(";secure")
-                if (cookie.httpOnly) append(";httponly")
-            }
+        private fun serializeCookie(cookie: Cookie): String = cookieJson.encodeToString(PersistedCookie.serializer(), cookie.toPersisted())
 
-        private fun deserializeCookie(serialized: String): Cookie? {
-            return try {
+        private fun deserializeCookie(serialized: String): Cookie? =
+            runCatching {
+                cookieJson.decodeFromString(PersistedCookie.serializer(), serialized).toCookie()
+            }.getOrNull() ?: runCatching {
+                // Fallback for legacy "name=value;domain=...;path=..." format
                 val parts = serialized.split(";")
                 val nameValue = parts[0].split("=", limit = 2)
                 if (nameValue.size != 2) return null
-
                 val name = nameValue[0]
                 val value = nameValue[1]
-
-                var domain: String = ""
-                var path: String = "/"
+                var domain = ""
+                var path = "/"
                 var expiresAt = Long.MIN_VALUE
-
-                var secure: Boolean = false
-                var httpOnly: Boolean = false
+                var secure = false
+                var httpOnly = false
                 parts.drop(1).forEach { part ->
                     val trimmed = part.trim()
                     when {
                         trimmed.startsWith("domain=") -> domain = trimmed.substringAfter("domain=")
                         trimmed.startsWith("path=") -> path = trimmed.substringAfter("path=")
                         trimmed.startsWith("expires=") ->
-                            expiresAt =
-                                trimmed.substringAfter("expires=").toLongOrNull() ?: Long.MIN_VALUE
+                            expiresAt = trimmed.substringAfter("expires=").toLongOrNull() ?: Long.MIN_VALUE
                         trimmed == "secure" -> secure = true
                         trimmed == "httponly" -> httpOnly = true
                     }
                 }
-
                 Cookie
                     .Builder()
                     .name(name)
@@ -268,10 +290,7 @@ public class PersistentCookieJar
                         if (secure) secure()
                         if (httpOnly) httpOnly()
                     }.build()
-            } catch (e: Exception) {
-                null
-            }
-        }
+            }.getOrNull()
 
         private fun encrypt(value: String): String? =
             runCatching {

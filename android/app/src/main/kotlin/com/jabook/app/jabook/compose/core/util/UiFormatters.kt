@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.core.util
 import android.content.res.Resources
 import com.jabook.app.jabook.R
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Centralized formatters for UI display values.
@@ -27,36 +28,31 @@ import java.util.Locale
 public object UiFormatters {
     private val STRIP_NUMERIC_PREFIX_REGEX = Regex("^\\d+[.)\\s]+")
 
-    public fun formatDuration(ms: Long): String {
-        val totalSeconds = ms / 1000
-        val hours = totalSeconds / 3600
-        val minutes = (totalSeconds % 3600) / 60
-        val seconds = totalSeconds % 60
-        return when {
-            hours > 0 -> String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, seconds)
-            else -> String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
+    public fun formatDuration(ms: Long): String =
+        ms.coerceAtLeast(0).milliseconds.toComponents { hours, minutes, seconds, _ ->
+            when {
+                hours > 0 -> String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, seconds)
+                else -> String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
+            }
         }
-    }
 
-    public fun formatDurationCompact(ms: Long): String {
-        val totalSeconds = ms / 1000
-        val hours = totalSeconds / 3600
-        val minutes = (totalSeconds % 3600) / 60
-        return when {
-            hours > 0 -> "${hours}h ${minutes}m"
-            minutes > 0 -> "${minutes}m"
-            else -> "${totalSeconds}s"
+    public fun formatDurationCompact(ms: Long): String =
+        ms.coerceAtLeast(0).milliseconds.toComponents { hours, minutes, _, _ ->
+            val totalSeconds = ms.coerceAtLeast(0) / 1000
+            when {
+                hours > 0 -> "${hours}h ${minutes}m"
+                minutes > 0 -> "${minutes}m"
+                else -> "${totalSeconds}s"
+            }
         }
-    }
 
     public fun formatTimeRemaining(ms: Long): String {
         if (ms <= 0) return ""
-        val totalSeconds = ms / 1000
-        val hours = totalSeconds / 3600
-        val minutes = (totalSeconds % 3600) / 60
-        return when {
-            hours > 0 -> "-$hours:${String.format(Locale.getDefault(), "%02d", minutes)}"
-            else -> "-${String.format(Locale.getDefault(), "%d:%02d", minutes, totalSeconds % 60)}"
+        return ms.coerceAtLeast(0).milliseconds.toComponents { hours, minutes, seconds, _ ->
+            when {
+                hours > 0 -> "-$hours:${String.format(Locale.getDefault(), "%02d", minutes)}"
+                else -> "-${String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)}"
+            }
         }
     }
 
