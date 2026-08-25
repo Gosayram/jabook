@@ -316,7 +316,7 @@ class MirrorManagerTest {
     }
 }
 
-private class FakeSettingsRepository(
+internal class FakeSettingsRepository(
     initial: UserPreferences,
 ) : SettingsRepository {
     private val state = MutableStateFlow(initial)

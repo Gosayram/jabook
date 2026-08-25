@@ -63,6 +63,13 @@ public class DirectFileSystemScanner
         private val _scanProgress = kotlinx.coroutines.flow.MutableStateFlow<ScanProgress>(ScanProgress.Idle)
         override val scanProgress: kotlinx.coroutines.flow.StateFlow<ScanProgress> = _scanProgress.asStateFlow()
 
+        /**
+         * Directories whose book parse failed during the most recent scan. Their files are
+         * treated as always-changed so a transient failure isn't hidden forever by the
+         * bumped last_scan_timestamp.
+         */
+        private var lastScanFailedDirs: Set<String> = emptySet()
+
         override suspend fun scanAudiobooks(): Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError> =
             withContext(Dispatchers.IO) {
                 try {
@@ -122,6 +129,7 @@ public class DirectFileSystemScanner
                             // Books live per-directory: rebuild each book from ALL its files when
                             // ANY file changed, otherwise upsert would wipe chapters of unchanged files.
                             val changedDirs = filterResult.filesToScan.mapTo(mutableSetOf()) { it.directory }
+                            changedDirs.addAll(lastScanFailedDirs)
                             filteredFiles.addAll(filesForPath.filter { it.directory in changedDirs })
                         }
                         if (filterResult.skippedCount > 0) {
@@ -147,6 +155,7 @@ public class DirectFileSystemScanner
                     logger.i { "Phase 3: Parsing metadata (Full Scan)" }
 
                     val scannedBooks = mutableListOf<ScannedBook>()
+                    val failedDirs = mutableSetOf<String>()
                     var processedFilesCount = 0
 
                     groupedByDir.entries.forEachIndexed { index, (dir, files) ->
@@ -265,9 +274,13 @@ public class DirectFileSystemScanner
                         } catch (e: kotlinx.coroutines.CancellationException) {
                             throw e
                         } catch (e: Exception) {
+                            failedDirs.add(dir)
                             logger.e({ "Failed to process book '$bookName', skipping" }, e)
                         }
                     }
+
+                    // Refresh for the next incremental scan; dirs that now succeed drop out.
+                    lastScanFailedDirs = failedDirs
 
                     logger.i { "Scan complete: ${scannedBooks.size} books successfully created" }
 

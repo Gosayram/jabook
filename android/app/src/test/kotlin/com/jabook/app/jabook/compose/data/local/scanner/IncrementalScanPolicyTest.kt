@@ -226,47 +226,6 @@ public class IncrementalScanPolicyTest {
 
     // endregion
 
-    // region groupChangedDirectories
-
-    @Test
-    public fun `groupChangedDirectories groups by directory`() {
-        val files =
-            listOf(
-                makeFileScanInfo("a.mp3", directory = "/books/book1"),
-                makeFileScanInfo("b.mp3", directory = "/books/book1"),
-                makeFileScanInfo("c.mp3", directory = "/books/book2"),
-            )
-
-        val filterResult =
-            IncrementalScanPolicy.FilterResult(
-                filesToScan = files,
-                skippedCount = 0,
-                isFullScan = false,
-            )
-
-        val grouped = IncrementalScanPolicy.groupChangedDirectories(filterResult)
-
-        assertEquals(2, grouped.size)
-        assertEquals(2, grouped["/books/book1"]?.size)
-        assertEquals(1, grouped["/books/book2"]?.size)
-    }
-
-    @Test
-    public fun `groupChangedDirectories with empty result returns empty map`() {
-        val filterResult =
-            IncrementalScanPolicy.FilterResult(
-                filesToScan = emptyList(),
-                skippedCount = 0,
-                isFullScan = false,
-            )
-
-        val grouped = IncrementalScanPolicy.groupChangedDirectories(filterResult)
-
-        assertTrue(grouped.isEmpty())
-    }
-
-    // endregion
-
     // region Default constants
 
     @Test

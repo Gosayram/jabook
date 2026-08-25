@@ -27,30 +27,34 @@ import okhttp3.CertificatePinner
  * This keeps validation strict while reducing breakage during routine leaf renewals.
  */
 public object RutrackerCertificatePinningPolicy {
-    // Leaf SPKI pins (captured on 2026-04-10), in the same order as the
-    // canonical mirrors from .env (RUTRACKER_DEFAULT_MIRRORS).
+    // Leaf SPKI pins (captured on 2026-04-10), keyed by mirror TLD — NOT by
+    // list position: reordering RUTRACKER_DEFAULT_MIRRORS in .env must never
+    // re-pair hosts with the wrong pin.
     private const val PIN_LEAF_ORG: String = "sha256/q9Z3qXo6SZEcRaCl+/dSuiMZXX8dSrZDQC7+pZugV5U="
     private const val PIN_LEAF_NET: String = "sha256/tOFeRzloarPYX5mQ9ksIypCp36vLupuTvOo8sF4Ka2I="
+
+    private val leafPinByTld: Map<String, String> =
+        mapOf(
+            "org" to PIN_LEAF_ORG,
+            "net" to PIN_LEAF_NET,
+        )
 
     // Google Trust Services WE1 intermediate SPKI pin (backup for renewals).
     private const val PIN_INTERMEDIATE_WE1: String = "sha256/kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4="
 
     // Canonical mirrors, supplied at build time from .env — never hardcoded.
-    // Only the first two (which carry leaf pins) are pinned; any additional
-    // custom mirrors fall back to standard validation.
+    // Hosts whose TLD has no captured leaf pin fall back to standard validation.
     private val canonicalMirrors: List<String> =
         BuildConfig.RUTRACKER_DEFAULT_MIRRORS
             .split(',')
             .map { it.trim() }
             .filter { it.isNotBlank() }
-            .take(2)
-
-    private val leafPins: List<String> = listOf(PIN_LEAF_ORG, PIN_LEAF_NET)
 
     public val hostPins: Map<String, Set<String>> =
         canonicalMirrors
-            .mapIndexedNotNull { index, host ->
-                val leaf = leafPins.getOrNull(index) ?: return@mapIndexedNotNull null
+            .mapNotNull { host ->
+                val tld = host.substringAfterLast('.', "").lowercase()
+                val leaf = leafPinByTld[tld] ?: return@mapNotNull null
                 host to setOf(leaf, PIN_INTERMEDIATE_WE1)
             }.toMap()
 

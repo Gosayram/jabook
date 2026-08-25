@@ -61,6 +61,7 @@ class LegacyPreferencesDataMigrationTest {
             prefs[stringPreferencesKey("sort_order")] = "TITLE_ASC"
             prefs[floatPreferencesKey("playback_speed")] = 1.75f
             prefs[booleanPreferencesKey("onboarding_completed")] = true
+            prefs[booleanPreferencesKey("auto_play_next")] = false
         }
         // Release the active-store registration so the migration may open the same file.
         scope.cancel()
@@ -83,6 +84,9 @@ class LegacyPreferencesDataMigrationTest {
             assertEquals("TITLE_ASC", migrated.librarySortOrder)
             assertEquals(1.75f, migrated.playbackSpeed)
             assertTrue(migrated.onboardingCompleted)
+            // Explicit `false` survives; absent key gets the legacy `true` default.
+            assertFalse(migrated.autoPlayNext)
+            assertTrue(migrated.pitchCorrectionEnabled)
 
             migration.cleanUp()
             assertFalse(legacyFile.exists())

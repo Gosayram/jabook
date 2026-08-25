@@ -108,9 +108,11 @@ public class LegacyPreferencesDataMigration
                     }
                     preferences[SORT_ORDER]?.let { librarySortOrder = it }
                     preferences[VIEW_MODE]?.let { viewMode = it }
-                    preferences[AUTO_PLAY_NEXT]?.let { autoPlayNext = it }
+                    // Legacy store defaulted these to true; proto3 can't distinguish an
+                    // absent key from an explicit `false`, so default only when absent.
+                    autoPlayNext = preferences[AUTO_PLAY_NEXT] ?: true
                     preferences[PLAYBACK_SPEED]?.takeIf { it > 0f }?.let { playbackSpeed = it }
-                    preferences[PITCH_CORRECTION_ENABLED]?.let { pitchCorrectionEnabled = it }
+                    pitchCorrectionEnabled = preferences[PITCH_CORRECTION_ENABLED] ?: true
                     preferences[FONT]?.let { font = it }
                     preferences[NORMALIZE_CHAPTER_TITLES]?.let { normalizeChapterTitles = it }
                     preferences[ONBOARDING_COMPLETED]?.let { onboardingCompleted = it }

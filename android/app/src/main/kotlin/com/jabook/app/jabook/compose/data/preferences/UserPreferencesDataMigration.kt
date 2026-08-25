@@ -116,12 +116,12 @@ public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
             migrated = builder.build()
         }
 
-        // v8: legacy-store defaults for fields migrated from "jabook_preferences"
-        // (proto3 booleans default to false; the legacy store defaulted to true).
+        // v8: version bump only. The legacy-store `true` defaults for autoPlayNext /
+        // pitchCorrectionEnabled are applied in LegacyPreferencesDataMigration (which can
+        // distinguish absent keys from explicit `false`); setting them here unconditionally
+        // clobbered values the legacy migration had just copied.
         if (migrated.schemaVersion < 8) {
             val builder = migrated.toBuilder()
-            builder.autoPlayNext = true
-            builder.pitchCorrectionEnabled = true
             builder.schemaVersion = 8
             migrated = builder.build()
         }

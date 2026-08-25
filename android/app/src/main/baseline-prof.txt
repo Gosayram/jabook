@@ -18,3 +18,14 @@ Lcom/jabook/app/jabook/compose/feature/library/EnhancedLibraryContentKt;
 Lcom/jabook/app/jabook/compose/feature/player/PlayerScreenKt;
 Lcom/jabook/app/jabook/compose/feature/player/MiniPlayerKt;
 Lcom/jabook/app/jabook/compose/feature/miniplayer/MiniPlayerViewModel;
+# Audio processing chain & equalizer — first playback warmup path.
+Lcom/jabook/app/jabook/audio/TrackedAudioProcessorChain;
+Lcom/jabook/app/jabook/audio/processors/AudioEqualizerManager;
+# Network bootstrap (mirror resolution) — first content load.
+Lcom/jabook/app/jabook/compose/data/network/DynamicBaseUrlInterceptor;
+Lcom/jabook/app/jabook/compose/data/network/MirrorManager;
+# Preferences load at startup.
+Lcom/jabook/app/jabook/compose/data/repository/ProtoBackedUserPreferencesRepository;
+Lcom/jabook/app/jabook/compose/data/preferences/LegacyPreferencesDataMigration;
+# Torrent state reconstruction after process death.
+Lcom/jabook/app/jabook/compose/data/torrent/TorrentStateBuilder;

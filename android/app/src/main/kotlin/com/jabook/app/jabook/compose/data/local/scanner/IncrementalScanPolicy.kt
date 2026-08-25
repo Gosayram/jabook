@@ -104,17 +104,6 @@ public object IncrementalScanPolicy {
     }
 
     /**
-     * Groups files by directory, but only includes directories that have
-     * at least one changed file. This avoids re-processing entirely
-     * unchanged directories.
-     *
-     * @param filteredResult The result from [filterChangedFiles].
-     * @return Map of directory path to list of files in that directory that need scanning.
-     */
-    public fun groupChangedDirectories(filteredResult: FilterResult): Map<String, List<FileScanInfo>> =
-        filteredResult.filesToScan.groupBy { it.directory }
-
-    /**
      * Default grace window: 2 seconds.
      *
      * Accounts for filesystem timestamp granularity where some filesystems
