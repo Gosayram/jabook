@@ -145,6 +145,13 @@ message UserPreferences {
 
   // Auto-resume playback when a wired headset is plugged in (default: off).
   bool headset_autoplay_enabled = 64;
+
+  // Migrated from legacy Preferences DataStore ("jabook_preferences").
+  string view_mode = 65; // "LIST_COMPACT", "GRID_COMPACT", "GRID_COMFORTABLE"
+  bool auto_play_next = 66;
+  bool pitch_correction_enabled = 67;
+  string font = 68; // AppFont enum name
+  bool storage_fallback_enabled = 69;
 }
 
 message SleepTimerState {

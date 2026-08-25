@@ -14,35 +14,14 @@
 
 package com.jabook.app.jabook.compose.data.preferences
 
-import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.core.DataStoreFactory
-import androidx.datastore.dataStoreFile
 import com.jabook.app.jabook.compose.core.theme.getAllAccentSwatches
-import com.jabook.app.jabook.core.datastore.DataStoreCorruptionPolicy
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
-
-private fun createUserPreferencesDataStore(context: Context): DataStore<UserPreferences> =
-    DataStoreFactory.create(
-        serializer = UserPreferencesSerializer,
-        corruptionHandler =
-            DataStoreCorruptionPolicy.protoHandler(
-                storeName = "user_preferences",
-                defaultValue = UserPreferencesSerializer.defaultValue,
-            ),
-        migrations = listOf(UserPreferencesDataMigration()),
-        scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
-        produceFile = { context.dataStoreFile("user_preferences.pb") },
-    )
 
 /** Contract for application settings backed by Proto DataStore. */
 public interface SettingsRepository {
@@ -167,15 +146,16 @@ public interface SettingsRepository {
 
 /**
  * Implementation of SettingsRepository using Proto DataStore.
+ *
+ * The [DataStore] instance is provided by DI (see DataModule) so that it is shared
+ * with other consumers of the same "user_preferences.pb" file.
  */
 @Singleton
 public class ProtoSettingsRepository
     @Inject
     constructor(
-        @param:ApplicationContext private val context: Context,
+        private val dataStore: DataStore<UserPreferences>,
     ) : SettingsRepository {
-        private val dataStore: DataStore<UserPreferences> by lazy { createUserPreferencesDataStore(context) }
-
         override val userPreferences: Flow<UserPreferences> =
             dataStore.data
                 .catch { exception ->

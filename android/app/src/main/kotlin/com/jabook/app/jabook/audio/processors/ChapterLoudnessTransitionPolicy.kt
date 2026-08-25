@@ -115,13 +115,13 @@ internal class ChapterLoudnessTransitionPolicy(
         from: Float,
         to: Float,
     ) {
-        val startMs = currentTimeMs()
-        while (true) {
-            val elapsed = currentTimeMs() - startMs
-            val progress = (elapsed.toFloat() / TRANSITION_DURATION_MS).coerceAtMost(1f)
-            val volume = from + (to - from) * progress
-            player.volume = volume.coerceIn(0f, 1f)
-            if (progress >= 1f) break
+        // Progress derived from frame count instead of a wall/monotonic clock:
+        // immune to clock jumps and deterministic under coroutine test schedulers.
+        val totalFrames = ((TRANSITION_DURATION_MS + FRAME_INTERVAL_MS - 1) / FRAME_INTERVAL_MS).toInt()
+        for (frame in 0..totalFrames) {
+            val progress = (frame * FRAME_INTERVAL_MS).toFloat() / TRANSITION_DURATION_MS
+            player.volume = (from + (to - from) * progress.coerceAtMost(1f)).coerceIn(0f, 1f)
+            if (progress >= 1f) return
             delay(FRAME_INTERVAL_MS)
         }
     }
@@ -130,8 +130,6 @@ internal class ChapterLoudnessTransitionPolicy(
         val deltaDb = CHAPTER_TARGET_LUFS - lufs
         return 10.0.pow(deltaDb / 20.0).toFloat().coerceIn(GAIN_MIN, GAIN_MAX)
     }
-
-    private fun currentTimeMs(): Long = System.currentTimeMillis()
 
     private companion object {
         private const val TAG = "ChapterLoudnessPolicy"

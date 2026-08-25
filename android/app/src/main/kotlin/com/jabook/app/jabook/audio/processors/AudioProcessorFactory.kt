@@ -43,10 +43,13 @@ public object AudioProcessorFactory {
      *
      * Processor order (important for quality):
      * 1. LoudnessNormalizer (if enabled) - normalizes volume first
-     * 2. VolumeBoostProcessor (if enabled) - applies gain boost
-     * 3. DynamicRangeCompressor (if enabled) - compresses dynamic range
-     * 4. SpeechEnhancer (if enabled) - enhances speech clarity
-     * 5. AutoVolumeLeveler (if enabled) - maintains consistent volume
+     * 2. SpeechCompressorAudioProcessor (if enabled) - 3-band speech compression
+     * 3. VolumeBoostProcessor (if enabled) - applies gain boost
+     * 4. DynamicRangeCompressor (if enabled) - compresses dynamic range
+     * 5. SpeechEnhancer (if enabled) - enhances speech clarity
+     * 6. AutoVolumeLeveler (if enabled) - maintains consistent volume
+     * 7. SkipSilenceAudioProcessor (if enabled) - removes silent parts
+     * 8. NoiseGateAudioProcessor (if enabled) - reduces noise floor
      *
      * @param settings Audio processing settings
      * @param outputFramesPerBuffer Device output buffer size, resolved outside the audio hot path.

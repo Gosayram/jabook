@@ -14,7 +14,8 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.core.DataStoreFactory
+import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
@@ -30,16 +31,20 @@ import java.nio.file.Files
 
 @RunWith(RobolectricTestRunner::class)
 class UserPreferencesRepositoryTest {
-    private fun kotlinx.coroutines.test.TestScope.createRepository(): Pair<DataStoreUserPreferencesRepository, java.io.File> {
+    private fun kotlinx.coroutines.test.TestScope.createRepository(): Pair<ProtoBackedUserPreferencesRepository, java.io.File> {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val scope = CoroutineScope(dispatcher + Job())
-        val file = Files.createTempFile("jabook-prefs-test", ".preferences_pb").toFile()
+        val file = Files.createTempFile("jabook-prefs-test", ".pb").toFile()
+        // An existing empty file would be parsed as an all-defaults message;
+        // a fresh install has no file at all, so remove the placeholder.
+        file.delete()
         val dataStore =
-            PreferenceDataStoreFactory.create(
+            DataStoreFactory.create(
+                serializer = UserPreferencesSerializer,
                 scope = scope,
                 produceFile = { file },
             )
-        return DataStoreUserPreferencesRepository(dataStore) to file
+        return ProtoBackedUserPreferencesRepository(dataStore) to file
     }
 
     @Test

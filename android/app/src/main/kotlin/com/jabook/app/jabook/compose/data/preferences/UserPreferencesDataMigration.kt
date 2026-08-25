@@ -25,7 +25,7 @@ import androidx.datastore.core.DataMigration
  */
 public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
     public companion object {
-        public const val CURRENT_SCHEMA_VERSION: Int = 7
+        public const val CURRENT_SCHEMA_VERSION: Int = 8
     }
 
     override suspend fun shouldMigrate(currentData: UserPreferences): Boolean = currentData.schemaVersion < CURRENT_SCHEMA_VERSION
@@ -113,6 +113,16 @@ public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
             val builder = migrated.toBuilder()
             builder.hapticsEnabled = true
             builder.schemaVersion = 7
+            migrated = builder.build()
+        }
+
+        // v8: legacy-store defaults for fields migrated from "jabook_preferences"
+        // (proto3 booleans default to false; the legacy store defaulted to true).
+        if (migrated.schemaVersion < 8) {
+            val builder = migrated.toBuilder()
+            builder.autoPlayNext = true
+            builder.pitchCorrectionEnabled = true
+            builder.schemaVersion = 8
             migrated = builder.build()
         }
 

@@ -64,9 +64,11 @@ public class LoudnessNormalizer(
     private var rmsWindowFrames = 0
 
     // Gain adjustment (in linear scale)
+    @Volatile
     private var gainMultiplier = 1.0f
 
     // ReplayGain from metadata (if available)
+    @Volatile
     private var replayGainDb: Float? = null
 
     // Input/output buffers
@@ -148,22 +150,7 @@ public class LoudnessNormalizer(
 
     override fun getOutput(): ByteBuffer {
         if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
-        if (!isActive || queuedInputBytes == 0) {
-            // ponytail: when inactive but input was queued, pass through instead of
-            // returning EMPTY_BUFFER which silently drops audio.
-            if (!isActive && queuedInputBytes > 0) {
-                val passThrough =
-                    ByteBuffer.allocateDirect(queuedInputBytes).order(ByteOrder.nativeOrder())
-                queuedInputBuffer?.let {
-                    it.flip()
-                    passThrough.put(it)
-                }
-                queuedInputBytes = 0
-                queuedInputBuffer = null
-                return passThrough
-            }
-            return EMPTY_BUFFER
-        }
+        if (!isActive || queuedInputBytes == 0) return EMPTY_BUFFER
 
         // Process all input buffers
         val totalSize = queuedInputBytes
@@ -353,10 +340,10 @@ public class LoudnessNormalizer(
         queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
-        // Reset gain only if not using ReplayGain
-        if (replayGainDb == null) {
-            gainMultiplier = 1.0f
-        }
+        // Clear per-stream state so the metadata handler re-arms for each new stream;
+        // otherwise ReplayGain from the previous track poisons untagged ones.
+        replayGainDb = null
+        gainMultiplier = 1.0f
     }
 
     override fun reset() {

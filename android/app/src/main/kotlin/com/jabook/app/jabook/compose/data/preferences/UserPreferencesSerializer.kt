@@ -62,6 +62,8 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setPlayerSnapshotPlaybackSpeed(1.0f)
             .setPlayerSnapshotSleepMode("idle")
             .setHapticsEnabled(true)
+            .setAutoPlayNext(true)
+            .setPitchCorrectionEnabled(true)
             .setSchemaVersion(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION)
             .build()
 

@@ -21,7 +21,6 @@ import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.exp
-import kotlin.math.log10
 import kotlin.math.pow
 import kotlin.math.tan
 
@@ -75,6 +74,14 @@ public class SpeechCompressorAudioProcessor(
     private var attackCoeff = 0f
     private var releaseCoeff = 0f
 
+    // Gain LUT over envelope range [thresholdLinear..1]: gain(e) = (thr/e)^((RATIO-1)/RATIO*0.5).
+    // Same soft-knee curve as the closed form, evaluated via linear interpolation (no
+    // per-sample log10/pow on the audio thread). ponytail: linear-in-env indexing;
+    // switch to log-domain index if curve error ever becomes audible.
+    private var gainLut = FloatArray(0)
+    private var thresholdLinear = 0f
+    private var invLutStep = 0f
+
     // Input/output buffer management
     private var queuedInputBuffer: ByteBuffer? = null
     private var queuedInputCapacity: Int = 0
@@ -119,6 +126,17 @@ public class SpeechCompressorAudioProcessor(
 
             // Initialize per-band envelope followers
             envelopes = FloatArray(channels * 3)
+
+            // Precompute per-block gain curve: gain(e) = (thr/e)^((RATIO-1)/RATIO*makeup)
+            thresholdLinear = 10f.pow(thresholdDb / 20f)
+            val exponent = (RATIO - 1f) / RATIO * 0.5f
+            val lut = FloatArray(GAIN_LUT_SIZE)
+            for (i in 0 until GAIN_LUT_SIZE) {
+                val env = thresholdLinear + i * (1f - thresholdLinear) / (GAIN_LUT_SIZE - 1)
+                lut[i] = (thresholdLinear / env).pow(exponent)
+            }
+            gainLut = lut
+            invLutStep = (GAIN_LUT_SIZE - 1) / (1f - thresholdLinear)
         }
 
         queuedInputBuffer?.clear()
@@ -247,7 +265,6 @@ public class SpeechCompressorAudioProcessor(
     ) {
         val invMaxValue = 1f / Short.MAX_VALUE
         val maxValue = Short.MAX_VALUE.toFloat()
-        val minLog = 1e-10f
 
         for (i in 0 until samples) {
             for (ch in 0 until channels) {
@@ -281,18 +298,20 @@ public class SpeechCompressorAudioProcessor(
                         }
                     envelopes[envIdx] = updatedEnvelope
 
-                    // Gain computer
-                    val db = 20f * log10(updatedEnvelope + minLog)
-                    val gainReductionDb =
-                        if (db > thresholdDb) {
-                            (db - thresholdDb) * (RATIO - 1f) / RATIO
+                    // Gain computer — LUT lookup, no transcendentals on the audio thread.
+                    val totalGain =
+                        if (updatedEnvelope > thresholdLinear) {
+                            val t = (updatedEnvelope - thresholdLinear) * invLutStep
+                            val idx = t.toInt()
+                            if (idx >= GAIN_LUT_SIZE - 1) {
+                                gainLut[GAIN_LUT_SIZE - 1]
+                            } else {
+                                val frac = t - idx
+                                gainLut[idx] + (gainLut[idx + 1] - gainLut[idx]) * frac
+                            }
                         } else {
-                            0f
+                            1f
                         }
-
-                    // Apply compression with 50% makeup gain
-                    val totalGainDb = -gainReductionDb * 0.5f
-                    val totalGain = 10f.pow(totalGainDb / 20f)
                     sum += bandSample * totalGain
                 }
 
@@ -365,6 +384,7 @@ public class SpeechCompressorAudioProcessor(
         private const val RATIO = 4f
         private const val ATTACK_MS = 10f
         private const val RELEASE_MS = 100f
+        private const val GAIN_LUT_SIZE = 512
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
     }
 }

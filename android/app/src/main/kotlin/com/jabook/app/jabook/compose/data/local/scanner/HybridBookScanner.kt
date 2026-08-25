@@ -61,6 +61,15 @@ public class HybridBookScanner
                 var removedCount = 0
                 PerfTrace.section(name = "HybridBookScanner.cleanupInvalidPaths") {
                     for (pathEntity in customPaths) {
+                        // Only delete paths we can actually verify as filesystem folders.
+                        // SAF tree URIs (content://) can't be validated via File.exists() —
+                        // deleting them would silently drop valid non-primary-volume scans.
+                        if (pathEntity.path.startsWith("content:")) {
+                            logger.w {
+                                "Keeping non-filesystem scan path (unsupported storage): ${pathEntity.path}"
+                            }
+                            continue
+                        }
                         val folder = java.io.File(pathEntity.path)
                         if (!folder.exists() || !folder.isDirectory) {
                             logger.w { "Removing non-existent scan folder: ${pathEntity.path}" }

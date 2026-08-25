@@ -280,6 +280,14 @@ public class SpeechEnhancer : AudioProcessor {
     override fun flush(streamMetadata: StreamMetadata) {
         // Reset filter states
         highPassPrev.fill(0f)
+        if (this::peakEqState.isInitialized) {
+            for (state in peakEqState) {
+                state.x1 = 0f
+                state.x2 = 0f
+                state.y1 = 0f
+                state.y2 = 0f
+            }
+        }
         deEsserGain = 1.0f
         compressionEnvelope = 0.0f
         compressionGainReduction = 1.0f

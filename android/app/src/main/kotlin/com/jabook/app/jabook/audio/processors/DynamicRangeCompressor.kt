@@ -286,8 +286,13 @@ public class DynamicRangeCompressor(
                 gainReduction = 1.0f // No compression below threshold
             }
 
-            // Apply compression with makeup gain (use pre-read samples)
-            val finalGain = gainReduction * makeupGain
+            // Apply compression with reduction-proportional makeup gain.
+            // ponytail: linear interpolation of makeupGain^reduction01 between unity and
+            // full makeup — avoids a per-sample pow on the audio thread; use real pow
+            // if curve fidelity ever matters.
+            val reduction01 = ((1f - gainReduction) * ratio / (ratio - 1f)).coerceIn(0f, 1f)
+            val scaledMakeup = 1f + reduction01 * (makeupGain - 1f)
+            val finalGain = gainReduction * scaledMakeup
             for (ch in 0 until channels) {
                 val normalized = channelSamples[ch] * invMaxValue
                 val compressed = normalized * finalGain

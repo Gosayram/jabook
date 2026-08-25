@@ -76,6 +76,9 @@ public class SkipSilenceAudioProcessor(
     private var tempFrameBuf = ByteArray(0)
 
     // ---- Skipped-time metric (cumulative, reset via [resetSkippedMetric]) ----
+    // Written on the audio thread, read from position-compensation queries — @Volatile
+    // prevents Long tearing on 32-bit ARM.
+    @Volatile
     private var totalSkippedFrames = 0L
 
     override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
@@ -146,19 +149,6 @@ public class SkipSilenceAudioProcessor(
         if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
         if (queuedInputBytes == 0) {
             return EMPTY_BUFFER
-        }
-
-        if (!isActive) {
-            val passthrough =
-                ByteBuffer.allocateDirect(queuedInputBytes).order(ByteOrder.nativeOrder())
-            queuedInputBuffer?.let { buf ->
-                buf.flip()
-                passthrough.put(buf)
-            }
-            queuedInputBuffer?.clear()
-            queuedInputBytes = 0
-            passthrough.flip()
-            return passthrough
         }
 
         val out =
