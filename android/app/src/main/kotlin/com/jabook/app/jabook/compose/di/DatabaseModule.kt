@@ -67,6 +67,11 @@ public object DatabaseModule {
 
     /**
      * Logger for DatabaseModule.
+     *
+     * Deliberately not injected: the DI graph (LoggerModule) provides
+     * NoOpLoggerFactory in release, but migration *failure* logs are
+     * crash-path diagnostics and must survive in release builds.
+     * LoggerFactoryImpl self-gates to ERROR-only outside debug.
      */
     private val logger by lazy { LoggerFactoryImpl().get("Room") }
 

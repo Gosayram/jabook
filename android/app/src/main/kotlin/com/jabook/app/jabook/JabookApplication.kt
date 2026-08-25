@@ -125,8 +125,10 @@ public class JabookApplication :
 
         configureDiagnostics()
 
-        // Start ANR watchdog for debug/beta builds (BP-6.3)
-        anrWatchdog.start()
+        // Start ANR watchdog for debug/beta builds only (BP-6.3)
+        if (BuildConfig.DEBUG || BuildConfig.FLAVOR != "prod") {
+            anrWatchdog.start()
+        }
 
         // Initialize Global Exception Handler (writes crash report to disk)
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
@@ -258,32 +260,35 @@ public class JabookApplication :
     }
 
     private fun checkAndShowCrashReport() {
-        try {
-            val prefs = getSharedPreferences("jabook_crash_handler", MODE_PRIVATE)
-            if (!prefs.getBoolean("has_crash_report", false)) return
+        // Disk read (crash report file) must stay off the main thread
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                val prefs = getSharedPreferences("jabook_crash_handler", MODE_PRIVATE)
+                if (!prefs.getBoolean("has_crash_report", false)) return@launch
 
-            val file = java.io.File(filesDir, "last_crash_report.txt")
-            if (!file.exists()) {
-                prefs.edit().remove("has_crash_report").apply()
-                return
+                val file = java.io.File(filesDir, "last_crash_report.txt")
+                if (!file.exists()) {
+                    prefs.edit().remove("has_crash_report").apply()
+                    return@launch
+                }
+
+                val report =
+                    try {
+                        file.readText()
+                    } catch (_: Exception) {
+                        return@launch
+                    }
+
+                LogUtils.w("JabookApplication", "Found crash report from previous session, launching CrashActivity")
+                val intent =
+                    android.content.Intent(this@JabookApplication, com.jabook.app.jabook.crash.CrashActivity::class.java).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        putExtra(com.jabook.app.jabook.crash.CrashActivity.EXTRA_STACK_TRACE, report)
+                    }
+                startActivity(intent)
+            } catch (e: Exception) {
+                LogUtils.e("JabookApplication", "Failed to check crash report", e)
             }
-
-            val report =
-                try {
-                    file.readText()
-                } catch (_: Exception) {
-                    return
-                }
-
-            LogUtils.w("JabookApplication", "Found crash report from previous session, launching CrashActivity")
-            val intent =
-                android.content.Intent(this, com.jabook.app.jabook.crash.CrashActivity::class.java).apply {
-                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    putExtra(com.jabook.app.jabook.crash.CrashActivity.EXTRA_STACK_TRACE, report)
-                }
-            startActivity(intent)
-        } catch (e: Exception) {
-            LogUtils.e("JabookApplication", "Failed to check crash report", e)
         }
     }
 

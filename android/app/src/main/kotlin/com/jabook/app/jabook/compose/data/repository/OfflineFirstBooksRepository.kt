@@ -87,11 +87,14 @@ public class OfflineFirstBooksRepository
                 val books = entities.toBooks()
                 when (sortOrder) {
                     BookSortOrder.BY_ACTIVITY -> {
-                        // Gather player state for all books
+                        // Gather player state for all books in one snapshot read
+                        // (N per-book prefs reads + JSON decodes used to run on every Flow emission,
+                        // which the 5-second playback-position save re-triggers).
                         // Since this is inside a suspend map, we can call suspend functions
+                        val playerStates = playerPersistenceManager.getPlayerStates(books.map { it.id })
                         val booksWithStatus =
                             books.map { book ->
-                                val state = playerPersistenceManager.getPlayerState(book.id)
+                                val state = playerStates[book.id]
                                 val status =
                                     if (state != null) {
                                         val percentage =

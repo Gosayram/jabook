@@ -64,7 +64,7 @@ public class AnrWatchdog(
         if (isRunning) return
         isRunning = true
         scope.launch {
-            while (isActive) {
+            while (isActive && isRunning) {
                 checkMainThread()
                 delay(CHECK_INTERVAL_MS)
             }

@@ -182,16 +182,33 @@ public class PlayerPersistenceManager
                 }
             }
 
-        public suspend fun getPlayerState(bookId: String): PlayerState? =
+        public suspend fun getPlayerState(bookId: String): PlayerState? = getPlayerStates(listOf(bookId))[bookId]
+
+        /**
+         * Bulk variant of [getPlayerState]: one SharedPreferences snapshot instead of N reads.
+         * Books with no stored state (or undecodable state) are absent from the result.
+         */
+        public suspend fun getPlayerStates(bookIds: Collection<String>): Map<String, PlayerState> =
             withContext(Dispatchers.IO) {
                 try {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    val jsonString = prefs.getString("book_state_$bookId", null) ?: return@withContext null
-                    Json.decodeFromString<PlayerState>(jsonString)
+                    val wanted = bookIds.toSet()
+                    buildMap {
+                        for (bookId in wanted) {
+                            try {
+                                val jsonString = prefs.getString("book_state_$bookId", null) ?: continue
+                                put(bookId, Json.decodeFromString<PlayerState>(jsonString))
+                            } catch (e: Exception) {
+                                e.rethrowCancellation()
+                                // Matches getPlayerState: undecodable entry behaves as "no state"
+                                LogUtils.e("PlayerPersistence", "Failed to get player state for bookId=$bookId", e)
+                            }
+                        }
+                    }
                 } catch (e: Exception) {
                     e.rethrowCancellation()
-                    LogUtils.e("PlayerPersistence", "Failed to get player state", e)
-                    null
+                    LogUtils.e("PlayerPersistence", "Failed to get player states", e)
+                    emptyMap()
                 }
             }
 

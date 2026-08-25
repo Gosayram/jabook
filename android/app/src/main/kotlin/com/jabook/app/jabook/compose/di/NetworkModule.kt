@@ -89,6 +89,18 @@ public object NetworkModule {
         }
 
     /**
+     * Provide shared DNS-over-HTTPS resolver.
+     *
+     * Singleton so the mirror health client and the API client share one
+     * DnsCache instead of each paying a DoH round trip per fresh lookup.
+     */
+    @Provides
+    @Singleton
+    public fun provideDohDns(): com.jabook.app.jabook.compose.data.network.DnsOverHttpsDns =
+        com.jabook.app.jabook.compose.data.network.DnsOverHttpsDns
+            .create()
+
+    /**
      * Provide MirrorManager.
      *
      * Uses a lightweight OkHttpClient for health checks to avoid circular dependency.
@@ -100,12 +112,9 @@ public object NetworkModule {
         cookieJar: PersistentCookieJar,
         loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory,
         networkTelemetryEventListenerFactory: NetworkTelemetryEventListenerFactory,
+        dohDns: com.jabook.app.jabook.compose.data.network.DnsOverHttpsDns,
     ): MirrorManager {
         // Lightweight OkHttpClient for health checks only
-        val dohDns =
-            com.jabook.app.jabook.compose.data.network
-                .DnsOverHttpsDns
-                .create()
         val healthCheckClient =
             OkHttpClient
                 .Builder()
@@ -149,13 +158,10 @@ public object NetworkModule {
         dynamicTimeoutInterceptor: DynamicTimeoutInterceptor,
         rutrackerHeadersInterceptor: com.jabook.app.jabook.compose.data.network.RutrackerHeadersInterceptor,
         networkTelemetryEventListenerFactory: NetworkTelemetryEventListenerFactory,
+        dohDns: com.jabook.app.jabook.compose.data.network.DnsOverHttpsDns,
     ): OkHttpClient {
         // DNS-over-HTTPS: bypass DNS blocks on some ISPs without VPN
         // Uses Google Public DNS over HTTPS; falls back to system DNS on failure
-        val dohDns =
-            com.jabook.app.jabook.compose.data.network
-                .DnsOverHttpsDns
-                .create()
         val apiCache = Cache(context.cacheDir.resolve("rutracker_http"), HTTP_CACHE_SIZE_BYTES)
 
         return OkHttpClient

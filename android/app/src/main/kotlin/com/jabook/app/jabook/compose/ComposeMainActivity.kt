@@ -129,9 +129,12 @@ public class ComposeMainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        // Handle initial intent
-        deepLinkIntent = sanitizeNavigableIntent(intent)
-        handleIntent(intent)
+        // Handle initial intent only on fresh creation — on recreation
+        // (rotation/process death) the original deep link must not re-fire
+        if (savedInstanceState == null) {
+            deepLinkIntent = sanitizeNavigableIntent(intent)
+            handleIntent(intent)
+        }
         observeAutoPipSettings()
 
         setContent {
