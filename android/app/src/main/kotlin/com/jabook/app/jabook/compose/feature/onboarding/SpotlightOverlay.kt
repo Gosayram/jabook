@@ -53,11 +53,22 @@ public fun SpotlightOverlay(
 ) {
     // §599: Do not show spotlight when TalkBack is active — provide linear accessible alternative instead
     val context = androidx.compose.ui.platform.LocalContext.current
-    val am = context.getSystemService(android.content.Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
-    val isTalkBackActive =
-        remember {
-            am.isEnabled && am.isTouchExplorationEnabled
+    val am =
+        remember(context) {
+            context.getSystemService(android.content.Context.ACCESSIBILITY_SERVICE) as
+                android.view.accessibility.AccessibilityManager
         }
+    // Observe live so enabling TalkBack mid-spotlight switches to the accessible variant
+    val talkBackActive = remember { androidx.compose.runtime.mutableStateOf(am.isEnabled && am.isTouchExplorationEnabled) }
+    androidx.compose.runtime.DisposableEffect(am) {
+        val listener =
+            android.view.accessibility.AccessibilityManager.TouchExplorationStateChangeListener { enabled ->
+                talkBackActive.value = enabled && am.isEnabled
+            }
+        am.addTouchExplorationStateChangeListener(listener)
+        onDispose { am.removeTouchExplorationStateChangeListener(listener) }
+    }
+    val isTalkBackActive = talkBackActive.value
 
     if (isTalkBackActive) {
         // Linear accessible alternative: render as a simple bottom card without the scrim/punch-out

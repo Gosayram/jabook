@@ -55,6 +55,7 @@ public class LibraryScanWorker
         private val bookScanner: LocalBookScanner,
         private val booksDao: BooksDao,
         private val chaptersDao: ChaptersDao,
+        private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val loggerFactory: LoggerFactory,
     ) : CoroutineWorker(appContext, params) {
         private val logger = loggerFactory.get("LibraryScanWorker")
@@ -179,6 +180,13 @@ public class LibraryScanWorker
                                 PerfTrace.section(name = "LibraryScanWorker.loadExistingBookPaths") {
                                     booksDao.getAllBookPaths()
                                 }
+                            // Unmount guard: if every scan root covering a book is itself missing,
+                            // the volume is probably temporarily unmounted — skip deletion so a
+                            // SD hiccup doesn't permanently wipe the library and playback state.
+                            val scanRoots =
+                                PerfTrace.section(name = "LibraryScanWorker.loadScanRoots") {
+                                    scanPathDao.getAllPathsList().map { it.path }
+                                }
                             var deletedCount = 0
 
                             PerfTrace.section(name = "LibraryScanWorker.cleanupDeletedBooks") {
@@ -186,6 +194,16 @@ public class LibraryScanWorker
                                     if (book.localPath != null) {
                                         val bookDir = java.io.File(book.localPath)
                                         if (!bookDir.exists() || !bookDir.isDirectory) {
+                                            val coveringRoots = scanRoots.filter { book.localPath.startsWith(it) }
+                                            val rootMissing =
+                                                coveringRoots.isNotEmpty() &&
+                                                    coveringRoots.none { java.io.File(it).isDirectory }
+                                            if (rootMissing) {
+                                                logger.w {
+                                                    "Skipping deletion of ${book.localPath}: covering scan root missing (possibly unmounted)"
+                                                }
+                                                continue
+                                            }
                                             logger.i {
                                                 "Deleting book with non-existent path: ${book.localPath}"
                                             }

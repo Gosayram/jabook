@@ -49,7 +49,7 @@ internal class SleepTimerManager(
     private val saveCurrentPositionOnExpiry: () -> Unit = {},
     private val audioFader: AudioFader? = null,
     private val settingsRepository: com.jabook.app.jabook.compose.data.preferences.SettingsRepository? = null,
-    private val saveSleepTimerStateToDataStore: (com.jabook.app.jabook.compose.data.preferences.SleepTimerState) -> Unit = {},
+    private val saveSleepTimerStateToDataStore: ((com.jabook.app.jabook.compose.data.preferences.SleepTimerState) -> Unit)? = null,
     private val isShakeToExtendEnabled: () -> Boolean = { true },
     private val isPowerSaveModeEnabled: () -> Boolean = {
         val powerManager = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
@@ -398,8 +398,10 @@ internal class SleepTimerManager(
         }
     }
 
-/**
-     * Saves sleep timer state to DataStore (primary) and SharedPreferences (migration fallback).
+    /**
+     * Saves sleep timer state to DataStore. When no DataStore sink is wired
+     * (e.g. binder-created managers), falls back to the legacy SharedPreferences
+     * backup so state still survives process recreation.
      */
     private fun saveTimerState() {
         try {
@@ -413,30 +415,34 @@ internal class SleepTimerManager(
                     ),
                 )
 
-            // Save to DataStore via callback (async)
-            val dataStoreState =
-                com.jabook.app.jabook.compose.data.preferences.SleepTimerState
-                    .newBuilder()
-                    .setMode(persistedState.mode?.name ?: "NONE")
-                    .setEndTimeEpochMs(persistedState.endTimeMillis)
-                    .setIsPaused(persistedState.paused)
-                    .setPausedRemainingMs(persistedState.pausedRemainingMillis)
-                    .build()
-            saveSleepTimerStateToDataStore(dataStoreState)
-
-            // Also save to SharedPreferences for backward compatibility during migration
-            try {
-                val prefs = context.getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
-                val editor = prefs.edit()
-                editor.putLong(SleepTimerPersistence.KEY_END_TIME, persistedState.endTimeMillis)
-                editor.putBoolean(SleepTimerPersistence.KEY_END_OF_CHAPTER, persistedState.endOfChapter)
-                editor.putString(SleepTimerPersistence.KEY_MODE, persistedState.mode?.name)
-                editor.putBoolean(SleepTimerPersistence.KEY_PAUSED, persistedState.paused)
-                editor.putLong(SleepTimerPersistence.KEY_PAUSED_REMAINING_MILLIS, persistedState.pausedRemainingMillis)
-                editor.apply()
-            } catch (e: Exception) {
-                e.rethrowCancellation()
-                LogUtils.w("AudioPlayerService", "Failed to backup sleep timer state to SharedPreferences", e)
+            val dataStoreSink = saveSleepTimerStateToDataStore
+            if (dataStoreSink != null) {
+                // Save to DataStore via callback (async)
+                val dataStoreState =
+                    com.jabook.app.jabook.compose.data.preferences.SleepTimerState
+                        .newBuilder()
+                        .setMode(persistedState.mode?.name ?: "NONE")
+                        .setEndTimeEpochMs(persistedState.endTimeMillis)
+                        .setIsPaused(persistedState.paused)
+                        .setPausedRemainingMs(persistedState.pausedRemainingMillis)
+                        .build()
+                dataStoreSink(dataStoreState)
+            } else {
+                // ponytail: legacy SP backup only when no DataStore sink exists
+                try {
+                    context
+                        .getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
+                        .edit()
+                        .putLong(SleepTimerPersistence.KEY_END_TIME, persistedState.endTimeMillis)
+                        .putBoolean(SleepTimerPersistence.KEY_END_OF_CHAPTER, persistedState.endOfChapter)
+                        .putString(SleepTimerPersistence.KEY_MODE, persistedState.mode?.name)
+                        .putBoolean(SleepTimerPersistence.KEY_PAUSED, persistedState.paused)
+                        .putLong(SleepTimerPersistence.KEY_PAUSED_REMAINING_MILLIS, persistedState.pausedRemainingMillis)
+                        .apply()
+                } catch (e: Exception) {
+                    e.rethrowCancellation()
+                    LogUtils.w("AudioPlayerService", "Failed to save sleep timer state to SharedPreferences", e)
+                }
             }
 
             LogUtils.d(
@@ -468,6 +474,7 @@ internal class SleepTimerManager(
                                 .getDefaultInstance()
                     if (dataStoreState.mode.isNotBlank() || dataStoreState.endTimeEpochMs > 0L) {
                         restoreFromDataStoreState(dataStoreState)
+                        retireLegacySleepTimerPrefs()
                         LogUtils.d("AudioPlayerService", "Sleep timer restored from DataStore")
                         return
                     }
@@ -482,6 +489,30 @@ internal class SleepTimerManager(
         } catch (e: Exception) {
             e.rethrowCancellation()
             LogUtils.e("AudioPlayerService", "Failed to restore sleep timer state", e)
+        }
+    }
+
+    /**
+     * One-time retirement of the legacy SharedPreferences timer-state backup.
+     * DataStore is authoritative from here on. Only the timer-state keys are
+     * removed — the same prefs file still holds the live
+     * "stopped by sleep timer" flag used by [AudioPlayerService].
+     */
+    private fun retireLegacySleepTimerPrefs() {
+        try {
+            context
+                .getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .remove(SleepTimerPersistence.KEY_END_TIME)
+                .remove(SleepTimerPersistence.KEY_END_OF_CHAPTER)
+                .remove(SleepTimerPersistence.KEY_MODE)
+                .remove(SleepTimerPersistence.KEY_PAUSED)
+                .remove(SleepTimerPersistence.KEY_PAUSED_REMAINING_MILLIS)
+                .apply()
+            LogUtils.d("AudioPlayerService", "Legacy sleep timer SharedPreferences retired")
+        } catch (e: Exception) {
+            e.rethrowCancellation()
+            LogUtils.w("AudioPlayerService", "Failed to retire legacy sleep timer prefs", e)
         }
     }
 

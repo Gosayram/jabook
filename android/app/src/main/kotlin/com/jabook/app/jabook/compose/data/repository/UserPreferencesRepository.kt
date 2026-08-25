@@ -75,8 +75,10 @@ public interface UserPreferencesRepository {
 
     /**
      * Update onboarding completion status.
+     *
+     * @return true when the value was persisted, false on storage failure.
      */
-    public suspend fun setOnboardingCompleted(completed: Boolean)
+    public suspend fun setOnboardingCompleted(completed: Boolean): Boolean
 
     /**
      * Enable or disable limited storage fallback mode.

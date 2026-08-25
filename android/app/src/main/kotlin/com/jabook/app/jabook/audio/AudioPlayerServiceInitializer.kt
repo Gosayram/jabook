@@ -115,8 +115,8 @@ public class AudioPlayerServiceInitializer(
                 audioFader = service.audioFader,
                 settingsRepository = service.settingsRepository,
                 saveSleepTimerStateToDataStore = { state ->
-                    // Fire-and-forget: crash safety is covered by the synchronous
-                    // SharedPreferences backup written in SleepTimerManager.saveTimerState().
+                    // Fire-and-forget: DataStore is the sole persistence sink for
+                    // this manager (no SharedPreferences fallback is wired).
                     service.playerServiceScope.launch {
                         try {
                             service.settingsRepository.updateSleepTimerState(state)
@@ -126,6 +126,7 @@ public class AudioPlayerServiceInitializer(
                             LogUtils.w("AudioPlayerService", "Failed to save sleep timer state to DataStore", e)
                         }
                     }
+                    Unit
                 },
             )
         service.playerServiceScope.launch {

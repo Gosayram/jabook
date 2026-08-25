@@ -48,6 +48,7 @@ class LibraryScanWorkerTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val booksDao: BooksDao = mock()
     private val chaptersDao: ChaptersDao = mock()
+    private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao = mock()
     private val loggerFactory: LoggerFactory =
         object : LoggerFactory {
             override fun get(tag: String): Logger = NoopWorkerLogger
@@ -79,6 +80,7 @@ class LibraryScanWorkerTest {
     fun `doWork uses scan-safe upsert that preserves existing playback state`() =
         runBlocking {
             whenever(booksDao.getAllBookPaths()).thenReturn(emptyList())
+            whenever(scanPathDao.getAllPathsList()).thenReturn(emptyList())
             val worker =
                 buildWorker(
                     scanner =
@@ -129,6 +131,7 @@ class LibraryScanWorkerTest {
                         bookScanner = scanner,
                         booksDao = booksDao,
                         chaptersDao = chaptersDao,
+                        scanPathDao = scanPathDao,
                         loggerFactory = loggerFactory,
                     )
                 }

@@ -71,10 +71,14 @@ public class HybridBookScanner
                             continue
                         }
                         val folder = java.io.File(pathEntity.path)
-                        if (!folder.exists() || !folder.isDirectory) {
-                            logger.w { "Removing non-existent scan folder: ${pathEntity.path}" }
+                        if (folder.exists() && !folder.isDirectory) {
+                            logger.w { "Removing invalid scan folder (not a directory): ${pathEntity.path}" }
                             scanPathDao.deletePath(pathEntity)
                             removedCount++
+                        } else {
+                            // Missing folder may be a temporarily unmounted volume (SD hiccup).
+                            // Keep the path and retry next scan instead of dropping user config.
+                            logger.w { "Keeping missing scan folder (may be temporarily unmounted): ${pathEntity.path}" }
                         }
                     }
                 }

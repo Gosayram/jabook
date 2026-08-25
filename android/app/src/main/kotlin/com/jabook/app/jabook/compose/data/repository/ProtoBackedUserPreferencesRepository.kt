@@ -105,9 +105,7 @@ public class ProtoBackedUserPreferencesRepository
             update { normalizeChapterTitles = enabled }
         }
 
-        override suspend fun setOnboardingCompleted(completed: Boolean) {
-            update { onboardingCompleted = completed }
-        }
+        override suspend fun setOnboardingCompleted(completed: Boolean): Boolean = update { onboardingCompleted = completed }
 
         override suspend fun setStorageFallbackEnabled(enabled: Boolean) {
             update { storageFallbackEnabled = enabled }
@@ -125,12 +123,13 @@ public class ProtoBackedUserPreferencesRepository
             update { this.languageCode = languageCode }
         }
 
-        private suspend fun update(transform: UserPreferences.Builder.() -> Unit) {
+        private suspend fun update(transform: UserPreferences.Builder.() -> Unit): Boolean =
             try {
                 dataStore.updateData { preferences -> preferences.toBuilder().apply(transform).build() }
+                true
             } catch (e: Exception) {
                 e.rethrowCancellation()
                 LogUtils.e("ProtoPrefs", "Failed to update preference", e)
+                false
             }
-        }
     }
