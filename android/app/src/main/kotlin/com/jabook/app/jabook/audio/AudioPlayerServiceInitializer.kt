@@ -250,6 +250,7 @@ public class AudioPlayerServiceInitializer(
                 getCurrentPositionMs = { service.getActivePlayer().currentPosition },
                 autoBookmarkTrigger = service.autoBookmarkTrigger,
                 onCallEndedWithBookmark = { AudioPlayerService.phoneCallBookmarkCreated = true },
+                isSleepTimerActive = { service.isSleepTimerActive() },
             )
 
         // Initialize MediaButtonHandler for multi-click headset support
@@ -457,7 +458,8 @@ public class AudioPlayerServiceInitializer(
                     var lastTimerActive = false
                     while (isActive) {
                         delay(5_000L)
-                        val remaining = service.getSleepTimerRemainingSeconds() ?: -1
+                        // 0 when inactive — never a negative sentinel (Auto/Wear consumers read this).
+                        val remaining = service.getSleepTimerRemainingSeconds() ?: 0
                         val speed = service.getPlaybackSpeed()
                         val isTimerActive = service.isSleepTimerActive()
                         // Only rebuild sessionExtras when the published values actually changed.

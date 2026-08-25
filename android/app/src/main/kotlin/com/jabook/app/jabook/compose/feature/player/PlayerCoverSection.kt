@@ -87,8 +87,8 @@ internal fun PlayerCoverSection(
         }
 
     val coverScale =
-        if (reduceMotion) {
-            1f
+        if (reduceMotion || !state.isPlaying) {
+            1f // no transition created while paused -> zero per-frame ticking
         } else {
             val infiniteTransition =
                 androidx.compose.animation.core

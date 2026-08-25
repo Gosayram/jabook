@@ -379,6 +379,24 @@ private class FakeSettingsRepository(
         playerNotifications: Boolean?,
     ) = Unit
 
+    override suspend fun applyBackupSettings(
+        wifiOnly: Boolean,
+        autoLoadCoversOnCellular: Boolean,
+        downloadPath: String,
+        selectedMirror: String,
+        autoSwitchMirror: Boolean,
+        limitDownloadSpeed: Boolean,
+        maxDownloadSpeedKb: Int,
+        maxConcurrentDownloads: Int,
+        rewindSeconds: Int,
+        forwardSeconds: Int,
+        dynamicColors: Boolean,
+        notificationsEnabled: Boolean,
+        downloadNotifications: Boolean,
+        playerNotifications: Boolean,
+        customMirrors: List<String>,
+    ) = Unit
+
     override suspend fun updateSelectedMirror(domain: String) {
         latestSelectedMirror = domain
         state.update { prefs -> prefs.toBuilder().setSelectedMirror(domain).build() }

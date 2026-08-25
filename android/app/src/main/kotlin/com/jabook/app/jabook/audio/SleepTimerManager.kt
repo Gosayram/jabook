@@ -287,6 +287,9 @@ internal class SleepTimerManager(
                     if (sleepTimerMode == SleepTimerMode.FIXED_DURATION) {
                         when (isPlaying) {
                             true -> {
+                                // User resumed playback: abort any in-flight sleep-timer
+                                // fade-out so its completion callback cannot pause again.
+                                audioFader?.cancelCurrentAnimation()
                                 // Resume timer when playback resumes
                                 val remainingMillis = currentTimer.getRemainingMillis()
                                 suspendableTimer = currentTimer.resume()
@@ -660,7 +663,8 @@ internal class SleepTimerManager(
         val player = getActivePlayer()
         if (audioFader != null) {
             audioFader.fadeOut(player) {
-                if (isCurrentFixedTimer(callbackGeneration)) {
+                // Skip if user resumed mid-fade (or the timer was replaced).
+                if (isCurrentFixedTimer(callbackGeneration) && !player.isPlaying) {
                     player.playWhenReady = false
                     cancelSleepTimer()
                     sendTimerExpiredEvent()

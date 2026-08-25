@@ -131,7 +131,11 @@ public class AudioPlayerNotificationProvider(
         actionFactory: MediaNotification.ActionFactory,
         onNotificationChangedCallback: MediaNotification.Provider.Callback,
     ): MediaNotification {
-        notificationCallback = onNotificationChangedCallback
+        // Wrap the callback so lastNotification tracks every notification the
+        // default provider posts (including async artwork updates) — otherwise
+        // invalidateNotification() would re-post a stale cached one.
+        val trackedCallback = trackingCallback(onNotificationChangedCallback)
+        notificationCallback = trackedCallback
         val filteredLayout = filterCustomLayout(customLayout)
         LogUtils.d(
             "AudioPlayerNotificationProvider",
@@ -143,7 +147,7 @@ public class AudioPlayerNotificationProvider(
                 mediaSession,
                 filteredLayout,
                 actionFactory,
-                onNotificationChangedCallback,
+                trackedCallback,
             )
         LogUtils.d("AudioPlayerNotificationProvider", "Notification created: ${mediaNotification.notification}")
 
@@ -170,6 +174,14 @@ public class AudioPlayerNotificationProvider(
         }
         notificationCallback?.onNotificationChanged(last)
     }
+
+    private fun trackingCallback(delegate: MediaNotification.Provider.Callback): MediaNotification.Provider.Callback =
+        object : MediaNotification.Provider.Callback {
+            override fun onNotificationChanged(notification: MediaNotification) {
+                lastNotification = notification
+                delegate.onNotificationChanged(notification)
+            }
+        }
 
     private fun filterCustomLayout(customLayout: ImmutableList<CommandButton>): ImmutableList<CommandButton> {
         if (customLayout.isEmpty()) return customLayout

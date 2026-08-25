@@ -531,29 +531,25 @@ public class BackupService
                 // Restore normalize chapter titles
                 userPreferencesRepository.setNormalizeChapterTitles(settings.normalizeChapterTitles)
 
-                // Restore ProtoSettings
-                protoSettingsRepository.updateWifiOnly(settings.wifiOnlyDownload)
-                protoSettingsRepository.updateAutoLoadCoversOnCellular(settings.autoLoadCoversOnCellular)
-                protoSettingsRepository.updateDownloadPath(settings.downloadPath)
-                protoSettingsRepository.updateSelectedMirror(settings.currentMirror)
-                protoSettingsRepository.updateAutoSwitchMirror(settings.autoSwitchMirror)
-                protoSettingsRepository.updateLimitDownloadSpeed(settings.limitDownloadSpeed)
-                protoSettingsRepository.updateMaxDownloadSpeed(settings.maxDownloadSpeedKb)
-                protoSettingsRepository.updateMaxConcurrentDownloads(settings.maxConcurrentDownloads)
-                protoSettingsRepository.updateAudioSettings(
+                // Restore ProtoSettings — single bulk rewrite (one fsync instead of N)
+                protoSettingsRepository.applyBackupSettings(
+                    wifiOnly = settings.wifiOnlyDownload,
+                    autoLoadCoversOnCellular = settings.autoLoadCoversOnCellular,
+                    downloadPath = settings.downloadPath,
+                    selectedMirror = settings.currentMirror,
+                    autoSwitchMirror = settings.autoSwitchMirror,
+                    limitDownloadSpeed = settings.limitDownloadSpeed,
+                    maxDownloadSpeedKb = settings.maxDownloadSpeedKb,
+                    maxConcurrentDownloads = settings.maxConcurrentDownloads,
                     rewindSeconds = settings.rewindDurationSeconds,
                     forwardSeconds = settings.forwardDurationSeconds,
-                )
-                userPreferencesRepository.setLanguage(settings.languageCode)
-                protoSettingsRepository.updateDynamicColors(settings.useDynamicColors)
-                protoSettingsRepository.updateNotificationSettings(
+                    dynamicColors = settings.useDynamicColors,
                     notificationsEnabled = settings.notificationsEnabled,
                     downloadNotifications = settings.downloadNotifications,
                     playerNotifications = settings.playerNotifications,
+                    customMirrors = settings.customMirrors,
                 )
-                settings.customMirrors.forEach {
-                    protoSettingsRepository.addCustomMirror(it)
-                }
+                userPreferencesRepository.setLanguage(settings.languageCode)
 
                 logger.d { "All settings restored successfully" }
             } catch (e: Exception) {

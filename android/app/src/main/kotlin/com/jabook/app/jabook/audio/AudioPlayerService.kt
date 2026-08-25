@@ -31,6 +31,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.processors.BookLoudnessCompensator
 import com.jabook.app.jabook.audio.processors.LufsAnalysisWorker
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
@@ -564,6 +565,8 @@ public class AudioPlayerService : MediaLibraryService() {
     ) {
         // Apply book loudness compensation when switching to a different book
         if (groupPath != null && groupPath != currentGroupPath) {
+            // Book switch: stop chapter subtitle loop and clear its override.
+            stopChapterNotificationUpdates()
             val bookId = groupPath.substringAfterLast("/").takeIf { it.isNotBlank() } ?: groupPath
             // ponytail: first play of an unanalyzed book gets no gain (lufsValue null);
             // compensation kicks in on the next play after the background worker runs.
@@ -800,7 +803,9 @@ public class AudioPlayerService : MediaLibraryService() {
 
         val bookId = currentGroupPath ?: return
         val player = getActivePlayer()
-        if (player.mediaItemCount == 0) return
+        // After stop() (items retained) currentPosition reads 0; never overwrite
+        // good progress with that.
+        if (player.mediaItemCount == 0 || player.playbackState == Player.STATE_IDLE) return
 
         crashSafePositionWriter.writePositionSync(
             bookId = bookId,
@@ -927,7 +932,13 @@ public class AudioPlayerService : MediaLibraryService() {
                     if (duration > 0 && currentPos >= 0 && totalTracks > 0) {
                         val remaining = (duration - currentPos).coerceAtLeast(0L)
                         val timeStr = formatDuration(remaining)
-                        val subtitle = "Глава ${currentIndex + 1} из $totalTracks • $timeStr осталось в главе"
+                        val subtitle =
+                            getString(
+                                R.string.chapter_progress_subtitle,
+                                currentIndex + 1,
+                                totalTracks,
+                                timeStr,
+                            )
                         notificationSubtitleOverride = subtitle
                         notificationProviderRef?.invalidateNotification()
                     }
@@ -940,6 +951,10 @@ public class AudioPlayerService : MediaLibraryService() {
     private fun stopChapterNotificationUpdates() {
         chapterNotificationJob?.cancel()
         chapterNotificationJob = null
+        // Drop stale "Глава X из Y" so it cannot leak into notifications of another
+        // book or a paused state.
+        notificationSubtitleOverride = null
+        notificationProviderRef?.invalidateNotification()
     }
 
     internal fun onPlaybackIsPlayingChanged(isPlaying: Boolean) {

@@ -93,7 +93,7 @@ public fun PlaybackSpeedSheet(
                     },
                 ),
         ) {
-            mutableStateListOf(currentSpeed)
+            mutableStateListOf<Float>()
         }
 
     ModalBottomSheet(

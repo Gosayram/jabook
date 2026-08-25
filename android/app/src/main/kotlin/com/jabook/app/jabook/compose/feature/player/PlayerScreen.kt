@@ -256,17 +256,17 @@ public fun PlayerScreen(
         }
     }
 
-    var showSpeedSheet by remember { mutableStateOf(false) }
-    var showSleepTimerSheet by remember { mutableStateOf(false) }
-    var showAudioSettingsSheet by remember { mutableStateOf(false) }
-    var showChapterSheet by remember { mutableStateOf(false) }
-    var showOverflowMenu by remember { mutableStateOf(false) }
-    var showStatsOverlay by remember { mutableStateOf(false) }
-    var isBookmarkNoteSheetVisible by remember { mutableStateOf(false) }
+    var showSpeedSheet by rememberSaveable { mutableStateOf(false) }
+    var showSleepTimerSheet by rememberSaveable { mutableStateOf(false) }
+    var showAudioSettingsSheet by rememberSaveable { mutableStateOf(false) }
+    var showChapterSheet by rememberSaveable { mutableStateOf(false) }
+    var showOverflowMenu by rememberSaveable { mutableStateOf(false) }
+    var showStatsOverlay by rememberSaveable { mutableStateOf(false) }
+    var isBookmarkNoteSheetVisible by rememberSaveable { mutableStateOf(false) }
 
     // Vinyl Mode State
     var isVinylMode by rememberSaveable { mutableStateOf(false) }
-    var showBookmarkSheet by remember { mutableStateOf(false) }
+    var showBookmarkSheet by rememberSaveable { mutableStateOf(false) }
 
     // Navigator for SupportingPaneScaffold
     val scaffoldNavigator = rememberSupportingPaneScaffoldNavigator()
@@ -1697,7 +1697,7 @@ private fun PlayerContent(
     val displayAuthor = authorFromMetadata ?: state.book.author
 
     // Lyrics visibility state
-    var showLyrics by remember { mutableStateOf(false) }
+    var showLyrics by rememberSaveable { mutableStateOf(false) }
     val hasLyrics =
         remember(state.lyrics) {
             !state.lyrics.isNullOrEmpty()
@@ -1708,11 +1708,11 @@ private fun PlayerContent(
         }
     val seekScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
-    var showBookmarkNoteSheet by remember { mutableStateOf(false) }
+    var showBookmarkNoteSheet by rememberSaveable { mutableStateOf(false) }
     var showBookmarkMomentStamp by remember { mutableStateOf(false) }
-    var pendingBookmarkId by remember { mutableStateOf<String?>(null) }
-    var pendingBookmarkNote by remember { mutableStateOf("") }
-    var pendingBookmarkAudioPath by remember { mutableStateOf<String?>(null) }
+    var pendingBookmarkId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingBookmarkNote by rememberSaveable { mutableStateOf("") }
+    var pendingBookmarkAudioPath by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Discard any unsaved pending voice note when the player leaves composition (#40).
     // Recorder/player lifecycle lives in BookmarkNoteSheet.

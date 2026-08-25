@@ -129,32 +129,52 @@ internal class CrossfadeHandler(
         val nextChapterIndex = currentChapterIndex + 1
         val paths = playlistManager.currentFilePaths ?: return
         if (nextChapterIndex !in paths.indices) return
-        val metadata = playlistManager.currentMetadata
         val requestGeneration = monitoringGeneration.get()
         transitionTriggerInFlight.set(true)
         service.playerServiceScope.launch {
             try {
-                val sources =
-                    paths.mapIndexedNotNull { index, _ ->
-                        playlistManager.createMediaSource(paths, index, metadata)
-                    }
+                // Only the next chapter is built here; the full queue is restored
+                // after the swap so absolute chapter indices keep working.
+                val nextSource = playlistManager.getNextMediaSource(currentChapterIndex)
+                if (nextSource == null) return@launch
 
-                if (sources.size == paths.size) {
-                    if (!isCurrentRequest(requestGeneration, currentPlayer, currentChapterIndex)) {
-                        return@launch
-                    }
-                    crossFadePlayer.setNextMediaSources(sources, nextChapterIndex)
-                    val completionGeneration = monitoringGeneration.get()
-                    crossFadePlayer.startCrossFade {
-                        if (monitoringGeneration.get() == completionGeneration &&
-                            playlistManager.actualTrackIndex == currentChapterIndex
-                        ) {
-                            playlistManager.actualTrackIndex = nextChapterIndex
-                        }
+                if (!isCurrentRequest(requestGeneration, currentPlayer, currentChapterIndex)) {
+                    return@launch
+                }
+                crossFadePlayer.setNextMediaSources(listOf(nextSource), 0)
+                val completionGeneration = monitoringGeneration.get()
+                crossFadePlayer.startCrossFade {
+                    if (monitoringGeneration.get() == completionGeneration &&
+                        playlistManager.actualTrackIndex == currentChapterIndex
+                    ) {
+                        playlistManager.actualTrackIndex = nextChapterIndex
+                        restoreQueueAfterCrossfade(nextChapterIndex)
                     }
                 }
             } finally {
                 transitionTriggerInFlight.set(false)
+            }
+        }
+    }
+
+    /**
+     * Re-adds all chapters except [activeChapterIndex] to the incoming player after a
+     * single-source crossfade swap, restoring absolute timeline indices. Mirrors the
+     * book-switch crossfade queue fill in AudioPlayerService.
+     */
+    private fun restoreQueueAfterCrossfade(activeChapterIndex: Int) {
+        val paths = playlistManager.currentFilePaths ?: return
+        val playlistItems = playlistManager.currentPlaylistItems ?: return
+        val metadata = playlistManager.currentMetadata
+        val player = service.getActivePlayer()
+        for (index in PlaylistSessionStatePolicy.crossfadeRemainingSourceIndices(paths.size, activeChapterIndex)) {
+            val source = playlistManager.createMediaSourceForItems(playlistItems, index, metadata)
+            if (source != null) {
+                if (index < activeChapterIndex) {
+                    player.addMediaSource(0, source)
+                } else {
+                    player.addMediaSource(source)
+                }
             }
         }
     }

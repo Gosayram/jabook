@@ -94,6 +94,28 @@ public interface SettingsRepository {
         playerNotifications: Boolean?,
     )
 
+    /**
+     * Bulk restore for backup import — one proto rewrite instead of N.
+     * Mirrors are replaced (not appended) with [customMirrors].
+     */
+    public suspend fun applyBackupSettings(
+        wifiOnly: Boolean,
+        autoLoadCoversOnCellular: Boolean,
+        downloadPath: String,
+        selectedMirror: String,
+        autoSwitchMirror: Boolean,
+        limitDownloadSpeed: Boolean,
+        maxDownloadSpeedKb: Int,
+        maxConcurrentDownloads: Int,
+        rewindSeconds: Int,
+        forwardSeconds: Int,
+        dynamicColors: Boolean,
+        notificationsEnabled: Boolean,
+        downloadNotifications: Boolean,
+        playerNotifications: Boolean,
+        customMirrors: List<String>,
+    )
+
     public suspend fun updateSelectedMirror(domain: String)
 
     public suspend fun addCustomMirror(domain: String)
@@ -290,6 +312,47 @@ public class ProtoSettingsRepository
                 downloadNotifications?.let { builder.setDownloadNotifications(it) }
                 playerNotifications?.let { builder.setPlayerNotifications(it) }
                 builder.build()
+            }
+        }
+
+        override suspend fun applyBackupSettings(
+            wifiOnly: Boolean,
+            autoLoadCoversOnCellular: Boolean,
+            downloadPath: String,
+            selectedMirror: String,
+            autoSwitchMirror: Boolean,
+            limitDownloadSpeed: Boolean,
+            maxDownloadSpeedKb: Int,
+            maxConcurrentDownloads: Int,
+            rewindSeconds: Int,
+            forwardSeconds: Int,
+            dynamicColors: Boolean,
+            notificationsEnabled: Boolean,
+            downloadNotifications: Boolean,
+            playerNotifications: Boolean,
+            customMirrors: List<String>,
+        ) {
+            // Single rewrite: each individual setter would fsync the whole proto.
+            dataStore.updateData { preferences ->
+                preferences
+                    .toBuilder()
+                    .setWifiOnlyDownload(wifiOnly)
+                    .setAutoLoadCoversOnCellular(autoLoadCoversOnCellular)
+                    .setDownloadPath(downloadPath)
+                    .setSelectedMirror(selectedMirror)
+                    .setAutoSwitchMirror(autoSwitchMirror)
+                    .setLimitDownloadSpeed(limitDownloadSpeed)
+                    .setMaxDownloadSpeedKb(maxDownloadSpeedKb)
+                    .setMaxConcurrentDownloads(maxConcurrentDownloads)
+                    .setRewindDurationSeconds(rewindSeconds)
+                    .setForwardDurationSeconds(forwardSeconds)
+                    .setUseDynamicColors(dynamicColors)
+                    .setNotificationsEnabled(notificationsEnabled)
+                    .setDownloadNotifications(downloadNotifications)
+                    .setPlayerNotifications(playerNotifications)
+                    .clearCustomMirrors()
+                    .addAllCustomMirrors(customMirrors)
+                    .build()
             }
         }
 

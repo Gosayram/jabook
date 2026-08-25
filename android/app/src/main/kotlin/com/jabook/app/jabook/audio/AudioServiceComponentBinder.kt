@@ -187,6 +187,7 @@ internal object AudioServiceComponentBinder {
                 getCurrentPositionMs = { service.getActivePlayer().currentPosition },
                 autoBookmarkTrigger = service.autoBookmarkTrigger,
                 onCallEndedWithBookmark = { AudioPlayerService.phoneCallBookmarkCreated = true },
+                isSleepTimerActive = { service.isSleepTimerActive() },
             )
 
         service.mediaButtonHandler = MediaButtonHandler()
