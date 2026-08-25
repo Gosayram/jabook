@@ -405,7 +405,10 @@ private fun FavoritesList(
                     downloadStatus = com.jabook.app.jabook.compose.data.model.DownloadStatus.NOT_DOWNLOADED,
                     downloadProgress = 0f,
                     localPath = null,
-                    addedDate = System.currentTimeMillis(),
+                    addedDate =
+                        com.jabook.app.jabook.compose.util.DateTimeFormatter
+                            .parseISO8601ToMillis(favorite.addedToFavorites)
+                            .takeIf { it > 0L } ?: System.currentTimeMillis(),
                     lastPlayedDate = null,
                     isFavorite = favoriteIds.contains(favorite.topicId),
                     sourceUrl = favorite.magnetUrl.takeIf { it.isNotEmpty() },

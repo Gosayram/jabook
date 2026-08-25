@@ -285,15 +285,18 @@ public class IndexingViewModel
                         } else if (workWasActive) {
                             workWasActive = false
                             _isIndexing.value = false
-                            val failedWork = workInfos.firstOrNull { it.state == WorkInfo.State.FAILED }
+                            // KEEP policy keeps rows from every attempt; any{SUCCEEDED}
+                            // would let a historical success mask a fresh FAILED run.
+                            // DAO returns insertion order (no ORDER BY) — newest last.
+                            val latestTerminal = workInfos.lastOrNull { it.state.isFinished }
                             val sizeAfterFinish = resolveIndexSizeAfterServiceCompletion()
                             _indexingProgress.value =
                                 when {
-                                    workInfos.any { it.state == WorkInfo.State.SUCCEEDED } && sizeAfterFinish > 0 -> {
+                                    latestTerminal?.state == WorkInfo.State.SUCCEEDED && sizeAfterFinish > 0 -> {
                                         IndexingProgress.Completed(totalTopics = sizeAfterFinish, durationMs = 0L)
                                     }
-                                    failedWork != null -> {
-                                        val errorMsg = failedWork.outputData.getString("error_message") ?: "Unknown error"
+                                    latestTerminal?.state == WorkInfo.State.FAILED -> {
+                                        val errorMsg = latestTerminal.outputData.getString("error_message") ?: "Unknown error"
                                         IndexingProgress.Error(errorMsg)
                                     }
                                     else -> {

@@ -26,6 +26,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -72,8 +73,10 @@ class WebViewViewModelTest {
     }
 
     @Test
-    fun `malformed percent encoded deep link URL is rejected without throwing`() {
-        assertNull(decodeWebViewUrl("https%3A%2F%2Fmirror.example%2F%"))
+    fun `malformed deep link URL is rejected without throwing`() {
+        assertNull(sanitizeWebViewUrl("https%3A%2F%2Fmirror.example%2F%"))
+        assertNull(sanitizeWebViewUrl("javascript:alert(1)"))
+        assertEquals("https://mirror.example/forum/login.php", sanitizeWebViewUrl("https://mirror.example/forum/login.php"))
     }
 
     @Test

@@ -99,15 +99,13 @@ public class WebViewViewModel
 
         /**
          * Pre-seed WebView with existing OkHttp cookies for the given URL.
-         * Should be called before loadUrl to avoid empty cookie state.
+         * Must be awaited before loadUrl to avoid empty cookie state.
          */
-        public fun syncCookiesToWebView(url: String) {
-            viewModelScope.launch {
-                try {
-                    authRepository.syncCookiesToWebView(url)
-                } catch (_: Exception) {
-                    // Best-effort; WebView works without pre-seeded cookies
-                }
+        public suspend fun syncCookiesToWebView(url: String) {
+            try {
+                authRepository.syncCookiesToWebView(url)
+            } catch (_: Exception) {
+                // Best-effort; WebView works without pre-seeded cookies
             }
         }
     }

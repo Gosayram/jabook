@@ -140,6 +140,11 @@ public class AuthViewModel
             _uiState.update { it.copy(showWebViewLogin = false) }
         }
 
+        /** Clears the one-shot error so a cached entry does not re-show a stale snackbar. */
+        public fun consumeError() {
+            _uiState.update { it.copy(error = null) }
+        }
+
         /** Uses one trusted origin for the WebView, cookie jar, and API validation. */
         public suspend fun prepareWebViewLogin(): String {
             if (mirrorManager.currentMirror.value !in MirrorManager.DEFAULT_MIRRORS) {

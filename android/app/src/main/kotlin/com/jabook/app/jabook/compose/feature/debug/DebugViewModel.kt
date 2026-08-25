@@ -111,6 +111,8 @@ public class DebugViewModel
                             val logContent = debugLogService.collectLogs()
                             _logs.value = logContent
                             _uiState.value = DebugUiState.Success
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
                         } catch (e: Exception) {
                             logger.e(e) { "Failed to load logs (Op: $operationId)" }
                             _uiState.value = DebugUiState.Error(e.message ?: "Failed to load logs")
@@ -240,6 +242,8 @@ public class DebugViewModel
                                 )
                             _authDebugInfo.value = info
                             logger.i { "Auth debug info refreshed (Op: $operationId)" }
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
                         } catch (e: Exception) {
                             // Handle errors gracefully - update authDebugInfo with error state
                             // Use WARNING for individual failures, not ERROR
@@ -255,6 +259,8 @@ public class DebugViewModel
                                 )
                             _authDebugInfo.value = errorInfo
                         }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         // Handle case when logger.withOperation itself throws an exception
                         logger.e({ "Failed to initialize auth debug info operation" }, e)

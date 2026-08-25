@@ -66,8 +66,7 @@ import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.navigation.WebViewRoute
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
  * WebView screen for displaying web content.
@@ -94,8 +93,8 @@ public fun WebViewScreen(
     viewModel: WebViewViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
-    // Decode URL from navigation argument.
-    val url = remember(route.url) { decodeWebViewUrl(route.url) }
+    // Navigation already decoded the argument; only reject malformed URLs.
+    val url = remember(route.url) { sanitizeWebViewUrl(route.url) }
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
@@ -116,6 +115,20 @@ public fun WebViewScreen(
     // Handle back button - navigate in WebView if possible
     BackHandler(enabled = canGoBack) {
         webView?.goBack()
+    }
+
+    // First load: reject untrusted deep-link URLs, then seed cookies before loading.
+    LaunchedEffect(webView, url) {
+        val view = webView
+        if (url == null || view == null) return@LaunchedEffect
+        if (url.isNotEmpty() && !viewModel.isTrustedAuthenticationUrl(url)) {
+            // Untrusted initial URL: never load arbitrary content with JS enabled.
+            safeNavigateBack()
+        } else {
+            val target = url.ifEmpty { viewModel.getLoginUrl() }
+            viewModel.syncCookiesToWebView(target)
+            view.loadUrl(target)
+        }
     }
 
     Scaffold(
@@ -334,23 +347,6 @@ public fun WebViewScreen(
                             .getInstance()
                             .setAcceptThirdPartyCookies(this, false)
 
-                        // Pre-seed WebView with OkHttp cookies before navigation
-                        if (url != null && url.isNotEmpty()) {
-                            viewModel.syncCookiesToWebView(url)
-                        }
-
-                        // Load the URL
-                        if (url == null) {
-                            // The navigation effect above closes malformed external deep links.
-                        } else if (route.isAuthentication && !viewModel.isTrustedAuthenticationUrl(url)) {
-                            safeNavigateBack()
-                        } else if (url.isNotEmpty()) {
-                            loadUrl(url)
-                        } else {
-                            // Fallback to login page using current mirror
-                            loadUrl(viewModel.getLoginUrl())
-                        }
-
                         webView = this
                     }
                 },
@@ -360,6 +356,7 @@ public fun WebViewScreen(
                 },
                 onRelease = { view ->
                     view.stopLoading()
+                    view.removeAllViews()
                     view.destroy()
                     if (webView === view) webView = null
                 },
@@ -397,9 +394,5 @@ public fun WebViewScreen(
     }
 }
 
-internal fun decodeWebViewUrl(value: String): String? =
-    try {
-        URLDecoder.decode(value, StandardCharsets.UTF_8.toString())
-    } catch (_: IllegalArgumentException) {
-        null
-    }
+/** Malformed-input guard only — the route argument arrives already decoded. */
+internal fun sanitizeWebViewUrl(value: String): String? = if (value.isEmpty() || value.toHttpUrlOrNull() != null) value else null

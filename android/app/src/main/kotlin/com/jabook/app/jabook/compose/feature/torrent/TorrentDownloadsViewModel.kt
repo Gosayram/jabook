@@ -185,6 +185,7 @@ public class TorrentDownloadsViewModel
                         )
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     logger.e({ "Error processing downloads" }, e)
                     TorrentDownloadsUiState.Error(e.message ?: context.getString(R.string.unknown_error))
                 }
@@ -267,6 +268,9 @@ public class TorrentDownloadsViewModel
                 if (state is TorrentDownloadsUiState.Success) {
                     state.completedDownloads.forEach { download ->
                         torrentManager.removeTorrent(download.hash, deleteFiles = false)
+                        // removeTorrent early-returns for hashes not in the live session
+                        // (e.g. session-restored rows) — always delete the DB row too.
+                        repository.delete(download.hash)
                     }
                 }
             }
@@ -395,11 +399,21 @@ public class TorrentDownloadsViewModel
             val availableStorage: Long,
         )
 
-        private fun calculateStorageStats(downloads: List<TorrentDownload>): StorageStats {
-            // Get downloads directory stats
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val stat = StatFs(downloadsDir.absolutePath)
-            val availableStorage = stat.availableBlocksLong * stat.blockSizeLong
+        private suspend fun calculateStorageStats(downloads: List<TorrentDownload>): StorageStats {
+            // Stat the user-configured download directory (fallback: public Downloads)
+            val downloadsDirPath =
+                settingsRepository.userPreferences.first().downloadPath.ifEmpty {
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).absolutePath
+                }
+
+            // StatFs does disk I/O and combine runs on the main dispatcher — hop to IO.
+            val availableStorage =
+                withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching {
+                        val stat = StatFs(downloadsDirPath)
+                        stat.availableBlocksLong * stat.blockSizeLong
+                    }.getOrDefault(0L)
+                }
 
             // Calculate total storage used by downloads
             var totalStorageUsed = 0L

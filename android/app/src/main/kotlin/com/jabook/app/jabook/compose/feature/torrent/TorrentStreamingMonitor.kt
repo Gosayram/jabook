@@ -37,6 +37,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -89,10 +90,24 @@ public class TorrentStreamingMonitor
             // for this long — prevents endless 1s wake-ups after playback ends.
             private const val STOPPED_GRACE_PERIOD_MS = 5 * 60_000L
             private const val STOPPED_GRACE_TICKS = STOPPED_GRACE_PERIOD_MS / POLLING_INTERVAL_MS
+
+            // Auto-stop when the player stays paused without monitor-managed buffering
+            // (e.g. user pause) for this many consecutive ticks.
+            private const val PAUSED_STOP_TICKS = 30L
+
+            // Tolerate the player being on another item briefly (stream startup swaps
+            // items in after startMonitoring); stop the monitor when it persists.
+            private const val FOREIGN_ITEM_STOP_TICKS = 30L
         }
 
         // Consecutive polls where the player was truly stopped (not paused)
         private var stoppedTickCount = 0L
+
+        // Consecutive polls where the player was paused (not monitor-managed buffering)
+        private var pausedTickCount = 0L
+
+        // Consecutive polls where the player played a different item than the monitored one
+        private var foreignItemTickCount = 0L
 
         public fun startMonitoring(
             hash: String,
@@ -104,6 +119,8 @@ public class TorrentStreamingMonitor
             isPausedForBuffering = false
             pausedByUser = false
             stoppedTickCount = 0L
+            pausedTickCount = 0L
+            foreignItemTickCount = 0L
 
             // Initialize MediaController for service access
             initMediaController()
@@ -112,9 +129,7 @@ public class TorrentStreamingMonitor
                 scope.launch {
                     while (isActive) {
                         try {
-                            val shouldStop = checkBufferState()
-                            if (shouldStop) {
-                                logger.i { "Player stopped for $STOPPED_GRACE_PERIOD_MS ms — stopping stream monitor" }
+                            if (checkBufferState()) {
                                 break
                             }
                         } catch (e: Exception) {
@@ -122,6 +137,8 @@ public class TorrentStreamingMonitor
                         }
                         delay(POLLING_INTERVAL_MS)
                     }
+                    // Clean up state (buffering flag, counters, controller) on auto-stop
+                    stopMonitoring()
                 }
         }
 
@@ -179,6 +196,10 @@ public class TorrentStreamingMonitor
                             logger.d { "MediaController initialized" }
                         } catch (e: Exception) {
                             logger.e({ "Failed to initialize MediaController" }, e)
+                            // Clear the failed future so the next poll tick retries
+                            // instead of waking forever with a null controller.
+                            mediaControllerFuture?.let { MediaController.releaseFuture(it) }
+                            mediaControllerFuture = null
                         }
                     },
                     ContextCompat.getMainExecutor(context),
@@ -220,19 +241,52 @@ public class TorrentStreamingMonitor
             val playbackState = controller.playbackState
             if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
                 stoppedTickCount++
-                return stoppedTickCount >= STOPPED_GRACE_TICKS
+                if (stoppedTickCount >= STOPPED_GRACE_TICKS) {
+                    logger.i { "Player stopped for $STOPPED_GRACE_PERIOD_MS ms — stopping stream monitor" }
+                    return true
+                }
+                return false
             }
             stoppedTickCount = 0L
 
             val currentDuration = controller.duration
             val currentPosition = controller.currentPosition
 
-            // Only if we are playing the file we think we are monitoring?
-            // Ideally check metadata or path, but simplified for now:
             if (currentDuration <= 0) return false // Not playing or unknown
 
             val download = torrentManager.getDownload(hash) ?: return false
             val torrentFile = download.files.find { it.index == fileIndex } ?: return false
+
+            // Only manage playback of the monitored torrent file — pausing or resuming
+            // an unrelated item (user started another book) would be wrong. The URI is
+            // built the same way as in TorrentDetailsViewModel.playFile.
+            val monitoredPath = File(download.savePath, torrentFile.path).absolutePath
+            val currentItemPath =
+                controller.currentMediaItem
+                    ?.localConfiguration
+                    ?.uri
+                    ?.path
+            if (currentItemPath != null && currentItemPath != monitoredPath) {
+                foreignItemTickCount++
+                if (foreignItemTickCount >= FOREIGN_ITEM_STOP_TICKS) {
+                    logger.i { "Player is on another item ($currentItemPath) — stopping stream monitor" }
+                    return true
+                }
+                return false
+            }
+            foreignItemTickCount = 0L
+
+            // Paused (playWhenReady=false) without monitor-managed buffering, e.g. user
+            // pause — stop after a bounded number of ticks instead of polling forever.
+            if (!controller.playWhenReady && !isPausedForBuffering) {
+                pausedTickCount++
+                if (pausedTickCount >= PAUSED_STOP_TICKS) {
+                    logger.i { "Player paused (not buffering) for $PAUSED_STOP_TICKS ticks — stopping stream monitor" }
+                    return true
+                }
+                return false
+            }
+            pausedTickCount = 0L
 
             val totalBytes = torrentFile.size
 

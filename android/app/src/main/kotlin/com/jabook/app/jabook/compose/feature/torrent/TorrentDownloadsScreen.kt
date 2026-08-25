@@ -510,7 +510,8 @@ private fun TorrentDownloadsList(
                 DownloadHistoryItemRow(
                     item = item,
                     onOpenBook = onOpenBook,
-                    onRetry = { /* Retry handled by parent */ },
+                    // History rows don't persist the source magnet link, so retry can't be wired yet.
+                    onRetry = null,
                 )
             }
         }

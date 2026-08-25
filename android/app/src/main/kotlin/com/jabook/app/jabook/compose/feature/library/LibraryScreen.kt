@@ -128,8 +128,6 @@ import com.jabook.app.jabook.compose.designsystem.component.LibraryLoadingSkelet
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
-import com.jabook.app.jabook.compose.feature.achievements.AchievementOverlay
-import com.jabook.app.jabook.compose.feature.achievements.AchievementUiModel
 import com.jabook.app.jabook.compose.feature.discovery.DiscoveryGenre
 import com.jabook.app.jabook.compose.feature.discovery.DiscoveryScreen
 import com.jabook.app.jabook.compose.feature.discovery.DiscoveryUiState
@@ -200,9 +198,6 @@ public fun LibraryScreen(
     var showOverflowMenu by remember { mutableStateOf(false) }
 
     var listeningMood by rememberSaveable { mutableStateOf(ListeningMood.RELAXING) }
-    var activeAchievement by remember { mutableStateOf<AchievementUiModel?>(null) }
-    var hasShownFirstBookAchievement by rememberSaveable { mutableStateOf(false) }
-    var hasShownStreakAchievement by rememberSaveable { mutableStateOf(false) }
 
     val storagePermissionText = stringResource(R.string.storagePermissionRequired)
     val coverUpdatedMessage = stringResource(R.string.coverUpdated)
@@ -1130,19 +1125,21 @@ public fun LibraryScreen(
             )
         }
 
-        if (uiState is LibraryUiState.Success && spotlightStep in 1..2) {
-            val overlayCenter =
-                if (spotlightStep == 1) {
-                    Offset(x = 72f, y = 180f)
-                } else {
-                    Offset(x = 128f, y = 180f)
+        if (uiState is LibraryUiState.Success && !spotlightCompleted && spotlightStep in 1..2) {
+            val overlayCenterPx =
+                with(androidx.compose.ui.platform.LocalDensity.current) {
+                    if (spotlightStep == 1) {
+                        Offset(x = 72.dp.toPx(), y = 180.dp.toPx())
+                    } else {
+                        Offset(x = 128.dp.toPx(), y = 180.dp.toPx())
+                    }
                 }
             SpotlightOverlay(
                 title = if (spotlightStep == 1) spotlightSearchTitle else spotlightDownloadsTitle,
                 description = if (spotlightStep == 1) spotlightSearchDescription else spotlightDownloadsDescription,
                 skipText = spotlightSkipText,
                 nextText = spotlightNextText,
-                targetCenter = overlayCenter,
+                targetCenter = overlayCenterPx,
                 targetRadius = 30.dp,
                 onSkip = {
                     spotlightStep = 0
@@ -1156,14 +1153,6 @@ public fun LibraryScreen(
                         viewModel.completeSpotlight()
                     }
                 },
-                modifier = Modifier.align(Alignment.Center),
-            )
-        }
-
-        activeAchievement?.let { achievement ->
-            AchievementOverlay(
-                achievement = achievement,
-                onDismiss = { activeAchievement = null },
                 modifier = Modifier.align(Alignment.Center),
             )
         }

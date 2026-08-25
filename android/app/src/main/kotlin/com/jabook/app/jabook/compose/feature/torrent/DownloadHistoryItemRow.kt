@@ -55,14 +55,14 @@ internal object DownloadHistoryStatus {
  * A compact row representing a past download with status badge.
  *
  * - Completed rows show a play-circle action to open the book.
- * - Failed rows show error text and a retry affordance.
+ * - Failed rows show error text and a retry affordance when [onRetry] is provided.
  * - Cancelled rows are visually subdued.
  */
 @Composable
 public fun DownloadHistoryItemRow(
     item: DownloadHistoryItem,
     onOpenBook: (String) -> Unit,
-    onRetry: (DownloadHistoryItem) -> Unit,
+    onRetry: ((DownloadHistoryItem) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val isCancelled = item.status == DownloadHistoryStatus.CANCELLED
@@ -133,12 +133,14 @@ public fun DownloadHistoryItemRow(
                 }
 
                 DownloadHistoryStatus.FAILED -> {
-                    IconButton(onClick = { onRetry(item) }) {
-                        Icon(
-                            imageVector = Icons.Filled.Refresh,
-                            contentDescription = stringResource(R.string.historyRetry),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
+                    if (onRetry != null) {
+                        IconButton(onClick = { onRetry(item) }) {
+                            Icon(
+                                imageVector = Icons.Filled.Refresh,
+                                contentDescription = stringResource(R.string.historyRetry),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                     }
                 }
 

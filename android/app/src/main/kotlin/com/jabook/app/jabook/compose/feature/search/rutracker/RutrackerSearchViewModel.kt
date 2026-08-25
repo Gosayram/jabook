@@ -213,6 +213,12 @@ public class RutrackerSearchViewModel
                         logger.e(e) { "Search flow failed for query '$query'" }
                         _searchState.value = SearchState.Error(e.message ?: "Unknown error")
                     }
+                    // Flow completed without a fresh network result (e.g. offline
+                    // cache-only emission) — don't leave the user on an eternal spinner.
+                    if (_searchState.value is SearchState.Loading) {
+                        logger.w { "Search flow completed while still Loading; transitioning to Empty" }
+                        _searchState.value = SearchState.Empty
+                    }
                 }
         }
 

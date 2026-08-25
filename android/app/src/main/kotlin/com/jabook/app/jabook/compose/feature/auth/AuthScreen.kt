@@ -123,6 +123,7 @@ public fun AuthScreen(
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
             snackbarHostState.showSnackbar(it)
+            viewModel.consumeError()
         }
     }
 

@@ -119,13 +119,17 @@ public object DateTimeFormatter {
 
     /**
      * Parse ISO 8601 string to timestamp in milliseconds.
-     * Handles standard ISO format with 'T' separator and 'Z' timezone.
+     * Handles standard ISO format with 'T' separator and 'Z' timezone,
+     * including fractional seconds (e.g. [Instant.now] output).
      */
     public fun parseISO8601ToMillis(isoString: String): Long =
         try {
-            val accessor = iso8601Formatter.parse(isoString)
-            Instant.from(accessor).toEpochMilli()
+            Instant.from(iso8601Formatter.parse(isoString)).toEpochMilli()
         } catch (e: Exception) {
-            0L
+            try {
+                Instant.parse(isoString).toEpochMilli()
+            } catch (e: Exception) {
+                0L
+            }
         }
 }

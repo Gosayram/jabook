@@ -135,6 +135,18 @@ class AuthViewModelTest {
     }
 
     @Test
+    fun `error is consumed after snackbar`() =
+        runTest(testDispatcher.scheduler) {
+            whenever(authRepository.login(any())).thenReturn(Result.failure(Exception("boom")))
+            viewModel.login("user", "pass", rememberMe = false)
+            advanceUntilIdle()
+
+            assertEquals("boom", viewModel.uiState.value.error)
+            viewModel.consumeError()
+            assertNull(viewModel.uiState.value.error)
+        }
+
+    @Test
     fun `webview fallback switches an untrusted mirror to a canonical origin`() =
         runTest {
             val canonicalMirror = MirrorManager.DEFAULT_MIRRORS.first()
