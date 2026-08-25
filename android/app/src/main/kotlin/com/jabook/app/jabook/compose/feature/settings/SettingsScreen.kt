@@ -248,7 +248,7 @@ public fun SettingsScreen(
                 itemSpacing = itemSpacing,
             )
 
-            var selectedLang by remember(userPreferences) { mutableStateOf(userPreferences?.languageCode ?: "ru") }
+            var selectedLang by remember(userPreferences?.languageCode) { mutableStateOf(userPreferences?.languageCode ?: "ru") }
             StackedSegmentedControl(
                 label = stringResource(R.string.settingsLanguage),
                 options = listOf("Русский" to "ru", "English" to "en"),
@@ -260,7 +260,7 @@ public fun SettingsScreen(
                 contentPadding = contentPadding,
             )
 
-            var hapticsEnabled by remember(userPreferences) { mutableStateOf(userPreferences?.hapticsEnabled ?: true) }
+            var hapticsEnabled by remember(userPreferences?.hapticsEnabled) { mutableStateOf(userPreferences?.hapticsEnabled ?: true) }
             SettingsSwitchItem(
                 title = stringResource(R.string.settingsHaptics),
                 subtitle = stringResource(R.string.settingsHapticsDesc),
@@ -1419,7 +1419,10 @@ public fun SettingsScreen(
                 title = stringResource(R.string.resetAllBookSettings),
                 subtitle =
                     stringResource(R.string.resetAllBookSettingsConfirmation)
-                        .substringBefore(stringResource(R.string.n)), // Use first line as subtitle or full desc
+                        .lineSequence()
+                        .firstOrNull()
+                        ?.trim()
+                        .orEmpty(), // First line as subtitle, locale-independent
                 onClick = { showResetBookSettingsDialog = true },
             )
 

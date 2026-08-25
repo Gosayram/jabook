@@ -367,6 +367,12 @@ public class OfflineFirstBooksRepository
             booksDao.deleteById(bookId)
         }
 
+        override fun getFavoriteBooks(): Flow<List<Book>> = booksDao.getFavoriteBooksFlow().map { it.toBooks() }
+
+        override fun getInProgressBooks(): Flow<List<Book>> = booksDao.getInProgressBooksFlow().map { it.toBooks() }
+
+        override fun getRecentlyPlayedBooks(limit: Int): Flow<List<Book>> = booksDao.getRecentlyPlayedBooksFlow(limit).map { it.toBooks() }
+
         override suspend fun setFavorite(
             bookId: String,
             isFavorite: Boolean,

@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio
 import com.jabook.app.jabook.compose.core.util.safeEnum
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -121,7 +122,9 @@ public class MediaSessionSettingsSync(
                             ),
                     )
                 }.distinctUntilChanged()
-                .collect { settings ->
+                .catch { e ->
+                    LogUtils.e("MediaSessionSettingsSync", "Audio-settings sync flow failed; stopping this collector", e)
+                }.collect { settings ->
                     LogUtils.d(
                         "MediaSessionSettingsSync",
                         "Syncing audio settings: $settings",

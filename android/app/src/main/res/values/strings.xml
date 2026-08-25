@@ -2621,7 +2621,6 @@
     <!-- Manage folders to scan for audiobooks -->
     <string name="manageFoldersToScanForAudiobooks">Manage folders to scan for audiobooks</string>
     <!-- \n -->
-    <string name="n">\n</string>
     <!-- No custom folders added -->
     <string name="noCustomFoldersAdded">No custom folders added</string>
     <!-- Scanning default folders: Audiobooks, Podcasts -->

@@ -165,6 +165,21 @@ public interface BooksRepository {
     public suspend fun getBookBySourceUrl(sourceUrl: String): Book?
 
     /**
+     * Get all favorite books as a Flow.
+     */
+    public fun getFavoriteBooks(): Flow<List<Book>>
+
+    /**
+     * Get books that are currently in progress as a Flow.
+     */
+    public fun getInProgressBooks(): Flow<List<Book>>
+
+    /**
+     * Get recently played books as a Flow.
+     */
+    public fun getRecentlyPlayedBooks(limit: Int = 10): Flow<List<Book>>
+
+    /**
      * Update favorite status for a book.
      */
     public suspend fun setFavorite(

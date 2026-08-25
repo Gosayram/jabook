@@ -14,7 +14,7 @@
 
 package com.jabook.app.jabook.compose.domain.usecase.library
 
-import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.domain.model.Result
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertTrue
@@ -28,13 +28,13 @@ class ToggleFavoriteUseCaseTest {
     @Test
     fun `invoke updates favorite status via single DAO write`() =
         runTest {
-            val booksDao = mock<BooksDao>()
-            whenever(booksDao.updateFavoriteStatus(eq("book-1"), eq(true))).thenReturn(1)
+            val booksRepository = mock<BooksRepository>()
+            whenever(booksRepository.setFavorite(eq("book-1"), eq(true))).thenReturn(Unit)
 
-            val useCase = ToggleFavoriteUseCase(booksDao)
+            val useCase = ToggleFavoriteUseCase(booksRepository)
             val result = useCase(bookId = "book-1", isFavorite = true)
 
             assertTrue(result is Result.Success)
-            verify(booksDao).updateFavoriteStatus(eq("book-1"), eq(true))
+            verify(booksRepository).setFavorite(eq("book-1"), eq(true))
         }
 }
