@@ -1,12 +1,12 @@
 [versions]
 # Android
-androidGradlePlugin = "9.3.1"
+androidGradlePlugin = "9.3.2"
 compileSdk = "37"
 minSdk = "30"
 targetSdk = "36"
 
 # Kotlin
-kotlin = "2.3.21"
+kotlin = "2.4.10"
 ksp = "2.3.11"
 kotlinxCoroutines = "1.11.0"
 kotlinxCollectionsImmutable = "0.5.1"
@@ -62,7 +62,7 @@ re2j = "1.8"
 coil3 = "3.5.0"
 
 # Serialization
-protobuf = "4.35.1"
+protobuf = "4.36.0"
 
 # Security
 tink = "1.23.0"
@@ -89,7 +89,7 @@ androidxTestUiautomator = "2.4.0"
 
 # Testing
 junit = "4.13.2"
-kotlinTest = "2.3.21"
+kotlinTest = "2.4.10"
 mockito = "5.23.0"
 mockitoKotlin = "6.3.0"
 kotlinxCoroutinesTest = "1.11.0"

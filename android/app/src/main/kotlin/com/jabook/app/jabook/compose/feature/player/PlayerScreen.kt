@@ -1003,7 +1003,19 @@ public fun PlayerScreen(
                                                                 ),
                                                             blurRadius = 24.dp,
                                                         ),
-                                                ),
+                                                ) {
+                                                    // Half-resolution blur input (~75% fewer pixels,
+                                                    // visually imperceptible) — haze's built-in
+                                                    // downscaled-blur pattern.
+                                                    inputScale =
+                                                        dev.chrisbanes.haze.HazeInputScale
+                                                            .Fixed(0.5f)
+                                                    // Pre-S / power-save: no RenderEffect, fall back to a tint scrim.
+                                                    fallbackTint =
+                                                        dev.chrisbanes.haze.HazeTint(
+                                                            Color.Black.copy(alpha = 0.6f),
+                                                        )
+                                                },
                                             sharedTransitionScope = sharedTransitionScope,
                                             animatedVisibilityScope = animatedVisibilityScope,
                                         )

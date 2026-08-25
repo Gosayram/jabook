@@ -2,7 +2,7 @@
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/I2I81X6E3R)
 [![Android](https://img.shields.io/badge/Android-11%2B-green.svg)](https://www.android.com/)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.3.21-purple.svg)](https://kotlinlang.org/)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.4.10-purple.svg)](https://kotlinlang.org/)
 [![Media3](https://img.shields.io/badge/Media3-1.10.1-orange.svg)](https://developer.android.com/media/media3)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 
@@ -325,7 +325,7 @@ flowchart LR
 
 | Category | Technologies |
 |---|---|
-| Language | Kotlin 2.3.21 |
+| Language | Kotlin 2.4.10 |
 | UI | Jetpack Compose (BOM `2026.05.01`), Material3 Adaptive |
 | Architecture | MVVM + UseCase/Repository + Flow |
 | DI | Dagger Hilt 2.59.2 + KSP |
