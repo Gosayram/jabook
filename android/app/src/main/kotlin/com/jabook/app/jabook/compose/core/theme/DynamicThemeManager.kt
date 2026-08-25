@@ -63,7 +63,8 @@ public object DynamicThemeManager {
     private const val DISLIKE_CHROMA_MIN = 20.0
 
     // LRU cache for extracted colors - 20 entries (fits in ~200KB)
-    private val cache = android.util.LruCache<String, PlayerThemeColors>(20)
+    // androidx.collection (not android.util): internally synchronized AND JVM-testable.
+    private val cache = androidx.collection.LruCache<String, PlayerThemeColors>(20)
 
     /**
      * Extracts a color palette from the given bitmap asynchronously.

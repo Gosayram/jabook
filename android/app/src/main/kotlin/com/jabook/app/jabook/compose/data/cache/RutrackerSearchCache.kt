@@ -28,8 +28,10 @@ import javax.inject.Singleton
 public class RutrackerSearchCache
     @Inject
     constructor() {
+        // androidx.collection.LruCache: internally synchronized AND JVM-testable
+        // (android.util.LruCache throws "Stub!" in plain unit tests).
         private val cache =
-            object : android.util.LruCache<String, CacheEntry>(MAX_CACHE_SIZE) {
+            object : androidx.collection.LruCache<String, CacheEntry>(MAX_CACHE_SIZE) {
                 override fun sizeOf(
                     key: String,
                     value: CacheEntry,

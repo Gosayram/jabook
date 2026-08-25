@@ -29,6 +29,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -38,6 +43,10 @@ import androidx.compose.ui.window.Dialog
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.domain.model.Book
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okio.FileSystem
+import okio.Path.Companion.toOkioPath
 import java.io.File
 
 /**
@@ -116,11 +125,12 @@ public fun BookPropertiesDialog(
                     value = UiFormatters.formatDuration(book.totalDuration.inWholeMilliseconds),
                 )
 
-                // File size (if available)
+                // File size (if available) — off-load to IO to avoid ANR on large dirs
                 book.localPath?.let { path ->
-                    // Simplified size calculation without accessing non-existent chapters prop
-                    val size = calculateDirectorySize(path)
-
+                    var size by remember(path) { mutableLongStateOf(-1L) }
+                    LaunchedEffect(path) {
+                        size = calculateDirectorySize(path)
+                    }
                     if (size > 0) {
                         PropertyRow(
                             label = stringResource(R.string.size),
@@ -199,17 +209,22 @@ private fun formatDate(timestamp: Long): String =
         )
 
 /**
- * Calculate total size of directory.
- * Returns size in bytes, or 0 if calculation fails.
+ * Calculate total size of directory off the main thread.
+ * Uses okio FileSystem for correct symlink handling and single-syscall metadata.
  */
-private fun calculateDirectorySize(path: String): Long =
-    try {
-        val file = File(path)
-        if (file.isDirectory) {
-            file.walkTopDown().filter { it.isFile }.sumOf { it.length() }
-        } else {
-            file.length()
+private suspend fun calculateDirectorySize(path: String): Long =
+    withContext(Dispatchers.IO) {
+        try {
+            val file = File(path)
+            if (file.isDirectory) {
+                FileSystem.SYSTEM
+                    .listRecursively(file.toOkioPath())
+                    .mapNotNull { FileSystem.SYSTEM.metadataOrNull(it)?.let { m -> if (m.isRegularFile) m.size else null } }
+                    .sum()
+            } else {
+                FileSystem.SYSTEM.metadataOrNull(file.toOkioPath())?.size ?: file.length()
+            }
+        } catch (e: Exception) {
+            0L
         }
-    } catch (e: Exception) {
-        0L
     }

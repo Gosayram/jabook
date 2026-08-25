@@ -47,8 +47,9 @@ class UiFormattersTest {
     }
 
     @Test
-    fun formatDuration_negative_showsRawResult() {
-        assertEquals("0:-5", UiFormatters.formatDuration(-5_000L))
+    fun formatDuration_negative_clampsToZero() {
+        // Duration.toComponents on a clamped-to-zero value must not emit negative parts
+        assertEquals("0:00", UiFormatters.formatDuration(-5_000L))
     }
 
     @Test

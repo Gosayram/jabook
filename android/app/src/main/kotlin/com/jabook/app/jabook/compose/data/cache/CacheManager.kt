@@ -269,12 +269,9 @@ public class CacheManager
         private suspend fun getImageCacheSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    val imageCacheDir = File(context.cacheDir, "image_cache")
-                    if (imageCacheDir.exists()) {
-                        imageCacheDir.walkTopDown().sumOf { it.length() }
-                    } else {
-                        0L
-                    }
+                    // Coil's DiskCache is the source of truth — manual walkTopDown of
+                    // image_cache desyncs from its journal (undercounts + races clear()).
+                    SingletonImageLoader.get(context).diskCache?.size ?: 0L
                 } catch (e: Exception) {
                     logger.e({ "Failed to get image cache size" }, e)
                     0L
