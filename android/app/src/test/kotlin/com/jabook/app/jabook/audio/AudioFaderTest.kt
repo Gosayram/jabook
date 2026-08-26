@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import android.os.Looper
 import androidx.media3.common.Player
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -25,11 +26,12 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 
 /**
  * Unit tests for AudioFader.
  *
- * SKIPPED from pure-JUnit conversion: SUT uses android.animation.ValueAnimator,
+ * SKIPPED from pure-JVM conversion: SUT uses android.animation.ValueAnimator,
  * which is unavailable in plain JVM unit tests (stubbed android.jar returns null).
  */
 @RunWith(RobolectricTestRunner::class)
@@ -188,5 +190,56 @@ class AudioFaderTest {
     @Test
     fun `isAnimating returns false when no animation running`() {
         assertFalse(audioFader.isAnimating())
+    }
+
+    // ============ Regression Tests (sleep-timer crash fix) ============
+    // Regression for CRITICAL crash: ValueAnimator.start() from a non-Looper
+    // thread ("must have a looper!") on every sleep-timer expiry.
+
+    @Test
+    fun `fadeOut from non-looper thread does not crash and completes on main`() {
+        audioFader.fadeDurationMs = 100L
+        var completed = false
+
+        // ponytail: named explicitly so a failure message points at the regression
+        val worker =
+            Thread(
+                {
+                    audioFader.fadeOut(player) { completed = true }
+                },
+                "sleep-timer-expiry-non-looper",
+            )
+        worker.start()
+        worker.join(5_000L)
+        assertFalse(worker.isAlive)
+
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertTrue("onComplete should fire after fade-out from non-looper thread", completed)
+        verify(player, org.mockito.kotlin.atLeastOnce()).volume = 0f
+    }
+
+    @Test
+    fun `cancelCurrentAnimation prevents onComplete from pausing resumed playback`() {
+        audioFader.fadeDurationMs = 1000L
+        var pauseCalled = false
+
+        audioFader.fadeOut(player) { pauseCalled = true }
+        audioFader.cancelCurrentAnimation()
+
+        shadowOf(Looper.getMainLooper()).idle()
+
+        assertFalse("cancelled fade must not invoke onComplete (would pause resumed playback)", pauseCalled)
+        assertFalse(audioFader.isAnimating())
+    }
+
+    @Test
+    fun `fadeOut on main thread starts immediately without post hop`() {
+        audioFader.fadeDurationMs = 1000L
+
+        audioFader.fadeOut(player)
+
+        // No looper idle: animator must already be running (started synchronously)
+        assertTrue(audioFader.isAnimating())
     }
 }
