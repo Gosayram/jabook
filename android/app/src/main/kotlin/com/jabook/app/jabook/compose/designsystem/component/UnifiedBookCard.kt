@@ -49,8 +49,10 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -191,6 +193,7 @@ private fun GridBookCard(
         modifier =
             modifier
                 .fillMaxWidth()
+                .clip(CardDefaults.shape)
                 .combinedClickable(
                     onClick = { actionsProvider.onBookClick(book.id) },
                     onLongClick = {
@@ -214,16 +217,20 @@ private fun GridBookCard(
             }
 
             val context = LocalContext.current
+            val placeholderColor = MaterialTheme.colorScheme.surfaceVariant
+            val errorColor = MaterialTheme.colorScheme.error
             val imageRequest =
-                CoverUtils
-                    .createCoverImageRequest(
-                        book = book,
-                        context = context,
-                        placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                        errorColor = MaterialTheme.colorScheme.error,
-                        fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        cornerRadius = 8f, // 8dp rounded corners
-                    ).build()
+                remember(book.id, book.coverUrl, book.localPath, context, placeholderColor, errorColor) {
+                    CoverUtils
+                        .createCoverImageRequest(
+                            book = book,
+                            context = context,
+                            placeholderColor = placeholderColor,
+                            errorColor = errorColor,
+                            fallbackColor = placeholderColor,
+                            cornerRadius = 8f, // 8dp rounded corners
+                        ).build()
+                }
 
             AsyncImage(
                 model = imageRequest,
@@ -282,13 +289,16 @@ private fun GridBookCard(
                 }
             }
 
+            // Shift badges below the selection checkbox to avoid overlap in selection mode
+            val badgeTopPadding = if (isSelectionMode && onToggleSelection != null) 52.dp else 8.dp
+
             if (actionsProvider.showDownloadStatus && book.isDownloading) {
                 DownloadProgressBadge(
                     progress = book.downloadProgress,
                     modifier =
                         Modifier
                             .align(Alignment.TopStart)
-                            .padding(8.dp),
+                            .padding(start = 8.dp, top = badgeTopPadding),
                 )
             } else if (actionsProvider.showDownloadStatus) {
                 DownloadStatusBadge(
@@ -296,14 +306,14 @@ private fun GridBookCard(
                     modifier =
                         Modifier
                             .align(Alignment.TopStart)
-                            .padding(8.dp),
+                            .padding(start = 8.dp, top = badgeTopPadding),
                 )
             } else if (book.isCompleted) {
                 Box(
                     modifier =
                         Modifier
                             .align(Alignment.TopStart)
-                            .padding(8.dp)
+                            .padding(start = 8.dp, top = badgeTopPadding)
                             .background(
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
                                 RoundedCornerShape(4.dp),
@@ -444,6 +454,7 @@ private fun ListBookCard(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .clip(CardDefaults.shape)
                     .combinedClickable(
                         onClick = { actionsProvider.onBookClick(book.id) },
                         onLongClick = {
@@ -467,21 +478,25 @@ private fun ListBookCard(
             // Cover image
             Box {
                 val context = LocalContext.current
+                val placeholderColor = MaterialTheme.colorScheme.surfaceVariant
+                val errorColor = MaterialTheme.colorScheme.error
                 val imageRequest =
-                    CoverUtils
-                        .createCoverImageRequest(
-                            book = book,
-                            context = context,
-                            placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                            errorColor = MaterialTheme.colorScheme.error,
-                            fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                            cornerRadius = 8f, // 8dp rounded corners
-                        ).build()
+                    remember(book.id, book.coverUrl, book.localPath, context, placeholderColor, errorColor) {
+                        CoverUtils
+                            .createCoverImageRequest(
+                                book = book,
+                                context = context,
+                                placeholderColor = placeholderColor,
+                                errorColor = errorColor,
+                                fallbackColor = placeholderColor,
+                                cornerRadius = 8f, // 8dp rounded corners
+                            ).build()
+                    }
 
                 AsyncImage(
                     model = imageRequest,
                     contentDescription = book.title,
-                    modifier = Modifier.size(coverSize),
+                    modifier = imageModifier.then(Modifier.size(coverSize)),
                     contentScale = ContentScale.Crop,
                 )
 

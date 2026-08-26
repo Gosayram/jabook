@@ -16,9 +16,12 @@ package com.jabook.app.jabook.compose.designsystem.component
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -71,15 +74,23 @@ public fun LibraryFilterChip(
 /**
  * Horizontal scrollable chip row.
  * Wraps children in a Row with horizontalArrangement that supports scrolling.
+ *
+ * @param contentPadding Horizontal padding applied inside the scroll so chips
+ *   don't touch screen edges (matches standard 16.dp screen content padding).
  */
 @Composable
 public fun ChipRow(
     modifier: Modifier = Modifier,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(8.dp),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp),
     content: @Composable () -> Unit,
 ) {
     Row(
-        modifier = modifier.horizontalScroll(rememberScrollState()),
+        modifier =
+            modifier
+                .horizontalScroll(rememberScrollState())
+                .selectableGroup()
+                .padding(contentPadding),
         horizontalArrangement = horizontalArrangement,
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -21,12 +21,14 @@ import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
 @Composable
 public fun AccessibleButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     Box(
@@ -34,7 +36,7 @@ public fun AccessibleButton(
             modifier
                 .minimumInteractiveComponentSize()
                 .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                .clickable(onClick = onClick),
+                .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         content()

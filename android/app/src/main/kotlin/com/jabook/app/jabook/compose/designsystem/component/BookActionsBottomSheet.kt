@@ -15,8 +15,10 @@
 package com.jabook.app.jabook.compose.designsystem.component
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
@@ -40,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -77,7 +80,7 @@ public fun BookActionsBottomSheet(
         sheetState = sheetState,
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
         ) {
             // Sheet header with book title
             Text(
@@ -85,6 +88,7 @@ public fun BookActionsBottomSheet(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
 
             HorizontalDivider()
@@ -185,13 +189,12 @@ public fun BookActionsBottomSheet(
 /**
  * Helper modifier for clickable items without ripple effect.
  */
-private fun Modifier.clickableWithoutRipple(onClick: () -> Unit): Modifier =
-    this.then(
-        clickable(
-            interactionSource =
-                androidx.compose.foundation.interaction
-                    .MutableInteractionSource(),
-            indication = null,
-            onClick = onClick,
-        ),
+@Composable
+private fun Modifier.clickableWithoutRipple(onClick: () -> Unit): Modifier {
+    val interactionSource = remember { MutableInteractionSource() }
+    return this.clickable(
+        interactionSource = interactionSource,
+        indication = null,
+        onClick = onClick,
     )
+}

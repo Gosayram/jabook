@@ -33,12 +33,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.LinearGradientShader
+import androidx.compose.ui.graphics.Shader
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.compose.core.theme.MotionTokens
 
@@ -48,38 +52,40 @@ private const val SHIMMER_DURATION_MS = 1200
 /**
  * Creates a shimmer [Brush] that sweeps diagonally across the component.
  *
- * @param shift animated float 0f..1f driving the sweep position.
+ * The animated shift is read inside [ShaderBrush.createShader] (draw phase),
+ * so the sweep animates without recomposition and without allocating a new brush per frame.
  */
 @Composable
-public fun rememberShimmerBrush(shift: Float): Brush {
-    val base = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-    val highlight = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-    return remember(base, highlight, shift) {
-        Brush.linearGradient(
-            colors = listOf(base, highlight, base),
-            start = Offset(shift * 400f - 400f, 0f),
-            end = Offset(shift * 400f, 400f),
-        )
-    }
-}
-
-/**
- * Provides the animated shimmer shift value (0f..1f) for use with [rememberShimmerBrush].
- */
-@Composable
-public fun rememberShimmerShift(): Float {
+public fun rememberShimmerBrush(): Brush {
     val transition = rememberInfiniteTransition(label = "shimmer_transition")
-    return transition
-        .animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
+    val shift =
+        transition.animateFloat(
+            initialValue = -1f,
+            targetValue = 2f,
             animationSpec =
                 infiniteRepeatable(
                     animation = tween(durationMillis = SHIMMER_DURATION_MS, easing = MotionTokens.Linear),
                     repeatMode = RepeatMode.Restart,
                 ),
             label = "shimmer_shift",
-        ).value
+        )
+    val base = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+    val highlight = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+    return remember(base, highlight) {
+        object : ShaderBrush() {
+            override fun createShader(size: Size): Shader {
+                val width = size.width.coerceAtLeast(1f)
+                val height = size.height.coerceAtLeast(1f)
+                val x = shift.value * width
+                return LinearGradientShader(
+                    colors = listOf(base, highlight, base),
+                    from = Offset(x - width, 0f),
+                    to = Offset(x, height),
+                    tileMode = TileMode.Clamp,
+                )
+            }
+        }
+    }
 }
 
 /**
@@ -88,8 +94,7 @@ public fun rememberShimmerShift(): Float {
  */
 @Composable
 public fun ShimmerBookCard(modifier: Modifier = Modifier) {
-    val shift = rememberShimmerShift()
-    val brush = rememberShimmerBrush(shift)
+    val brush = rememberShimmerBrush()
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(
@@ -114,8 +119,7 @@ public fun LibraryLoadingSkeleton(
     message: String? = null,
     modifier: Modifier = Modifier,
 ) {
-    val shift = rememberShimmerShift()
-    val shimmerBrush = rememberShimmerBrush(shift)
+    val shimmerBrush = rememberShimmerBrush()
 
     Column(
         modifier = modifier.fillMaxSize().padding(16.dp),

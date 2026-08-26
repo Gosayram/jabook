@@ -35,6 +35,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,16 +85,20 @@ public fun ContinueListeningHeroCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             val context = androidx.compose.ui.platform.LocalContext.current
+            val placeholderColor = MaterialTheme.colorScheme.surfaceVariant
+            val errorColor = MaterialTheme.colorScheme.error
             val imageRequest =
-                CoverUtils
-                    .createCoverImageRequest(
-                        book = book,
-                        context = context,
-                        placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                        errorColor = MaterialTheme.colorScheme.error,
-                        fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        cornerRadius = 12f,
-                    ).build()
+                remember(book.id, book.coverUrl, book.localPath, context, placeholderColor, errorColor) {
+                    CoverUtils
+                        .createCoverImageRequest(
+                            book = book,
+                            context = context,
+                            placeholderColor = placeholderColor,
+                            errorColor = errorColor,
+                            fallbackColor = placeholderColor,
+                            cornerRadius = 12f,
+                        ).build()
+                }
 
             AsyncImage(
                 model = imageRequest,
