@@ -160,8 +160,10 @@ internal class MediaSessionLayoutHelper(
                 .setPlayerCommand(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
                 .build()
 
+        // ponytail: compact notification keeps most-used rewind/forward (play/pause is auto-inserted
+        // by Media3); chapter prev/next remain in expanded view only.
         session.setMediaButtonPreferences(
-            listOf(prevChapterButton, rewindButton, forwardButton, nextChapterButton),
+            listOf(rewindButton, forwardButton, prevChapterButton, nextChapterButton),
         )
         LogUtils.d(TAG, "Updated media button preferences - Rewind: ${rewindSeconds}s, Forward: ${forwardSeconds}s")
     }

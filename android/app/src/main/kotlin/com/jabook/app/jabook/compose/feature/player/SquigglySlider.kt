@@ -56,10 +56,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
@@ -140,6 +142,8 @@ public fun SquigglySlider(
     val density = LocalDensity.current
 
     val reduceMotion = rememberReduceMotion()
+    // ponytail: mirror custom Canvas track to match Material Slider's RTL thumb
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
     // Animation for the wave phase (movement)
     val infiniteTransition = rememberInfiniteTransition(label = "wave_phase")
@@ -185,12 +189,13 @@ public fun SquigglySlider(
                 .onGloballyPositioned { coordinates ->
                     val topLeft = coordinates.localToWindow(Offset.Zero)
                     sliderWindowOffset = IntOffset(topLeft.x.toInt(), topLeft.y.toInt())
-                }.pointerInput(onLongPress, enabled, normalizedRange) {
+                }.pointerInput(onLongPress, enabled, normalizedRange, isRtl) {
                     if (onLongPress == null || !enabled) return@pointerInput
                     detectTapGestures(
                         onLongPress = { offset ->
                             if (size.width <= 0) return@detectTapGestures
-                            val fraction = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                            val rawFraction = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                            val fraction = if (isRtl) 1f - rawFraction else rawFraction
                             val longPressValue =
                                 normalizedRange.start +
                                     fraction * (normalizedRange.endInclusive - normalizedRange.start)
@@ -250,21 +255,31 @@ public fun SquigglySlider(
                 }
             }
 
-            // Draw Inactive Track (Straight line usually, strictly)
-            // Or should the WHOLE track be squiggly? InnerTune usually has squiggly active part.
-            // Let's draw inactive as straight line.
-            drawLine(
-                color = inactiveTrackColor,
-                start = Offset(activeWidth, centerY),
-                end = Offset(width, centerY),
-                strokeWidth = trackHeight.toPx(),
-                cap = StrokeCap.Round,
-            )
+            // Draw Inactive Track — mirrored for RTL to match Material Slider thumb
+            if (isRtl) {
+                drawLine(
+                    color = inactiveTrackColor,
+                    start = Offset(0f, centerY),
+                    end = Offset(width - activeWidth, centerY),
+                    strokeWidth = trackHeight.toPx(),
+                    cap = StrokeCap.Round,
+                )
+            } else {
+                drawLine(
+                    color = inactiveTrackColor,
+                    start = Offset(activeWidth, centerY),
+                    end = Offset(width, centerY),
+                    strokeWidth = trackHeight.toPx(),
+                    cap = StrokeCap.Round,
+                )
+            }
 
             // Draw AB repeat range overlay (highlighted segment between A and B)
             if (abRepeatRange != null) {
-                val aX = width * abRepeatRange.first.coerceIn(0f, 1f)
-                val bX = width * abRepeatRange.second.coerceIn(0f, 1f)
+                val aF = abRepeatRange.first.coerceIn(0f, 1f)
+                val bF = abRepeatRange.second.coerceIn(0f, 1f)
+                val aX = if (isRtl) width * (1f - bF) else width * aF
+                val bX = if (isRtl) width * (1f - aF) else width * bF
                 if (aX >= 0f && bX > aX) {
                     drawLine(
                         color = abRepeatRangeColor,
@@ -276,38 +291,45 @@ public fun SquigglySlider(
                 }
             }
 
-            // Draw Active Track (Squiggly)
+            // Draw Active Track (Squiggly) — RTL draws on right side
             if (activeWidth > 0) {
                 val amplitudePx = squiggleAmplitude.toPx() * animatedAmplitudeScale
                 val wavelengthPx = squiggleWavelength.toPx()
 
                 if (amplitudePx < 1f) {
-                    // Optimized: Draw straight line if amplitude is negligible
-                    drawLine(
-                        color = activeTrackColor,
-                        start = Offset(0f, centerY),
-                        end = Offset(activeWidth, centerY),
-                        strokeWidth = trackHeight.toPx(),
-                        cap = StrokeCap.Round,
-                    )
+                    if (isRtl) {
+                        drawLine(
+                            color = activeTrackColor,
+                            start = Offset(width - activeWidth, centerY),
+                            end = Offset(width, centerY),
+                            strokeWidth = trackHeight.toPx(),
+                            cap = StrokeCap.Round,
+                        )
+                    } else {
+                        drawLine(
+                            color = activeTrackColor,
+                            start = Offset(0f, centerY),
+                            end = Offset(activeWidth, centerY),
+                            strokeWidth = trackHeight.toPx(),
+                            cap = StrokeCap.Round,
+                        )
+                    }
                 } else {
                     val path = Path()
-                    path.moveTo(0f, centerY)
-
-                    val step = 5f // Precision
+                    if (isRtl) {
+                        path.moveTo(width, centerY)
+                    } else {
+                        path.moveTo(0f, centerY)
+                    }
+                    val step = 5f
                     var x = 0f
                     while (x <= activeWidth) {
-                        // y = A * sin(2*PI * (x/L - phase))
-                        // We shift phase to make it move
                         val relX = x / wavelengthPx
                         val yOffset = amplitudePx * sin(2 * Math.PI * (relX - phase)).toFloat()
-                        path.lineTo(x, centerY + yOffset)
+                        val drawX = if (isRtl) width - activeWidth + x else x
+                        path.lineTo(drawX, centerY + yOffset)
                         x += step
                     }
-                    // Ensure we connect exactly to the end point logic
-                    // Actually lineTo covers it roughly, but let's be careful about the Thumb connection.
-                    // The thumb will be at 'activeWidth'.
-
                     drawPath(
                         path = path,
                         color = activeTrackColor,
@@ -323,7 +345,7 @@ public fun SquigglySlider(
             // Draw chapter markers over the track.
             val markerHalfHeight = (trackHeight.toPx() * 1.5f).coerceAtLeast(3f)
             sanitizedChapterMarkers.forEach { markerFraction ->
-                val markerX = width * markerFraction
+                val markerX = if (isRtl) width * (1f - markerFraction) else width * markerFraction
                 drawLine(
                     color = chapterMarkerColor,
                     start = Offset(markerX, centerY - markerHalfHeight),
@@ -336,7 +358,7 @@ public fun SquigglySlider(
             // Draw bookmark markers over the track (taller, tertiary color).
             val bookmarkHalfHeight = (trackHeight.toPx() * 2.5f).coerceAtLeast(5f)
             sanitizedBookmarkMarkers.forEach { markerFraction ->
-                val markerX = width * markerFraction
+                val markerX = if (isRtl) width * (1f - markerFraction) else width * markerFraction
                 drawLine(
                     color = bookmarkMarkerColor,
                     start = Offset(markerX, centerY - bookmarkHalfHeight),

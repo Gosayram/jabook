@@ -3087,6 +3087,9 @@
     <!-- Player error messages -->
     <string name="player_not_ready">Player is not ready yet</string>
     <string name="book_not_found">Book not found</string>
+    <string name="noBookSelected">No book selected</string>
+    <string name="noBookSelectedSubtitle">Choose a book from your library to start listening</string>
+    <string name="browseLibrary">Browse library</string>
     <string name="failed_to_delete_bookmark">Failed to delete bookmark</string>
     <string name="failed_to_update_seek_settings">Failed to update seek settings</string>
     <string name="failed_to_reset_seek_settings">Failed to reset seek settings</string>

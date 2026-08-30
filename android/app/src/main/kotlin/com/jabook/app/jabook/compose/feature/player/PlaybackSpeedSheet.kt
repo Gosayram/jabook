@@ -24,10 +24,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
@@ -116,12 +122,41 @@ public fun PlaybackSpeedSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text(
-                text = SpeedDialPolicy.formatSpeed(sliderSpeed),
-                style = MaterialTheme.typography.displayMedium,
-                color = MaterialTheme.colorScheme.primary,
-                textAlign = TextAlign.Center,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = {
+                        val next = SpeedDialPolicy.snapToStep(sliderSpeed - 0.1f)
+                        sliderSpeed = next
+                        onSpeedSelected(next)
+                        addRecentSpeed(recentSpeeds, next)
+                    },
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    Icon(imageVector = Icons.Filled.Remove, contentDescription = "-0.1")
+                }
+                Text(
+                    text = SpeedDialPolicy.formatSpeed(sliderSpeed),
+                    style = MaterialTheme.typography.displayMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(
+                    onClick = {
+                        val next = SpeedDialPolicy.snapToStep(sliderSpeed + 0.1f)
+                        sliderSpeed = next
+                        onSpeedSelected(next)
+                        addRecentSpeed(recentSpeeds, next)
+                    },
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    Icon(imageVector = Icons.Filled.Add, contentDescription = "+0.1")
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 

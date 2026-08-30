@@ -69,16 +69,12 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ButtonDefaults
@@ -163,6 +159,7 @@ import com.jabook.app.jabook.compose.core.util.HapticManager
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
+import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.domain.model.BookmarkItem
@@ -206,6 +203,7 @@ private val playerScreenLogger by lazy { LoggerFactoryImpl().get("PlayerScreen")
 public fun PlayerScreen(
     onNavigateBack: () -> Unit,
     onNavigateToBook: (String) -> Unit,
+    onNavigateToLibrary: () -> Unit = onNavigateBack,
     modifier: Modifier = Modifier,
     viewModel: PlayerViewModel = hiltViewModel(),
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
@@ -638,6 +636,12 @@ public fun PlayerScreen(
                     HapticManager.performLongPress(hapticFeedback)
                     showBookmarkSheet = true
                 },
+                onAudioSettingsClick = { showAudioSettingsSheet = true },
+                onVisualizerModeCycle = { viewModel.dispatch(PlayerIntent.CycleVisualizerMode) },
+                onChapterRepeatClick = { viewModel.dispatch(PlayerIntent.ToggleChapterRepeat) },
+                onABRepeatClick = { viewModel.dispatch(PlayerIntent.ToggleABRepeat) },
+                chapterRepeatMode = state.chapterRepeatMode,
+                abRepeatState = abRepeatState,
                 onStatsClick = { showStatsOverlay = true },
                 onDismiss = { showOverflowMenu = false },
             )
@@ -700,11 +704,13 @@ public fun PlayerScreen(
                                 }
                             },
                             actions = {
-                                IconButton(onClick = { showStatsOverlay = true }) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Info,
-                                        contentDescription = stringResource(R.string.statsForNerds),
-                                    )
+                                if (com.jabook.app.jabook.BuildConfig.DEBUG) {
+                                    IconButton(onClick = { showStatsOverlay = true }) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Info,
+                                            contentDescription = stringResource(R.string.statsForNerds),
+                                        )
+                                    }
                                 }
                                 IconButton(onClick = { showOverflowMenu = true }) {
                                     Icon(
@@ -1028,6 +1034,17 @@ public fun PlayerScreen(
                                         onRetry = viewModel::retryAfterError,
                                     )
                                 }
+                                is PlayerState.Empty -> {
+                                    EmptyState(
+                                        message = stringResource(R.string.noBookSelected),
+                                        title = stringResource(R.string.noBookSelected),
+                                        subtitle = stringResource(R.string.noBookSelectedSubtitle),
+                                        icon = androidx.compose.material.icons.Icons.Filled.Info,
+                                        ctaText = stringResource(R.string.browseLibrary),
+                                        onCta = onNavigateToLibrary,
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                }
                             }
                         }
 
@@ -1342,6 +1359,7 @@ private fun PlayerLandscapeLayout(
                     seekState.onSliderValueChange(newProgress, hapticFeedback)
                 },
                 onValueChangeFinished = {
+                    HapticManager.performTap(hapticFeedback)
                     seekState.onSliderValueChangeFinished(onSeek, onSelectChapter)
                 },
                 onLongPress = { pressedProgress ->
@@ -1455,68 +1473,6 @@ private fun PlayerLandscapeLayout(
                     modifier = Modifier.weight(1f).height(controlButtonHeight),
                 ) {
                     Icon(Icons.Filled.Speed, stringResource(R.string.playbackSpeedTitle), Modifier.size(controlButtonIconSize))
-                }
-                FilledTonalButton(
-                    onClick = onAudioSettingsClick,
-                    modifier = Modifier.weight(1f).height(controlButtonHeight),
-                ) {
-                    Icon(Icons.Filled.Tune, stringResource(R.string.audioSettingsTitle), Modifier.size(controlButtonIconSize))
-                }
-                FilledTonalButton(
-                    onClick = onChapterRepeatClick,
-                    modifier = Modifier.weight(1f).height(controlButtonHeight),
-                ) {
-                    when (state.chapterRepeatMode) {
-                        ChapterRepeatMode.INFINITE -> Text("∞", fontSize = 14.sp)
-                        ChapterRepeatMode.OFF ->
-                            Icon(
-                                Icons.Outlined.Repeat,
-                                stringResource(R.string.noRepeat),
-                                Modifier.size(controlButtonIconSize),
-                            )
-                        ChapterRepeatMode.ONCE ->
-                            Icon(
-                                Icons.Filled.RepeatOne,
-                                stringResource(R.string.repeatTrack),
-                                Modifier.size(controlButtonIconSize),
-                            )
-                    }
-                }
-                FilledTonalButton(
-                    onClick = onABRepeatClick,
-                    modifier = Modifier.weight(1f).height(controlButtonHeight),
-                    colors =
-                        ButtonDefaults.filledTonalButtonColors(
-                            containerColor =
-                                when (abRepeatState.phase) {
-                                    ABRepeatPhase.ACTIVE -> MaterialTheme.colorScheme.primaryContainer
-                                    ABRepeatPhase.A_SET -> MaterialTheme.colorScheme.tertiaryContainer
-                                    ABRepeatPhase.INACTIVE -> MaterialTheme.colorScheme.surfaceVariant
-                                },
-                        ),
-                ) {
-                    when (abRepeatState.phase) {
-                        ABRepeatPhase.INACTIVE ->
-                            Text(
-                                "A B",
-                                fontSize = controlButtonTextSize,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        ABRepeatPhase.A_SET ->
-                            Text(
-                                "A",
-                                fontSize = controlButtonTextSize,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                            )
-                        ABRepeatPhase.ACTIVE ->
-                            Text(
-                                "A→B",
-                                fontSize = controlButtonTextSize,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                            )
-                    }
                 }
                 FilledTonalButton(
                     onClick = onSleepTimerClick,
@@ -1943,6 +1899,7 @@ private fun PlayerContent(
                                 seekState.onSliderValueChange(newProgress, hapticFeedback)
                             },
                             onValueChangeFinished = {
+                                HapticManager.performTap(hapticFeedback)
                                 seekState.onSliderValueChangeFinished(onSeek, onSelectChapter)
                             },
                             onLongPress = { pressedProgress ->
@@ -2234,10 +2191,7 @@ private fun PlayerContent(
                     PlayerControlRow(
                         isCompact = isCompact,
                         playbackSpeedLabel = playbackSpeedLabel,
-                        chapterRepeatMode = chapterRepeatMode,
-                        abRepeatState = abRepeatState,
                         sleepTimerState = sleepTimerState,
-                        bookmarkCount = state.bookmarks.size,
                         hasLyrics = hasLyrics,
                         showingLyrics = showingLyrics,
                         speedButtonInteractionSource = speedButtonInteractionSource,
@@ -2248,12 +2202,7 @@ private fun PlayerContent(
                                 onSpeedClick()
                             }
                         },
-                        onAudioSettingsClick = onAudioSettingsClick,
-                        onVisualizerModeCycle = onVisualizerModeCycle,
-                        onChapterRepeatClick = onChapterRepeatClick,
-                        onABRepeatClick = onABRepeatClick,
                         onSleepTimerClick = onSleepTimerClick,
-                        onBookmarksClick = onBookmarksClick,
                         onToggleLyrics = {
                             HapticManager.performTap(hapticFeedback)
                             showLyrics = !showLyrics

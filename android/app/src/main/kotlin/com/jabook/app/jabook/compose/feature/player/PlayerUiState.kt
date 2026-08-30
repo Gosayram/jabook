@@ -102,6 +102,11 @@ public sealed interface PlayerState {
     public data class Error(
         val message: String,
     ) : PlayerState
+
+    /**
+     * Empty state — no book selected.
+     */
+    public data object Empty : PlayerState
 }
 
 public enum class PlayerSleepTimerMode {

@@ -3130,6 +3130,9 @@
     <!-- Сообщения об ошибках плеера -->
     <string name="player_not_ready">Плеер ещё не готов</string>
     <string name="book_not_found">Книга не найдена</string>
+    <string name="noBookSelected">Книга не выбрана</string>
+    <string name="noBookSelectedSubtitle">Выберите книгу из библиотеки, чтобы начать прослушивание</string>
+    <string name="browseLibrary">К библиотеке</string>
     <string name="failed_to_delete_bookmark">Не удалось удалить закладку</string>
     <string name="failed_to_update_seek_settings">Не удалось обновить настройки перемотки</string>
     <string name="failed_to_reset_seek_settings">Не удалось сбросить настройки перемотки</string>

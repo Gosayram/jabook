@@ -347,6 +347,12 @@ public fun JabookNavHost(
                         popUpTo<PlayerRoute> { inclusive = true }
                     }
                 },
+                onNavigateToLibrary = {
+                    navController.navigate(LibraryRoute) {
+                        launchSingleTop = true
+                        popUpTo<PlayerRoute> { inclusive = true }
+                    }
+                },
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = this,
             )

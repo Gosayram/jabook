@@ -115,7 +115,9 @@ internal fun buildPlayerUiState(
             PlayerRestoreBundle(bootstrapSnapshot = bootstrap, isRestoreReady = restoreReady)
         },
     ) { playback, config, restore ->
-        if (!restore.isRestoreReady) {
+        if (bookId.isBlank()) {
+            PlayerState.Empty
+        } else if (!restore.isRestoreReady) {
             PlayerState.Loading
         } else if (playback.book == null) {
             PlayerState.Error(context.getString(R.string.book_not_found))

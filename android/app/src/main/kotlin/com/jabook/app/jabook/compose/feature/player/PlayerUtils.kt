@@ -47,6 +47,7 @@ internal fun playerStateContentKey(state: PlayerState): String =
         is PlayerState.Loading -> "loading"
         is PlayerState.Active -> "active"
         is PlayerState.Error -> "error"
+        PlayerState.Empty -> "empty"
     }
 
 internal data class ChapterBoundaryHapticDecision(

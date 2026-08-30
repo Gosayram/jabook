@@ -24,7 +24,12 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -39,6 +44,7 @@ import com.jabook.app.jabook.R
 
 /**
  * Player overflow menu bottom sheet with share, favorite, bookmarks, and statistics actions.
+ * Level 3 items (Tune, Visualizer, Chapter Repeat, A-B Repeat) are routed through overflow.
  */
 @Composable
 public fun PlayerOverflowMenuSheet(
@@ -46,6 +52,12 @@ public fun PlayerOverflowMenuSheet(
     onShareClick: () -> Unit,
     onToggleFavorite: () -> Unit,
     onBookmarksClick: () -> Unit,
+    onAudioSettingsClick: () -> Unit,
+    onVisualizerModeCycle: () -> Unit,
+    onChapterRepeatClick: () -> Unit,
+    onABRepeatClick: () -> Unit,
+    chapterRepeatMode: ChapterRepeatMode,
+    abRepeatState: ABRepeatState,
     onStatsClick: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
@@ -81,6 +93,58 @@ public fun PlayerOverflowMenuSheet(
             titleRes = R.string.bookmarks,
             onClick = {
                 onBookmarksClick()
+                onDismiss()
+            },
+        )
+
+        OverflowMenuItem(
+            icon = Icons.Filled.Tune,
+            titleRes = R.string.audioSettingsTitle,
+            onClick = {
+                onAudioSettingsClick()
+                onDismiss()
+            },
+        )
+
+        OverflowMenuItem(
+            icon = Icons.Filled.Visibility,
+            titleRes = R.string.enableVisualizer,
+            onClick = {
+                onVisualizerModeCycle()
+                onDismiss()
+            },
+        )
+
+        OverflowMenuItem(
+            icon =
+                when (chapterRepeatMode) {
+                    ChapterRepeatMode.INFINITE -> Icons.Filled.RepeatOne
+                    ChapterRepeatMode.ONCE -> Icons.Filled.RepeatOne
+                    ChapterRepeatMode.OFF -> Icons.Outlined.Repeat
+                },
+            titleRes =
+                when (chapterRepeatMode) {
+                    ChapterRepeatMode.OFF -> R.string.noRepeat
+                    ChapterRepeatMode.ONCE -> R.string.repeatTrack
+                    ChapterRepeatMode.INFINITE -> R.string.repeatTrack
+                },
+            onClick = {
+                onChapterRepeatClick()
+                onDismiss()
+            },
+        )
+
+        OverflowMenuItemWithSubtitle(
+            icon = Icons.Filled.Repeat,
+            title = "A-B Repeat",
+            subtitle =
+                when (abRepeatState.phase) {
+                    ABRepeatPhase.INACTIVE -> "Inactive"
+                    ABRepeatPhase.A_SET -> "A set"
+                    ABRepeatPhase.ACTIVE -> "A→B active"
+                },
+            onClick = {
+                onABRepeatClick()
                 onDismiss()
             },
         )
@@ -123,6 +187,42 @@ private fun OverflowMenuItem(
                 text = stringResource(titleRes),
                 style = MaterialTheme.typography.bodyLarge,
             )
+        }
+    }
+}
+
+@Composable
+private fun OverflowMenuItemWithSubtitle(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+    iconTint: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconTint,
+            )
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

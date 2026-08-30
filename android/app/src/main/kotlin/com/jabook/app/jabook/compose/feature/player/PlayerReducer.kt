@@ -27,6 +27,7 @@ public object PlayerReducer {
             PlayerState.Loading -> reduceLoading(state, intent)
             is PlayerState.Active -> reduceActive(state, intent, currentPositionMs)
             is PlayerState.Error -> reduceError(state, intent)
+            PlayerState.Empty -> reduceEmpty(state, intent)
         }
 
     public fun nextChapterRepeatMode(current: ChapterRepeatMode): ChapterRepeatMode =
@@ -243,6 +244,15 @@ public object PlayerReducer {
     ): PlayerState =
         when (intent) {
             is PlayerIntent.ReportError -> PlayerState.Error(intent.reason)
+            PlayerIntent.InitializePlayer -> PlayerState.Loading
+            else -> state
+        }
+
+    private fun reduceEmpty(
+        state: PlayerState.Empty,
+        intent: PlayerIntent,
+    ): PlayerState =
+        when (intent) {
             PlayerIntent.InitializePlayer -> PlayerState.Loading
             else -> state
         }
