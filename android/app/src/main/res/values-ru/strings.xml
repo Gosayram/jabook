@@ -329,6 +329,8 @@
     <string name="auto_pip_desc">Автоматически переходить в Picture-in-Picture при выходе из плеера</string>
     <string name="headset_autoplay_title">Воспроизведение при подключении наушников</string>
     <string name="headset_autoplay_desc">Автоматически возобновлять воспроизведение при подключении проводных наушников</string>
+    <string name="notification_lockscreen_title">Уведомление на экране блокировки</string>
+    <string name="notification_lockscreen_desc">Показывать название книги и обложку на экране блокировки</string>
     <string name="playback_speed_format">%1$.1fx</string>
     <string name="sleep_timer_shake_extend_title">Встряхивание для продления таймера сна</string>
     <string name="sleep_timer_shake_extend_desc">Встряхните устройство, чтобы добавить 5 минут к активному таймеру сна (фиксированный режим)</string>

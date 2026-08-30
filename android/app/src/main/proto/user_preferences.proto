@@ -152,6 +152,9 @@ message UserPreferences {
   bool pitch_correction_enabled = 67;
   string font = 68; // AppFont enum name
   bool storage_fallback_enabled = 69;
+
+  // Hide media notification content (book title/artwork) on the lock screen (default: public).
+  bool notification_lockscreen_private = 70;
 }
 
 message SleepTimerState {

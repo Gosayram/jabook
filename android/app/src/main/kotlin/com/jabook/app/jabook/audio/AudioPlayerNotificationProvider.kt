@@ -94,12 +94,17 @@ public class AudioPlayerNotificationProvider(
     @Volatile
     private var cachedNotificationActionSlots: Set<Int>? = null
 
+    // Cached lockscreen visibility — kept fresh by the same collector as cachedNotificationActionSlots.
+    @Volatile
+    private var cachedLockscreenPrivate: Boolean = false
+
     init {
         service.playerServiceScope.launch {
             try {
                 service.settingsRepository.userPreferences.collect { prefs ->
                     val slots = prefs.notificationActionSlotsList
                     cachedNotificationActionSlots = if (slots.isEmpty()) null else slots.toSet()
+                    cachedLockscreenPrivate = prefs.notificationLockscreenPrivate
                 }
             } catch (e: Exception) {
                 LogUtils.w("AudioPlayerNotificationProvider", "Failed to collect notification action slot preferences", e)
@@ -158,6 +163,7 @@ public class AudioPlayerNotificationProvider(
                 subtitle,
             )
         }
+        mediaNotification.notification.visibility = visibilityFor(cachedLockscreenPrivate)
 
         lastNotification = mediaNotification
         return mediaNotification
@@ -178,6 +184,8 @@ public class AudioPlayerNotificationProvider(
     private fun trackingCallback(delegate: MediaNotification.Provider.Callback): MediaNotification.Provider.Callback =
         object : MediaNotification.Provider.Callback {
             override fun onNotificationChanged(notification: MediaNotification) {
+                // Artwork-loaded updates bypass createNotification() — re-apply lockscreen visibility here.
+                notification.notification.visibility = visibilityFor(cachedLockscreenPrivate)
                 lastNotification = notification
                 delegate.onNotificationChanged(notification)
             }
@@ -238,6 +246,13 @@ public class AudioPlayerNotificationProvider(
                 Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> SLOT_CHAPTER_PREV
                 Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM -> SLOT_CHAPTER_NEXT
                 else -> null
+            }
+
+        internal fun visibilityFor(lockscreenPrivate: Boolean): Int =
+            if (lockscreenPrivate) {
+                android.app.Notification.VISIBILITY_PRIVATE
+            } else {
+                android.app.Notification.VISIBILITY_PUBLIC
             }
     }
 }

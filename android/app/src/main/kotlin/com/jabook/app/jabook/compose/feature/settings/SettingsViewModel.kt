@@ -391,6 +391,7 @@ public class SettingsViewModel
             tripleClickAction: Int? = null,
             longPressAction: Int? = null,
             notificationActionSlots: List<Int>? = null,
+            notificationLockscreenPrivate: Boolean? = null,
         ) {
             viewModelScope.launch {
                 settingsRepository.updateAudioSettings(
@@ -419,6 +420,7 @@ public class SettingsViewModel
                     tripleClickAction = tripleClickAction,
                     longPressAction = longPressAction,
                     notificationActionSlots = notificationActionSlots,
+                    notificationLockscreenPrivate = notificationLockscreenPrivate,
                 )
             }
         }

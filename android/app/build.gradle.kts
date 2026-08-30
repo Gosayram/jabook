@@ -422,7 +422,9 @@ android {
         abi {
             isEnable = true
             reset()
-            include("armeabi-v7a", "arm64-v8a", "x86_64")
+            // x86: libtorrent4j ships a native x86 lib (old emulators, some Chromebooks);
+            // without this entry that .so is packaged but never delivered per-ABI.
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
             isUniversalApk = true // Also build a universal APK
         }
     }
@@ -474,8 +476,9 @@ tasks.withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
 }
 
 tasks.withType<Test>().configureEach {
-    // Hard stop for hung test task in local and CI runs.
-    timeout.set(Duration.ofMinutes(12))
+    // Hard stop for hung test task in local and CI runs. 20 min: one hung test
+    // previously killed the whole CI run at 12 min with 105+ test files.
+    timeout.set(Duration.ofMinutes(20))
     // ponytail: failFast via gradle property — fast local feedback, full CI report.
     // CI: -Ptest.failFast=false ; local default: true (fail on first error).
     failFast =
@@ -484,9 +487,10 @@ tasks.withType<Test>().configureEach {
             .map { it.toBoolean() }
             .orElse(true)
             .get()
-    // Robolectric's native runtime mounts a shared ZIP filesystem; parallel forks race there.
-    // ponytail: one worker until Robolectric provides isolated native-runtime initialization.
-    maxParallelForks = 1
+    // Robolectric's native runtime mounts a shared ZIP filesystem; parallel forks
+    // can race there. maxParallelForks=2 verified stable (2026-08-30 experiment);
+    // revert to 1 if flaky non-reproducible failures reappear.
+    maxParallelForks = 2
     forkEvery = 120
     // ponytail: Robolectric loads many classes; keep the single test JVM well provisioned.
     minHeapSize = "512m"

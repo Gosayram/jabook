@@ -65,6 +65,7 @@ public interface SettingsRepository {
         tripleClickAction: Int? = null,
         longPressAction: Int? = null,
         notificationActionSlots: List<Int>? = null,
+        notificationLockscreenPrivate: Boolean? = null,
     )
 
     public suspend fun updateNotificationSettings(
@@ -244,6 +245,7 @@ public class ProtoSettingsRepository
             tripleClickAction: Int?,
             longPressAction: Int?,
             notificationActionSlots: List<Int>?,
+            notificationLockscreenPrivate: Boolean?,
         ) {
             dataStore.updateData { preferences ->
                 val builder = preferences.toBuilder()
@@ -277,6 +279,7 @@ public class ProtoSettingsRepository
                     builder.clearNotificationActionSlots()
                     builder.addAllNotificationActionSlots(slots)
                 }
+                notificationLockscreenPrivate?.let { builder.setNotificationLockscreenPrivate(it) }
                 builder.build()
             }
         }

@@ -215,7 +215,11 @@ public class SkipSilenceAudioProcessor(
                     // Within initial tolerance — keep the frame
                     copyFrameZeroAlloc(input, output, frameStart, frameEnd)
                 } else if (mode == SkipSilenceMode.SPEED_UP && shouldKeepFrameInSpeedUpMode()) {
-                    // Speed-up mode: keep every Nth frame for time-compression effect
+                    // Speed-up mode: keep every Nth frame for time-compression effect.
+                    // Design guarantee: this branch is only reachable for frames already
+                    // classified silent (all samples ≤ threshold, ≤ ~-20 dBFS at the 0.1
+                    // ceiling), so the frame-thinning artifacts are confined to near-silence
+                    // and inaudible — no pitch/chipmunk artifacts on speech content.
                     copyFrameZeroAlloc(input, output, frameStart, frameEnd)
                 } else {
                     // Frame is being dropped — buffer into retain ring for smooth transition

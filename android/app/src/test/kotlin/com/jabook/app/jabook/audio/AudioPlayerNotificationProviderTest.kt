@@ -46,4 +46,16 @@ class AudioPlayerNotificationProviderTest {
             AudioPlayerNotificationProvider.slotIdForPlayerCommand(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM),
         )
     }
+
+    @Test
+    fun `maps lockscreen privacy preference to notification visibility`() {
+        assertEquals(
+            android.app.Notification.VISIBILITY_PUBLIC,
+            AudioPlayerNotificationProvider.visibilityFor(false),
+        )
+        assertEquals(
+            android.app.Notification.VISIBILITY_PRIVATE,
+            AudioPlayerNotificationProvider.visibilityFor(true),
+        )
+    }
 }

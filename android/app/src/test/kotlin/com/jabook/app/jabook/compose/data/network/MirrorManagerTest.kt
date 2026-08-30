@@ -371,6 +371,7 @@ internal class FakeSettingsRepository(
         tripleClickAction: Int?,
         longPressAction: Int?,
         notificationActionSlots: List<Int>?,
+        notificationLockscreenPrivate: Boolean?,
     ) = Unit
 
     override suspend fun updateNotificationSettings(

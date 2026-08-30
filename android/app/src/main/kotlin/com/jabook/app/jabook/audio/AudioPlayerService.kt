@@ -811,7 +811,16 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun stop(): Unit = commandRouter.stop()
 
-    /** Applies lifecycle side effects after MediaSession changes the player directly. */
+    /**
+     * Applies lifecycle side effects after MediaSession changes the player directly.
+     *
+     * Deliberate bypass of [AudioServiceCommandRouter]: Media3 delivers session-initiated
+     * play (notification, headset, Auto) by writing playWhenReady straight onto the player,
+     * so only these listener callbacks can apply side effects. Routing back through the
+     * router would re-enter Media3 from inside a Player.Listener and re-run
+     * resetBookCompletionIfNeeded. Side effects are idempotent, so double-application
+     * when the router path fires this callback is harmless.
+     */
     internal fun onMediaSessionPlaybackStarted() {
         playbackLifecycleActions.onPlay()
     }

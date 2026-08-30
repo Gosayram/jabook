@@ -295,6 +295,18 @@ public fun AudioSettingsScreen(
                 smallSpacing = smallSpacing,
             )
 
+            SettingsSwitchItem(
+                title = stringResource(R.string.notification_lockscreen_title),
+                subtitle = stringResource(R.string.notification_lockscreen_desc),
+                checked = !protoSettings.notificationLockscreenPrivate,
+                onCheckedChange = {
+                    viewModel.updateAudioSettings(notificationLockscreenPrivate = !it)
+                },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
             // Audio Quality (Phase 1.2 features)
             HorizontalDivider()
             SettingsSection(
