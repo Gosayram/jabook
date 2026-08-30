@@ -99,6 +99,8 @@ internal class NotificationHelper(
      */
     internal fun ensureNotificationChannel(channelId: String) {
         try {
+            // Android 8+ freezes importance after first channel creation; raising it later
+            // requires a NEW channel id (migration), not changing IMPORTANCE_LOW here.
             val channel =
                 NotificationChannel(
                     channelId,

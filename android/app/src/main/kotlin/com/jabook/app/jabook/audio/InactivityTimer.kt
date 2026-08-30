@@ -59,6 +59,12 @@ public class InactivityTimer(
 
         /**
          * Maximum inactivity timeout: 180 minutes (10800 seconds = 3 hours).
+         *
+         * Ordering invariant: this must stay far below the 7-day threshold in
+         * [com.jabook.app.jabook.compose.feature.player.PlayerResumeAfterLongPauseHandler].
+         * The inactivity unload (which saves position) always fires first, so the
+         * long-pause resume dialog only ever appears for a freshly re-loaded
+         * PlayerState.Active, never for an unloaded player.
          */
         public const val MAX_INACTIVITY_TIMEOUT_SECONDS: Long = 10800L // 180 minutes = 3 hours
         public const val ACTION_INACTIVITY_TIMER_EXPIRED: String = "com.jabook.app.jabook.audio.INACTIVITY_TIMER_EXPIRED"

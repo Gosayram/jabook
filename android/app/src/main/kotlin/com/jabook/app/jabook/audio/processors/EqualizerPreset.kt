@@ -186,6 +186,14 @@ public enum class EqualizerPreset(
         public const val BAND_COUNT: Int = 10
 
         /**
+         * Nominal center frequencies (Hz) matching [bandGainsMb] order.
+         * Used for frequency-aware mapping of preset gains onto device EQ bands
+         * whose count or frequency layout differs from the nominal 10-band grid.
+         */
+        public val BAND_CENTER_FREQS_HZ: IntArray =
+            intArrayOf(31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000)
+
+        /**
          * Sentinel value indicating preamp should be auto-calculated
          * from the maximum positive band gain to prevent clipping.
          */

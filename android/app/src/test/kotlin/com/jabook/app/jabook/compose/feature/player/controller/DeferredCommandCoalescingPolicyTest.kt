@@ -158,4 +158,15 @@ class DeferredCommandCoalescingPolicyTest {
             ),
         )
     }
+
+    @Test
+    fun `only seek and skip are book scoped`() {
+        assertTrue(DeferredCommandCoalescingPolicy.isBookScoped(DeferredCommandType.SEEK))
+        assertTrue(DeferredCommandCoalescingPolicy.isBookScoped(DeferredCommandType.SKIP))
+        assertFalse(DeferredCommandCoalescingPolicy.isBookScoped(DeferredCommandType.PLAYBACK_TOGGLE))
+        assertFalse(DeferredCommandCoalescingPolicy.isBookScoped(DeferredCommandType.SPEED))
+        assertFalse(DeferredCommandCoalescingPolicy.isBookScoped(DeferredCommandType.REPEAT_MODE))
+        assertFalse(DeferredCommandCoalescingPolicy.isBookScoped(DeferredCommandType.VISUALIZER_ENABLED))
+        assertFalse(DeferredCommandCoalescingPolicy.isBookScoped(DeferredCommandType.VISUALIZER_INITIALIZE))
+    }
 }

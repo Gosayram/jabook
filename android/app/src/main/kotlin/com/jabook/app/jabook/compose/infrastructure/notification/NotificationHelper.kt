@@ -45,6 +45,8 @@ public object NotificationHelper {
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Downloads channel
+        // Android 8+ freezes importance after first creation; changing it later requires
+        // a NEW channel id (migration), not editing IMPORTANCE_LOW here.
         val downloadsChannel =
             NotificationChannel(
                 CHANNEL_DOWNLOADS,

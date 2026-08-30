@@ -21,6 +21,12 @@ Lcom/jabook/app/jabook/compose/feature/miniplayer/MiniPlayerViewModel;
 # Audio processing chain & equalizer — first playback warmup path.
 Lcom/jabook/app/jabook/audio/TrackedAudioProcessorChain;
 Lcom/jabook/app/jabook/audio/processors/AudioEqualizerManager;
+# DSP hot classes — processor construction, crossfade, volume/cache paths on first play.
+Lcom/jabook/app/jabook/audio/processors/AudioProcessorFactory;
+Lcom/jabook/app/jabook/audio/processors/SkipSilenceAudioProcessor;
+Lcom/jabook/app/jabook/audio/CrossFadePlayer;
+Lcom/jabook/app/jabook/audio/VolumeWriteCoordinator;
+Lcom/jabook/app/jabook/audio/CacheErrorHealer;
 # Network bootstrap (mirror resolution) — first content load.
 Lcom/jabook/app/jabook/compose/data/network/DynamicBaseUrlInterceptor;
 Lcom/jabook/app/jabook/compose/data/network/MirrorManager;

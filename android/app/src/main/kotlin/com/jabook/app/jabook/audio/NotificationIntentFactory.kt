@@ -32,6 +32,11 @@ internal fun playerNotificationRoute(bookId: String?): String? =
  *
  * Extracted from AudioPlayerService as part of TASK-VERM-04 (service decomposition).
  * Consolidates PendingIntent creation logic in one place.
+ *
+ * Cold start is safe: tapping the notification may launch the activity before
+ * [com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController] finishes
+ * connecting, but commands queue client-side (executeOrQueue) and the service accepts
+ * controllers early in onGetSession, so nothing is lost or blocked.
  */
 internal class NotificationIntentFactory(
     private val context: Context,

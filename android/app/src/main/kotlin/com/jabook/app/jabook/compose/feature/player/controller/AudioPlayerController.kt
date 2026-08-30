@@ -929,6 +929,12 @@ public class AudioPlayerController
             bookId: String? = null,
         ) {
             pendingChapterSeek = null
+            // A new load invalidates queued seeks/skips still targeting the previous
+            // book's playlist; otherwise flushPendingOperations replays them into the
+            // new book once the MediaController connects.
+            pendingCommands.removeAll { command ->
+                DeferredCommandCoalescingPolicy.isBookScoped(mapToDeferredCommandType(command))
+            }
             val request =
                 PendingLoadRequest(
                     requestId = nextRequestId(),

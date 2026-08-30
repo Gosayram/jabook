@@ -26,6 +26,12 @@ import kotlinx.coroutines.launch
 /**
  * Detects resumes after a long pause (7+ days) and drives the recap dialog state (TASK-PLAYER-38).
  *
+ * Threshold ordering invariant: this 7-day threshold sits far above the
+ * InactivityTimer unload window (10–180 min). Any pause long enough to trigger
+ * this dialog has already caused the inactivity unload (with position save), so
+ * the dialog is only ever raised from a [PlayerState.Active] produced by a fresh
+ * (cold) load — it never acts on an unloaded player.
+ *
  * @param bookId Current book identifier
  * @param uiState Current player UI state
  * @param listeningSessionRepository Repository for the last listening timestamp

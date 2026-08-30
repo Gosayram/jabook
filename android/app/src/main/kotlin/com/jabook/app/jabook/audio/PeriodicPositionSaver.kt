@@ -44,6 +44,9 @@ internal class PeriodicPositionSaver(
     private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
 ) {
     private var saveJob: Job? = null
+    private var lastSavedBookId: String? = null
+    private var lastSavedTrackIndex: Int = -1
+    private var lastSavedPositionMs: Long = -1L
 
     /** Starts periodic position saving. Cancels any previous job. */
     fun start() {
@@ -52,7 +55,7 @@ internal class PeriodicPositionSaver(
             scope.launch {
                 while (isActive) {
                     delay(intervalMs)
-                    save()
+                    save(force = false)
                 }
             }
     }
@@ -65,11 +68,26 @@ internal class PeriodicPositionSaver(
 
     /** Saves current position to repository immediately. */
     fun save() {
+        save(force = true)
+    }
+
+    private fun save(force: Boolean) {
         val player = getActivePlayer()
         val bookId = getCurrentBookId()
         if (player.mediaItemCount > 0 && !bookId.isNullOrBlank()) {
             val trackIndex = player.currentMediaItemIndex
             val position = player.currentPosition
+            // Paused/stalled playback reports the same spot every tick — skip the no-op write.
+            if (!force &&
+                bookId == lastSavedBookId &&
+                trackIndex == lastSavedTrackIndex &&
+                position == lastSavedPositionMs
+            ) {
+                return
+            }
+            lastSavedBookId = bookId
+            lastSavedTrackIndex = trackIndex
+            lastSavedPositionMs = position
             // The service cancels its scope immediately after onDestroy. This final
             // database write must survive that cancellation to retain progress.
             scope.launch(ioDispatcher + NonCancellable) {

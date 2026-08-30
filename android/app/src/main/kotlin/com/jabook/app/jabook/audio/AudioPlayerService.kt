@@ -978,8 +978,9 @@ public class AudioPlayerService : MediaLibraryService() {
                         val remaining = (duration - currentPos).coerceAtLeast(0L)
                         val timeStr = formatDuration(remaining)
                         val subtitle =
-                            getString(
-                                R.string.chapter_progress_subtitle,
+                            resources.getQuantityString(
+                                R.plurals.chapter_progress_subtitle,
+                                totalTracks,
                                 currentIndex + 1,
                                 totalTracks,
                                 timeStr,

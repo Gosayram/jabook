@@ -85,14 +85,17 @@ public fun PlayerOverflowMenuSheet(
             },
         )
 
-        OverflowMenuItem(
-            icon = Icons.Default.BarChart,
-            titleRes = R.string.playerStatistics,
-            onClick = {
-                onStatsClick()
-                onDismiss()
-            },
-        )
+        // Developer tool — only shown in debug builds (menu item hidden in release).
+        if (com.jabook.app.jabook.BuildConfig.DEBUG) {
+            OverflowMenuItem(
+                icon = Icons.Default.BarChart,
+                titleRes = R.string.playerStatistics,
+                onClick = {
+                    onStatsClick()
+                    onDismiss()
+                },
+            )
+        }
     }
 }
 

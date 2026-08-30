@@ -3120,8 +3120,13 @@
     <string name="notification_channel_downloads_desc">Прогресс и завершение загрузок книг</string>
     <string name="notification_channel_player">Аудиоплеер</string>
     <string name="notification_channel_player_desc">Управление и статус воспроизведения</string>
-    <!-- Подзаголовок уведомления о прогрессе глав: текущая глава, всего глав, осталось времени в главе -->
-    <string name="chapter_progress_subtitle">Глава %1$d из %2$d • %3$s осталось в главе</string>
+    <!-- Подзаголовок уведомления о прогрессе глав: текущая глава, всего глав (счётчик для плюрализации), осталось времени в главе -->
+    <plurals name="chapter_progress_subtitle">
+        <item quantity="one">Глава %1$d из %2$d главы • %3$s осталось в главе</item>
+        <item quantity="few">Глава %1$d из %2$d глав • %3$s осталось в главе</item>
+        <item quantity="many">Глава %1$d из %2$d глав • %3$s осталось в главе</item>
+        <item quantity="other">Глава %1$d из %2$d глав • %3$s осталось в главе</item>
+    </plurals>
     <!-- Сообщения об ошибках плеера -->
     <string name="player_not_ready">Плеер ещё не готов</string>
     <string name="book_not_found">Книга не найдена</string>

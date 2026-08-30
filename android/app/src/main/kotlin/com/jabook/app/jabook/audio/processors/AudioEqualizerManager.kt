@@ -222,9 +222,11 @@ public open class AudioEqualizerManager
          * Maps a [EqualizerPreset]'s band gains onto the device [Equalizer].
          *
          * The device may have fewer or more bands than [EqualizerPreset.BAND_COUNT].
-         * We map linearly: if the device has N bands, we pick gains at evenly-spaced
-         * indices from the preset array, then clamp each gain to the device's
-         * per-band min/max range.
+         * Mapping is frequency-aware: for each device band we query [Equalizer.getCenterFreq]
+         * and interpolate the preset gain at that frequency between the two surrounding
+         * preset points ([EqualizerPreset.BAND_CENTER_FREQS_HZ]). When frequency data is
+         * unavailable we fall back to the legacy evenly-spaced index mapping. Each gain is
+         * clamped to the device's per-band min/max range.
          */
         private fun applyPresetToEq(
             eq: Equalizer,
@@ -246,13 +248,19 @@ public open class AudioEqualizerManager
                 }
 
             for (i in 0 until numBands) {
-                // Map device band index to preset index (evenly distributed)
-                val presetIndex =
-                    (i.toDouble() * (presetGains.size.toDouble() / numBands.toDouble()))
-                        .toInt()
-                        .coerceIn(0, presetGains.size - 1)
+                val presetGainMb =
+                    try {
+                        val centerFreqMhz = eq.getCenterFreq(i.toShort())
+                        if (centerFreqMhz > 0) {
+                            interpolateGainMb(centerFreqMhz / 1000f, presetGains)
+                        } else {
+                            legacyIndexGainMb(i, numBands, presetGains)
+                        }
+                    } catch (_: Exception) {
+                        legacyIndexGainMb(i, numBands, presetGains)
+                    }
                 // Apply preamp offset to prevent clipping from positive band gains
-                var gainMb = presetGains[presetIndex] + preamp
+                var gainMb = presetGainMb + preamp
 
                 // Clamp to device band limits
                 try {
@@ -266,6 +274,34 @@ public open class AudioEqualizerManager
                 eq.setBandLevel(i.toShort(), gainMb.toShort())
             }
         }
+
+        /** Linear interpolation of preset gains at [freqHz] between neighboring preset points. */
+        private fun interpolateGainMb(
+            freqHz: Float,
+            presetGainsMb: IntArray,
+        ): Int {
+            val presetFreqs = EqualizerPreset.BAND_CENTER_FREQS_HZ
+            val lastIndex = minOf(presetFreqs.size, presetGainsMb.size) - 1
+            if (freqHz <= presetFreqs[0]) return presetGainsMb[0]
+            if (freqHz >= presetFreqs[lastIndex]) return presetGainsMb[lastIndex]
+            var j = 0
+            while (j < lastIndex - 1 && freqHz > presetFreqs[j + 1]) j++
+            val t =
+                (freqHz - presetFreqs[j].toFloat()) / (presetFreqs[j + 1] - presetFreqs[j]).toFloat()
+            val gain = presetGainsMb[j] + t * (presetGainsMb[j + 1] - presetGainsMb[j])
+            return Math.round(gain)
+        }
+
+        /** Legacy evenly-spaced index mapping used when the device frequency is unknown. */
+        private fun legacyIndexGainMb(
+            bandIndex: Int,
+            numBands: Int,
+            presetGainsMb: IntArray,
+        ): Int =
+            (bandIndex.toDouble() * (presetGainsMb.size.toDouble() / numBands.toDouble()))
+                .toInt()
+                .coerceIn(0, presetGainsMb.size - 1)
+                .let { presetGainsMb[it] }
 
         private fun releaseEqualizer() {
             try {

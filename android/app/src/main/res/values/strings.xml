@@ -3079,8 +3079,11 @@
     <string name="notification_channel_downloads_desc">Book download progress and completion</string>
     <string name="notification_channel_player">Audio Player</string>
     <string name="notification_channel_player_desc">Audio playback controls and status</string>
-    <!-- Chapter progress notification subtitle: current chapter, total chapters, time left in chapter -->
-    <string name="chapter_progress_subtitle">Chapter %1$d of %2$d • %3$s left in chapter</string>
+    <!-- Chapter progress notification subtitle: current chapter, total chapters (plural count), time left in chapter -->
+    <plurals name="chapter_progress_subtitle">
+        <item quantity="one">Chapter %1$d of %2$d • %3$s left in chapter</item>
+        <item quantity="other">Chapter %1$d of %2$d • %3$s left in chapter</item>
+    </plurals>
     <!-- Player error messages -->
     <string name="player_not_ready">Player is not ready yet</string>
     <string name="book_not_found">Book not found</string>

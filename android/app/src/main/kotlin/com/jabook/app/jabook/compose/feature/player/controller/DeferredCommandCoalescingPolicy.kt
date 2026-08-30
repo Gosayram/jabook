@@ -38,4 +38,8 @@ internal object DeferredCommandCoalescingPolicy {
             DeferredCommandType.VISUALIZER_ENABLED -> existing == DeferredCommandType.VISUALIZER_ENABLED
             DeferredCommandType.VISUALIZER_INITIALIZE -> false
         }
+
+    /** True for commands carrying absolute positions/indices of the book loaded when queued. */
+    fun isBookScoped(type: DeferredCommandType): Boolean =
+        type == DeferredCommandType.SEEK || type == DeferredCommandType.SKIP
 }
