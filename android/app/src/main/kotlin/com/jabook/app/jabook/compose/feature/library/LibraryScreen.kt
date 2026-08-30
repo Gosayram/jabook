@@ -581,8 +581,8 @@ public fun LibraryScreen(
                                             .filterByQuery(searchQuery)
                                     }
                                 val discoveryUiState =
-                                    remember(books, listeningMood) {
-                                        buildDiscoveryUiState(books, listeningMood)
+                                    remember(books, listeningMood, context) {
+                                        buildDiscoveryUiState(books, listeningMood, context)
                                     }
                                 val actionsProvider =
                                     remember(viewModel, onBookClick, books, favoriteBooks) {
@@ -902,8 +902,8 @@ public fun LibraryScreen(
                                                     .filterByQuery(searchQuery)
                                             }
                                         val discoveryUiState =
-                                            remember(books, listeningMood) {
-                                                buildDiscoveryUiState(books, listeningMood)
+                                            remember(books, listeningMood, context) {
+                                                buildDiscoveryUiState(books, listeningMood, context)
                                             }
                                         val actionsProvider =
                                             remember(viewModel, onBookClick, books, favoriteBooks) {
@@ -1194,6 +1194,7 @@ public fun LibraryScreen(
 private fun buildDiscoveryUiState(
     books: List<Book>,
     mood: ListeningMood,
+    context: android.content.Context,
 ): DiscoveryUiState {
     val continueListening = books.filter { !it.isCompleted && (it.isStarted || it.progress > 0f) }.take(12)
     val trending = books.sortedByDescending { it.addedDate }.take(12)
@@ -1203,7 +1204,7 @@ private fun buildDiscoveryUiState(
             .sortedByDescending { if (it.isFavorite) 1 else 0 }
             .ifEmpty { books }
             .take(12)
-    val genresByTitle = books.groupBy { inferGenreFromBook(it) }
+    val genresByTitle = books.groupBy { inferGenreFromBook(it, context) }
     val colorPalette = GenreAccentColors
     val genres =
         genresByTitle.entries
@@ -1240,16 +1241,19 @@ private fun isMoodMatch(
     }
 }
 
-private fun inferGenreFromBook(book: Book): String {
+private fun inferGenreFromBook(
+    book: Book,
+    context: android.content.Context,
+): String {
     val source = listOf(book.title, book.author, book.description.orEmpty(), book.sourceUrl.orEmpty()).joinToString(" ").lowercase()
     return when {
-        "фантаст" in source || "sci-fi" in source || "fantasy" in source -> "Фантастика"
-        "детектив" in source || "detective" in source -> "Детективы"
-        "истор" in source || "history" in source -> "История"
-        "бизнес" in source || "business" in source -> "Бизнес"
-        "психолог" in source || "self" in source -> "Саморазвитие"
-        "класс" in source || "classic" in source -> "Классика"
-        else -> "Разное"
+        "фантаст" in source || "sci-fi" in source || "fantasy" in source -> context.getString(R.string.genreSciFi)
+        "детектив" in source || "detective" in source -> context.getString(R.string.genreDetective)
+        "истор" in source || "history" in source -> context.getString(R.string.genreHistory)
+        "бизнес" in source || "business" in source -> context.getString(R.string.genreBusiness)
+        "психолог" in source || "self" in source -> context.getString(R.string.genreSelfDevelopment)
+        "класс" in source || "classic" in source -> context.getString(R.string.genreClassics)
+        else -> context.getString(R.string.genreMisc)
     }
 }
 

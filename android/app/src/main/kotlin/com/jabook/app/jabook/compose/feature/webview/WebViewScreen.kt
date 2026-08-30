@@ -291,7 +291,7 @@ public fun WebViewScreen(
                                     if (request?.isForMainFrame == true) {
                                         isLoading = false
                                         errorMessage = error?.description?.toString()
-                                            ?: "Failed to load page"
+                                            ?: context.getString(R.string.webViewLoadFailed)
                                     }
                                 }
 

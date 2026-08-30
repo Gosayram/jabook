@@ -2999,6 +2999,9 @@
     <string name="genreHistory">History</string>
     <string name="genreBiographies">Biographies</string>
     <string name="genreChildren">Children\'s</string>
+    <string name="genreBusiness">Business</string>
+    <string name="genreSelfDevelopment">Self-development</string>
+    <string name="genreMisc">Misc</string>
     <string name="qualityAny">Any</string>
     <string name="qualityAtLeastHigh">≥ 256 kbit</string>
     <string name="qualityAtLeastStandard">≥ 128 kbit</string>
@@ -3106,4 +3109,12 @@
     <string name="failed_to_clear_cache">Failed to clear cache</string>
     <string name="torrent_stream_author">Torrent Stream</string>
     <string name="streaming_from_torrent">Streaming from torrent: %1$s</string>
+    <string name="notificationPermissionDeniedToast">Notification permission denied. Indexing progress will not be visible.</string>
+    <string name="mirrorExamplesHint">Examples: mirror1.example, mirror2.example</string>
+    <string name="cdSwitchAccount">Switch Account</string>
+    <string name="webViewLoadFailed">Failed to load page</string>
+    <string name="playbackErrorFallback">Playback error</string>
+    <string name="statsBufferStreaming">%1$s (streaming)</string>
+    <string name="statsBufferLocal">%1$s (local)</string>
+    <string name="playerShareByFormat">%1$s by %2$s</string>
 </resources>

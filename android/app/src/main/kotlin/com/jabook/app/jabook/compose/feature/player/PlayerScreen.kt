@@ -623,7 +623,7 @@ public fun PlayerScreen(
                             action = android.content.Intent.ACTION_SEND
                             putExtra(
                                 android.content.Intent.EXTRA_TEXT,
-                                state.book.title + " by " + state.book.author,
+                                context.getString(R.string.playerShareByFormat, state.book.title, state.book.author),
                             )
                             type = "text/plain"
                         }

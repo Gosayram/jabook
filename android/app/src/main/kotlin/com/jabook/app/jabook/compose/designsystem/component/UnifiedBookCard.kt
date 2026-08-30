@@ -354,7 +354,6 @@ private fun GridBookCard(
                         color = Color.White,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
-                        lineHeight = MaterialTheme.typography.titleSmall.lineHeight,
                     )
                     if (book.author.isNotBlank()) {
                         Text(
@@ -544,7 +543,6 @@ private fun ListBookCard(
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = if (displayMode == BookDisplayMode.LIST_COMPACT) 1 else 2,
                     overflow = TextOverflow.Ellipsis,
-                    lineHeight = MaterialTheme.typography.titleMedium.lineHeight,
                 )
                 if (book.author.isNotBlank()) {
                     Text(

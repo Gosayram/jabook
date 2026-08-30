@@ -33,7 +33,8 @@ import androidx.compose.ui.unit.dp
  *
  * @param progress Progress fraction 0..1
  * @param modifier Modifier for width/height
- * @param trackColor Background track color
+ * @param trackColor Background track color (defaults suit overlays on artwork;
+ * pass `colorScheme`-derived colors when placed on themed surfaces)
  * @param progressColor Filled progress color
  * @param height Bar height (default 3dp for card strips)
  */

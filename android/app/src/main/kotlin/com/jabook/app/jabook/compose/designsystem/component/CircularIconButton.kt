@@ -24,7 +24,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -56,7 +55,7 @@ public fun CircularIconButton(
     enabled: Boolean = true,
     size: Dp = 40.dp,
 ) {
-    val iconModifier = Modifier.size(size).semantics(mergeDescendants = true) {}
+    val iconModifier = Modifier.size(size)
     val colors =
         when (style) {
             CircularIconButtonStyle.DEFAULT -> IconButtonDefaults.iconButtonColors()

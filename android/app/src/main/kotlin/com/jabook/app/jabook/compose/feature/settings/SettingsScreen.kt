@@ -189,7 +189,7 @@ public fun SettingsScreen(
                 android.widget.Toast
                     .makeText(
                         context,
-                        "Разрешение на уведомления отклонено. Вы не увидите прогресс индексации.",
+                        context.getString(R.string.notificationPermissionDeniedToast),
                         android.widget.Toast.LENGTH_LONG,
                     ).show()
             }
@@ -2141,7 +2141,7 @@ private fun AddMirrorDialog(
                 )
                 Spacer(modifier = Modifier.height(smallSpacing))
                 Text(
-                    "Примеры: mirror1.example, mirror2.example",
+                    stringResource(R.string.mirrorExamplesHint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

@@ -3042,6 +3042,9 @@
     <string name="genreHistory">История</string>
     <string name="genreBiographies">Биографии</string>
     <string name="genreChildren">Детские</string>
+    <string name="genreBusiness">Бизнес</string>
+    <string name="genreSelfDevelopment">Саморазвитие</string>
+    <string name="genreMisc">Разное</string>
     <string name="qualityAny">Любое</string>
     <string name="qualityAtLeastHigh">≥ 256 кбит</string>
     <string name="qualityAtLeastStandard">≥ 128 кбит</string>
@@ -3147,4 +3150,12 @@
     <string name="failed_to_clear_cache">Не удалось очистить кэш</string>
     <string name="torrent_stream_author">Торрент-стрим</string>
     <string name="streaming_from_torrent">Стриминг из торрента: %1$s</string>
+    <string name="notificationPermissionDeniedToast">Разрешение на уведомления отклонено. Вы не увидите прогресс индексации.</string>
+    <string name="mirrorExamplesHint">Примеры: mirror1.example, mirror2.example</string>
+    <string name="cdSwitchAccount">Переключить аккаунт</string>
+    <string name="webViewLoadFailed">Не удалось загрузить страницу</string>
+    <string name="playbackErrorFallback">Ошибка воспроизведения</string>
+    <string name="statsBufferStreaming">%1$s (стрим)</string>
+    <string name="statsBufferLocal">%1$s (локально)</string>
+    <string name="playerShareByFormat">%1$s — %2$s</string>
 </resources>

@@ -30,6 +30,7 @@ import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.MediaControllerConstants
 import com.jabook.app.jabook.audio.MediaControllerExtensions
@@ -369,7 +370,7 @@ public class AudioPlayerController
                     // Actual playback failures (decode/codec/IO) surface here — onError is
                     // session-level only and never fires for e.g. an undecodable file.
                     logger.e({ "Playback error: ${error.errorCodeName} - ${error.message}" }, error)
-                    _terminalPlaybackErrors.tryEmit(error.message ?: "Playback error")
+                    _terminalPlaybackErrors.tryEmit(error.message ?: context.getString(R.string.playbackErrorFallback))
                 }
             }
 

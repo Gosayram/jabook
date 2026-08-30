@@ -38,8 +38,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.R
 
 /**
  * Account Header for the Navigation Drawer.
@@ -137,7 +139,7 @@ public fun AccountHeader(
                 IconButton(onClick = onAccountClick) {
                     Icon(
                         imageVector = Icons.Filled.ArrowDropDown,
-                        contentDescription = "Switch Account",
+                        contentDescription = stringResource(R.string.cdSwitchAccount),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
                 }

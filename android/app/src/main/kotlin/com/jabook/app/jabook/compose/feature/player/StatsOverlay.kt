@@ -136,7 +136,12 @@ public fun StatsOverlay(
             StatItem(label = stringResource(R.string.decoder), value = stats.decoderName)
             StatItem(
                 label = stringResource(R.string.bufferHealth),
-                value = if (stats.isStreaming) stats.bufferHealth + " (streaming)" else stats.bufferHealth + " (local)",
+                value =
+                    if (stats.isStreaming) {
+                        stringResource(R.string.statsBufferStreaming, stats.bufferHealth)
+                    } else {
+                        stringResource(R.string.statsBufferLocal, stats.bufferHealth)
+                    },
             )
             StatItem(label = stringResource(R.string.audioSessionId), value = stats.audioSessionId)
             StatItem(
