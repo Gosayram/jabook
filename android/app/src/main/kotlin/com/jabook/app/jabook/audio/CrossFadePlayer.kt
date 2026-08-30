@@ -202,6 +202,7 @@ public class CrossFadePlayer(
 
         sourcePlayer.pause()
 
+        val savedPendingPreload = pendingPreloadRequest
         transitionGeneration += 1L
         crossfadeJob?.cancel()
         crossfadeJob = null
@@ -218,6 +219,9 @@ public class CrossFadePlayer(
         nextPlayer = playerB
 
         restoreActiveState(activeState)
+        if (savedPendingPreload != null) {
+            applyPreloadRequest(nextPlayer, savedPendingPreload)
+        }
         oldPlayerA.release()
         oldPlayerB.release()
         onPlayerChanged?.invoke(currentPlayer)

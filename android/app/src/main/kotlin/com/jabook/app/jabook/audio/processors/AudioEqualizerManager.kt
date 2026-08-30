@@ -79,8 +79,10 @@ public open class AudioEqualizerManager
          */
         private var customBandGainsMb: IntArray = IntArray(0)
 
-        /** Flow of EQ presets combined with persisted custom band gains. */
-        private val presetFlow: Flow<Pair<EqualizerPreset, IntArray>> =
+        /** Flow of EQ presets combined with persisted custom band gains and boost headroom. */
+        private var currentBoostHeadroomMb: Int = 0
+
+        private val presetFlow: Flow<Triple<EqualizerPreset, IntArray, Int>> =
             combine(
                 settingsRepository.userPreferences,
                 settingsRepository.customEqBands,
@@ -88,7 +90,9 @@ public open class AudioEqualizerManager
                 val preset = mapPresetName(preferences.equalizerPreset)
                 val gains =
                     IntArray(EqualizerPreset.BAND_COUNT) { i -> bands.getOrElse(i) { 0 } }
-                preset to gains
+                val boostHeadroomMb =
+                    EqualizerPreset.calculateBoostHeadroomMb(preferences.volumeBoostLevel)
+                Triple(preset, gains, boostHeadroomMb)
             }
 
         /** Player listener that re-attaches the Equalizer when audio session changes. */
@@ -114,9 +118,10 @@ public open class AudioEqualizerManager
             presetCollectionJob?.cancel()
             presetCollectionJob =
                 scope.launch {
-                    presetFlow.collectLatest { (preset, gains) ->
+                    presetFlow.collectLatest { (preset, gains, boostHeadroomMb) ->
                         currentPreset = preset
                         customBandGainsMb = gains
+                        currentBoostHeadroomMb = boostHeadroomMb
                         applyPreset(preset)
                     }
                 }
@@ -240,12 +245,15 @@ public open class AudioEqualizerManager
 
             val isCustom = preset == EqualizerPreset.CUSTOM && customBandGainsMb.isNotEmpty()
             val presetGains = if (isCustom) customBandGainsMb else preset.bandGainsMb
-            val preamp =
+            val basePreamp =
                 if (isCustom) {
                     EqualizerPreset.calculateSafePreamp(customBandGainsMb)
                 } else {
                     preset.effectivePreamp()
                 }
+            // pn tail: boost is pre-sink AudioProcessor, EQ is post-sink hardware effect.
+            // Without this, a hot boost output near 0 dBFS would feed EQ at 0 dB net gain and clip.
+            val preamp = basePreamp - currentBoostHeadroomMb
 
             for (i in 0 until numBands) {
                 val presetGainMb =

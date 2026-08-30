@@ -167,6 +167,16 @@ public enum class EqualizerPreset(
      * Computes the effective preamp value. If [preampMillibels] is [PREAMP_AUTO],
      * calculates the safe preamp as the negative of the maximum positive band gain,
      * ensuring the output signal never exceeds the input level (preventing clipping).
+     *
+     * Note: this preamp only accounts for EQ-internal gain. When this preset is
+     * applied after a software gain stage such as [VolumeBoostProcessor] (which
+     * runs pre-sink via ExoPlayer's [AudioProcessor] chain while the hardware
+     * [android.media.audiofx.Equalizer] runs post-sink on the audio session),
+     * the caller must subtract additional headroom for the boost gain
+     * (see [AudioEqualizerManager.boostHeadroomMb] / [calculateBoostHeadroomMb]).
+     * Otherwise a hot boost output near 0 dBFS followed by EQ would still clip
+     * even though `effectivePreamp == -maxPositiveGain` guarantees `max(EQ_out)
+     * == max(EQ_in)`.
      */
     public fun effectivePreamp(): Int =
         if (preampMillibels == PREAMP_AUTO) {
@@ -233,6 +243,27 @@ public enum class EqualizerPreset(
             val maxTotalGainMb = totalGains.maxOrNull() ?: 0
             // Convert mB to dB: 1 dB = 100 mB
             return -maxTotalGainMb / 100.0
+        }
+
+        /**
+         * Headroom in millibels required to compensate for [VolumeBoostProcessor]
+         * software gain so that hardware EQ (post-sink) does not clip a hot
+         * boost output. `Off` → 0 mB, `Boost50` (1.5x) → ~352 mB,
+         * `Boost100` (2.0x) → ~602 mB, `Boost200` (3.0x) → ~954 mB.
+         *
+         * ponytail: 20*log10(gain)*100 — minimal, uses stdlib log10.
+         */
+        public fun calculateBoostHeadroomMb(boostLevelName: String): Int {
+            val gain =
+                when (boostLevelName) {
+                    "Boost50" -> 1.5
+                    "Boost100" -> 2.0
+                    "Boost200" -> 3.0
+                    "Auto" -> 1.5
+                    else -> 1.0
+                }
+            if (gain <= 1.0) return 0
+            return (20.0 * kotlin.math.log10(gain) * 100.0).toInt()
         }
     }
 }

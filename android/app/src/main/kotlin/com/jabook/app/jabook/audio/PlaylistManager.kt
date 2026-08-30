@@ -1010,24 +1010,8 @@ internal class PlaylistManager(
             "Switching from track $currentIndex to target track $targetIndex",
         )
 
-        // Switch tracks first
-        val seekPlan = PlaylistTrackSeekFallbackPolicy.buildTrackSwitchSeekPlan()
-        try {
-            when (seekPlan.first()) {
-                PlaylistTrackSeekStep.DEFAULT_POSITION -> player.seekToDefaultPosition(targetIndex)
-                PlaylistTrackSeekStep.EXPLICIT_ZERO -> player.seekTo(targetIndex, 0)
-            }
-        } catch (e: Exception) {
-            LogUtils.w("AudioPlayerService", "seekToDefaultPosition failed, trying seekTo: ${e.message}")
-            when (seekPlan.getOrNull(1)) {
-                PlaylistTrackSeekStep.EXPLICIT_ZERO -> player.seekTo(targetIndex, 0)
-                PlaylistTrackSeekStep.DEFAULT_POSITION -> player.seekToDefaultPosition(targetIndex)
-                null -> throw e
-            }
-        }
-
-        // Use CompletableDeferred for event-based waiting if available
-        // If not available (e.g., in tests), fall back to polling immediately
+        // Register deferred BEFORE seeking so onMediaItemTransition cannot be missed
+        // ponytail: deferred must precede seek; fallback polling is sequential (withTimeout→cancel→poll), not parallel
         val useDeferred =
             PlaylistTrackSwitchDeferredPolicy.shouldUseDeferred(
                 callbackAvailable = setPendingTrackSwitchDeferred != null,
@@ -1057,6 +1041,22 @@ internal class PlaylistManager(
             } else {
                 null
             }
+
+        // Switch tracks after deferred is registered
+        val seekPlan = PlaylistTrackSeekFallbackPolicy.buildTrackSwitchSeekPlan()
+        try {
+            when (seekPlan.first()) {
+                PlaylistTrackSeekStep.DEFAULT_POSITION -> player.seekToDefaultPosition(targetIndex)
+                PlaylistTrackSeekStep.EXPLICIT_ZERO -> player.seekTo(targetIndex, 0)
+            }
+        } catch (e: Exception) {
+            LogUtils.w("AudioPlayerService", "seekToDefaultPosition failed, trying seekTo: ${e.message}")
+            when (seekPlan.getOrNull(1)) {
+                PlaylistTrackSeekStep.EXPLICIT_ZERO -> player.seekTo(targetIndex, 0)
+                PlaylistTrackSeekStep.DEFAULT_POSITION -> player.seekToDefaultPosition(targetIndex)
+                null -> throw e
+            }
+        }
         val deferredToAwait =
             if (
                 PlaylistTrackSwitchDeferredPolicy.canAwaitDeferred(
@@ -1097,6 +1097,8 @@ internal class PlaylistManager(
                 deferredToAwait.cancel()
             } catch (e: Exception) {
                 e.rethrowCancellation()
+                // ponytail: cancel stale deferred so late complete() is ignored (coordinator checks isActive)
+                if (deferredToAwait.isActive) deferredToAwait.cancel()
                 LogUtils.w(
                     "AudioPlayerService",
                     "Failed to wait for track switch event: ${e.message}, falling back to polling",
