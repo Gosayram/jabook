@@ -47,6 +47,13 @@ import kotlin.coroutines.cancellation.CancellationException
  * TV Player Activity for playing audiobooks on Android TV.
  *
  * Provides a 10-foot UI for playback controls using Leanback.
+ *
+ * Drives the same [AudioPlayerService] session as the phone UI: it injects the shared
+ * `@Singleton` [AudioPlayerController], which connects via `MediaController`/`SessionToken`.
+ * All playback features (sleep timer, LUFS loudness normalization, crossfade, playback
+ * speed) are service/session-level and therefore shared with the phone stack — this
+ * activity only exposes a reduced command surface (play/pause, skip next/previous,
+ * loadBook) and adds no parallel playback logic.
  */
 @AndroidEntryPoint
 public class TvPlayerActivity : FragmentActivity() {

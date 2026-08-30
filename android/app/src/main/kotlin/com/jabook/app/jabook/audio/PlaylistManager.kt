@@ -21,8 +21,12 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.FileDataSource
+import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.cache.Cache
+import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.CacheKeyFactory
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -90,15 +94,30 @@ internal class PlaylistManager(
                     .writeTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                     .build(),
             )
+        // FLAG_IGNORE_CACHE_ON_ERROR keeps streaming resilient: a failed cache read is bypassed
+        // and re-fetched. CacheErrorHealer hooks CacheDataSource.EventListener so the suspect
+        // entry is dropped instead of rotting in the cache; transient errors cost one re-download
+        // and LRU eviction remains the size-based cleanup path.
         val cachedNetworkFactory =
-            CacheDataSource
-                .Factory()
-                .setCache(mediaCache)
-                .setUpstreamDataSourceFactory(networkFactory)
-                // FLAG_IGNORE_CACHE_ON_ERROR: a corrupt cache entry is silently re-fetched
-                // instead of erroring — keeps audiobook streaming resilient. (FLAG_BLOCK_ON_CACHE
-                // is a no-op for CacheDataSource.Factory; it always blocks on the cache.)
-                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+            DataSource.Factory {
+                val healer = CacheErrorHealer(mediaCache)
+                ResolvingDataSource(
+                    CacheDataSource(
+                        mediaCache,
+                        networkFactory.createDataSource(),
+                        FileDataSource(),
+                        CacheDataSink.Factory().setCache(mediaCache).createDataSink(),
+                        CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR,
+                        healer,
+                        CacheKeyFactory.DEFAULT,
+                    ),
+                ) { dataSpec ->
+                    // Runs before the wrapped open(), so the healer has the key of THIS request
+                    // when onCacheIgnored fires from inside CacheDataSource.open().
+                    healer.onOpen(dataSpec)
+                    dataSpec
+                }
+            }
 
         DefaultDataSource.Factory(context, cachedNetworkFactory)
     }

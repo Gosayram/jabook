@@ -46,6 +46,8 @@ androidxPalette = "1.0.0"
 
 # Hilt
 hilt = "2.60.1"
+# hiltExt (hilt-work) is compiled against a specific WorkManager line: bump androidxWork together with it and
+# check the androidx.hilt release notes for the minimum supported work version (silent failure: HiltWorkerFactory workers never start).
 hiltExt = "1.4.0"
 hiltNavigationCompose = "1.4.0"
 

@@ -57,6 +57,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -174,6 +175,10 @@ public fun SquigglySlider(
     Box(
         modifier =
             modifier
+                // Merge the inner Material Slider's semantics (Role.Slider, progress range,
+                // setProgress) with any a11y semantics provided by callers into a single
+                // TalkBack node — otherwise both are exposed as separate focusable elements.
+                .semantics(mergeDescendants = true) {}
                 .heightIn(min = 48.dp) // touch target; Canvas stays centered at thumbRadius*2
                 .height(thumbRadius * 2)
                 .onSizeChanged { sliderWidthPx = it.width }
