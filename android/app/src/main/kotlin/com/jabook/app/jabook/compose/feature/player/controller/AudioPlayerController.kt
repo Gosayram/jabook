@@ -84,17 +84,20 @@ public class AudioPlayerController
         private val userPreferencesRepository: com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository,
         private val booksRepository: BooksRepository,
         private val loggerFactory: LoggerFactory,
+        private val activePlayerRef: com.jabook.app.jabook.audio.ActivePlayerRef,
+        private val volumeWriteCoordinator: com.jabook.app.jabook.audio.VolumeWriteCoordinator,
     ) {
         private val logger = loggerFactory.get("AudioPlayerController")
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         private var mediaController: MediaController? = null
         private val chapterLoudnessPolicy =
             ChapterLoudnessTransitionPolicy(
-                player = exoPlayer,
+                getActivePlayer = { activePlayerRef.get() ?: exoPlayer },
                 getChapterLufs = { bookId, chapterIndex ->
                     runCatching { booksRepository.getChapterLufsValue(bookId, chapterIndex) }.getOrNull()
                 },
                 scope = scope,
+                volumeWriteCoordinator = volumeWriteCoordinator,
             )
         private var mediaControllerFuture: ListenableFuture<MediaController>? = null
         private var mediaControllerConnectionGeneration: Long = 0L

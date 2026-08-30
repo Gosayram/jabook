@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.audio.VolumeOwner
+import com.jabook.app.jabook.audio.VolumeWriteCoordinator
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -40,13 +42,15 @@ import kotlin.math.pow
  * If a chapter has no LUFS value (null, e.g. not yet analyzed), no adjustment is applied.
  */
 internal class ChapterLoudnessTransitionPolicy(
-    private val player: ExoPlayer,
+    private val getActivePlayer: () -> ExoPlayer,
     private val getChapterLufs: suspend (bookId: String, chapterIndex: Int) -> Double?,
     private val scope: CoroutineScope,
+    private val volumeWriteCoordinator: VolumeWriteCoordinator,
 ) {
     private var transitionJob: Job? = null
     private var currentBookId: String? = null
     private var previousChapterGain: Float? = null
+    private var claimedPlayer: ExoPlayer? = null
 
     /**
      * Notifies the policy that the active book has changed.
@@ -58,6 +62,7 @@ internal class ChapterLoudnessTransitionPolicy(
         previousChapterGain = null
         transitionJob?.cancel()
         transitionJob = null
+        releaseClaim()
     }
 
     /**
@@ -87,6 +92,11 @@ internal class ChapterLoudnessTransitionPolicy(
 
                 if (abs(ratio - 1f) < GAIN_EPSILON) return@launch
 
+                // Resolve the active player at transition start — never a stale
+                // injected singleton, so the lerp targets the audible player.
+                val player = getActivePlayer()
+                claim(player)
+
                 val startVolume = player.volume
                 val targetVolume = (startVolume * ratio).coerceIn(0f, 1f)
 
@@ -97,7 +107,7 @@ internal class ChapterLoudnessTransitionPolicy(
                         "volume ${"%.3f".format(startVolume)} → ${"%.3f".format(targetVolume)}",
                 )
 
-                animateVolume(startVolume, targetVolume)
+                animateVolume(player, startVolume, targetVolume)
             }
     }
 
@@ -109,20 +119,36 @@ internal class ChapterLoudnessTransitionPolicy(
         transitionJob = null
         currentBookId = null
         previousChapterGain = null
+        releaseClaim()
+    }
+
+    private fun claim(player: ExoPlayer) {
+        claimedPlayer = player
+        volumeWriteCoordinator.tryAcquire(player, VolumeOwner.CHAPTER_LOUDNESS) { transitionJob?.cancel() }
+    }
+
+    private fun releaseClaim() {
+        claimedPlayer?.let { volumeWriteCoordinator.release(it, VolumeOwner.CHAPTER_LOUDNESS) }
+        claimedPlayer = null
     }
 
     private suspend fun animateVolume(
+        player: ExoPlayer,
         from: Float,
         to: Float,
     ) {
-        // Progress derived from frame count instead of a wall/monotonic clock:
-        // immune to clock jumps and deterministic under coroutine test schedulers.
-        val totalFrames = ((TRANSITION_DURATION_MS + FRAME_INTERVAL_MS - 1) / FRAME_INTERVAL_MS).toInt()
-        for (frame in 0..totalFrames) {
-            val progress = (frame * FRAME_INTERVAL_MS).toFloat() / TRANSITION_DURATION_MS
-            player.volume = (from + (to - from) * progress.coerceAtMost(1f)).coerceIn(0f, 1f)
-            if (progress >= 1f) return
-            delay(FRAME_INTERVAL_MS)
+        try {
+            // Progress derived from frame count instead of a wall/monotonic clock:
+            // immune to clock jumps and deterministic under coroutine test schedulers.
+            val totalFrames = ((TRANSITION_DURATION_MS + FRAME_INTERVAL_MS - 1) / FRAME_INTERVAL_MS).toInt()
+            for (frame in 0..totalFrames) {
+                val progress = (frame * FRAME_INTERVAL_MS).toFloat() / TRANSITION_DURATION_MS
+                player.volume = (from + (to - from) * progress.coerceAtMost(1f)).coerceIn(0f, 1f)
+                if (progress >= 1f) return
+                delay(FRAME_INTERVAL_MS)
+            }
+        } finally {
+            releaseClaim()
         }
     }
 

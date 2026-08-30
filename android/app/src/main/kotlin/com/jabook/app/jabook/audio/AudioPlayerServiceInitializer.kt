@@ -45,6 +45,8 @@ public class AudioPlayerServiceInitializer(
     @OptIn(UnstableApi::class)
     public fun initialize() {
         service.lifecycleManager = ServiceLifecycleManager(service)
+        // Publish the active-player getter before any writer can resolve a player.
+        service.activePlayerRef.set { service.getActivePlayer() }
         initializeCrossFadePlayer()
         LogUtils.i("AudioPlayerService", "Initializing service components...")
 
@@ -189,6 +191,10 @@ public class AudioPlayerServiceInitializer(
                 },
                 getMediaSession = { service.mediaLibrarySession },
                 releaseMediaSession = {
+                    // Cancel the sessionExtras loop with the session — otherwise it keeps
+                    // looping after unload and a re-init would stack a second job.
+                    service.sessionExtrasJob?.cancel()
+                    service.sessionExtrasJob = null
                     service.mediaLibrarySession?.release()
                     service.mediaLibrarySession = null
                 },
@@ -269,7 +275,12 @@ public class AudioPlayerServiceInitializer(
                     // we don't auto-play. Instead, user manually resumes via UI.
                     val handler = service.headsetAutoplayHandler
                     if (handler != null && !handler.lastDisconnectWasBluetooth) {
-                        if (!service.isPlaying && cachedUserPreferences?.headsetAutoplayEnabled == true) {
+                        // Never autoplay mid-call: plugging a wired headset during a call
+                        // must not blast audiobook audio over the conversation.
+                        if (!service.isPlaying &&
+                            cachedUserPreferences?.headsetAutoplayEnabled == true &&
+                            service.phoneCallListener?.isInCall() != true
+                        ) {
                             service.play()
                         }
                     }
@@ -331,7 +342,7 @@ public class AudioPlayerServiceInitializer(
                             .build(),
                         handleAudioFocus,
                     ).build()
-            }, service.playerServiceScope)
+            }, service.playerServiceScope, service.volumeWriteCoordinator)
         service.crossFadePlayer?.onPlayerChanged = { newPlayer ->
             try {
                 // The incoming player already owns a complete crossfade queue. An older

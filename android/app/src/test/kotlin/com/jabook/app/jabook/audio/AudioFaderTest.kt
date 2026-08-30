@@ -42,7 +42,7 @@ class AudioFaderTest {
 
     @Before
     fun setup() {
-        audioFader = AudioFader()
+        audioFader = AudioFader(VolumeWriteCoordinator())
         player = mock()
         whenever(player.volume).thenReturn(1f)
     }

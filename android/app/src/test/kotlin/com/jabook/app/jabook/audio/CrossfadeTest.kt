@@ -80,7 +80,7 @@ class CrossfadeTest {
             if (callCount == 1) playerA else playerB
         }
 
-        crossFadePlayer = CrossFadePlayer(context, factory, testScope)
+        crossFadePlayer = CrossFadePlayer(context, factory, testScope, VolumeWriteCoordinator())
         // Set short duration for testing
         crossFadePlayer.crossFadeDurationMs = 100L
     }

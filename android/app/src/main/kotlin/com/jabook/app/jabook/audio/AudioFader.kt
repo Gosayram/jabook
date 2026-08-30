@@ -47,7 +47,9 @@ import javax.inject.Singleton
 @Singleton
 public class AudioFader
     @Inject
-    public constructor() {
+    public constructor(
+        private val volumeWriteCoordinator: VolumeWriteCoordinator,
+    ) {
         public companion object {
             private const val TAG = "AudioFader"
 
@@ -104,13 +106,14 @@ public class AudioFader
                         player.volume = volume
                     }
                     addListener(
-                        endListener {
+                        endListener(player) {
                             onComplete?.invoke()
                             LogUtils.d(TAG, "Fade-in completed")
                         },
                     )
                 }
             currentAnimator = animator
+            volumeWriteCoordinator.tryAcquire(player, VolumeOwner.SLEEP_FADE) { cancelCurrentAnimation() }
             startOnMain(animator)
 
             LogUtils.d(TAG, "Fade-in started (duration=${fadeDurationMs}ms)")
@@ -149,7 +152,7 @@ public class AudioFader
                         player.volume = volume
                     }
                     addListener(
-                        endListener {
+                        endListener(player) {
                             onComplete?.invoke()
                             player.volume = 1f // Reset volume for next play
                             LogUtils.d(TAG, "Fade-out completed")
@@ -157,6 +160,7 @@ public class AudioFader
                     )
                 }
             currentAnimator = animator
+            volumeWriteCoordinator.tryAcquire(player, VolumeOwner.SLEEP_FADE) { cancelCurrentAnimation() }
             startOnMain(animator)
 
             LogUtils.d(TAG, "Fade-out started from volume=$startVolume (duration=${fadeDurationMs}ms)")
@@ -172,10 +176,13 @@ public class AudioFader
         }
 
         /**
-         * End listener that skips [onEnded] when the animation was cancelled
-         * (onAnimationEnd fires on cancel too).
+         * End listener that releases the volume claim on every end (cancel fires
+         * onAnimationEnd too) but skips [onEnded] when the animation was cancelled.
          */
-        private fun endListener(onEnded: () -> Unit): AnimatorListenerAdapter =
+        private fun endListener(
+            player: Player,
+            onEnded: () -> Unit,
+        ): AnimatorListenerAdapter =
             object : AnimatorListenerAdapter() {
                 private var canceled: Boolean = false
 
@@ -185,6 +192,7 @@ public class AudioFader
 
                 override fun onAnimationEnd(animation: Animator) {
                     currentAnimator = null
+                    volumeWriteCoordinator.release(player, VolumeOwner.SLEEP_FADE)
                     if (!canceled) onEnded()
                 }
             }

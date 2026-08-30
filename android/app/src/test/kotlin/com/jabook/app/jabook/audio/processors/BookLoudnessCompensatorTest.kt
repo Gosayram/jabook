@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio.processors
 
+import com.jabook.app.jabook.audio.VolumeWriteCoordinator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -25,7 +26,7 @@ class BookLoudnessCompensatorTest {
 
     @Before
     fun setUp() {
-        compensator = BookLoudnessCompensator()
+        compensator = BookLoudnessCompensator(volumeWriteCoordinator = VolumeWriteCoordinator())
     }
 
     // --- computeBookGain ---

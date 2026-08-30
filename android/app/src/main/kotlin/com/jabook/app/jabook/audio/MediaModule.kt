@@ -241,12 +241,14 @@ public object MediaModule {
                             enableAudioOutputPlaybackParams: Boolean,
                         ): androidx.media3.exoplayer.audio.AudioSink {
                             // Media3 bypasses the user AudioProcessor chain entirely when
-                            // float output is active (high-resolution PCM) — our processors
-                            // (loudness, skip-silence, compression) would silently no-op.
+                            // float output is active (high-resolution PCM) — EQ/loudness
+                            // would silently no-op. With any processor attached, float
+                            // output is hard-disabled.
+                            val effectiveFloatOutput = enableFloatOutput && processors.isEmpty()
                             if (enableFloatOutput && processors.isNotEmpty()) {
                                 LogUtils.w(
                                     "MediaModule",
-                                    "Float output enabled with ${processors.size} audio processors — processors will be bypassed; consider disabling float output for audiobooks",
+                                    "Float output disabled: ${processors.size} audio processors attached (float output bypasses the DSP chain)",
                                 )
                             }
                             return androidx.media3.exoplayer.audio.DefaultAudioSink
@@ -255,7 +257,7 @@ public object MediaModule {
                                 // skipped frames back to Media3's position tracking.
                                 .setAudioProcessorChain(
                                     TrackedAudioProcessorChain(processors.toTypedArray()),
-                                ).setEnableFloatOutput(enableFloatOutput)
+                                ).setEnableFloatOutput(effectiveFloatOutput)
                                 .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
                                 .build()
                         }

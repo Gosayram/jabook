@@ -825,6 +825,15 @@ internal class PlaylistManager(
     private fun isLoadGenerationActive(generation: Long): Boolean = playlistLoadGeneration == generation
 
     /**
+     * Current async-load generation. Captured by crossfade book switches so the
+     * completion callback can detect a racing setPlaylist and skip stale writes.
+     */
+    public fun currentGeneration(): Long = playlistLoadGeneration
+
+    /** True when [generation] is still the active async-load generation. */
+    public fun isGenerationCurrent(generation: Long): Boolean = isLoadGenerationActive(generation)
+
+    /**
      * Applies initial position after all tracks are loaded.
      * Simplified and extracted from the complex inline logic.
      */

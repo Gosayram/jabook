@@ -100,6 +100,12 @@ public class PhoneCallListener(
     private var callPauseMonitorJob: Job? = null
 
     /**
+     * True while a call is active (CALL_STATE_OFFHOOK until it returns to IDLE).
+     * Used to suppress autoplay triggers (e.g. headset plug) mid-call.
+     */
+    public fun isInCall(): Boolean = wasInCall
+
+    /**
      * Starts listening for phone call state changes.
      * Should be called when playback starts or service is created.
      */

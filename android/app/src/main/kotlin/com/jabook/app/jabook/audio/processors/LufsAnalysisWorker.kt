@@ -40,6 +40,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.nio.ByteOrder
+import kotlin.contracts.contract
 
 /**
  * WorkManager-based worker for background loudness analysis of audiobooks.
@@ -84,6 +85,23 @@ public class LufsAnalysisWorker
 
             /** Output data key for the analyzed file path. */
             public const val KEY_FILE_PATH: String = "file_path"
+
+            /**
+             * Sentinel persisted when analysis was attempted and failed permanently.
+             *
+             * Outside the real LUFS range (~[-70, 0]) and a normal double so SQLite
+             * can store it (NaN would silently become NULL). Readers must treat it
+             * like null — see [isValidLufs].
+             */
+            public const val LUFS_ANALYSIS_FAILED: Double = -999.0
+
+            /** True when [lufs] is a usable measurement; null or [LUFS_ANALYSIS_FAILED] mean "no data". */
+            @OptIn(kotlin.contracts.ExperimentalContracts::class)
+            @Suppress("NOTHING_TO_INLINE")
+            public inline fun isValidLufs(lufs: Double?): Boolean {
+                contract { returns(true) implies (lufs != null) }
+                return lufs != null && lufs != LUFS_ANALYSIS_FAILED
+            }
 
             /**
              * Maximum duration of audio to sample for LUFS estimation, in milliseconds.
@@ -171,6 +189,9 @@ public class LufsAnalysisWorker
                     )
                 } else {
                     logger.w { "LUFS analysis returned null for book=$bookId (likely unsupported format)" }
+                    // Mark permanently failed so the enqueue gate won't re-run this
+                    // minutes-long analysis on every play of the book.
+                    booksDao.updateLufsValue(bookId, LUFS_ANALYSIS_FAILED)
                     Result.failure(
                         workDataOf(
                             KEY_BOOK_ID to bookId,
@@ -196,6 +217,9 @@ public class LufsAnalysisWorker
                     attributes =
                         mapOf("book_id" to bookId),
                 )
+                // Terminal failure: persist the sentinel so the book is not
+                // re-analyzed from scratch on every play.
+                booksDao.updateLufsValue(bookId, LUFS_ANALYSIS_FAILED)
                 Result.failure(
                     workDataOf(
                         KEY_BOOK_ID to bookId,

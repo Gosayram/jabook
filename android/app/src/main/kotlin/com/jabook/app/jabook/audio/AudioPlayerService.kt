@@ -115,7 +115,18 @@ public class AudioPlayerService : MediaLibraryService() {
     @Inject
     public lateinit var audioEqualizerManager: com.jabook.app.jabook.audio.processors.AudioEqualizerManager
 
-    internal val bookLoudnessCompensator: BookLoudnessCompensator = BookLoudnessCompensator()
+    // Coordinates exclusive volume writes between fade/crossfade/loudness writers
+    @Inject
+    public lateinit var volumeWriteCoordinator: VolumeWriteCoordinator
+
+    // Publishes the active player getter for non-service owners (chapter loudness policy)
+    @Inject
+    public lateinit var activePlayerRef: ActivePlayerRef
+
+    // Lazy: reads the injected coordinator, which Hilt assigns after construction.
+    internal val bookLoudnessCompensator: BookLoudnessCompensator by lazy {
+        BookLoudnessCompensator(volumeWriteCoordinator = volumeWriteCoordinator)
+    }
 
     @Volatile
     internal var mediaLibrarySession: MediaLibrarySession? = null
@@ -615,7 +626,10 @@ public class AudioPlayerService : MediaLibraryService() {
     private fun maybeScheduleLufsAnalysis(bookId: String) {
         playerServiceScope.launch(Dispatchers.IO) {
             try {
-                if (booksDao.getBookById(bookId)?.lufsValue != null) return@launch
+                // Only analyze when never analyzed (null); the failure sentinel
+                // blocks auto re-enqueue to prevent a retry storm on bad files.
+                val lufs = booksDao.getBookById(bookId)?.lufsValue
+                if (lufs != null && lufs != LufsAnalysisWorker.LUFS_ANALYSIS_FAILED) return@launch
                 val request =
                     OneTimeWorkRequestBuilder<LufsAnalysisWorker>()
                         .setInputData(workDataOf(LufsAnalysisWorker.KEY_BOOK_ID to bookId))
@@ -708,6 +722,11 @@ public class AudioPlayerService : MediaLibraryService() {
             // Stop crossfadeHandler monitoring during the transition
             crossfadeHandler?.stopMonitoring()
 
+            // Same guard as the crossfade onPlayerChanged hook: an older incremental
+            // loader must not append sources after this swap starts.
+            pm.cancelAsyncLoadingForPlayerSwitch()
+            val crossfadeGeneration = pm.currentGeneration()
+
             cfp.crossFadeDurationMs = durationMs
             cfp.setNextMediaSource(firstSource)
             cfp.getNextPlayer().seekTo((initialPosition ?: 0L).coerceAtLeast(0L))
@@ -718,6 +737,16 @@ public class AudioPlayerService : MediaLibraryService() {
                 // 3. Seek to the requested track/position
                 playerServiceScope.launch(Dispatchers.Main) {
                     try {
+                        // A setPlaylist (e.g. same book re-selected) raced the fade and
+                        // bumped the generation — it owns the player now; write nothing.
+                        if (!pm.isGenerationCurrent(crossfadeGeneration)) {
+                            LogUtils.w(
+                                "AudioPlayerService",
+                                "Skipping stale crossfade completion (generation=$crossfadeGeneration, active=${pm.currentGeneration()})",
+                            )
+                            return@launch
+                        }
+
                         pm.currentFilePaths = playlistPaths
                         pm.currentPlaylistItems = playlistItems
                         pm.currentMetadata = metadata
@@ -730,6 +759,13 @@ public class AudioPlayerService : MediaLibraryService() {
                         // remains at its intended timeline index, then append following sources.
                         val currentPlayer = getActivePlayer()
                         for (index in PlaylistSessionStatePolicy.crossfadeRemainingSourceIndices(playlistPaths.size, normalizedIndex)) {
+                            if (!pm.isGenerationCurrent(crossfadeGeneration)) {
+                                LogUtils.w(
+                                    "AudioPlayerService",
+                                    "Skipping stale crossfade source append (generation=$crossfadeGeneration, active=${pm.currentGeneration()})",
+                                )
+                                return@launch
+                            }
                             val source = pm.createMediaSourceForItems(playlistItems, index, metadata)
                             if (source != null) {
                                 if (index < normalizedIndex) {

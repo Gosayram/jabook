@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.audio.processors
 
+import com.jabook.app.jabook.audio.VolumeOwner
+import com.jabook.app.jabook.audio.VolumeWriteCoordinator
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
@@ -42,6 +44,7 @@ import kotlinx.coroutines.withContext
  */
 public class BookLoudnessCompensator(
     private val policy: LufsLoudnessCompensationPolicy = LufsLoudnessCompensationPolicy(),
+    private val volumeWriteCoordinator: VolumeWriteCoordinator,
 ) {
     /** Tracks the LUFS value of the previously playing book for transition gain. */
     @Volatile
@@ -59,7 +62,11 @@ public class BookLoudnessCompensator(
      * @return linear gain multiplier in [GAIN_RANGE], or 1.0 for no compensation
      */
     public fun computeBookGain(bookLufs: Double?): Float {
-        if (bookLufs == null || bookLufs.isNaN() || bookLufs >= 0.0) return NO_GAIN
+        // Explicit null check first: the contract smart-cast from isValidLufs does not
+        // survive the negated disjunction below.
+        if (bookLufs == null || !LufsAnalysisWorker.isValidLufs(bookLufs) || bookLufs.isNaN() || bookLufs >= 0.0) {
+            return NO_GAIN
+        }
         return policy.compensationGain(bookLufs)
     }
 
@@ -77,7 +84,12 @@ public class BookLoudnessCompensator(
         previousBookLufs: Double?,
         newBookLufs: Double?,
     ): Float {
+        // Explicit null checks first: the contract smart-cast from isValidLufs does not
+        // survive the negated disjunction below.
         if (previousBookLufs == null || newBookLufs == null) return NO_GAIN
+        if (!LufsAnalysisWorker.isValidLufs(previousBookLufs) || !LufsAnalysisWorker.isValidLufs(newBookLufs)) {
+            return NO_GAIN
+        }
         if (previousBookLufs.isNaN() || newBookLufs.isNaN()) return NO_GAIN
         if (previousBookLufs >= 0.0 || newBookLufs >= 0.0) return NO_GAIN
         return policy.transitionGain(previousBookLufs, newBookLufs)
@@ -122,7 +134,11 @@ public class BookLoudnessCompensator(
                 if (gain != NO_GAIN) {
                     withContext(Dispatchers.Main) {
                         val player = getActivePlayer()
+                        // Single instant write: claim around it so concurrent fades
+                        // are revoked first, then release immediately.
+                        volumeWriteCoordinator.tryAcquire(player, VolumeOwner.BOOK_COMPENSATION) {}
                         player.volume = (player.volume * gain).coerceIn(0f, 1f)
+                        volumeWriteCoordinator.release(player, VolumeOwner.BOOK_COMPENSATION)
                         LogUtils.i(
                             "BookLoudnessCompensator",
                             "Compensation applied: gain=$gain, lufs=$newLufs, book=$newBookId",

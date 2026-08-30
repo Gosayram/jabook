@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.audio.VolumeWriteCoordinator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -59,12 +60,13 @@ class ChapterLoudnessTransitionPolicyTest {
     private fun policyWith(vararg lufs: Double?): ChapterLoudnessTransitionPolicy {
         val byChapter = lufs.mapIndexed { index, value -> index to value }.toMap()
         return ChapterLoudnessTransitionPolicy(
-            player = player,
+            getActivePlayer = { player },
             getChapterLufs = { _, chapterIndex ->
                 lufsCalls++
                 byChapter[chapterIndex]
             },
             scope = testScope,
+            volumeWriteCoordinator = VolumeWriteCoordinator(),
         )
     }
 

@@ -49,6 +49,7 @@ public class CrossFadePlayer(
     private val context: Context,
     private val playerFactory: (Context, handleAudioFocus: Boolean) -> ExoPlayer,
     private val coroutineScope: CoroutineScope,
+    private val volumeWriteCoordinator: VolumeWriteCoordinator,
 ) {
     private sealed interface PendingPreloadRequest {
         data class MediaItemRequest(
@@ -220,6 +221,14 @@ public class CrossFadePlayer(
             return
         }
 
+        // Own the outgoing player's volume for the whole transition. Revoke =
+        // finalize (NOT job.cancel): cancelling would freeze mid-fade; finalize
+        // jumps to the end state cleanly before another owner takes over. The
+        // generation guard drops stale revokes: a superseded transition's claim
+        // (released late in its finally) must not finalize a newer transition.
+        volumeWriteCoordinator.tryAcquire(fadingOutPlayer, VolumeOwner.CROSSFADE) {
+            if (generation == transitionGeneration) finalizeTransitionNow()
+        }
         crossfadeJob =
             coroutineScope.launch {
                 try {
@@ -247,6 +256,9 @@ public class CrossFadePlayer(
                         crossFadeOutPlayer = null
                         crossfadeJob = null
                         transitionOnComplete = null
+                        // Only the current transition may drop the claim; a stale
+                        // finally must not release a newer owner's claim.
+                        volumeWriteCoordinator.release(fadingOutPlayer, VolumeOwner.CROSSFADE)
                     }
                 }
             }
