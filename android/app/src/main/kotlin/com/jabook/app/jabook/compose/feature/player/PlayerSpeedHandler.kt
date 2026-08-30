@@ -111,12 +111,14 @@ internal class PlayerSpeedHandler(
 
     fun startHoldToBoost(currentPlaybackSpeed: Float) {
         val boostedSpeed = holdToBoostPolicy.onPress(currentPlaybackSpeed)
-        dispatchIntent(PlayerIntent.SetPlaybackSpeed(boostedSpeed))
+        // isTemporary routes the speed through the player without the speed-memory
+        // recording path: a long hold must not persist the boost as a preference.
+        dispatchIntent(PlayerIntent.SetPlaybackSpeed(boostedSpeed, isTemporary = true))
     }
 
     fun endHoldToBoost() {
         val restoreSpeed = holdToBoostPolicy.onRelease() ?: return
-        dispatchIntent(PlayerIntent.SetPlaybackSpeed(restoreSpeed))
+        dispatchIntent(PlayerIntent.SetPlaybackSpeed(restoreSpeed, isTemporary = true))
     }
 
     fun observeHoldToBoostSpeedSetting() {

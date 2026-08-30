@@ -51,6 +51,7 @@ public class AudioVisualizerManager(
     private var lastRequestedAudioSessionId: Int = 0
     private var desiredEnabled: Boolean = true
     private var suspendedForAudioOffload: Boolean = false
+    private var suspendedForRecording: Boolean = false
     private var captureGeneration: Long = 0
 
     private val _waveformData = MutableStateFlow(FloatArray(CAPTURE_SIZE))
@@ -139,7 +140,7 @@ public class AudioVisualizerManager(
                         true, // fft
                     )
 
-                    val shouldEnable = desiredEnabled && !suspendedForAudioOffload
+                    val shouldEnable = desiredEnabled && !suspendedForAudioOffload && !suspendedForRecording
                     enabled = shouldEnable
                     _isActive.value = shouldEnable
                 }
@@ -158,7 +159,7 @@ public class AudioVisualizerManager(
     public fun setEnabled(enabled: Boolean) {
         desiredEnabled = enabled
 
-        if (suspendedForAudioOffload) {
+        if (suspendedForAudioOffload || suspendedForRecording) {
             if (!enabled) {
                 applyVisualizerEnabledState(enabled = false)
             } else {
@@ -210,6 +211,27 @@ public class AudioVisualizerManager(
         }
 
         if (desiredEnabled) {
+            setEnabled(enabled = true)
+        }
+    }
+
+    /**
+     * Temporarily suspends visualization while a microphone recording is active.
+     *
+     * This keeps the user's desired visualizer setting intact and automatically restores it once
+     * the recording is finished.
+     */
+    @Synchronized
+    public fun setSuspendedForRecording(suspended: Boolean) {
+        if (suspendedForRecording == suspended) return
+        suspendedForRecording = suspended
+
+        if (suspended) {
+            applyVisualizerEnabledState(enabled = false)
+            return
+        }
+
+        if (desiredEnabled && !suspendedForAudioOffload) {
             setEnabled(enabled = true)
         }
     }

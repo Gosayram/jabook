@@ -35,12 +35,19 @@ public class AudioVisualizerStateBridge
         private val _isAudioOffloaded = MutableStateFlow(false)
         public val isAudioOffloaded: StateFlow<Boolean> = _isAudioOffloaded.asStateFlow()
 
+        private val _isRecordingActive = MutableStateFlow(false)
+        public val isRecordingActive: StateFlow<Boolean> = _isRecordingActive.asStateFlow()
+
         public fun updateWaveform(data: FloatArray) {
             _waveformData.value = data
         }
 
         public fun updateIsAudioOffloaded(offloaded: Boolean) {
             _isAudioOffloaded.value = offloaded
+        }
+
+        public fun updateIsRecordingActive(active: Boolean) {
+            _isRecordingActive.value = active
         }
 
         public fun reset() {

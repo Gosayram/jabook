@@ -545,8 +545,11 @@ public class PlayerViewModel
             }
         }
 
-        public fun setPlaybackSpeed(speed: Float) {
-            speedHandler.applyPlaybackSpeed(speed = speed, rememberForBook = true)
+        public fun setPlaybackSpeed(
+            speed: Float,
+            isTemporary: Boolean = false,
+        ) {
+            speedHandler.applyPlaybackSpeed(speed = speed, rememberForBook = !isTemporary)
         }
 
         public fun startHoldToBoost(currentPlaybackSpeed: Float) {
@@ -605,6 +608,11 @@ public class PlayerViewModel
 
         public fun setVisualizerEnabled(enabled: Boolean) {
             playerController.setVisualizerEnabled(enabled)
+        }
+
+        /** Suspends the service-side visualizer while a mic recording (voice note) is active. */
+        public fun setVoiceRecordingActive(active: Boolean) {
+            audioVisualizerStateBridge.updateIsRecordingActive(active)
         }
 
         // P-92: Sleep timer operations extracted to PlayerSleepTimerHandler

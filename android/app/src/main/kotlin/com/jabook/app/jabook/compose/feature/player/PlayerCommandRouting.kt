@@ -47,6 +47,7 @@ internal sealed interface PlayerCommand {
 
     data class SetPlaybackSpeed(
         val speed: Float,
+        val isTemporary: Boolean = false,
     ) : PlayerCommand
 
     data class SetPitchCorrectionEnabled(
@@ -92,7 +93,7 @@ internal class PlayerCommandExecutor(
     private val skipToChapter: (Int, Long) -> Unit,
     private val initializeVisualizer: () -> Unit,
     private val setVisualizerEnabled: (Boolean) -> Unit,
-    private val setPlaybackSpeed: (Float) -> Unit,
+    private val setPlaybackSpeed: (Float, Boolean) -> Unit,
     private val setPitchCorrectionEnabled: (Boolean) -> Unit,
     private val startSleepTimer: (Int) -> Unit,
     private val startSleepTimerEndOfChapter: () -> Unit,
@@ -122,7 +123,7 @@ internal class PlayerCommandExecutor(
             is PlayerCommand.SkipToChapter -> skipToChapter(command.chapterIndex, command.positionMs)
             PlayerCommand.InitializeVisualizer -> initializeVisualizer()
             is PlayerCommand.SetVisualizerEnabled -> setVisualizerEnabled(command.enabled)
-            is PlayerCommand.SetPlaybackSpeed -> setPlaybackSpeed(command.speed)
+            is PlayerCommand.SetPlaybackSpeed -> setPlaybackSpeed(command.speed, command.isTemporary)
             is PlayerCommand.SetPitchCorrectionEnabled -> setPitchCorrectionEnabled(command.enabled)
             is PlayerCommand.StartSleepTimer -> startSleepTimer(command.minutes)
             PlayerCommand.StartSleepTimerEndOfChapter -> startSleepTimerEndOfChapter()
@@ -346,7 +347,14 @@ internal object PlayerIntentCommandRouter {
                 PlayerCommand.SkipToChapter(reducedChapterIndex, intent.positionMs)
             }
             is PlayerIntent.SetPlaybackSpeed -> {
-                if (reducedState == currentState) {
+                if (intent.isTemporary) {
+                    // Hold-to-boost must apply even when it matches the current speed, and
+                    // must never be dropped for being a no-op state change.
+                    PlayerCommand.SetPlaybackSpeed(
+                        PlayerIntentGuardPolicy.clampPlaybackSpeed(intent.speed),
+                        isTemporary = true,
+                    )
+                } else if (reducedState == currentState) {
                     null
                 } else {
                     val reducedSpeed = (reducedState as? PlayerState.Active)?.playbackSpeed ?: return null

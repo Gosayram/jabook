@@ -66,7 +66,7 @@ internal class FakePlayerCommandCallbacks {
             },
             initializeVisualizer = { initializeVisualizerCalls++ },
             setVisualizerEnabled = { lastVisualizerEnabled = it },
-            setPlaybackSpeed = { lastPlaybackSpeed = it },
+            setPlaybackSpeed = { speed, _ -> lastPlaybackSpeed = speed },
             setPitchCorrectionEnabled = { lastPitchCorrectionEnabled = it },
             startSleepTimer = { lastSleepTimerMinutes = it },
             startSleepTimerEndOfChapter = { startSleepTimerEndOfChapterCalls++ },

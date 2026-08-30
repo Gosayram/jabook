@@ -41,6 +41,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.clearInvocations
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.eq
@@ -488,5 +489,53 @@ class CrossfadeTest {
 
         // Only the preload-time clear happened; pause must not drop the prefetch.
         verify(playerB, times(1)).clearMediaItems()
+    }
+
+    @Test
+    fun `focus loss during crossfade pauses both players and cancels the transition`() {
+        val listenerCaptor = argumentCaptor<Player.Listener>()
+        verify(playerA).addListener(listenerCaptor.capture())
+        val focusListener = listenerCaptor.firstValue
+
+        crossFadePlayer.startCrossFade()
+        testScope.advanceTimeBy(10)
+        assertTrue(crossFadePlayer.isTransitionRunning())
+
+        // Media3 pauses the focus-owning (fading-out) player with this exact signal.
+        focusListener.onPlayWhenReadyChanged(false, Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS)
+
+        assertSame(playerA, crossFadePlayer.getActivePlayer())
+        assertFalse(crossFadePlayer.isTransitionRunning())
+        verify(playerA).pause()
+        verify(playerB).pause()
+    }
+
+    @Test
+    fun `transient focus suppression during crossfade pauses both players`() {
+        val listenerCaptor = argumentCaptor<Player.Listener>()
+        verify(playerA).addListener(listenerCaptor.capture())
+        val focusListener = listenerCaptor.firstValue
+
+        crossFadePlayer.startCrossFade()
+        testScope.advanceTimeBy(10)
+
+        // Transient loss suppresses playback on the focus owner without touching playWhenReady.
+        focusListener.onPlaybackSuppressionReasonChanged(Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS)
+
+        assertFalse(crossFadePlayer.isTransitionRunning())
+        verify(playerA).pause()
+        verify(playerB).pause()
+    }
+
+    @Test
+    fun `focus loss outside a crossfade is left to native Media3 handling`() {
+        val listenerCaptor = argumentCaptor<Player.Listener>()
+        verify(playerA).addListener(listenerCaptor.capture())
+        val focusListener = listenerCaptor.firstValue
+
+        focusListener.onPlayWhenReadyChanged(false, Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS)
+
+        verify(playerA, never()).pause()
+        verify(playerB, never()).pause()
     }
 }

@@ -57,6 +57,7 @@ public sealed interface PlayerIntent {
 
     public data class SetPlaybackSpeed(
         val speed: Float,
+        val isTemporary: Boolean = false,
     ) : PlayerIntent
 
     public data class SetPitchCorrectionEnabled(

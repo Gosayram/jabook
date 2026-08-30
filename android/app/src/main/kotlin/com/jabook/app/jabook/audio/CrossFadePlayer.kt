@@ -67,6 +67,40 @@ public class CrossFadePlayer(
     private var currentPlayer: ExoPlayer = playerA
     private var nextPlayer: ExoPlayer = playerB
 
+    /**
+     * Focus handling is Media3-internal (only the player created with
+     * `handleAudioFocus = true` receives focus events), so during a crossfade a
+     * transient or permanent focus loss pauses the fading-out player only, leaving
+     * the fading-in player audible. This listener routes focus-driven pauses on the
+     * focus-owning player to [pause], which pauses both players and cancels the
+     * transition. Focus re-gain resumes the surviving player natively through the
+     * same Media3 path.
+     */
+    private val focusLossListener =
+        object : Player.Listener {
+            override fun onPlayWhenReadyChanged(
+                playWhenReady: Boolean,
+                reason: Int,
+            ) {
+                if (isCrossFading && !playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS) {
+                    LogUtils.d("CrossFadePlayer", "Focus loss during crossfade — pausing both players")
+                    pause()
+                }
+            }
+
+            override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
+                if (isCrossFading && playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE) {
+                    LogUtils.d("CrossFadePlayer", "Playback suppressed during crossfade — pausing both players")
+                    pause()
+                }
+            }
+        }
+
+    init {
+        playerA.addListener(focusLossListener)
+        playerB.addListener(focusLossListener)
+    }
+
     public var crossFadeDurationMs: Long = 0L
     private var crossfadeJob: Job? = null
     private var transitionGeneration: Long = 0L
@@ -178,6 +212,8 @@ public class CrossFadePlayer(
 
         playerA = factory(context, true)
         playerB = factory(context, false)
+        playerA.addListener(focusLossListener)
+        playerB.addListener(focusLossListener)
         currentPlayer = playerA
         nextPlayer = playerB
 

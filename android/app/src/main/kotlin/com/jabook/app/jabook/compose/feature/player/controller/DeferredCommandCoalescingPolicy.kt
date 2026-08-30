@@ -40,6 +40,5 @@ internal object DeferredCommandCoalescingPolicy {
         }
 
     /** True for commands carrying absolute positions/indices of the book loaded when queued. */
-    fun isBookScoped(type: DeferredCommandType): Boolean =
-        type == DeferredCommandType.SEEK || type == DeferredCommandType.SKIP
+    fun isBookScoped(type: DeferredCommandType): Boolean = type == DeferredCommandType.SEEK || type == DeferredCommandType.SKIP
 }

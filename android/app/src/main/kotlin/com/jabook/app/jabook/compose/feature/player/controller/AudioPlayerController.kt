@@ -337,7 +337,7 @@ public class AudioPlayerController
                     updateChapterNavigation(controller)
                     _duration.value = controller.duration.coerceAtLeast(0)
                     updateStats(controller)
-                    chapterLoudnessPolicy.onChapterTransition(controller.currentMediaItemIndex)
+                    chapterLoudnessPolicy.onChapterTransition(controller.currentMediaItemIndex, reason)
                 }
 
                 override fun onTimelineChanged(
@@ -451,7 +451,7 @@ public class AudioPlayerController
                     updateChapterNavigation(exoPlayer)
                     _duration.value = exoPlayer.duration.coerceAtLeast(0)
                     updateStats(exoPlayer)
-                    chapterLoudnessPolicy.onChapterTransition(exoPlayer.currentMediaItemIndex)
+                    chapterLoudnessPolicy.onChapterTransition(exoPlayer.currentMediaItemIndex, reason)
                 }
 
                 override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {

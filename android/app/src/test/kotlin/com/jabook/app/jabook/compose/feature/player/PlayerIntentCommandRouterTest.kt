@@ -158,6 +158,38 @@ class PlayerIntentCommandRouterTest {
     }
 
     @Test
+    fun `routePlaybackIntent routes temporary speed even when reduced state is unchanged`() {
+        val state = activeState(playbackSpeed = 1.5f)
+
+        val command =
+            PlayerIntentCommandRouter.routePlaybackIntent(
+                // Hold-to-boost matching the current speed must still reach the player,
+                // and the command must carry isTemporary so the boost is not persisted.
+                intent = PlayerIntent.SetPlaybackSpeed(1.9f, isTemporary = true),
+                currentState = state,
+                reducedState = state,
+                currentPositionMs = 0L,
+            )
+
+        assertEquals(PlayerCommand.SetPlaybackSpeed(1.9f, isTemporary = true), command)
+    }
+
+    @Test
+    fun `routePlaybackIntent clamps out-of-range temporary boost speed`() {
+        val state = activeState(playbackSpeed = 1.5f)
+
+        val command =
+            PlayerIntentCommandRouter.routePlaybackIntent(
+                intent = PlayerIntent.SetPlaybackSpeed(99f, isTemporary = true),
+                currentState = state,
+                reducedState = state,
+                currentPositionMs = 0L,
+            )
+
+        assertEquals(PlayerCommand.SetPlaybackSpeed(2.0f, isTemporary = true), command)
+    }
+
+    @Test
     fun `routeSleepTimerIntent returns null when reducer state is unchanged`() {
         val state = activeState()
 

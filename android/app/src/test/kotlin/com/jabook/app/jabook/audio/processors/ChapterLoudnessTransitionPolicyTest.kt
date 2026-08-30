@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio.processors
 
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.VolumeWriteCoordinator
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -74,7 +75,7 @@ class ChapterLoudnessTransitionPolicyTest {
     fun `first chapter records gain without animation`() {
         val policy = policyWith(-20.0)
         policy.onBookChanged(BOOK_ID)
-        policy.onChapterTransition(0)
+        policy.onChapterTransition(0, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
         testScope.advanceUntilIdle()
 
         assertTrue(volumes.isEmpty())
@@ -85,9 +86,9 @@ class ChapterLoudnessTransitionPolicyTest {
         // gain(-20) = 10^(-3/20), gain(-14) = 10^(-9/20); ratio = 10^(-0.3) ≈ 0.5012
         val policy = policyWith(-20.0, -14.0)
         policy.onBookChanged(BOOK_ID)
-        policy.onChapterTransition(0)
+        policy.onChapterTransition(0, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
         testScope.advanceUntilIdle()
-        policy.onChapterTransition(1)
+        policy.onChapterTransition(1, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
         testScope.advanceUntilIdle()
 
         assertTrue(volumes.isNotEmpty())
@@ -100,11 +101,11 @@ class ChapterLoudnessTransitionPolicyTest {
         // Chapter 1 has no LUFS; chapter 2 must still transition relative to chapter 0's gain.
         val policy = policyWith(-20.0, null, -14.0)
         policy.onBookChanged(BOOK_ID)
-        policy.onChapterTransition(0)
+        policy.onChapterTransition(0, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
         testScope.advanceUntilIdle()
-        policy.onChapterTransition(1)
+        policy.onChapterTransition(1, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
         testScope.advanceUntilIdle()
-        policy.onChapterTransition(2)
+        policy.onChapterTransition(2, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
         testScope.advanceUntilIdle()
 
         assertTrue(volumes.isNotEmpty())
@@ -116,9 +117,9 @@ class ChapterLoudnessTransitionPolicyTest {
     fun `all-null LUFS applies no transition`() {
         val policy = policyWith(null, null)
         policy.onBookChanged(BOOK_ID)
-        policy.onChapterTransition(0)
+        policy.onChapterTransition(0, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
         testScope.advanceUntilIdle()
-        policy.onChapterTransition(1)
+        policy.onChapterTransition(1, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
         testScope.advanceUntilIdle()
 
         assertTrue(volumes.isEmpty())
@@ -129,9 +130,9 @@ class ChapterLoudnessTransitionPolicyTest {
     fun `equal LUFS applies no transition`() {
         val policy = policyWith(-18.0, -18.0)
         policy.onBookChanged(BOOK_ID)
-        policy.onChapterTransition(0)
+        policy.onChapterTransition(0, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
         testScope.advanceUntilIdle()
-        policy.onChapterTransition(1)
+        policy.onChapterTransition(1, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
         testScope.advanceUntilIdle()
 
         assertTrue(volumes.isEmpty())
@@ -140,10 +141,42 @@ class ChapterLoudnessTransitionPolicyTest {
     @Test
     fun `no book set means no LUFS lookup`() {
         val policy = policyWith(-20.0)
-        policy.onChapterTransition(0)
+        policy.onChapterTransition(0, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
         testScope.advanceUntilIdle()
 
         assertEquals(0, lufsCalls)
+        assertTrue(volumes.isEmpty())
+    }
+
+    @Test
+    fun `seek transition applies target volume instantly without animation`() {
+        val policy = policyWith(-20.0, -14.0)
+        policy.onBookChanged(BOOK_ID)
+        policy.onChapterTransition(0, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
+        testScope.advanceUntilIdle()
+        volumes.clear()
+
+        policy.onChapterTransition(1, Player.MEDIA_ITEM_TRANSITION_REASON_SEEK)
+        testScope.advanceUntilIdle()
+
+        // Exactly one instant write — the animated path would emit ~33 frame writes.
+        assertEquals(1, volumes.size)
+        val expected = START_VOLUME * 10.0.pow(-0.3)
+        assertEquals(expected.toFloat(), volumes.single(), 0.005f)
+    }
+
+    @Test
+    fun `seek transition to same chapter applies no volume change`() {
+        val policy = policyWith(-20.0)
+        policy.onBookChanged(BOOK_ID)
+        policy.onChapterTransition(0, Player.MEDIA_ITEM_TRANSITION_REASON_AUTO)
+        testScope.advanceUntilIdle()
+        volumes.clear()
+
+        // Repeat-loop re-entry into the same chapter: gain ratio is 1.0 → no write at all.
+        policy.onChapterTransition(0, Player.MEDIA_ITEM_TRANSITION_REASON_SEEK)
+        testScope.advanceUntilIdle()
+
         assertTrue(volumes.isEmpty())
     }
 

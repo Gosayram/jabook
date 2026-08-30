@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio.processors
 
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.audio.VolumeOwner
 import com.jabook.app.jabook.audio.VolumeWriteCoordinator
@@ -71,9 +72,17 @@ internal class ChapterLoudnessTransitionPolicy(
      * Reads the new chapter's LUFS from the database, computes the target gain,
      * and smoothly adjusts the player volume over [TRANSITION_DURATION_MS].
      *
+     * Seek-initiated transitions ([Player.MEDIA_ITEM_TRANSITION_REASON_SEEK]) apply the
+     * target volume instantly instead of animating: seek loops (e.g. A-B repeat) would
+     * otherwise re-run the fade on every iteration, causing "breathing" volume.
+     *
      * @param chapterIndex the index of the newly active chapter
+     * @param transitionReason the [Player.MediaItemTransitionReason] that triggered the transition
      */
-    public fun onChapterTransition(chapterIndex: Int) {
+    public fun onChapterTransition(
+        chapterIndex: Int,
+        transitionReason: Int,
+    ) {
         val bookId = currentBookId ?: return
 
         transitionJob?.cancel()
@@ -102,12 +111,17 @@ internal class ChapterLoudnessTransitionPolicy(
 
                 LogUtils.d(
                     TAG,
-                    "Chapter transition: idx=$chapterIndex, lufs=$lufs, " +
+                    "Chapter transition: idx=$chapterIndex, reason=$transitionReason, lufs=$lufs, " +
                         "ratio=${"%.3f".format(ratio)}, " +
                         "volume ${"%.3f".format(startVolume)} → ${"%.3f".format(targetVolume)}",
                 )
 
-                animateVolume(player, startVolume, targetVolume)
+                if (transitionReason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
+                    player.volume = targetVolume
+                    releaseClaim()
+                } else {
+                    animateVolume(player, startVolume, targetVolume)
+                }
             }
     }
 
