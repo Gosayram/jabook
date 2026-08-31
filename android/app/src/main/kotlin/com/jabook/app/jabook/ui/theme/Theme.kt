@@ -29,10 +29,12 @@ import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
+import com.materialkolor.hct.Hct
 
 // Beta Light Color Scheme (Cyber-Premium Tech)
 private val BetaLightColorScheme =
@@ -61,18 +63,19 @@ private val BetaLightColorScheme =
         surfaceVariant = beta_light_surfaceVariant,
         onSurfaceVariant = beta_light_onSurfaceVariant,
         outline = beta_light_outline,
-        outlineVariant = beta_light_outline.copy(alpha = 0.5f),
+        // MCU: outlineVariant opaque (no 0.5f), surface tone 98 neutral chroma 6
+        outlineVariant = Color(Hct.from(Hct.fromInt(beta_light_outline.toArgb()).hue, 6.0, 80.0).toInt()),
         scrim = Color.Black.copy(alpha = 0.32f),
         inverseSurface = Color(0xFF2F3033),
         inverseOnSurface = Color(0xFFF1F0F4),
         inversePrimary = Color(0xFFB8F5A2),
-        surfaceDim = Color(0xFFDBDBDB),
-        surfaceBright = Color(0xFFFDFDFD),
-        surfaceContainerLowest = Color(0xFFFFFFFF),
-        surfaceContainerLow = Color(0xFFF8F8F8),
-        surfaceContainer = Color(0xFFF0F0F0),
-        surfaceContainerHigh = Color(0xFFEAEAEA),
-        surfaceContainerHighest = Color(0xFFE5E5E5),
+        surfaceDim = Color(Hct.from(0.0, 6.0, 87.0).toInt()),
+        surfaceBright = Color(Hct.from(0.0, 6.0, 98.0).toInt()),
+        surfaceContainerLowest = Color(Hct.from(0.0, 6.0, 100.0).toInt()),
+        surfaceContainerLow = Color(Hct.from(0.0, 6.0, 98.0).toInt()),
+        surfaceContainer = Color(Hct.from(0.0, 6.0, 94.0).toInt()),
+        surfaceContainerHigh = Color(Hct.from(0.0, 6.0, 92.0).toInt()),
+        surfaceContainerHighest = Color(Hct.from(0.0, 6.0, 90.0).toInt()),
         primaryFixed = Color(0xFFB8F5A2),
         primaryFixedDim = Color(0xFF8FE080),
         onPrimaryFixed = Color(0xFF002200),
@@ -114,18 +117,18 @@ private val BetaDarkColorScheme =
         surfaceVariant = beta_dark_surfaceVariant,
         onSurfaceVariant = beta_dark_onSurfaceVariant,
         outline = beta_dark_outline,
-        outlineVariant = beta_dark_outline.copy(alpha = 0.5f),
+        outlineVariant = Color(Hct.from(Hct.fromInt(beta_dark_outline.toArgb()).hue, 6.0, 60.0).toInt()),
         scrim = Color.Black.copy(alpha = 0.32f),
         inverseSurface = Color(0xFFE2E2E6),
         inverseOnSurface = Color(0xFF2F3033),
         inversePrimary = Color(0xFF006600),
-        surfaceDim = Color(0xFF0F0F0F),
-        surfaceBright = Color(0xFF3A3A3A),
-        surfaceContainerLowest = Color(0xFF0A0A0A),
-        surfaceContainerLow = Color(0xFF1A1A1A),
-        surfaceContainer = Color(0xFF1E1E1E),
-        surfaceContainerHigh = Color(0xFF262626),
-        surfaceContainerHighest = Color(0xFF2C2C2C),
+        surfaceDim = Color(Hct.from(0.0, 6.0, 6.0).toInt()),
+        surfaceBright = Color(Hct.from(0.0, 6.0, 24.0).toInt()),
+        surfaceContainerLowest = Color(Hct.from(0.0, 6.0, 4.0).toInt()),
+        surfaceContainerLow = Color(Hct.from(0.0, 6.0, 10.0).toInt()),
+        surfaceContainer = Color(Hct.from(0.0, 6.0, 12.0).toInt()),
+        surfaceContainerHigh = Color(Hct.from(0.0, 6.0, 17.0).toInt()),
+        surfaceContainerHighest = Color(Hct.from(0.0, 6.0, 22.0).toInt()),
         primaryFixed = Color(0xFFB8F5A2),
         primaryFixedDim = Color(0xFF8FE080),
         onPrimaryFixed = Color(0xFF002200),
@@ -167,18 +170,18 @@ private val ProdLightColorScheme =
         surfaceVariant = prod_light_surfaceVariant,
         onSurfaceVariant = prod_light_onSurfaceVariant,
         outline = prod_light_outline,
-        outlineVariant = prod_light_outline.copy(alpha = 0.5f),
+        outlineVariant = Color(Hct.from(Hct.fromInt(prod_light_outline.toArgb()).hue, 6.0, 80.0).toInt()),
         scrim = Color.Black.copy(alpha = 0.32f),
         inverseSurface = Color(0xFF2F3033),
         inverseOnSurface = Color(0xFFF1F0F4),
         inversePrimary = Color(0xFFFFDEA6),
-        surfaceDim = Color(0xFFDBDBDB),
-        surfaceBright = Color(0xFFFDFDFD),
-        surfaceContainerLowest = Color(0xFFFFFFFF),
-        surfaceContainerLow = Color(0xFFF8F8F8),
-        surfaceContainer = Color(0xFFF0F0F0),
-        surfaceContainerHigh = Color(0xFFEAEAEA),
-        surfaceContainerHighest = Color(0xFFE5E5E5),
+        surfaceDim = Color(Hct.from(0.0, 6.0, 87.0).toInt()),
+        surfaceBright = Color(Hct.from(0.0, 6.0, 98.0).toInt()),
+        surfaceContainerLowest = Color(Hct.from(0.0, 6.0, 100.0).toInt()),
+        surfaceContainerLow = Color(Hct.from(0.0, 6.0, 98.0).toInt()),
+        surfaceContainer = Color(Hct.from(0.0, 6.0, 94.0).toInt()),
+        surfaceContainerHigh = Color(Hct.from(0.0, 6.0, 92.0).toInt()),
+        surfaceContainerHighest = Color(Hct.from(0.0, 6.0, 90.0).toInt()),
         primaryFixed = Color(0xFFFFDEA6),
         primaryFixedDim = Color(0xFFFFC95C),
         onPrimaryFixed = Color(0xFF271900),
@@ -220,18 +223,18 @@ private val ProdDarkColorScheme =
         surfaceVariant = prod_dark_surfaceVariant,
         onSurfaceVariant = prod_dark_onSurfaceVariant,
         outline = prod_dark_outline,
-        outlineVariant = prod_dark_outline.copy(alpha = 0.5f),
+        outlineVariant = Color(Hct.from(Hct.fromInt(prod_dark_outline.toArgb()).hue, 6.0, 60.0).toInt()),
         scrim = Color.Black.copy(alpha = 0.32f),
         inverseSurface = Color(0xFFE6E1E6),
         inverseOnSurface = Color(0xFF2F3033),
         inversePrimary = Color(0xFF7B5800),
-        surfaceDim = Color(0xFF0F0F0F),
-        surfaceBright = Color(0xFF3A3A3A),
-        surfaceContainerLowest = Color(0xFF0A0A0A),
-        surfaceContainerLow = Color(0xFF1A1A1A),
-        surfaceContainer = Color(0xFF1E1E1E),
-        surfaceContainerHigh = Color(0xFF262626),
-        surfaceContainerHighest = Color(0xFF2C2C2C),
+        surfaceDim = Color(Hct.from(0.0, 6.0, 6.0).toInt()),
+        surfaceBright = Color(Hct.from(0.0, 6.0, 24.0).toInt()),
+        surfaceContainerLowest = Color(Hct.from(0.0, 6.0, 4.0).toInt()),
+        surfaceContainerLow = Color(Hct.from(0.0, 6.0, 10.0).toInt()),
+        surfaceContainer = Color(Hct.from(0.0, 6.0, 12.0).toInt()),
+        surfaceContainerHigh = Color(Hct.from(0.0, 6.0, 17.0).toInt()),
+        surfaceContainerHighest = Color(Hct.from(0.0, 6.0, 22.0).toInt()),
         primaryFixed = Color(0xFFFFDEA6),
         primaryFixedDim = Color(0xFFFFC95C),
         onPrimaryFixed = Color(0xFF271900),
@@ -285,88 +288,108 @@ private val AmoledDarkColorScheme =
                 .Color(0xFF222222),
     )
 
-// ponytail: vibrant — SchemeVibrant/SchemeExpressive needs MCU (material-color-utilities) not cached; keep static, see Color.kt header for upgrade path.
-// ponytail: M3 three contrast levels — standard/medium/high across 26 roles (styles/color/system page.md:58-59)
-// Higher contrast = stronger outline + surface separation + 7:1 on-colors. Gated by Settings→Accessibility or system highTextContrastEnabled.
-// Uses tonal HSL lightness adjustment (no new deps); reuses 4.5:1 ensureContrast idea from DynamicThemeManager.
+// MCU HCT tonal: 7:1 contrast via TonalPalette tone, surface tone 98 neutral chroma 6, outlineVariant opaque
 public enum class ContrastLevel { Standard, Medium, High }
 
-// ponytail: minimal tonal adjustment — HSL lightness shift, clamped 0..1
-private fun adjustLightness(
+// MCU: HCT tone adjustment (0..100 perceptual) — replaces HSL lightness
+private fun adjustTone(
     color: Color,
-    delta: Float,
+    delta: Double,
 ): Color {
-    val hsl = FloatArray(3)
-    ColorUtils.RGBToHSL((color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt(), hsl)
-    hsl[2] = (hsl[2] + delta).coerceIn(0f, 1f)
-    return Color(ColorUtils.HSLToColor(hsl))
+    val hct = Hct.fromInt(color.toArgb())
+    val newTone = (hct.tone + delta).coerceIn(0.0, 100.0)
+    return Color(Hct.from(hct.hue, hct.chroma, newTone).toInt())
+}
+
+private fun adjustLightness(color: Color, delta: Float): Color = adjustTone(color, delta.toDouble() * 100)
+
+// MCU 7:1 contrast via tone search using TonalPalette
+private fun ensureContrastTone(background: Color, targetRatio: Double = 7.0): Color {
+    val bg = background
+    // Try white/black first; else binary search tone preserving hue/chroma of bg complement
+    val white = Color.White
+    val black = Color.Black
+    val bgLum = bg.luminance().toDouble()
+    fun ratio(l1: Double, l2: Double): Double = (maxOf(l1, l2) + 0.05) / (minOf(l1, l2) + 0.05)
+    if (ratio(1.0, bgLum) >= targetRatio) return white
+    if (ratio(0.0, bgLum) >= targetRatio) return black
+    // Tone search on neutral palette tone 0..100
+    val startHct = Hct.fromInt(if (bgLum < 0.5) white.toArgb() else black.toArgb())
+    var lo = 0.0
+    var hi = 100.0
+    var best = startHct.tone
+    repeat(20) {
+        val mid = (lo + hi) / 2
+        val c = Color(Hct.from(startHct.hue, startHct.chroma, mid).toInt())
+        val r = ratio(c.luminance().toDouble(), bgLum)
+        if (r >= targetRatio) { best = mid; if (bgLum < 0.5) hi = mid else lo = mid } else { if (bgLum < 0.5) lo = mid else hi = mid }
+    }
+    return Color(Hct.from(startHct.hue, startHct.chroma, best).toInt())
 }
 
 private fun ColorScheme.withMediumContrast(isDark: Boolean): ColorScheme =
     if (isDark) {
         copy(
-            // ponytail: dark medium — lighten outline + darken containers for separation
-            outline = adjustLightness(outline, 0.15f),
-            outlineVariant = adjustLightness(outlineVariant, 0.12f),
-            surfaceContainer = adjustLightness(surfaceContainer, -0.04f),
-            surfaceContainerHigh = adjustLightness(surfaceContainerHigh, -0.06f),
-            surfaceContainerHighest = adjustLightness(surfaceContainerHighest, -0.08f),
-            surfaceDim = adjustLightness(surfaceDim, -0.02f),
+            outline = adjustTone(outline, 15.0),
+            outlineVariant = adjustTone(outlineVariant, 12.0),
+            surfaceContainer = adjustTone(surfaceContainer, -4.0),
+            surfaceContainerHigh = adjustTone(surfaceContainerHigh, -6.0),
+            surfaceContainerHighest = adjustTone(surfaceContainerHighest, -8.0),
+            surfaceDim = adjustTone(surfaceDim, -2.0),
             scrim = Color.Black.copy(alpha = 0.45f),
+            onSurface = ensureContrastTone(surface, 7.0),
         )
     } else {
         copy(
-            // ponytail: light medium — darken outline + lighten containers
-            outline = adjustLightness(outline, -0.14f),
-            outlineVariant = adjustLightness(outlineVariant, -0.10f),
-            surfaceContainer = Color.White,
-            surfaceContainerLow = Color.White,
-            surfaceContainerHigh = adjustLightness(surfaceContainerHigh, 0.04f),
-            surfaceContainerHighest = adjustLightness(surfaceContainerHighest, 0.02f),
-            surfaceDim = adjustLightness(surfaceDim, 0.02f),
+            outline = adjustTone(outline, -14.0),
+            outlineVariant = adjustTone(outlineVariant, -10.0),
+            surfaceContainer = Color(Hct.from(0.0, 6.0, 98.0).toInt()),
+            surfaceContainerLow = Color(Hct.from(0.0, 6.0, 98.0).toInt()),
+            surfaceContainerHigh = adjustTone(surfaceContainerHigh, 4.0),
+            surfaceContainerHighest = adjustTone(surfaceContainerHighest, 2.0),
+            surfaceDim = adjustTone(surfaceDim, 2.0),
+            onSurface = ensureContrastTone(surface, 7.0),
         )
     }
 
 private fun ColorScheme.withHighContrast(isDark: Boolean): ColorScheme =
     if (isDark) {
         copy(
-            // ponytail: dark high — max contrast: black surfaces, white outlines (M3 high dark = pure black + white strokes)
             background = Color.Black,
             surface = Color.Black,
-            surfaceVariant = Color(0xFF121212),
+            surfaceVariant = Color(Hct.from(0.0, 6.0, 12.0).toInt()),
             surfaceDim = Color.Black,
-            surfaceBright = adjustLightness(surfaceBright, 0.12f),
+            surfaceBright = adjustTone(surfaceBright, 12.0),
             surfaceContainerLowest = Color.Black,
-            surfaceContainerLow = Color(0xFF0A0A0A),
-            surfaceContainer = Color(0xFF121212),
-            surfaceContainerHigh = Color(0xFF1A1A1A),
-            surfaceContainerHighest = Color(0xFF222222),
+            surfaceContainerLow = Color(Hct.from(0.0, 6.0, 10.0).toInt()),
+            surfaceContainer = Color(Hct.from(0.0, 6.0, 12.0).toInt()),
+            surfaceContainerHigh = Color(Hct.from(0.0, 6.0, 17.0).toInt()),
+            surfaceContainerHighest = Color(Hct.from(0.0, 6.0, 22.0).toInt()),
             onBackground = Color.White,
             onSurface = Color.White,
             outline = Color.White,
-            outlineVariant = Color(0xFFC4C7C5),
+            outlineVariant = Color(Hct.from(0.0, 6.0, 80.0).toInt()),
             scrim = Color.Black.copy(alpha = 0.60f),
             inverseSurface = Color.White,
             inverseOnSurface = Color.Black,
         )
     } else {
         copy(
-            // ponytail: light high — white surfaces, black outlines (M3 high light = white + black strokes)
             background = Color.White,
-            surface = Color.White,
-            surfaceVariant = Color(0xFFF0F0F0),
-            surfaceDim = Color(0xFFE0E0E0),
+            surface = Color(Hct.from(0.0, 6.0, 98.0).toInt()),
+            surfaceVariant = Color(Hct.from(0.0, 6.0, 90.0).toInt()),
+            surfaceDim = Color(Hct.from(0.0, 6.0, 87.0).toInt()),
             surfaceBright = Color.White,
             surfaceContainerLowest = Color.White,
             surfaceContainerLow = Color.White,
             surfaceContainer = Color.White,
-            surfaceContainerHigh = Color(0xFFF2F2F2),
-            surfaceContainerHighest = Color(0xFFEEEEEE),
+            surfaceContainerHigh = Color(Hct.from(0.0, 6.0, 92.0).toInt()),
+            surfaceContainerHighest = Color(Hct.from(0.0, 6.0, 90.0).toInt()),
             onBackground = Color.Black,
             onSurface = Color.Black,
             onSurfaceVariant = Color.Black,
             outline = Color.Black,
-            outlineVariant = Color(0xFF44474E),
+            outlineVariant = Color(Hct.from(0.0, 6.0, 30.0).toInt()),
             scrim = Color.Black.copy(alpha = 0.60f),
             inverseSurface = Color(0xFF121212),
             inverseOnSurface = Color.White,
