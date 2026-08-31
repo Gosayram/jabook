@@ -55,6 +55,22 @@ public data class PlayerThemeColors(
  * - "Dislike" fix: auto-corrects universally unpleasant yellow-green colors
  * - Tonal harmonization of gradient colors
  * - LRU cache keyed by cover URL for performance
+ *
+ * HCT ceiling (ponytail): true HCT requires `com.google.android.material:material-color-utilities:0.3.x`
+ * (stable, non-alpha — `Hct.fromInt()`, `TonalPalette`, `Score`, `QuantizerCelebi`/`SchemeContent`).
+ * That artifact is NOT in `android/gradle/libs.versions.toml` nor in
+ * `android/gradle/verification-metadata.xml` and is not in the local Gradle cache
+ * (`~/.gradle/caches/modules-2/files-2.1/com.google.android.material/material-color-utilities` = missing).
+ * Adding it would require a network fetch + new SHA/PGP entry in verification-metadata,
+ * which breaks the offline build — so this file keeps the HSL fallback (see `fixDislikeColor:190`
+ * and `ensureContrast:215`, `colorToHsl:293`). Upgrade path when online:
+ *   1. `libs.versions.toml`: add `materialColorUtilities = "0.3.0"` + `material-color-utilities` library
+ *   2. `app/build.gradle.kts`: `implementation(libs.material.color.utilities)`
+ *   3. Replace `fixDislikeColor` with `Hct.fromInt(argb)` hue 90..120 chroma>16 → Score fallback,
+ *      and `ensureContrast` with `TonalPalette` tone search (HCT tone 0..100, not HSL lightness).
+ * Quantization: keep `androidx.palette.graphics.Palette` (`androidxPalette = 1.0.0`, already in catalog)
+ * over MCU `QuantizerCelebi` — same reason (no new dep, offline-safe, 32-color quantization is sufficient
+ * for cover art; `page.md:254-281` HCT tone vs HSL lightness — tone is perceptual, HSL L is not).
  */
 public object DynamicThemeManager {
     // Hue range for "dislike" colors (yellow-green, universally unpleasant)
@@ -166,6 +182,10 @@ public object DynamicThemeManager {
      * Shifts hue to a more pleasant range while preserving chroma and tone.
      *
      * Based on Material Color Utilities "dislike" fix.
+     * ponytail: HSL fallback — true fix is `Hct.fromInt(argb)` where
+     * `hct.hue in 90..120 && hct.chroma > 16` → `Hct.from(pleasantHue, chroma, tone).toInt()`
+     * or `Score` ranking. Requires `com.google.android.material:material-color-utilities`.
+     * HSL hue 70..130 sat>20 and shift to 50/150 approximates it without new dep.
      */
     internal fun fixDislikeColor(color: Color): Color {
         val hsl = colorToHsl(color)
@@ -187,6 +207,10 @@ public object DynamicThemeManager {
      * Adjusts lightness while preserving hue and saturation.
      *
      * WCAG 2.1: 4.5:1 for normal text, 3:1 for large text.
+     * ponytail: HSL lightness binary search — true HCT is `TonalPalette` tone search
+     * (`Hct.fromInt(bg).tone` + `MaterialColorUtilities` contrast via tone distance,
+     * not WCAG luminance). `page.md:272 Tone is how light or dark a color appears (0..100)`
+     * — same range but perceptual vs HSL L. Upgrade when MCU dep is cached.
      */
     internal fun ensureContrast(
         background: Color,
@@ -265,6 +289,7 @@ public object DynamicThemeManager {
         return hslToColor(floatArrayOf(hsl[0], hsl[1], best))
     }
 
+    // ponytail: HSL helpers — replace with Hct/TonalPalette when MCU cached; no new dep here
     private fun colorToHsl(color: Color): FloatArray =
         FloatArray(3).also {
             ColorUtils.RGBToHSL(

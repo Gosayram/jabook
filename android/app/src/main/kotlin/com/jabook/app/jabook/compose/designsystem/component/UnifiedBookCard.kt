@@ -712,6 +712,7 @@ private fun DownloadStatusBadge(
                 return
         }
 
+    // ponytail: DownloadStatusBadge labelSmallEmphasized ceiling — swap to EmphasizedTypography.labelSmall when card badge needs emphasis
     Text(
         text = stringResource(labelRes),
         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
@@ -738,6 +739,7 @@ private fun DownloadProgressBadge(
                 .semantics(mergeDescendants = true) {}
                 .padding(2.dp),
     ) {
+        // ponytail: progress badge emphasized ceiling — EmphasizedTypography.labelSmall when proven
         Text(
             text = stringResource(R.string.downloadProgressBadge, clampedPercent),
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),

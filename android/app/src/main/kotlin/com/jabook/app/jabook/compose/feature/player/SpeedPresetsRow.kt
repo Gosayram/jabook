@@ -84,6 +84,7 @@ internal fun SpeedPresetsRow(
                         ).padding(horizontal = 20.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
+                // ponytail: selected preset labelLargeEmphasized — use EmphasizedTypography.labelLarge when selected (selected chapter pattern proven)
                 Text(
                     text = SpeedDialPolicy.formatSpeed(speed),
                     style = MaterialTheme.typography.labelLarge,

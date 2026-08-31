@@ -68,6 +68,7 @@ import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -94,6 +95,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -125,6 +127,7 @@ import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.LibraryFilterChip
 import com.jabook.app.jabook.compose.designsystem.component.LibraryLoadingSkeleton
+import com.jabook.app.jabook.compose.designsystem.component.connectedItemShape
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
@@ -1278,38 +1281,51 @@ private fun SortOrderBottomSheet(
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
-        BookSortOrder.entries.forEach { order ->
-            ListItem(
-                headlineContent = {
-                    Text(
-                        text =
-                            when (order) {
-                                BookSortOrder.BY_ACTIVITY ->
-                                    stringResource(R.string.sort_by_activity)
-                                BookSortOrder.TITLE_ASC ->
-                                    stringResource(R.string.sort_title_asc)
-                                BookSortOrder.TITLE_DESC ->
-                                    stringResource(R.string.sort_title_desc)
-                                BookSortOrder.AUTHOR_ASC ->
-                                    stringResource(R.string.sort_author_asc)
-                                BookSortOrder.AUTHOR_DESC ->
-                                    stringResource(R.string.sort_author_desc)
-                                BookSortOrder.RECENTLY_ADDED ->
-                                    stringResource(R.string.sort_recently_added)
-                                BookSortOrder.OLDEST_FIRST ->
-                                    stringResource(R.string.sort_oldest_first)
-                            },
+        val sortEntries = BookSortOrder.entries
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            sortEntries.forEachIndexed { index, order ->
+                val shape = connectedItemShape(index, sortEntries.size)
+                Surface(
+                    shape = shape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth().clip(shape),
+                ) {
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                text =
+                                    when (order) {
+                                        BookSortOrder.BY_ACTIVITY ->
+                                            stringResource(R.string.sort_by_activity)
+                                        BookSortOrder.TITLE_ASC ->
+                                            stringResource(R.string.sort_title_asc)
+                                        BookSortOrder.TITLE_DESC ->
+                                            stringResource(R.string.sort_title_desc)
+                                        BookSortOrder.AUTHOR_ASC ->
+                                            stringResource(R.string.sort_author_asc)
+                                        BookSortOrder.AUTHOR_DESC ->
+                                            stringResource(R.string.sort_author_desc)
+                                        BookSortOrder.RECENTLY_ADDED ->
+                                            stringResource(R.string.sort_recently_added)
+                                        BookSortOrder.OLDEST_FIRST ->
+                                            stringResource(R.string.sort_oldest_first)
+                                    },
+                            )
+                        },
+                        leadingContent = {
+                            if (order == currentSortOrder) {
+                                Icon(imageVector = Icons.Default.Check, contentDescription = null)
+                            } else {
+                                Spacer(modifier = Modifier.size(24.dp))
+                            }
+                        },
+                        modifier = Modifier.combinedClickable(onClick = { onSortOrderChanged(order) }),
                     )
-                },
-                leadingContent = {
-                    if (order == currentSortOrder) {
-                        Icon(imageVector = Icons.Default.Check, contentDescription = null)
-                    } else {
-                        Spacer(modifier = Modifier.size(24.dp))
-                    }
-                },
-                modifier = Modifier.combinedClickable(onClick = { onSortOrderChanged(order) }),
-            )
+                }
+            }
         }
         Spacer(modifier = Modifier.height(8.dp))
     }

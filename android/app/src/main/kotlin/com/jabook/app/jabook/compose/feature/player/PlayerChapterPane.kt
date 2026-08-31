@@ -73,6 +73,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.domain.model.Chapter
+import com.jabook.app.jabook.ui.theme.EmphasizedTypography
 
 /**
  * Side panel component for displaying book chapters on wide screens.
@@ -339,7 +340,13 @@ private fun ChapterListItem(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = chapterName,
-                        style = MaterialTheme.typography.bodyMedium,
+                        // ponytail: EmphasizedTypography.bodyMedium stays Normal for readability; selected bumps to SemiBold
+                        style =
+                            if (isSelected) {
+                                EmphasizedTypography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                            } else {
+                                MaterialTheme.typography.bodyMedium
+                            },
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         color =

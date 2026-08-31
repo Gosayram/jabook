@@ -322,6 +322,7 @@ private fun StreamingBadge(modifier: Modifier = Modifier) {
                         .size(6.dp)
                         .background(MaterialTheme.colorScheme.tertiary, CircleShape),
             )
+            // ponytail: labelSmallEmphasized ceiling — swap to EmphasizedTypography.labelSmall when streaming badge needs more prominence
             Text(
                 text = stringResource(R.string.streamingLabel),
                 style = MaterialTheme.typography.labelSmall,
@@ -428,6 +429,7 @@ private fun StateBadge(
                 modifier = Modifier.size(12.dp),
                 tint = color,
             )
+            // ponytail: StateBadge labelSmallEmphasized — wire EmphasizedTypography.labelSmall when badge emphasis needed beyond QualityBadge
             Text(
                 text = text,
                 style = MaterialTheme.typography.labelSmall,

@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioQualityInfo
 import com.jabook.app.jabook.audio.QualityTier
+import com.jabook.app.jabook.ui.theme.EmphasizedTypography
 import com.jabook.app.jabook.ui.theme.JabookTheme
 
 /**
@@ -116,15 +117,15 @@ public fun QualityBadge(
         )
         Text(
             text = shortLabel,
-            style = MaterialTheme.typography.labelSmall,
+            style = EmphasizedTypography.labelSmall,
             fontSize = fontSize,
             color = tierColor,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
         )
         if (showTierLabel) {
             Text(
                 text = tierLabel,
-                style = MaterialTheme.typography.labelSmall,
+                style = EmphasizedTypography.labelSmall,
                 fontSize = fontSize,
                 color = tierColor.copy(alpha = 0.8f),
             )

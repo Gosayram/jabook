@@ -18,6 +18,7 @@ import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
@@ -27,6 +28,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
 
 // Beta Light Color Scheme (Cyber-Premium Tech)
@@ -280,6 +282,146 @@ private val AmoledDarkColorScheme =
                 .Color(0xFF222222),
     )
 
+// ponytail: M3 three contrast levels — standard/medium/high across 26 roles (styles/color/system page.md:58-59)
+// Higher contrast = stronger outline + surface separation + 7:1 on-colors. Gated by Settings→Accessibility or system highTextContrastEnabled.
+// Uses tonal HSL lightness adjustment (no new deps); reuses 4.5:1 ensureContrast idea from DynamicThemeManager.
+public enum class ContrastLevel { Standard, Medium, High }
+
+// ponytail: minimal tonal adjustment — HSL lightness shift, clamped 0..1
+private fun adjustLightness(
+    color: Color,
+    delta: Float,
+): Color {
+    val hsl = FloatArray(3)
+    ColorUtils.RGBToHSL((color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt(), hsl)
+    hsl[2] = (hsl[2] + delta).coerceIn(0f, 1f)
+    return Color(ColorUtils.HSLToColor(hsl))
+}
+
+private fun ColorScheme.withMediumContrast(isDark: Boolean): ColorScheme =
+    if (isDark) {
+        copy(
+            // ponytail: dark medium — lighten outline + darken containers for separation
+            outline = adjustLightness(outline, 0.15f),
+            outlineVariant = adjustLightness(outlineVariant, 0.12f),
+            surfaceContainer = adjustLightness(surfaceContainer, -0.04f),
+            surfaceContainerHigh = adjustLightness(surfaceContainerHigh, -0.06f),
+            surfaceContainerHighest = adjustLightness(surfaceContainerHighest, -0.08f),
+            surfaceDim = adjustLightness(surfaceDim, -0.02f),
+            scrim = Color.Black.copy(alpha = 0.45f),
+        )
+    } else {
+        copy(
+            // ponytail: light medium — darken outline + lighten containers
+            outline = adjustLightness(outline, -0.14f),
+            outlineVariant = adjustLightness(outlineVariant, -0.10f),
+            surfaceContainer = Color.White,
+            surfaceContainerLow = Color.White,
+            surfaceContainerHigh = adjustLightness(surfaceContainerHigh, 0.04f),
+            surfaceContainerHighest = adjustLightness(surfaceContainerHighest, 0.02f),
+            surfaceDim = adjustLightness(surfaceDim, 0.02f),
+        )
+    }
+
+private fun ColorScheme.withHighContrast(isDark: Boolean): ColorScheme =
+    if (isDark) {
+        copy(
+            // ponytail: dark high — max contrast: black surfaces, white outlines (M3 high dark = pure black + white strokes)
+            background = Color.Black,
+            surface = Color.Black,
+            surfaceVariant = Color(0xFF121212),
+            surfaceDim = Color.Black,
+            surfaceBright = adjustLightness(surfaceBright, 0.12f),
+            surfaceContainerLowest = Color.Black,
+            surfaceContainerLow = Color(0xFF0A0A0A),
+            surfaceContainer = Color(0xFF121212),
+            surfaceContainerHigh = Color(0xFF1A1A1A),
+            surfaceContainerHighest = Color(0xFF222222),
+            onBackground = Color.White,
+            onSurface = Color.White,
+            outline = Color.White,
+            outlineVariant = Color(0xFFC4C7C5),
+            scrim = Color.Black.copy(alpha = 0.60f),
+            inverseSurface = Color.White,
+            inverseOnSurface = Color.Black,
+        )
+    } else {
+        copy(
+            // ponytail: light high — white surfaces, black outlines (M3 high light = white + black strokes)
+            background = Color.White,
+            surface = Color.White,
+            surfaceVariant = Color(0xFFF0F0F0),
+            surfaceDim = Color(0xFFE0E0E0),
+            surfaceBright = Color.White,
+            surfaceContainerLowest = Color.White,
+            surfaceContainerLow = Color.White,
+            surfaceContainer = Color.White,
+            surfaceContainerHigh = Color(0xFFF2F2F2),
+            surfaceContainerHighest = Color(0xFFEEEEEE),
+            onBackground = Color.Black,
+            onSurface = Color.Black,
+            onSurfaceVariant = Color.Black,
+            outline = Color.Black,
+            outlineVariant = Color(0xFF44474E),
+            scrim = Color.Black.copy(alpha = 0.60f),
+            inverseSurface = Color(0xFF121212),
+            inverseOnSurface = Color.White,
+        )
+    }
+
+/** Returns [this] with [level] contrast applied. Standard = no-op. */
+public fun ColorScheme.withContrast(
+    level: ContrastLevel,
+    isDark: Boolean,
+): ColorScheme =
+    when (level) {
+        ContrastLevel.Standard -> this
+        ContrastLevel.Medium -> withMediumContrast(isDark)
+        ContrastLevel.High -> withHighContrast(isDark)
+    }
+
+// Required API per task: simple function that copies light scheme with higher contrast via adjustLightness.
+// Delegates to generic withMediumContrast/withHighContrast for reuse.
+public fun createMediumContrastColorScheme(
+    base: ColorScheme,
+    isDark: Boolean = false,
+): ColorScheme = base.withMediumContrast(isDark)
+
+public fun createHighContrastColorScheme(
+    base: ColorScheme,
+    isDark: Boolean = false,
+): ColorScheme = base.withHighContrast(isDark)
+
+// Convenience: 4 scheme aliases (lightMedium/high, darkMedium/high) for direct use without recomposing.
+public val BetaLightMediumContrastScheme: ColorScheme get() = BetaLightColorScheme.withMediumContrast(false)
+public val BetaLightHighContrastScheme: ColorScheme get() = BetaLightColorScheme.withHighContrast(false)
+public val BetaDarkMediumContrastScheme: ColorScheme get() = BetaDarkColorScheme.withMediumContrast(true)
+public val BetaDarkHighContrastScheme: ColorScheme get() = BetaDarkColorScheme.withHighContrast(true)
+public val ProdLightMediumContrastScheme: ColorScheme get() = ProdLightColorScheme.withMediumContrast(false)
+public val ProdLightHighContrastScheme: ColorScheme get() = ProdLightColorScheme.withHighContrast(false)
+public val ProdDarkMediumContrastScheme: ColorScheme get() = ProdDarkColorScheme.withMediumContrast(true)
+public val ProdDarkHighContrastScheme: ColorScheme get() = ProdDarkColorScheme.withHighContrast(true)
+
+// ponytail: system high-contrast gate — mirrors Settings→Accessibility and Android's highTextContrastEnabled (via reflection for API 36 compat)
+@Composable
+public fun rememberContrastLevel(highContrastEnabled: Boolean = false): ContrastLevel {
+    if (highContrastEnabled) return ContrastLevel.High
+    val context = LocalView.current.context
+    val isSystemHighContrast =
+        try {
+            val am =
+                context.getSystemService(
+                    android.content.Context.ACCESSIBILITY_SERVICE,
+                ) as android.view.accessibility.AccessibilityManager
+            // ponytail: reflect to avoid compile error on SDK 36 where isHighTextContrastEnabled may be removed
+            val m = am.javaClass.getMethod("isHighTextContrastEnabled")
+            (m.invoke(am) as? Boolean) == true
+        } catch (_: Exception) {
+            false
+        }
+    return if (isSystemHighContrast) ContrastLevel.High else ContrastLevel.Standard
+}
+
 /**
  * Jabook application theme with flavor-specific branding.
  *
@@ -289,6 +431,7 @@ private val AmoledDarkColorScheme =
  *
  * @param darkTheme Whether to use dark theme. Defaults to system setting.
  * @param amoledMode Whether to use pure black background (AMOLED mode). Only applies if darkTheme is true.
+ * @param contrastLevel M3 contrast level (Standard/Medium/High) — gated by Settings→Accessibility or system highTextContrastEnabled.
  * @param isBetaFlavor Whether this is beta/dev/stage flavor (true) or prod (false). Defaults to true.
  * @param selectedFont The selected font preference (DEFAULT, SYSTEM, or Google Font)
  * @param content The composable content to be themed.
@@ -297,6 +440,7 @@ private val AmoledDarkColorScheme =
 public fun JabookTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     amoledMode: Boolean = false,
+    contrastLevel: ContrastLevel = ContrastLevel.Standard,
     // Dynamic color is available on Android 12+
     // Disabled by default to enforce Premium Branding identity
     dynamicColor: Boolean = false,
@@ -306,7 +450,7 @@ public fun JabookTheme(
 ) {
     // AMOLED Mode takes priority over dynamic colors to ensure pure black background
     // Dynamic colors would override the black background with wallpaper-based colors
-    val colorScheme =
+    val baseScheme =
         when {
             // AMOLED Mode (always dark, overrides dynamic colors and flavor themes)
             darkTheme && amoledMode -> AmoledDarkColorScheme
@@ -326,9 +470,13 @@ public fun JabookTheme(
             !isBetaFlavor && darkTheme -> ProdDarkColorScheme
             else -> ProdLightColorScheme
         }
+    // ponytail: apply M3 medium/high contrast variants via tonal HSL copy (no new palette)
+    val colorScheme = if (contrastLevel == ContrastLevel.Standard) baseScheme else baseScheme.withContrast(contrastLevel, darkTheme)
 
     // Create typography based on font preference
     // Use FontUtils to get FontFamily (supports both bundled and Google Fonts)
+    // ponytail: app-wide Typography stays base (Brand display/headline + Plain body/label via same Inter);
+    // EmphasizedTypography is local-only for badges/selected states — no global toggle to keep contrast hierarchy
     val fontFamily =
         com.jabook.app.jabook.compose.core.util.FontUtils
             .getFontFamily(selectedFont)

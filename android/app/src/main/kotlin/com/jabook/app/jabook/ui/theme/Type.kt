@@ -191,6 +191,14 @@ public fun createEmphasizedTypography(fontFamily: FontFamily = FontFamily.Defaul
 }
 
 /**
+ * Brand vs Plain (M3 Expressive): display/headline = Brand (Inter SemiBold/Bold),
+ * body/label/title = Plain (Inter Regular/Medium). Both currently Inter — same
+ * family, different weights satisfy the token split. No separate font file needed;
+ * when brand requires distinct family, swap display/headline fontFamily only.
+ * ponytail: single InterFontFamily covers brand+plain; split files only if brand diverges.
+ */
+
+/**
  * Custom font family using Inter fonts from res/font/.
  * This is the default app font family.
  */

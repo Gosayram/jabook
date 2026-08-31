@@ -427,6 +427,7 @@ internal fun TopLevelDestinationIcon(
             )
         BadgedBox(
             badge = {
+                // ponytail: badge count labelSmallEmphasized ceiling — Badge defaults to labelSmall, swap to EmphasizedTypography.labelSmall if badge needs emphasis
                 Badge(modifier = Modifier.testTag(SETTINGS_BADGE_TEST_TAG)) {
                     Text(if (activeDownloadsCount > 99) "99+" else activeDownloadsCount.toString())
                 }

@@ -51,6 +51,7 @@ public fun LibraryFilterChip(
         selected = selected,
         onClick = onClick,
         label = {
+            // ponytail: selected FilterChip labelLargeEmphasized — wire EmphasizedTypography.labelLarge when selected (body/label split proven)
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,

@@ -85,6 +85,7 @@ public fun JabookDrawerContent(
                         }
                     } == true
 
+                // ponytail: drawer selected labelLargeEmphasized — swap to EmphasizedTypography.labelLarge when selected (selected chip/chapter pattern proven)
                 NavigationDrawerItem(
                     label = { Text(stringResource(destination.titleTextId)) },
                     icon = {

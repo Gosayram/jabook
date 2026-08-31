@@ -198,6 +198,7 @@ private fun HistoryStatusBadge(status: String) {
                 tint = color,
                 modifier = Modifier.height(12.dp),
             )
+            // ponytail: HistoryStatusBadge labelSmallEmphasized — use EmphasizedTypography.labelSmall when proven by QualityBadge
             Text(
                 text = text,
                 style = MaterialTheme.typography.labelSmall,
