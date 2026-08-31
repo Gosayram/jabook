@@ -337,11 +337,12 @@ public object AdaptiveUtils {
             else -> 360.dp
         }
 
+    /** ponytail: WSC fallback 360 — WSC can't distinguish large/xl (ceiling), use getSupportingPaneWidth(screenWidthDp: Int) for 412 where widthDp available. */
     public fun getSupportingPaneWidth(windowSizeClass: WindowSizeClass?): Dp {
-        // ponytail: WSC alone can't distinguish large/xl, fallback to 360; caller with widthDp gets 412.
+        // ponytail: WSC alone can't distinguish large/xl (ceiling) -> 360; Int overload returns 412 for large/xl.
         if (windowSizeClass == null) return 360.dp
         return when (windowSizeClass.widthSizeClass) {
-            WindowWidthSizeClass.Expanded -> 360.dp // large/xl upgrade via screenWidthDp overload
+            WindowWidthSizeClass.Expanded -> 360.dp // ponytail ceiling: large/xl needs widthDp overload for 412
             else -> 360.dp
         }
     }

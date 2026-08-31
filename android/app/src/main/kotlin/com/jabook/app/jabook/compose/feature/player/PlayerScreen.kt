@@ -86,15 +86,19 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -1381,14 +1385,12 @@ private fun PlayerLandscapeLayout(
             modifier = Modifier.weight(0.6f).fillMaxHeight().padding(end = 16.dp),
             verticalArrangement = Arrangement.Center,
         ) {
-            Text(
+            // ponytail: TooltipBox shows full title on long-press when truncated
+            PlayerTruncatedTitle(
                 text = state.book.title,
                 style = MaterialTheme.typography.titleLarge,
                 color = adaptiveOnSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                // ponytail: full title for TalkBack; TooltipBox with isLineEllipsized when truncation tooltip needed
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = state.book.title },
+                modifier = Modifier.fillMaxWidth(),
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -1887,14 +1889,12 @@ private fun PlayerContent(
                                 .fillMaxWidth()
                                 .padding(horizontal = if (isCompact) 8.dp else 0.dp),
                     ) {
-                        Text(
+                        // ponytail: TooltipBox on truncated title (writing/page.md)
+                        PlayerTruncatedTitle(
                             text = state.book.title,
                             style = if (isCompact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
-                            textAlign = TextAlign.Center,
                             color = adaptiveOnSurface,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.semantics { contentDescription = state.book.title },
+                            textAlign = TextAlign.Center,
                         )
                         if (displayAuthor != state.book.title && !isCompact) {
                             Text(
@@ -2414,5 +2414,32 @@ private fun PlayerLoadingSkeleton(modifier: Modifier = Modifier) {
                         .background(shimmerBrush),
             )
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlayerTruncatedTitle(
+    text: String,
+    style: androidx.compose.ui.text.TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier,
+    textAlign: androidx.compose.ui.text.style.TextAlign? = null,
+) {
+    var truncated by remember(text) { mutableStateOf(false) }
+    val state = rememberTooltipState()
+    TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = {
+        PlainTooltip { Text(text) }
+    }, state = state) {
+        Text(
+            text = text,
+            style = style,
+            color = color,
+            textAlign = textAlign,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            onTextLayout = { truncated = it.hasVisualOverflow },
+            modifier = modifier.semantics { contentDescription = text },
+        )
     }
 }

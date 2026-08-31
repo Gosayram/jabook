@@ -43,16 +43,23 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -367,31 +374,20 @@ private fun GridBookCard(
                             ),
                         ).padding(AdaptiveUtils.getCardPadding(effectiveWSC)),
             ) {
+                // ponytail: TooltipBox shows full text on long-press when truncated (writing/page.md:60-70)
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
+                    TruncatedTooltipText(
                         text = book.title,
-                        style =
-                            AdaptiveUtils.getAdaptiveTextStyle(
-                                MaterialTheme.typography.titleSmall,
-                                effectiveWSC,
-                            ),
+                        style = AdaptiveUtils.getAdaptiveTextStyle(MaterialTheme.typography.titleSmall, effectiveWSC),
                         color = Color.White,
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
                     )
                     if (book.author.isNotBlank()) {
-                        Text(
+                        TruncatedTooltipText(
                             text = book.author,
-                            style =
-                                AdaptiveUtils.getAdaptiveTextStyle(
-                                    MaterialTheme.typography.bodySmall,
-                                    effectiveWSC,
-                                ),
-                            color =
-                                Color.White
-                                    .copy(alpha = 0.85f),
+                            style = AdaptiveUtils.getAdaptiveTextStyle(MaterialTheme.typography.bodySmall, effectiveWSC),
+                            color = Color.White.copy(alpha = 0.85f),
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                     if (!book.narrator.isNullOrBlank()) {
@@ -775,4 +771,25 @@ private fun DownloadProgressBadge(
                     ).padding(horizontal = 8.dp, vertical = 4.dp),
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TruncatedTooltipText(
+    text: String,
+    style: androidx.compose.ui.text.TextStyle,
+    color: Color,
+    maxLines: Int,
+) {
+    var isTruncated by remember(text) { mutableStateOf(false) }
+    val state = rememberTooltipState()
+    TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = {
+        PlainTooltip { Text(text) }
+    }, state = state) {
+        Text(text = text, style = style, color = color, maxLines = maxLines, overflow = TextOverflow.Ellipsis, onTextLayout = {
+            isTruncated =
+                it.hasVisualOverflow
+        })
+    }
+    // ponytail: isTruncated tracks overflow via hasVisualOverflow; wrapper always present (harmless when not truncated), expand to conditional when tooltip crowding matters
 }

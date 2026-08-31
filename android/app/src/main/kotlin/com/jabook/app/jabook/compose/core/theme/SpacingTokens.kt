@@ -33,7 +33,7 @@ public object SpacingTokens {
     public val ScaffoldSpacer: Dp = 8.dp
     public val ContentPaddingCompact: Dp = 16.dp
     public val ContentPaddingMedium: Dp = 24.dp
-    public val ContentPaddingExpanded: Dp = 32.dp
+    public val ContentPaddingExpanded: Dp = 24.dp
     public val GridMinCellCompact: Dp = 150.dp
     public val GridMinCellExpanded: Dp = 168.dp
 }

@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -42,7 +43,7 @@ public fun JabookFloatingToolbar(
 ) {
     // ponytail: expanded kept for API compat — stable fallback always shows pill; collapse not emulated
     Surface(
-        modifier = modifier.padding(horizontal = 16.dp, vertical = 24.dp),
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 24.dp).height(64.dp),
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 3.dp,
@@ -67,9 +68,9 @@ public fun JabookDockedToolbar(
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    // ponytail: docked = pill full-width 16dp pad
+    // ponytail: docked = pill full-width 16dp pad, 64dp high per spec toolbars/page.md:91
     Surface(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp).height(64.dp),
         shape = CircleShape,
         color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 3.dp,
