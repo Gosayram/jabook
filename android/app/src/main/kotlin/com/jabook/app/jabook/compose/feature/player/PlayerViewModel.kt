@@ -602,6 +602,10 @@ public class PlayerViewModel
             bookmarkHandler.deleteBookmark(bookmarkId)
         }
 
+        public fun restoreBookmark(bookmark: com.jabook.app.jabook.compose.domain.model.BookmarkItem) {
+            bookmarkHandler.restoreBookmark(bookmark)
+        }
+
         public fun initializeVisualizer() {
             playerController.initializeVisualizer()
         }

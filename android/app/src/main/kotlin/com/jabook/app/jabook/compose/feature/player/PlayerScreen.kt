@@ -675,8 +675,22 @@ public fun PlayerScreen(
                     viewModel.seekToBookmark(bookmark)
                 },
                 onDeleteBookmark = { bookmarkId ->
+                    val deleted = state.bookmarks.firstOrNull { it.id == bookmarkId }
                     deleteBookmarkVoiceNotes(context.filesDir, bookmarkId)
                     viewModel.deleteBookmark(bookmarkId)
+                    if (deleted != null) {
+                        scope.launch {
+                            val result =
+                                snackbarHostState.showSnackbar(
+                                    message = context.getString(R.string.bookmarkDeleted),
+                                    actionLabel = context.getString(R.string.undoAction),
+                                    duration = androidx.compose.material3.SnackbarDuration.Short,
+                                )
+                            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                viewModel.restoreBookmark(deleted)
+                            }
+                        }
+                    }
                 },
                 onDismiss = { showBookmarkSheet = false },
             )
@@ -985,8 +999,25 @@ public fun PlayerScreen(
                                                 )
                                             },
                                             onDeleteBookmark = { bookmarkId ->
+                                                val deleted =
+                                                    (uiState as? PlayerState.Active)?.bookmarks?.firstOrNull {
+                                                        it.id == bookmarkId
+                                                    }
                                                 deleteBookmarkVoiceNotes(context.filesDir, bookmarkId)
                                                 viewModel.deleteBookmark(bookmarkId)
+                                                if (deleted != null) {
+                                                    scope.launch {
+                                                        val result =
+                                                            snackbarHostState.showSnackbar(
+                                                                message = context.getString(R.string.bookmarkDeleted),
+                                                                actionLabel = context.getString(R.string.undoAction),
+                                                                duration = androidx.compose.material3.SnackbarDuration.Short,
+                                                            )
+                                                        if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                                            viewModel.restoreBookmark(deleted)
+                                                        }
+                                                    }
+                                                }
                                             },
                                             hasRecordAudioPermission = hasRecordAudioPermission,
                                             onRequestRecordAudioPermission = requestRecordAudioPermission,

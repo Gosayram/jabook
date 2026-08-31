@@ -16,8 +16,11 @@ package com.jabook.app.jabook.compose.feature.player
 
 import android.graphics.drawable.ColorDrawable
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -40,7 +43,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -109,6 +111,7 @@ private val NoDuration: StateFlow<Long> = MutableStateFlow(0L)
  * @param onDismiss Callback when mini player is dismissed via swipe
  * @param modifier Modifier
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 public fun MiniPlayer(
     coverUrl: String?,
@@ -125,6 +128,10 @@ public fun MiniPlayer(
     modifier: Modifier = Modifier,
     currentPositionMs: StateFlow<Long> = NoPosition,
     durationMs: StateFlow<Long> = NoDuration,
+    // ponytail: shared transition — same key as PlayerScreen ("cover_${bookId}") for cover morph
+    bookId: String? = null,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val currentPosition by currentPositionMs.collectAsStateWithLifecycle()
     val duration by durationMs.collectAsStateWithLifecycle()
@@ -278,10 +285,27 @@ public fun MiniPlayer(
                         .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val coverModifier =
+                    if (
+                        sharedTransitionScope != null &&
+                        animatedVisibilityScope != null &&
+                        bookId != null
+                    ) {
+                        with(sharedTransitionScope) {
+                            Modifier
+                                .size(48.dp)
+                                .sharedElement(
+                                    sharedContentState = rememberSharedContentState(key = "cover_$bookId"),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                )
+                        }
+                    } else {
+                        Modifier.size(48.dp)
+                    }
                 AsyncImage(
                     model = imageRequest,
                     contentDescription = title,
-                    modifier = Modifier.size(48.dp),
+                    modifier = coverModifier,
                     contentScale = ContentScale.Crop,
                     placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
                     error = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
@@ -310,19 +334,7 @@ public fun MiniPlayer(
                     }
                 }
 
-                // Previous chapter button
-                CircularIconButton(
-                    icon = Icons.Filled.SkipPrevious,
-                    contentDescription = stringResource(R.string.previousChapter),
-                    onClick = onPreviousClick,
-                    style = CircularIconButtonStyle.DEFAULT,
-                    enabled = hasPreviousChapter,
-                    size = 24.dp,
-                )
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                // Play/Pause button with larger touch target
+                // ponytail: max 2 actions (play/pause + next) — previous removed, still accessible via swipe right
                 CircularIconButton(
                     icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     contentDescription =
@@ -338,7 +350,6 @@ public fun MiniPlayer(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // Next chapter button
                 CircularIconButton(
                     icon = Icons.Filled.SkipNext,
                     contentDescription = stringResource(R.string.nextChapter),
@@ -379,6 +390,7 @@ private fun MiniPlayerFontScalePreview() {
 /**
  * Animated container for MiniPlayer with slide-in/out animations.
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 public fun AnimatedMiniPlayer(
     visible: Boolean,
@@ -396,6 +408,9 @@ public fun AnimatedMiniPlayer(
     modifier: Modifier = Modifier,
     currentPositionMs: StateFlow<Long> = NoPosition,
     durationMs: StateFlow<Long> = NoDuration,
+    bookId: String? = null,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
 ) {
     val reduceMotion = rememberReduceMotion()
     AnimatedVisibility(
@@ -438,6 +453,9 @@ public fun AnimatedMiniPlayer(
             onDismiss = onDismiss,
             currentPositionMs = currentPositionMs,
             durationMs = durationMs,
+            bookId = bookId,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope,
         )
     }
 }

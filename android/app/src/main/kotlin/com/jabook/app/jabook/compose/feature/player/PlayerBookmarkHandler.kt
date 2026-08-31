@@ -129,6 +129,15 @@ internal class PlayerBookmarkHandler(
         }
     }
 
+    fun restoreBookmark(bookmark: BookmarkItem) {
+        viewModelScope.launch {
+            bookmarkRepository.restoreBookmark(bookmark).onFailure { error ->
+                logger.e({ "Failed to restore bookmark" }, error)
+                reportError(context.getString(R.string.failed_to_add_bookmark))
+            }
+        }
+    }
+
     private fun resolveDeleteBookmarkFailureReason(result: Result<Unit>): String? =
         result.exceptionOrNull()?.let { "${context.getString(R.string.failed_to_delete_bookmark)}: ${it.message}" }
 }

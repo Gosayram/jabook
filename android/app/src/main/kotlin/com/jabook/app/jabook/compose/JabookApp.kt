@@ -315,85 +315,93 @@ public fun JabookApp(
                     },
                     modifier = Modifier.fillMaxSize(),
                 ) {
-                    // Main content area with mini player
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        // Navigation content
-                        Box(
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .fillMaxSize(),
-                        ) {
-                            @OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
-                            androidx.compose.animation.SharedTransitionLayout {
+                    // ponytail: SharedTransitionLayout wraps both NavHost and mini-player so cover
+                    // morphs via sharedElement ("cover_${bookId}") instead of crossfade.
+                    @OptIn(ExperimentalSharedTransitionApi::class)
+                    androidx.compose.animation.SharedTransitionLayout(
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .weight(1f)
+                                        .fillMaxSize(),
+                            ) {
                                 JabookNavHost(
                                     appState = appState,
                                     modifier = Modifier.fillMaxSize(),
-                                    sharedTransitionScope = this,
+                                    sharedTransitionScope = this@SharedTransitionLayout,
                                     onFirstMeaningfulContentDrawn = onFirstMeaningfulContentDrawn,
                                     onMenuClick = onMenuClick,
                                 )
+
+                                // Snackbar host positioned above mini player
+                                androidx.compose.material3.SnackbarHost(
+                                    hostState = appState.snackbarHostState,
+                                    modifier =
+                                        Modifier
+                                            .align(Alignment.BottomCenter)
+                                            .padding(
+                                                bottom =
+                                                    if (currentBook != null && isMiniPlayerVisible && !isOnPlayerScreen) 72.dp else 16.dp,
+                                            ),
+                                )
                             }
 
-                            // Snackbar host positioned above mini player
-                            androidx.compose.material3.SnackbarHost(
-                                hostState = appState.snackbarHostState,
-                                modifier =
-                                    Modifier
-                                        .align(androidx.compose.ui.Alignment.BottomCenter)
-                                        .padding(
-                                            bottom =
-                                                if (currentBook != null && isMiniPlayerVisible && !isOnPlayerScreen) 72.dp else 16.dp,
-                                        ),
-                            )
-                        }
-
-                        // Mini player (shown when book is playing, but hidden on player screen or when swiped away)
-                        if (!isOnPlayerScreen && isMiniPlayerVisible) {
-                            currentBook?.let { book ->
-                                com.jabook.app.jabook.compose.feature.player.MiniPlayer(
-                                    coverUrl = book.coverUrl,
-                                    title = book.title,
-                                    author = book.author,
-                                    isPlaying = isPlaying,
-                                    onPlayPauseClick = { miniPlayerViewModel.togglePlayPause() },
-                                    onNextClick = { miniPlayerViewModel.skipToNext() },
-                                    onPreviousClick = { miniPlayerViewModel.skipToPrevious() },
-                                    hasNextChapter = hasNextChapter,
-                                    hasPreviousChapter = hasPreviousChapter,
-                                    onMiniPlayerClick = {
-                                        // Navigate to player screen
-                                        appState.navController.navigate(PlayerRoute(bookId = book.id))
-                                    },
-                                    onDismiss = {
-                                        miniPlayerViewModel.pause()
-                                        isMiniPlayerVisible = false
-                                        scope.launch {
-                                            val result =
-                                                appState.snackbarHostState.showSnackbar(
-                                                    message = context.getString(R.string.mini_player_dismissed_undo),
-                                                    actionLabel = context.getString(R.string.mini_player_dismissed_resume),
-                                                    duration = SnackbarDuration.Long,
-                                                )
-                                            if (result == SnackbarResult.ActionPerformed) {
-                                                miniPlayerViewModel.play()
-                                                isMiniPlayerVisible = true
-                                            }
-                                        }
-                                    },
-                                    modifier =
-                                        Modifier.fillMaxWidth().let { m ->
-                                            // Compact: NavigationSuiteScaffold's bottom bar already
-                                            // consumes navbar insets — extra padding would double the gap.
-                                            if (windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact) {
-                                                m
-                                            } else {
-                                                m.navigationBarsPadding()
-                                            }
-                                        },
-                                    currentPositionMs = miniPlayerViewModel.currentPosition,
-                                    durationMs = miniPlayerViewModel.duration,
-                                )
+                            // Mini player — inside same SharedTransitionLayout for cover morph
+                            if (!isOnPlayerScreen && isMiniPlayerVisible) {
+                                currentBook?.let { book ->
+                                    androidx.compose.animation.AnimatedVisibility(
+                                        visible = true,
+                                        enter = androidx.compose.animation.EnterTransition.None,
+                                        exit = androidx.compose.animation.ExitTransition.None,
+                                    ) {
+                                        com.jabook.app.jabook.compose.feature.player.MiniPlayer(
+                                            coverUrl = book.coverUrl,
+                                            title = book.title,
+                                            author = book.author,
+                                            isPlaying = isPlaying,
+                                            onPlayPauseClick = { miniPlayerViewModel.togglePlayPause() },
+                                            onNextClick = { miniPlayerViewModel.skipToNext() },
+                                            onPreviousClick = { miniPlayerViewModel.skipToPrevious() },
+                                            hasNextChapter = hasNextChapter,
+                                            hasPreviousChapter = hasPreviousChapter,
+                                            onMiniPlayerClick = {
+                                                appState.navController.navigate(PlayerRoute(bookId = book.id))
+                                            },
+                                            onDismiss = {
+                                                miniPlayerViewModel.pause()
+                                                isMiniPlayerVisible = false
+                                                scope.launch {
+                                                    val result =
+                                                        appState.snackbarHostState.showSnackbar(
+                                                            message = context.getString(R.string.mini_player_dismissed_undo),
+                                                            actionLabel = context.getString(R.string.mini_player_dismissed_resume),
+                                                            duration = SnackbarDuration.Long,
+                                                        )
+                                                    if (result == SnackbarResult.ActionPerformed) {
+                                                        miniPlayerViewModel.play()
+                                                        isMiniPlayerVisible = true
+                                                    }
+                                                }
+                                            },
+                                            modifier =
+                                                Modifier.fillMaxWidth().let { m ->
+                                                    if (windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact) {
+                                                        m
+                                                    } else {
+                                                        m.navigationBarsPadding()
+                                                    }
+                                                },
+                                            currentPositionMs = miniPlayerViewModel.currentPosition,
+                                            durationMs = miniPlayerViewModel.duration,
+                                            bookId = book.id,
+                                            sharedTransitionScope = this@SharedTransitionLayout,
+                                            animatedVisibilityScope = this,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }

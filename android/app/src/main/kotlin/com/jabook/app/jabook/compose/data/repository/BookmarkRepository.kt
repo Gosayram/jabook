@@ -114,4 +114,16 @@ public class BookmarkRepository
                     Result.failure(e)
                 }
             }
+
+        public suspend fun restoreBookmark(bookmark: BookmarkItem): Result<Unit> =
+            withContext(Dispatchers.IO) {
+                try {
+                    bookmarkDao.upsertBookmark(bookmark.toBookmarkEntity())
+                    Result.success(Unit)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+            }
     }
