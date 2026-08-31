@@ -177,6 +177,7 @@ private fun GridBookCard(
     val isFavorite = actionsProvider.isFavorite(book.id)
 
     // Glassmorphic Card Style
+    // ponytail: surface at 0.6f glassmorphic; fallback to surfaceContainer token when spec requires opaque (cards/page.md 12dp)
     val glassColors =
         CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
@@ -188,6 +189,7 @@ private fun GridBookCard(
         )
 
     Card(
+        shape = CardDefaults.shape, // M3 medium = 12dp per cards/page.md
         colors = glassColors,
         border = glassBorder,
         modifier =
@@ -228,7 +230,7 @@ private fun GridBookCard(
                             placeholderColor = placeholderColor,
                             errorColor = errorColor,
                             fallbackColor = placeholderColor,
-                            cornerRadius = 8f, // 8dp rounded corners
+                            cornerRadius = 12f, // 12dp per M3 cards spec (was 8dp)
                         ).build()
                 }
 
@@ -252,7 +254,7 @@ private fun GridBookCard(
                             width = 0.5.dp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                             shape =
-                                RoundedCornerShape(8.dp),
+                                RoundedCornerShape(12.dp),
                         ),
             )
 
@@ -434,6 +436,7 @@ private fun ListBookCard(
         }
 
     // Glassmorphic Card Style
+    // ponytail: surface at 0.6f glassmorphic; fallback to surfaceContainer token when spec requires opaque (cards/page.md 12dp)
     val glassColors =
         CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
@@ -445,6 +448,7 @@ private fun ListBookCard(
         )
 
     Card(
+        shape = CardDefaults.shape, // M3 medium = 12dp per cards/page.md
         colors = glassColors,
         border = glassBorder,
         modifier = modifier.fillMaxWidth(),
@@ -488,7 +492,7 @@ private fun ListBookCard(
                                 placeholderColor = placeholderColor,
                                 errorColor = errorColor,
                                 fallbackColor = placeholderColor,
-                                cornerRadius = 8f, // 8dp rounded corners
+                                cornerRadius = 12f, // 12dp per M3 cards spec (was 8dp)
                             ).build()
                     }
 
@@ -507,7 +511,7 @@ private fun ListBookCard(
                                 width = 0.5.dp,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                                 shape =
-                                    RoundedCornerShape(8.dp),
+                                    RoundedCornerShape(12.dp),
                             ),
                 )
 

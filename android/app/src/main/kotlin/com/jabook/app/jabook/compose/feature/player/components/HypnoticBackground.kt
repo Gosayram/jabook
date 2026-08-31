@@ -41,6 +41,9 @@ import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
  *
  * Inspired by modern music players (Apple Music, Spotify).
  *
+ * Contrast: vignette + PremiumPlayerBackground scrim 0.85 ensures legibility at 200% fontScale (foundations/writing/page.md);
+ * layout reflow via LazyColumn vertical scroll, no truncation without scroll.
+ *
  * @param isPlaying When false (or under reduce-motion/power constraints) a static frame is drawn.
  */
 @Composable

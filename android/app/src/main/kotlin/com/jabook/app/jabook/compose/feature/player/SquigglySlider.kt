@@ -72,6 +72,19 @@ import kotlin.math.sin
 internal const val SQUIGGLY_SLIDER_TAG: String = "squiggly_slider_track"
 internal const val SQUIGGLY_SLIDER_TOOLTIP_TAG: String = "squiggly_slider_tooltip"
 
+// ponytail: M3 slider sizes per sliders/page.md — XS 16/44, S 24/44, M 40/52, L 56/68, XL 96/108 (track/handle, width 4dp, shape 8/8/12/16/28)
+public enum class SliderSize(
+    public val trackHeight: Dp,
+    public val handleHeight: Dp,
+    public val handleWidth: Dp,
+) {
+    XS(16.dp, 44.dp, 4.dp),
+    S(24.dp, 44.dp, 4.dp),
+    M(40.dp, 52.dp, 4.dp),
+    L(56.dp, 68.dp, 4.dp),
+    XL(96.dp, 108.dp, 4.dp),
+}
+
 @Stable
 public fun interface ValueFormatter {
     public fun format(value: Float): String
@@ -89,8 +102,8 @@ public fun interface ValueFormatter {
  * @param isPlaying Whether media is playing (animates the wave)
  * @param squiggleAmplitude Max height of the wave
  * @param squiggleWavelength Width of one wave cycle
- * @param trackHeight Height of the track area
- * @param thumbRadius Radius of the thumb
+ * @param trackHeight Height of the track area (M3 XS = 4dp compat default; use SliderSize for XS-XL 16/24/40/56/96)
+ * @param thumbRadius Radius of the thumb (XS 44dp handle per spec; use SliderSize for XL etc.)
  * @param waveformData Cached waveform window for seekbar visualization (0..1 amplitudes)
  * @param valueFormatter Optional stable formatter for the tooltip label. Prefer `remember { ValueFormatter { ... } }` to avoid unnecessary recompositions.
  */
@@ -107,7 +120,7 @@ public fun SquigglySlider(
     isPlaying: Boolean = false,
     squiggleAmplitude: Dp = 3.dp,
     squiggleWavelength: Dp = 20.dp,
-    trackHeight: Dp = 4.dp, // Standard Material track is roughly 4dp
+    trackHeight: Dp = 4.dp, // Standard Material track is roughly 4dp; use SliderSize trackHeight for M3 XS-XL 16/24/40/56/96
     thumbRadius: Dp = 10.dp,
     chapterMarkersFractions: List<Float> = emptyList(),
     bookmarkMarkersFractions: List<Float> = emptyList(),
@@ -119,6 +132,8 @@ public fun SquigglySlider(
     chapterMarkerColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
     bookmarkMarkerColor: Color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.9f),
     valueFormatter: ValueFormatter? = null,
+    sliderSize: SliderSize? = null, // ponytail: when set, overrides trackHeight/handle per M3 tokens
+    drawStopDot: Boolean? = null, // null = auto per NTC (<3:1 contrast)
 ) {
     val normalizedRange =
         remember(valueRange) {
@@ -144,6 +159,9 @@ public fun SquigglySlider(
     val reduceMotion = rememberReduceMotion()
     // ponytail: mirror custom Canvas track to match Material Slider's RTL thumb
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    // ponytail: effective sizes — size token overrides explicit Dp when provided
+    val effectiveTrackHeight = sliderSize?.trackHeight ?: trackHeight
+    val effectiveThumbRadius = sliderSize?.let { it.handleHeight / 2 } ?: thumbRadius
 
     // Animation for the wave phase (movement)
     val infiniteTransition = rememberInfiniteTransition(label = "wave_phase")
@@ -184,7 +202,7 @@ public fun SquigglySlider(
                 // TalkBack node — otherwise both are exposed as separate focusable elements.
                 .semantics(mergeDescendants = true) {}
                 .heightIn(min = 48.dp) // touch target; Canvas stays centered at thumbRadius*2
-                .height(thumbRadius * 2)
+                .height(effectiveThumbRadius * 2)
                 .onSizeChanged { sliderWidthPx = it.width }
                 .onGloballyPositioned { coordinates ->
                     val topLeft = coordinates.localToWindow(Offset.Zero)
@@ -210,7 +228,7 @@ public fun SquigglySlider(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(thumbRadius * 2), // Match container
+                    .height(effectiveThumbRadius * 2), // Match container
         ) {
             val width = size.width
             val height = size.height
@@ -238,7 +256,7 @@ public fun SquigglySlider(
             // Draw cached waveform behind the track for quick visual density preview.
             if (waveformData.isNotEmpty()) {
                 val baseline = centerY
-                val availableHalfHeight = (thumbRadius.toPx() - trackHeight.toPx()).coerceAtLeast(2f)
+                val availableHalfHeight = (effectiveThumbRadius.toPx() - effectiveTrackHeight.toPx()).coerceAtLeast(2f)
                 val stepX = width / waveformData.size.toFloat()
                 var x = 0f
                 for (sample in waveformData) {
@@ -261,7 +279,7 @@ public fun SquigglySlider(
                     color = inactiveTrackColor,
                     start = Offset(0f, centerY),
                     end = Offset(width - activeWidth, centerY),
-                    strokeWidth = trackHeight.toPx(),
+                    strokeWidth = effectiveTrackHeight.toPx(),
                     cap = StrokeCap.Round,
                 )
             } else {
@@ -269,8 +287,20 @@ public fun SquigglySlider(
                     color = inactiveTrackColor,
                     start = Offset(activeWidth, centerY),
                     end = Offset(width, centerY),
-                    strokeWidth = trackHeight.toPx(),
+                    strokeWidth = effectiveTrackHeight.toPx(),
                     cap = StrokeCap.Round,
+                )
+            }
+
+            // ponytail: stop dot 4dp diameter at inactive end when track contrast <3:1 (sliders/page.md, progress-indicators/page.md)
+            val shouldDrawStopDot = drawStopDot ?: (inactiveTrackColor.alpha < 0.4f)
+            if (shouldDrawStopDot) {
+                val dotRadius = 2.dp.toPx()
+                val stopX = if (isRtl) 0f else width
+                drawCircle(
+                    color = activeTrackColor.copy(alpha = 0.9f),
+                    radius = dotRadius,
+                    center = Offset(stopX, centerY),
                 )
             }
 
@@ -285,7 +315,7 @@ public fun SquigglySlider(
                         color = abRepeatRangeColor,
                         start = Offset(aX, centerY),
                         end = Offset(bX, centerY),
-                        strokeWidth = trackHeight.toPx() * 2.5f,
+                        strokeWidth = effectiveTrackHeight.toPx() * 2.5f,
                         cap = StrokeCap.Round,
                     )
                 }
@@ -302,7 +332,7 @@ public fun SquigglySlider(
                             color = activeTrackColor,
                             start = Offset(width - activeWidth, centerY),
                             end = Offset(width, centerY),
-                            strokeWidth = trackHeight.toPx(),
+                            strokeWidth = effectiveTrackHeight.toPx(),
                             cap = StrokeCap.Round,
                         )
                     } else {
@@ -310,7 +340,7 @@ public fun SquigglySlider(
                             color = activeTrackColor,
                             start = Offset(0f, centerY),
                             end = Offset(activeWidth, centerY),
-                            strokeWidth = trackHeight.toPx(),
+                            strokeWidth = effectiveTrackHeight.toPx(),
                             cap = StrokeCap.Round,
                         )
                     }
@@ -338,7 +368,7 @@ public fun SquigglySlider(
                         color = activeTrackColor,
                         style =
                             Stroke(
-                                width = trackHeight.toPx(),
+                                width = effectiveTrackHeight.toPx(),
                                 cap = StrokeCap.Round,
                             ),
                     )
@@ -346,7 +376,7 @@ public fun SquigglySlider(
             }
 
             // Draw chapter markers over the track.
-            val markerHalfHeight = (trackHeight.toPx() * 1.5f).coerceAtLeast(3f)
+            val markerHalfHeight = (effectiveTrackHeight.toPx() * 1.5f).coerceAtLeast(3f)
             sanitizedChapterMarkers.forEach { markerFraction ->
                 val markerX = if (isRtl) width * (1f - markerFraction) else width * markerFraction
                 drawLine(
@@ -359,7 +389,7 @@ public fun SquigglySlider(
             }
 
             // Draw bookmark markers over the track (taller, tertiary color).
-            val bookmarkHalfHeight = (trackHeight.toPx() * 2.5f).coerceAtLeast(5f)
+            val bookmarkHalfHeight = (effectiveTrackHeight.toPx() * 2.5f).coerceAtLeast(5f)
             sanitizedBookmarkMarkers.forEach { markerFraction ->
                 val markerX = if (isRtl) width * (1f - markerFraction) else width * markerFraction
                 drawLine(
@@ -410,7 +440,7 @@ public fun SquigglySlider(
                 }
             val range = (normalizedRange.endInclusive - normalizedRange.start).takeIf { it > 0f && it.isFinite() } ?: 1f
             val fraction = ((safeValue - normalizedRange.start) / range).coerceIn(0f, 1f)
-            val thumbRadiusPx = with(density) { thumbRadius.toPx() }
+            val thumbRadiusPx = with(density) { effectiveThumbRadius.toPx() }
             val xOffset = (thumbRadiusPx + fraction * (sliderWidthPx - 2 * thumbRadiusPx)).toInt()
             val xOffsetDp = with(density) { xOffset.toDp() }
             val sliderWidthDp = with(density) { sliderWidthPx.toDp() }

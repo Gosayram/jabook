@@ -74,6 +74,7 @@ public fun LibraryFilterChip(
 /**
  * Horizontal scrollable chip row.
  * Wraps children in a Row with horizontalArrangement that supports scrolling.
+ * ponytail: horizontalScroll is spec-allowed for chip overflow (keeps single filter variant); reflow/overflow menu only if count grows large.
  *
  * @param contentPadding Horizontal padding applied inside the scroll so chips
  *   don't touch screen edges (matches standard 16.dp screen content padding).

@@ -1390,7 +1390,8 @@ private fun PlayerLandscapeLayout(
                 color = adaptiveOnSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
+                // ponytail: full title for TalkBack; TooltipBox with isLineEllipsized when truncation tooltip needed
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = state.book.title },
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -1877,7 +1878,8 @@ private fun PlayerContent(
                     Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
                 }
 
-                // Book info
+                // Book info — title maxLines 2 with ellipsis; full text exposed via semantics for TalkBack.
+                // ponytail: TooltipBox on truncated detection via TextLayoutResult.hasVisualOverflow/isLineEllipsized — add when overflow heuristic needed; contentDescription already covers a11y.
                 item {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1893,7 +1895,19 @@ private fun PlayerContent(
                             color = adaptiveOnSurface,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.semantics { contentDescription = state.book.title },
                         )
+                        if (displayAuthor != state.book.title && !isCompact) {
+                            Text(
+                                text = displayAuthor,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center,
+                                color = adaptiveOnSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.semantics { contentDescription = displayAuthor },
+                            )
+                        }
                     }
                 }
 

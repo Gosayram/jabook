@@ -28,8 +28,10 @@ import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -42,6 +44,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.designsystem.component.connectedItemShape
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
 
 /**
@@ -66,7 +69,8 @@ internal fun PlayerControlRow(
     val controlButtonHeight = if (isCompact) 48.dp else 56.dp
     val controlButtonIconSize = if (isCompact) 22.dp else 24.dp
     val controlButtonTextSize = if (isCompact) 14.sp else 16.sp
-    val controlButtonSpacing = if (isCompact) 8.dp else 12.dp
+    // ponytail: connected ButtonGroup uses 2dp between items per button-groups/page.md
+    val controlButtonSpacing = 2.dp
     val speedIconPaddingEnd = if (isCompact) 4.dp else 8.dp
     val sleepTimerAccessibilityDescription =
         when (sleepTimerState) {
@@ -96,6 +100,7 @@ internal fun PlayerControlRow(
             iconPaddingEnd = speedIconPaddingEnd,
             iconSize = controlButtonIconSize,
             textSize = controlButtonTextSize,
+            shape = connectedItemShape(0, 4),
             modifier = Modifier.weight(1f).height(controlButtonHeight),
         )
         SleepTimerControlButton(
@@ -103,6 +108,7 @@ internal fun PlayerControlRow(
             sleepTimerState = sleepTimerState,
             iconSize = controlButtonIconSize,
             textSize = controlButtonTextSize,
+            shape = connectedItemShape(1, 4),
             modifier =
                 Modifier
                     .weight(1f)
@@ -112,12 +118,14 @@ internal fun PlayerControlRow(
         ChaptersControlButton(
             onClick = onChaptersClick,
             iconSize = controlButtonIconSize,
+            shape = connectedItemShape(2, 4),
             modifier = Modifier.weight(1f).height(controlButtonHeight),
         )
         BookmarksControlButton(
             onClick = onBookmarksClick,
             bookmarkCount = bookmarkCount,
             iconSize = controlButtonIconSize,
+            shape = connectedItemShape(3, 4),
             modifier = Modifier.weight(1f).height(controlButtonHeight),
         )
     }
@@ -131,11 +139,14 @@ private fun SpeedControlButton(
     iconPaddingEnd: Dp,
     iconSize: Dp,
     textSize: TextUnit,
+    shape: androidx.compose.ui.graphics.Shape,
     modifier: Modifier = Modifier,
 ) {
-    FilledTonalButton(
+    // ponytail: primary action = Filled per buttons/page.md (filled = highest emphasis)
+    Button(
         onClick = onClick,
         interactionSource = interactionSource,
+        shape = shape,
         modifier = modifier,
     ) {
         Icon(
@@ -156,10 +167,12 @@ private fun SleepTimerControlButton(
     sleepTimerState: SleepTimerState,
     iconSize: Dp,
     textSize: TextUnit,
+    shape: androidx.compose.ui.graphics.Shape,
     modifier: Modifier = Modifier,
 ) {
     FilledTonalButton(
         onClick = onClick,
+        shape = shape,
         modifier = modifier,
     ) {
         Icon(
@@ -185,10 +198,12 @@ private fun SleepTimerControlButton(
 private fun ChaptersControlButton(
     onClick: () -> Unit,
     iconSize: Dp,
+    shape: androidx.compose.ui.graphics.Shape,
     modifier: Modifier = Modifier,
 ) {
     FilledTonalButton(
         onClick = onClick,
+        shape = shape,
         modifier = modifier,
     ) {
         Icon(
@@ -204,10 +219,13 @@ private fun BookmarksControlButton(
     onClick: () -> Unit,
     bookmarkCount: Int,
     iconSize: Dp,
+    shape: androidx.compose.ui.graphics.Shape,
     modifier: Modifier = Modifier,
 ) {
-    FilledTonalButton(
+    // ponytail: outlined variant for trailing item to provide visual termination per button-groups spec
+    OutlinedButton(
         onClick = onClick,
+        shape = shape,
         modifier = modifier,
     ) {
         Icon(

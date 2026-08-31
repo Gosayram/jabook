@@ -29,7 +29,8 @@ import androidx.compose.ui.unit.dp
  *
  * Delegates to Material3 [LinearProgressIndicator] so it gains progress
  * semantics (screen-reader announcements) and RTL support for free, while
- * keeping the rounded, no-gap, no-stop-dot look via explicit stroke config.
+ * keeping the rounded, no-gap look via explicit stroke config.
+ * Stop dot is gated on track contrast per progress-indicators/page.md (<3:1 needs 4dp dot).
  *
  * @param progress Progress fraction 0..1
  * @param modifier Modifier for width/height
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
  * pass `colorScheme`-derived colors when placed on themed surfaces)
  * @param progressColor Filled progress color
  * @param height Bar height (default 3dp for card strips)
+ * @param drawStopIndicator override NTC gate; null = auto (enable on White alpha <3:1, disable on onSurface 0.12f)
  */
 @Composable
 public fun ThinProgressBar(
@@ -45,14 +47,28 @@ public fun ThinProgressBar(
     trackColor: Color = Color.White.copy(alpha = 0.2f),
     progressColor: Color = Color.White.copy(alpha = 0.8f),
     height: Dp = 3.dp,
+    drawStopIndicator: Boolean? = null,
 ) {
-    LinearProgressIndicator(
-        progress = { progress.coerceIn(0f, 1f) },
-        modifier = modifier.fillMaxWidth().height(height),
-        color = progressColor,
-        trackColor = trackColor,
-        strokeCap = StrokeCap.Round,
-        gapSize = 0.dp,
-        drawStopIndicator = {},
-    )
+    // ponytail: auto gate — White 0.2f on artwork needs dot (<3:1), onSurface 0.12f on surfaceContainer already has contrast
+    val shouldDrawStop = drawStopIndicator ?: (trackColor.alpha < 0.25f)
+    if (shouldDrawStop) {
+        LinearProgressIndicator(
+            progress = { progress.coerceIn(0f, 1f) },
+            modifier = modifier.fillMaxWidth().height(height),
+            color = progressColor,
+            trackColor = trackColor,
+            strokeCap = StrokeCap.Round,
+            gapSize = 0.dp,
+        )
+    } else {
+        LinearProgressIndicator(
+            progress = { progress.coerceIn(0f, 1f) },
+            modifier = modifier.fillMaxWidth().height(height),
+            color = progressColor,
+            trackColor = trackColor,
+            strokeCap = StrokeCap.Round,
+            gapSize = 0.dp,
+            drawStopIndicator = {},
+        )
+    }
 }

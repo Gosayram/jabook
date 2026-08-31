@@ -123,13 +123,15 @@ internal fun PlayerPlaybackButtons(
             label = "pressScale",
         )
 
+        // State layers per M3 foundations/interaction/states/page.md:64 — 40dp layer in 48dp target
+        // Hover 8% / Focus 10% / Press 10% / Drag 16% via StateLayerTokens; M3 ripple already uses these opacities
+        // ponytail: custom overlay would be onPrimaryColor.copy(alpha = StateLayerTokens.HoverOpacity) etc.
         Box(
             contentAlignment = Alignment.Center,
             modifier =
                 Modifier
                     .size(playPauseButtonSize * 1.2f)
                     .graphicsLayer {
-                        // combine play/pause state scale with press scale
                         val s = playPauseButtonScale * pressScale
                         scaleX = s
                         scaleY = s

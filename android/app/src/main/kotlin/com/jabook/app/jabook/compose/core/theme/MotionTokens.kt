@@ -26,9 +26,13 @@ import androidx.compose.animation.core.Easing
 public object MotionTokens {
     public const val SHORT1: Int = 50
     public const val SHORT2: Int = 100
-    public const val MEDIUM1: Int = 200
+    public const val SHORT3: Int = 150
+    public const val SHORT4: Int = 200
+    public const val MEDIUM1: Int = 250
     public const val MEDIUM2: Int = 300
-    public const val LONG1: Int = 400
+    public const val MEDIUM3: Int = 350
+    public const val MEDIUM4: Int = 400
+    public const val LONG1: Int = 450
     public const val LONG2: Int = 500
 
     /** M3 Standard easing — used for short and medium transitions (chips, toggles, FAB). */

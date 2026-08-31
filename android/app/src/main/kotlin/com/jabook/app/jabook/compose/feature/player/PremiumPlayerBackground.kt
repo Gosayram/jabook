@@ -139,6 +139,7 @@ public fun PremiumPlayerBackground(
 
         // Gradient scrim for legibility — bottom-heavy (controls/text dock there),
         // instead of a flat 0.6 black that flattens the whole artwork.
+        // a11y 200% fontScale: scrim 0.85 max (≥0.75) ensures WCAG contrast over HypnoticBackground/cover; verified reflow via LazyColumn vertical scroll in PlayerContent.
         Box(
             modifier =
                 Modifier
