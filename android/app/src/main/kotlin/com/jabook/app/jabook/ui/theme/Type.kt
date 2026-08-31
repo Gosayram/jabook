@@ -158,6 +158,39 @@ public fun createTypography(fontFamily: FontFamily = FontFamily.Default): Typogr
     )
 
 /**
+ * Emphasized Material 3 Typography — same sizes/lineHeights as [createTypography]
+ * but with weights bumped one step for emphasis.
+ *
+ * Mapping (M3 emphasized): displayLarge SemiBold→Bold (600→700), displayMedium
+ * SemiBold→Bold, displaySmall Medium→SemiBold, headlineLarge SemiBold→Bold,
+ * headlineMedium/small Medium→SemiBold, title* Medium→SemiBold, labelSmall/
+ * labelMedium Medium→SemiBold. Body stays Normal (readability).
+ *
+ * Where to use: badges, selected list items, Extended FAB label (when added).
+ * Apply locally via `Text(style = EmphasizedTypography.labelSmall)` or
+ * `MaterialTheme.typography` copy — do not replace app-wide [Typography].
+ *
+ * ponytail: static Inter 400/500/600/700 suffices; variable-font axes skipped.
+ */
+public fun createEmphasizedTypography(fontFamily: FontFamily = FontFamily.Default): Typography {
+    val base = createTypography(fontFamily)
+    return base.copy(
+        displayLarge = base.displayLarge.copy(fontWeight = FontWeight.Bold),
+        displayMedium = base.displayMedium.copy(fontWeight = FontWeight.Bold),
+        displaySmall = base.displaySmall.copy(fontWeight = FontWeight.SemiBold),
+        headlineLarge = base.headlineLarge.copy(fontWeight = FontWeight.Bold),
+        headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.SemiBold),
+        headlineSmall = base.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
+        titleLarge = base.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+        titleMedium = base.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        titleSmall = base.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+        labelLarge = base.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+        labelMedium = base.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+        labelSmall = base.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+    )
+}
+
+/**
  * Custom font family using Inter fonts from res/font/.
  * This is the default app font family.
  */
@@ -171,3 +204,6 @@ public val InterFontFamily: FontFamily =
 
 // Default typography using app's custom Inter font family
 public val Typography: Typography = createTypography(InterFontFamily)
+
+// Default emphasized typography — use locally for badges / selected / FAB
+public val EmphasizedTypography: Typography = createEmphasizedTypography(InterFontFamily)

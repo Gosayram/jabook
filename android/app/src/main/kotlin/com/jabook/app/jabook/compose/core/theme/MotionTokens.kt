@@ -34,12 +34,19 @@ public object MotionTokens {
     public const val MEDIUM4: Int = 400
     public const val LONG1: Int = 450
     public const val LONG2: Int = 500
+    public const val LONG3: Int = 550
+    public const val LONG4: Int = 600
+    public const val EXTRA_LONG1: Int = 700
+    public const val EXTRA_LONG2: Int = 800
+    public const val EXTRA_LONG3: Int = 900
+    public const val EXTRA_LONG4: Int = 1000
 
     /** M3 Standard easing — used for short and medium transitions (chips, toggles, FAB). */
     public val Standard: Easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
-    /** M3 Emphasized easing — primary easing for medium/long transitions (steeper curve). */
-    public val Emphasized: CubicBezierEasing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
+    // ponytail: true M3 Emphasized is multi-point PathInterpolator(0.05,0,0.1333,0.06,0.1666,0.4,0.2083,0.82,0.25,1) with no CSS equivalent — Web/Compose fallback is Standard curve
+    /** M3 Emphasized easing — primary easing for medium/long transitions (fallback to Standard on Compose/Web). */
+    public val Emphasized: CubicBezierEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
     /** M3 Emphasized Decelerate — for incoming elements (hero, shared element). */
     public val EmphasizedDecelerate: CubicBezierEasing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)

@@ -818,32 +818,32 @@ public fun PlayerScreen(
                                         fadeIn(
                                             animationSpec =
                                                 tween(
-                                                    durationMillis = MotionTokens.MEDIUM1,
-                                                    easing = MotionTokens.Emphasized,
+                                                    durationMillis = MotionTokens.MEDIUM4,
+                                                    easing = MotionTokens.EmphasizedDecelerate,
                                                 ),
                                         ) +
                                             scaleIn(
                                                 initialScale = 0.98f,
                                                 animationSpec =
                                                     tween(
-                                                        durationMillis = MotionTokens.MEDIUM1,
-                                                        easing = MotionTokens.Emphasized,
+                                                        durationMillis = MotionTokens.MEDIUM4,
+                                                        easing = MotionTokens.EmphasizedDecelerate,
                                                     ),
                                             )
                                     ).togetherWith(
                                         fadeOut(
                                             animationSpec =
                                                 tween(
-                                                    durationMillis = MotionTokens.SHORT2,
-                                                    easing = MotionTokens.EmphasizedDecelerate,
+                                                    durationMillis = MotionTokens.SHORT4,
+                                                    easing = MotionTokens.EmphasizedAccelerate,
                                                 ),
                                         ) +
                                             scaleOut(
                                                 targetScale = 1.02f,
                                                 animationSpec =
                                                     tween(
-                                                        durationMillis = MotionTokens.SHORT2,
-                                                        easing = MotionTokens.EmphasizedDecelerate,
+                                                        durationMillis = MotionTokens.SHORT4,
+                                                        easing = MotionTokens.EmphasizedAccelerate,
                                                     ),
                                             ),
                                     )

@@ -16,6 +16,7 @@ package com.jabook.app.jabook.ui.theme
 
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
@@ -23,6 +24,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -40,8 +42,13 @@ private val BetaLightColorScheme =
         onSecondaryContainer = beta_light_onSecondaryContainer,
         tertiary = beta_light_tertiary,
         onTertiary = beta_light_onTertiary,
+        // ponytail: derived tonal 90 for container, 10 for onContainer — no new hex palette
+        tertiaryContainer = Color(0xFFB0F0FF),
+        onTertiaryContainer = Color(0xFF002020),
         error = beta_light_error,
         onError = beta_light_onError,
+        errorContainer = Color(0xFFFFDAD6),
+        onErrorContainer = Color(0xFF410002),
         background = beta_light_background,
         onBackground = beta_light_onBackground,
         surface = beta_light_surface,
@@ -49,6 +56,30 @@ private val BetaLightColorScheme =
         surfaceVariant = beta_light_surfaceVariant,
         onSurfaceVariant = beta_light_onSurfaceVariant,
         outline = beta_light_outline,
+        outlineVariant = beta_light_outline.copy(alpha = 0.5f),
+        scrim = Color.Black.copy(alpha = 0.32f),
+        inverseSurface = Color(0xFF2F3033),
+        inverseOnSurface = Color(0xFFF1F0F4),
+        inversePrimary = Color(0xFFB8F5A2),
+        surfaceDim = Color(0xFFDBDBDB),
+        surfaceBright = Color(0xFFFDFDFD),
+        surfaceContainerLowest = Color(0xFFFFFFFF),
+        surfaceContainerLow = Color(0xFFF8F8F8),
+        surfaceContainer = Color(0xFFF0F0F0),
+        surfaceContainerHigh = Color(0xFFEAEAEA),
+        surfaceContainerHighest = Color(0xFFE5E5E5),
+        primaryFixed = Color(0xFFB8F5A2),
+        primaryFixedDim = Color(0xFF8FE080),
+        onPrimaryFixed = Color(0xFF002200),
+        onPrimaryFixedVariant = Color(0xFF005300),
+        secondaryFixed = Color(0xFFCAE6FF),
+        secondaryFixedDim = Color(0xFF96CCFF),
+        onSecondaryFixed = Color(0xFF001E30),
+        onSecondaryFixedVariant = Color(0xFF004A6E),
+        tertiaryFixed = Color(0xFFB0F0FF),
+        tertiaryFixedDim = Color(0xFF70E8FF),
+        onTertiaryFixed = Color(0xFF002020),
+        onTertiaryFixedVariant = Color(0xFF004F4F),
     )
 
 // Beta Dark Color Scheme (Cyber-Premium Tech)
@@ -64,8 +95,13 @@ private val BetaDarkColorScheme =
         onSecondaryContainer = beta_dark_onSecondaryContainer,
         tertiary = beta_dark_tertiary,
         onTertiary = beta_dark_onTertiary,
+        // ponytail: tonal 30 container for dark, 90 for onContainer
+        tertiaryContainer = Color(0xFF004F4F),
+        onTertiaryContainer = Color(0xFFB0F0FF),
         error = beta_dark_error,
         onError = beta_dark_onError,
+        errorContainer = Color(0xFF93000A),
+        onErrorContainer = Color(0xFFFFDAD6),
         background = beta_dark_background,
         onBackground = beta_dark_onBackground,
         surface = beta_dark_surface,
@@ -73,6 +109,30 @@ private val BetaDarkColorScheme =
         surfaceVariant = beta_dark_surfaceVariant,
         onSurfaceVariant = beta_dark_onSurfaceVariant,
         outline = beta_dark_outline,
+        outlineVariant = beta_dark_outline.copy(alpha = 0.5f),
+        scrim = Color.Black.copy(alpha = 0.32f),
+        inverseSurface = Color(0xFFE2E2E6),
+        inverseOnSurface = Color(0xFF2F3033),
+        inversePrimary = Color(0xFF006600),
+        surfaceDim = Color(0xFF0F0F0F),
+        surfaceBright = Color(0xFF3A3A3A),
+        surfaceContainerLowest = Color(0xFF0A0A0A),
+        surfaceContainerLow = Color(0xFF1A1A1A),
+        surfaceContainer = Color(0xFF1E1E1E),
+        surfaceContainerHigh = Color(0xFF262626),
+        surfaceContainerHighest = Color(0xFF2C2C2C),
+        primaryFixed = Color(0xFFB8F5A2),
+        primaryFixedDim = Color(0xFF8FE080),
+        onPrimaryFixed = Color(0xFF002200),
+        onPrimaryFixedVariant = Color(0xFF005300),
+        secondaryFixed = Color(0xFFCAE6FF),
+        secondaryFixedDim = Color(0xFF96CCFF),
+        onSecondaryFixed = Color(0xFF001E30),
+        onSecondaryFixedVariant = Color(0xFF004A6E),
+        tertiaryFixed = Color(0xFFB0F0FF),
+        tertiaryFixedDim = Color(0xFF70E8FF),
+        onTertiaryFixed = Color(0xFF002020),
+        onTertiaryFixedVariant = Color(0xFF004F4F),
     )
 
 // Prod Light Color Scheme (Royal Premium)
@@ -88,8 +148,13 @@ private val ProdLightColorScheme =
         onSecondaryContainer = prod_light_onSecondaryContainer,
         tertiary = prod_light_tertiary,
         onTertiary = prod_light_onTertiary,
+        // ponytail: derived tonal 90 for container, 10 for onContainer
+        tertiaryContainer = Color(0xFFFFDEA6),
+        onTertiaryContainer = Color(0xFF271900),
         error = prod_light_error,
         onError = prod_light_onError,
+        errorContainer = Color(0xFFFFDAD6),
+        onErrorContainer = Color(0xFF410002),
         background = prod_light_background,
         onBackground = prod_light_onBackground,
         surface = prod_light_surface,
@@ -97,6 +162,30 @@ private val ProdLightColorScheme =
         surfaceVariant = prod_light_surfaceVariant,
         onSurfaceVariant = prod_light_onSurfaceVariant,
         outline = prod_light_outline,
+        outlineVariant = prod_light_outline.copy(alpha = 0.5f),
+        scrim = Color.Black.copy(alpha = 0.32f),
+        inverseSurface = Color(0xFF2F3033),
+        inverseOnSurface = Color(0xFFF1F0F4),
+        inversePrimary = Color(0xFFFFDEA6),
+        surfaceDim = Color(0xFFDBDBDB),
+        surfaceBright = Color(0xFFFDFDFD),
+        surfaceContainerLowest = Color(0xFFFFFFFF),
+        surfaceContainerLow = Color(0xFFF8F8F8),
+        surfaceContainer = Color(0xFFF0F0F0),
+        surfaceContainerHigh = Color(0xFFEAEAEA),
+        surfaceContainerHighest = Color(0xFFE5E5E5),
+        primaryFixed = Color(0xFFFFDEA6),
+        primaryFixedDim = Color(0xFFFFC95C),
+        onPrimaryFixed = Color(0xFF271900),
+        onPrimaryFixedVariant = Color(0xFF5C4200),
+        secondaryFixed = Color(0xFFE9DDFF),
+        secondaryFixedDim = Color(0xFFCFBCFF),
+        onSecondaryFixed = Color(0xFF22005D),
+        onSecondaryFixedVariant = Color(0xFF4F378A),
+        tertiaryFixed = Color(0xFFFFDEA6),
+        tertiaryFixedDim = Color(0xFFFFC95C),
+        onTertiaryFixed = Color(0xFF271900),
+        onTertiaryFixedVariant = Color(0xFF5C4200),
     )
 
 // Prod Dark Color Scheme (Royal Premium)
@@ -112,8 +201,13 @@ private val ProdDarkColorScheme =
         onSecondaryContainer = prod_dark_onSecondaryContainer,
         tertiary = prod_dark_tertiary,
         onTertiary = prod_dark_onTertiary,
+        // ponytail: tonal 30 container for dark, 90 for onContainer
+        tertiaryContainer = Color(0xFF5C4200),
+        onTertiaryContainer = Color(0xFFFFDEA6),
         error = prod_dark_error,
         onError = prod_dark_onError,
+        errorContainer = Color(0xFF93000A),
+        onErrorContainer = Color(0xFFFFDAD6),
         background = prod_dark_background,
         onBackground = prod_dark_onBackground,
         surface = prod_dark_surface,
@@ -121,6 +215,30 @@ private val ProdDarkColorScheme =
         surfaceVariant = prod_dark_surfaceVariant,
         onSurfaceVariant = prod_dark_onSurfaceVariant,
         outline = prod_dark_outline,
+        outlineVariant = prod_dark_outline.copy(alpha = 0.5f),
+        scrim = Color.Black.copy(alpha = 0.32f),
+        inverseSurface = Color(0xFFE6E1E6),
+        inverseOnSurface = Color(0xFF2F3033),
+        inversePrimary = Color(0xFF7B5800),
+        surfaceDim = Color(0xFF0F0F0F),
+        surfaceBright = Color(0xFF3A3A3A),
+        surfaceContainerLowest = Color(0xFF0A0A0A),
+        surfaceContainerLow = Color(0xFF1A1A1A),
+        surfaceContainer = Color(0xFF1E1E1E),
+        surfaceContainerHigh = Color(0xFF262626),
+        surfaceContainerHighest = Color(0xFF2C2C2C),
+        primaryFixed = Color(0xFFFFDEA6),
+        primaryFixedDim = Color(0xFFFFC95C),
+        onPrimaryFixed = Color(0xFF271900),
+        onPrimaryFixedVariant = Color(0xFF5C4200),
+        secondaryFixed = Color(0xFFE9DDFF),
+        secondaryFixedDim = Color(0xFFCFBCFF),
+        onSecondaryFixed = Color(0xFF22005D),
+        onSecondaryFixedVariant = Color(0xFF4F378A),
+        tertiaryFixed = Color(0xFFFFDEA6),
+        tertiaryFixedDim = Color(0xFFFFC95C),
+        onTertiaryFixed = Color(0xFF271900),
+        onTertiaryFixedVariant = Color(0xFF5C4200),
     )
 
 /**
@@ -230,14 +348,31 @@ public fun JabookTheme(
     }
 
     // ponytail: squircle feel via stdlib RoundedCornerShape — 28dp+20dp expressive; RoundedPolygon skipped (alpha dep)
+    // ponytail: M3 Shapes(8) is internal in 1.4.0; extra tokens defined as stdlib shapes outside Shapes
     val shapes =
         Shapes(
             extraSmall = RoundedCornerShape(4.dp),
             small = RoundedCornerShape(8.dp),
-            medium = RoundedCornerShape(16.dp),
+            medium = RoundedCornerShape(12.dp),
             large = RoundedCornerShape(20.dp),
             extraLarge = RoundedCornerShape(28.dp),
         )
+
+    // ponytail: missing M3 shape tokens — stdlib only, no RoundedPolygon (alpha dep)
+    @Suppress("UNUSED_VARIABLE")
+    val shapeNone = RoundedCornerShape(0.dp)
+
+    @Suppress("UNUSED_VARIABLE")
+    val largeIncreased = RoundedCornerShape(20.dp)
+
+    @Suppress("UNUSED_VARIABLE")
+    val extraLargeIncreased = RoundedCornerShape(32.dp)
+
+    @Suppress("UNUSED_VARIABLE")
+    val extraExtraLarge = RoundedCornerShape(48.dp)
+
+    @Suppress("UNUSED_VARIABLE")
+    val shapeFull = CircleShape
 
     MaterialTheme(
         colorScheme = colorScheme,
