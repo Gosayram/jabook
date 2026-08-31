@@ -130,10 +130,10 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.invisibleToUser
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -1435,9 +1435,7 @@ private fun PlayerLandscapeLayout(
                         .padding(vertical = 4.dp)
                         .semantics {
                             contentDescription = playbackPositionLabel
-                            val current = formatDuration(seekState.currentGlobalPositionMs)
-                            val total = formatDuration(seekState.timeline.totalDurationMs)
-                            stateDescription = "$current of $total"
+                            // ponytail: no stateDescription with live time — TalkBack would spam "14:23...14:24" every second
                             progressBarRangeInfo = ProgressBarRangeInfo(seekState.displayedProgress.value, 0f..1f)
                             setProgress { targetProgress ->
                                 if (seekState.timeline.totalDurationMs <= 0) return@setProgress false
@@ -1474,7 +1472,7 @@ private fun PlayerLandscapeLayout(
             val elapsedFormatted = formatDuration(seekState.currentGlobalPositionMs)
             val totalFormatted = formatDuration(seekState.timeline.totalDurationMs)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().semantics { invisibleToUser() },
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
@@ -1994,9 +1992,7 @@ private fun PlayerContent(
                                     .padding(vertical = 4.dp)
                                     .semantics {
                                         contentDescription = playbackPositionLabel
-                                        val current = formatDuration(seekState.currentGlobalPositionMs)
-                                        val total = formatDuration(seekState.timeline.totalDurationMs)
-                                        stateDescription = "$current of $total"
+                                        // ponytail: hide live time from TalkBack — announcement only on drag via progressBarRangeInfo
                                         progressBarRangeInfo = ProgressBarRangeInfo(seekState.displayedProgress.value, 0f..1f)
                                         setProgress { targetProgress ->
                                             if (seekState.timeline.totalDurationMs <= 0) return@setProgress false
@@ -2068,10 +2064,8 @@ private fun PlayerContent(
                         // Time labels (tabular figures so digits don't jump)
                         val elapsedFormatted = formatDuration(seekState.currentGlobalPositionMs)
                         val totalFormatted = formatDuration(seekState.timeline.totalDurationMs)
-                        val elapsedAccessibility = stringResource(R.string.elapsedTimeDescription, elapsedFormatted)
-                        val totalAccessibility = stringResource(R.string.totalDurationDescription, totalFormatted)
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().semantics { invisibleToUser() },
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
                             Text(
@@ -2080,7 +2074,6 @@ private fun PlayerContent(
                                     (if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall)
                                         .copy(fontFeatureSettings = "tnum"),
                                 color = adaptiveOnSurfaceVariant,
-                                modifier = Modifier.semantics { contentDescription = elapsedAccessibility },
                             )
 
                             Text(
@@ -2089,7 +2082,6 @@ private fun PlayerContent(
                                     (if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall)
                                         .copy(fontFeatureSettings = "tnum"),
                                 color = adaptiveOnSurfaceVariant,
-                                modifier = Modifier.semantics { contentDescription = totalAccessibility },
                             )
                         }
 
@@ -2121,6 +2113,7 @@ private fun PlayerContent(
                                 text = if (remainingText.isNotEmpty()) "$chapterText • $remainingText" else chapterText,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = adaptiveOnSurfaceVariant.copy(alpha = 0.86f),
+                                modifier = Modifier.semantics { invisibleToUser() },
                             )
                         }
                     }
