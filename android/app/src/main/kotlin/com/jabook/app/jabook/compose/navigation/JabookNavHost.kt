@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.navigation
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,7 +27,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
 import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
-import com.jabook.app.jabook.compose.core.theme.MotionTokens
+import com.jabook.app.jabook.compose.core.theme.MotionTokens // ponytail: kept for shimmer/rotation infinite specs not covered by motionScheme
 import com.jabook.app.jabook.compose.feature.favorites.FavoritesScreen
 import com.jabook.app.jabook.compose.feature.library.LibraryScreen
 import com.jabook.app.jabook.compose.feature.player.PlayerScreen
@@ -71,6 +72,9 @@ public fun JabookNavHost(
         }
     }
 
+    // ponytail: expressive motionScheme specs hoisted (enter/exit lambdas are non-composable)
+    val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+
     NavHost(
         navController = navController,
         startDestination = LibraryRoute,
@@ -79,11 +83,7 @@ public fun JabookNavHost(
             when {
                 initialState.destination.isTopLevelRoute() && targetState.destination.isTopLevelRoute() ->
                     androidx.compose.animation.fadeIn(
-                        animationSpec =
-                            androidx.compose.animation.core.tween(
-                                durationMillis = MotionTokens.SHORT2,
-                                easing = MotionTokens.Emphasized,
-                            ),
+                        animationSpec = fastEffects,
                     )
                 targetState.destination.isPlayerRoute() ->
                     slideIntoContainer(
@@ -123,11 +123,7 @@ public fun JabookNavHost(
             when {
                 initialState.destination.isTopLevelRoute() && targetState.destination.isTopLevelRoute() ->
                     androidx.compose.animation.fadeOut(
-                        animationSpec =
-                            androidx.compose.animation.core.tween(
-                                durationMillis = MotionTokens.SHORT2,
-                                easing = MotionTokens.Emphasized,
-                            ),
+                        animationSpec = fastEffects,
                     )
                 targetState.destination.isPlayerRoute() ->
                     slideOutOfContainer(

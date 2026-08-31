@@ -17,7 +17,6 @@ package com.jabook.app.jabook.compose.feature.player
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,7 +33,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.size.Scale
-import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
 import com.jabook.app.jabook.compose.feature.player.components.HypnoticBackground
 import dev.chrisbanes.haze.HazeState
@@ -60,10 +58,10 @@ public fun PremiumPlayerBackground(
                 listOf(colors.containerColor, colors.surfaceColor)
             }
         } ?: emptyList()
-    // ponytail: animate palette extraction — tween(400, Emphasized) liveliness for gradient/scrim only
+    // ponytail: palette uses expressive effects spring; MotionTokens still used for shimmer/rotation infinite
     val animatedPrimary by animateColorAsState(
         targetValue = themeColors?.primaryColor ?: Color.Transparent,
-        animationSpec = tween(durationMillis = MotionTokens.LONG1, easing = MotionTokens.Emphasized),
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "palettePrimary",
     )
     val backgroundColors =

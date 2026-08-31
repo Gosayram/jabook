@@ -19,10 +19,13 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
@@ -282,6 +285,7 @@ private val AmoledDarkColorScheme =
                 .Color(0xFF222222),
     )
 
+// ponytail: vibrant — SchemeVibrant/SchemeExpressive needs MCU (material-color-utilities) not cached; keep static, see Color.kt header for upgrade path.
 // ponytail: M3 three contrast levels — standard/medium/high across 26 roles (styles/color/system page.md:58-59)
 // Higher contrast = stronger outline + surface separation + 7:1 on-colors. Gated by Settings→Accessibility or system highTextContrastEnabled.
 // Uses tonal HSL lightness adjustment (no new deps); reuses 4.5:1 ensureContrast idea from DynamicThemeManager.
@@ -436,6 +440,7 @@ public fun rememberContrastLevel(highContrastEnabled: Boolean = false): Contrast
  * @param selectedFont The selected font preference (DEFAULT, SYSTEM, or Google Font)
  * @param content The composable content to be themed.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 public fun JabookTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -495,8 +500,7 @@ public fun JabookTheme(
         }
     }
 
-    // ponytail: squircle feel via stdlib RoundedCornerShape — 28dp+20dp expressive; RoundedPolygon skipped (alpha dep)
-    // ponytail: M3 Shapes(8) is internal in 1.4.0; extra tokens defined as stdlib shapes outside Shapes
+    // ponytail: Shapes requires CornerBasedShape (M3 1.5) — stdlib for core tokens, expressive via MaterialShapes.toShape() below
     val shapes =
         Shapes(
             extraSmall = RoundedCornerShape(4.dp),
@@ -506,7 +510,24 @@ public fun JabookTheme(
             extraLarge = RoundedCornerShape(28.dp),
         )
 
-    // ponytail: missing M3 shape tokens — stdlib only, no RoundedPolygon (alpha dep)
+    // ponytail: M3 Expressive — MaterialShapes via RoundedPolygon (graphics-shapes 1.0.1) for hero morph (see UnifiedBookCard)
+    // Shapes extra tokens are CornerBasedShape-only in 1.5; expressive polygons exposed as generic Shape here
+    val expressiveCookie9 =
+        androidx.compose.material3.MaterialShapes.Cookie9Sided
+            .toShape()
+    val expressiveCookie4 =
+        androidx.compose.material3.MaterialShapes.Cookie4Sided
+            .toShape()
+    val expressiveCookie6 =
+        androidx.compose.material3.MaterialShapes.Cookie6Sided
+            .toShape()
+    val expressivePuffy =
+        androidx.compose.material3.MaterialShapes.Puffy
+            .toShape()
+
+    @Suppress("UNUSED_VARIABLE")
+    val expressiveShapesUsed = listOf(expressiveCookie9, expressiveCookie4, expressiveCookie6, expressivePuffy)
+
     @Suppress("UNUSED_VARIABLE")
     val shapeNone = RoundedCornerShape(0.dp)
 
@@ -524,6 +545,7 @@ public fun JabookTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
+        motionScheme = MotionScheme.expressive(),
         typography = typography,
         shapes = shapes,
         content = content,

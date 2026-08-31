@@ -16,11 +16,12 @@ package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.List
@@ -29,22 +30,16 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.jabook.app.jabook.R
-import com.jabook.app.jabook.compose.designsystem.component.connectedItemShape
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
 
 /**
@@ -52,7 +47,12 @@ import com.jabook.app.jabook.compose.domain.model.SleepTimerState
  * Speed | Sleep Timer | Chapters | Bookmarks. Level 3 (Lyrics, Tune/EQ, visualizer,
  * chapter repeat, A-B repeat, stats) lives in overflow.
  * Single row on all sizes; compact uses smaller heights.
+ *
+ * ponytail: official ButtonGroup expressive — replaces faux Row+connectedItemShape.
+ * Flexible weight (1f each) gives adaptive width morph; EnlargeOnPress + expandedRatio 0.15
+ * gives adjacent button shrink on press per button-groups/page.md connected variant.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun PlayerControlRow(
     isCompact: Boolean,
@@ -68,170 +68,75 @@ internal fun PlayerControlRow(
 ) {
     val controlButtonHeight = if (isCompact) 48.dp else 56.dp
     val controlButtonIconSize = if (isCompact) 22.dp else 24.dp
-    val controlButtonTextSize = if (isCompact) 14.sp else 16.sp
-    // ponytail: connected ButtonGroup uses 2dp between items per button-groups/page.md
-    val controlButtonSpacing = 2.dp
-    val speedIconPaddingEnd = if (isCompact) 4.dp else 8.dp
-    val sleepTimerAccessibilityDescription =
+    val sleepTimerLabel =
         when (sleepTimerState) {
-            is SleepTimerState.Active ->
-                "${stringResource(R.string.sleepTimer)}, ${formatSleepTimerRemaining(sleepTimerState.remainingSeconds)}"
-            SleepTimerState.EndOfChapter ->
-                "${stringResource(R.string.sleepTimer)}, ${stringResource(R.string.endOfChapterLabel)}"
-            is SleepTimerState.EndOfTrack ->
-                "${stringResource(R.string.sleepTimer)}, ${stringResource(R.string.endOfTrackLabel)}"
-            SleepTimerState.Idle ->
-                stringResource(R.string.sleepTimer)
+            is SleepTimerState.Active -> formatSleepTimerRemaining(sleepTimerState.remainingSeconds)
+            SleepTimerState.EndOfChapter -> stringResource(R.string.endOfChapterLabel)
+            is SleepTimerState.EndOfTrack -> stringResource(R.string.endOfTrackLabel)
+            SleepTimerState.Idle -> stringResource(R.string.sleepTimer)
         }
-
-    // Single row — wireframe Level 2: Speed | Sleep Timer | Chapters | Bookmarks
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement =
-            Arrangement.spacedBy(
-                controlButtonSpacing,
-                Alignment.CenterHorizontally,
-            ),
+    // ponytail: 2dp connected spacing per button-groups/page.md (ConnectedSpaceBetween)
+    ButtonGroup(
+        modifier = modifier.fillMaxWidth().height(controlButtonHeight),
+        expandedRatio = 0.15f,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        SpeedControlButton(
-            onClick = onSpeedButtonClick,
-            interactionSource = speedButtonInteractionSource,
-            label = playbackSpeedLabel,
-            iconPaddingEnd = speedIconPaddingEnd,
-            iconSize = controlButtonIconSize,
-            textSize = controlButtonTextSize,
-            shape = connectedItemShape(0, 4),
-            modifier = Modifier.weight(1f).height(controlButtonHeight),
-        )
-        SleepTimerControlButton(
-            onClick = onSleepTimerClick,
-            sleepTimerState = sleepTimerState,
-            iconSize = controlButtonIconSize,
-            textSize = controlButtonTextSize,
-            shape = connectedItemShape(1, 4),
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .height(controlButtonHeight)
-                    .semantics { contentDescription = sleepTimerAccessibilityDescription },
-        )
-        ChaptersControlButton(
-            onClick = onChaptersClick,
-            iconSize = controlButtonIconSize,
-            shape = connectedItemShape(2, 4),
-            modifier = Modifier.weight(1f).height(controlButtonHeight),
-        )
-        BookmarksControlButton(
-            onClick = onBookmarksClick,
-            bookmarkCount = bookmarkCount,
-            iconSize = controlButtonIconSize,
-            shape = connectedItemShape(3, 4),
-            modifier = Modifier.weight(1f).height(controlButtonHeight),
-        )
-    }
-}
-
-@Composable
-private fun SpeedControlButton(
-    onClick: () -> Unit,
-    interactionSource: MutableInteractionSource,
-    label: String,
-    iconPaddingEnd: Dp,
-    iconSize: Dp,
-    textSize: TextUnit,
-    shape: androidx.compose.ui.graphics.Shape,
-    modifier: Modifier = Modifier,
-) {
-    // ponytail: primary action = Filled per buttons/page.md (filled = highest emphasis)
-    Button(
-        onClick = onClick,
-        interactionSource = interactionSource,
-        shape = shape,
-        modifier = modifier,
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Speed,
-            contentDescription = stringResource(R.string.playbackSpeedTitle),
-            modifier = Modifier.size(iconSize).padding(end = iconPaddingEnd),
-        )
-        Text(
-            text = label,
-            fontSize = textSize,
-        )
-    }
-}
-
-@Composable
-private fun SleepTimerControlButton(
-    onClick: () -> Unit,
-    sleepTimerState: SleepTimerState,
-    iconSize: Dp,
-    textSize: TextUnit,
-    shape: androidx.compose.ui.graphics.Shape,
-    modifier: Modifier = Modifier,
-) {
-    FilledTonalButton(
-        onClick = onClick,
-        shape = shape,
-        modifier = modifier,
-    ) {
-        Icon(
-            if (sleepTimerState is SleepTimerState.Idle) {
-                Icons.Outlined.Timer
-            } else {
-                Icons.Filled.Timer
+        // ponytail: customItem preserves hold-to-boost press tracking via passed interactionSource
+        customItem(
+            buttonGroupContent = {
+                Button(
+                    onClick = onSpeedButtonClick,
+                    interactionSource = speedButtonInteractionSource,
+                    modifier = Modifier.weight(1f).animateWidth(speedButtonInteractionSource),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    content = {
+                        Icon(
+                            imageVector = Icons.Filled.Speed,
+                            contentDescription = null,
+                            modifier = Modifier.size(controlButtonIconSize),
+                        )
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(playbackSpeedLabel)
+                    },
+                )
             },
-            stringResource(R.string.sleepTimer),
-            Modifier.size(iconSize),
+            menuContent = {},
         )
-        if (sleepTimerState is SleepTimerState.Active) {
-            val activeState = sleepTimerState
-            Text(
-                formatSleepTimerRemaining(activeState.remainingSeconds),
-                fontSize = textSize,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ChaptersControlButton(
-    onClick: () -> Unit,
-    iconSize: Dp,
-    shape: androidx.compose.ui.graphics.Shape,
-    modifier: Modifier = Modifier,
-) {
-    FilledTonalButton(
-        onClick = onClick,
-        shape = shape,
-        modifier = modifier,
-    ) {
-        Icon(
-            Icons.Filled.List,
-            stringResource(R.string.chaptersLabel),
-            Modifier.size(iconSize),
+        clickableItem(
+            onClick = onSleepTimerClick,
+            label = sleepTimerLabel,
+            weight = 1f,
+            icon = {
+                Icon(
+                    imageVector = if (sleepTimerState is SleepTimerState.Idle) Icons.Outlined.Timer else Icons.Filled.Timer,
+                    contentDescription = null,
+                    modifier = Modifier.size(controlButtonIconSize),
+                )
+            },
         )
-    }
-}
-
-@Composable
-private fun BookmarksControlButton(
-    onClick: () -> Unit,
-    bookmarkCount: Int,
-    iconSize: Dp,
-    shape: androidx.compose.ui.graphics.Shape,
-    modifier: Modifier = Modifier,
-) {
-    // ponytail: outlined variant for trailing item to provide visual termination per button-groups spec
-    OutlinedButton(
-        onClick = onClick,
-        shape = shape,
-        modifier = modifier,
-    ) {
-        Icon(
-            if (bookmarkCount > 0) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-            stringResource(R.string.bookmarks),
-            Modifier.size(iconSize),
+        clickableItem(
+            onClick = onChaptersClick,
+            label = stringResource(R.string.chaptersLabel),
+            weight = 1f,
+            icon = {
+                Icon(
+                    imageVector = Icons.Filled.List,
+                    contentDescription = null,
+                    modifier = Modifier.size(controlButtonIconSize),
+                )
+            },
+        )
+        clickableItem(
+            onClick = onBookmarksClick,
+            label = stringResource(R.string.bookmarks),
+            weight = 1f,
+            icon = {
+                Icon(
+                    imageVector = if (bookmarkCount > 0) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                    contentDescription = null,
+                    modifier = Modifier.size(controlButtonIconSize),
+                )
+            },
         )
     }
 }

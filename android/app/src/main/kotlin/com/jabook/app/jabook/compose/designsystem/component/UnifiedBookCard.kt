@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.designsystem.component
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,6 +32,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -49,6 +52,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -154,6 +158,50 @@ public fun UnifiedBookCard(
 }
 
 /**
+ * Ponytail: expressive morph — Square -> Cookie4Sided on selection (shape/page.md morph via Morph + MaterialShapes)
+ * Minimal real morph: 1 morph, 1 animated progress, custom GenericShape scaled to bounds.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun rememberMorphCardShape(progress: Float): androidx.compose.ui.graphics.Shape {
+    val morph =
+        remember {
+            androidx.graphics.shapes.Morph(
+                androidx.compose.material3.MaterialShapes.Square,
+                androidx.compose.material3.MaterialShapes.Cookie4Sided,
+            )
+        }
+    return remember(morph, progress) {
+        GenericShape { size, _ ->
+            val cubics = morph.asCubics(progress)
+            if (cubics.isEmpty()) return@GenericShape
+            val cx = size.width / 2f
+            val cy = size.height / 2f
+            val sx = size.width / 2f
+            val sy = size.height / 2f
+            var first = true
+            for (c in cubics) {
+                val ax0 = c.anchor0X * sx + cx
+                val ay0 = c.anchor0Y * sy + cy
+                if (first) {
+                    moveTo(ax0, ay0)
+                    first = false
+                }
+                cubicTo(
+                    c.control0X * sx + cx,
+                    c.control0Y * sy + cy,
+                    c.control1X * sx + cx,
+                    c.control1Y * sy + cy,
+                    c.anchor1X * sx + cx,
+                    c.anchor1Y * sy + cy,
+                )
+            }
+            close()
+        }
+    }
+}
+
+/**
  * Grid variant of book card (vertical layout).
  */
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -188,14 +236,23 @@ private fun GridBookCard(
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
         )
 
+    // ponytail: expressive morph on selection — 0=Square, 1=Cookie4Sided
+    val morphProgress by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f),
+        label = "cardMorph",
+    )
+    val morphShape = rememberMorphCardShape(morphProgress)
+    val cardShape = if (isSelectionMode) morphShape else CardDefaults.shape
+
     Card(
-        shape = CardDefaults.shape, // M3 medium = 12dp per cards/page.md
+        shape = cardShape,
         colors = glassColors,
         border = glassBorder,
         modifier =
             modifier
                 .fillMaxWidth()
-                .clip(CardDefaults.shape)
+                .clip(cardShape)
                 .combinedClickable(
                     onClick = { actionsProvider.onBookClick(book.id) },
                     onLongClick = {

@@ -22,6 +22,7 @@ import androidx.compose.animation.core.Easing
  *
  * Keep all canonical durations/easings here to avoid hardcoded animation values
  * spread across screens.
+ * ponytail: fallback for non-scheme cases (shimmer/rotation infinite) — scheme springs via MaterialTheme.motionScheme elsewhere
  */
 public object MotionTokens {
     public const val SHORT1: Int = 50

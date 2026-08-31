@@ -149,7 +149,6 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.theme.GlassmorphismTokens
-import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
 import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
@@ -808,6 +807,19 @@ public fun PlayerScreen(
                                 },
                     ) {
                         val overlayHazeState = rememberHazeState()
+                        // ponytail: expressive springs via motionScheme — hoisted outside transitionSpec (non-composable)
+                        val spatialSpec =
+                            androidx.compose.material3.MaterialTheme.motionScheme
+                                .defaultSpatialSpec<Float>()
+                        val effectsSpec =
+                            androidx.compose.material3.MaterialTheme.motionScheme
+                                .defaultEffectsSpec<Float>()
+                        val fastEffectsSpec =
+                            androidx.compose.material3.MaterialTheme.motionScheme
+                                .fastEffectsSpec<Float>()
+                        val fastSpatialSpec =
+                            androidx.compose.material3.MaterialTheme.motionScheme
+                                .fastSpatialSpec<Float>()
                         AnimatedContent(
                             targetState = uiState,
                             transitionSpec = {
@@ -815,37 +827,11 @@ public fun PlayerScreen(
                                     EnterTransition.None togetherWith ExitTransition.None
                                 } else {
                                     (
-                                        fadeIn(
-                                            animationSpec =
-                                                tween(
-                                                    durationMillis = MotionTokens.MEDIUM4,
-                                                    easing = MotionTokens.EmphasizedDecelerate,
-                                                ),
-                                        ) +
-                                            scaleIn(
-                                                initialScale = 0.98f,
-                                                animationSpec =
-                                                    tween(
-                                                        durationMillis = MotionTokens.MEDIUM4,
-                                                        easing = MotionTokens.EmphasizedDecelerate,
-                                                    ),
-                                            )
+                                        fadeIn(animationSpec = effectsSpec) +
+                                            scaleIn(initialScale = 0.98f, animationSpec = spatialSpec)
                                     ).togetherWith(
-                                        fadeOut(
-                                            animationSpec =
-                                                tween(
-                                                    durationMillis = MotionTokens.SHORT4,
-                                                    easing = MotionTokens.EmphasizedAccelerate,
-                                                ),
-                                        ) +
-                                            scaleOut(
-                                                targetScale = 1.02f,
-                                                animationSpec =
-                                                    tween(
-                                                        durationMillis = MotionTokens.SHORT4,
-                                                        easing = MotionTokens.EmphasizedAccelerate,
-                                                    ),
-                                            ),
+                                        fadeOut(animationSpec = fastEffectsSpec) +
+                                            scaleOut(targetScale = 1.02f, animationSpec = fastSpatialSpec),
                                     )
                                 }
                             },
@@ -1737,10 +1723,10 @@ private fun PlayerContent(
     // Dynamic Theme Background with Glassmorphism Effect
     // Background is now handled by PremiumPlayerBackground wrapping this content
     val themeColors = state.themeColors
-    // ponytail: palette liveliness — animate extracted primary for gradient/scrim (PremiumPlayerBackground also animates gradient)
+    // ponytail: palette uses expressive effects spring; MotionTokens fallback for shimmer/rotation infinite
     val animatedPrimary by animateColorAsState(
         targetValue = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-        animationSpec = tween(durationMillis = MotionTokens.LONG1, easing = MotionTokens.Emphasized),
+        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "playerPalettePrimary",
     )
     val contrastBackground = themeColors?.surfaceColor ?: MaterialTheme.colorScheme.surface

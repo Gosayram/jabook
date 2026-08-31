@@ -19,6 +19,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.jabook.app.jabook.R
@@ -171,13 +172,24 @@ public fun createTypography(fontFamily: FontFamily = FontFamily.Default): Typogr
  * `MaterialTheme.typography` copy — do not replace app-wide [Typography].
  *
  * ponytail: static Inter 400/500/600/700 suffices; variable-font axes skipped.
+ * ponytail: variable font ceiling — keeping 4 static files; if res/font/inter_variable.ttf added,
+ * replace headlineLarge weight bump with width axis: Font(..., variationSettings = FontVariation.Settings(FontVariation.width(110f)))
+ * and expose via TextStyle copy. Demo below shows wdth axis construction.
  */
 public fun createEmphasizedTypography(fontFamily: FontFamily = FontFamily.Default): Typography {
+    // ponytail: demo variable axis — wdth 110 for expressive headlineLarge (requires variable file; keep static for now)
+    @Suppress("UNUSED_VARIABLE")
+    val emphasizedHeadlineWidthDemo = FontVariation.Settings(FontVariation.width(110f))
+
+    // ponytail: alternative raw tag form — FontVariation.Setting("wdth", 110f)
+    @Suppress("UNUSED_VARIABLE")
+    val emphasizedHeadlineWidthRawDemo = FontVariation.Settings(FontVariation.Setting("wdth", 110f))
     val base = createTypography(fontFamily)
     return base.copy(
         displayLarge = base.displayLarge.copy(fontWeight = FontWeight.Bold),
         displayMedium = base.displayMedium.copy(fontWeight = FontWeight.Bold),
         displaySmall = base.displaySmall.copy(fontWeight = FontWeight.SemiBold),
+        // ponytail: headlineLarge emphasized — static weight bump now; with variable file use wdth axis via FontVariation.Settings("wdth",110f)
         headlineLarge = base.headlineLarge.copy(fontWeight = FontWeight.Bold),
         headlineMedium = base.headlineMedium.copy(fontWeight = FontWeight.SemiBold),
         headlineSmall = base.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
@@ -201,6 +213,10 @@ public fun createEmphasizedTypography(fontFamily: FontFamily = FontFamily.Defaul
 /**
  * Custom font family using Inter fonts from res/font/.
  * This is the default app font family.
+ * ponytail: 4 static files only — no res/font/inter_variable.ttf; add when variable axis needed.
+ * When variable file exists:
+ *   Font(R.font.inter_variable, FontWeight.Normal, FontStyle.Normal, variationSettings = FontVariation.Settings(FontVariation.width(100f)))
+ *   Font(R.font.inter_variable, FontWeight.Bold, FontStyle.Normal, variationSettings = FontVariation.Settings(FontVariation.width(110f)))
  */
 public val InterFontFamily: FontFamily =
     FontFamily(
@@ -209,6 +225,14 @@ public val InterFontFamily: FontFamily =
         Font(R.font.inter_semibold, FontWeight.SemiBold, FontStyle.Normal),
         Font(R.font.inter_bold, FontWeight.Bold, FontStyle.Normal),
     )
+
+// ponytail: variable-font family demo — uncomment when res/font/inter_variable.ttf is added
+// public val InterVariableFontFamily: FontFamily = FontFamily(
+//     Font(R.font.inter_variable, FontWeight.Normal, FontStyle.Normal, variationSettings = FontVariation.Settings(FontVariation.width(100f))),
+//     Font(R.font.inter_variable, FontWeight.Medium, FontStyle.Normal, variationSettings = FontVariation.Settings(FontVariation.width(100f))),
+//     Font(R.font.inter_variable, FontWeight.SemiBold, FontStyle.Normal, variationSettings = FontVariation.Settings(FontVariation.width(100f))),
+//     Font(R.font.inter_variable, FontWeight.Bold, FontStyle.Normal, variationSettings = FontVariation.Settings(FontVariation.width(110f))),
+// )
 
 // Default typography using app's custom Inter font family
 public val Typography: Typography = createTypography(InterFontFamily)
