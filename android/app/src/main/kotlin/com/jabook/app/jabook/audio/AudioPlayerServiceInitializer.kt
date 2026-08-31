@@ -18,7 +18,6 @@ import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.session.BitmapLoader as SessionBitmapLoader // verify: androidx.media3.session.BitmapLoader
 import androidx.media3.session.CacheBitmapLoader // verify: androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences

@@ -68,7 +68,12 @@ public class CoilBitmapLoader(
     }
 
     // ponytail: use system limit if available, else 512 (MediaSession.getBitmapDimensionLimit)
-    private val maxArtworkWidth = try { MediaSession.getBitmapDimensionLimit(context) } catch (_: Exception) { 512 }
+    private val maxArtworkWidth =
+        try {
+            MediaSession.getBitmapDimensionLimit(context)
+        } catch (_: Exception) {
+            512
+        }
     private val maxArtworkHeight = maxArtworkWidth
 
     /**

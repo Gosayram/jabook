@@ -396,61 +396,62 @@ public class AudioPlayerLibrarySessionCallback(
         controller: MediaSession.ControllerInfo,
         args: Bundle,
     ): ListenableFuture<SessionResult> {
-        val future = service.playerServiceScope.future {
-            try {
-                val parsedArgs = SetPlaylistCommandArgsParser.parse(args)
-                if (parsedArgs == null) {
-                    return@future SetPlaylistCommandResultPolicy.badValue()
-                }
-
-                // Use CompletableDeferred to wait for callback
-                val deferred = kotlinx.coroutines.CompletableDeferred<Boolean>()
-
-                service.setPlaylist(
-                    filePaths = parsedArgs.filePaths,
-                    playlistItems = parsedArgs.playlistItems,
-                    metadata = parsedArgs.metadata,
-                    initialTrackIndex = parsedArgs.initialTrackIndex,
-                    initialPosition = parsedArgs.initialPositionMs,
-                    groupPath = parsedArgs.groupPath,
-                    callback = { success, exception ->
-                        if (exception != null) {
-                            LogUtils.e("AudioPlayerService", "setPlaylist failed", exception)
-                        }
-                        if (!deferred.isCompleted) {
-                            deferred.complete(success)
-                        }
-                    },
-                )
-
-                // Wait for callback with timeout
-                val result =
-                    try {
-                        val success =
-                            withTimeout(30000) {
-                                // 30 seconds timeout
-                                deferred.await()
-                            }
-                        if (success) {
-                            SetPlaylistCommandResultPolicy.success()
-                        } else {
-                            SetPlaylistCommandResultPolicy.callbackFailed()
-                        }
-                    } catch (e: TimeoutCancellationException) {
-                        LogUtils.e("AudioPlayerService", "setPlaylist timeout", e)
-                        SetPlaylistCommandResultPolicy.timeout()
+        val future =
+            service.playerServiceScope.future {
+                try {
+                    val parsedArgs = SetPlaylistCommandArgsParser.parse(args)
+                    if (parsedArgs == null) {
+                        return@future SetPlaylistCommandResultPolicy.badValue()
                     }
 
-                if (result.resultCode == SessionResult.RESULT_SUCCESS) {
-                    // Notify connected browsers that root children changed after playlist update.
-                    notifyLibraryRootsChanged(session)
+                    // Use CompletableDeferred to wait for callback
+                    val deferred = kotlinx.coroutines.CompletableDeferred<Boolean>()
+
+                    service.setPlaylist(
+                        filePaths = parsedArgs.filePaths,
+                        playlistItems = parsedArgs.playlistItems,
+                        metadata = parsedArgs.metadata,
+                        initialTrackIndex = parsedArgs.initialTrackIndex,
+                        initialPosition = parsedArgs.initialPositionMs,
+                        groupPath = parsedArgs.groupPath,
+                        callback = { success, exception ->
+                            if (exception != null) {
+                                LogUtils.e("AudioPlayerService", "setPlaylist failed", exception)
+                            }
+                            if (!deferred.isCompleted) {
+                                deferred.complete(success)
+                            }
+                        },
+                    )
+
+                    // Wait for callback with timeout
+                    val result =
+                        try {
+                            val success =
+                                withTimeout(30000) {
+                                    // 30 seconds timeout
+                                    deferred.await()
+                                }
+                            if (success) {
+                                SetPlaylistCommandResultPolicy.success()
+                            } else {
+                                SetPlaylistCommandResultPolicy.callbackFailed()
+                            }
+                        } catch (e: TimeoutCancellationException) {
+                            LogUtils.e("AudioPlayerService", "setPlaylist timeout", e)
+                            SetPlaylistCommandResultPolicy.timeout()
+                        }
+
+                    if (result.resultCode == SessionResult.RESULT_SUCCESS) {
+                        // Notify connected browsers that root children changed after playlist update.
+                        notifyLibraryRootsChanged(session)
+                    }
+                    result
+                } catch (e: Exception) {
+                    LogUtils.e("AudioPlayerService", "Error in handleSetPlaylistCommand", e)
+                    SetPlaylistCommandResultPolicy.exception(e)
                 }
-                result
-            } catch (e: Exception) {
-                LogUtils.e("AudioPlayerService", "Error in handleSetPlaylistCommand", e)
-                SetPlaylistCommandResultPolicy.exception(e)
             }
-        }
         return future
     }
 
