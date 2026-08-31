@@ -242,7 +242,8 @@ public object NetworkModule {
             // Supplied at build time from .env (RUTRACKER_BASE_URL) — never hardcoded in source.
             .baseUrl(BuildConfig.RUTRACKER_BASE_URL)
             .client(okHttpClient)
-            // Scalar converter first for HTML responses
+            // Scalar converter: never fires for Response<ResponseBody> endpoints (JSON converter
+            // wins); kept for future String/HTML endpoints.
             .addConverterFactory(ScalarsConverterFactory.create())
             // JSON converter for any JSON responses
             .addConverterFactory(json.asConverterFactory(contentType))

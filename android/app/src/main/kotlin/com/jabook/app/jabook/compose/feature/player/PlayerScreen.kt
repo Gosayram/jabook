@@ -392,7 +392,7 @@ public fun PlayerScreen(
                                 snackbarHostState.showSnackbar(
                                     message = notificationPermissionPlaybackHint,
                                     actionLabel = openSettingsLabel,
-                                    duration = androidx.compose.material3.SnackbarDuration.Long,
+                                    duration = androidx.compose.material3.SnackbarDuration.Indefinite,
                                 )
                             if (snackResult == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                                 try {
@@ -431,7 +431,7 @@ public fun PlayerScreen(
                             snackbarHostState.showSnackbar(
                                 message = audioVisualizerPermissionHint,
                                 actionLabel = openSettingsLabel,
-                                duration = androidx.compose.material3.SnackbarDuration.Long,
+                                duration = androidx.compose.material3.SnackbarDuration.Indefinite,
                             )
                         if (snackResult == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                             try {
@@ -698,7 +698,7 @@ public fun PlayerScreen(
                                 snackbarHostState.showSnackbar(
                                     message = context.getString(R.string.bookmarkDeleted),
                                     actionLabel = context.getString(R.string.undoAction),
-                                    duration = androidx.compose.material3.SnackbarDuration.Short,
+                                    duration = androidx.compose.material3.SnackbarDuration.Indefinite,
                                 )
                             if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                                 viewModel.restoreBookmark(deleted)
@@ -929,6 +929,7 @@ public fun PlayerScreen(
                                             onSeek = { positionMs ->
                                                 viewModel.dispatch(PlayerIntent.SeekTo(positionMs))
                                             },
+                                            onScrubbingMode = viewModel::setScrubbingMode,
                                             onSeekForward = {
                                                 HapticManager.performTap(hapticFeedback)
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekForward) }
@@ -1013,7 +1014,7 @@ public fun PlayerScreen(
                                                             snackbarHostState.showSnackbar(
                                                                 message = context.getString(R.string.bookmarkDeleted),
                                                                 actionLabel = context.getString(R.string.undoAction),
-                                                                duration = androidx.compose.material3.SnackbarDuration.Short,
+                                                                duration = androidx.compose.material3.SnackbarDuration.Indefinite,
                                                             )
                                                         if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                                                             viewModel.restoreBookmark(deleted)
@@ -1262,6 +1263,7 @@ private fun PlayerLandscapeLayout(
     hasNextChapter: Boolean,
     hasPreviousChapter: Boolean,
     onSeek: (Long) -> Unit,
+    onScrubbingMode: (Boolean) -> Unit,
     onSeekForward: () -> Unit,
     onSeekBackward: () -> Unit,
     onSelectChapter: (Int, Long) -> Unit,
@@ -1406,10 +1408,12 @@ private fun PlayerLandscapeLayout(
             SquigglySlider(
                 value = seekState.displayedProgress.value,
                 onValueChange = { newProgress ->
+                    onScrubbingMode(true)
                     seekState.onSliderValueChange(newProgress, hapticFeedback)
                 },
                 onValueChangeFinished = {
                     HapticManager.performTap(hapticFeedback)
+                    onScrubbingMode(false)
                     seekState.onSliderValueChangeFinished(onSeek, onSelectChapter)
                 },
                 onLongPress = { pressedProgress ->
@@ -1576,6 +1580,7 @@ private fun PlayerContent(
     hasNextChapter: Boolean,
     hasPreviousChapter: Boolean,
     onSeek: (Long) -> Unit,
+    onScrubbingMode: (Boolean) -> Unit,
     onSeekForward: () -> Unit,
     onSeekBackward: () -> Unit,
     onSelectChapter: (Int, Long) -> Unit,
@@ -1781,6 +1786,7 @@ private fun PlayerContent(
                 hasNextChapter = hasNextChapter,
                 hasPreviousChapter = hasPreviousChapter,
                 onSeek = onSeek,
+                onScrubbingMode = onScrubbingMode,
                 onSeekForward = onSeekForward,
                 onSeekBackward = onSeekBackward,
                 onSelectChapter = onSelectChapter,
@@ -1952,10 +1958,12 @@ private fun PlayerContent(
                         SquigglySlider(
                             value = seekState.displayedProgress.value,
                             onValueChange = { newProgress ->
+                                onScrubbingMode(true)
                                 seekState.onSliderValueChange(newProgress, hapticFeedback)
                             },
                             onValueChangeFinished = {
                                 HapticManager.performTap(hapticFeedback)
+                                onScrubbingMode(false)
                                 seekState.onSliderValueChangeFinished(onSeek, onSelectChapter)
                             },
                             onLongPress = { pressedProgress ->
@@ -1978,7 +1986,7 @@ private fun PlayerContent(
                                                 snackbarHostState.showSnackbar(
                                                     message = context.getString(R.string.bookmarkAddedMessage),
                                                     actionLabel = context.getString(R.string.undoAction),
-                                                    duration = androidx.compose.material3.SnackbarDuration.Short,
+                                                    duration = androidx.compose.material3.SnackbarDuration.Indefinite,
                                                 )
                                             if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                                                 onDeleteBookmark(createdBookmark.id)

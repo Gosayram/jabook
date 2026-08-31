@@ -79,9 +79,6 @@ tink = "1.23.0"
 # Torrent
 libtorrent4j = "2.1.0-39"
 
-# Audio
-ktaglib = "1.6.1"
-
 # UI Libraries
 haze = "1.7.3"
 hypnoticcanvas = "0.4.1"
@@ -225,9 +222,6 @@ libtorrent4j-android-arm64 = { group = "org.libtorrent4j", name = "libtorrent4j-
 libtorrent4j-android-arm = { group = "org.libtorrent4j", name = "libtorrent4j-android-arm", version.ref = "libtorrent4j" }
 libtorrent4j-android-x86 = { group = "org.libtorrent4j", name = "libtorrent4j-android-x86", version.ref = "libtorrent4j" }
 libtorrent4j-android-x86-64 = { group = "org.libtorrent4j", name = "libtorrent4j-android-x86_64", version.ref = "libtorrent4j" }
-
-# Audio
-ktaglib = { group = "com.github.timusus", name = "KTagLib", version.ref = "ktaglib" }
 
 # UI Libraries
 haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }

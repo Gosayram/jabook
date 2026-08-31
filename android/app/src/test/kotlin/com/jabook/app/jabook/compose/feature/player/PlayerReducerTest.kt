@@ -594,6 +594,9 @@ class PlayerReducerTest {
                             reduced == PlayerState.Loading,
                         )
                     }
+                    PlayerState.Empty -> {
+                        // Empty has no invariant beyond returning a state.
+                    }
                 }
             }
         }

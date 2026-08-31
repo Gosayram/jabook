@@ -1175,6 +1175,16 @@ public class AudioPlayerController
             }
         }
 
+        /**
+         * Toggles ExoPlayer scrubbing mode (optimizes playback for many frequent seeks).
+         *
+         * Not routed through MediaController — the scrubbing API only exists on ExoPlayer,
+         * so it is applied to the service-side player directly.
+         */
+        public fun setScrubbingMode(enabled: Boolean) {
+            (activePlayerRef.get() ?: exoPlayer).setScrubbingModeEnabled(enabled)
+        }
+
         public fun skipToNext() {
             executeOrQueue(
                 commandName = "skipToNext",

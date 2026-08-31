@@ -107,13 +107,6 @@
 -dontwarn org.libtorrent4j.**
 -dontwarn org.libtorrent4j.swig.**
 
-# -------- KTagLib JNI bridge --------
-# Keep ktaglib API/jni-facing symbols stable for native calls
--keep class com.simplecityapps.ktaglib.** { *; }
--keepclasseswithmembernames class com.simplecityapps.ktaglib.** {
-    native <methods>;
-}
-
 # -------- Entry Points (Activities) --------
 -keep class com.jabook.app.jabook.compose.ComposeMainActivity
 

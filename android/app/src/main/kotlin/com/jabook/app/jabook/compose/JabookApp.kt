@@ -378,7 +378,7 @@ public fun JabookApp(
                                                         appState.snackbarHostState.showSnackbar(
                                                             message = context.getString(R.string.mini_player_dismissed_undo),
                                                             actionLabel = context.getString(R.string.mini_player_dismissed_resume),
-                                                            duration = SnackbarDuration.Long,
+                                                            duration = SnackbarDuration.Indefinite,
                                                         )
                                                     if (result == SnackbarResult.ActionPerformed) {
                                                         miniPlayerViewModel.play()

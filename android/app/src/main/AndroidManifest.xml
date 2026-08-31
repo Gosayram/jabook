@@ -102,6 +102,7 @@
         android:supportsRtl="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
+        android:localeConfig="@xml/locales_config"
         android:manageSpaceActivity=".DataManagementActivity"
         tools:targetApi="34"
         tools:ignore="NamespaceTypo,MissingClass">
@@ -293,6 +294,16 @@
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
             </intent-filter>
+        </service>
+
+        <!-- Stores per-app locale state for AppCompatDelegate autoStoreLocales -->
+        <service
+            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false"
+            android:exported="false">
+            <meta-data
+                android:name="autoStoreLocales"
+                android:value="true" />
         </service>
 
         <!-- FileProvider for secure file sharing -->

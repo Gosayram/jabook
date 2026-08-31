@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -69,6 +70,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -229,11 +231,18 @@ public fun TorrentDownloadsScreen(
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(top = 16.dp),
+                        modifier =
+                            Modifier
+                                .padding(top = 16.dp)
+                                .toggleable(
+                                    value = deleteFiles,
+                                    role = Role.Checkbox,
+                                    onValueChange = { deleteFiles = it },
+                                ),
                     ) {
                         Checkbox(
                             checked = deleteFiles,
-                            onCheckedChange = { deleteFiles = it },
+                            onCheckedChange = null,
                         )
                         Text(stringResource(R.string.deleteDownloadWithFiles))
                     }

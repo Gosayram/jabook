@@ -1284,7 +1284,11 @@ internal class PlaylistManager(
                 .Builder()
                 .setUri(uri)
                 .setMediaId(item.mediaId)
-                .setMediaMetadata(mediaMetadata)
+                .apply {
+                    com.jabook.app.jabook.audio.player.exoplayer
+                        .mimeForUri(uri)
+                        ?.let(::setMimeType)
+                }.setMediaMetadata(mediaMetadata)
                 .apply {
                     if (item.clipStartPositionMs != null || item.clipEndPositionMs != null) {
                         setClippingConfiguration(

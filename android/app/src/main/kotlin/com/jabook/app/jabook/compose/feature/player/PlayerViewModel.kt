@@ -92,6 +92,8 @@ public class PlayerViewModel
     ) : ViewModel() {
         private val logger = loggerFactory.get("PlayerViewModel")
 
+        private var scrubbingModeEnabled = false
+
         /**
          * Parses audio metadata (artist/title) for a chapter file. Used to fall
          * back to file-embedded artist when book metadata lacks an author.
@@ -477,6 +479,12 @@ public class PlayerViewModel
             val clampedPositionMs = PlayerIntentGuardPolicy.clampSeekPosition(positionMs, chapterDurationMs)
             logger.d { "Action: Seek requested to ${positionMs}ms (clamped=${clampedPositionMs}ms)" }
             playerController.seekTo(clampedPositionMs)
+        }
+
+        public fun setScrubbingMode(enabled: Boolean) {
+            if (scrubbingModeEnabled == enabled) return
+            scrubbingModeEnabled = enabled
+            playerController.setScrubbingMode(enabled)
         }
 
         public fun seekToBookmark(bookmark: BookmarkItem) {

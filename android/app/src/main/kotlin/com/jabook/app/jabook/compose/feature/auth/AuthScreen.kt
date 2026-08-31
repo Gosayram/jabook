@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -70,6 +71,7 @@ import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -117,13 +119,6 @@ public fun AuthScreen(
             viewModel.consumeWebViewLoginRequest()
             val loginUrl = viewModel.prepareWebViewLogin()
             navigationClickGuard.run { currentOnNavigateToWebView(loginUrl) }
-        }
-    }
-
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.consumeError()
         }
     }
 
@@ -201,6 +196,8 @@ public fun AuthScreen(
                             contentType = ContentType.Username
                         },
                 singleLine = true,
+                isError = uiState.error != null,
+                supportingText = { uiState.error?.let { Text(it) } },
                 keyboardOptions =
                     KeyboardOptions(
                         keyboardType = KeyboardType.Text,
@@ -248,6 +245,8 @@ public fun AuthScreen(
                             contentType = ContentType.Password
                         },
                 singleLine = true,
+                isError = uiState.error != null,
+                supportingText = { uiState.error?.let { Text(it) } },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 shape = MaterialTheme.shapes.medium,
@@ -257,11 +256,18 @@ public fun AuthScreen(
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = rememberMe,
+                            role = Role.Checkbox,
+                            onValueChange = { rememberMe = it },
+                        ),
             ) {
                 Checkbox(
                     checked = rememberMe,
-                    onCheckedChange = { rememberMe = it },
+                    onCheckedChange = null,
                 )
                 Text(
                     text = stringResource(R.string.rememberMe),

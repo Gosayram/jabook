@@ -621,9 +621,6 @@ dependencies {
     implementation(libs.androidx.mediarouter)
     implementation(libs.play.services.cast.framework)
 
-    // Audio metadata parsing using KTagLib (TagLib Kotlin bindings)
-    implementation(libs.ktaglib)
-
     // Android 14+ specific dependencies
     // Add support for Android 14+ foreground service types
     implementation(libs.androidx.work.runtime)
@@ -786,6 +783,7 @@ detekt {
     source.setFrom(
         files(
             "src/main/kotlin",
+            "src/test/kotlin",
         ),
     )
 }

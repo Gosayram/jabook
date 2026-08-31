@@ -19,9 +19,20 @@ import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.MediaMetadata.MEDIA_TYPE_AUDIO_BOOK
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import com.jabook.app.jabook.audio.core.model.Chapter
 import com.jabook.app.jabook.audio.core.model.MediaItemData
+
+/**
+ * Maps a known audio file extension to its MIME type; null lets ExoPlayer infer.
+ */
+internal fun mimeForUri(uri: Uri): String? =
+    when (uri.lastPathSegment?.substringAfterLast('.', missingDelimiterValue = "")?.lowercase()) {
+        "mp3" -> MimeTypes.AUDIO_MPEG
+        "m4b", "m4a", "mp4" -> MimeTypes.AUDIO_MP4
+        else -> null
+    }
 
 /**
  * Factory for creating Media3 MediaItem from domain models.
@@ -37,6 +48,7 @@ public object MediaItemFactory {
                 .Builder()
                 .setUri(data.uri)
                 .setMediaId(data.chapterId ?: data.uri.toString())
+        mimeForUri(data.uri)?.let(builder::setMimeType)
 
         // Embedded M4B/MP4 chapters play as clipped segments of the one file.
         if (data.clipStartPositionMs != null || data.clipEndPositionMs != null) {
