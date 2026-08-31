@@ -237,6 +237,7 @@ public class AudioPlayerServiceInitializer(
                 getActualTrackIndex = { service.actualTrackIndex },
                 getCurrentFilePaths = { service.currentFilePaths },
                 coroutineScope = service.playerServiceScope,
+                appContext = service.applicationContext,
             )
 
         // Initialize Intent Handler
@@ -508,6 +509,7 @@ public class AudioPlayerServiceInitializer(
             // directly to the session; connecting a controller to our own service adds no state.
             service.setInitialMediaButtonPreferences()
             service.isFullyInitializedFlag = true
+            service.markInitializationComplete()
 
             // Allow updating player reference if crossfade happens
             // service.crossFadePlayer?.onPlayerChanged will handle this via updatePlayer()
@@ -526,6 +528,7 @@ public class AudioPlayerServiceInitializer(
                 throwable = e,
                 attributes = mapOf("session_id" to sessionId),
             )
+            service.markInitializationFailed(e)
             throw e
         }
     }

@@ -76,57 +76,110 @@ public class AudioPlayerLibrarySessionCallback(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
     ): ListenableFuture<MediaSession.ConnectionResult> {
-        // Following Media3 official pattern: only add custom commands for system controllers
-        // (notification, automotive, auto companion). Regular app controllers get default commands.
-        //
-        // Media button preferences are applied after the controller connects. Media3 ignores
-        // controller updates while onConnectAsync is running.
+        // Build the accepted result synchronously, but defer returning it until initialization
+        // completes so controllers never observe a half-initialized service (nullable delegates gap).
+        fun buildResult(): MediaSession.ConnectionResult {
+            val isSystemController =
+                session.isMediaNotificationController(controller) ||
+                    session.isAutomotiveController(controller) ||
+                    session.isAutoCompanionController(controller)
+            val isAppController = isAppController(controller)
+
+            // ponytail: disable shake-to-extend while Auto is active (bumps false-trigger)
+            if (session.isAutomotiveController(controller)) {
+                service.sleepTimerManager?.isAutomotiveActive = true
+            }
+
+            val availableCommands =
+                if (isSystemController) {
+                    val includeSleepTimerCommands =
+                        !session.isAutomotiveController(controller) && isAppController
+                    buildAvailableSessionCommands(
+                        controller = controller,
+                        includeSleepTimerCommands = includeSleepTimerCommands,
+                        includePrivilegedCommands = isAppController,
+                    )
+                } else {
+                    buildAvailableSessionCommands(
+                        controller = controller,
+                        includeSleepTimerCommands = isAppController,
+                        includePrivilegedCommands = isAppController,
+                    )
+                }
+            // NOTE: CustomLayout is NOT set here - it will be set separately after initialization
+            // This follows Rhythm pattern to avoid MediaSessionLegacyStub conversion issues
+            return MediaSession.ConnectionResult
+                .AcceptedResultBuilder(session, controller)
+                .setAvailableSessionCommands(availableCommands)
+                .build()
+        }
+
+        if (service.isFullyInitialized() || service.initializationCompleteFuture.isDone) {
+            return Futures.immediateFuture(buildResult())
+        }
+        // Defer until initializationCompleteFuture completes; on init failure reject the controller.
+        // ponytail: buildResult() inside transform so post-init state (e.g. sleepTimerManager) is fresh.
+        val deferred =
+            Futures.transform(
+                service.initializationCompleteFuture,
+                com.google.common.base
+                    .Function<Void, MediaSession.ConnectionResult> { buildResult() },
+                com.google.common.util.concurrent.MoreExecutors
+                    .directExecutor(),
+            )
+        return Futures.catching(
+            deferred,
+            Exception::class.java,
+            com.google.common.base.Function<Exception, MediaSession.ConnectionResult> { e ->
+                LogUtils.e(
+                    "AudioPlayerService",
+                    "Initialization failed, rejecting controller ${controller.packageName}",
+                    e,
+                )
+                MediaSession.ConnectionResult.reject()
+            },
+            com.google.common.util.concurrent.MoreExecutors
+                .directExecutor(),
+        )
+    }
+
+    // Fallback for older Media3 where onConnect is used instead of onConnectAsync.
+    // Delegates to the same accept logic but cannot defer; onConnectAsync is preferred on 1.11.0.
+    @OptIn(UnstableApi::class)
+    override fun onConnect(
+        session: MediaSession,
+        controller: MediaSession.ControllerInfo,
+    ): MediaSession.ConnectionResult {
+        // ponytail: immediate accept — async deferral is handled in onConnectAsync on 1.11.0.
+        // This fallback exists only for pre-async clients; return same commands as onConnectAsync would.
         val isSystemController =
             session.isMediaNotificationController(controller) ||
                 session.isAutomotiveController(controller) ||
                 session.isAutoCompanionController(controller)
         val isAppController = isAppController(controller)
-
-        // ponytail: disable shake-to-extend while Auto is active (bumps false-trigger)
         if (session.isAutomotiveController(controller)) {
             service.sleepTimerManager?.isAutomotiveActive = true
         }
-
-        if (isSystemController) {
-            // Only the app's own controller can invoke state-changing sleep timer commands.
-            val includeSleepTimerCommands =
-                !session.isAutomotiveController(controller) && isAppController
-            val availableCommands =
+        val availableCommands =
+            if (isSystemController) {
+                val includeSleepTimerCommands =
+                    !session.isAutomotiveController(controller) && isAppController
                 buildAvailableSessionCommands(
                     controller = controller,
                     includeSleepTimerCommands = includeSleepTimerCommands,
                     includePrivilegedCommands = isAppController,
                 )
-
-            // NOTE: CustomLayout is NOT set here - it will be set separately after initialization
-            // This follows Rhythm pattern to avoid MediaSessionLegacyStub conversion issues
-            return Futures.immediateFuture(
-                MediaSession.ConnectionResult
-                    .AcceptedResultBuilder(session, controller)
-                    .setAvailableSessionCommands(availableCommands)
-                    .build(),
-            )
-        }
-
-        // Regular controllers receive only non-privileged custom commands.
-        val availableCommands =
-            buildAvailableSessionCommands(
-                controller = controller,
-                includeSleepTimerCommands = isAppController,
-                includePrivilegedCommands = isAppController,
-            )
-
-        return Futures.immediateFuture(
-            MediaSession.ConnectionResult
-                .AcceptedResultBuilder(session, controller)
-                .setAvailableSessionCommands(availableCommands)
-                .build(),
-        )
+            } else {
+                buildAvailableSessionCommands(
+                    controller = controller,
+                    includeSleepTimerCommands = isAppController,
+                    includePrivilegedCommands = isAppController,
+                )
+            }
+        return MediaSession.ConnectionResult
+            .AcceptedResultBuilder(session, controller)
+            .setAvailableSessionCommands(availableCommands)
+            .build()
     }
 
     /**

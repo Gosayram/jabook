@@ -39,6 +39,14 @@ import com.jabook.app.jabook.util.LogUtils
  * ~6-20 chapters (10-30 MB each), window ±1-10 stays well under the limit.
  * No cache pinning is required — see issue #61 (resolved as speculative).
  *
+ * Supplemented by Media3 official preload (#10): [MediaModule] now calls
+ * `ExoPlayer.setPreloadConfiguration(PreloadConfiguration(30s))` after
+ * creation so playlist preloading is throttled by [androidx.media3.exoplayer.LoadControl]
+ * rather than competing with active playback. This optimizer is **kept** for
+ * window sizing (±1..10 based on availMem/lowMemory); Media3 handles the
+ * actual preload scheduling and LoadControl limits I/O contention vs the
+ * custom timeline-manipulation path.
+ *
  * Usage:
  * ```
  * val window = optimizer.calculateBufferWindow()

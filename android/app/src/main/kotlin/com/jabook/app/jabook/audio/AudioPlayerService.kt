@@ -416,6 +416,28 @@ public class AudioPlayerService : MediaLibraryService() {
     @Volatile
     internal var isFullyInitializedFlag = false
 
+    /** Future that completes when initialization finishes; controllers wait via onConnectAsync. */
+    @Volatile
+    internal var initializationCompleteFuture: com.google.common.util.concurrent.SettableFuture<Void> =
+        com.google.common.util.concurrent.SettableFuture
+            .create()
+
+    internal fun markInitializationComplete() {
+        if (!initializationCompleteFuture.isDone) initializationCompleteFuture.set(null)
+    }
+
+    internal fun markInitializationFailed(e: Exception) {
+        if (!initializationCompleteFuture.isDone) initializationCompleteFuture.setException(e)
+    }
+
+    internal fun resetInitializationFuture() {
+        if (initializationCompleteFuture.isDone) {
+            initializationCompleteFuture =
+                com.google.common.util.concurrent.SettableFuture
+                    .create()
+        }
+    }
+
     /** Checks if the service is fully initialized and ready to use. */
     public fun isFullyInitialized(): Boolean = isFullyInitializedFlag
 

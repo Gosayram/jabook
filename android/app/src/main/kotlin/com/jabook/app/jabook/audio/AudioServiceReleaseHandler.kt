@@ -125,6 +125,7 @@ internal class AudioServiceReleaseHandler(
         service.playerConfigurator?.release()
 
         service.isFullyInitializedFlag = false
+        service.resetInitializationFuture()
     }
 
     /**

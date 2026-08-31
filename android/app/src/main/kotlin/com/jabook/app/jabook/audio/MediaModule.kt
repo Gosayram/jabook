@@ -19,6 +19,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.TrackSelectionParameters
+import androidx.media3.common.util.ExperimentalApi
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.Cache
@@ -126,7 +127,7 @@ public object MediaModule {
         return cache
     }
 
-    @OptIn(UnstableApi::class)
+    @OptIn(UnstableApi::class, ExperimentalApi::class)
     @Provides
     @Singleton
     public fun provideExoPlayer(
@@ -159,6 +160,7 @@ public object MediaModule {
             try {
                 ExoPlayer
                     .Builder(context)
+                    .experimentalSetDynamicSchedulingEnabled(true)
                     .setLoadControl(loadControl)
                     .setMediaSourceFactory(mediaSourceFactory)
                     .setHandleAudioBecomingNoisy(true)
@@ -177,6 +179,16 @@ public object MediaModule {
                         true,
                     ).build()
                     .also {
+                        // #10: Delegate playlist preloading to Media3 so LoadControl throttles
+                        // preload contention with active playback (vs custom LRU re-fetch).
+                        // AdaptivePlaylistMemoryOptimizer is kept for window sizing (±1..10
+                        // based on availMem); this call enables the official preload path.
+                        // ponytail: 30s target covers gapless chapter transition without
+                        // bloating RAM; bump if chapters routinely exceed buffer.
+                        it.setPreloadConfiguration(
+                            ExoPlayer.PreloadConfiguration(30 * C.MICROS_PER_SECOND),
+                        )
+                    }.also {
                         // Disable audio offload in safe mode (crash-loop detected)
                         if (!GlobalExceptionHandler.isSafeMode(context)) {
                             it.trackSelectionParameters = createAudioOffloadTrackSelectionParameters()
@@ -206,7 +218,7 @@ public object MediaModule {
      * @param settings Audio processing settings
      * @return Configured ExoPlayer instance
      */
-    @OptIn(UnstableApi::class)
+    @OptIn(UnstableApi::class, ExperimentalApi::class)
     public fun createExoPlayerWithProcessors(
         context: Context,
         settings: AudioProcessingSettings,
@@ -272,6 +284,7 @@ public object MediaModule {
                 val builder =
                     ExoPlayer
                         .Builder(context)
+                        .experimentalSetDynamicSchedulingEnabled(true)
                         .setRenderersFactory(renderersFactory)
                         .setMediaSourceFactory(mediaSourceFactory)
                         .setLoadControl(createOptimizedLoadControl(context))
@@ -301,6 +314,12 @@ public object MediaModule {
                 builder
                     .build()
                     .also {
+                        // #10: same delegation as singleton player — enable Media3 preload
+                        // so LoadControl throttles contention vs active playback.
+                        it.setPreloadConfiguration(
+                            ExoPlayer.PreloadConfiguration(30 * C.MICROS_PER_SECOND),
+                        )
+                    }.also {
                         // Disable audio offload in safe mode (crash-loop detected)
                         if (!com.jabook.app.jabook.crash.GlobalExceptionHandler
                                 .isSafeMode(context)
