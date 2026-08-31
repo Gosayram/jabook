@@ -28,6 +28,7 @@ public object SpacingTokens {
     public val Md: Dp = 16.dp
     public val Lg: Dp = 24.dp
     public val Xl: Dp = 32.dp
+
     // ponytail: scaffold 8dp spacing — single source, swap if layout spec changes.
     public val ScaffoldSpacer: Dp = 8.dp
     public val ContentPaddingCompact: Dp = 16.dp

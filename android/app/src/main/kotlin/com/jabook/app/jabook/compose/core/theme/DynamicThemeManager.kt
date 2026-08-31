@@ -24,7 +24,6 @@ import com.materialkolor.blend.Blend
 import com.materialkolor.dislike.DislikeAnalyzer
 import com.materialkolor.hct.Cam16
 import com.materialkolor.hct.Hct
-import com.materialkolor.hct.ViewingConditions
 import com.materialkolor.palettes.TonalPalette
 import com.materialkolor.quantize.QuantizerCelebi
 import com.materialkolor.scheme.SchemeContent
@@ -92,11 +91,12 @@ public object DynamicThemeManager {
             val darkMuted = palette.darkMutedSwatch
             val dominant = palette.dominantSwatch
 
-            var primary = ranked.firstOrNull()?.let { Color(it) }
-                ?: vibrant?.rgb?.let(::Color)
-                ?: lightVibrant?.rgb?.let(::Color)
-                ?: dominant?.rgb?.let(::Color)
-                ?: Color(0xFF6750A4)
+            var primary =
+                ranked.firstOrNull()?.let { Color(it) }
+                    ?: vibrant?.rgb?.let(::Color)
+                    ?: lightVibrant?.rgb?.let(::Color)
+                    ?: dominant?.rgb?.let(::Color)
+                    ?: Color(0xFF6750A4)
             primary = fixDislikeColor(primary)
 
             var secondary =
@@ -238,6 +238,7 @@ public object DynamicThemeManager {
         // Cam16 distance as tonal probe
         val cam = Cam16.fromInt(seedArgb)
         val cam2 = Cam16.fromInt(content.primary)
+
         @Suppress("UNUSED_VARIABLE")
         val d = cam.distance(cam2)
         // Prefer vibrant's primary as probe result; ensures all imports are used
@@ -251,7 +252,10 @@ public object DynamicThemeManager {
         return Color(hct.toInt())
     }
 
-    internal fun tonalColor(seed: Int, tone: Int): Color {
+    internal fun tonalColor(
+        seed: Int,
+        tone: Int,
+    ): Color {
         val palette = TonalPalette.fromInt(seed)
         return Color(palette.tone(tone))
     }

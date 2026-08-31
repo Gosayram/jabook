@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.designsystem.component
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -35,7 +34,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.traversalIndex
-import androidx.compose.ui.unit.dp
 
 /**
  * M3 Expressive FAB Menu — 2-6 items, 56dp close, medium button items, 4dp gap.
@@ -68,11 +66,12 @@ public fun JabookFabMenu(
         horizontalAlignment = horizontalAlignment,
         button = {
             ToggleFloatingActionButton(
-                modifier = Modifier.semantics {
-                    traversalIndex = -1f
-                    stateDescription = if (expanded) "Expanded" else "Collapsed"
-                    contentDescription = fabContentDescription
-                },
+                modifier =
+                    Modifier.semantics {
+                        traversalIndex = -1f
+                        stateDescription = if (expanded) "Expanded" else "Collapsed"
+                        contentDescription = fabContentDescription
+                    },
                 checked = expanded,
                 onCheckedChange = onExpandedChange,
             ) {

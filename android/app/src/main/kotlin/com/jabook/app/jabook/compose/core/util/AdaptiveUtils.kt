@@ -321,19 +321,21 @@ public object AdaptiveUtils {
     // --- 5-breakpoint pane widths (foundations/layout) ---
 
     /** Canonical 5 breakpoints overlayed on WSC: widthDp maps to compact/medium/expanded/large/xl. */
-    public fun getBreakpoint(screenWidthDp: Int): Int = when {
-        screenWidthDp < 600 -> 0 // compact
-        screenWidthDp < 840 -> 1 // medium
-        screenWidthDp < 1200 -> 2 // expanded (360 pane)
-        screenWidthDp < 1600 -> 3 // large (412 pane)
-        else -> 4 // xl (412 centered)
-    }
+    public fun getBreakpoint(screenWidthDp: Int): Int =
+        when {
+            screenWidthDp < 600 -> 0 // compact
+            screenWidthDp < 840 -> 1 // medium
+            screenWidthDp < 1200 -> 2 // expanded (360 pane)
+            screenWidthDp < 1600 -> 3 // large (412 pane)
+            else -> 4 // xl (412 centered)
+        }
 
     /** Supporting pane width per spec: 360 expanded, 412 large/xl, 360 otherwise. */
-    public fun getSupportingPaneWidth(screenWidthDp: Int): Dp = when (getBreakpoint(screenWidthDp)) {
-        3, 4 -> 412.dp
-        else -> 360.dp
-    }
+    public fun getSupportingPaneWidth(screenWidthDp: Int): Dp =
+        when (getBreakpoint(screenWidthDp)) {
+            3, 4 -> 412.dp
+            else -> 360.dp
+        }
 
     public fun getSupportingPaneWidth(windowSizeClass: WindowSizeClass?): Dp {
         // ponytail: WSC alone can't distinguish large/xl, fallback to 360; caller with widthDp gets 412.

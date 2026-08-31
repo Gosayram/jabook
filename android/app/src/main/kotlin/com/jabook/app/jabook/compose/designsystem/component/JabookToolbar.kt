@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -58,9 +57,10 @@ public fun JabookDockedToolbar(
     // ponytail: docked = floating toolbar always-expanded full-width 64dp, 16dp pad
     HorizontalFloatingToolbar(
         expanded = true,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
         leadingContent = leadingContent,
         trailingContent = trailingContent,
         content = content,

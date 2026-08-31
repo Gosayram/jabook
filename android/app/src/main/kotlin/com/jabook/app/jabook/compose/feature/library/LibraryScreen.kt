@@ -289,9 +289,10 @@ public fun LibraryScreen(
     // 🎯 Navigator for ListDetailPaneScaffold — canonical ListDetail (feed) per foundations/layout
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()
     val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-    val canonicalDirective = remember(navigator.scaffoldDirective, screenWidthDp) {
-        AdaptiveUtils.canonicalDirective(navigator.scaffoldDirective, screenWidthDp)
-    }
+    val canonicalDirective =
+        remember(navigator.scaffoldDirective, screenWidthDp) {
+            AdaptiveUtils.canonicalDirective(navigator.scaffoldDirective, screenWidthDp)
+        }
 
     // The selected book id is the navigator's current detail contentKey — the
     // navigator is saveable, so this survives configuration change (no mirror state).

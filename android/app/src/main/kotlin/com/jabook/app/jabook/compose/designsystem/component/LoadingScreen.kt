@@ -61,9 +61,10 @@ public fun LoadingScreen(
     val coercedSize = indicatorSize.coerceIn(24.dp, 240.dp)
     val a11yLabel = message ?: "Loading"
     Box(
-        modifier = modifier.fillMaxSize().semantics(mergeDescendants = true) {
-            contentDescription = a11yLabel
-        },
+        modifier =
+            modifier.fillMaxSize().semantics(mergeDescendants = true) {
+                contentDescription = a11yLabel
+            },
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {

@@ -277,9 +277,10 @@ public fun PlayerScreen(
     val isCompactScreen =
         resolved?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
     val playerScreenWidthDp = LocalConfiguration.current.screenWidthDp
-    val playerCanonicalDirective = remember(scaffoldNavigator.scaffoldDirective, playerScreenWidthDp) {
-        AdaptiveUtils.canonicalDirective(scaffoldNavigator.scaffoldDirective, playerScreenWidthDp)
-    }
+    val playerCanonicalDirective =
+        remember(scaffoldNavigator.scaffoldDirective, playerScreenWidthDp) {
+            AdaptiveUtils.canonicalDirective(scaffoldNavigator.scaffoldDirective, playerScreenWidthDp)
+        }
     val openSettingsLabel = stringResource(R.string.openSettings)
     val notificationPermissionPlaybackHint = stringResource(R.string.notificationPermissionPlaybackHint)
     val audioVisualizerPermissionHint = stringResource(R.string.audioVisualizerPermissionHint)

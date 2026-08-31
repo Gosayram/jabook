@@ -66,13 +66,36 @@ public object ExpressiveShapes {
     public val pill: RoundedPolygon by lazy { MaterialShapes.Pill }
 
     public val cardPolygons: List<RoundedPolygon> by lazy {
-        listOf(circle, square, slanted, triangle, diamond, pentagon, gem, sunny, verySunny, cookie7, cookie12, clover4, clover8, burst, softBurst, boom, softBoom, ghostish, clamShell, heart, bun)
+        listOf(
+            circle,
+            square,
+            slanted,
+            triangle,
+            diamond,
+            pentagon,
+            gem,
+            sunny,
+            verySunny,
+            cookie7,
+            cookie12,
+            clover4,
+            clover8,
+            burst,
+            softBurst,
+            boom,
+            softBoom,
+            ghostish,
+            clamShell,
+            heart,
+            bun,
+        )
     }
     public val fabPolygons: List<RoundedPolygon> by lazy { listOf(flower, puffyDiamond, pixelCircle, pixelTriangle) }
     public val sheetPolygons: List<RoundedPolygon> by lazy { listOf(arch, fan, arrow, semiCircle, oval, pill) }
 
     @Suppress("UNCHECKED_CAST")
     public val allPolygons: List<RoundedPolygon> by lazy { cardPolygons + fabPolygons + sheetPolygons as List<RoundedPolygon> }
+
     // ponytail: alias for Theme.kt touch
     public val allShapes: List<RoundedPolygon> get() = allPolygons
 

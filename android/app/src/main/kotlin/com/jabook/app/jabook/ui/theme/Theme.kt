@@ -301,16 +301,26 @@ private fun adjustTone(
     return Color(Hct.from(hct.hue, hct.chroma, newTone).toInt())
 }
 
-private fun adjustLightness(color: Color, delta: Float): Color = adjustTone(color, delta.toDouble() * 100)
+private fun adjustLightness(
+    color: Color,
+    delta: Float,
+): Color = adjustTone(color, delta.toDouble() * 100)
 
 // MCU 7:1 contrast via tone search using TonalPalette
-private fun ensureContrastTone(background: Color, targetRatio: Double = 7.0): Color {
+private fun ensureContrastTone(
+    background: Color,
+    targetRatio: Double = 7.0,
+): Color {
     val bg = background
     // Try white/black first; else binary search tone preserving hue/chroma of bg complement
     val white = Color.White
     val black = Color.Black
     val bgLum = bg.luminance().toDouble()
-    fun ratio(l1: Double, l2: Double): Double = (maxOf(l1, l2) + 0.05) / (minOf(l1, l2) + 0.05)
+
+    fun ratio(
+        l1: Double,
+        l2: Double,
+    ): Double = (maxOf(l1, l2) + 0.05) / (minOf(l1, l2) + 0.05)
     if (ratio(1.0, bgLum) >= targetRatio) return white
     if (ratio(0.0, bgLum) >= targetRatio) return black
     // Tone search on neutral palette tone 0..100
@@ -322,7 +332,12 @@ private fun ensureContrastTone(background: Color, targetRatio: Double = 7.0): Co
         val mid = (lo + hi) / 2
         val c = Color(Hct.from(startHct.hue, startHct.chroma, mid).toInt())
         val r = ratio(c.luminance().toDouble(), bgLum)
-        if (r >= targetRatio) { best = mid; if (bgLum < 0.5) hi = mid else lo = mid } else { if (bgLum < 0.5) lo = mid else hi = mid }
+        if (r >= targetRatio) {
+            best = mid
+            if (bgLum < 0.5) hi = mid else lo = mid
+        } else {
+            if (bgLum < 0.5) lo = mid else hi = mid
+        }
     }
     return Color(Hct.from(startHct.hue, startHct.chroma, best).toInt())
 }
