@@ -15,16 +15,17 @@
 package com.jabook.app.jabook.compose.designsystem.component
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.SplitButtonDefaults
-import androidx.compose.material3.SplitButtonLayout
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,11 +38,10 @@ import androidx.compose.ui.unit.dp
 public enum class JabookSplitButtonSize { XS, S, M, L, XL }
 
 /**
- * M3 Expressive SplitButton — XS-XL 5 sizes, 2dp inner gap, 180° standard motion on trailing icon.
- * Wraps official SplitButtonLayout (alpha19). Leading = primary action, trailing = menu chevron.
- * // ponytail: one composable covers Speed split + generic; sizes map to SplitButtonDefaults heights.
+ * SplitButton fallback — Row with two Buttons weight + 2dp gap.
+ * ponytail: M3 1.5 SplitButtonLayout (alpha) downgraded to stable Row; restore SplitButtonLayout
+ * when M3 1.5 stable. Size param kept for API compat (no-op until stable).
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 public fun JabookSplitButton(
     label: String,
@@ -59,43 +59,41 @@ public fun JabookSplitButton(
         targetValue = if (trailingChecked) 180f else 0f,
         label = "split_trailing_rotation",
     )
-    // ponytail: size maps to container heights via defaults; caller gets XS-XL without extra tokens
-    SplitButtonLayout(
-        leadingButton = {
-            SplitButtonDefaults.LeadingButton(
-                onClick = onLeadingClick,
-                enabled = enabled,
-            ) {
-                if (leadingIcon != null) {
-                    Icon(leadingIcon, contentDescription = null)
-                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                }
-                Text(label)
-            }
-        },
-        trailingButton = {
-            SplitButtonDefaults.TrailingButton(
-                checked = trailingChecked,
-                onCheckedChange = { onTrailingClick() },
-                enabled = enabled,
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.ArrowDropDown,
-                    contentDescription = trailingContentDescription,
-                    modifier = Modifier.rotate(rotation),
-                )
-            }
-        },
+    // ponytail: faux connected split — 2dp gap, connectedItemShape; replace with SplitButtonDefaults when stable
+    Row(
         modifier = modifier,
-        spacing = spacing,
-    )
+        horizontalArrangement = Arrangement.spacedBy(spacing),
+    ) {
+        Button(
+            onClick = onLeadingClick,
+            enabled = enabled,
+            shape = connectedItemShape(0, 2),
+            modifier = Modifier.weight(1f),
+        ) {
+            if (leadingIcon != null) {
+                Icon(leadingIcon, contentDescription = null)
+                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            }
+            Text(label)
+        }
+        FilledTonalButton(
+            onClick = onTrailingClick,
+            enabled = enabled,
+            shape = connectedItemShape(1, 2),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.ArrowDropDown,
+                contentDescription = trailingContentDescription,
+                modifier = Modifier.rotate(rotation),
+            )
+        }
+    }
 }
 
 /**
  * Speed split — leading shows current speed + hold-to-boost, trailing opens speed sheet.
  * Keeps interactionSource out for minimal API; wire hold via long-press at caller if needed.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 public fun JabookSpeedSplitButton(
     speedLabel: String,

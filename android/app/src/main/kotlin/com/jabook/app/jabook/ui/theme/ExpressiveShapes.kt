@@ -14,58 +14,56 @@
 
 package com.jabook.app.jabook.ui.theme
 
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MaterialShapes
-import androidx.compose.material3.toShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Shape
-import androidx.graphics.shapes.RoundedPolygon
+import androidx.compose.ui.unit.dp
 
-// ponytail: 35 MaterialShapes total — 4 eager in Theme.kt (Cookie9/4/6 + Puffy),
-// 31 lazy here. Wired to real components beyond demo list (cards/fab/sheets).
-// Stored as RoundedPolygon (non-composable) to allow lazy init outside @Composable;
-// call .toShape() inside @Composable when a Shape is needed.
+// ponytail: M3 1.4 fallback — MaterialShapes/MotionScheme not in material3 1.4.0 (expressive 1.5 only).
+// Replaced 35 RoundedPolygon (MaterialShapes) with RoundedCornerShape stdlib only.
+// 4 eager shapes live in Theme.kt (28dp/20dp); 31 here are lazy Shape aliases for cards/fab/sheets routing.
+// graphics-shapes Morph kept available (1.1.0) but not used — fallback to RoundedCornerShape for UnifiedBookCard.
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 public object ExpressiveShapes {
     // --- cards ---
-    public val circle: RoundedPolygon by lazy { MaterialShapes.Circle }
-    public val square: RoundedPolygon by lazy { MaterialShapes.Square }
-    public val slanted: RoundedPolygon by lazy { MaterialShapes.Slanted }
-    public val triangle: RoundedPolygon by lazy { MaterialShapes.Triangle }
-    public val diamond: RoundedPolygon by lazy { MaterialShapes.Diamond }
-    public val pentagon: RoundedPolygon by lazy { MaterialShapes.Pentagon }
-    public val gem: RoundedPolygon by lazy { MaterialShapes.Gem }
-    public val sunny: RoundedPolygon by lazy { MaterialShapes.Sunny }
-    public val verySunny: RoundedPolygon by lazy { MaterialShapes.VerySunny }
-    public val cookie7: RoundedPolygon by lazy { MaterialShapes.Cookie7Sided }
-    public val cookie12: RoundedPolygon by lazy { MaterialShapes.Cookie12Sided }
-    public val clover4: RoundedPolygon by lazy { MaterialShapes.Clover4Leaf }
-    public val clover8: RoundedPolygon by lazy { MaterialShapes.Clover8Leaf }
-    public val burst: RoundedPolygon by lazy { MaterialShapes.Burst }
-    public val softBurst: RoundedPolygon by lazy { MaterialShapes.SoftBurst }
-    public val boom: RoundedPolygon by lazy { MaterialShapes.Boom }
-    public val softBoom: RoundedPolygon by lazy { MaterialShapes.SoftBoom }
-    public val ghostish: RoundedPolygon by lazy { MaterialShapes.Ghostish }
-    public val clamShell: RoundedPolygon by lazy { MaterialShapes.ClamShell }
-    public val heart: RoundedPolygon by lazy { MaterialShapes.Heart }
-    public val bun: RoundedPolygon by lazy { MaterialShapes.Bun }
+    public val circle: Shape by lazy { CircleShape }
+    public val square: Shape by lazy { RoundedCornerShape(4.dp) }
+    public val slanted: Shape by lazy { RoundedCornerShape(12.dp) }
+    public val triangle: Shape by lazy { RoundedCornerShape(16.dp) }
+    public val diamond: Shape by lazy { RoundedCornerShape(12.dp) }
+    public val pentagon: Shape by lazy { RoundedCornerShape(16.dp) }
+    public val gem: Shape by lazy { RoundedCornerShape(16.dp) }
+    public val sunny: Shape by lazy { RoundedCornerShape(20.dp) }
+    public val verySunny: Shape by lazy { RoundedCornerShape(28.dp) }
+    public val cookie7: Shape by lazy { RoundedCornerShape(20.dp) }
+    public val cookie12: Shape by lazy { RoundedCornerShape(28.dp) }
+    public val clover4: Shape by lazy { RoundedCornerShape(20.dp) }
+    public val clover8: Shape by lazy { RoundedCornerShape(28.dp) }
+    public val burst: Shape by lazy { RoundedCornerShape(16.dp) }
+    public val softBurst: Shape by lazy { RoundedCornerShape(20.dp) }
+    public val boom: Shape by lazy { RoundedCornerShape(16.dp) }
+    public val softBoom: Shape by lazy { RoundedCornerShape(20.dp) }
+    public val ghostish: Shape by lazy { RoundedCornerShape(16.dp) }
+    public val clamShell: Shape by lazy { RoundedCornerShape(20.dp) }
+    public val heart: Shape by lazy { RoundedCornerShape(16.dp) }
+    public val bun: Shape by lazy { RoundedCornerShape(20.dp) }
 
     // --- fab ---
-    public val flower: RoundedPolygon by lazy { MaterialShapes.Flower }
-    public val puffyDiamond: RoundedPolygon by lazy { MaterialShapes.PuffyDiamond }
-    public val pixelCircle: RoundedPolygon by lazy { MaterialShapes.PixelCircle }
-    public val pixelTriangle: RoundedPolygon by lazy { MaterialShapes.PixelTriangle }
+    public val flower: Shape by lazy { RoundedCornerShape(28.dp) }
+    public val puffyDiamond: Shape by lazy { RoundedCornerShape(20.dp) }
+    public val pixelCircle: Shape by lazy { CircleShape }
+    public val pixelTriangle: Shape by lazy { RoundedCornerShape(12.dp) }
 
     // --- sheets ---
-    public val arch: RoundedPolygon by lazy { MaterialShapes.Arch }
-    public val fan: RoundedPolygon by lazy { MaterialShapes.Fan }
-    public val arrow: RoundedPolygon by lazy { MaterialShapes.Arrow }
-    public val semiCircle: RoundedPolygon by lazy { MaterialShapes.SemiCircle }
-    public val oval: RoundedPolygon by lazy { MaterialShapes.Oval }
-    public val pill: RoundedPolygon by lazy { MaterialShapes.Pill }
+    public val arch: Shape by lazy { RoundedCornerShape(28.dp) }
+    public val fan: Shape by lazy { RoundedCornerShape(28.dp) }
+    public val arrow: Shape by lazy { RoundedCornerShape(12.dp) }
+    public val semiCircle: Shape by lazy { RoundedCornerShape(28.dp) }
+    public val oval: Shape by lazy { RoundedCornerShape(28.dp) }
+    public val pill: Shape by lazy { RoundedCornerShape(999.dp) }
 
-    public val cardPolygons: List<RoundedPolygon> by lazy {
+    public val cardPolygons: List<Shape> by lazy {
         listOf(
             circle,
             square,
@@ -90,21 +88,20 @@ public object ExpressiveShapes {
             bun,
         )
     }
-    public val fabPolygons: List<RoundedPolygon> by lazy { listOf(flower, puffyDiamond, pixelCircle, pixelTriangle) }
-    public val sheetPolygons: List<RoundedPolygon> by lazy { listOf(arch, fan, arrow, semiCircle, oval, pill) }
+    public val fabPolygons: List<Shape> by lazy { listOf(flower, puffyDiamond, pixelCircle, pixelTriangle) }
+    public val sheetPolygons: List<Shape> by lazy { listOf(arch, fan, arrow, semiCircle, oval, pill) }
 
-    @Suppress("UNCHECKED_CAST")
-    public val allPolygons: List<RoundedPolygon> by lazy { cardPolygons + fabPolygons + sheetPolygons as List<RoundedPolygon> }
+    public val allPolygons: List<Shape> by lazy { cardPolygons + fabPolygons + sheetPolygons }
 
     // ponytail: alias for Theme.kt touch
-    public val allShapes: List<RoundedPolygon> get() = allPolygons
+    public val allShapes: List<Shape> get() = allPolygons
 
     @Composable
-    public fun defaultCardShape(): Shape = sunny.toShape()
+    public fun defaultCardShape(): Shape = sunny
 
     @Composable
-    public fun defaultFabShape(): Shape = flower.toShape()
+    public fun defaultFabShape(): Shape = flower
 
     @Composable
-    public fun defaultSheetShape(): Shape = arch.toShape()
+    public fun defaultSheetShape(): Shape = arch
 }

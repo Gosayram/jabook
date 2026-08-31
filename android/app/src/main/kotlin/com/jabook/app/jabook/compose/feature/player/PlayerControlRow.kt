@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.player
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,15 +32,15 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonGroup
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.designsystem.component.connectedItemShape
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
 
 /**
@@ -48,11 +49,9 @@ import com.jabook.app.jabook.compose.domain.model.SleepTimerState
  * chapter repeat, A-B repeat, stats) lives in overflow.
  * Single row on all sizes; compact uses smaller heights.
  *
- * ponytail: official ButtonGroup expressive — replaces faux Row+connectedItemShape.
- * Flexible weight (1f each) gives adaptive width morph; EnlargeOnPress + expandedRatio 0.15
- * gives adjacent button shrink on press per button-groups/page.md connected variant.
+ * ponytail: ButtonGroup (M3 1.5 alpha) downgraded to stable Row + connectedItemShape + weight(1f)
+ * spacedBy 2.dp faux — add ButtonGroup(expandedRatio=0.15f) when M3 1.5 stable.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun PlayerControlRow(
     isCompact: Boolean,
@@ -75,68 +74,68 @@ internal fun PlayerControlRow(
             is SleepTimerState.EndOfTrack -> stringResource(R.string.endOfTrackLabel)
             SleepTimerState.Idle -> stringResource(R.string.sleepTimer)
         }
-    // ponytail: 2dp connected spacing per button-groups/page.md (ConnectedSpaceBetween)
-    ButtonGroup(
-        modifier = modifier.fillMaxWidth().height(controlButtonHeight),
-        expandedRatio = 0.15f,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    // ponytail: 2dp faux connected spacing — ButtonGroup.ConnectedSpaceBetween when stable
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        // ponytail: customItem preserves hold-to-boost press tracking via passed interactionSource
-        customItem(
-            buttonGroupContent = {
-                Button(
-                    onClick = onSpeedButtonClick,
-                    interactionSource = speedButtonInteractionSource,
-                    modifier = Modifier.weight(1f).animateWidth(speedButtonInteractionSource),
-                    contentPadding = PaddingValues(horizontal = 12.dp),
-                    content = {
-                        Icon(
-                            imageVector = Icons.Filled.Speed,
-                            contentDescription = null,
-                            modifier = Modifier.size(controlButtonIconSize),
-                        )
-                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                        Text(playbackSpeedLabel)
-                    },
-                )
-            },
-            menuContent = {},
-        )
-        clickableItem(
+        Button(
+            onClick = onSpeedButtonClick,
+            interactionSource = speedButtonInteractionSource,
+            shape = connectedItemShape(0, 4),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            modifier = Modifier.weight(1f).height(controlButtonHeight),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Speed,
+                contentDescription = null,
+                modifier = Modifier.size(controlButtonIconSize),
+            )
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(playbackSpeedLabel)
+        }
+        Button(
             onClick = onSleepTimerClick,
-            label = sleepTimerLabel,
-            weight = 1f,
-            icon = {
-                Icon(
-                    imageVector = if (sleepTimerState is SleepTimerState.Idle) Icons.Outlined.Timer else Icons.Filled.Timer,
-                    contentDescription = null,
-                    modifier = Modifier.size(controlButtonIconSize),
-                )
-            },
-        )
-        clickableItem(
+            shape = connectedItemShape(1, 4),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            modifier = Modifier.weight(1f).height(controlButtonHeight),
+        ) {
+            Icon(
+                imageVector = if (sleepTimerState is SleepTimerState.Idle) Icons.Outlined.Timer else Icons.Filled.Timer,
+                contentDescription = null,
+                modifier = Modifier.size(controlButtonIconSize),
+            )
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(sleepTimerLabel)
+        }
+        Button(
             onClick = onChaptersClick,
-            label = stringResource(R.string.chaptersLabel),
-            weight = 1f,
-            icon = {
-                Icon(
-                    imageVector = Icons.Filled.List,
-                    contentDescription = null,
-                    modifier = Modifier.size(controlButtonIconSize),
-                )
-            },
-        )
-        clickableItem(
+            shape = connectedItemShape(2, 4),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            modifier = Modifier.weight(1f).height(controlButtonHeight),
+        ) {
+            Icon(
+                imageVector = Icons.Filled.List,
+                contentDescription = null,
+                modifier = Modifier.size(controlButtonIconSize),
+            )
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(R.string.chaptersLabel))
+        }
+        Button(
             onClick = onBookmarksClick,
-            label = stringResource(R.string.bookmarks),
-            weight = 1f,
-            icon = {
-                Icon(
-                    imageVector = if (bookmarkCount > 0) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                    contentDescription = null,
-                    modifier = Modifier.size(controlButtonIconSize),
-                )
-            },
-        )
+            shape = connectedItemShape(3, 4),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            modifier = Modifier.weight(1f).height(controlButtonHeight),
+        ) {
+            Icon(
+                imageVector = if (bookmarkCount > 0) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                contentDescription = null,
+                modifier = Modifier.size(controlButtonIconSize),
+            )
+            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+            Text(stringResource(R.string.bookmarks))
+        }
     }
 }

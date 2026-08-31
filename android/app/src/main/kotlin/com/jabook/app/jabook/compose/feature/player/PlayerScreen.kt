@@ -812,19 +812,19 @@ public fun PlayerScreen(
                                 },
                     ) {
                         val overlayHazeState = rememberHazeState()
-                        // ponytail: expressive springs via motionScheme — hoisted outside transitionSpec (non-composable)
+                        // ponytail: M3 1.4 fallback — motionScheme not in 1.4, use MotionTokens / tween fallback
                         val spatialSpec =
-                            androidx.compose.material3.MaterialTheme.motionScheme
-                                .defaultSpatialSpec<Float>()
+                            androidx.compose.animation.core
+                                .tween<Float>(durationMillis = 400)
                         val effectsSpec =
-                            androidx.compose.material3.MaterialTheme.motionScheme
-                                .defaultEffectsSpec<Float>()
+                            androidx.compose.animation.core
+                                .tween<Float>(durationMillis = 300)
                         val fastEffectsSpec =
-                            androidx.compose.material3.MaterialTheme.motionScheme
-                                .fastEffectsSpec<Float>()
+                            androidx.compose.animation.core
+                                .tween<Float>(durationMillis = 200)
                         val fastSpatialSpec =
-                            androidx.compose.material3.MaterialTheme.motionScheme
-                                .fastSpatialSpec<Float>()
+                            androidx.compose.animation.core
+                                .tween<Float>(durationMillis = 250)
                         AnimatedContent(
                             targetState = uiState,
                             transitionSpec = {
@@ -1728,10 +1728,12 @@ private fun PlayerContent(
     // Dynamic Theme Background with Glassmorphism Effect
     // Background is now handled by PremiumPlayerBackground wrapping this content
     val themeColors = state.themeColors
-    // ponytail: palette uses expressive effects spring; MotionTokens fallback for shimmer/rotation infinite
+    // ponytail: M3 1.4 fallback — motionScheme not in 1.4
     val animatedPrimary by animateColorAsState(
         targetValue = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        animationSpec =
+            androidx.compose.animation.core
+                .tween(durationMillis = 300),
         label = "playerPalettePrimary",
     )
     val contrastBackground = themeColors?.surfaceColor ?: MaterialTheme.colorScheme.surface

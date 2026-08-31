@@ -14,32 +14,37 @@
 
 package com.jabook.app.jabook.compose.designsystem.component
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingActionButtonMenu
-import androidx.compose.material3.FloatingActionButtonMenuItem
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.unit.dp
 
 /**
- * M3 Expressive FAB Menu — 2-6 items, 56dp close, medium button items, 4dp gap.
- * Wraps official FloatingActionButtonMenu (M3 1.5.0-alpha19) with fallback semantics.
- * Enter/exit from trailing corner; primary/sec/tert via [containerColor] caller scope.
- * // ponytail: official component when available, faux Row fallback never shipped — minimal wrapper.
+ * FAB Menu fallback — AnimatedVisibility + Column (standard library), 56dp close via FloatingActionButton.
+ * ponytail: M3 1.5 FloatingActionButtonMenu (alpha) downgraded to stable; restore official when M3 1.5 stable.
+ * 2-6 items, 4dp gap, enter/exit from trailing corner emulated via fade+expand.
  */
 public data class JabookFabMenuItem(
     val icon: ImageVector,
@@ -48,7 +53,6 @@ public data class JabookFabMenuItem(
     val onClick: () -> Unit,
 )
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 public fun JabookFabMenu(
     expanded: Boolean,
@@ -59,52 +63,63 @@ public fun JabookFabMenu(
     fabContentDescription: String = "Toggle menu",
 ) {
     require(items.size in 2..6) { "FAB Menu requires 2-6 items, got ${items.size}" }
-    // ponytail: medium spec = 56dp close morph handled by ToggleFloatingActionButton internals
-    FloatingActionButtonMenu(
-        expanded = expanded,
-        modifier = modifier,
-        horizontalAlignment = horizontalAlignment,
-        button = {
-            ToggleFloatingActionButton(
-                modifier =
-                    Modifier.semantics {
-                        traversalIndex = -1f
-                        stateDescription = if (expanded) "Expanded" else "Collapsed"
-                        contentDescription = fabContentDescription
-                    },
-                checked = expanded,
-                onCheckedChange = onExpandedChange,
+    // ponytail: stable Column + AnimatedVisibility; ToggleFloatingActionButton replaced by standard FAB (56dp)
+    Box(modifier = modifier) {
+        Column(
+            horizontalAlignment = horizontalAlignment,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            AnimatedVisibility(
+                visible = expanded,
+                enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+                exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom),
             ) {
-                val imageVector by remember {
-                    androidx.compose.runtime.derivedStateOf {
-                        if (checkedProgress > 0.5f) Icons.Filled.Close else Icons.Filled.Add
+                Column(
+                    horizontalAlignment = horizontalAlignment,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items.forEach { item ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            // ponytail: ExtendedFAB for label; SmallFAB for icon — mimics FloatingActionButtonMenuItem
+                            ExtendedFloatingActionButton(
+                                onClick = {
+                                    item.onClick()
+                                    onExpandedChange(false)
+                                },
+                                icon = { Icon(item.icon, contentDescription = null) },
+                                text = { Text(item.label) },
+                            )
+                        }
                     }
                 }
+            }
+            // ponytail: 56dp close — standard FloatingActionButton is 56dp; keep semantics from alpha wrapper
+            FloatingActionButton(
+                onClick = { onExpandedChange(!expanded) },
+                modifier =
+                    Modifier
+                        .size(56.dp)
+                        .semantics {
+                            traversalIndex = -1f
+                            stateDescription = if (expanded) "Expanded" else "Collapsed"
+                            contentDescription = fabContentDescription
+                        }.align(horizontalAlignment.toColumnAlign()),
+            ) {
                 Icon(
-                    painter = rememberVectorPainter(imageVector),
+                    imageVector = if (expanded) Icons.Filled.Close else Icons.Filled.Add,
                     contentDescription = null,
-                    modifier = Modifier.animateIcon({ checkedProgress }),
                 )
             }
-        },
-    ) {
-        items.forEach { item ->
-            FloatingActionButtonMenuItem(
-                onClick = {
-                    item.onClick()
-                    onExpandedChange(false)
-                },
-                icon = { Icon(item.icon, contentDescription = null) },
-                text = { androidx.compose.material3.Text(item.label) },
-            )
         }
     }
 }
 
-// ponytail: shared helper — animateIcon helper reuses checkedProgress scope
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun Modifier.animateIcon(checkedProgressProvider: () -> Float): Modifier {
-    val progress by animateFloatAsState(targetValue = checkedProgressProvider(), label = "fab_icon")
-    return this
-}
+private fun Alignment.Horizontal.toColumnAlign(): Alignment.Horizontal =
+    when (this) {
+        Alignment.Start -> Alignment.Start
+        Alignment.CenterHorizontally -> Alignment.CenterHorizontally
+        else -> Alignment.End
+    }

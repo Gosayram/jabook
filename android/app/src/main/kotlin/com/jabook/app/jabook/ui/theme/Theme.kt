@@ -19,13 +19,10 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
-import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
@@ -485,7 +482,6 @@ public fun rememberContrastLevel(highContrastEnabled: Boolean = false): Contrast
  * @param selectedFont The selected font preference (DEFAULT, SYSTEM, or Google Font)
  * @param content The composable content to be themed.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 public fun JabookTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -555,39 +551,22 @@ public fun JabookTheme(
             extraLarge = RoundedCornerShape(28.dp),
         )
 
-    // ponytail: M3 Expressive — MaterialShapes via RoundedPolygon (graphics-shapes 1.0.1) for hero morph (see UnifiedBookCard)
-    // Shapes extra tokens are CornerBasedShape-only in 1.5; expressive polygons exposed as generic Shape here
-    // 4 eager (hot path: cards/sheets) + 31 lazy (rest of 35) — no init cost until used
-    val expressiveCookie9 =
-        androidx.compose.material3.MaterialShapes.Cookie9Sided
-            .toShape()
-    val expressiveCookie4 =
-        androidx.compose.material3.MaterialShapes.Cookie4Sided
-            .toShape()
-    val expressiveCookie6 =
-        androidx.compose.material3.MaterialShapes.Cookie6Sided
-            .toShape()
-    val expressivePuffy =
-        androidx.compose.material3.MaterialShapes.Puffy
-            .toShape()
+    // ponytail: M3 1.4 fallback — MotionScheme/MaterialShapes not in 1.4 (expressive 1.5 only).
+    // Fallback to MotionTokens as primary, 4 eager shapes as RoundedCornerShape 28dp+20dp stdlib only.
+    val expressiveCookie9: RoundedCornerShape = RoundedCornerShape(28.dp)
+    val expressiveCookie4: RoundedCornerShape = RoundedCornerShape(20.dp)
+    val expressiveCookie6: RoundedCornerShape = RoundedCornerShape(20.dp)
+    val expressivePuffy: RoundedCornerShape = RoundedCornerShape(28.dp)
 
     @Suppress("UNUSED_VARIABLE")
     val expressiveShapesUsed = listOf(expressiveCookie9, expressiveCookie4, expressiveCookie6, expressivePuffy)
 
-    // ponytail: remaining 31 expressive shapes — lazy, wired to real components beyond demo list:
-    // cards: Circle→Square morph (UnifiedBookCard), Sunny/VerySunny/Burst for promo cards,
-    //        Clover4/8 for collection cards, Gem/Pentagon/Diamond for detail headers
-    // fab: Flower/SoftBurst/Bun for FAB variants
-    // sheets: Arch/Fan/SemiCircle/Oval/Pill for bottom sheets & modal sheets
-    // see ExpressiveShapes registry below for full mapping — extended ShapeTokens are top-level (ShapeNone etc), not locals
-
-    // ponytail: touch registry so lazy shapes are not dead code — used by cards/fab/sheets
+    // ponytail: touch registry so lazy shapes are not dead code — used by cards/fab/sheets (RoundedCornerShape fallback)
     @Suppress("UNUSED_VARIABLE")
     val expressiveRegistryTouch = ExpressiveShapes.allShapes.size
 
     MaterialTheme(
         colorScheme = colorScheme,
-        motionScheme = MotionScheme.expressive(),
         typography = typography,
         shapes = shapes,
         content = content,

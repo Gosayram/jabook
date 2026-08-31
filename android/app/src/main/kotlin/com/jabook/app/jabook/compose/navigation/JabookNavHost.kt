@@ -14,7 +14,6 @@
 
 package com.jabook.app.jabook.compose.navigation
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -72,8 +71,10 @@ public fun JabookNavHost(
         }
     }
 
-    // ponytail: expressive motionScheme specs hoisted (enter/exit lambdas are non-composable)
-    val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    // ponytail: M3 1.4 fallback — motionScheme not in 1.4, use MotionTokens tween
+    val fastEffects =
+        androidx.compose.animation.core
+            .tween<Float>(durationMillis = MotionTokens.SHORT2)
 
     NavHost(
         navController = navController,

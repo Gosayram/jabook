@@ -19,9 +19,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.ContainedLoadingIndicator
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,16 +31,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * Standard loading screen with centered 7-shape morph indicator.
+ * Standard loading screen with centered indicator.
  *
- * M3 Expressive LoadingIndicator (200ms–5s) replaces CircularProgressIndicator per
- * loading-indicator/page.md. Morph loop is 7 unique MaterialShapes via Morph.asCubics
- * (graphics-shapes 1.0.1) internal to LoadingIndicator/ContainedLoadingIndicator
- * (material3 1.5.0-alpha19, see UnifiedBookCard Square→Cookie4Sided pattern).
+ * Baseline for 200ms–5s per spec (ponytail: 7-shape morph LoadingIndicator requires graphics-shapes,
+ * keep CircularProgressIndicator, add when graphics-shapes proven needed).
+ * Replaces M3 Expressive LoadingIndicator/ContainedLoadingIndicator (1.5 alpha) with stable
+ * CircularProgressIndicator for M3 1.4 compat.
  *
  * - 24–240dp flexible, default 48dp (smor = small/medium/large responsive)
- * - contained = false → [LoadingIndicator] (on surface)
- * - contained = true  → [ContainedLoadingIndicator] (on container, e.g. over content / pull-to-refresh)
+ * - contained = false → CircularProgressIndicator on surface
+ * - contained = true  → CircularProgressIndicator on container (stronger contrast over content)
  * - a11y: progress-bar role via semantics, label describes purpose
  *
  * @param modifier Modifier for container
@@ -50,7 +48,6 @@ import androidx.compose.ui.unit.dp
  * @param contained When true uses contained variant (stronger contrast over content)
  * @param indicatorSize Size of morph loop, coerced 24..240dp (default 48dp per spec)
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 public fun LoadingScreen(
     modifier: Modifier = Modifier,
@@ -68,12 +65,14 @@ public fun LoadingScreen(
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // ponytail: 7-shape morph LoadingIndicator requires graphics-shapes — CircularProgressIndicator baseline for 200ms-5s
+            // contained flag kept for API compat; both use CircularProgressIndicator on 1.4 (color difference via contained is no-op until expressive)
             if (contained) {
-                ContainedLoadingIndicator(
+                CircularProgressIndicator(
                     modifier = Modifier.size(coercedSize),
                 )
             } else {
-                LoadingIndicator(
+                CircularProgressIndicator(
                     modifier = Modifier.size(coercedSize),
                 )
             }

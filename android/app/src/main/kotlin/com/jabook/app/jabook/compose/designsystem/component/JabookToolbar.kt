@@ -14,21 +14,24 @@
 
 package com.jabook.app.jabook.compose.designsystem.component
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
- * M3 Expressive toolbars — floating (H 16dp V 24dp) collapses to FAB, docked 64dp full-width 16dp pad.
- * Wraps official HorizontalFloatingToolbar (alpha19). Fallback faux Row not needed — official stable.
- * // ponytail: thin wrappers; caller controls expanded via scroll behavior or manual toggle.
+ * M3 toolbar fallbacks — Surface + Row spacedBy 16dp + CircleShape pill.
+ * ponytail: M3 1.5 HorizontalFloatingToolbar (alpha) downgraded to stable Surface+Row;
+ * restore HorizontalFloatingToolbar when M3 1.5 stable. Expanded is kept for API compat.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 public fun JabookFloatingToolbar(
     expanded: Boolean,
@@ -37,16 +40,26 @@ public fun JabookFloatingToolbar(
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    HorizontalFloatingToolbar(
-        expanded = expanded,
+    // ponytail: expanded kept for API compat — stable fallback always shows pill; collapse not emulated
+    Surface(
         modifier = modifier.padding(horizontal = 16.dp, vertical = 24.dp),
-        leadingContent = leadingContent,
-        trailingContent = trailingContent,
-        content = content,
-    )
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 3.dp,
+        shadowElevation = 3.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (leadingContent != null) leadingContent()
+            content()
+            if (trailingContent != null) trailingContent()
+        }
+    }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 public fun JabookDockedToolbar(
     modifier: Modifier = Modifier,
@@ -54,24 +67,30 @@ public fun JabookDockedToolbar(
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    // ponytail: docked = floating toolbar always-expanded full-width 64dp, 16dp pad
-    HorizontalFloatingToolbar(
-        expanded = true,
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-        leadingContent = leadingContent,
-        trailingContent = trailingContent,
-        content = content,
-    )
+    // ponytail: docked = pill full-width 16dp pad
+    Surface(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        tonalElevation = 3.dp,
+        shadowElevation = 3.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (leadingContent != null) leadingContent()
+            content()
+            if (trailingContent != null) trailingContent()
+        }
+    }
 }
 
 /**
  * Player context toolbar — replaces overflow bottom sheet for quick actions.
  * Host should manage [expanded] via scroll or manual; collapsed state hides to FAB-like affordance.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 public fun JabookPlayerFloatingToolbar(
     expanded: Boolean,
@@ -79,10 +98,10 @@ public fun JabookPlayerFloatingToolbar(
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit,
 ) {
-    // ponytail: single variant; floatingActionButton overload not used — keep API minimal until H toolbar+Fab needed
-    HorizontalFloatingToolbar(
+    // ponytail: floatingActionButton overload not used — keep minimal until stable
+    JabookFloatingToolbar(
         expanded = expanded,
-        modifier = modifier.padding(horizontal = 16.dp, vertical = 24.dp),
+        modifier = modifier,
         content = content,
     )
 }

@@ -58,10 +58,12 @@ public fun PremiumPlayerBackground(
                 listOf(colors.containerColor, colors.surfaceColor)
             }
         } ?: emptyList()
-    // ponytail: palette uses expressive effects spring; MotionTokens still used for shimmer/rotation infinite
+    // ponytail: M3 1.4 fallback — motionScheme not in 1.4
     val animatedPrimary by animateColorAsState(
         targetValue = themeColors?.primaryColor ?: Color.Transparent,
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
+        animationSpec =
+            androidx.compose.animation.core
+                .tween(durationMillis = 300),
         label = "palettePrimary",
     )
     val backgroundColors =

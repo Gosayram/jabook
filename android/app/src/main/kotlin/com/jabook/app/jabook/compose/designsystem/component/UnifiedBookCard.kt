@@ -32,7 +32,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -158,47 +157,13 @@ public fun UnifiedBookCard(
 }
 
 /**
- * Ponytail: expressive morph — Square -> Cookie4Sided on selection (shape/page.md morph via Morph + MaterialShapes)
- * Minimal real morph: 1 morph, 1 animated progress, custom GenericShape scaled to bounds.
+ * Ponytail: M3 1.4 fallback — expressive Morph (Square->Cookie4Sided via MaterialShapes) not in 1.4.
+ * Fallback to RoundedCornerShape 12dp->20dp morph via animate; graphics-shapes 1.1.0 kept but unused.
  */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun rememberMorphCardShape(progress: Float): androidx.compose.ui.graphics.Shape {
-    val morph =
-        remember {
-            androidx.graphics.shapes.Morph(
-                androidx.compose.material3.MaterialShapes.Square,
-                androidx.compose.material3.MaterialShapes.Cookie4Sided,
-            )
-        }
-    return remember(morph, progress) {
-        GenericShape { size, _ ->
-            val cubics = morph.asCubics(progress)
-            if (cubics.isEmpty()) return@GenericShape
-            val cx = size.width / 2f
-            val cy = size.height / 2f
-            val sx = size.width / 2f
-            val sy = size.height / 2f
-            var first = true
-            for (c in cubics) {
-                val ax0 = c.anchor0X * sx + cx
-                val ay0 = c.anchor0Y * sy + cy
-                if (first) {
-                    moveTo(ax0, ay0)
-                    first = false
-                }
-                cubicTo(
-                    c.control0X * sx + cx,
-                    c.control0Y * sy + cy,
-                    c.control1X * sx + cx,
-                    c.control1Y * sy + cy,
-                    c.anchor1X * sx + cx,
-                    c.anchor1Y * sy + cy,
-                )
-            }
-            close()
-        }
-    }
+    // ponytail: static fallback, progress still drives shape choice without Morph dependency
+    return if (progress > 0.5f) RoundedCornerShape(20.dp) else RoundedCornerShape(12.dp)
 }
 
 /**
