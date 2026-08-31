@@ -321,11 +321,14 @@ public fun SquigglySlider(
                     } else {
                         path.moveTo(0f, centerY)
                     }
+                    val transitionLength = wavelengthPx * 1.5f // ponytail: 1.5λ fade, hidden by thumb
                     val step = 5f
                     var x = 0f
                     while (x <= activeWidth) {
                         val relX = x / wavelengthPx
-                        val yOffset = amplitudePx * sin(2 * Math.PI * (relX - phase)).toFloat()
+                        // ponytail: Gramophone lerpInvSat(activeWidth+len/2, activeWidth-len/2, x)
+                        val coeff = ((activeWidth + transitionLength / 2 - x) / transitionLength).coerceIn(0f, 1f)
+                        val yOffset = amplitudePx * coeff * sin(2 * Math.PI * (relX - phase)).toFloat()
                         val drawX = if (isRtl) width - activeWidth + x else x
                         path.lineTo(drawX, centerY + yOffset)
                         x += step

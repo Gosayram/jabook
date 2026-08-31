@@ -72,6 +72,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -115,6 +116,9 @@ import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.data.network.MirrorHealth
 import com.jabook.app.jabook.compose.data.permissions.PersistedTreeUriPermissionGuard
+import com.jabook.app.jabook.compose.designsystem.component.endItemShape
+import com.jabook.app.jabook.compose.designsystem.component.leadingItemShape
+import com.jabook.app.jabook.compose.designsystem.component.middleItemShape
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.feature.library.ListeningHeatmap
 import com.jabook.app.jabook.compose.feature.library.ProductivePeriod
@@ -719,85 +723,76 @@ public fun SettingsScreen(
                 itemSpacing = itemSpacing,
             )
 
-            // Scan Progress
+            // Library Section — ponytail: connected shapes demo (Grit ListItemExt: leading 16/4, middle 4, end 4/16)
             val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
-            SettingsItemWithContent(
-                title = stringResource(R.string.scan_library),
-                subtitle =
-                    when (val p = scanProgress) {
-                        is ScanProgress.Idle -> stringResource(R.string.tap_to_scan_now)
-                        is ScanProgress.Discovery -> stringResource(R.string.scan_status_discovery, p.fileCount)
-                        is ScanProgress.Parsing ->
-                            stringResource(
-                                R.string.scan_status_parsing,
-                                p.currentBook,
-                                p.progress,
-                                p.total,
-                            )
-                        is ScanProgress.Saving -> stringResource(R.string.scan_status_saving)
-                        is ScanProgress.Completed ->
-                            pluralStringResource(
-                                R.plurals.scan_status_complete_plural,
-                                p.booksAdded,
-                                p.booksAdded,
-                            )
-                        is ScanProgress.Error -> stringResource(R.string.scan_status_error, p.message)
-                    },
-                onClick =
-                    if (scanProgress is ScanProgress.Idle ||
-                        scanProgress is ScanProgress.Completed ||
-                        scanProgress is ScanProgress.Error
-                    ) {
-                        { viewModel.scanLibrary() }
-                    } else {
-                        null
-                    },
+            Column(
+                modifier = Modifier.padding(horizontal = contentPadding),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                // Show progress bar for active states
-                // Show progress bar for active states
-                if (scanProgress is ScanProgress.Discovery ||
-                    scanProgress is ScanProgress.Parsing ||
-                    scanProgress is ScanProgress.Saving
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        androidx.compose.material3.LinearProgressIndicator(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                        )
-                        androidx.compose.foundation.layout.Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                        ) {
-                            androidx.compose.material3.OutlinedButton(
-                                onClick = { viewModel.cancelScan() },
-                                modifier = Modifier.padding(top = 8.dp),
+                Surface(shape = leadingItemShape(), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    SettingsItemWithContent(
+                        title = stringResource(R.string.scan_library),
+                        subtitle =
+                            when (val p = scanProgress) {
+                                is ScanProgress.Idle -> stringResource(R.string.tap_to_scan_now)
+                                is ScanProgress.Discovery -> stringResource(R.string.scan_status_discovery, p.fileCount)
+                                is ScanProgress.Parsing -> stringResource(R.string.scan_status_parsing, p.currentBook, p.progress, p.total)
+                                is ScanProgress.Saving -> stringResource(R.string.scan_status_saving)
+                                is ScanProgress.Completed ->
+                                    pluralStringResource(
+                                        R.plurals.scan_status_complete_plural,
+                                        p.booksAdded,
+                                        p.booksAdded,
+                                    )
+                                is ScanProgress.Error -> stringResource(R.string.scan_status_error, p.message)
+                            },
+                        onClick =
+                            if (scanProgress is ScanProgress.Idle ||
+                                scanProgress is ScanProgress.Completed ||
+                                scanProgress is ScanProgress.Error
                             ) {
-                                Text(stringResource(R.string.cancel))
+                                { viewModel.scanLibrary() }
+                            } else {
+                                null
+                            },
+                    ) {
+                        if (scanProgress is ScanProgress.Discovery ||
+                            scanProgress is ScanProgress.Parsing ||
+                            scanProgress is ScanProgress.Saving
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                    androidx.compose.material3.OutlinedButton(
+                                        onClick = { viewModel.cancelScan() },
+                                        modifier = Modifier.padding(top = 8.dp),
+                                    ) {
+                                        Text(stringResource(R.string.cancel))
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                Surface(shape = middleItemShape(), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    SettingsItem(
+                        title = stringResource(R.string.libraryFoldersTitle),
+                        subtitle = stringResource(R.string.manageFoldersToScanForAudiobooks),
+                        onClick = { safeNavigateToScanSettings() },
+                    )
+                }
+                Surface(shape = endItemShape(), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.normalizeChapterTitles),
+                        subtitle = stringResource(R.string.normalizeChapterTitlesDesc),
+                        checked = userPreferences?.normalizeChapterTitles ?: false,
+                        onCheckedChange = { viewModel.updateNormalizeChapterTitles(it) },
+                        contentPadding = contentPadding,
+                        itemSpacing = itemSpacing,
+                        smallSpacing = smallSpacing,
+                    )
+                }
             }
-
-            // Library Folders
-            SettingsItem(
-                title = stringResource(R.string.libraryFoldersTitle),
-                subtitle = stringResource(R.string.manageFoldersToScanForAudiobooks),
-                onClick = { safeNavigateToScanSettings() },
-            )
-
-            // Chapter Normalization Toggle
-            SettingsSwitchItem(
-                title = stringResource(R.string.normalizeChapterTitles),
-                subtitle = stringResource(R.string.normalizeChapterTitlesDesc),
-                checked = userPreferences?.normalizeChapterTitles ?: false,
-                onCheckedChange = { viewModel.updateNormalizeChapterTitles(it) },
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-                smallSpacing = smallSpacing,
-            )
 
             weeklyRecap?.let { recap ->
                 HorizontalDivider()

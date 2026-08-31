@@ -19,6 +19,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.os.Handler
 import android.os.Looper
+import android.view.animation.PathInterpolator
 import androidx.media3.common.Player
 import com.jabook.app.jabook.util.LogUtils
 import javax.inject.Inject
@@ -101,6 +102,7 @@ public class AudioFader
             val animator =
                 ValueAnimator.ofFloat(0f, 1f).apply {
                     duration = fadeDurationMs
+                    interpolator = PathInterpolator(0.4f, 0f, 0.2f, 1f)
                     addUpdateListener { animation ->
                         val volume = animation.animatedValue as Float
                         player.volume = volume
@@ -147,6 +149,7 @@ public class AudioFader
             val animator =
                 ValueAnimator.ofFloat(startVolume, 0f).apply {
                     duration = fadeDurationMs
+                    interpolator = PathInterpolator(0.4f, 0f, 0.2f, 1f)
                     addUpdateListener { animation ->
                         val volume = animation.animatedValue as Float
                         player.volume = volume
