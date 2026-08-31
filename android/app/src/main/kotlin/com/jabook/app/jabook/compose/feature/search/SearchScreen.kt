@@ -314,7 +314,7 @@ public fun SearchScreen(
                                 colors =
                                     TopAppBarDefaults.topAppBarColors(
                                         containerColor = Color.Transparent,
-                                        scrolledContainerColor = Color.Transparent,
+                                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                                     ),
                             )
                         },

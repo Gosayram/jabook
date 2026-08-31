@@ -105,9 +105,10 @@ internal class HoldToBoostController(
         val currentSpeed = player.playbackParameters.speed
         policy.onPress(currentSpeed)
         // ponytail: system UI path — 3.0× override visible in PlaybackSpeedState
-        state.temporarilyOverrideSpeedWith(HoldToBoostPolicy.DEFAULT_BOOST_SPEED)
+        // ponytail fallback: if player null, caller (PlayerSpeedHandler) uses SetPlaybackSpeed intent
+        state.temporarilyOverrideSpeedWith(policy.boostSpeed)
         rampJob?.cancel()
-        rampJob = scope.launch { animateSpeed(from = currentSpeed, to = HoldToBoostPolicy.DEFAULT_BOOST_SPEED, durationMs = rampUpMs) }
+        rampJob = scope.launch { animateSpeed(from = currentSpeed, to = policy.boostSpeed, durationMs = rampUpMs) }
     }
 
     fun onHoldEndWithState(
@@ -120,6 +121,9 @@ internal class HoldToBoostController(
         rampJob?.cancel()
         rampJob = scope.launch { animateSpeed(from = currentSpeed, to = restoreSpeed, durationMs = rampDownMs) }
     }
+
+    // ponytail: exposed for PlayerSpeedHandler fallback check
+    public fun currentBoostSpeed(): Float = policy.boostSpeed
 
     private suspend fun animateSpeed(
         from: Float,

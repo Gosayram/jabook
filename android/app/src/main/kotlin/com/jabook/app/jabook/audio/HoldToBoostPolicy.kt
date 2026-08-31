@@ -30,7 +30,7 @@ package com.jabook.app.jabook.audio
  * Player.setPlaybackSpeed via state.updatePlaybackSpeed for persistent changes.
  */
 public class HoldToBoostPolicy(
-    private val boostSpeed: Float = DEFAULT_BOOST_SPEED,
+    public val boostSpeed: Float = DEFAULT_BOOST_SPEED,
 ) {
     init {
         require(boostSpeed > 0f) { "boostSpeed must be positive, got $boostSpeed" }
@@ -80,8 +80,11 @@ public class HoldToBoostPolicy(
      * Long-press FF in system UI calls temporarilyOverrideSpeedWith; release calls restore.
      */
     public fun bindToPlaybackSpeedState(state: androidx.media3.ui.compose.state.PlaybackSpeedState) {
-        // No-op holder: callers should invoke state.temporarilyOverrideSpeedWith / restore directly.
-        // Kept for discoverability so PlayerSpeedHandler can import the bridge without reflection.
+        state.temporarilyOverrideSpeedWith(boostSpeed)
+    }
+
+    public fun restorePlaybackSpeedState(state: androidx.media3.ui.compose.state.PlaybackSpeedState) {
+        state.restoreOverriddenSpeed()
     }
 
     public companion object {

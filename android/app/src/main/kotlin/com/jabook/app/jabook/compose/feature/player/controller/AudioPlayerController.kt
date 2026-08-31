@@ -1223,6 +1223,14 @@ public class AudioPlayerController
             }
         }
 
+        // ponytail: exposed for Compose rememberPlaybackSpeedState(player) — fallback null if not yet connected
+        public fun getPlayer(): Player? =
+            try {
+                mediaController ?: exoPlayer
+            } catch (_: Exception) {
+                null
+            }
+
         public fun setRepeatMode(repeatMode: Int) {
             executeOrQueue(
                 commandName = "setRepeatMode",

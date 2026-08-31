@@ -106,6 +106,7 @@ import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -323,6 +324,9 @@ public fun LibraryScreen(
             )
         }
 
+    // Subtitle count for app bar — ponytail: MediumFlexibleTopAppBar internal in M3 1.4.0; title Column provides subtitle without flexible collapse, upgrade to M3 1.5 when flexible public
+    val libraryTotalCount = (uiState as? LibraryUiState.Success)?.books?.size
+
     Box(
         modifier =
             modifier
@@ -343,16 +347,32 @@ public fun LibraryScreen(
             // NavigationSuiteScaffold does not consume status-bar insets on this branch; the TopAppBar
             // applies statusBars insets itself (windowInsets below), so they are zeroed here to
             // prevent double inset padding.
+            val compactScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
             Scaffold(
+                modifier = Modifier.nestedScroll(compactScrollBehavior.nestedScrollConnection).fillMaxSize(),
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 topBar = {
                     TopAppBar(
                         title = {
-                            Text(
-                                text = stringResource(R.string.libraryTitle),
-                                style = MaterialTheme.typography.headlineSmall,
-                            )
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.libraryTitle),
+                                    style = MaterialTheme.typography.headlineSmall,
+                                )
+                                if (libraryTotalCount != null) {
+                                    Text(
+                                        text =
+                                            pluralStringResource(
+                                                R.plurals.booksCount,
+                                                libraryTotalCount,
+                                                libraryTotalCount,
+                                            ),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                         },
                         navigationIcon = {
                             IconButton(onClick = onMenuClick) {
@@ -363,10 +383,11 @@ public fun LibraryScreen(
                             }
                         },
                         windowInsets = WindowInsets.statusBars,
+                        scrollBehavior = compactScrollBehavior,
                         colors =
                             TopAppBarDefaults.topAppBarColors(
                                 containerColor = Color.Transparent,
-                                scrolledContainerColor = Color.Transparent,
+                                scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                             ),
                         actions = {
                             IconButton(onClick = safeNavigateToSearch) {
@@ -534,7 +555,6 @@ public fun LibraryScreen(
                         },
                     )
                 },
-                modifier = Modifier.fillMaxSize(),
             ) { padding ->
                 val isRefreshing = scanState is ScanState.Scanning
                 val pullToRefreshState = rememberPullToRefreshState()
@@ -734,15 +754,31 @@ public fun LibraryScreen(
                 listPane = {
                     AnimatedPane {
                         // List pane content - book library
+                        val listPaneScrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
                         Scaffold(
+                            modifier = Modifier.nestedScroll(listPaneScrollBehavior.nestedScrollConnection),
                             containerColor = Color.Transparent,
                             topBar = {
                                 TopAppBar(
                                     title = {
-                                        Text(
-                                            text = stringResource(R.string.libraryTitle),
-                                            style = MaterialTheme.typography.headlineSmall,
-                                        )
+                                        Column {
+                                            Text(
+                                                text = stringResource(R.string.libraryTitle),
+                                                style = MaterialTheme.typography.headlineSmall,
+                                            )
+                                            if (libraryTotalCount != null) {
+                                                Text(
+                                                    text =
+                                                        pluralStringResource(
+                                                            R.plurals.booksCount,
+                                                            libraryTotalCount,
+                                                            libraryTotalCount,
+                                                        ),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+                                        }
                                     },
                                     navigationIcon = {
                                         IconButton(onClick = onMenuClick) {
@@ -752,10 +788,11 @@ public fun LibraryScreen(
                                             )
                                         }
                                     },
+                                    scrollBehavior = listPaneScrollBehavior,
                                     colors =
                                         TopAppBarDefaults.topAppBarColors(
                                             containerColor = Color.Transparent,
-                                            scrolledContainerColor = Color.Transparent,
+                                            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                                         ),
                                     actions = {
                                         IconButton(onClick = safeNavigateToSearch) {

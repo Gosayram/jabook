@@ -236,6 +236,11 @@ public fun PlayerScreen(
     val seekbarWaveformData = if (waveformReady) seekbarWaveformDataRaw else emptyWaveform
     val reduceMotion = rememberReduceMotion()
     val hapticFeedback = LocalHapticFeedback.current
+    // ponytail: Media3 1.11 PlaybackSpeedState — system UI slider reflects 3× boost via temporarilyOverride
+    val playerForSpeedState = viewModel.getPlayerForPlaybackSpeedState()
+    val playbackSpeedState =
+        androidx.media3.ui.compose.state
+            .rememberPlaybackSpeedState(playerForSpeedState)
 
     val navigationClickGuard = remember { NavigationClickGuard() }
 
@@ -955,10 +960,11 @@ public fun PlayerScreen(
                                             },
                                             onHoldToBoostStart = {
                                                 HapticManager.performLongPress(hapticFeedback)
-                                                viewModel.startHoldToBoost(playbackSpeed)
+                                                // ponytail fallback: if player null, ViewModel uses SetPlaybackSpeed intent
+                                                viewModel.startHoldToBoost(playbackSpeed, playbackSpeedState)
                                             },
                                             onHoldToBoostEnd = {
-                                                viewModel.endHoldToBoost()
+                                                viewModel.endHoldToBoost(playbackSpeedState)
                                             },
                                             onAudioSettingsClick = { showAudioSettingsSheet = true },
                                             onSleepTimerClick = {

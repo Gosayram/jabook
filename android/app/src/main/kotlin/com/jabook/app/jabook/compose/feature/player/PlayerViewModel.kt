@@ -552,13 +552,19 @@ public class PlayerViewModel
             speedHandler.applyPlaybackSpeed(speed = speed, rememberForBook = !isTemporary)
         }
 
-        public fun startHoldToBoost(currentPlaybackSpeed: Float) {
-            speedHandler.startHoldToBoost(currentPlaybackSpeed)
+        public fun startHoldToBoost(
+            currentPlaybackSpeed: Float,
+            speedState: androidx.media3.ui.compose.state.PlaybackSpeedState? = null,
+        ) {
+            speedHandler.startHoldToBoost(currentPlaybackSpeed, speedState)
         }
 
-        public fun endHoldToBoost() {
-            speedHandler.endHoldToBoost()
+        public fun endHoldToBoost(speedState: androidx.media3.ui.compose.state.PlaybackSpeedState? = null) {
+            speedHandler.endHoldToBoost(speedState)
         }
+
+        // ponytail: Compose calls rememberPlaybackSpeedState(player); null fallback keeps intent path
+        public fun getPlayerForPlaybackSpeedState(): androidx.media3.common.Player? = playerController.getPlayer()
 
         public fun setPitchCorrectionEnabled(enabled: Boolean) {
             playerController.setPitchCorrectionEnabled(enabled)

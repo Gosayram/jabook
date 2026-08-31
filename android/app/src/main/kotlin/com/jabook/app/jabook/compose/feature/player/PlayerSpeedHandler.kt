@@ -109,14 +109,28 @@ internal class PlayerSpeedHandler(
         }
     }
 
-    fun startHoldToBoost(currentPlaybackSpeed: Float) {
+    fun startHoldToBoost(
+        currentPlaybackSpeed: Float,
+        speedState: androidx.media3.ui.compose.state.PlaybackSpeedState? = null,
+    ) {
+        // ponytail: Media3 1.11 system UI path — state drives slider at 3×; fallback to intent when player null
+        if (speedState != null) {
+            holdToBoostPolicy.onPress(currentPlaybackSpeed)
+            speedState.temporarilyOverrideSpeedWith(holdToBoostPolicy.boostSpeed)
+            return
+        }
         val boostedSpeed = holdToBoostPolicy.onPress(currentPlaybackSpeed)
         // isTemporary routes the speed through the player without the speed-memory
         // recording path: a long hold must not persist the boost as a preference.
         dispatchIntent(PlayerIntent.SetPlaybackSpeed(boostedSpeed, isTemporary = true))
     }
 
-    fun endHoldToBoost() {
+    fun endHoldToBoost(speedState: androidx.media3.ui.compose.state.PlaybackSpeedState? = null) {
+        if (speedState != null) {
+            holdToBoostPolicy.onRelease()
+            speedState.restoreOverriddenSpeed()
+            return
+        }
         val restoreSpeed = holdToBoostPolicy.onRelease() ?: return
         dispatchIntent(PlayerIntent.SetPlaybackSpeed(restoreSpeed, isTemporary = true))
     }
