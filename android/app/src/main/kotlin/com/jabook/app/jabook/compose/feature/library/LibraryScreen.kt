@@ -55,6 +55,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material3.DockedSearchBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -944,7 +945,8 @@ public fun LibraryScreen(
                                                     modifier = Modifier.weight(1f).fillMaxWidth(),
                                                 )
                                             } else {
-                                                SearchBar(
+                                                // M3 spec: compact=full-screen SearchBar, expanded=docked 360-720 with scrim over content
+                                                DockedSearchBar(
                                                     inputField = {
                                                         SearchBarDefaults.InputField(
                                                             query = searchQuery,
@@ -976,6 +978,7 @@ public fun LibraryScreen(
                                                     modifier =
                                                         Modifier
                                                             .fillMaxWidth()
+                                                            .widthIn(min = 360.dp, max = 720.dp)
                                                             .padding(horizontal = 16.dp)
                                                             .padding(top = 8.dp, bottom = 8.dp),
                                                 ) {}

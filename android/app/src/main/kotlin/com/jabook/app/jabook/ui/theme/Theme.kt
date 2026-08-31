@@ -288,6 +288,13 @@ private val AmoledDarkColorScheme =
                 .Color(0xFF222222),
     )
 
+// ponytail: M3 shape tokens 10/10 — 5 core in MaterialTheme.shapes (L=16 fixed, was 20), 5 extended as top-level ShapeTokens (None 0, L-inc 20, XL-inc 32, XXL 48, Full CircleShape) — stdlib only, no new dep
+public val shapeNone: RoundedCornerShape = RoundedCornerShape(0.dp)
+public val largeIncreased: RoundedCornerShape = RoundedCornerShape(20.dp)
+public val extraLargeIncreased: RoundedCornerShape = RoundedCornerShape(32.dp)
+public val extraExtraLarge: RoundedCornerShape = RoundedCornerShape(48.dp)
+public val shapeFull: RoundedCornerShape = CircleShape
+
 // MCU HCT tonal: 7:1 contrast via TonalPalette tone, surface tone 98 neutral chroma 6, outlineVariant opaque
 public enum class ContrastLevel { Standard, Medium, High }
 
@@ -538,13 +545,13 @@ public fun JabookTheme(
         }
     }
 
-    // ponytail: Shapes requires CornerBasedShape (M3 1.5) — stdlib for core tokens, expressive via MaterialShapes.toShape() below
+    // ponytail: M3 Shapes 10/10 — 5 core via MaterialTheme.shapes (L=16 fixed, was 20 mis-mapped; XL 28 correct; XS 4/S 8/M 12 kept) + 5 extended top-level ShapeTokens; stdlib only
     val shapes =
         Shapes(
             extraSmall = RoundedCornerShape(4.dp),
             small = RoundedCornerShape(8.dp),
             medium = RoundedCornerShape(12.dp),
-            large = RoundedCornerShape(20.dp),
+            large = RoundedCornerShape(16.dp),
             extraLarge = RoundedCornerShape(28.dp),
         )
 
@@ -572,22 +579,7 @@ public fun JabookTheme(
     //        Clover4/8 for collection cards, Gem/Pentagon/Diamond for detail headers
     // fab: Flower/SoftBurst/Bun for FAB variants
     // sheets: Arch/Fan/SemiCircle/Oval/Pill for bottom sheets & modal sheets
-    // see ExpressiveShapes registry below for full mapping
-
-    @Suppress("UNUSED_VARIABLE")
-    val shapeNone = RoundedCornerShape(0.dp)
-
-    @Suppress("UNUSED_VARIABLE")
-    val largeIncreased = RoundedCornerShape(20.dp)
-
-    @Suppress("UNUSED_VARIABLE")
-    val extraLargeIncreased = RoundedCornerShape(32.dp)
-
-    @Suppress("UNUSED_VARIABLE")
-    val extraExtraLarge = RoundedCornerShape(48.dp)
-
-    @Suppress("UNUSED_VARIABLE")
-    val shapeFull = CircleShape
+    // see ExpressiveShapes registry below for full mapping — extended ShapeTokens are top-level (ShapeNone etc), not locals
 
     // ponytail: touch registry so lazy shapes are not dead code — used by cards/fab/sheets
     @Suppress("UNUSED_VARIABLE")
