@@ -16,11 +16,14 @@ package com.jabook.app.jabook.compose.feature.player
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
@@ -31,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.size.Scale
+import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
 import com.jabook.app.jabook.compose.feature.player.components.HypnoticBackground
 import dev.chrisbanes.haze.HazeState
@@ -50,12 +54,24 @@ public fun PremiumPlayerBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val backgroundColors =
+    val rawBackgroundColors =
         themeColors?.let { colors ->
             colors.gradientColors.ifEmpty {
                 listOf(colors.containerColor, colors.surfaceColor)
             }
         } ?: emptyList()
+    // ponytail: animate palette extraction — tween(400, Emphasized) liveliness for gradient/scrim only
+    val animatedPrimary by animateColorAsState(
+        targetValue = themeColors?.primaryColor ?: Color.Transparent,
+        animationSpec = tween(durationMillis = MotionTokens.LONG1, easing = MotionTokens.Emphasized),
+        label = "palettePrimary",
+    )
+    val backgroundColors =
+        if (rawBackgroundColors.isNotEmpty() && themeColors != null) {
+            listOf(animatedPrimary) + rawBackgroundColors.drop(1)
+        } else {
+            rawBackgroundColors
+        }
 
     val fallbackBackgroundModifier =
         if (themeColors != null) {

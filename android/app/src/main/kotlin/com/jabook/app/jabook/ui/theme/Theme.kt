@@ -229,13 +229,13 @@ public fun JabookTheme(
         }
     }
 
-    // Custom shapes with rounded corners for a modern look
+    // ponytail: squircle feel via stdlib RoundedCornerShape — 28dp+20dp expressive; RoundedPolygon skipped (alpha dep)
     val shapes =
         Shapes(
             extraSmall = RoundedCornerShape(4.dp),
             small = RoundedCornerShape(8.dp),
-            medium = RoundedCornerShape(12.dp),
-            large = RoundedCornerShape(16.dp),
+            medium = RoundedCornerShape(16.dp),
+            large = RoundedCornerShape(20.dp),
             extraLarge = RoundedCornerShape(28.dp),
         )
 

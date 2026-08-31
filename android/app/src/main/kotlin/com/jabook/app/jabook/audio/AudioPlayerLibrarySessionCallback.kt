@@ -34,6 +34,7 @@ import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
@@ -292,7 +293,7 @@ public class AudioPlayerLibrarySessionCallback(
                 Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             CUSTOM_COMMAND_SET_PLAYLIST -> {
-                handleSetPlaylistCommand(session = session, args = args)
+                handleSetPlaylistCommand(session = session, controller = controller, args = args)
             }
             CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES -> {
                 val minutes = args.getInt(ARG_MINUTES, 0)
@@ -392,9 +393,10 @@ public class AudioPlayerLibrarySessionCallback(
      */
     private fun handleSetPlaylistCommand(
         session: MediaSession,
+        controller: MediaSession.ControllerInfo,
         args: Bundle,
-    ): ListenableFuture<SessionResult> =
-        service.playerServiceScope.future {
+    ): ListenableFuture<SessionResult> {
+        val future = service.playerServiceScope.future {
             try {
                 val parsedArgs = SetPlaylistCommandArgsParser.parse(args)
                 if (parsedArgs == null) {
@@ -449,6 +451,8 @@ public class AudioPlayerLibrarySessionCallback(
                 SetPlaylistCommandResultPolicy.exception(e)
             }
         }
+        return future
+    }
 
     private fun buildAvailableSessionCommands(
         controller: MediaSession.ControllerInfo,

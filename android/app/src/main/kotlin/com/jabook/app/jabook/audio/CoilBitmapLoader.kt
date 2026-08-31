@@ -20,6 +20,7 @@ import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaSession
 import coil3.SingletonImageLoader
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -66,9 +67,9 @@ public class CoilBitmapLoader(
         scope.cancel()
     }
 
-    // Maximum artwork size for notifications (recommended by Android)
-    private val maxArtworkWidth = 512
-    private val maxArtworkHeight = 512
+    // ponytail: use system limit if available, else 512 (MediaSession.getBitmapDimensionLimit)
+    private val maxArtworkWidth = try { MediaSession.getBitmapDimensionLimit(context) } catch (_: Exception) { 512 }
+    private val maxArtworkHeight = maxArtworkWidth
 
     /**
      * Loads bitmap from URI using Coil.

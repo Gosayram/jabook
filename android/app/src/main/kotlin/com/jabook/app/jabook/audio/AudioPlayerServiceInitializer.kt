@@ -18,6 +18,8 @@ import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.BitmapLoader as SessionBitmapLoader // verify: androidx.media3.session.BitmapLoader
+import androidx.media3.session.CacheBitmapLoader // verify: androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import com.jabook.app.jabook.util.LogUtils
@@ -441,7 +443,7 @@ public class AudioPlayerServiceInitializer(
                         service.getActivePlayer(),
                         callback,
                     ).setId(sessionId) // Truly unique session ID: PID + instance hash
-                    .setBitmapLoader(notificationProvider.bitmapLoader)
+                    .setBitmapLoader(CacheBitmapLoader(notificationProvider.bitmapLoader))
 
             // Set session activity (PendingIntent)
             // This is CRITICAL for Android 12+ media controls to work properly

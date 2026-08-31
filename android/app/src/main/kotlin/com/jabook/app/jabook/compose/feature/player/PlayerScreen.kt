@@ -23,6 +23,7 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.PowerManager
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -1735,6 +1736,12 @@ private fun PlayerContent(
     // Dynamic Theme Background with Glassmorphism Effect
     // Background is now handled by PremiumPlayerBackground wrapping this content
     val themeColors = state.themeColors
+    // ponytail: palette liveliness — animate extracted primary for gradient/scrim (PremiumPlayerBackground also animates gradient)
+    val animatedPrimary by animateColorAsState(
+        targetValue = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+        animationSpec = tween(durationMillis = MotionTokens.LONG1, easing = MotionTokens.Emphasized),
+        label = "playerPalettePrimary",
+    )
     val contrastBackground = themeColors?.surfaceColor ?: MaterialTheme.colorScheme.surface
     val adaptiveOnSurface =
         remember(contrastBackground) {
