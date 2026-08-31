@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Repeat
@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,15 +44,17 @@ import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 
 /**
- * Player overflow menu bottom sheet with share, favorite, bookmarks, and statistics actions.
- * Level 3 items (Tune, Visualizer, Chapter Repeat, A-B Repeat) are routed through overflow.
+ * Player overflow menu bottom sheet — Level 3 (Tune/EQ, visualizer, chapter repeat, A-B
+ * repeat, stats, lyrics). Bookmarks is Level 2 (icon row) so not duplicated here.
  */
 @Composable
 public fun PlayerOverflowMenuSheet(
     isFavorite: Boolean,
+    hasLyrics: Boolean = false,
+    showingLyrics: Boolean = false,
     onShareClick: () -> Unit,
     onToggleFavorite: () -> Unit,
-    onBookmarksClick: () -> Unit,
+    onToggleLyrics: (() -> Unit)? = null,
     onAudioSettingsClick: () -> Unit,
     onVisualizerModeCycle: () -> Unit,
     onChapterRepeatClick: () -> Unit,
@@ -88,14 +91,16 @@ public fun PlayerOverflowMenuSheet(
             },
         )
 
-        OverflowMenuItem(
-            icon = Icons.Filled.Bookmark,
-            titleRes = R.string.bookmarks,
-            onClick = {
-                onBookmarksClick()
-                onDismiss()
-            },
-        )
+        if (hasLyrics && onToggleLyrics != null) {
+            OverflowMenuItem(
+                icon = if (showingLyrics) Icons.Filled.Description else Icons.Outlined.Description,
+                titleRes = R.string.lyrics,
+                onClick = {
+                    onToggleLyrics()
+                    onDismiss()
+                },
+            )
+        }
 
         OverflowMenuItem(
             icon = Icons.Filled.Tune,

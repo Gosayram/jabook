@@ -66,15 +66,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.Bookmark
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ButtonDefaults
@@ -265,6 +264,7 @@ public fun PlayerScreen(
     // Vinyl Mode State
     var isVinylMode by rememberSaveable { mutableStateOf(false) }
     var showBookmarkSheet by rememberSaveable { mutableStateOf(false) }
+    var showLyrics by rememberSaveable { mutableStateOf(false) }
 
     // Navigator for SupportingPaneScaffold
     val scaffoldNavigator = rememberSupportingPaneScaffoldNavigator()
@@ -615,6 +615,8 @@ public fun PlayerScreen(
         ) {
             PlayerOverflowMenuSheet(
                 isFavorite = state.book.isFavorite,
+                hasLyrics = !state.lyrics.isNullOrEmpty(),
+                showingLyrics = showLyrics && !state.lyrics.isNullOrEmpty(),
                 onShareClick = {
                     val shareIntent =
                         android.content.Intent().apply {
@@ -632,9 +634,9 @@ public fun PlayerScreen(
                 onToggleFavorite = {
                     viewModel.toggleFavorite()
                 },
-                onBookmarksClick = {
-                    HapticManager.performLongPress(hapticFeedback)
-                    showBookmarkSheet = true
+                onToggleLyrics = {
+                    HapticManager.performTap(hapticFeedback)
+                    showLyrics = !showLyrics
                 },
                 onAudioSettingsClick = { showAudioSettingsSheet = true },
                 onVisualizerModeCycle = { viewModel.dispatch(PlayerIntent.CycleVisualizerMode) },
@@ -991,6 +993,12 @@ public fun PlayerScreen(
                                             onBookmarkNoteSheetVisibilityChanged = { isBookmarkNoteSheetVisible = it },
                                             snackbarHostState = snackbarHostState,
                                             currentPositionMs = currentPosition,
+                                            hasLyrics = !state.lyrics.isNullOrEmpty(),
+                                            showingLyrics = showLyrics && !state.lyrics.isNullOrEmpty(),
+                                            onToggleLyrics = {
+                                                HapticManager.performTap(hapticFeedback)
+                                                showLyrics = !showLyrics
+                                            },
                                             modifier =
                                                 Modifier.hazeEffect(
                                                     state = overlayHazeState,
@@ -1463,7 +1471,6 @@ private fun PlayerLandscapeLayout(
 
             val controlButtonHeight = if (isCompact) 44.dp else 52.dp
             val controlButtonIconSize = if (isCompact) 20.dp else 22.dp
-            val controlButtonTextSize = if (isCompact) 14.sp else 16.sp
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
@@ -1481,6 +1488,12 @@ private fun PlayerLandscapeLayout(
                     Icon(Icons.Outlined.Timer, stringResource(R.string.sleepTimer), Modifier.size(controlButtonIconSize))
                 }
                 FilledTonalButton(
+                    onClick = onChapterClick,
+                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                ) {
+                    Icon(Icons.Filled.List, stringResource(R.string.chaptersLabel), Modifier.size(controlButtonIconSize))
+                }
+                FilledTonalButton(
                     onClick = onBookmarksClick,
                     modifier = Modifier.weight(1f).height(controlButtonHeight),
                 ) {
@@ -1489,18 +1502,6 @@ private fun PlayerLandscapeLayout(
                         stringResource(R.string.bookmarks),
                         Modifier.size(controlButtonIconSize),
                     )
-                }
-                if (hasLyrics) {
-                    FilledTonalButton(
-                        onClick = { showLyrics(!showingLyrics) },
-                        modifier = Modifier.weight(1f).height(controlButtonHeight),
-                    ) {
-                        Icon(
-                            if (showingLyrics) Icons.Filled.Description else Icons.Outlined.Description,
-                            stringResource(R.string.lyrics),
-                            Modifier.size(controlButtonIconSize),
-                        )
-                    }
                 }
             }
         }
@@ -1559,6 +1560,9 @@ private fun PlayerContent(
     onBookmarkNoteSheetVisibilityChanged: (Boolean) -> Unit = {},
     snackbarHostState: androidx.compose.material3.SnackbarHostState,
     currentPositionMs: Long = 0L,
+    hasLyrics: Boolean = false,
+    showingLyrics: Boolean = false,
+    onToggleLyrics: () -> Unit = {},
     modifier: Modifier = Modifier,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
@@ -1652,16 +1656,9 @@ private fun PlayerContent(
 
     val displayAuthor = authorFromMetadata ?: state.book.author
 
-    // Lyrics visibility state
-    var showLyrics by rememberSaveable { mutableStateOf(false) }
-    val hasLyrics =
-        remember(state.lyrics) {
-            !state.lyrics.isNullOrEmpty()
-        }
-    val showingLyrics =
-        remember(showLyrics, hasLyrics) {
-            showLyrics && hasLyrics
-        }
+    // Lyrics state hoisted to PlayerScreen; fallback to state.lyrics when not provided (default false).
+    val effectiveHasLyrics = hasLyrics || !state.lyrics.isNullOrEmpty()
+    val effectiveShowingLyrics = showingLyrics
     val seekScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
     var showBookmarkNoteSheet by rememberSaveable { mutableStateOf(false) }
@@ -1720,14 +1717,14 @@ private fun PlayerContent(
             PlayerLandscapeLayout(
                 state = state,
                 isCompact = isCompact,
-                showingLyrics = showingLyrics,
-                showLyrics = { showLyrics = it },
+                showingLyrics = effectiveShowingLyrics,
+                showLyrics = { wantsShow -> if (wantsShow != effectiveShowingLyrics) onToggleLyrics() },
                 isVinylMode = isVinylMode,
                 displayAuthor = displayAuthor,
                 adaptiveOnSurface = adaptiveOnSurface,
                 adaptiveOnSurfaceVariant = adaptiveOnSurfaceVariant,
                 themeColors = themeColors,
-                hasLyrics = hasLyrics,
+                hasLyrics = effectiveHasLyrics,
                 abRepeatState = abRepeatState,
                 onABRepeatClick = onABRepeatClick,
                 onPlayPause = onPlayPause,
@@ -1818,11 +1815,11 @@ private fun PlayerContent(
                         state = state,
                         imageModifier = imageModifier,
                         coverWidth = coverWidth,
-                        showingLyrics = showingLyrics,
-                        showLyrics = { showLyrics = it },
+                        showingLyrics = effectiveShowingLyrics,
+                        showLyrics = { wantsShow -> if (wantsShow != effectiveShowingLyrics) onToggleLyrics() },
                         isVinylMode = isVinylMode,
                         reduceMotion = reduceMotion,
-                        hasLyrics = hasLyrics,
+                        hasLyrics = effectiveHasLyrics,
                         onStatsClick = onStatsClick,
                         onSeek = onSeek,
                         currentPositionMs = currentPositionMs,
@@ -2186,14 +2183,13 @@ private fun PlayerContent(
                     Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
                 }
 
-                // Control Buttons - compact: two rows, larger screens: single row
+                // Control Buttons — Level 2: Speed | Sleep Timer | Chapters | Bookmarks
                 item {
                     PlayerControlRow(
                         isCompact = isCompact,
                         playbackSpeedLabel = playbackSpeedLabel,
                         sleepTimerState = sleepTimerState,
-                        hasLyrics = hasLyrics,
-                        showingLyrics = showingLyrics,
+                        bookmarkCount = state.bookmarks.size,
                         speedButtonInteractionSource = speedButtonInteractionSource,
                         onSpeedButtonClick = {
                             if (suppressNextSpeedClick) {
@@ -2203,10 +2199,8 @@ private fun PlayerContent(
                             }
                         },
                         onSleepTimerClick = onSleepTimerClick,
-                        onToggleLyrics = {
-                            HapticManager.performTap(hapticFeedback)
-                            showLyrics = !showLyrics
-                        },
+                        onChaptersClick = onChapterClick,
+                        onBookmarksClick = onBookmarksClick,
                     )
                 }
             }

@@ -17,21 +17,19 @@ package com.jabook.app.jabook.compose.feature.player
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Timer
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -47,8 +45,9 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
 
 /**
- * Secondary player control buttons (speed, sleep timer, lyrics).
- * Level 3 items (Tune/EQ, visualizer, chapter repeat, A-B repeat, bookmarks) moved to overflow.
+ * Secondary player control buttons — Level 2 single row per wireframe:
+ * Speed | Sleep Timer | Chapters | Bookmarks. Level 3 (Lyrics, Tune/EQ, visualizer,
+ * chapter repeat, A-B repeat, stats) lives in overflow.
  * Single row on all sizes; compact uses smaller heights.
  */
 @Composable
@@ -56,12 +55,12 @@ internal fun PlayerControlRow(
     isCompact: Boolean,
     playbackSpeedLabel: String,
     sleepTimerState: SleepTimerState,
-    hasLyrics: Boolean,
-    showingLyrics: Boolean,
+    bookmarkCount: Int = 0,
     speedButtonInteractionSource: MutableInteractionSource,
     onSpeedButtonClick: () -> Unit,
     onSleepTimerClick: () -> Unit,
-    onToggleLyrics: () -> Unit,
+    onChaptersClick: () -> Unit,
+    onBookmarksClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val controlButtonHeight = if (isCompact) 48.dp else 56.dp
@@ -81,7 +80,7 @@ internal fun PlayerControlRow(
                 stringResource(R.string.sleepTimer)
         }
 
-    // Single row for both compact and expanded — level 3 moved to overflow
+    // Single row — wireframe Level 2: Speed | Sleep Timer | Chapters | Bookmarks
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement =
@@ -110,16 +109,17 @@ internal fun PlayerControlRow(
                     .height(controlButtonHeight)
                     .semantics { contentDescription = sleepTimerAccessibilityDescription },
         )
-        if (hasLyrics) {
-            LyricsControlButton(
-                showingLyrics = showingLyrics,
-                onToggleLyrics = onToggleLyrics,
-                iconSize = controlButtonIconSize,
-                modifier = Modifier.weight(1f).height(controlButtonHeight),
-            )
-        } else {
-            Spacer(modifier = Modifier.weight(1f))
-        }
+        ChaptersControlButton(
+            onClick = onChaptersClick,
+            iconSize = controlButtonIconSize,
+            modifier = Modifier.weight(1f).height(controlButtonHeight),
+        )
+        BookmarksControlButton(
+            onClick = onBookmarksClick,
+            bookmarkCount = bookmarkCount,
+            iconSize = controlButtonIconSize,
+            modifier = Modifier.weight(1f).height(controlButtonHeight),
+        )
     }
 }
 
@@ -182,38 +182,37 @@ private fun SleepTimerControlButton(
 }
 
 @Composable
-private fun LyricsControlButton(
-    showingLyrics: Boolean,
-    onToggleLyrics: () -> Unit,
+private fun ChaptersControlButton(
+    onClick: () -> Unit,
     iconSize: Dp,
     modifier: Modifier = Modifier,
 ) {
     FilledTonalButton(
-        onClick = onToggleLyrics,
+        onClick = onClick,
         modifier = modifier,
-        colors =
-            ButtonDefaults.filledTonalButtonColors(
-                containerColor =
-                    if (showingLyrics) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
-                contentColor =
-                    if (showingLyrics) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-            ),
     ) {
         Icon(
-            if (showingLyrics) {
-                Icons.Filled.Description
-            } else {
-                Icons.Outlined.Description
-            },
-            stringResource(R.string.lyrics),
+            Icons.Filled.List,
+            stringResource(R.string.chaptersLabel),
+            Modifier.size(iconSize),
+        )
+    }
+}
+
+@Composable
+private fun BookmarksControlButton(
+    onClick: () -> Unit,
+    bookmarkCount: Int,
+    iconSize: Dp,
+    modifier: Modifier = Modifier,
+) {
+    FilledTonalButton(
+        onClick = onClick,
+        modifier = modifier,
+    ) {
+        Icon(
+            if (bookmarkCount > 0) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+            stringResource(R.string.bookmarks),
             Modifier.size(iconSize),
         )
     }
