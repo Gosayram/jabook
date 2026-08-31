@@ -93,6 +93,34 @@ internal class HoldToBoostController(
         }
     }
 
+    /**
+     * ponytail: Media3 1.11 PlaybackSpeedState bridge — system UI long-press FF.
+     * Delegates to PlaybackSpeedState.temporarilyOverrideSpeedWith / restoreOverriddenSpeed
+     * so the speed slider and MiniController reflect the boost.
+     */
+    fun onHoldStartWithState(
+        state: androidx.media3.ui.compose.state.PlaybackSpeedState,
+        scope: CoroutineScope,
+    ) {
+        val currentSpeed = player.playbackParameters.speed
+        policy.onPress(currentSpeed)
+        // ponytail: system UI path — 3.0× override visible in PlaybackSpeedState
+        state.temporarilyOverrideSpeedWith(HoldToBoostPolicy.DEFAULT_BOOST_SPEED)
+        rampJob?.cancel()
+        rampJob = scope.launch { animateSpeed(from = currentSpeed, to = HoldToBoostPolicy.DEFAULT_BOOST_SPEED, durationMs = rampUpMs) }
+    }
+
+    fun onHoldEndWithState(
+        state: androidx.media3.ui.compose.state.PlaybackSpeedState,
+        scope: CoroutineScope,
+    ) {
+        val restoreSpeed = policy.onRelease() ?: return
+        state.restoreOverriddenSpeed()
+        val currentSpeed = player.playbackParameters.speed
+        rampJob?.cancel()
+        rampJob = scope.launch { animateSpeed(from = currentSpeed, to = restoreSpeed, durationMs = rampDownMs) }
+    }
+
     private suspend fun animateSpeed(
         from: Float,
         to: Float,

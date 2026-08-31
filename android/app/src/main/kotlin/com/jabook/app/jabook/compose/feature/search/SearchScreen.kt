@@ -147,8 +147,12 @@ public fun SearchScreen(
 
     var showSortMenu by remember { mutableStateOf(false) }
 
-    // Navigator for SupportingPaneScaffold
+    // Navigator for SupportingPaneScaffold — canonical supporting pane, 360/412, 8dp spacer
     val scaffoldNavigator = rememberSupportingPaneScaffoldNavigator()
+    val searchScreenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
+    val searchCanonicalDirective = remember(scaffoldNavigator.scaffoldDirective, searchScreenWidthDp) {
+        AdaptiveUtils.canonicalDirective(scaffoldNavigator.scaffoldDirective, searchScreenWidthDp)
+    }
     val scope = rememberCoroutineScope()
 
     // Check index status for online search
@@ -196,7 +200,7 @@ public fun SearchScreen(
                 .background(backgroundGradient),
     ) {
         SupportingPaneScaffold(
-            directive = scaffoldNavigator.scaffoldDirective,
+            directive = searchCanonicalDirective,
             value = scaffoldNavigator.scaffoldValue,
             mainPane = {
                 AnimatedPane {

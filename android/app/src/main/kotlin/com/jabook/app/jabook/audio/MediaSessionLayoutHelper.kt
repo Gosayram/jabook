@@ -136,6 +136,7 @@ internal class MediaSessionLayoutHelper(
                 .Builder(CommandButton.ICON_SKIP_BACK)
                 .setDisplayName("-${rewindSeconds}s")
                 .setPlayerCommand(Player.COMMAND_SEEK_BACK)
+                .setSlots(CommandButton.SLOT_BACK)
                 .build()
 
         val forwardButton =
@@ -143,14 +144,15 @@ internal class MediaSessionLayoutHelper(
                 .Builder(CommandButton.ICON_SKIP_FORWARD)
                 .setDisplayName("+${forwardSeconds}s")
                 .setPlayerCommand(Player.COMMAND_SEEK_FORWARD)
+                .setSlots(CommandButton.SLOT_FORWARD)
                 .build()
 
-        // Map next/prev to ±chapter for audiobooks (not track skip)
         val prevChapterButton =
             CommandButton
                 .Builder(CommandButton.ICON_PREVIOUS)
                 .setDisplayName(context.getString(R.string.previousChapter))
                 .setPlayerCommand(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
+                .setSlots(CommandButton.SLOT_BACK_SECONDARY)
                 .build()
 
         val nextChapterButton =
@@ -158,10 +160,11 @@ internal class MediaSessionLayoutHelper(
                 .Builder(CommandButton.ICON_NEXT)
                 .setDisplayName(context.getString(R.string.nextChapter))
                 .setPlayerCommand(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
+                .setSlots(CommandButton.SLOT_FORWARD_SECONDARY)
                 .build()
 
-        // ponytail: compact notification keeps most-used rewind/forward (play/pause is auto-inserted
-        // by Media3); chapter prev/next remain in expanded view only.
+        // ponytail: 1.11 setSlots fully controls per-surface placement (notification/Auto/overflow);
+        // Proto slot filtering in AudioPlayerNotificationProvider honored only when slots ignored (legacy OEM).
         session.setMediaButtonPreferences(
             listOf(rewindButton, forwardButton, prevChapterButton, nextChapterButton),
         )

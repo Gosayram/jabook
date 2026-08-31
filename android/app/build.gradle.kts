@@ -615,6 +615,11 @@ dependencies {
 
     // Media3 - Native audio player (stable 1.11.0; version catalog is the source of truth)
     implementation(libs.bundles.media3)
+    implementation(libs.media3.ui)
+    implementation(libs.media3.ui.compose)
+    implementation(libs.media3.cast)
+    implementation(libs.androidx.mediarouter)
+    implementation(libs.play.services.cast.framework)
 
     // Audio metadata parsing using KTagLib (TagLib Kotlin bindings)
     implementation(libs.ktaglib)
@@ -671,6 +676,8 @@ dependencies {
 
     // Palette for extracting colors from images (Dynamic Theme)
     implementation(libs.androidx.palette)
+    // Material Color Utilities — real HCT/CAM16/TonalPalette/Score (replaces HSL stubs)
+    implementation(libs.material.color.utilities)
 
     // Material 3 Adaptive - Official adaptive UI components
     implementation(libs.androidx.compose.material3.adaptive)

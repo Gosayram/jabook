@@ -21,6 +21,7 @@ import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.jabook.app.jabook.compose.core.theme.SpacingTokens
 
 /**
  * Utility object for adaptive UI values based on WindowSizeClass.
@@ -86,10 +87,10 @@ public object AdaptiveUtils {
      */
     public fun getContentPadding(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
-            WindowWidthSizeClass.Compact -> 16.dp
-            WindowWidthSizeClass.Medium -> 24.dp
-            WindowWidthSizeClass.Expanded -> 32.dp
-            else -> 16.dp
+            WindowWidthSizeClass.Compact -> SpacingTokens.ContentPaddingCompact
+            WindowWidthSizeClass.Medium -> SpacingTokens.ContentPaddingMedium
+            WindowWidthSizeClass.Expanded -> SpacingTokens.ContentPaddingExpanded
+            else -> SpacingTokens.ContentPaddingCompact
         }
 
     /**
@@ -101,10 +102,10 @@ public object AdaptiveUtils {
      */
     public fun getHorizontalPadding(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
-            WindowWidthSizeClass.Compact -> 16.dp
-            WindowWidthSizeClass.Medium -> 24.dp
-            WindowWidthSizeClass.Expanded -> 32.dp
-            else -> 16.dp
+            WindowWidthSizeClass.Compact -> SpacingTokens.ContentPaddingCompact
+            WindowWidthSizeClass.Medium -> SpacingTokens.ContentPaddingMedium
+            WindowWidthSizeClass.Expanded -> SpacingTokens.ContentPaddingExpanded
+            else -> SpacingTokens.ContentPaddingCompact
         }
 
     /**
@@ -116,10 +117,10 @@ public object AdaptiveUtils {
      */
     public fun getVerticalPadding(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.heightSizeClass) {
-            WindowHeightSizeClass.Compact -> 16.dp
-            WindowHeightSizeClass.Medium -> 24.dp
-            WindowHeightSizeClass.Expanded -> 32.dp
-            else -> 16.dp
+            WindowHeightSizeClass.Compact -> SpacingTokens.ContentPaddingCompact
+            WindowHeightSizeClass.Medium -> SpacingTokens.ContentPaddingMedium
+            WindowHeightSizeClass.Expanded -> SpacingTokens.ContentPaddingExpanded
+            else -> SpacingTokens.ContentPaddingCompact
         }
 
     /**
@@ -316,4 +317,46 @@ public object AdaptiveUtils {
             WindowWidthSizeClass.Expanded -> 72.dp
             else -> 40.dp
         }
+
+    // --- 5-breakpoint pane widths (foundations/layout) ---
+
+    /** Canonical 5 breakpoints overlayed on WSC: widthDp maps to compact/medium/expanded/large/xl. */
+    public fun getBreakpoint(screenWidthDp: Int): Int = when {
+        screenWidthDp < 600 -> 0 // compact
+        screenWidthDp < 840 -> 1 // medium
+        screenWidthDp < 1200 -> 2 // expanded (360 pane)
+        screenWidthDp < 1600 -> 3 // large (412 pane)
+        else -> 4 // xl (412 centered)
+    }
+
+    /** Supporting pane width per spec: 360 expanded, 412 large/xl, 360 otherwise. */
+    public fun getSupportingPaneWidth(screenWidthDp: Int): Dp = when (getBreakpoint(screenWidthDp)) {
+        3, 4 -> 412.dp
+        else -> 360.dp
+    }
+
+    public fun getSupportingPaneWidth(windowSizeClass: WindowSizeClass?): Dp {
+        // ponytail: WSC alone can't distinguish large/xl, fallback to 360; caller with widthDp gets 412.
+        if (windowSizeClass == null) return 360.dp
+        return when (windowSizeClass.widthSizeClass) {
+            WindowWidthSizeClass.Expanded -> 360.dp // large/xl upgrade via screenWidthDp overload
+            else -> 360.dp
+        }
+    }
+
+    /**
+     * Override PaneScaffoldDirective to enforce 8dp scaffold spacing + canonical pane width.
+     * Use via `directive = remember(widthDp, baseDirective){ canonicalDirective(baseDirective, widthDp) }`
+     */
+    public fun canonicalDirective(
+        base: androidx.compose.material3.adaptive.layout.PaneScaffoldDirective,
+        screenWidthDp: Int,
+    ): androidx.compose.material3.adaptive.layout.PaneScaffoldDirective {
+        val paneWidth = getSupportingPaneWidth(screenWidthDp)
+        return base.copy(defaultPanePreferredWidth = paneWidth, horizontalPartitionSpacerSize = 8.dp)
+    }
+
+    // ponytail: Ruler API (Compose UI 1.7+) available but skipped — grid spacing already 8dp-aligned via SpacingTokens;
+    // cross-layout Ruler alignment adds measurability cost for no current misalignment. Wire when a shared header/grid
+    // ruler is visibly off.
 }

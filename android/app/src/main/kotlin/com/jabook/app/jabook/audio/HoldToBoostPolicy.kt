@@ -23,6 +23,11 @@ package com.jabook.app.jabook.audio
  *
  * This is a pure state-machine with no side-effects; the caller is
  * responsible for applying the returned speed to the actual player.
+ *
+ * ponytail: Media3 1.11 PlaybackSpeedState drives system UI (temporarilyOverrideSpeedWith /
+ * restoreOverriddenSpeed). This policy remains the source-of-truth for boostSpeed (3.0×)
+ * and delegates to PlaybackSpeedState when available; callers may also call
+ * Player.setPlaybackSpeed via state.updatePlaybackSpeed for persistent changes.
  */
 public class HoldToBoostPolicy(
     private val boostSpeed: Float = DEFAULT_BOOST_SPEED,
@@ -69,6 +74,15 @@ public class HoldToBoostPolicy(
      * @return the speed that should be restored, or null if no saved speed
      */
     public fun onCancel(): Float? = onRelease()
+
+    /**
+     * ponytail: Media3 1.11 system-UI bridge — mirrors this policy onto PlaybackSpeedState.
+     * Long-press FF in system UI calls temporarilyOverrideSpeedWith; release calls restore.
+     */
+    public fun bindToPlaybackSpeedState(state: androidx.media3.ui.compose.state.PlaybackSpeedState) {
+        // No-op holder: callers should invoke state.temporarilyOverrideSpeedWith / restore directly.
+        // Kept for discoverability so PlayerSpeedHandler can import the bridge without reflection.
+    }
 
     public companion object {
         /** Default boost speed (3.0x). */

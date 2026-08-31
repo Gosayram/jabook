@@ -266,7 +266,7 @@ public fun PlayerScreen(
     var showBookmarkSheet by rememberSaveable { mutableStateOf(false) }
     var showLyrics by rememberSaveable { mutableStateOf(false) }
 
-    // Navigator for SupportingPaneScaffold
+    // Navigator for SupportingPaneScaffold — supporting pane for chapters, 360/412 widths, 8dp spacer
     val scaffoldNavigator = rememberSupportingPaneScaffoldNavigator()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
@@ -276,6 +276,10 @@ public fun PlayerScreen(
     val resolved = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val isCompactScreen =
         resolved?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
+    val playerScreenWidthDp = LocalConfiguration.current.screenWidthDp
+    val playerCanonicalDirective = remember(scaffoldNavigator.scaffoldDirective, playerScreenWidthDp) {
+        AdaptiveUtils.canonicalDirective(scaffoldNavigator.scaffoldDirective, playerScreenWidthDp)
+    }
     val openSettingsLabel = stringResource(R.string.openSettings)
     val notificationPermissionPlaybackHint = stringResource(R.string.notificationPermissionPlaybackHint)
     val audioVisualizerPermissionHint = stringResource(R.string.audioVisualizerPermissionHint)
@@ -699,9 +703,9 @@ public fun PlayerScreen(
 
     // Player content
 
-    // SupportingPaneScaffold for adaptive chapter display
+    // SupportingPaneScaffold for adaptive chapter display (5 breakpoints 360/412, 8dp)
     SupportingPaneScaffold(
-        directive = scaffoldNavigator.scaffoldDirective,
+        directive = playerCanonicalDirective,
         value = scaffoldNavigator.scaffoldValue,
         mainPane = {
             AnimatedPane(modifier = Modifier) {

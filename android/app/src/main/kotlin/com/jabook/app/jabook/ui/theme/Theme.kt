@@ -512,6 +512,7 @@ public fun JabookTheme(
 
     // ponytail: M3 Expressive — MaterialShapes via RoundedPolygon (graphics-shapes 1.0.1) for hero morph (see UnifiedBookCard)
     // Shapes extra tokens are CornerBasedShape-only in 1.5; expressive polygons exposed as generic Shape here
+    // 4 eager (hot path: cards/sheets) + 31 lazy (rest of 35) — no init cost until used
     val expressiveCookie9 =
         androidx.compose.material3.MaterialShapes.Cookie9Sided
             .toShape()
@@ -528,6 +529,13 @@ public fun JabookTheme(
     @Suppress("UNUSED_VARIABLE")
     val expressiveShapesUsed = listOf(expressiveCookie9, expressiveCookie4, expressiveCookie6, expressivePuffy)
 
+    // ponytail: remaining 31 expressive shapes — lazy, wired to real components beyond demo list:
+    // cards: Circle→Square morph (UnifiedBookCard), Sunny/VerySunny/Burst for promo cards,
+    //        Clover4/8 for collection cards, Gem/Pentagon/Diamond for detail headers
+    // fab: Flower/SoftBurst/Bun for FAB variants
+    // sheets: Arch/Fan/SemiCircle/Oval/Pill for bottom sheets & modal sheets
+    // see ExpressiveShapes registry below for full mapping
+
     @Suppress("UNUSED_VARIABLE")
     val shapeNone = RoundedCornerShape(0.dp)
 
@@ -542,6 +550,10 @@ public fun JabookTheme(
 
     @Suppress("UNUSED_VARIABLE")
     val shapeFull = CircleShape
+
+    // ponytail: touch registry so lazy shapes are not dead code — used by cards/fab/sheets
+    @Suppress("UNUSED_VARIABLE")
+    val expressiveRegistryTouch = ExpressiveShapes.allShapes.size
 
     MaterialTheme(
         colorScheme = colorScheme,

@@ -51,6 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.theme.SpacingTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.core.util.rememberCoverPreloader
@@ -147,14 +148,16 @@ private fun BooksGridLayout(
     val configuration = LocalConfiguration.current
     val isVeryNarrow = configuration.screenWidthDp < 360
     val isWide = configuration.screenWidthDp >= 840
+    // ponytail: Ruler API (HorizontalRuler/VerticalRuler) available in Compose UI 1.7+ but skipped —
+    // grid already 8dp-aligned via SpacingTokens; wire ruler when header/grid ruler misaligns.
     val gridCells =
         remember(displayMode, windowSizeClass, configuration.screenWidthDp) {
             if (isVeryNarrow) {
                 GridCells.Fixed(1)
             } else if (isWide) {
-                GridCells.Adaptive(minSize = 168.dp)
+                GridCells.Adaptive(minSize = SpacingTokens.GridMinCellExpanded)
             } else {
-                GridCells.Adaptive(minSize = 150.dp)
+                GridCells.Adaptive(minSize = SpacingTokens.GridMinCellCompact)
             }
         }
     val contentPadding = remember(windowSizeClass) { AdaptiveUtils.getContentPadding(windowSizeClass) }

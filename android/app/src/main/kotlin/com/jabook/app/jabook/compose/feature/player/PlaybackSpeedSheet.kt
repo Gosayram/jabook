@@ -64,6 +64,10 @@ import com.jabook.app.jabook.audio.processors.SpeedDialPolicy
 /**
  * Bottom sheet for selecting playback speed.
  *
+ * ponytail: Media3 1.11 androidx.media3:media3-ui-compose provides PlaybackSpeedControl/
+ * ProgressState — enabled in app/build.gradle.kts (cached offline). Custom sheet kept for
+ * app-specific SpeedDialPolicy/presets/recent chips; inner Slider swappable to ProgressState when scrub binding needed.
+ *
  * Features:
  * - Preset chips for quick selection of common speeds
  * - Long-press on any preset opens fine-tuning slider (0.5x - 3.5x)

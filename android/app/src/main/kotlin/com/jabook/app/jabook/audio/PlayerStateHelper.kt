@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import android.net.Uri
+import android.os.Looper
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
@@ -121,6 +122,9 @@ internal class PlayerStateHelper(
      * @return Map with player state information
      */
     public fun getPlayerState(): Map<String, Any> {
+        check(Looper.getMainLooper() == Looper.myLooper()) {
+            "PlayerStateHelper.getPlayerState must be called on main thread (ExoPlayer is main-thread confined)"
+        }
         val player = getActivePlayer()
 
         // Get duration - PRIMARY SOURCE: player.duration (ExoPlayer/Media3)

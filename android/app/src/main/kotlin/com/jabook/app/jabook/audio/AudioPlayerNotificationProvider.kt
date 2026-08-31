@@ -191,9 +191,13 @@ public class AudioPlayerNotificationProvider(
             }
         }
 
+    /**
+     * ponytail: Media3 1.11 setSlots API fully honored — Proto filtering is fallback for OEMs that ignore slots.
+     * When slots are honored, this becomes no-op; kept to support legacy devices.
+     */
     private fun filterCustomLayout(customLayout: ImmutableList<CommandButton>): ImmutableList<CommandButton> {
         if (customLayout.isEmpty()) return customLayout
-
+        // 1.11: slots already placed per-surface; Proto filter only for ignored slots (OEM compat)
         val preferredSlots = cachedNotificationActionSlots
         if (preferredSlots == null) return customLayout
 
