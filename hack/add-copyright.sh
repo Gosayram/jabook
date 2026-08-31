@@ -31,40 +31,6 @@ has_full_header() {
     grep -q "See the License for the specific language" "$f" 2>/dev/null
 }
 
-# Helper: strip existing (broken/incomplete) header block at top of file
-# Removes leading // Copyright block + blank // lines + trailing empty line
-strip_existing_header() {
-    local f="$1"
-    local tmp
-    tmp=$(mktemp)
-    # awk: skip initial copyright header block if present
-    awk '
-        BEGIN { in_header=0; header_seen=0; }
-        NR==1 && /^\/\/ Copyright.*Jabook/ { in_header=1; header_seen=1; next; }
-        in_header && /^\/\/ ?(Licensed|you may not|You may obtain|http|Unless|WITHOUT|distributed|See)/ { next; }
-        in_header && /^\/\/ ?$/ { next; }
-        in_header && /^\/\/ Copyright/ { next; }
-        in_header && /^$/ { in_header=0; next; }
-        { in_header=0; print; }
-    ' "$f" > "$tmp"
-    # If file had no header, awk printed everything; if it had header, header is stripped
-    # Detect if stripping actually removed header (file started with // Copyright)
-    if grep -q "^// Copyright.*Jabook" "$f" 2>/dev/null; then
-        cat "$tmp" > "$f"
-    else
-        # No header to strip — keep original (tmp is same as original)
-        cat "$tmp" > "$tmp.check"
-        # Only replace if tmp differs? keep original is fine
-        :
-    fi
-    # Cleanup: if we stripped, output is in tmp; otherwise we need to use tmp content
-    # Simpler: always use awk output as new content when header was present
-    if [ "$header_seen" = "1" ] 2>/dev/null; then
-        :
-    fi
-    rm -f "$tmp" "$tmp.check" 2>/dev/null || true
-}
-
 # Find all Kotlin files
 find . -name "*.kt" \
     -not -path "./.git/*" \
@@ -86,13 +52,13 @@ find . -name "*.kt" \
 
     # If has broken/incomplete header, strip it first
     if grep -q "Copyright.*Jabook" "$file" 2>/dev/null; then
-        # Strip existing broken header lines
+        # Strip existing broken header lines (handles // with any spacing)
         tmpfile=$(mktemp)
         awk '
             BEGIN { in_header=0; }
             NR==1 && /^\/\/ Copyright.*Jabook/ { in_header=1; next; }
-            in_header && /^\/\/ ?(Licensed|you may not|You may obtain|http|Unless|WITHOUT|distributed|See)/ { next; }
-            in_header && /^\/\/ ?$/ { next; }
+            in_header && /Licensed under the Apache License|you may not use this file|You may obtain a copy|http:\/\/www.apache.org|Unless required|WITHOUT WARRANTIES|distributed on an|See the License/ { next; }
+            in_header && /^\/\/ *$/ { next; }
             in_header && /^\/\/ Copyright/ { next; }
             in_header && /^$/ { in_header=0; next; }
             { in_header=0; print; }
