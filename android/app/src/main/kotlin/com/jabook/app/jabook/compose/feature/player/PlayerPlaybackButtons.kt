@@ -14,6 +14,11 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -34,6 +39,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -107,18 +114,30 @@ internal fun PlayerPlaybackButtons(
                 stringResource(R.string.playbackStatePaused)
             }
 
+        // ponytail: M3 Expressive press-scale — Rhythm pattern 0.96f spring MediumBouncy/StiffnessLow
+        val pressInteractionSource = remember { MutableInteractionSource() }
+        val isPressed by pressInteractionSource.collectIsPressedAsState()
+        val pressScale by animateFloatAsState(
+            targetValue = if (isPressed) 0.96f else 1f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+            label = "pressScale",
+        )
+
         Box(
             contentAlignment = Alignment.Center,
             modifier =
                 Modifier
                     .size(playPauseButtonSize * 1.2f)
                     .graphicsLayer {
-                        scaleX = playPauseButtonScale
-                        scaleY = playPauseButtonScale
+                        // combine play/pause state scale with press scale
+                        val s = playPauseButtonScale * pressScale
+                        scaleX = s
+                        scaleY = s
                     },
         ) {
             FilledIconButton(
                 onClick = onPlayPause,
+                interactionSource = pressInteractionSource,
                 modifier =
                     Modifier
                         .fillMaxSize()

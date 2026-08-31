@@ -34,6 +34,10 @@ import androidx.room.RoomDatabase
 import com.jabook.app.jabook.audio.data.local.database.migration.AudioDatabaseMigrations
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.audio.processors.AudioProcessorFactory
+import com.jabook.app.jabook.audio.processors.DRCLevel
+import com.jabook.app.jabook.audio.processors.NoiseGateLevel
+import com.jabook.app.jabook.audio.processors.SpeechCompressorLevel
+import com.jabook.app.jabook.audio.processors.VolumeBoostLevel
 import com.jabook.app.jabook.crash.GlobalExceptionHandler
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.PerformanceClass
@@ -397,6 +401,9 @@ public object MediaModule {
     /**
      * Creates TrackSelectionParameters based on audio processing settings.
      * Gapless is enabled only when offload is disabled AND crossfade is disabled.
+     * Offload uses a 6-flag AND gate (Rhythm pattern): only heavy DSP disables offload.
+     * ponytail: skipSilence excluded from gate — offload stays enabled for skipSilence-only,
+     * saving ~20-30% battery; if silence artifacts appear with offload, add skipSilence to gate.
      */
     @OptIn(UnstableApi::class)
     public fun createTrackSelectionParameters(
@@ -404,14 +411,24 @@ public object MediaModule {
         hasProcessors: Boolean = AudioProcessingSettings.hasAnyProcessorEnabled(settings),
     ): TrackSelectionParameters {
         val isCrossfadeEnabled = settings.isCrossfadeEnabled
+        // 6-flag DSP gate: heavy DSP that requires CPU — skipSilence intentionally excluded
+        val hasDspForOffload =
+            settings.normalizeVolume ||
+                settings.speechCompressorLevel != SpeechCompressorLevel.Off ||
+                settings.volumeBoostLevel != VolumeBoostLevel.Off ||
+                settings.drcLevel != DRCLevel.Off ||
+                settings.speechEnhancer ||
+                settings.autoVolumeLeveling ||
+                settings.noiseGateLevel != NoiseGateLevel.Off
+        val isOffloadEnabled = !hasDspForOffload && !isCrossfadeEnabled
 
-        // Gapless requires: offload disabled OR no custom processors, AND no crossfade
-        val gaplessSupported = !hasProcessors && !isCrossfadeEnabled
+        // Gapless requires offload path without DSP and no crossfade
+        val gaplessSupported = isOffloadEnabled
 
         LogUtils.d(
             "MediaModule",
             "Creating TrackSelectionParameters: gapless=$gaplessSupported " +
-                "(processors=$hasProcessors, crossfade=$isCrossfadeEnabled)",
+                "(dsp=$hasDspForOffload, processors=$hasProcessors, crossfade=$isCrossfadeEnabled, offload=$isOffloadEnabled)",
         )
 
         return TrackSelectionParameters
@@ -423,10 +440,10 @@ public object MediaModule {
                     .AudioOffloadPreferences
                     .Builder()
                     .setAudioOffloadMode(
-                        if (hasProcessors) {
-                            TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_DISABLED
-                        } else {
+                        if (isOffloadEnabled) {
                             TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED
+                        } else {
+                            TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_DISABLED
                         },
                     ).setIsGaplessSupportRequired(gaplessSupported)
                     .setIsSpeedChangeSupportRequired(true) // Required for pitch correction

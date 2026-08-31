@@ -124,7 +124,17 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
             val appWidgetIds = appWidgetManager.getAppWidgetIds(componentName)
 
             for (appWidgetId in appWidgetIds) {
-                updateAppWidget(context, appWidgetManager, appWidgetId)
+                val pending = goAsync()
+                val job =
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            kotlinx.coroutines.delay(debounceDelayMs)
+                            updateAppWidgetInternal(context, appWidgetManager, appWidgetId)
+                        } finally {
+                            pending.finish()
+                        }
+                    }
+                updateJobRegistry.replace(appWidgetId, job)
             }
         }
     }

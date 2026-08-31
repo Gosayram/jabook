@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import android.os.Looper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -72,6 +73,8 @@ internal class PeriodicPositionSaver(
     }
 
     private fun save(force: Boolean) {
+        // ponytail: player getters must stay on Main (SimpleBasePlayer.verifyApplicationThread)
+        check(Looper.getMainLooper() == Looper.myLooper()) { "player getters must stay on Main" }
         val player = getActivePlayer()
         val bookId = getCurrentBookId()
         if (player.mediaItemCount > 0 && !bookId.isNullOrBlank()) {

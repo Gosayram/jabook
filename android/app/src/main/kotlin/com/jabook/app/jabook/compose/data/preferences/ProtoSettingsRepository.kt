@@ -451,7 +451,11 @@ public class ProtoSettingsRepository
         }
 
         override val customEqBands: Flow<List<Int>> =
-            userPreferences.map { it.customEqBandsList }
+            userPreferences.map { prefs ->
+                val bands = prefs.customEqBandsList
+                // ponytail: Rhythm legacy 5→10 pad
+                if (bands.size == 5) List(10) { i -> if (i < 5) bands[i] else 0 } else bands
+            }
 
         override suspend fun updateCustomEqBands(bands: List<Int>) {
             dataStore.updateData { preferences ->

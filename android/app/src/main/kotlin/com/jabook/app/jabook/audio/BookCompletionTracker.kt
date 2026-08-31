@@ -16,6 +16,7 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import android.content.Intent
+import android.os.Looper
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import com.jabook.app.jabook.util.LogUtils
@@ -78,6 +79,8 @@ internal class BookCompletionTracker(
         positionCheckJob =
             scope.launch {
                 while (coroutineContext.isActive) {
+                    // ponytail: player getters must stay on Main (SimpleBasePlayer.verifyApplicationThread)
+                    check(Looper.getMainLooper() == Looper.myLooper()) { "player getters must stay on Main" }
                     if (getIsBookCompleted()) break
                     val player = getActivePlayer()
                     if (player.playbackState == Player.STATE_ENDED) break

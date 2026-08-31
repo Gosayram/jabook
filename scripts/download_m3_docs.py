@@ -53,9 +53,11 @@ if sys.version_info < MIN_PYTHON:
 import argparse
 import concurrent.futures
 import json
+import os
 import re
 import time
 from html.parser import HTMLParser
+from urllib.parse import urlsplit
 
 import requests
 
@@ -137,6 +139,126 @@ def collect_routes(main_js: str) -> tuple[str, list[dict], list[dict]]:
 
 def slug_to_dir(slug: str) -> Path:
     return Path(slug) if slug else Path("index")
+
+
+# ---------------------------------------------------------------------------
+# Internal link rewriting (site URLs -> local page.md paths)
+# ---------------------------------------------------------------------------
+
+
+def _norm_tab(label: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", label.lower().replace("&", " ")).strip("-")
+
+
+def build_link_index(routes: list[dict]) -> dict:
+    alias_to_slug: dict[str, str] = {}
+    tab_slugs: dict[str, set[str]] = {}
+    for route in routes:
+        slug = route["slug"].strip("/")
+        aliases = {slug, (route.get("carbonPath") or "").strip("/")}
+        aliases |= {a.strip("/") for a in route.get("alternateSlugs") or []}
+        aliases.discard("")
+        labels = {
+            _norm_tab(t["label"]) for t in route.get("tabs") or [] if t.get("label")
+        }
+        if labels:
+            tab_slugs[slug] = labels
+        for alias in aliases:
+            alias_to_slug[alias] = slug
+    seg_targets: dict[str, str | None] = {}
+
+    def add_seg(seg: str, slug: str) -> None:
+        if not seg:
+            return
+        if seg not in seg_targets:
+            seg_targets[seg] = slug
+        elif seg_targets[seg] != slug:
+            seg_targets[seg] = None  # ambiguous
+
+    for alias, slug in alias_to_slug.items():
+        add_seg(alias.rsplit("/", 1)[-1], slug)
+    for slug, labels in tab_slugs.items():
+        for label in labels:
+            add_seg(label, slug)
+    return {
+        "alias_to_slug": alias_to_slug,
+        "tab_slugs": tab_slugs,
+        "seg_targets": seg_targets,
+    }
+
+
+UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+
+
+def _internal_target(href: str) -> tuple[str, str] | None:
+    """Split href into (path, fragment) if it is site-internal, else None."""
+    if href.startswith("#"):
+        return None
+    parts = urlsplit(href)
+    if parts.scheme and parts.scheme not in ("http", "https"):
+        return None
+    if parts.netloc and parts.netloc != "m3.material.io":
+        return None
+    return parts.path, parts.fragment
+
+
+def _resolve_path(path: str, link_index: dict) -> str | None:
+    alias_to_slug: dict[str, str] = link_index["alias_to_slug"]
+    tab_slugs: dict[str, set[str]] = link_index["tab_slugs"]
+    seg_targets: dict[str, str | None] = link_index["seg_targets"]
+    segs = [s for s in path.split("/") if s and not UUID_RE.match(s)]
+    if not segs:
+        return None
+    clean = "/".join(segs)
+    candidates = [clean]
+    for prefix in ("m3/pages/", "google-material-3/pages/"):
+        if clean.startswith(prefix):
+            candidates.append(clean[len(prefix):])
+    for p in candidates:
+        if p in alias_to_slug:
+            return alias_to_slug[p]
+    for p in candidates:
+        for alias, slug in alias_to_slug.items():
+            if p.startswith(alias + "/"):
+                rest = p[len(alias) + 1:]
+                if rest in tab_slugs.get(slug, set()) or rest.startswith("tab"):
+                    return slug
+    for p in candidates:
+        target = seg_targets.get(p.rsplit("/", 1)[-1])
+        if target:
+            return target
+    p = candidates[0]
+    while "/" in p:
+        p = p.rsplit("/", 1)[0]
+        hit = alias_to_slug.get(p) or seg_targets.get(p.rsplit("/", 1)[-1])
+        if hit:
+            return hit
+    return None
+
+
+def rewrite_internal_links(md: str, current_slug: str, link_index: dict) -> str:
+    base_dir = slug_to_dir(current_slug)
+
+    def repl(m: re.Match) -> str:
+        href = m.group(1)
+        target = _internal_target(href)
+        if target is None:
+            return m.group(0)
+        path, fragment = target
+        path = path.strip("/")
+        if not path:
+            return m.group(0)
+        resolved = _resolve_path(path, link_index)
+        if not resolved:
+            return m.group(0)
+        rel = Path(
+            os.path.relpath(slug_to_dir(resolved) / "page.md", base_dir)
+        ).as_posix()
+        if fragment and not UUID_RE.match(fragment):
+            rel += f"#{fragment}"
+        return f"]({rel})"
+
+    return re.sub(r"\]\(([^)\s]+)\)", repl, md)
 
 
 # ---------------------------------------------------------------------------
@@ -353,7 +475,11 @@ def render_page_markdown(page: dict, source_slug: str = "") -> str:
 
 
 def download_page(
-    session: requests.Session, route: dict, carbon_version: str, out_dir: Path
+    session: requests.Session,
+    route: dict,
+    carbon_version: str,
+    out_dir: Path,
+    link_index: dict,
 ) -> tuple[str, str]:
     slug = route["slug"]
     file_id = route["exportedCarbonFileId"]
@@ -369,6 +495,7 @@ def download_page(
     )
     try:
         md = render_page_markdown(page, source_slug=slug)
+        md = rewrite_internal_links(md, slug, link_index)
     except Exception as exc:  # noqa: BLE001
         return slug, f"FAILED (render): {exc}"
     (page_dir / "page.md").write_text(md, encoding="utf-8")
@@ -423,10 +550,11 @@ def main() -> None:
     sitemap_urls = [u.rstrip("/") for u in SITEMAP_LOC_RE.findall(sitemap)]
 
     print(f"Downloading {len(routes)} pages with {args.workers} workers...")
+    link_index = build_link_index(routes)
     results: list[tuple[str, str]] = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as pool:
         futures = [
-            pool.submit(download_page, session, route, carbon_version, out_dir)
+            pool.submit(download_page, session, route, carbon_version, out_dir, link_index)
             for route in routes
         ]
         for fut in concurrent.futures.as_completed(futures):

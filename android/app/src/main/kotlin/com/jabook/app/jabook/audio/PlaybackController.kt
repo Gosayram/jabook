@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import android.os.Looper
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -481,6 +482,8 @@ internal class PlaybackController(
      * @param seconds Number of seconds to rewind (default: 15)
      */
     public fun rewind(seconds: Int = 15) {
+        // ponytail: player getters must stay on Main (SimpleBasePlayer.verifyApplicationThread)
+        check(Looper.getMainLooper() == Looper.myLooper()) { "player getters must stay on Main" }
         finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
@@ -497,6 +500,8 @@ internal class PlaybackController(
      * @param seconds Number of seconds to forward (default: 30)
      */
     public fun forward(seconds: Int = 30) {
+        // ponytail: player getters must stay on Main (SimpleBasePlayer.verifyApplicationThread)
+        check(Looper.getMainLooper() == Looper.myLooper()) { "player getters must stay on Main" }
         finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
         val currentPosition = player.currentPosition

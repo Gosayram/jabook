@@ -635,7 +635,9 @@ private fun CustomEqBandsSliders(
     contentPadding: androidx.compose.ui.unit.Dp,
     itemSpacing: androidx.compose.ui.unit.Dp,
 ) {
-    val customBands by viewModel.customEqBands.collectAsStateWithLifecycle()
+    val rawBands by viewModel.customEqBands.collectAsStateWithLifecycle()
+    // ponytail: Rhythm legacy 5→10 pad (CSV levels.split migration)
+    val customBands = remember(rawBands) { if (rawBands.size == 5) List(10) { i -> if (i < 5) rawBands[i] else 0 } else rawBands }
     val bandFrequencies = remember { listOf("31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k") }
     var showSaveDialog by remember { mutableStateOf(false) }
 

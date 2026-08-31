@@ -175,8 +175,20 @@ public class VolumeBoostProcessor(
         applyBoostWithLimiter(input, output, samples, channels)
     }
 
+    // ponytail: asymptotic soft-knee limiter threshold 0.8, maxOver 0.2 — matches Rhythm reference
+    private fun softLimit(sample: Float): Float {
+        if (sample == 0f) return 0f
+        val absValue = kotlin.math.abs(sample)
+        val threshold = 0.8f
+        if (absValue <= threshold) return sample
+        val over = absValue - threshold
+        val maxOver = 0.2f
+        val limited = threshold + over / (1f + over / maxOver)
+        return kotlin.math.sign(sample) * limited
+    }
+
     /**
-     * Applies volume boost with soft-knee limiter protection.
+     * Applies volume boost with asymptotic soft limiter.
      * Optimized: pre-compute constants.
      */
     private fun applyBoostWithLimiter(
@@ -185,28 +197,19 @@ public class VolumeBoostProcessor(
         samples: Int,
         channels: Int,
     ) {
-        // Pre-compute constants
         val invMaxValue = 1.0f / Short.MAX_VALUE
         val maxValue = Short.MAX_VALUE.toFloat()
-        val softRatio = 0.5f // Soft compression ratio
 
         for (i in 0 until samples) {
             for (ch in 0 until channels) {
                 val sample = input.short
-                val normalized = sample * invMaxValue // Faster than division
+                val normalized = sample * invMaxValue
 
                 // Apply gain boost
                 var amplified = normalized * gainMultiplier
 
-                // Apply soft-knee limiter
-                if (amplified > limiterThresholdLinear) {
-                    // Soft knee: gradual limiting above threshold
-                    val excess = amplified - limiterThresholdLinear
-                    amplified = limiterThresholdLinear + excess * softRatio
-                } else if (amplified < -limiterThresholdLinear) {
-                    val excess = amplified + limiterThresholdLinear
-                    amplified = -limiterThresholdLinear + excess * softRatio
-                }
+                // Asymptotic soft-limit (threshold 0.8 → asymptote 1.0)
+                amplified = softLimit(amplified)
 
                 // Clamp to prevent clipping
                 amplified = amplified.coerceIn(-1.0f, 1.0f)
