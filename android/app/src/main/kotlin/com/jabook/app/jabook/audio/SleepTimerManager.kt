@@ -79,6 +79,17 @@ internal class SleepTimerManager(
     private var isTimerExtensionInProgress: Boolean = false
     private var isShakeListenerRegistered: Boolean = false
 
+    // ponytail: disable shake-to-extend while Android Auto is active (bumps false-trigger)
+    var isAutomotiveActive: Boolean = false
+        set(value) {
+            field = value
+            if (value && isShakeListenerRegistered) {
+                sensorManager.unregisterListener(shakeSensorListener)
+                isShakeListenerRegistered = false
+                LogUtils.d("AudioPlayerService", "Shake listener unregistered (automotive active)")
+            }
+        }
+
     // Injectable clock so tests can drive the detector deterministically.
     private var shakeClockMillis: Long = 0L
     private val shakeDetector =
@@ -328,6 +339,10 @@ internal class SleepTimerManager(
     }
 
     private fun setupShakeListener() {
+        if (isAutomotiveActive) {
+            LogUtils.d("AudioPlayerService", "Shake listener skipped: automotive active")
+            return
+        }
         if (!isSleepTimerActive() || sleepTimerMode != SleepTimerMode.FIXED_DURATION) {
             return
         }
@@ -368,6 +383,7 @@ internal class SleepTimerManager(
     }
 
     private fun extendTimer() {
+        if (isAutomotiveActive) return
         if (!isSleepTimerActive() || sleepTimerMode != SleepTimerMode.FIXED_DURATION) return
         if (!isShakeToExtendEnabled() || isPowerSaveModeEnabled()) return
         if (isTimerExtensionInProgress) return

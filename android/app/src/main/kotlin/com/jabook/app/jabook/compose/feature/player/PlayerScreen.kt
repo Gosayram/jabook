@@ -480,6 +480,16 @@ public fun PlayerScreen(
         }
     }
 
+    // ponytail: auto-open supporting pane on Expanded when book loaded
+    LaunchedEffect(resolved?.widthSizeClass, uiState is PlayerState.Active) {
+        if (resolved?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Expanded &&
+            uiState is PlayerState.Active &&
+            !scaffoldNavigator.canNavigateBack()
+        ) {
+            scaffoldNavigator.navigateTo(SupportingPaneScaffoldRole.Supporting)
+        }
+    }
+
     // Back priority chain. ModalBottomSheets and the rating Dialog register their
     // own back handlers and win while shown. StatsOverlay is a plain
     // AnimatedVisibility with no handler, so it must be dismissed here first.

@@ -87,6 +87,11 @@ public class AudioPlayerLibrarySessionCallback(
                 session.isAutoCompanionController(controller)
         val isAppController = isAppController(controller)
 
+        // ponytail: disable shake-to-extend while Auto is active (bumps false-trigger)
+        if (session.isAutomotiveController(controller)) {
+            service.sleepTimerManager?.isAutomotiveActive = true
+        }
+
         if (isSystemController) {
             // Only the app's own controller can invoke state-changing sleep timer commands.
             val includeSleepTimerCommands =
