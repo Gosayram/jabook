@@ -35,6 +35,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.util.UUID
 
 /**
  * Handles metadata-related player events: ReplayGain extraction and embedded artwork management.
@@ -125,7 +126,7 @@ internal class PlayerMetadataHandler(
             LogUtils.d("AudioPlayerService", "Embedded artwork data available: ${artworkData.size} bytes")
             try {
                 val cacheDir = context.cacheDir
-                val artworkFile = File(cacheDir, "embedded_artwork_${System.currentTimeMillis()}.jpg")
+                val artworkFile = File(cacheDir, "embedded_artwork_${UUID.randomUUID()}.jpg")
                 artworkFile.outputStream().use { it.write(artworkData) }
                 setEmbeddedArtworkPath(artworkFile.absolutePath)
                 LogUtils.i("AudioPlayerService", "Saved embedded artwork to: ${artworkFile.absolutePath}")

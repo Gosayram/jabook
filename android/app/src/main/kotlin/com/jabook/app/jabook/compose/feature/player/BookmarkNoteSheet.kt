@@ -53,6 +53,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
+import java.util.UUID
 
 private val bookmarkNoteSheetLogger by lazy { LoggerFactoryImpl().get("BookmarkNoteSheet") }
 
@@ -167,7 +168,7 @@ internal fun BookmarkNoteSheet(
                             onError(context.getString(R.string.errorRecordingVoiceNote))
                             return@FilledTonalButton
                         }
-                        val outputFile = File(outputDir, "bookmark_${bookmarkId}_${System.currentTimeMillis()}.m4a")
+                        val outputFile = File(outputDir, "bookmark_${bookmarkId}_${UUID.randomUUID()}.m4a")
                         if (voiceNoteRecorder.start(outputFile, context)) {
                             onAudioPathChange(outputFile.absolutePath)
                             isRecordingBookmark = true
