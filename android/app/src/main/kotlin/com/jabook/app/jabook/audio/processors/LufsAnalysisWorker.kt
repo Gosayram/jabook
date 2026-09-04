@@ -73,8 +73,8 @@ public class LufsAnalysisWorker
         private val logger = loggerFactory.get("LufsAnalysisWorker")
 
         public companion object {
-            /** Distinct from IndexingWorker's id (3104) so notifications never race. */
-            private const val NOTIFICATION_ID: Int = 3_105
+            /** Distinct from IndexingWorker (3104) and LibraryScanWorker (3105) so notifications never race. */
+            private const val NOTIFICATION_ID: Int = 3_106
             private const val NOTIFICATION_CHANNEL_ID: String = "lufs_analysis_work"
 
             /** Input data key for the book ID to analyze. */

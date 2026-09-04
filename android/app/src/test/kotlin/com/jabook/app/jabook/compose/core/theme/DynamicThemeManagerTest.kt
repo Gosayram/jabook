@@ -128,9 +128,9 @@ class DynamicThemeManagerTest {
 
     @Test
     fun `fixDislikeColor shifts yellow-green hues`() {
-        // Yellow-green is in the "dislike" range (hue 70-130, moderate saturation)
-        // Use a known yellowish-green color that falls in the dislike range
-        val yellowGreen = Color(0.4f, 0.6f, 0.1f) // Greenish-yellow
+        // Canonical DislikeAnalyzer (materialkolor 5.0.1): HCT hue 90-111, chroma > 16, tone < 65
+        // Olive #808000: hue 111.0, chroma 49.6, tone 51.9 — disliked=true (probed)
+        val yellowGreen = Color(0.502f, 0.502f, 0f)
         val fixed = DynamicThemeManager.fixDislikeColor(yellowGreen)
 
         // The color should be shifted to a more pleasant hue

@@ -67,11 +67,6 @@ public data class PlayerThemeColors(
  * - Cam16 + SchemeContent/SchemeVibrant/SchemeExpressive referenced for tonal schemes
  */
 public object DynamicThemeManager {
-    // HCT dislike: hue 90..120 chroma >16 (real MCU, not HSL 70..130)
-    private const val DISLIKE_HUE_MIN = 90.0
-    private const val DISLIKE_HUE_MAX = 120.0
-    private const val DISLIKE_CHROMA_MIN = 16.0
-
     private val cache = androidx.collection.LruCache<String, PlayerThemeColors>(20)
 
     public suspend fun extractColors(bitmap: Bitmap): PlayerThemeColors =
@@ -150,13 +145,9 @@ public object DynamicThemeManager {
         cache.evictAll()
     }
 
-    /** MCU HCT dislike fix: hue 90..120 chroma>16 → DislikeAnalyzer.fixIfDisliked */
+    /** Canonical MCU DislikeAnalyzer (materialkolor 5.0.1): hue 90-111, chroma > 16, tone < 65 */
     internal fun fixDislikeColor(color: Color): Color {
         val hct = Hct.fromInt(color.toArgb())
-        if (hct.hue in DISLIKE_HUE_MIN..DISLIKE_HUE_MAX && hct.chroma > DISLIKE_CHROMA_MIN) {
-            return Color(DislikeAnalyzer.fixIfDisliked(hct).toInt())
-        }
-        // Also use canonical analyzer for edge cases
         if (DislikeAnalyzer.isDisliked(hct)) {
             return Color(DislikeAnalyzer.fixIfDisliked(hct).toInt())
         }

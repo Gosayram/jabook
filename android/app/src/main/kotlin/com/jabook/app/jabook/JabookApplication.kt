@@ -184,11 +184,12 @@ public class JabookApplication :
             ImageLoader
                 .Builder(context)
                 .components {
-                    // Use the same OkHttpClient that's used for API calls
-                    // This ensures images benefit from cookie persistence, auth, Brotli, etc.
+                    // Use the same OkHttpClient that's used for API calls (cookies, auth, Brotli),
+                    // but without its HTTP cache: Coil has its own 50MB disk cache below, and
+                    // sharing the rutracker_http cache would store every image twice.
                     add(
                         OkHttpNetworkFetcherFactory(
-                            callFactory = { okHttpClient },
+                            callFactory = { okHttpClient.newBuilder().cache(null).build() },
                         ),
                     )
                 }.memoryCache {

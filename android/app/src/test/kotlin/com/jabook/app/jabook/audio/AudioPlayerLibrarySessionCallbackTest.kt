@@ -101,6 +101,7 @@ class AudioPlayerLibrarySessionCallbackTest {
         controller = mock()
         whenever(controller.packageName).thenReturn("com.jabook.app.jabook")
         whenever(controller.isTrusted).thenReturn(true)
+        whenever(service.isFullyInitialized()).thenReturn(true)
 
         callback =
             AudioPlayerLibrarySessionCallback(

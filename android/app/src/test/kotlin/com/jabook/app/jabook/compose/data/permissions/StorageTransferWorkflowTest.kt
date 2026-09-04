@@ -29,6 +29,9 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+// Not migratable to Jimfs: StorageTransferWorkflow consumes java.io.File-based
+// String paths (absolutePath) and the assertions use File I/O (writeText/exists),
+// all bound to the default filesystem; Jimfs only supplies in-memory java.nio.Path.
 class StorageTransferWorkflowTest {
     private val checker = ExternalStoragePreflightChecker(hasFullStoragePermission = { true })
 

@@ -25,6 +25,9 @@ import java.io.File
 import java.nio.file.Files
 import kotlin.io.path.deleteIfExists
 
+// Not migratable to Jimfs: AtomicFileWriter operates on java.io.File plus okio
+// FileSystem.SYSTEM and FileOutputStream.fd.sync(), all bound to the default
+// filesystem; Jimfs only supplies in-memory java.nio.Path instances.
 class AtomicFileWriterTest {
     @Test
     fun `writeAtomically writes data and removes temp file`() {

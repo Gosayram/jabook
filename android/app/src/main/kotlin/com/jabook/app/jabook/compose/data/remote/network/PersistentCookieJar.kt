@@ -27,6 +27,7 @@ import com.google.crypto.tink.aead.AeadConfig
 import com.google.crypto.tink.aead.AesGcmKeyManager
 import com.google.crypto.tink.integration.android.AndroidKeysetManager
 import com.jabook.app.jabook.core.datastore.DataStoreCorruptionPolicy
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -146,6 +147,12 @@ public class PersistentCookieJar
                     .build()
                     .keysetHandle
                     .getPrimitive(Aead::class.java)
+            }.onFailure {
+                CrashDiagnostics.reportNonFatal(
+                    tag = "cookie_keyset_init_failed",
+                    throwable = it,
+                    attributes = mapOf("component" to "PersistentCookieJar"),
+                )
             }.getOrNull()
         }
 
@@ -159,7 +166,7 @@ public class PersistentCookieJar
                     for (entry in prefs.asMap()) {
                         val key = entry.key.name
                         val encrypted = entry.value as? String ?: continue
-                        val serialized = decrypt(encrypted) ?: continue
+                        val serialized = decrypt(encrypted, key) ?: continue
                         val cookies =
                             serialized
                                 .split(COOKIE_SEPARATOR)
@@ -194,7 +201,7 @@ public class PersistentCookieJar
                     val key = stringPreferencesKey(host)
                     val existingCookies =
                         prefs[key]
-                            ?.let(::decrypt)
+                            ?.let { decrypt(it, host) }
                             ?.split(COOKIE_SEPARATOR)
                             ?.mapNotNull(::deserializeCookie)
                             .orEmpty()
@@ -203,7 +210,7 @@ public class PersistentCookieJar
                         mergedCookies
                             .takeIf { it.isNotEmpty() }
                             ?.joinToString(COOKIE_SEPARATOR, transform = ::serializeCookie)
-                            ?.let(::encrypt)
+                            ?.let { encrypt(it, host) }
                     if (encrypted == null) prefs.remove(key) else prefs[key] = encrypted
                     cache.store(host, mergedCookies)
                 }
@@ -226,7 +233,7 @@ public class PersistentCookieJar
                         val prefs = dataStore.data.first()
                         val key = stringPreferencesKey(host)
                         val encrypted: String = prefs[key] ?: return@runBlocking emptyList<Cookie>()
-                        val serialized = decrypt(encrypted) ?: return@runBlocking emptyList<Cookie>()
+                        val serialized = decrypt(encrypted, host) ?: return@runBlocking emptyList<Cookie>()
 
                         serialized
                             .split(COOKIE_SEPARATOR)
@@ -292,17 +299,34 @@ public class PersistentCookieJar
                     }.build()
             }.getOrNull()
 
-        private fun encrypt(value: String): String? =
+        /** AAD binds each ciphertext to its host; legacy rows were written with null AAD. */
+        private fun hostAad(host: String): ByteArray = "cookie:$host".toByteArray()
+
+        private fun encrypt(
+            value: String,
+            host: String,
+        ): String? =
             runCatching {
-                val encrypted = checkNotNull(aead).encrypt(value.toByteArray(), null)
+                val encrypted = checkNotNull(aead).encrypt(value.toByteArray(), hostAad(host))
                 ENCRYPTED_PREFIX + Base64.encodeToString(encrypted, Base64.NO_WRAP)
             }.getOrNull()
 
-        private fun decrypt(value: String): String? {
+        private fun decrypt(
+            value: String,
+            host: String,
+        ): String? {
             if (!value.startsWith(ENCRYPTED_PREFIX)) return null
             return runCatching {
                 val encrypted = Base64.decode(value.removePrefix(ENCRYPTED_PREFIX), Base64.NO_WRAP)
-                checkNotNull(aead).decrypt(encrypted, null).decodeToString()
+                val localAead = checkNotNull(aead)
+                val decrypted =
+                    try {
+                        localAead.decrypt(encrypted, hostAad(host))
+                    } catch (_: Exception) {
+                        // Legacy fallback for rows written before AAD binding.
+                        localAead.decrypt(encrypted, null)
+                    }
+                decrypted.decodeToString()
             }.getOrNull()
         }
     }
