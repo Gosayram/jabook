@@ -118,9 +118,3 @@ public object ScanSettingsRoute
  */
 @Serializable
 public object AudioSettingsRoute
-
-/**
- * Onboarding screen route - introduces the app to new users.
- */
-@Serializable
-public object OnboardingRoute

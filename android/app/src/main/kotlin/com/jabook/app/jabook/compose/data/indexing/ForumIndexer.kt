@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.indexing
 
 import android.content.Context
 import coil3.SingletonImageLoader
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.dao.IndexMetadata
@@ -744,6 +745,11 @@ public class ForumIndexer
                                         ImageRequest
                                             .Builder(context)
                                             .data(url)
+                                            // Disk-warm only: constrain decode to cover size and
+                                            // skip the memory cache — a 500-URL bulk preload must
+                                            // not evict the UI's cached images.
+                                            .size(300, 450)
+                                            .memoryCachePolicy(CachePolicy.DISABLED)
                                             .build()
                                     imageLoader.enqueue(request)
                                 } catch (e: Exception) {

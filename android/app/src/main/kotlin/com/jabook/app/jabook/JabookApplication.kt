@@ -30,11 +30,7 @@ import com.jabook.app.jabook.compose.infrastructure.notification.NotificationHel
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.diagnostics.AnrWatchdog
 import com.jabook.app.jabook.util.LogUtils
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
-import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -50,30 +46,6 @@ import javax.inject.Inject
  * and creates notification channels.
  */
 
-/**
- * EntryPoint to access OkHttpClient from Hilt in Application.onCreate().
- * This is needed because Hilt injection is not available in Application.onCreate().
- */
-@EntryPoint
-@InstallIn(SingletonComponent::class)
-public interface OkHttpClientEntryPoint {
-    public fun okHttpClient(): OkHttpClient
-}
-
-/** Lazily obtains the native torrent memory guard only when Android reports memory pressure. */
-@EntryPoint
-@InstallIn(SingletonComponent::class)
-public interface TorrentMemoryPressureEntryPoint {
-    public fun torrentMemoryPressureGuard(): TorrentMemoryPressureGuard
-}
-
-/** Provides session recovery without eagerly constructing the audio database during every start. */
-@EntryPoint
-@InstallIn(SingletonComponent::class)
-public interface ListeningSessionRecoveryEntryPoint {
-    public fun listeningSessionRepository(): ListeningSessionRepository
-}
-
 @HiltAndroidApp
 public class JabookApplication :
     Application(),
@@ -83,6 +55,17 @@ public class JabookApplication :
 
     @Inject
     public lateinit var syncManager: SyncManager
+
+    @Inject
+    public lateinit var okHttpClient: OkHttpClient
+
+    /** Lazily guards the native torrent session only when Android reports memory pressure. */
+    @Inject
+    public lateinit var torrentMemoryPressureGuard: TorrentMemoryPressureGuard
+
+    /** Recovers stale listening sessions left open by a previous process death. */
+    @Inject
+    public lateinit var listeningSessionRepository: ListeningSessionRepository
 
     /** ANR watchdog — active only in debug/beta builds via LogUtils gating. */
     private val anrWatchdog: AnrWatchdog = AnrWatchdog()
@@ -175,16 +158,7 @@ public class JabookApplication :
 
         // Configure Coil ImageLoader with OkHttpClient from Hilt
         // Use setSafe to ensure it won't overwrite an existing ImageLoader
-        // Note: setSafe uses lazy initialization, so Hilt will be ready when ImageLoader is first used
         SingletonImageLoader.setSafe { context ->
-            // Get OkHttpClient from Hilt using EntryPoint (lazy - Hilt will be ready when first used)
-            val okHttpClient =
-                EntryPointAccessors
-                    .fromApplication(
-                        context,
-                        OkHttpClientEntryPoint::class.java,
-                    ).okHttpClient()
-
             ImageLoader
                 .Builder(context)
                 .components {
@@ -235,10 +209,7 @@ public class JabookApplication :
         }
 
         try {
-            EntryPointAccessors
-                .fromApplication(this, TorrentMemoryPressureEntryPoint::class.java)
-                .torrentMemoryPressureGuard()
-                .onTrimMemory(level)
+            torrentMemoryPressureGuard.onTrimMemory(level)
         } catch (e: Exception) {
             // Memory trimming must never turn a native-library failure into a process crash.
             LogUtils.e("JabookApplication", "Failed to guard torrent session during memory trim", e)
@@ -247,13 +218,8 @@ public class JabookApplication :
 
     private fun recoverOpenListeningSessions() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            val entryPoint =
-                EntryPointAccessors.fromApplication(
-                    this@JabookApplication,
-                    ListeningSessionRecoveryEntryPoint::class.java,
-                )
             runCatching {
-                entryPoint.listeningSessionRepository().recoverOpenSessions()
+                listeningSessionRepository.recoverOpenSessions()
             }.onSuccess { closedSessions ->
                 if (closedSessions > 0) {
                     LogUtils.w("JabookApplication", "Closed $closedSessions stale listening sessions")

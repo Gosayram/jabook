@@ -20,6 +20,7 @@ import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.QueryResultSizeGuardPolicy
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.local.search.TransliterationSearchPolicy
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -46,12 +47,14 @@ import javax.inject.Singleton
  * - Handles data mapping between entities and domain models
  *
  * @param booksDao Room DAO for database access
+ * @param downloadQueueDao Room DAO for download queue cleanup on book deletion
  */
 @Singleton
 public class OfflineFirstBooksRepository
     @Inject
     constructor(
         private val booksDao: BooksDao,
+        private val downloadQueueDao: DownloadQueueDao,
         private val chaptersDao: com.jabook.app.jabook.compose.data.local.dao.ChaptersDao,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val playerPersistenceManager: com.jabook.app.jabook.audio.PlayerPersistenceManager,
@@ -371,6 +374,9 @@ public class OfflineFirstBooksRepository
 
         override suspend fun deleteBook(bookId: String) {
             chapterDurationsCache.remove(bookId)
+            // ponytail: sequential deletes (each suspend DAO call is transactional);
+            // wrap in db.withTransaction if atomicity across tables ever matters
+            downloadQueueDao.deleteByBookId(bookId)
             booksDao.deleteById(bookId)
         }
 

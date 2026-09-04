@@ -66,7 +66,9 @@ message UserPreferences {
   int32 resume_rewind_seconds = 34;
 
   // Enable "shake to extend sleep timer" behavior for fixed-duration sleep timer mode.
-  bool sleep_timer_shake_extend_enabled = 35;
+  // optional: explicit presence lets the v9 migration distinguish "never set" (default true)
+  // from the user's explicit `false`.
+  optional bool sleep_timer_shake_extend_enabled = 35;
 
   // Equalizer preset: "FLAT", "VOICE_CLARITY", "NIGHT"
   string equalizer_preset = 36;

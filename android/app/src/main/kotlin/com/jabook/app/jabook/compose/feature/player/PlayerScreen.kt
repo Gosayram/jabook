@@ -1328,10 +1328,12 @@ private fun PlayerLandscapeLayout(
 
             // Full-bleed blurred cover as the column background (Spotify-style),
             // with the full cover shown un-cropped on top.
+            // Resolve the cover model like PremiumPlayerBackground does — a Book has no
+            // Coil mapper, so .data(state.book) always failed and left the bg blank.
             val bgRequest =
                 coil3.request.ImageRequest
                     .Builder(context)
-                    .data(state.book)
+                    .data(CoverUtils.getCoverModel(state.book, context))
                     .size(512)
                     .scale(coil3.size.Scale.FILL)
                     .build()

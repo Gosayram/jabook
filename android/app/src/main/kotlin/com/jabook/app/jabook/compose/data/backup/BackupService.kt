@@ -73,6 +73,7 @@ public class BackupService
             Json {
                 prettyPrint = true
                 ignoreUnknownKeys = true
+                coerceInputValues = true
             }
 
         /**

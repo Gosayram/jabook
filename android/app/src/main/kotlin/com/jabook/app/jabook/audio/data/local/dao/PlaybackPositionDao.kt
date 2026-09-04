@@ -45,12 +45,4 @@ public interface PlaybackPositionDao {
      */
     @Query("DELETE FROM playback_positions WHERE bookId = :bookId")
     public suspend fun deletePosition(bookId: String)
-
-    /**
-     * Gets all playback positions.
-     */
-    @Query("SELECT * FROM playback_positions")
-    public fun getAllPositionsInternal(): Flow<List<PlaybackPositionEntity>>
-
-    public fun getAllPositions(): Flow<List<PlaybackPositionEntity>> = getAllPositionsInternal().distinctUntilChanged()
 }

@@ -47,7 +47,10 @@ import org.libtorrent4j.alerts.Alert
 import org.libtorrent4j.alerts.AlertType
 import org.libtorrent4j.alerts.BlockFinishedAlert
 import org.libtorrent4j.alerts.DhtErrorAlert
+import org.libtorrent4j.alerts.ListenFailedAlert
+import org.libtorrent4j.alerts.MetadataFailedAlert
 import org.libtorrent4j.alerts.MetadataReceivedAlert
+import org.libtorrent4j.alerts.PerformanceAlert
 import org.libtorrent4j.alerts.PieceFinishedAlert
 import org.libtorrent4j.alerts.SaveResumeDataAlert
 import org.libtorrent4j.alerts.SaveResumeDataFailedAlert
@@ -138,6 +141,7 @@ public class TorrentSessionManager
                     return intArrayOf(
                         AlertType.ADD_TORRENT.swig(),
                         AlertType.METADATA_RECEIVED.swig(),
+                        AlertType.METADATA_FAILED.swig(),
                         AlertType.STATE_CHANGED.swig(),
                         AlertType.TORRENT_FINISHED.swig(),
                         AlertType.TORRENT_ERROR.swig(),
@@ -150,6 +154,8 @@ public class TorrentSessionManager
                         AlertType.TRACKER_REPLY.swig(),
                         AlertType.TRACKER_ERROR.swig(),
                         AlertType.TRACKER_ANNOUNCE.swig(),
+                        AlertType.LISTEN_FAILED.swig(),
+                        AlertType.PERFORMANCE.swig(),
                     )
                 }
 
@@ -164,6 +170,13 @@ public class TorrentSessionManager
                             is TorrentFinishedAlert -> handleTorrentFinished(alert)
                             is TorrentErrorAlert -> handleTorrentError(alert)
                             is MetadataReceivedAlert -> handleMetadataReceived(alert)
+                            is MetadataFailedAlert -> handleMetadataFailed(alert)
+                            is ListenFailedAlert -> {
+                                logger.e { "LISTEN_FAILED: ${alert.message()}" }
+                            }
+                            is PerformanceAlert -> {
+                                logger.d { "PERFORMANCE: ${alert.message()}" }
+                            }
                             is BlockFinishedAlert -> handleBlockFinished(alert)
                             is PieceFinishedAlert -> handlePieceFinished(alert)
                             is DhtErrorAlert -> handleDhtError(alert)

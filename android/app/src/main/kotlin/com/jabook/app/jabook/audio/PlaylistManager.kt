@@ -93,6 +93,9 @@ internal class PlaylistManager(
                 // connection pool/dispatcher) and only adjust the media timeouts.
                 okHttpClient
                     .newBuilder()
+                    // Media is cached by Media3 CacheDataSource (mediaCache); keep the shared
+                    // client's HTTP cache out of the audio path (mirrors JabookApplication Coil fix).
+                    .cache(null)
                     .connectTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                     .readTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                     .writeTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)

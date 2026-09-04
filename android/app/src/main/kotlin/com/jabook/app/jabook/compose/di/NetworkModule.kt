@@ -81,7 +81,13 @@ public object NetworkModule {
     @Singleton
     public fun provideLoggingInterceptor(): HttpLoggingInterceptor =
         HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
+            // BASIC logs full URLs (query strings may carry auth tokens) — disable in release.
+            level =
+                if (BuildConfig.DEBUG) {
+                    HttpLoggingInterceptor.Level.BASIC
+                } else {
+                    HttpLoggingInterceptor.Level.NONE
+                }
             redactHeader("Authorization")
             redactHeader("Cookie")
             redactHeader("Set-Cookie")
@@ -125,11 +131,10 @@ public object NetworkModule {
                 .connectTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .readTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .writeTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-                .apply {
-                    if (BuildConfig.DEBUG) {
-                        eventListenerFactory(networkTelemetryEventListenerFactory)
-                    }
-                }.build()
+                // Telemetry (network_call_failed / network_slow_request nonfatals) is most
+                // valuable in release, so no BuildConfig.DEBUG gate here.
+                .eventListenerFactory(networkTelemetryEventListenerFactory)
+                .build()
 
         return MirrorManager(settingsRepository, healthCheckClient, loggerFactory)
     }
@@ -175,11 +180,10 @@ public object NetworkModule {
             // the default perHost limit of 5 can starve them under load.
             .dispatcher(
                 Dispatcher().apply { maxRequestsPerHost = 16 },
-            ).apply {
-                if (BuildConfig.DEBUG) {
-                    eventListenerFactory(networkTelemetryEventListenerFactory)
-                }
-            }
+            )
+            // Telemetry (network_call_failed / network_slow_request nonfatals) is most
+            // valuable in release, so no BuildConfig.DEBUG gate here.
+            .eventListenerFactory(networkTelemetryEventListenerFactory)
             // Interceptor order matters! They are called in order:
             // 1. BrotliInterceptor - MUST be first to add Accept-Encoding header (only if not already set)
             // 2. RutrackerHeadersInterceptor - Adds User-Agent, Accept, Accept-Language (NO Accept-Encoding!)
@@ -211,9 +215,11 @@ public object NetworkModule {
     @Provides
     @Singleton
     @Named("coverDownload")
-    public fun provideCoverDownloadClient(): OkHttpClient =
+    public fun provideCoverDownloadClient(dohDns: com.jabook.app.jabook.compose.data.network.DnsOverHttpsDns): OkHttpClient =
         OkHttpClient
             .Builder()
+            // Cover URLs live on the same DNS-blocked mirrors as the API — resolve via DoH.
+            .dns(dohDns)
             .callTimeout(NetworkRuntimePolicy.API_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .connectTimeout(NetworkRuntimePolicy.API_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(NetworkRuntimePolicy.API_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)

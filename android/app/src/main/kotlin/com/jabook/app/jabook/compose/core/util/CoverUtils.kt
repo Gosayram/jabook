@@ -26,10 +26,6 @@ import coil3.request.crossfade
 import coil3.request.error
 import coil3.request.fallback
 import coil3.request.placeholder
-import coil3.request.transformations
-import coil3.transform.CircleCropTransformation
-import coil3.transform.RoundedCornersTransformation
-import coil3.transform.Transformation
 import com.jabook.app.jabook.compose.domain.model.Book
 import java.io.File
 
@@ -120,15 +116,16 @@ public object CoverUtils {
     }
 
     /**
-     * Creates an ImageRequest for a book cover with placeholder, error, fallback, and optional transformations.
+     * Creates an ImageRequest for a book cover with placeholder, error, and fallback.
      *
      * @param book The book to get cover for
      * @param context Android context
      * @param placeholderColor Color for placeholder (default: surfaceVariant)
      * @param errorColor Color for error state (default: error)
      * @param fallbackColor Color for fallback when no image available (default: surfaceVariant)
-     * @param cornerRadius Radius for rounded corners in dp (0 = no rounding, null = use default 8.dp)
-     * @param circleCrop Whether to apply circle crop transformation (overrides cornerRadius)
+     * @param cornerRadius Kept for API compatibility; ignored. Rounded corners are applied at
+     *   call sites via Modifier.clip, which keeps hardware bitmaps and avoids a per-cover
+     *   software-bitmap copy. (Previously applied RoundedCornersTransformation here.)
      * @param allowHardware Whether to allow hardware bitmaps for better performance (default: true)
      * @return ImageRequest.Builder ready to build
      */
@@ -138,25 +135,12 @@ public object CoverUtils {
         placeholderColor: Color? = null,
         errorColor: Color = Color(0xFFB00020), // Material error color
         fallbackColor: Color? = null,
-        cornerRadius: Float? = 8f, // 8dp default
-        circleCrop: Boolean = false,
+        @Suppress("UNUSED_PARAMETER") cornerRadius: Float? = 8f,
         allowHardware: Boolean = true,
     ): ImageRequest.Builder {
         val data = getCoverModel(book, context)
         val resolvedPlaceholderColor = placeholderColor ?: getDeterministicPlaceholderColor(book, context)
         val resolvedFallbackColor = fallbackColor ?: resolvedPlaceholderColor
-        val transformations = mutableListOf<Transformation>()
-
-        // Add transformations
-        when {
-            circleCrop -> transformations.add(CircleCropTransformation())
-            cornerRadius != null && cornerRadius > 0 -> {
-                // Convert dp to pixels using device density
-                val density = context.resources.displayMetrics.density
-                val radiusPx = cornerRadius * density
-                transformations.add(RoundedCornersTransformation(radiusPx))
-            }
-        }
 
         val builder =
             ImageRequest
@@ -173,10 +157,6 @@ public object CoverUtils {
         // Note: standalone enqueue calls should use .size() on the builder to
         // constrain decode dimensions. AsyncImage resolves size from composition
         // constraints automatically; enqueue does not.
-
-        if (transformations.isNotEmpty()) {
-            builder.transformations(transformations)
-        }
 
         return builder
     }

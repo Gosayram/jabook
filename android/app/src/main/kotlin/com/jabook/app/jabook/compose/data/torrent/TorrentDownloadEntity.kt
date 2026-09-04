@@ -19,9 +19,9 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import com.jabook.app.jabook.compose.core.util.PersistentJson
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
 /**
  * Room entity for persisting torrent downloads
@@ -187,8 +187,8 @@ public class TorrentDownloadConverters {
     public fun toPauseReason(value: String?): PauseReason? = value?.let { PauseReason.valueOf(it) }
 
     @TypeConverter
-    public fun fromFileList(files: List<TorrentFile>): String = Json.encodeToString(files)
+    public fun fromFileList(files: List<TorrentFile>): String = PersistentJson.encodeToString(files)
 
     @TypeConverter
-    public fun toFileList(value: String): List<TorrentFile> = Json.decodeFromString(value)
+    public fun toFileList(value: String): List<TorrentFile> = PersistentJson.decodeFromString(value)
 }

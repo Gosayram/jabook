@@ -17,8 +17,10 @@ package com.jabook.app.jabook.audio.data.repository
 import com.jabook.app.jabook.audio.core.result.Result
 import com.jabook.app.jabook.audio.data.local.dao.SavedPlayerStateDao
 import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEntity
+import com.jabook.app.jabook.compose.core.util.PersistentJson
 import kotlinx.coroutines.CancellationException
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -76,10 +78,10 @@ public class SavedPlayerStateRepository
             sleepTimerRemainingSeconds: Int? = null,
         ): Result<Unit> =
             try {
-                val filePathsJson = Json.encodeToString(filePaths)
+                val filePathsJson = PersistentJson.encodeToString(filePaths)
                 val metadataJson =
                     if (metadata != null && metadata.isNotEmpty()) {
-                        Json.encodeToString(metadata.mapValues { JsonPrimitive(it.value) })
+                        PersistentJson.encodeToString(metadata.mapValues { JsonPrimitive(it.value) })
                     } else {
                         null
                     }
@@ -139,7 +141,7 @@ public class SavedPlayerStateRepository
          */
         public fun parseFilePaths(filePathsJson: String): List<String> =
             try {
-                Json.decodeFromString<List<String>>(filePathsJson)
+                PersistentJson.decodeFromString<List<String>>(filePathsJson)
             } catch (e: Exception) {
                 emptyList()
             }
@@ -150,7 +152,7 @@ public class SavedPlayerStateRepository
         public fun parseMetadata(metadataJson: String?): Map<String, String>? {
             if (metadataJson.isNullOrEmpty()) return null
             return try {
-                Json.decodeFromString<Map<String, String>>(metadataJson)
+                PersistentJson.decodeFromString<Map<String, String>>(metadataJson)
             } catch (e: Exception) {
                 null
             }

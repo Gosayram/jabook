@@ -119,6 +119,10 @@ public class LegacyPreferencesDataMigration
                     preferences[SPOTLIGHT_COMPLETED]?.let { spotlightCompleted = it }
                     preferences[HAPTICS_ENABLED]?.let { hapticsEnabled = it }
                     preferences[LANGUAGE_CODE]?.takeIf { it.isNotBlank() }?.let { languageCode = it }
+                    // Fresh copy = fields 66/67 above already carry explicit values (possibly
+                    // `false`). Stamp schema 8 so the v8 default-true migration step skips this
+                    // store instead of clobbering them; later steps (v9+) still run normally.
+                    schemaVersion = 8
                 }.build()
         }
 

@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
+import com.jabook.app.jabook.compose.core.util.PersistentJson
 import com.jabook.app.jabook.compose.core.util.rethrowCancellation
 import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -25,8 +26,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
@@ -175,7 +176,7 @@ public class PlayerPersistenceManager
             withContext(Dispatchers.IO) {
                 try {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    prefs.edit().putString("book_state_${state.bookId}", Json.encodeToString(state)).apply()
+                    prefs.edit().putString("book_state_${state.bookId}", PersistentJson.encodeToString(state)).apply()
                 } catch (e: Exception) {
                     e.rethrowCancellation()
                     LogUtils.e("PlayerPersistence", "Failed to save player state", e)
@@ -197,7 +198,7 @@ public class PlayerPersistenceManager
                         for (bookId in wanted) {
                             try {
                                 val jsonString = prefs.getString("book_state_$bookId", null) ?: continue
-                                put(bookId, Json.decodeFromString<PlayerState>(jsonString))
+                                put(bookId, PersistentJson.decodeFromString<PlayerState>(jsonString))
                             } catch (e: Exception) {
                                 e.rethrowCancellation()
                                 // Matches getPlayerState: undecodable entry behaves as "no state"
@@ -311,7 +312,7 @@ public class PlayerPersistenceManager
                     error("filePaths is missing")
                 }
 
-                val filePaths = Json.decodeFromString<List<String>>(filePathsJson)
+                val filePaths = PersistentJson.decodeFromString<List<String>>(filePathsJson)
                 if (filePaths.isEmpty()) {
                     error("filePaths is empty")
                 }
@@ -321,7 +322,7 @@ public class PlayerPersistenceManager
                 val playlistItems =
                     prefs
                         .getString(KEY_PLAYBACK_SNAPSHOT_PLAYLIST_ITEMS, null)
-                        ?.let { Json.decodeFromString<List<PlaylistItem>>(it) }
+                        ?.let { PersistentJson.decodeFromString<List<PlaylistItem>>(it) }
                         ?: filePaths.map(::PlaylistItem)
                 if (playlistItems.map(PlaylistItem::path) != filePaths) {
                     error("playlistItems do not match filePaths")
@@ -353,13 +354,13 @@ public class PlayerPersistenceManager
             val metadataJson =
                 state.metadata
                     ?.takeIf { it.isNotEmpty() }
-                    ?.let { Json.encodeToString(it) }
+                    ?.let { PersistentJson.encodeToString(it) }
             prefs
                 .edit()
                 .putInt(KEY_PLAYBACK_SNAPSHOT_VERSION, PLAYBACK_SNAPSHOT_VERSION_V1)
                 .putString(KEY_PLAYBACK_SNAPSHOT_GROUP_PATH, state.groupPath)
-                .putString(KEY_PLAYBACK_SNAPSHOT_FILE_PATHS, Json.encodeToString(state.filePaths))
-                .putString(KEY_PLAYBACK_SNAPSHOT_PLAYLIST_ITEMS, Json.encodeToString(state.playlistItems))
+                .putString(KEY_PLAYBACK_SNAPSHOT_FILE_PATHS, PersistentJson.encodeToString(state.filePaths))
+                .putString(KEY_PLAYBACK_SNAPSHOT_PLAYLIST_ITEMS, PersistentJson.encodeToString(state.playlistItems))
                 .putInt(KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX, state.currentIndex)
                 .putLong(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION, state.currentPosition)
                 .putString(KEY_PLAYBACK_SNAPSHOT_METADATA, metadataJson)
@@ -382,7 +383,7 @@ public class PlayerPersistenceManager
         private fun parseMetadataJson(metadataJson: String?): Map<String, String>? {
             if (metadataJson.isNullOrBlank()) return null
             return runCatching {
-                Json.parseToJsonElement(metadataJson).jsonObject.mapValues { it.value.jsonPrimitive.content }
+                PersistentJson.parseToJsonElement(metadataJson).jsonObject.mapValues { it.value.jsonPrimitive.content }
             }.getOrNull()
         }
 

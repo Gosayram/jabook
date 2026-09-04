@@ -20,6 +20,7 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.logger.NoOpLogger
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
+import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.local.dao.ScanPathDao
 import com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner
 import kotlinx.coroutines.test.runTest
@@ -49,6 +50,7 @@ class OfflineFirstBooksRepositoryTest {
             val repository =
                 OfflineFirstBooksRepository(
                     booksDao = booksDao,
+                    downloadQueueDao = mock(),
                     chaptersDao = chaptersDao,
                     scanPathDao = scanPathDao,
                     playerPersistenceManager = playerPersistenceManager,
@@ -74,9 +76,11 @@ class OfflineFirstBooksRepositoryTest {
             val loggerFactory = mock<LoggerFactory>()
             whenever(loggerFactory.get(eq("OfflineFirstBooksRepository"))).thenReturn(NoOpLogger)
 
+            val downloadQueueDao = mock<DownloadQueueDao>()
             val repository =
                 OfflineFirstBooksRepository(
                     booksDao = booksDao,
+                    downloadQueueDao = downloadQueueDao,
                     chaptersDao = chaptersDao,
                     scanPathDao = scanPathDao,
                     playerPersistenceManager = playerPersistenceManager,
@@ -90,5 +94,30 @@ class OfflineFirstBooksRepositoryTest {
                 bookId = eq("book-1"),
                 isFavorite = eq(true),
             )
+        }
+
+    @Test
+    fun `deleteBook removes download queue entry along with the book`() =
+        runTest {
+            val booksDao = mock<BooksDao>()
+            val downloadQueueDao = mock<DownloadQueueDao>()
+            val loggerFactory = mock<LoggerFactory>()
+            whenever(loggerFactory.get(eq("OfflineFirstBooksRepository"))).thenReturn(NoOpLogger)
+
+            val repository =
+                OfflineFirstBooksRepository(
+                    booksDao = booksDao,
+                    downloadQueueDao = downloadQueueDao,
+                    chaptersDao = mock(),
+                    scanPathDao = mock(),
+                    playerPersistenceManager = mock(),
+                    localBookScanner = mock(),
+                    loggerFactory = loggerFactory,
+                )
+
+            repository.deleteBook("book-1")
+
+            verify(downloadQueueDao).deleteByBookId("book-1")
+            verify(booksDao).deleteById("book-1")
         }
 }

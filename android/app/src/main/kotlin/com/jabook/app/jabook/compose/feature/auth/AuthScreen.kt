@@ -81,11 +81,11 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
+import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
 
@@ -372,8 +372,10 @@ public fun CaptchaDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                AsyncImage(
-                    model = captchaData.url,
+                // RemoteImage adds placeholder/loading/error UI around the captcha; the
+                // request rebuilds automatically when the refresh key (captchaData.url) changes.
+                RemoteImage(
+                    src = captchaData.url,
                     contentDescription = stringResource(R.string.captchaImage),
                     modifier =
                         Modifier

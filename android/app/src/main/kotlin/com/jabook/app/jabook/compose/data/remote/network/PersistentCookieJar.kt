@@ -124,7 +124,11 @@ public class PersistentCookieJar
                     if (httpOnly) httpOnly()
                 }.build()
 
-        private val cookieJson = Json { ignoreUnknownKeys = true }
+        private val cookieJson =
+            Json {
+                ignoreUnknownKeys = true
+                coerceInputValues = true
+            }
 
         private val dataStore: DataStore<Preferences> by lazy {
             PreferenceDataStoreFactory.create(

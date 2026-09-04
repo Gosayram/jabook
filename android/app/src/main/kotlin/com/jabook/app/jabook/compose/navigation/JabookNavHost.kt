@@ -299,17 +299,6 @@ public fun JabookNavHost(
             )
         }
 
-        // Onboarding screen - introduces the app
-        composable<OnboardingRoute> {
-            com.jabook.app.jabook.compose.feature.onboarding.OnboardingScreen(
-                onFinish = {
-                    navController.navigate(LibraryRoute) {
-                        popUpTo(OnboardingRoute) { inclusive = true }
-                    }
-                },
-            )
-        }
-
         // Player screen - shows audio player
         composable<PlayerRoute>(
             deepLinks =
@@ -345,9 +334,12 @@ public fun JabookNavHost(
                     }
                 },
                 onNavigateToLibrary = {
-                    navController.navigate(LibraryRoute) {
-                        launchSingleTop = true
-                        popUpTo<PlayerRoute> { inclusive = true }
+                    // Pop back to the existing Library entry; navigate only when
+                    // Library isn't on the stack (e.g. deep link into Player).
+                    if (!navController.popBackStack(LibraryRoute, inclusive = false)) {
+                        navController.navigate(LibraryRoute) {
+                            launchSingleTop = true
+                        }
                     }
                 },
                 sharedTransitionScope = sharedTransitionScope,

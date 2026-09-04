@@ -74,6 +74,8 @@ internal class PlayerThemeColorsHandler(
                     .Builder(context)
                     .data(coverUrl)
                     .allowHardware(false) // Software bitmap required for Palette
+                    // Palette/Celebi quantization doesn't benefit from full-res pixels.
+                    .size(256, 256)
                     .build()
 
             val result = loader.execute(request)
