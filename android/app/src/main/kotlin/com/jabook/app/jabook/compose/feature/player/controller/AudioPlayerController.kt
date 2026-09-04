@@ -150,7 +150,10 @@ public class AudioPlayerController
         private val _currentBookId = MutableStateFlow<String?>(null)
         public val currentBookId: StateFlow<String?> = _currentBookId.asStateFlow()
 
-        private val _terminalPlaybackErrors = MutableSharedFlow<String>(extraBufferCapacity = 1)
+        // replay=1: a terminal error is the one event whose delivery matters — late
+        // subscribers (screen re-entered after crash) must still see it, and a burst
+        // of two errors must not drop the second.
+        private val _terminalPlaybackErrors = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 1)
         public val terminalPlaybackErrors: SharedFlow<String> = _terminalPlaybackErrors.asSharedFlow()
 
         // Connection state for debugging - tracks MediaController connection status

@@ -156,6 +156,11 @@ internal class PlayerConfigurator(
                     updateAudioVisualizer = { audioSessionId ->
                         // Update audio visualizer when session ID changes (following Rhythm pattern)
                         service.audioVisualizerManager?.initialize(audioSessionId)
+                        // Re-attach EQ + notify external EQ apps: AudioEffect control resets
+                        // on every new AudioTrack (e.g. BT routing change) — without this the
+                        // equalizer stays bound to a dead session (Gramophone pattern).
+                        service.audioEqualizerManager.attachToAudioSession(audioSessionId)
+                        service.broadcastAudioEffectSession(audioSessionId)
                     },
                     getCrossfadeHandler = { service.crossfadeHandler },
                     coroutineScope = service.playerServiceScope, // Pass coroutine scope for debounce

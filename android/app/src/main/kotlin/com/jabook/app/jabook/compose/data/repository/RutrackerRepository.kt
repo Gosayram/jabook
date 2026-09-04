@@ -149,9 +149,10 @@ public class RutrackerRepositoryImpl
 
                             tokens.forEachIndexed { index, token ->
                                 if (index > 0) sqlBuilder.append(" AND ")
-                                sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
+                                sqlBuilder.append("(title LIKE ? ESCAPE '\\' OR author LIKE ? ESCAPE '\\')")
 
-                                val likePattern: String = "%$token%"
+                                // ponytail: escape wildcards so "100%" doesn't match everything
+                                val likePattern: String = "%${escapeLike(token)}%"
                                 args.add(likePattern)
                                 args.add(likePattern)
                             }
@@ -347,8 +348,8 @@ public class RutrackerRepositoryImpl
 
                         tokens.forEachIndexed { index, token ->
                             if (index > 0) sqlBuilder.append(" AND ")
-                            sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
-                            val likePattern: String = "%$token%"
+                            sqlBuilder.append("(title LIKE ? ESCAPE '\\' OR author LIKE ? ESCAPE '\\')")
+                            val likePattern: String = "%${escapeLike(token)}%"
                             args.add(likePattern)
                             args.add(likePattern)
                         }
@@ -379,4 +380,7 @@ public class RutrackerRepositoryImpl
                     emit(Result.Error(e.toAppError()))
                 }
             }
+
+        /** Escapes LIKE wildcards so a token like "100%" doesn't match everything. */
+        private fun escapeLike(token: String): String = token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     }

@@ -206,6 +206,9 @@ public class RutrackerRepository
             internal fun toFtsQuery(input: String): String =
                 TransliterationSearchPolicy
                     .buildFtsMatchQuery(input.replace('ё', 'е').replace('Ё', 'Е'))
+
+            /** Escapes LIKE wildcards so a token like "100%" doesn't match everything. */
+            internal fun escapeLike(token: String): String = token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         }
 
         /**
@@ -285,9 +288,10 @@ public class RutrackerRepository
                                     val args = ArrayList<Any>()
                                     tokens.forEachIndexed { index, token ->
                                         if (index > 0) sqlBuilder.append(" AND ")
-                                        sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
-                                        args.add("%$token%")
-                                        args.add("%$token%")
+                                        sqlBuilder.append("(title LIKE ? ESCAPE '\\' OR author LIKE ? ESCAPE '\\')")
+                                        val escaped = "%${escapeLike(token)}%"
+                                        args.add(escaped)
+                                        args.add(escaped)
                                     }
                                     sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
                                     offlineSearchDao

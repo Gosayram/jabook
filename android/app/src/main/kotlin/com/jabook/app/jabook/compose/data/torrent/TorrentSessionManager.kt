@@ -27,6 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -118,6 +119,11 @@ public class TorrentSessionManager
             private const val LIBRARY_SYNC_TRIGGER_COOLDOWN_MS = 3_000L
             private const val SESSION_STATE_DIRECTORY = "torrent"
             private const val SESSION_STATE_FILE = "session.state"
+
+            // METADATA_FAILED never fires for dead DHT / no peers — without a timeout a
+            // magnet-less-metadata torrent sits in DOWNLOADING_METADATA forever and is
+            // re-added as a zombie on every session restore.
+            private const val METADATA_TIMEOUT_MS = 90_000L
 
             // Fallback trackers used when magnet link has no tracker URLs
             private val FALLBACK_TRACKERS =
@@ -279,8 +285,9 @@ public class TorrentSessionManager
                         downloadRateLimit(0) // Unlimited by default
                         uploadRateLimit(0) // Unlimited by default
 
-                        // Listen on a port range to avoid ISP blocks on default port
-                        listenInterfaces("0.0.0.0:6881-6889")
+                        // Listen on a port range to avoid ISP blocks on default port.
+                        // IPv6 listener included: IPv6-only peers are otherwise invisible.
+                        listenInterfaces("0.0.0.0:6881-6889,[::]:6881-6889")
 
                         // DHT and other settings are enabled by default in libtorrent4j
                         // Just keeping defaults
@@ -800,7 +807,13 @@ public class TorrentSessionManager
                         pendingResumeDataLatch = newLatch
                         handles.forEach { handle ->
                             try {
-                                handle.saveResumeData(TorrentHandle.SAVE_INFO_DICT)
+                                // FLUSH_DISK_CACHE: process may die right after stop — unflushed
+                                // pieces must not sit in the page cache when the BLOB claims them done.
+                                handle.saveResumeData(
+                                    TorrentHandle.SAVE_INFO_DICT.or_(
+                                        TorrentHandle.FLUSH_DISK_CACHE,
+                                    ),
+                                )
                             } catch (e: Exception) {
                                 newLatch.countDown()
                                 logger.w {
@@ -987,6 +1000,34 @@ public class TorrentSessionManager
                 torrents[hash] = handle
                 pendingAdds.remove(hash)
 
+                // Metadata timeout guard: magnet added without metadata must not linger forever.
+                if (torrentInfo == null) {
+                    sessionScope.launch {
+                        kotlinx.coroutines.delay(METADATA_TIMEOUT_MS)
+                        val h = torrents[hash]
+                        if (h != null && h.isValid) {
+                            val hasMetadata =
+                                runCatching { h.torrentFile() != null }.getOrDefault(false)
+                            if (!hasMetadata) {
+                                logger.w { "Metadata timeout for $hash after ${METADATA_TIMEOUT_MS / 1000}s — failing torrent" }
+                                synchronized(this@TorrentSessionManager) {
+                                    if (torrents.remove(hash) === h) {
+                                        runCatching { session?.remove(h) }
+                                    }
+                                }
+                                statePersistenceScope.launch {
+                                    try {
+                                        torrentDownloadDao.updateState(hash, TorrentState.ERROR)
+                                    } catch (e: Exception) {
+                                        logger.w({ "Failed to persist ERROR state for $hash" }, e)
+                                    }
+                                }
+                                updateDownloads()
+                            }
+                        }
+                    }
+                }
+
                 // Resume torrent to start downloading (required by libtorrent4j)
                 // According to libtorrent4j examples, handle.resume() must be called after adding
                 // But we need to be careful - if handle is invalid or session is not running, this will crash
@@ -1130,6 +1171,15 @@ public class TorrentSessionManager
                         "uploadRate=${status.uploadRate()} bytes/s, " +
                         "numPeers=${status.numPeers()}, " +
                         "numSeeds=${status.numSeeds()}"
+                }
+                // Persist ERROR so restoreActiveDownloads() doesn't re-add a torrent
+                // that can never complete (e.g. disk failure) — same as handleMetadataFailed.
+                statePersistenceScope.launch {
+                    try {
+                        torrentDownloadDao.updateState(hash, TorrentState.ERROR)
+                    } catch (e: Exception) {
+                        logger.w({ "Failed to persist ERROR state for $hash" }, e)
+                    }
                 }
                 updateDownloads()
             } catch (e: Exception) {

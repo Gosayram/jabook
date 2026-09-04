@@ -573,6 +573,30 @@ public class AudioPlayerService : MediaLibraryService() {
         // Attach the system equalizer to the ACTIVE player's session — the injected
         // singleton player is idle while the custom processor player is in use.
         audioEqualizerManager.attachToAudioSession(player.audioSessionId)
+        broadcastAudioEffectSession(player.audioSessionId)
+    }
+
+    /**
+     * Tells external EQ apps (GlobalEqualizer, Poweramp EQ...) about our audio session,
+     * matching what every Android audio app broadcasts. Deliberately NOT package-restricted:
+     * external EQ apps are the receivers.
+     */
+    internal fun broadcastAudioEffectSession(sessionId: Int) {
+        if (sessionId == 0) return
+        try {
+            sendBroadcast(
+                android.content.Intent(android.media.audiofx.AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
+                    putExtra(android.media.audiofx.AudioEffect.EXTRA_PACKAGE_NAME, packageName)
+                    putExtra(android.media.audiofx.AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
+                    putExtra(
+                        android.media.audiofx.AudioEffect.EXTRA_CONTENT_TYPE,
+                        android.media.audiofx.AudioEffect.CONTENT_TYPE_VOICE,
+                    )
+                },
+            )
+        } catch (e: Exception) {
+            LogUtils.w("AudioPlayerService", "Failed to broadcast audio effect session", e)
+        }
     }
 
     internal fun rebindAudioOutputPlayer(player: ExoPlayer = getActivePlayer()) {

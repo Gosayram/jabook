@@ -34,31 +34,30 @@ public object FileUtils {
     }
 
     /**
-     * Resolve file path from URI string
+     * Resolve file path from SAF URI string.
+     *
+     * Handles both /tree/volume:path and /document/volume:path — the innermost
+     * (last) selector wins, so a "tree/primary:X/document/sdcard:Y" URI resolves
+     * to the document's volume, not the tree's.
      */
     public fun resolvePathFromUri(uriString: String): String {
         try {
             val uri = android.net.Uri.parse(uriString)
             if (uri.scheme == "content" && uri.authority == "com.android.externalstorage.documents") {
                 val path = uri.path ?: return uriString
-                // Handle /tree/primary:Folder or /document/primary:File
-                // The path usually comes as /tree/volumeID:path or /document/volumeID:path
-
-                // We split by ':' to separate volumeID from relative path
-                val split = path.split(":")
-
-                if (split.size > 1) {
-                    val volumeIdSection = split[0] // e.g. "/tree/primary" or "/tree/1234-5678"
-                    val relativePath = split[1] // e.g. "Downloads/MyFolder"
-
-                    val volumeId = volumeIdSection.substringAfterLast("/")
-
-                    if (volumeId.equals("primary", ignoreCase = true)) {
-                        return "/storage/emulated/0/$relativePath"
-                    } else {
-                        // For SD cards, the path is typically /storage/VOLUME_ID/relativePath
-                        return "/storage/$volumeId/$relativePath"
-                    }
+                // Innermost selector wins: /tree/vol:x/document/vol:y → document's volume.
+                val segment =
+                    path.substringAfterLast("/document/", path.substringAfterLast("/tree/", ""))
+                if (segment.isEmpty()) return uriString
+                val colonIdx = segment.indexOf(':')
+                if (colonIdx <= 0) return uriString
+                val volumeId = segment.substring(0, colonIdx)
+                val relativePath = segment.substring(colonIdx + 1)
+                return if (volumeId.equals("primary", ignoreCase = true)) {
+                    "/storage/emulated/0/$relativePath"
+                } else {
+                    // For SD cards, the path is typically /storage/VOLUME_ID/relativePath
+                    "/storage/$volumeId/$relativePath"
                 }
             }
         } catch (e: Exception) {
