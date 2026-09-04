@@ -12,27 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-@file:Suppress("DEPRECATION") // BitmapLoader is deprecated in Media3 but still required
-
 package com.jabook.app.jabook.audio
 
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.annotation.OptIn
+import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.session.BitmapLoader
+import androidx.media3.session.MediaSession
 import coil3.SingletonImageLoader
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import coil3.request.allowHardware
+import coil3.size.Scale
 import coil3.toBitmap
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
@@ -50,16 +54,27 @@ import kotlinx.coroutines.launch
  * @param context Application context for Coil initialization
  */
 @OptIn(UnstableApi::class)
-@Suppress("DEPRECATION") // BitmapLoader is deprecated in Media3 but still required
 public class CoilBitmapLoader(
     private val context: Context,
 ) : BitmapLoader {
     // CoroutineScope for Coil operations to avoid blocking UI thread
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    // Maximum artwork size for notifications (recommended by Android)
-    private val maxArtworkWidth = 512
-    private val maxArtworkHeight = 512
+    /**
+     * Cancels pending Coil operations. Call when the owning service is released.
+     */
+    public fun release() {
+        scope.cancel()
+    }
+
+    // ponytail: use system limit if available, else 512 (MediaSession.getBitmapDimensionLimit)
+    private val maxArtworkWidth =
+        try {
+            MediaSession.getBitmapDimensionLimit(context)
+        } catch (_: Exception) {
+            512
+        }
+    private val maxArtworkHeight = maxArtworkWidth
 
     /**
      * Loads bitmap from URI using Coil.
@@ -68,38 +83,47 @@ public class CoilBitmapLoader(
     override fun loadBitmap(uri: Uri): ListenableFuture<Bitmap> {
         val future = SettableFuture.create<Bitmap>()
 
-        scope.launch {
-            try {
-                LogUtils.d("CoilBitmapLoader", "Loading bitmap from URI: ${uri.scheme}:<redacted>")
+        val job =
+            scope.launch {
+                try {
+                    LogUtils.d("CoilBitmapLoader", "Loading bitmap from URI: ${uri.scheme}:<redacted>")
 
-                val loader = SingletonImageLoader.get(context)
-                val request =
-                    ImageRequest
-                        .Builder(context)
-                        .data(uri)
-                        .size(maxArtworkWidth, maxArtworkHeight)
-                        .build()
+                    val loader = SingletonImageLoader.get(context)
+                    val request =
+                        ImageRequest
+                            .Builder(context)
+                            .data(uri)
+                            .size(maxArtworkWidth, maxArtworkHeight)
+                            .scale(Scale.FIT)
+                            .allowHardware(false)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .build()
 
-                val result = loader.execute(request)
+                    val result = loader.execute(request)
 
-                if (result is SuccessResult) {
-                    val bitmap = result.image.toBitmap()
-                    LogUtils.i(
-                        "CoilBitmapLoader",
-                        "Successfully loaded bitmap: ${bitmap.width}x${bitmap.height}",
-                    )
-                    future.set(bitmap)
-                } else {
-                    LogUtils.w("CoilBitmapLoader", "Coil failed to load bitmap for URI: ${uri.scheme}:<redacted>")
-                    future.setException(
-                        Exception("Failed to load bitmap from URI scheme=${uri.scheme ?: "unknown"}"),
-                    )
+                    if (result is SuccessResult) {
+                        val bitmap = result.image.toBitmap()
+                        LogUtils.i(
+                            "CoilBitmapLoader",
+                            "Successfully loaded bitmap: ${bitmap.width}x${bitmap.height}",
+                        )
+                        future.set(bitmap)
+                    } else {
+                        LogUtils.w("CoilBitmapLoader", "Coil failed to load bitmap for URI: ${uri.scheme}:<redacted>")
+                        future.setException(
+                            Exception("Failed to load bitmap from URI scheme=${uri.scheme ?: "unknown"}"),
+                        )
+                    }
+                } catch (e: CancellationException) {
+                    future.cancel(false)
+                    throw e
+                } catch (e: Exception) {
+                    LogUtils.e("CoilBitmapLoader", "Error loading bitmap from URI: ${uri.scheme}:<redacted>", e)
+                    future.setException(e)
                 }
-            } catch (e: Exception) {
-                LogUtils.e("CoilBitmapLoader", "Error loading bitmap from URI: ${uri.scheme}:<redacted>", e)
-                future.setException(e)
             }
-        }
+        cancelArtworkRequestOnFutureCancellation(future, job)
 
         return future
     }
@@ -117,46 +141,54 @@ public class CoilBitmapLoader(
     override fun decodeBitmap(data: ByteArray): ListenableFuture<Bitmap> {
         val future = SettableFuture.create<Bitmap>()
 
-        scope.launch {
-            try {
-                // Guard oversized artwork payloads early
-                val safeData = ArtworkPayloadPolicy.sanitizeArtworkData(data)
-                if (safeData == null) {
-                    LogUtils.w(
-                        "CoilBitmapLoader",
-                        "Artwork payload too large (${data.size} bytes), skipping decode",
-                    )
-                    future.setException(Exception("Artwork payload exceeds safe limit"))
-                    return@launch
+        val job =
+            scope.launch {
+                try {
+                    // Guard oversized artwork payloads early
+                    val safeData = ArtworkPayloadPolicy.sanitizeArtworkData(data)
+                    if (safeData == null) {
+                        LogUtils.w(
+                            "CoilBitmapLoader",
+                            "Artwork payload too large (${data.size} bytes), skipping decode",
+                        )
+                        future.setException(Exception("Artwork payload exceeds safe limit"))
+                        return@launch
+                    }
+                    LogUtils.d("CoilBitmapLoader", "Decoding bitmap from byte array: ${safeData.size} bytes")
+
+                    val loader = SingletonImageLoader.get(context)
+                    val request =
+                        ImageRequest
+                            .Builder(context)
+                            .data(safeData)
+                            .size(maxArtworkWidth, maxArtworkHeight)
+                            .scale(Scale.FIT)
+                            // Software bitmap required: result crosses into SystemUI's process
+                            .allowHardware(false)
+                            .build()
+
+                    val result = loader.execute(request)
+
+                    if (result is SuccessResult) {
+                        val bitmap = result.image.toBitmap()
+                        LogUtils.i(
+                            "CoilBitmapLoader",
+                            "Successfully decoded bitmap: ${bitmap.width}x${bitmap.height}",
+                        )
+                        future.set(bitmap)
+                    } else {
+                        LogUtils.w("CoilBitmapLoader", "Coil failed to decode bitmap from byte array")
+                        future.setException(Exception("Failed to decode bitmap"))
+                    }
+                } catch (e: CancellationException) {
+                    future.cancel(false)
+                    throw e
+                } catch (e: Exception) {
+                    LogUtils.e("CoilBitmapLoader", "Error decoding bitmap from byte array", e)
+                    future.setException(e)
                 }
-                LogUtils.d("CoilBitmapLoader", "Decoding bitmap from byte array: ${safeData.size} bytes")
-
-                val loader = SingletonImageLoader.get(context)
-                val request =
-                    ImageRequest
-                        .Builder(context)
-                        .data(safeData)
-                        .size(maxArtworkWidth, maxArtworkHeight)
-                        .build()
-
-                val result = loader.execute(request)
-
-                if (result is SuccessResult) {
-                    val bitmap = result.image.toBitmap()
-                    LogUtils.i(
-                        "CoilBitmapLoader",
-                        "Successfully decoded bitmap: ${bitmap.width}x${bitmap.height}",
-                    )
-                    future.set(bitmap)
-                } else {
-                    LogUtils.w("CoilBitmapLoader", "Coil failed to decode bitmap from byte array")
-                    future.setException(Exception("Failed to decode bitmap"))
-                }
-            } catch (e: Exception) {
-                LogUtils.e("CoilBitmapLoader", "Error decoding bitmap from byte array", e)
-                future.setException(e)
             }
-        }
+        cancelArtworkRequestOnFutureCancellation(future, job)
 
         return future
     }

@@ -15,10 +15,27 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Bitmap.CompressFormat
+import android.net.Uri
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Metadata
+import androidx.media3.exoplayer.ExoPlayer
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.request.allowHardware
+import coil3.size.Scale
+import coil3.toBitmap
 import com.jabook.app.jabook.audio.processors.LoudnessNormalizer
+import com.jabook.app.jabook.compose.core.util.rethrowCancellation
 import com.jabook.app.jabook.util.LogUtils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.util.UUID
 
 /**
  * Handles metadata-related player events: ReplayGain extraction and embedded artwork management.
@@ -31,6 +48,8 @@ import java.io.File
 internal class PlayerMetadataHandler(
     private val context: Context,
     private val setEmbeddedArtworkPath: (String?) -> Unit,
+    private val getActivePlayer: () -> ExoPlayer,
+    private val scope: CoroutineScope,
 ) {
     /**
      * Active LoudnessNormalizer for ReplayGain application.
@@ -98,11 +117,16 @@ internal class PlayerMetadataHandler(
         if (artworkUri != null) {
             LogUtils.d("AudioPlayerService", "Artwork URI available: $artworkUri")
             setEmbeddedArtworkPath(null)
+            val artworkRequestMediaId = getActivePlayer().currentMediaItem?.mediaId ?: return
+            // Load and set upscaled artwork data for lock screen (Android 13+)
+            scope.launch(Dispatchers.IO) {
+                loadAndSetLockScreenArtwork(artworkUri, artworkRequestMediaId)
+            }
         } else if (hasArtworkData) {
             LogUtils.d("AudioPlayerService", "Embedded artwork data available: ${artworkData.size} bytes")
             try {
                 val cacheDir = context.cacheDir
-                val artworkFile = File(cacheDir, "embedded_artwork_${System.currentTimeMillis()}.jpg")
+                val artworkFile = File(cacheDir, "embedded_artwork_${UUID.randomUUID()}.jpg")
                 artworkFile.outputStream().use { it.write(artworkData) }
                 setEmbeddedArtworkPath(artworkFile.absolutePath)
                 LogUtils.i("AudioPlayerService", "Saved embedded artwork to: ${artworkFile.absolutePath}")
@@ -126,5 +150,60 @@ internal class PlayerMetadataHandler(
         } else {
             LogUtils.w("AudioPlayerService", "No artwork found in metadata")
         }
+    }
+
+    private suspend fun loadAndSetLockScreenArtwork(
+        artworkUri: Uri,
+        artworkRequestMediaId: String,
+    ) {
+        try {
+            val loader = SingletonImageLoader.get(context)
+            val request =
+                ImageRequest
+                    .Builder(context)
+                    .data(artworkUri)
+                    .size(512, 512)
+                    .scale(Scale.FILL)
+                    // Software bitmap required: re-encoded via Bitmap.compress below
+                    .allowHardware(false)
+                    .build()
+            val result = loader.execute(request)
+            if (result is SuccessResult) {
+                val bitmap = result.image.toBitmap()
+                val bytes = bitmapToJpegBytes(bitmap)
+
+                val player = getActivePlayer()
+                val currentItem = player.currentMediaItem ?: return
+                if (!ArtworkRequestStalenessPolicy.isCurrent(artworkRequestMediaId, currentItem.mediaId)) return
+                val currentIndex = player.currentMediaItemIndex
+                if (currentIndex < 0) return
+
+                val newMetadata =
+                    MediaMetadata
+                        .Builder()
+                        .populate(currentItem.mediaMetadata)
+                        .setArtworkData(bytes, null)
+                        .build()
+                val newItem =
+                    currentItem
+                        .buildUpon()
+                        .setMediaMetadata(newMetadata)
+                        .build()
+                player.replaceMediaItem(currentIndex, newItem)
+                LogUtils.i(
+                    "PlayerMetadataHandler",
+                    "Set upscaled lock screen artwork: ${bitmap.width}x${bitmap.height}",
+                )
+            }
+        } catch (e: Exception) {
+            e.rethrowCancellation()
+            LogUtils.w("PlayerMetadataHandler", "Failed to load lock screen artwork", e)
+        }
+    }
+
+    private fun bitmapToJpegBytes(bitmap: Bitmap): ByteArray {
+        val stream = ByteArrayOutputStream()
+        bitmap.compress(CompressFormat.JPEG, 90, stream)
+        return stream.toByteArray()
     }
 }

@@ -14,15 +14,8 @@
 
 package com.jabook.app.jabook.compose.data.preferences
 
-import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.core.DataStoreFactory
-import androidx.datastore.dataStoreFile
-import com.jabook.app.jabook.core.datastore.DataStoreCorruptionPolicy
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import com.jabook.app.jabook.compose.core.theme.getAllAccentSwatches
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -30,58 +23,20 @@ import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private fun createUserPreferencesDataStore(context: Context): DataStore<UserPreferences> =
-    DataStoreFactory.create(
-        serializer = UserPreferencesSerializer,
-        corruptionHandler =
-            DataStoreCorruptionPolicy.protoHandler(
-                storeName = "user_preferences",
-                defaultValue = UserPreferencesSerializer.defaultValue,
-            ),
-        migrations = listOf(UserPreferencesDataMigration()),
-        scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
-        produceFile = { context.dataStoreFile("user_preferences.pb") },
-    )
-
-/**
- * Repository for managing user settings/preferences.
- *
- * Uses Proto DataStore for type-safe, structured preferences storage.
- */
+/** Contract for application settings backed by Proto DataStore. */
 public interface SettingsRepository {
-    /**
-     * Get user preferences as Flow.
-     */
     public val userPreferences: Flow<UserPreferences>
-
-    /**
-     * Last persisted player snapshot for process-death fallback.
-     */
     public val playerStateSnapshot: Flow<PlayerStateSnapshotPreference?>
-
-    /**
-     * Sleep timer state from DataStore (P-12 migration from SharedPreferences).
-     */
     public val sleepTimerState: Flow<SleepTimerState>
 
-    /**
-     * Update theme mode.
-     */
     public suspend fun updateThemeMode(themeMode: ThemeMode)
 
-    /**
-     * Update dynamic colors setting.
-     */
     public suspend fun updateDynamicColors(enabled: Boolean)
 
-    /**
-     * Update playback speed.
-     */
-    public suspend fun updatePlaybackSpeed(speed: Float)
+    public suspend fun updateAccentSwatchIndex(index: Int)
 
-    /**
-     * Update audio settings.
-     */
+    public suspend fun updatePlayerCoverMode(mode: Int)
+
     public suspend fun updateAudioSettings(
         rewindSeconds: Int? = null,
         forwardSeconds: Int? = null,
@@ -91,8 +46,10 @@ public interface SettingsRepository {
         sleepTimerShakeExtendEnabled: Boolean? = null,
         holdToBoostSpeed: Float? = null,
         autoPipEnabled: Boolean? = null,
+        headsetAutoplayEnabled: Boolean? = null,
         volumeBoost: String? = null,
         drcLevel: String? = null,
+        speechCompressorLevel: String? = null,
         speechEnhancer: Boolean? = null,
         autoVolumeLeveling: Boolean? = null,
         normalizeVolume: Boolean? = null,
@@ -102,124 +59,104 @@ public interface SettingsRepository {
         skipSilenceMode: SkipSilenceMode? = null,
         crossfadeEnabled: Boolean? = null,
         crossfadeDurationMs: Long? = null,
+        noiseGateLevel: String? = null,
+        singleClickAction: Int? = null,
+        doubleClickAction: Int? = null,
+        tripleClickAction: Int? = null,
+        longPressAction: Int? = null,
+        notificationActionSlots: List<Int>? = null,
+        notificationLockscreenPrivate: Boolean? = null,
     )
 
-    /**
-     * Update language.
-     */
-    public suspend fun updateLanguage(languageCode: String)
-
-    /**
-     * Update notification settings.
-     */
     public suspend fun updateNotificationSettings(
-        notificationsEnabled: Boolean? = null,
-        downloadNotifications: Boolean? = null,
-        playerNotifications: Boolean? = null,
+        notificationsEnabled: Boolean?,
+        downloadNotifications: Boolean?,
+        playerNotifications: Boolean?,
     )
 
     /**
-     * Update selected mirror domain.
+     * Bulk restore for backup import — one proto rewrite instead of N.
+     * Mirrors are replaced (not appended) with [customMirrors].
      */
+    public suspend fun applyBackupSettings(
+        wifiOnly: Boolean,
+        autoLoadCoversOnCellular: Boolean,
+        downloadPath: String,
+        selectedMirror: String,
+        autoSwitchMirror: Boolean,
+        limitDownloadSpeed: Boolean,
+        maxDownloadSpeedKb: Int,
+        maxConcurrentDownloads: Int,
+        rewindSeconds: Int,
+        forwardSeconds: Int,
+        dynamicColors: Boolean,
+        notificationsEnabled: Boolean,
+        downloadNotifications: Boolean,
+        playerNotifications: Boolean,
+        customMirrors: List<String>,
+    )
+
     public suspend fun updateSelectedMirror(domain: String)
 
-    /**
-     * Add a custom mirror domain.
-     */
     public suspend fun addCustomMirror(domain: String)
 
-    /**
-     * Remove a custom mirror domain.
-     */
     public suspend fun removeCustomMirror(domain: String)
 
-    /**
-     * Update auto-switch mirror setting.
-     */
     public suspend fun updateAutoSwitchMirror(enabled: Boolean)
 
-    /**
-     * Update download path.
-     */
     public suspend fun updateDownloadPath(path: String)
 
-    /**
-     * Update Wi-Fi only download setting.
-     */
     public suspend fun updateWifiOnly(enabled: Boolean)
 
-    /**
-     * Update download speed limiting.
-     */
     public suspend fun updateLimitDownloadSpeed(enabled: Boolean)
 
-    /**
-     * Update max download speed in KB/s.
-     */
     public suspend fun updateMaxDownloadSpeed(speedKb: Int)
 
-    /**
-     * Update max concurrent downloads.
-     */
     public suspend fun updateMaxConcurrentDownloads(count: Int)
 
-    /**
-     * Update cover loading behavior on cellular network.
-     */
     public suspend fun updateAutoLoadCoversOnCellular(enabled: Boolean)
 
-    /**
-     * Update library sort order.
-     */
     public suspend fun updateLibrarySortOrder(sortOrder: String)
 
-    /**
-     * Update equalizer preset.
-     */
+    public suspend fun updateSpotlightCompleted(completed: Boolean)
+
     public suspend fun updateEqualizerPreset(preset: String)
 
-    /**
-     * Update onboarding completion status.
-     */
-    public suspend fun updateOnboardingCompleted(completed: Boolean)
+    public val bassBoostStrength: Flow<Int>
 
-/**
-     * Persist player state snapshot for process death restore fallback.
-     */
+    public suspend fun updateBassBoostStrength(strength: Int)
+
+    public val audioVisualizerMode: Flow<Int>
+
+    public suspend fun updateAudioVisualizerMode(mode: Int)
+
+    public val customEqBands: Flow<List<Int>>
+
+    public suspend fun updateCustomEqBands(bands: List<Int>)
+
     public suspend fun updatePlayerStateSnapshot(snapshot: PlayerStateSnapshotPreference)
 
-    /**
-     * Clear persisted player state snapshot.
-     */
     public suspend fun clearPlayerStateSnapshot()
 
-    /**
-     * Update sleep timer state.
-     */
     public suspend fun updateSleepTimerState(state: SleepTimerState)
 
-    /**
-     * Clear sleep timer state.
-     */
     public suspend fun clearSleepTimerState()
 
-    /**
-     * Reset all settings to defaults.
-     */
     public suspend fun resetToDefaults()
 }
 
 /**
  * Implementation of SettingsRepository using Proto DataStore.
+ *
+ * The [DataStore] instance is provided by DI (see DataModule) so that it is shared
+ * with other consumers of the same "user_preferences.pb" file.
  */
 @Singleton
 public class ProtoSettingsRepository
     @Inject
     constructor(
-        @param:ApplicationContext private val context: Context,
+        private val dataStore: DataStore<UserPreferences>,
     ) : SettingsRepository {
-        private val dataStore: DataStore<UserPreferences> by lazy { createUserPreferencesDataStore(context) }
-
         override val userPreferences: Flow<UserPreferences> =
             dataStore.data
                 .catch { exception ->
@@ -266,9 +203,17 @@ public class ProtoSettingsRepository
             }
         }
 
-        override suspend fun updatePlaybackSpeed(speed: Float) {
+        override suspend fun updateAccentSwatchIndex(index: Int) {
+            val safeIndex = index.coerceIn(0, getAllAccentSwatches().size - 1)
             dataStore.updateData { preferences ->
-                preferences.toBuilder().setPlaybackSpeed(speed).build()
+                preferences.toBuilder().setAccentSwatchIndex(safeIndex).build()
+            }
+        }
+
+        override suspend fun updatePlayerCoverMode(mode: Int) {
+            val safeMode = mode.coerceIn(0, 1)
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setPlayerCoverMode(safeMode).build()
             }
         }
 
@@ -281,8 +226,10 @@ public class ProtoSettingsRepository
             sleepTimerShakeExtendEnabled: Boolean?,
             holdToBoostSpeed: Float?,
             autoPipEnabled: Boolean?,
+            headsetAutoplayEnabled: Boolean?,
             volumeBoost: String?,
             drcLevel: String?,
+            speechCompressorLevel: String?,
             speechEnhancer: Boolean?,
             autoVolumeLeveling: Boolean?,
             normalizeVolume: Boolean?,
@@ -292,6 +239,13 @@ public class ProtoSettingsRepository
             skipSilenceMode: SkipSilenceMode?,
             crossfadeEnabled: Boolean?,
             crossfadeDurationMs: Long?,
+            noiseGateLevel: String?,
+            singleClickAction: Int?,
+            doubleClickAction: Int?,
+            tripleClickAction: Int?,
+            longPressAction: Int?,
+            notificationActionSlots: List<Int>?,
+            notificationLockscreenPrivate: Boolean?,
         ) {
             dataStore.updateData { preferences ->
                 val builder = preferences.toBuilder()
@@ -303,8 +257,10 @@ public class ProtoSettingsRepository
                 sleepTimerShakeExtendEnabled?.let { builder.setSleepTimerShakeExtendEnabled(it) }
                 holdToBoostSpeed?.let { builder.setHoldToBoostSpeed(it) }
                 autoPipEnabled?.let { builder.setAutoPipEnabled(it) }
+                headsetAutoplayEnabled?.let { builder.setHeadsetAutoplayEnabled(it) }
                 volumeBoost?.let { builder.setVolumeBoostLevel(it) }
                 drcLevel?.let { builder.setDrcLevel(it) }
+                speechCompressorLevel?.let { builder.setSpeechCompressorLevel(it) }
                 speechEnhancer?.let { builder.setSpeechEnhancer(it) }
                 autoVolumeLeveling?.let { builder.setAutoVolumeLeveling(it) }
                 normalizeVolume?.let { builder.setNormalizeVolume(it) }
@@ -314,13 +270,17 @@ public class ProtoSettingsRepository
                 skipSilenceMode?.let { builder.setSkipSilenceMode(it) }
                 crossfadeEnabled?.let { builder.setCrossfadeEnabled(it) }
                 crossfadeDurationMs?.let { builder.setCrossfadeDurationMs(it) }
+                noiseGateLevel?.let { builder.setNoiseGateLevel(it) }
+                singleClickAction?.let { builder.setSingleClickAction(it) }
+                doubleClickAction?.let { builder.setDoubleClickAction(it) }
+                tripleClickAction?.let { builder.setTripleClickAction(it) }
+                longPressAction?.let { builder.setLongPressAction(it) }
+                notificationActionSlots?.let { slots ->
+                    builder.clearNotificationActionSlots()
+                    builder.addAllNotificationActionSlots(slots)
+                }
+                notificationLockscreenPrivate?.let { builder.setNotificationLockscreenPrivate(it) }
                 builder.build()
-            }
-        }
-
-        override suspend fun updateLanguage(languageCode: String) {
-            dataStore.updateData { preferences ->
-                preferences.toBuilder().setLanguageCode(languageCode).build()
             }
         }
 
@@ -335,6 +295,47 @@ public class ProtoSettingsRepository
                 downloadNotifications?.let { builder.setDownloadNotifications(it) }
                 playerNotifications?.let { builder.setPlayerNotifications(it) }
                 builder.build()
+            }
+        }
+
+        override suspend fun applyBackupSettings(
+            wifiOnly: Boolean,
+            autoLoadCoversOnCellular: Boolean,
+            downloadPath: String,
+            selectedMirror: String,
+            autoSwitchMirror: Boolean,
+            limitDownloadSpeed: Boolean,
+            maxDownloadSpeedKb: Int,
+            maxConcurrentDownloads: Int,
+            rewindSeconds: Int,
+            forwardSeconds: Int,
+            dynamicColors: Boolean,
+            notificationsEnabled: Boolean,
+            downloadNotifications: Boolean,
+            playerNotifications: Boolean,
+            customMirrors: List<String>,
+        ) {
+            // Single rewrite: each individual setter would fsync the whole proto.
+            dataStore.updateData { preferences ->
+                preferences
+                    .toBuilder()
+                    .setWifiOnlyDownload(wifiOnly)
+                    .setAutoLoadCoversOnCellular(autoLoadCoversOnCellular)
+                    .setDownloadPath(downloadPath)
+                    .setSelectedMirror(selectedMirror)
+                    .setAutoSwitchMirror(autoSwitchMirror)
+                    .setLimitDownloadSpeed(limitDownloadSpeed)
+                    .setMaxDownloadSpeedKb(maxDownloadSpeedKb)
+                    .setMaxConcurrentDownloads(maxConcurrentDownloads)
+                    .setRewindDurationSeconds(rewindSeconds)
+                    .setForwardDurationSeconds(forwardSeconds)
+                    .setUseDynamicColors(dynamicColors)
+                    .setNotificationsEnabled(notificationsEnabled)
+                    .setDownloadNotifications(downloadNotifications)
+                    .setPlayerNotifications(playerNotifications)
+                    .clearCustomMirrors()
+                    .addAllCustomMirrors(customMirrors)
+                    .build()
             }
         }
 
@@ -418,15 +419,51 @@ public class ProtoSettingsRepository
             }
         }
 
+        override suspend fun updateSpotlightCompleted(completed: Boolean) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setSpotlightCompleted(completed).build()
+            }
+        }
+
+        override val bassBoostStrength: Flow<Int> =
+            userPreferences.map { it.bassBoostStrength }
+
+        override suspend fun updateBassBoostStrength(strength: Int) {
+            val safeStrength = strength.coerceIn(0, 100)
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setBassBoostStrength(safeStrength).build()
+            }
+        }
+
+        override val audioVisualizerMode: Flow<Int> =
+            userPreferences.map { it.audioVisualizerMode }
+
+        override suspend fun updateAudioVisualizerMode(mode: Int) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setAudioVisualizerMode(mode).build()
+            }
+        }
+
         override suspend fun updateEqualizerPreset(preset: String) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setEqualizerPreset(preset).build()
             }
         }
 
-        override suspend fun updateOnboardingCompleted(completed: Boolean) {
+        override val customEqBands: Flow<List<Int>> =
+            userPreferences.map { prefs ->
+                val bands = prefs.customEqBandsList
+                // ponytail: Rhythm legacy 5→10 pad
+                if (bands.size == 5) List(10) { i -> if (i < 5) bands[i] else 0 } else bands
+            }
+
+        override suspend fun updateCustomEqBands(bands: List<Int>) {
             dataStore.updateData { preferences ->
-                preferences.toBuilder().setOnboardingCompleted(completed).build()
+                preferences
+                    .toBuilder()
+                    .clearCustomEqBands()
+                    .addAllCustomEqBands(bands)
+                    .build()
             }
         }
 
@@ -476,7 +513,8 @@ public class ProtoSettingsRepository
 
         override suspend fun resetToDefaults() {
             dataStore.updateData {
-                UserPreferences.getDefaultInstance()
+                // Keep reset behavior consistent with a fresh installation and corruption recovery.
+                UserPreferencesSerializer.defaultValue
             }
         }
     }

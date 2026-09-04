@@ -3,4 +3,6 @@ digraph ModuleDeps {
   "root" [shape=box,style=filled,fillcolor="#eef6ff"];
   "app" [shape=box];
   "root" -> "app";
+  "macrobenchmark" [shape=box];
+  "root" -> "macrobenchmark";
 }

@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.di
 
+import android.content.Context
 import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.data.network.AuthInterceptor
 import com.jabook.app.jabook.compose.data.network.DynamicBaseUrlInterceptor
@@ -30,8 +31,12 @@ import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
+import okhttp3.Cache
+import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.brotli.BrotliInterceptor
@@ -40,6 +45,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.converter.scalars.ScalarsConverterFactory
 import java.util.concurrent.TimeUnit
+import javax.inject.Named
 import javax.inject.Singleton
 
 /**
@@ -69,25 +75,36 @@ public object NetworkModule {
     /**
      * Provide logging interceptor.
      *
-     * Note: Level.BODY logs request/response bodies which may contain sensitive data.
-     * For production, consider using Level.BASIC or Level.HEADERS instead.
-     * Level.BODY is useful for debugging network issues.
+     * Request bodies can contain credentials, so logging is limited to request metadata.
      */
     @Provides
     @Singleton
     public fun provideLoggingInterceptor(): HttpLoggingInterceptor =
         HttpLoggingInterceptor().apply {
+            // BASIC logs full URLs (query strings may carry auth tokens) — disable in release.
             level =
                 if (BuildConfig.DEBUG) {
-                    HttpLoggingInterceptor.Level.BODY
-                } else {
                     HttpLoggingInterceptor.Level.BASIC
+                } else {
+                    HttpLoggingInterceptor.Level.NONE
                 }
             redactHeader("Authorization")
             redactHeader("Cookie")
             redactHeader("Set-Cookie")
             redactHeader("X-Api-Key")
         }
+
+    /**
+     * Provide shared DNS-over-HTTPS resolver.
+     *
+     * Singleton so the mirror health client and the API client share one
+     * DnsCache instead of each paying a DoH round trip per fresh lookup.
+     */
+    @Provides
+    @Singleton
+    public fun provideDohDns(): com.jabook.app.jabook.compose.data.network.DnsOverHttpsDns =
+        com.jabook.app.jabook.compose.data.network.DnsOverHttpsDns
+            .create()
 
     /**
      * Provide MirrorManager.
@@ -101,17 +118,21 @@ public object NetworkModule {
         cookieJar: PersistentCookieJar,
         loggerFactory: com.jabook.app.jabook.compose.core.logger.LoggerFactory,
         networkTelemetryEventListenerFactory: NetworkTelemetryEventListenerFactory,
+        dohDns: com.jabook.app.jabook.compose.data.network.DnsOverHttpsDns,
     ): MirrorManager {
         // Lightweight OkHttpClient for health checks only
         val healthCheckClient =
             OkHttpClient
                 .Builder()
-                .cookieJar(cookieJar)
+                .dns(dohDns)
+                .connectionPool(ConnectionPool(3, 2, TimeUnit.MINUTES))
                 .certificatePinner(rutrackerCertificatePinner)
                 .callTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .connectTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .readTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .writeTimeout(NetworkRuntimePolicy.MIRROR_HEALTH_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                // Telemetry (network_call_failed / network_slow_request nonfatals) is most
+                // valuable in release, so no BuildConfig.DEBUG gate here.
                 .eventListenerFactory(networkTelemetryEventListenerFactory)
                 .build()
 
@@ -134,6 +155,7 @@ public object NetworkModule {
     @Provides
     @Singleton
     public fun provideOkHttpClient(
+        @ApplicationContext context: Context,
         cookieJar: PersistentCookieJar,
         authInterceptor: AuthInterceptor,
         loggingInterceptor: HttpLoggingInterceptor,
@@ -141,11 +163,26 @@ public object NetworkModule {
         dynamicTimeoutInterceptor: DynamicTimeoutInterceptor,
         rutrackerHeadersInterceptor: com.jabook.app.jabook.compose.data.network.RutrackerHeadersInterceptor,
         networkTelemetryEventListenerFactory: NetworkTelemetryEventListenerFactory,
-    ): OkHttpClient =
-        OkHttpClient
+        dohDns: com.jabook.app.jabook.compose.data.network.DnsOverHttpsDns,
+    ): OkHttpClient {
+        // DNS-over-HTTPS: bypass DNS blocks on some ISPs without VPN
+        // Uses Google Public DNS over HTTPS; falls back to system DNS on failure
+        val apiCache = Cache(context.cacheDir.resolve("rutracker_http"), HTTP_CACHE_SIZE_BYTES)
+
+        return OkHttpClient
             .Builder()
+            .dns(dohDns)
+            .cache(apiCache)
+            .connectionPool(ConnectionPool(3, 2, TimeUnit.MINUTES))
             .cookieJar(cookieJar)
             .certificatePinner(rutrackerCertificatePinner)
+            // Re-auth logins issued from AuthInterceptor run on this same client;
+            // the default perHost limit of 5 can starve them under load.
+            .dispatcher(
+                Dispatcher().apply { maxRequestsPerHost = 16 },
+            )
+            // Telemetry (network_call_failed / network_slow_request nonfatals) is most
+            // valuable in release, so no BuildConfig.DEBUG gate here.
             .eventListenerFactory(networkTelemetryEventListenerFactory)
             // Interceptor order matters! They are called in order:
             // 1. BrotliInterceptor - MUST be first to add Accept-Encoding header (only if not already set)
@@ -170,6 +207,33 @@ public object NetworkModule {
             // - followRedirects = true (follow HTTP redirects)
             // - followSslRedirects = true (follow redirects between HTTP/HTTPS)
             .build()
+    }
+
+    /**
+     * Client for untrusted cover URLs. It deliberately has no cookies, auth, or mirror rewriting.
+     */
+    @Provides
+    @Singleton
+    @Named("coverDownload")
+    public fun provideCoverDownloadClient(
+        dohDns: com.jabook.app.jabook.compose.data.network.DnsOverHttpsDns,
+        rutrackerHeadersInterceptor: com.jabook.app.jabook.compose.data.network.RutrackerHeadersInterceptor,
+    ): OkHttpClient =
+        OkHttpClient
+            .Builder()
+            // Cover URLs live on the same DNS-blocked mirrors as the API — resolve via DoH.
+            .dns(dohDns)
+            // Browser-like headers + Brotli: some mirrors throttle non-browser clients.
+            // Deliberately NO cookies/auth/mirror rewriting (untrusted URLs).
+            .addInterceptor(BrotliInterceptor)
+            .addInterceptor(rutrackerHeadersInterceptor)
+            .callTimeout(NetworkRuntimePolicy.API_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .connectTimeout(NetworkRuntimePolicy.API_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(NetworkRuntimePolicy.API_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(NetworkRuntimePolicy.API_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .build()
+
+    private const val HTTP_CACHE_SIZE_BYTES: Long = 10L * 1024L * 1024L
 
     /**
      * Provide Retrofit instance.
@@ -187,10 +251,12 @@ public object NetworkModule {
         val contentType = "application/json".toMediaType()
         return Retrofit
             .Builder()
-            // Base URL is a placeholder - DynamicBaseUrlInterceptor replaces host with current mirror
-            .baseUrl("https://rutracker.org/forum/")
+            // Base URL is a placeholder - DynamicBaseUrlInterceptor replaces host with current mirror.
+            // Supplied at build time from .env (RUTRACKER_BASE_URL) — never hardcoded in source.
+            .baseUrl(BuildConfig.RUTRACKER_BASE_URL)
             .client(okHttpClient)
-            // Scalar converter first for HTML responses
+            // Scalar converter: never fires for Response<ResponseBody> endpoints (JSON converter
+            // wins); kept for future String/HTML endpoints.
             .addConverterFactory(ScalarsConverterFactory.create())
             // JSON converter for any JSON responses
             .addConverterFactory(json.asConverterFactory(contentType))

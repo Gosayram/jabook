@@ -94,13 +94,17 @@
     <!-- Подпись кнопки для действия сброса -->
     <string name="reset">Сбросить</string>
     <string name="statsForNerds">Статистика для гиков</string>
+    <string name="audioTuning">Настройки звука</string>
     <string name="audioFormat">Формат аудио</string>
     <string name="bitrate">Битрейт</string>
+    <string name="sampleRate">Частота дискретизации</string>
+    <string name="channelLayout">Каналы</string>
     <string name="bufferHealth">Здоровье буфера</string>
     <string name="audioSessionId">ID аудиосессии</string>
     <string name="decoder">Декодер</string>
     <string name="droppedFrames">Пропущенные кадры</string>
     <string name="enableVisualizer">Включить визуализатор</string>
+    <string name="audioOffload">Аппаратное декодирование</string>
 
     <string name="sleepTimerExtended">Таймер сна продлен на 5 минут</string>
     <string name="shakeToExtendEnabled">Встряхните чтобы продлить</string>
@@ -240,14 +244,31 @@
     <string name="failedToLoadAudio">Не удалось загрузить аудио</string>
     <!-- Метка для глав -->
     <string name="chaptersLabel">Главы</string>
+    <string name="allChaptersCount">Все %d глав</string>
+    <plurals name="chapterCount">
+        <item quantity="one">%d глава</item>
+        <item quantity="few">%d главы</item>
+        <item quantity="many">%d глав</item>
+        <item quantity="other">%d глав</item>
+    </plurals>
     <!-- Подсказка для поля поиска глав -->
     <string name="searchChaptersHint">Поиск по номеру или названию...</string>
+    <!-- Заголовок для верхней панели плеера -->
+    <string name="nowListening">Сейчас слушаете</string>
+    <!-- Действие "назад" -->
+    <string name="backAction">Назад</string>
+    <!-- Статистика воспроизведения -->
+    <string name="statsOverlay">Статистика</string>
     <!-- Фильтр для показа всех глав -->
     <string name="allFilter">Все</string>
+    <!-- Фильтр для новых/не прослушанных книг -->
+    <string name="newFilter">Новые</string>
     <!-- Фильтр для показа текущей главы -->
     <string name="currentFilter">Текущая</string>
     <!-- Сообщение когда главы не найдены при поиске/фильтрации -->
     <string name="noChaptersFoundInSearch">Главы не найдены</string>
+    <!-- Сообщение когда книги не найдены по фильтру -->
+    <string name="noBooksMatchFilter">Нет книг, соответствующих фильтру</string>
     <!-- Сообщение о предстоящей функции загрузки -->
     <string name="downloadFunctionalityComingSoon">Функция загрузки скоро появится</string>
     <!-- Сообщение об истечении времени запроса -->
@@ -279,9 +300,9 @@
     <string name="themeAmoled">AMOLED / Чистый черный</string>
     <string name="themePreviewTitle">Живой предпросмотр</string>
     <string name="themePreviewBookTitle">Превью мини-плеера</string>
-    <string name="vinylMode">Режим винила</string>
     <string name="lyrics">Текст песни</string>
     <string name="toggleLyricsView">Переключить отображение текста</string>
+    <string name="lyricsSeekToLine">Воспроизвести с этой строки</string>
     <string name="lyricsVisibleState">Текст отображается</string>
     <string name="lyricsHiddenState">Текст скрыт</string>
     <!-- Заголовок настройки аудио -->
@@ -306,6 +327,10 @@
     <string name="hold_to_boost_speed_desc">Временная скорость при удержании кнопки скорости в плеере</string>
     <string name="auto_pip_title">Авто Picture-in-Picture</string>
     <string name="auto_pip_desc">Автоматически переходить в Picture-in-Picture при выходе из плеера</string>
+    <string name="headset_autoplay_title">Воспроизведение при подключении наушников</string>
+    <string name="headset_autoplay_desc">Автоматически возобновлять воспроизведение при подключении проводных наушников</string>
+    <string name="notification_lockscreen_title">Уведомление на экране блокировки</string>
+    <string name="notification_lockscreen_desc">Показывать название книги и обложку на экране блокировки</string>
     <string name="playback_speed_format">%1$.1fx</string>
     <string name="sleep_timer_shake_extend_title">Встряхивание для продления таймера сна</string>
     <string name="sleep_timer_shake_extend_desc">Встряхните устройство, чтобы добавить 5 минут к активному таймеру сна (фиксированный режим)</string>
@@ -333,12 +358,35 @@
     <string name="equalizer_preset_title">Пресет</string>
     <string name="equalizer_preset_desc">Подстройка тембра речи под условия прослушивания</string>
     <string name="equalizer_preset_flat">Плоский</string>
+    <string name="equalizer_preset_flat_raw">Плоский (Raw)</string>
+    <string name="eq_recommendation_message">Рекомендуем пресет: %1$s</string>
+    <string name="eq_recommendation_apply">Применить</string>
     <string name="equalizer_preset_voice_clarity">Чёткость речи</string>
     <string name="equalizer_preset_night">Ночной</string>
     <string name="equalizer_preset_headphones">Наушники</string>
     <string name="equalizer_preset_car">Авто</string>
+    <string name="equalizer_preset_male_narrator">Мужской диктор</string>
+    <string name="equalizer_preset_female_narrator">Женский диктор</string>
+    <string name="equalizer_preset_car_mode">Режим авто</string>
+    <string name="equalizer_preset_night_listening">Ночное прослушивание</string>
+    <string name="equalizer_preset_headphones_budget">Бюджетные наушники</string>
+    <string name="equalizer_preset_speaker_phone">Громкая связь</string>
+    <string name="equalizer_preset_custom">Пользовательский</string>
+    <string name="equalizer_custom_bands_title">Полосы EQ</string>
+    <string name="equalizer_save_preset">Сохранить как пресет</string>
+    <string name="equalizer_save_preset_dialog_title">Сохранить пресет EQ</string>
+    <string name="equalizer_save_preset_dialog_hint">Название пресета</string>
+    <string name="equalizer_save_preset_saved">Пресет сохранён</string>
     <string name="equalizer_five_band_title">5-полосный предпросмотр</string>
     <string name="equalizer_gain_db">%1$d дБ</string>
+    <!-- EQ Presets -->
+    <string name="eqPresetStandard">Стандарт</string>
+    <string name="eqPresetVoice">Голос</string>
+    <string name="eqPresetBass">Бас</string>
+    <string name="eqPresetConcert">Концерт</string>
+    <string name="eqPresetCustom">Пользовательский</string>
+    <!-- Audio Enhancement title -->
+    <string name="equalizerTitle">Эквалайзер</string>
     <string name="equalizer_point_tooltip">%1$s • %2$s</string>
     <!-- Заголовок настройки нормализации громкости -->
     <string name="normalizeVolumeTitle">Нормализация громкости</string>
@@ -516,6 +564,7 @@
     <string name="configureMirrorsSubtitle">Настройте и проверьте зеркала RuTracker</string>
     <!-- Заголовок настройки скорости воспроизведения -->
     <string name="playbackSpeedTitle">Скорость воспроизведения</string>
+    <string name="playbackSpeedSlider">Ползунок скорости воспроизведения</string>
     <!-- Заголовок настройки длительности пропуска -->
     <string name="skipDurationTitle">Длительность пропуска</string>
     <!-- Заголовок настройки места загрузки -->
@@ -531,7 +580,7 @@
     <!-- Сообщение об успешной проверке зеркала -->
     <string name="mirrorTestSuccessMessage">Зеркало %1$s проверено успешно</string>
     <!-- Сообщение об ошибке проверки зеркала -->
-    <string name="mirrorTestFailedMessage">Не удалось проверить зеркало %2$s: %1$s</string>
+    <string name="mirrorTestFailedMessage">Не удалось проверить зеркало %1$s: %2$s</string>
     <!-- Статус зеркала -->
     <string name="mirrorStatusText">Зеркало %1$s</string>
     <!-- Сообщение об ошибке обновления зеркала -->
@@ -541,7 +590,7 @@
     <!-- Метка для поля URL зеркала -->
     <string name="mirrorUrlLabelText">URL зеркала</string>
     <!-- Подсказка для поля URL зеркала -->
-    <string name="mirrorUrlHintText">https://rutracker.example.com</string>
+    <string name="mirrorUrlHintText">https://mirror.example.com</string>
     <!-- Метка для поля приоритета -->
     <string name="priorityLabelText">Приоритет (1-10)</string>
     <!-- Подсказка для поля приоритета -->
@@ -2104,6 +2153,7 @@
     <string name="timerLabel">Таймер</string>
     <!-- Метка скорости воспроизведения -->
     <string name="speedLabel">Скорость</string>
+    <string name="fineTuneSpeed">Точная настройка скорости</string>
     <string name="recentSpeedsTitle">Недавние скорости</string>
     <!-- Метка кнопки перемотки назад -->
     <string name="rewindButton">Назад</string>
@@ -2130,7 +2180,7 @@
     <string name="errorWithMessage">Ошибка: %1$s</string>
     <!-- Строки экрана аутентификации -->
     <string name="rutrackerAuth">Rutracker Auth</string>
-    <string name="rutrackernl">rutracker.nl</string>
+    <string name="rutrackernl">mirror.example.com</string>
     <string name="username">Имя пользователя</string>
     <string name="password">Пароль</string>
     <string name="rememberMe">Запомнить меня</string>
@@ -2225,12 +2275,19 @@
     <!-- Приоритетное меню -->
     <string name="priorityMenu">Приоритетное меню</string>
     <!-- Поиск книг... -->
-    <string name="searchBooks">Поиск книг...</string>
+    <string name="searchBooks">Поиск книг, авторов, чтецов…</string>
     <!-- Сиды -->
     <!-- Поделиться журналами -->
     <string name="shareLogs">Поделиться журналами</string>
     <!-- Таймер сна -->
     <string name="sleepTimer">Таймер сна</string>
+    <!-- Закладки -->
+    <string name="bookmarks">Закладки</string>
+    <string name="bookmarkCount">%1$d закладок</string>
+    <string name="noBookmarks">Закладок пока нет</string>
+    <string name="noBookmarksDescription">Долгое нажатие на ползунок для добавления закладки</string>
+    <string name="jumpToBookmark">Перейти к закладке</string>
+    <string name="deleteBookmark">Удалить закладку</string>
     <!-- Самый маленький первый -->
     <string name="smallestFirst">Самый маленький первый</string>
     <string name="tapToOpenAppAndResumePlayback">Нажмите, чтобы открыть приложение и возобновить воспроизведение.</string>
@@ -2239,6 +2296,7 @@
     <string name="unavailable">Недоступно</string>
     <!-- Детали книги -->
     <string name="bookDetails">Детали книги</string>
+    <string name="aboutBook">О книге</string>
     <!-- Добавить -->
     <string name="add">Добавить</string>
     <!-- Добавить зеркало -->
@@ -2277,6 +2335,8 @@
     <string name="chooseAppTheme">Выберите тему приложения</string>
     <string name="dynamicColorsTitle">Динамические цвета (Material You)</string>
     <string name="dynamicColorsDescription">Подстраивать цвета приложения под обои на Android 12+</string>
+    <string name="accentColorTitle">Цвет акцента</string>
+    <string name="accentColorDescription">Выберите запасной цвет, если динамические цвета отключены</string>
     <!-- Настройки шрифта -->
     <string name="fontTitle">Шрифт</string>
     <!-- Выберите шрифт -->
@@ -2296,6 +2356,14 @@
     <string name="concurrentDownloads">Одновременные загрузки</string>
     <!-- Продолжить прослушивание -->
     <string name="continueListening">Продолжить прослушивание</string>
+    <!-- Кнопка продолжения -->
+    <string name="continueListeningAction">Продолжить</string>
+    <!-- Оставшееся время: %s — форматированная длительность -->
+    <string name="timeRemaining">Осталось %s</string>
+    <!-- TalkBack описание для прошедшего времени воспроизведения -->
+    <string name="elapsedTimeDescription">Прослушано: %s</string>
+    <!-- TalkBack описание для общей длительности -->
+    <string name="totalDurationDescription">Общая длительность: %s</string>
     <!-- Темный -->
     <string name="dark">Темный</string>
     <!-- Темная тема -->
@@ -2446,8 +2514,8 @@
     <string name="backButton">Назад</string>
     <!-- Настройки -->
     <string name="settings">Настройки</string>
-    <!-- Неверный URL. Используйте формат: rutracker.example -->
-    <string name="invalidUrlFormatError">Неверный URL. Используйте формат: rutracker.example</string>
+    <!-- Неверный URL. Используйте формат: mirror.example -->
+    <string name="invalidUrlFormatError">Неверный URL. Используйте формат: mirror.example</string>
     <!-- Неизвестно -->
     <string name="unknownStat">Неизвестно</string>
     <!-- Нет аудиокнига -->
@@ -2482,6 +2550,8 @@
     <string name="sleepTimerRepeatYesterday">Как вчера (%1$d мин)</string>
     <string name="sleepTimerStopsAt">Остановка в %1$s (через %2$s)</string>
     <string name="sleepTimerResumeHint">Таймер сна остановил воспроизведение. Продолжить с того же места.</string>
+    <string name="phoneCallBookmarkSnackbar">Добавили закладку — продолжить с того места?</string>
+    <string name="playChapter">Воспроизвести главу</string>
     <string name="stopAtSpecificTime">Остановить в конкретное время</string>
     <string name="stopAtSpecificTimeDesc">Выберите время по часам (например, 23:30)</string>
     <string name="currentMirror">Текущее зеркало</string>
@@ -2537,18 +2607,11 @@
     <string name="dataSizeLabel">Данные: %1$s</string>
     <string name="totalSizeLabel">Итого: %1$s</string>
     <string name="cacheClearErrorMessage">Ошибка очистки кэша: %1$s</string>
-    <!-- Настройки книги -->
-    <string name="overrideBookSettings">Настройки книги</string>
-    <!-- Использовать общие настройки -->
-    <string name="useGlobalSettings">Использовать общие настройки</string>
-    <!-- Свои настройки -->
-    <string name="customSettings">Свои настройки</string>
     <!-- Добавить папку -->
     <string name="addFolder">Добавить папку</string>
     <!-- Управление папками для сканирования аудиокниг -->
     <string name="manageFoldersToScanForAudiobooks">Управление папками для сканирования аудиокниг</string>
     <!-- \п -->
-    <string name="n">\п</string>
     <!-- Пользовательские папки не добавлены -->
     <string name="noCustomFoldersAdded">Пользовательские папки не добавлены</string>
     <!-- Сканирование папок по умолчанию: аудиокниги, подкасты. -->
@@ -2559,6 +2622,9 @@
     <!-- Widget strings -->
     <string name="no_book_playing">Нет воспроизведения</string>
     <string name="widget_description">Быстрый доступ к управлению аудиоплеером</string>
+    <!-- Quick Settings Tile strings -->
+    <string name="quick_tile_playing">Воспроизводится</string>
+    <string name="quick_tile_paused">Пауза</string>
     <string name="notification_channel_description">Управление воспроизведением аудио</string>
     
     <!-- Переопределение канала Media3 по умолчанию -->
@@ -2638,12 +2704,24 @@
     <string name="totalDuration">Общая длительность</string>
     <string name="downloadStatus">Статус загрузки</string>
     <string name="downloaded">Загружено</string>
+    <string name="listened">Прослушано</string>
+    <string name="listenedStatus">Статус прослушивания</string>
+    <!-- Строки значка качества -->
+    <string name="qualityHigh">Высокое</string>
+    <string name="qualityStandard">Стандартное</string>
+    <string name="qualityLow">Низкое</string>
+    <string name="qualityBadgeContentDescription">Качество %1$s: %2$s</string>
+    <string name="lowQualityWarning">Архивный низкокачественный релиз</string>
+    <string name="narratorCardTitle">Читает</string>
+    <string name="narratorMetaProfessional">Профессиональный чтец</string>
+    <!-- Player chapter pane strings -->
     <!-- Строки панели глав плеера -->
     <string name="currentlyPlaying">Сейчас играет</string>
     <string name="jumpToChapterNumber">Перейти к главе №...</string>
     <string name="playerChapterNavigationSnackbar">Перешли к главе %1$d</string>
     <string name="undoAction">Отменить</string>
     <string name="bookmarkAddedMessage">Закладка добавлена</string>
+    <string name="bookmarkDeleted">Закладка удалена</string>
     <string name="dragToReorder">Перетащите для сортировки</string>
     <string name="weeklyRecapTitle">Ваша неделя</string>
     <string name="yearRecapTitle">Итоги %1$d года</string>
@@ -2655,9 +2733,6 @@
     <string name="yearRecapDaysLabel">Активных дней</string>
     <string name="yearRecapSessionsLabel">Сессий</string>
     <string name="yearRecapTopAuthorLabel">Чаще всего слушали автора</string>
-    <string name="rateCompletedBookTitle">Как оцените эту книгу?</string>
-    <string name="rateCompletedBookThanks">Спасибо! Ваша оценка: %1$d/5.</string>
-    <string name="rateCompletedBookStar">%1$d звёзд</string>
     <string name="laterAction">Позже</string>
     <string name="continueSeriesLabel">Продолжить серию</string>
     <string name="playNowAction">Слушать сейчас</string>
@@ -2737,6 +2812,7 @@
     <string name="checking_state">Проверка</string>
     <string name="metadata_state">Получение инфо</string>
     <string name="queued_state">В очереди</string>
+    <string name="cancelled_state">Отменено</string>
     <string name="stopped_state">Остановлен</string>
     <string name="seeding_paused_state">Раздача (На паузе)</string>
     <string name="in_library">В библиотеке</string>
@@ -2766,6 +2842,7 @@
     <string name="duration_hm">%1$dч %2$dм</string>
     <string name="duration_m">%1$dм</string>
     <string name="duration_less_minute">&lt;1м</string>
+    <string name="eta_approx_min">≈ %1$d мин</string>
     
     <string name="peers_seeds">Пиры: %1$d (сидов: %2$d)</string>
     <string name="no_downloads">Нет загрузок</string>
@@ -2853,6 +2930,10 @@
     <string name="indexingCompletedHeadline">Индексация завершена!</string>
     <string name="indexingDurationSeconds">Время: %1$d сек</string>
     <string name="indexingForumLabel">Форум: %1$s</string>
+    <string name="indexingStatusIndexed">Проиндексировано</string>
+    <string name="indexingStatusInProgress">Индексация</string>
+    <string name="indexingStatusFailed">Ошибка</string>
+    <string name="indexingStatusPending">Ожидание</string>
     <string name="hideAction">Скрыть</string>
     <string name="cannotShareLogsActivityRequired">Не удалось поделиться логами: требуется Activity-контекст</string>
     <string name="torrentBufferingTitle">Буферизация...</string>
@@ -2885,8 +2966,7 @@
     <string name="off">Выкл</string>
     <string name="volumeBoostPercent">+%1$d%%</string>
     <string name="smartEffectsTitle">Умные эффекты</string>
-    <string name="smartResumeRecapSuggestion">Долгий перерыв (%1$d ч). Повторить последние 2 минуты?</string>
-    <string name="smartResumeRecapAction">Повторить</string>
+
     <string name="notificationPermissionPlaybackHint">Уведомления помогают управлять воспроизведением из панели уведомлений</string>
     <string name="audioVisualizerPermissionHint">Аудиовизуализатору нужно разрешение на микрофон</string>
 
@@ -2908,4 +2988,185 @@
         <item quantity="many">Выбрано %d записей</item>
         <item quantity="other">Выбрано %d записи</item>
     </plurals>
+    <plurals name="booksCount">
+        <item quantity="one">%1$d книга</item>
+        <item quantity="few">%1$d книги</item>
+        <item quantity="many">%1$d книг</item>
+        <item quantity="other">%1$d книги</item>
+    </plurals>
+    <string name="downloadsActiveTab">Активные</string>
+    <string name="downloadsHistoryTab">История</string>
+    <string name="streamingBufferLabel">Стриминг (%1$s)</string>
+    <string name="downloadsActiveSummary">Активные загрузки</string>
+    <string name="downloadsActiveStats">%1$d загружается • %2$s/с • %3$d в очереди</string>
+    <string name="downloadsPausedNoSpeed">%1$d загружается • На паузе • %2$d в очереди</string>
+    <string name="no_active_downloads">Нет активных загрузок</string>
+    <string name="storageUsedLabel">%1$s использовано • %2$s свободно</string>
+    <string name="storageLegendAudiobooks">Аудиокниги</string>
+    <string name="storageLegendDownloading">Загрузка</string>
+    <string name="downloadNarratedBy">Читает: %1$s</string>
+    <string name="downloadChaptersProgress">%1$d/%2$d глав</string>
+    <string name="downloadsHistorySection">История (%1$d)</string>
+    <string name="historyStatusCompleted">Завершено</string>
+    <string name="historyStatusFailed">Ошибка</string>
+    <string name="historyStatusCancelled">Отменено</string>
+    <string name="historyRetry">Повторить</string>
+    <string name="settingsProfileGuest">Гость</string>
+    <string name="settingsProfileStats">%1$d книг · %2$d ч прослушано · %3$d в избранном</string>
+    <string name="settingsSignIn">Войти</string>
+    <string name="settingsGeneral">Общее</string>
+    <string name="settingsLanguage">Язык интерфейса</string>
+    <string name="settingsHaptics">Вибрация</string>
+    <string name="settingsHapticsDesc">Вибрация при перемотке и жестах</string>
+    <string name="settingsPhone">Телефон</string>
+    <string name="settingsTablet">Планшет</string>
+    <string name="settingsDesktopMode">Большой</string>
+    <string name="settingsDesktopModeDesc">Большой экран · список-детали</string>
+    <string name="desktopSelectBookHint">Выберите книгу для просмотра деталей</string>
+    <string name="playerShare">Поделиться</string>
+    <string name="playerStatistics">Статистика</string>
+    <string name="playerOverflowMenu">Дополнительно</string>
+
+    <!-- Device and Layout -->
+    <string name="deviceAndLayout">Устройство и макет</string>
+    <string name="playerCoverModeTitle">Обложка плеера</string>
+    <string name="playerCoverModeDescription">Выберите способ отображения обложки</string>
+    <string name="coverModeCard">Карточка</string>
+    <string name="coverModeVinyl">Винил</string>
+
+    <!-- Search Discovery V4 -->
+    <string name="searchModeLocal">Библиотека</string>
+    <string name="searchModeRemote">RuTracker</string>
+    <string name="searchPlaceholderLocal">Поиск в библиотеке…</string>
+    <string name="searchPlaceholderRemote">Поиск на RuTracker…</string>
+    <string name="genreClassics">Классика</string>
+    <string name="genreSciFi">Фантастика</string>
+    <string name="genreDetective">Детектив</string>
+    <string name="genreHistory">История</string>
+    <string name="genreBiographies">Биографии</string>
+    <string name="genreChildren">Детские</string>
+    <string name="genreBusiness">Бизнес</string>
+    <string name="genreSelfDevelopment">Саморазвитие</string>
+    <string name="genreMisc">Разное</string>
+    <string name="qualityAny">Любое</string>
+    <string name="qualityAtLeastHigh">≥ 256 кбит</string>
+    <string name="qualityAtLeastStandard">≥ 128 кбит</string>
+    <string name="searchSortSeeds">По сидам</string>
+    <string name="searchSortSize">По размеру</string>
+    <string name="searchSortRelevance">Релевантность</string>
+    <string name="localResultsCount">Найдена %1$d книга</string>
+    <string name="localResultsCountPlural">Найдено %1$d книг</string>
+    <string name="searchDiscoveryTitle">Подборки</string>
+    <string name="searchGenreChipsTitle">Жанры</string>
+    <string name="searchQualityChipsTitle">Качество</string>
+    <string name="mini_player_dismissed_undo">Воспроизведение остановлено</string>
+    <string name="mini_player_dismissed_resume">Возобновить</string>
+    <string name="done">Готово</string>
+    <string name="webViewLoginFailed">RuTracker не подтвердил вход. Завершите авторизацию и повторите попытку.</string>
+    <string name="resumeLongPauseTitle">Давно не слушали</string>
+    <string name="resumeLongPauseDescription">%1$s • %2$s — %3$d д. назад</string>
+    <string name="resumeLongPauseContinue">Продолжить</string>
+    <string name="resumeLongPauseRestartChapter">Начать главу сначала</string>
+    <string name="resumeLongPauseSelectChapter">Выбрать главу</string>
+    <string name="errorRecordingVoiceNote">Не удалось записать голосовую заметку</string>
+
+    <string name="overflowMenu">Ещё</string>
+    <string name="statistics">Статистика</string>
+    <string name="showStatistics">Показать статистику</string>
+    <string name="hideStatistics">Скрыть статистику</string>
+    <string name="approximateSpeedDistribution">Примерное распределение скоростей</string>
+    <string name="discovery">Подборка</string>
+
+    <!-- Library accessibility & localization -->
+    <string name="scrollToTop">Прокрутить наверх</string>
+    <string name="discoveryTrending">Популярное</string>
+    <string name="discoveryForYou">Для вас</string>
+    <string name="discoveryGenres">Жанры</string>
+    <string name="greetingMorning">Доброе утро</string>
+    <string name="greetingAfternoon">Добрый день</string>
+    <string name="greetingEvening">Добрый вечер</string>
+    <string name="greetingNight">Доброй ночи</string>
+    <string name="heatmapAccessibilityDescription">Прослушано %1$d минут за последние %2$d недель</string>
+    <string name="speedChartAccessibilityDescription">Распределение скоростей: большинство книг прослушано на %1$.1fx</string>
+    <string name="speedLegendFormat">%1$.1fx — %2$d мин</string>
+    <!-- Listening mood labels -->
+    <string name="moodWalking">Иду пешком</string>
+    <string name="moodDriving">В машине</string>
+    <string name="moodSleeping">Перед сном</string>
+    <string name="moodWorkout">Тренировка</string>
+    <string name="moodRelaxing">Отдыхаю</string>
+    <string name="moodWorking">Фоном за работой</string>
+    <!-- Статус защиты Cloudflare -->
+    <string name="cfProtected">Защита CF</string>
+    <!-- Имя главы по умолчанию для закладок -->
+    <string name="chapterFallback">Глава %1$d</string>
+    <!-- Панель достижений -->
+    <string name="achievementUnlocked">Достижение разблокировано</string>
+    <string name="achievementDismiss">Отлично</string>
+    <!-- Уведомление воркера индексации -->
+    <string name="indexingNotificationTitle">Индексация аудиокниг</string>
+    <string name="indexingNotificationBody">Подготавливаем офлайн-поиск</string>
+    <string name="indexingNotificationCompleted">Индексация завершена</string>
+    <string name="indexingNotificationError">Ошибка индексации: %1$s</string>
+    <!-- Строки уведомлений -->
+    <string name="downloading_book">Загрузка: %1$s</string>
+    <string name="download_progress_percent">Завершено на %1$d%%</string>
+    <string name="downloadComplete">Загрузка завершена</string>
+    <string name="downloadFailed">Ошибка загрузки: %1$s</string>
+    <string name="resume">Продолжить</string>
+    <string name="pauseAll">Поставить все на паузу</string>
+    <string name="resumeAll">Возобновить все</string>
+    <!-- Названия каналов уведомлений -->
+    <string name="notification_channel_downloads">Загрузки</string>
+    <string name="notification_channel_downloads_desc">Прогресс и завершение загрузок книг</string>
+    <string name="notification_channel_player">Аудиоплеер</string>
+    <string name="notification_channel_player_desc">Управление и статус воспроизведения</string>
+    <!-- Подзаголовок уведомления о прогрессе глав: текущая глава, всего глав (счётчик для плюрализации), осталось времени в главе -->
+    <plurals name="chapter_progress_subtitle">
+        <item quantity="one">Глава %1$d из %2$d главы • %3$s осталось в главе</item>
+        <item quantity="few">Глава %1$d из %2$d глав • %3$s осталось в главе</item>
+        <item quantity="many">Глава %1$d из %2$d глав • %3$s осталось в главе</item>
+        <item quantity="other">Глава %1$d из %2$d глав • %3$s осталось в главе</item>
+    </plurals>
+    <!-- Сообщения об ошибках плеера -->
+    <string name="player_not_ready">Плеер ещё не готов</string>
+    <string name="book_not_found">Книга не найдена</string>
+    <string name="noBookSelected">Книга не выбрана</string>
+    <string name="noBookSelectedSubtitle">Выберите книгу из библиотеки, чтобы начать прослушивание</string>
+    <string name="browseLibrary">К библиотеке</string>
+    <string name="failed_to_delete_bookmark">Не удалось удалить закладку</string>
+    <string name="failed_to_update_seek_settings">Не удалось обновить настройки перемотки</string>
+    <string name="failed_to_reset_seek_settings">Не удалось сбросить настройки перемотки</string>
+    <string name="failed_to_update_audio_settings">Не удалось обновить аудионастройки</string>
+    <string name="failed_to_add_bookmark">Не удалось добавить закладку</string>
+    <string name="failed_to_update_bookmark">Не удалось обновить закладку</string>
+    <string name="failed_to_update_playback_speed">Не удалось изменить скорость воспроизведения</string>
+    <string name="failed_to_save_playback_speed">Не удалось сохранить скорость воспроизведения</string>
+    <string name="unknown_error">Неизвестная ошибка</string>
+    <string name="status_completed">Завершено</string>
+    <string name="minutes_remaining">осталось %1$d мин</string>
+    <string name="total_duration_minutes">%1$d мин</string>
+    <!-- Accessibility labels -->
+    <string name="open_book_details">Открыть detalles книги</string>
+    <string name="browse_genre">Просмотреть жанр</string>
+    <string name="open_book">Открыть книгу</string>
+    <!-- Indexing -->
+    <string name="auth_required_for_indexing">Требуется авторизация для индексации форумов. Пожалуйста, войдите в аккаунт.</string>
+    <string name="indexing_not_completed">Индексация не завершилась успешно</string>
+    <string name="failed_to_add_torrent">Не удалось добавить торрент: %1$s</string>
+    <string name="download_queued_waiting_wifi">Загрузка в очереди: ожидание Wi-Fi</string>
+    <string name="export_failed">Не удалось экспортировать</string>
+    <string name="import_failed">Не удалось импортировать</string>
+    <string name="failed_to_load_cache_stats">Не удалось загрузить статистику кэша</string>
+    <string name="failed_to_clear_cache">Не удалось очистить кэш</string>
+    <string name="torrent_stream_author">Торрент-стрим</string>
+    <string name="streaming_from_torrent">Стриминг из торрента: %1$s</string>
+    <string name="notificationPermissionDeniedToast">Разрешение на уведомления отклонено. Вы не увидите прогресс индексации.</string>
+    <string name="mirrorExamplesHint">Примеры: mirror1.example, mirror2.example</string>
+    <string name="cdSwitchAccount">Переключить аккаунт</string>
+    <string name="webViewLoadFailed">Не удалось загрузить страницу</string>
+    <string name="playbackErrorFallback">Ошибка воспроизведения</string>
+    <string name="statsBufferStreaming">%1$s (стрим)</string>
+    <string name="statsBufferLocal">%1$s (локально)</string>
+    <string name="playerShareByFormat">%1$s — %2$s</string>
 </resources>

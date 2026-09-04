@@ -53,7 +53,14 @@ public class MediaStoreBookScanner
                     _scanProgress.value = ScanProgress.Discovery(0)
 
                     val allowedPaths = scanPathDao.getAllPathsList().map { it.path }
-                    val audioFiles = queryAudioFiles(allowedPaths)
+                    // null = query failed (e.g. permission revoked) — propagate as Error,
+                    // empty list legitimately means "no matching files"
+                    val audioFiles =
+                        queryAudioFiles(allowedPaths)
+                            ?: return@withContext Result.Error(
+                                com.jabook.app.jabook.compose.domain.model.AppError.DataError
+                                    .Generic("MediaStore query failed (storage permission denied?)"),
+                            )
                     _scanProgress.value = ScanProgress.Discovery(audioFiles.size)
 
                     val groupedByAlbum = groupFilesByAlbum(audioFiles)
@@ -77,7 +84,8 @@ public class MediaStoreBookScanner
                 }
             }
 
-        private fun queryAudioFiles(allowedPaths: List<String>): List<AudioFileInfo> {
+        /** @return files or null when the MediaStore query failed (e.g. permission revoked). */
+        private fun queryAudioFiles(allowedPaths: List<String>): List<AudioFileInfo>? {
             val projection =
                 arrayOf(
                     MediaStore.Audio.Media._ID,
@@ -91,7 +99,8 @@ public class MediaStoreBookScanner
 
             // We query all music/audio files and filter in code for flexibility
             // Ideally we would add selection for paths, but LIKE with many paths is complex in SQL
-            val selection = "${MediaStore.Audio.Media.IS_MUSIC} = 1 OR ${MediaStore.Audio.Media.IS_AUDIOBOOK} = 1"
+            val selection =
+                "(${MediaStore.Audio.Media.IS_MUSIC} = 1 OR ${MediaStore.Audio.Media.IS_AUDIOBOOK} = 1)"
 
             val audioFiles = mutableListOf<AudioFileInfo>()
 
@@ -127,11 +136,15 @@ public class MediaStoreBookScanner
                                         filePath.contains(it, ignoreCase = true)
                                     }
                                 } else {
-                                    // Custom: Must start with one of the allowed paths
-                                    allowedPaths.any { filePath.startsWith(it) }
+                                    // Custom: Must be inside one of the allowed paths
+                                    // (trimEnd avoids sibling false positives like /Books vs /BooksBackup)
+                                    allowedPaths.any {
+                                        val prefix = it.trimEnd('/')
+                                        filePath == prefix || filePath.startsWith("$prefix/")
+                                    }
                                 }
 
-                            if (shouldInclude && File(filePath).exists()) {
+                            if (shouldInclude) {
                                 audioFiles.add(
                                     AudioFileInfo(
                                         id = cursor.getLong(idColumn),
@@ -146,23 +159,29 @@ public class MediaStoreBookScanner
                             }
                         }
                     }
+            } catch (e: SecurityException) {
+                // Permission revoked — must not look like "no audiobooks found"
+                logger.e(e) { "MediaStore query denied: missing read permission" }
+                _scanProgress.value = ScanProgress.Error("Storage permission denied")
+                return null
             } catch (e: Exception) {
-                // Handle IllegalArgumentException for IS_AUDIOBOOK on older APIs if needed
-                // But MediaStore should just ignore valid columns?
-                // Actually IS_AUDIOBOOK was added in API 29.
-                // If running on older API, this might throw IllegalArgumentException "Invalid column IS_AUDIOBOOK".
-                // We should safeguard the selection string.
-                logger.e({ "Error querying MediaStore" }, e)
-                return emptyList()
+                logger.e(e) { "Error querying MediaStore" }
+                return null
             }
 
             return audioFiles
         }
 
         private fun groupFilesByAlbum(files: List<AudioFileInfo>): Map<String, List<AudioFileInfo>> =
-            files
-                .filter { it.album != null && it.album.isNotBlank() }
-                .groupBy { it.album!! }
+            files.groupBy { file ->
+                // Fall back to parent-directory name for untagged albums
+                val album = file.album?.takeIf { it.isNotBlank() }
+                album ?: File(file.filePath)
+                    .parent
+                    ?.substringAfterLast(File.separator)
+                    .orEmpty()
+                    .ifBlank { "Unknown Album" }
+            }
 
         private suspend fun createScannedBook(
             album: String,
@@ -191,34 +210,26 @@ public class MediaStoreBookScanner
 
             val chapters = mutableListOf<ScannedChapter>()
             files
-                .sortedWith(createChapterComparator())
+                .sortedWith(ChapterOrderPolicy.comparatorForAudioFiles { it.displayName })
                 .forEachIndexed { index, file ->
-                    // Use filename without extension if no title tag.
-                    var rawTitle =
-                        file.title?.takeIf { it.isNotBlank() }
-                            ?: java.io.File(file.displayName).nameWithoutExtension
+                    // Best-candidate selection: garbage MediaStore tags (U+FFFD, mojibake,
+                    // track-filenames) lose to parser metadata or the filename fallback
+                    // instead of winning by position.
+                    val bestTitle =
+                        MetadataQualityPolicy.selectBest(
+                            file.title,
+                            runCatching { metadataParser.parseMetadata(file.filePath)?.title }.getOrNull(),
+                            java.io
+                                .File(file.displayName)
+                                .nameWithoutExtension
+                                .takeIf { it.isNotBlank() },
+                        ) ?: "Chapter ${index + 1}"
 
-                    // MediaStore can return U+FFFD for broken encoding; read direct tags for this file.
-                    if (MediaStoreMetadataFallbackPolicy.hasReplacementCharacter(rawTitle)) {
-                        logger.w {
-                            "MediaStore chapter title contains replacement character for ${file.filePath}, " +
-                                "using parser metadata fallback"
-                        }
-                        val fallbackTitle =
-                            metadataParser
-                                .parseMetadata(file.filePath)
-                                ?.title
-                                ?.takeIf { it.isNotBlank() }
-                        if (fallbackTitle != null) {
-                            rawTitle = fallbackTitle
-                        }
-                    }
-
-                    val (fixedTitle, detectedEncoding) = encodingDetector.fixGarbledText(rawTitle)
+                    val (fixedTitle, detectedEncoding) = encodingDetector.fixGarbledText(bestTitle)
 
                     if (detectedEncoding != null) {
                         logger.d {
-                            "📖 Chapter encoding fix: '$rawTitle' -> '$fixedTitle' ($detectedEncoding)"
+                            "Chapter encoding fix: '$bestTitle' -> '$fixedTitle' ($detectedEncoding)"
                         }
                     }
 
@@ -232,66 +243,54 @@ public class MediaStoreBookScanner
                     )
                 }
 
+            val finalChapters = expandEmbeddedChapters(chapters) ?: chapters
+
             return ScannedBook(
                 directory = File(firstFile.filePath).parent ?: "",
                 title = metadata?.album ?: sanitizedAlbum ?: "Unknown Album",
                 author = metadata?.albumArtist ?: metadata?.artist ?: sanitizedAuthorFromMediaStore ?: "Unknown",
-                chapters = chapters,
-                totalDuration = chapters.sumOf { it.duration },
+                chapters = finalChapters,
+                totalDuration = finalChapters.sumOf { it.duration },
                 coverArt = metadata?.coverArt,
             )
         }
 
-        private data class ChapterInfo(
-            val partNumber: Int = 0,
-            val chapterNumber: Int = 0,
-            val hasNumber: Boolean = false,
-        ) {
-            public fun toSortKey(): Int = partNumber * 1000 + chapterNumber
+        /**
+         * For a single-file m4b/m4a, tries to parse embedded Nero chapter
+         * markers and expand into multiple [ScannedChapter] entries.
+         *
+         * @return expanded chapters or null when parsing is not applicable
+         */
+        private fun expandEmbeddedChapters(chapters: List<ScannedChapter>): List<ScannedChapter>? {
+            if (chapters.size != 1) return null
+            val only = chapters.first()
+            val ext = only.filePath.substringAfterLast('.').lowercase()
+            if (ext !in EMBEDDED_CHAPTER_EXTENSIONS) return null
+
+            val embedded = M4bChapterParser.parseM4bChapters(only.filePath) ?: return null
+            if (embedded.size < 2) return null
+            if (only.duration <= embedded.last().startMs) return null
+
+            return embedded.mapIndexed { index, ch ->
+                val endMs =
+                    if (index < embedded.size - 1) {
+                        embedded[index + 1].startMs
+                    } else {
+                        only.duration
+                    }
+                ScannedChapter(
+                    filePath = only.filePath,
+                    title = ch.title,
+                    index = index,
+                    duration = (endMs - ch.startMs).coerceAtLeast(0),
+                    startMs = ch.startMs,
+                    endMs = endMs,
+                )
+            }
         }
 
-        private fun createChapterComparator(): Comparator<AudioFileInfo> =
-            compareBy<AudioFileInfo> { file ->
-                val filename = file.displayName.lowercase()
-                when {
-                    filename.contains("пролог") || filename.contains("prologue") -> 0
-                    extractChapterInfo(file.displayName).hasNumber -> 1
-                    filename.contains("эпилог") || filename.contains("epilogue") -> 3
-                    else -> 2
-                }
-            }.thenBy { file ->
-                val info = extractChapterInfo(file.displayName)
-                if (info.hasNumber) info.toSortKey() else Int.MAX_VALUE
-            }.thenBy { file ->
-                file.displayName.lowercase()
-            }
-
-        private fun extractChapterInfo(filename: String): ChapterInfo {
-            val clean = filename.lowercase()
-
-            val partMatch =
-                Regex("""част[\u044cяи]\s*(\d+)""").find(clean)
-                    ?: Regex("""part\s*(\d+)""").find(clean)
-            val partNum = partMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
-
-            val patterns =
-                listOf(
-                    Regex("""глава\s*(\d+)""", RegexOption.IGNORE_CASE),
-                    Regex("""chapter\s*(\d+)""", RegexOption.IGNORE_CASE),
-                    Regex("""(\d+)\s*[-._]"""),
-                    Regex("""^(\d+)"""),
-                )
-
-            var chapterNum = 0
-            var found = false
-            for (pattern in patterns) {
-                pattern.find(clean)?.let {
-                    chapterNum = it.groupValues[1].toIntOrNull() ?: 0
-                    found = true
-                    return@let
-                }
-            }
-
-            return ChapterInfo(partNum, chapterNum, found)
+        private companion object {
+            /** Extensions that may contain embedded Nero chapter atoms. */
+            private val EMBEDDED_CHAPTER_EXTENSIONS = setOf("m4b", "m4a")
         }
     }

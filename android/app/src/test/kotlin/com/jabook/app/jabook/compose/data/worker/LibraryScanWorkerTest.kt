@@ -20,13 +20,13 @@ import androidx.work.ListenableWorker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import androidx.work.testing.TestListenableWorkerBuilder
-import com.jabook.app.jabook.audio.ChapterDetectionWorkScheduler
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner
 import com.jabook.app.jabook.compose.data.local.scanner.ScannedBook
+import com.jabook.app.jabook.compose.data.local.scanner.ScannedChapter
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.domain.model.AppError
 import com.jabook.app.jabook.compose.domain.model.Result
@@ -38,14 +38,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class LibraryScanWorkerTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val booksDao: BooksDao = mock()
     private val chaptersDao: ChaptersDao = mock()
-    private val chapterDetectionWorkScheduler: ChapterDetectionWorkScheduler = mock()
+    private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao = mock()
     private val loggerFactory: LoggerFactory =
         object : LoggerFactory {
             override fun get(tag: String): Logger = NoopWorkerLogger
@@ -73,6 +76,46 @@ class LibraryScanWorkerTest {
             assertTrue(result is ListenableWorker.Result.Failure)
         }
 
+    @Test
+    fun `doWork uses scan-safe upsert that preserves existing playback state`() =
+        runBlocking {
+            whenever(booksDao.getAllBookPaths()).thenReturn(emptyList())
+            whenever(scanPathDao.getAllPathsList()).thenReturn(emptyList())
+            val worker =
+                buildWorker(
+                    scanner =
+                        successfulScanner(
+                            ScannedBook(
+                                directory = "/library/book",
+                                title = "Updated title",
+                                author = "Updated author",
+                                chapters =
+                                    listOf(
+                                        ScannedChapter(
+                                            filePath = "/library/book/01.mp3",
+                                            title = "Chapter 1",
+                                            index = 0,
+                                            duration = 1_000L,
+                                        ),
+                                    ),
+                                totalDuration = 1_000L,
+                                coverArt = null,
+                            ),
+                        ),
+                )
+
+            worker.doWork()
+
+            verify(booksDao).upsertScannedBooksWithChapters(org.mockito.kotlin.any(), org.mockito.kotlin.any())
+        }
+
+    private fun successfulScanner(book: ScannedBook): LocalBookScanner =
+        object : LocalBookScanner {
+            override val scanProgress: StateFlow<ScanProgress> = MutableStateFlow(ScanProgress.Completed(1, 0L))
+
+            override suspend fun scanAudiobooks(): Result<List<ScannedBook>, AppError> = Result.Success(listOf(book))
+        }
+
     private fun buildWorker(scanner: LocalBookScanner): LibraryScanWorker {
         val workerFactory =
             object : WorkerFactory() {
@@ -88,7 +131,7 @@ class LibraryScanWorkerTest {
                         bookScanner = scanner,
                         booksDao = booksDao,
                         chaptersDao = chaptersDao,
-                        chapterDetectionWorkScheduler = chapterDetectionWorkScheduler,
+                        scanPathDao = scanPathDao,
                         loggerFactory = loggerFactory,
                     )
                 }

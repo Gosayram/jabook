@@ -19,24 +19,35 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import androidx.annotation.OptIn
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.session.MediaController
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
-import androidx.media3.ui.PlayerNotificationManager
+import androidx.media3.session.SessionError
+import androidx.work.BackoffPolicy
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.processors.BookLoudnessCompensator
+import com.jabook.app.jabook.audio.processors.LufsAnalysisWorker
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.util.LogUtils
-import com.jabook.app.jabook.utils.capitalizeFirst
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 /** Audio player service using Media3 ExoPlayer with Dagger Hilt DI. */
@@ -45,10 +56,6 @@ import javax.inject.Inject
 public class AudioPlayerService : MediaLibraryService() {
     @Inject
     public lateinit var exoPlayer: ExoPlayer
-
-    @Inject
-    @javax.inject.Named("okhttp")
-    public lateinit var mediaCache: okhttp3.Cache
 
     // Repository for torrent downloads (library content)
     @Inject
@@ -70,17 +77,21 @@ public class AudioPlayerService : MediaLibraryService() {
         com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 
     @Inject
+    public lateinit var updatePlaybackProgressUseCase:
+        com.jabook.app.jabook.compose.domain.usecase.player.UpdatePlaybackProgressUseCase
+
+    @Inject
+    internal lateinit var crashSafePositionWriter: CrashSafePositionWriter
+
+    @Inject
     public lateinit var listeningSessionRepository:
         com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 
     @Inject
     public lateinit var audioOutputManager: AudioOutputManager
 
-    @Inject
-    public lateinit var playbackEnhancerService: PlaybackEnhancerService
-
-    @Inject
-    public lateinit var audioPreferences: com.jabook.app.jabook.audio.data.local.datastore.AudioPreferences
+    internal var audioOutputPlayerListener: Player.Listener? = null
+    internal var audioOutputPlayerTarget: ExoPlayer? = null
 
     @Inject
     public lateinit var audioVisualizerStateBridge: AudioVisualizerStateBridge
@@ -88,6 +99,9 @@ public class AudioPlayerService : MediaLibraryService() {
     // Audio fader for smooth volume transitions (P-14: fade out before sleep timer expiry)
     @Inject
     public lateinit var audioFader: AudioFader
+
+    @Inject
+    public lateinit var autoBookmarkTrigger: AutoBookmarkTrigger
 
     // AppDispatchers for testable coroutine dispatchers
     @Inject
@@ -97,27 +111,32 @@ public class AudioPlayerService : MediaLibraryService() {
     @Inject
     public lateinit var booksDao: BooksDao
 
-    internal val bookLoudnessCompensator: BookLoudnessCompensator = BookLoudnessCompensator()
+    @Inject
+    public lateinit var workManager: WorkManager
 
+    // System equalizer attached to the ACTIVE player's audio session (feature wiring)
+    @Inject
+    public lateinit var audioEqualizerManager: com.jabook.app.jabook.audio.processors.AudioEqualizerManager
+
+    // Coordinates exclusive volume writes between fade/crossfade/loudness writers
+    @Inject
+    public lateinit var volumeWriteCoordinator: VolumeWriteCoordinator
+
+    // Publishes the active player getter for non-service owners (chapter loudness policy)
+    @Inject
+    public lateinit var activePlayerRef: ActivePlayerRef
+
+    // Shared app-wide HTTP client (DoH + Brotli + UA interceptors), reused for media streaming
+    @Inject
+    public lateinit var okHttpClient: OkHttpClient
+
+    // Lazy: reads the injected coordinator, which Hilt assigns after construction.
+    internal val bookLoudnessCompensator: BookLoudnessCompensator by lazy {
+        BookLoudnessCompensator(volumeWriteCoordinator = volumeWriteCoordinator)
+    }
+
+    @Volatile
     internal var mediaLibrarySession: MediaLibrarySession? = null
-
-    // Keep mediaSession for backward compatibility during migration
-    internal var mediaSession: MediaSession? = null
-
-    // MediaController for internal service use (as in Rhythm)
-    // This replaces getInstance() pattern and provides proper Media3 integration
-    internal var serviceMediaController: MediaController? = null
-
-    /**
-     * Gets the service MediaController for internal use.
-     * Returns null if not yet initialized.
-     * This replaces getInstance() pattern and provides proper Media3 integration.
-     */
-    public fun getServiceMediaController(): MediaController? = serviceMediaController
-
-    // PlayerNotificationManager for direct notification control (androidx.media3.ui)
-    // Replaces MediaNotification.Provider which doesn't work with background service warmup
-    internal var playerNotificationManager: PlayerNotificationManager? = null
 
     internal var notificationHelper: NotificationHelper? = null
     internal var mediaSessionManager: MediaSessionManager? = null
@@ -148,6 +167,7 @@ public class AudioPlayerService : MediaLibraryService() {
     // Audio visualizer manager
     internal var audioVisualizerManager: AudioVisualizerManager? = null
     internal var visualizerBridgeJob: kotlinx.coroutines.Job? = null
+    internal var sessionExtrasJob: kotlinx.coroutines.Job? = null
 
     // Phone call listener for automatic resume after calls
     internal var phoneCallListener: PhoneCallListener? = null
@@ -157,7 +177,6 @@ public class AudioPlayerService : MediaLibraryService() {
     internal var mediaButtonHandler: MediaButtonHandler? = null
 
     /** BP-13.3: Audio output device routing monitor. */
-    internal var audioOutputDeviceMonitor: AudioOutputDeviceMonitor? = null
 
     // Track if playback was active before phone call (for auto-resume)
     internal var wasPlayingBeforeCall = false
@@ -193,7 +212,6 @@ public class AudioPlayerService : MediaLibraryService() {
     // Cache for file durations (filePath -> duration in ms)
     // According to best practices: cache duration after getting it from player (primary source)
     // or MediaMetadataRetriever (fallback). This avoids repeated calls and improves performance.
-    // This cache is synchronized with database via MethodChannel (Flutter side).
     // DurationManager handles caching and database retrieval
     internal val durationManager = DurationManager()
 
@@ -208,12 +226,19 @@ public class AudioPlayerService : MediaLibraryService() {
             Dispatchers.Main + SupervisorJob() + loggingCoroutineExceptionHandler("AudioPlayerService"),
         )
 
+    private var chapterNotificationJob: Job? = null
+    internal var notificationProviderRef: AudioPlayerNotificationProvider? = null
+
+    // ponytail: mutable field for notification subtitle override, stored on AudioPlayerNotificationProvider
+    @Volatile
+    internal var notificationSubtitleOverride: String? = null
+
     // MediaSession custom layout helper (extracted from service)
     /** Notification content intent factory (extracted from service). */
-    internal val notificationIntentFactory = NotificationIntentFactory(this)
+    internal val notificationIntentFactory = NotificationIntentFactory(this) { currentGroupPath }
 
     internal val mediaSessionLayoutHelper =
-        MediaSessionLayoutHelper(playerServiceScope) { mediaSession }
+        MediaSessionLayoutHelper(this, playerServiceScope) { mediaLibrarySession }
 
     internal val foregroundNotificationCoordinator by lazy {
         ForegroundNotificationCoordinator(
@@ -245,6 +270,10 @@ public class AudioPlayerService : MediaLibraryService() {
         PeriodicPositionSaver(
             scope = playerServiceScope,
             repository = playbackPositionRepository,
+            updateCanonicalProgress = { bookId, position, chapterIndex ->
+                updatePlaybackProgressUseCase(bookId, position, chapterIndex)
+                Unit
+            },
             getActivePlayer = { getActivePlayer() },
             getCurrentBookId = { currentGroupPath },
         )
@@ -298,6 +327,8 @@ public class AudioPlayerService : MediaLibraryService() {
             isSleepTimerEndOfChapter = { isSleepTimerEndOfChapter() },
             isSleepTimerEndOfTrack = { isSleepTimerEndOfTrack() },
             isSleepTimerActive = { isSleepTimerActive() },
+            getCurrentBookId = { currentGroupPath },
+            isAudioOffloaded = { isAudioVisualizerStateBridgeInitialized() && audioVisualizerStateBridge.isAudioOffloaded.value },
         )
 
     private val commandRouter: AudioServiceCommandRouter by lazy {
@@ -308,6 +339,7 @@ public class AudioPlayerService : MediaLibraryService() {
             getPlayerStateHelper = { playerStateHelper },
             getUnloadManager = { unloadManager },
             getActivePlayer = { getActivePlayer() },
+            getCrossFadePlayer = { crossFadePlayer },
             getPlaybackLifecycleActions = { playbackLifecycleActions },
             resetBookCompletionIfNeeded = { resetBookCompletionIfNeeded(it) },
             updateCrashPlaybackContext = { updateCrashPlaybackContext() },
@@ -325,13 +357,22 @@ public class AudioPlayerService : MediaLibraryService() {
             getSharedPreferences(SleepTimerPersistence.PREFS_NAME, Context.MODE_PRIVATE),
         )
 
-    // Limited dispatcher for MediaItem creation (max 16 parallel tasks)
-    // Increased parallelism for faster loading on modern devices with fast storage
-    // Modern devices can handle more concurrent I/O operations efficiently
+    internal fun consumePhoneCallBookmarkCreatedFlag(): Boolean {
+        val wasSet = phoneCallBookmarkCreated
+        if (wasSet) phoneCallBookmarkCreated = false
+        return wasSet
+    }
+
+    // Limited dispatcher for MediaItem creation — cap at 4 to avoid OOM on low-RAM
+    // (each task does MediaMetadataRetriever + OkHttp HEAD). Matches Coil's cap.
     @OptIn(ExperimentalCoroutinesApi::class)
-    internal val mediaItemDispatcher = Dispatchers.IO.limitedParallelism(16)
+    internal val mediaItemDispatcher = Dispatchers.IO.limitedParallelism(4)
 
     public companion object {
+        // TASK-PLAYER-40: set when auto-bookmark was created during a call
+        @Volatile
+        internal var phoneCallBookmarkCreated = false
+
         public const val ACTION_EXIT_APP: String = "com.jabook.app.jabook.audio.EXIT_APP"
 
         // Playback action constants (migrated from deprecated NotificationManager)
@@ -348,12 +389,11 @@ public class AudioPlayerService : MediaLibraryService() {
         private var instance: AudioPlayerService? = null
 
         /**
-         * @deprecated Use MediaController or getServiceMediaController() instead.
+         * @deprecated Hold a lifecycle-aware [MediaController] in the UI layer instead.
          * This method is kept for backward compatibility during migration.
          */
         @Deprecated(
-            "Use MediaController or getServiceMediaController() for proper Media3 integration",
-            ReplaceWith("getServiceMediaController()"),
+            "Hold a lifecycle-aware MediaController in the UI layer instead",
         )
         public fun getInstance(): AudioPlayerService? = instance
 
@@ -371,12 +411,39 @@ public class AudioPlayerService : MediaLibraryService() {
                     else -> "" // prod or unknown
                 }
             // Capitalize first letter for display (using utility function)
-            return flavor.capitalizeFirst()
+            return flavor.replaceFirstChar { it.titlecase() }
         }
+
+        // Session extras keys for Auto / Wear
+        public const val EXTRA_SLEEP_TIMER_REMAINING_MS: String = "sleep_timer_remaining_ms"
+        public const val EXTRA_PLAYBACK_SPEED: String = "playback_speed"
+        public const val EXTRA_IS_SLEEP_TIMER_ACTIVE: String = "is_sleep_timer_active"
     }
 
     @Volatile
     internal var isFullyInitializedFlag = false
+
+    /** Future that completes when initialization finishes; controllers wait via onConnectAsync. */
+    @Volatile
+    internal var initializationCompleteFuture: com.google.common.util.concurrent.SettableFuture<Void> =
+        com.google.common.util.concurrent.SettableFuture
+            .create()
+
+    internal fun markInitializationComplete() {
+        if (!initializationCompleteFuture.isDone) initializationCompleteFuture.set(null)
+    }
+
+    internal fun markInitializationFailed(e: Exception) {
+        if (!initializationCompleteFuture.isDone) initializationCompleteFuture.setException(e)
+    }
+
+    internal fun resetInitializationFuture() {
+        if (initializationCompleteFuture.isDone) {
+            initializationCompleteFuture =
+                com.google.common.util.concurrent.SettableFuture
+                    .create()
+        }
+    }
 
     /** Checks if the service is fully initialized and ready to use. */
     public fun isFullyInitialized(): Boolean = isFullyInitializedFlag
@@ -386,15 +453,18 @@ public class AudioPlayerService : MediaLibraryService() {
 
     internal fun isAudioOutputManagerInitialized(): Boolean = ::audioOutputManager.isInitialized
 
-    internal fun isPlaybackEnhancerServiceInitialized(): Boolean = ::playbackEnhancerService.isInitialized
-
     internal fun isAudioVisualizerStateBridgeInitialized(): Boolean = ::audioVisualizerStateBridge.isInitialized
 
     // Flag to indicate if "Minimal Notification" mode is enabled
     // If true, artwork loading will be skipped to show a smaller notification
     internal var isMinimalNotification = false
 
-    public fun getMediaSession(): MediaSession? = mediaLibrarySession ?: mediaSession
+    public fun getMediaSession(): MediaSession? = mediaLibrarySession
+
+    /** Sends a user-safe error only after the playback recovery policy is exhausted. */
+    internal fun reportTerminalPlaybackError(message: String) {
+        getMediaSession()?.sendError(SessionError(SessionError.ERROR_IO, message))
+    }
 
     /** Delegates to [NotificationIntentFactory.getSingleTopActivity]. */
     internal fun getSingleTopActivity(): PendingIntent? = notificationIntentFactory.getSingleTopActivity()
@@ -448,6 +518,14 @@ public class AudioPlayerService : MediaLibraryService() {
                 initializer.initialize()
                 initializer.postInitialize()
             }
+            // Wire the system equalizer to the active player's session (feature was
+            // otherwise dead code — never initialized anywhere).
+            audioEqualizerManager.initialize()
+            audioEqualizerManager.attachToAudioSession(getActivePlayer().audioSessionId)
+            // User actions must never be silently dropped on the outgoing player during
+            // a crossfade: finalize (or cancel) an in-flight transition first.
+            playbackController?.finalizeActiveTransition = { crossFadePlayer?.finalizeTransitionNow() }
+            playbackController?.cancelActiveTransition = { crossFadePlayer?.pause() }
             PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
             LogUtils.i("AudioPlayerService", "onCreate() completed successfully")
@@ -486,6 +564,50 @@ public class AudioPlayerService : MediaLibraryService() {
 
     internal fun getActivePlayer(): ExoPlayer = playerFacade.getActivePlayer()
 
+    internal fun rebindActivePlayer(player: ExoPlayer = getActivePlayer()) {
+        mediaLibrarySession?.player = player
+        mediaSessionManager?.updatePlayer(player)
+        playerConfigurator?.rebindListeners(player)
+        rebindAudioOutputPlayer(player)
+        audioVisualizerManager?.initialize(player.audioSessionId)
+        // Attach the system equalizer to the ACTIVE player's session — the injected
+        // singleton player is idle while the custom processor player is in use.
+        audioEqualizerManager.attachToAudioSession(player.audioSessionId)
+        broadcastAudioEffectSession(player.audioSessionId)
+    }
+
+    /**
+     * Tells external EQ apps (GlobalEqualizer, Poweramp EQ...) about our audio session,
+     * matching what every Android audio app broadcasts. Deliberately NOT package-restricted:
+     * external EQ apps are the receivers.
+     */
+    internal fun broadcastAudioEffectSession(sessionId: Int) {
+        if (sessionId == 0) return
+        try {
+            sendBroadcast(
+                android.content.Intent(android.media.audiofx.AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION).apply {
+                    putExtra(android.media.audiofx.AudioEffect.EXTRA_PACKAGE_NAME, packageName)
+                    putExtra(android.media.audiofx.AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
+                    putExtra(
+                        android.media.audiofx.AudioEffect.EXTRA_CONTENT_TYPE,
+                        android.media.audiofx.AudioEffect.CONTENT_TYPE_VOICE,
+                    )
+                },
+            )
+        } catch (e: Exception) {
+            LogUtils.w("AudioPlayerService", "Failed to broadcast audio effect session", e)
+        }
+    }
+
+    internal fun rebindAudioOutputPlayer(player: ExoPlayer = getActivePlayer()) {
+        val listener = audioOutputPlayerListener ?: return
+        if (audioOutputPlayerTarget === player) return
+        audioOutputPlayerTarget?.removeListener(listener)
+        player.addListener(listener)
+        audioOutputPlayerTarget = player
+        if (player.isPlaying) audioOutputManager.startMonitoring() else audioOutputManager.stopMonitoring()
+    }
+
     public fun triggerCrossfadeTransition(): Unit = playerFacade.triggerCrossfadeTransition()
 
     /** Delegates to [PlaybackContextHelper.updateActualTrackIndex]. */
@@ -503,23 +625,227 @@ public class AudioPlayerService : MediaLibraryService() {
         initialPosition: Long? = null,
         groupPath: String? = null,
         callback: ((Boolean, Exception?) -> Unit)? = null,
+        playlistItems: List<PlaylistItem> = filePaths.map(::PlaylistItem),
     ) {
         // Apply book loudness compensation when switching to a different book
         if (groupPath != null && groupPath != currentGroupPath) {
+            // Book switch: stop chapter subtitle loop and clear its override.
+            stopChapterNotificationUpdates()
             val bookId = groupPath.substringAfterLast("/").takeIf { it.isNotBlank() } ?: groupPath
+            // ponytail: first play of an unanalyzed book gets no gain (lufsValue null);
+            // compensation kicks in on the next play after the background worker runs.
             bookLoudnessCompensator.applyCompensation(bookId, booksDao, playerServiceScope) { getActivePlayer() }
+            maybeScheduleLufsAnalysis(bookId)
+        }
+
+        // Crossfade to a different book if crossfade is enabled and currently playing
+        if (groupPath != null &&
+            groupPath != currentGroupPath &&
+            playerConfigurator?.audioProcessingSettings?.isCrossfadeEnabled == true &&
+            isPlaying &&
+            crossFadePlayer != null
+        ) {
+            performBookSwitchCrossfade(
+                filePaths = filePaths,
+                playlistItems = playlistItems,
+                metadata = metadata,
+                initialTrackIndex = initialTrackIndex,
+                initialPosition = initialPosition,
+                groupPath = groupPath,
+                callback = callback,
+            )
+            return
         }
 
         playlistManager?.setPlaylist(
-            filePaths,
-            metadata,
-            initialTrackIndex,
-            initialPosition,
-            groupPath,
-            callback,
+            filePaths = filePaths,
+            playlistItems = playlistItems,
+            metadata = metadata,
+            initialTrackIndex = initialTrackIndex,
+            initialPosition = initialPosition,
+            groupPath = groupPath,
+            callback = callback,
         ) ?: run {
             LogUtils.e("AudioPlayerService", "PlaylistManager not initialized")
             callback?.invoke(false, IllegalStateException("PlaylistManager not initialized"))
+        }
+    }
+
+    /**
+     * Enqueues background LUFS analysis for [bookId] when the book has not been
+     * analyzed yet. Unique work name per book with [ExistingWorkPolicy.KEEP]
+     * guarantees analysis runs at most once per book.
+     */
+    private fun maybeScheduleLufsAnalysis(bookId: String) {
+        playerServiceScope.launch(Dispatchers.IO) {
+            try {
+                // Only analyze when never analyzed (null); the failure sentinel
+                // blocks auto re-enqueue to prevent a retry storm on bad files.
+                val lufs = booksDao.getBookById(bookId)?.lufsValue
+                if (lufs != null && lufs != LufsAnalysisWorker.LUFS_ANALYSIS_FAILED) return@launch
+                val request =
+                    OneTimeWorkRequestBuilder<LufsAnalysisWorker>()
+                        .setInputData(workDataOf(LufsAnalysisWorker.KEY_BOOK_ID to bookId))
+                        .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
+                        .build()
+                workManager.enqueueUniqueWork(
+                    "lufs_analysis_$bookId",
+                    ExistingWorkPolicy.KEEP,
+                    request,
+                )
+                LogUtils.i("AudioPlayerService", "Scheduled LUFS analysis for book=$bookId")
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                LogUtils.w("AudioPlayerService", "Failed to schedule LUFS analysis for book=$bookId: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Crossfades from the current book to a new book using [CrossFadePlayer].
+     *
+     * 1. Creates the first MediaSource of the new book
+     * 2. Prepares it on CrossFadePlayer's next player
+     * 3. Starts crossfade
+     * 4. After completion, loads remaining tracks onto the current player
+     */
+    private fun performBookSwitchCrossfade(
+        filePaths: List<String>,
+        playlistItems: List<PlaylistItem>,
+        metadata: Map<String, String>?,
+        initialTrackIndex: Int?,
+        initialPosition: Long?,
+        groupPath: String?,
+        callback: ((Boolean, Exception?) -> Unit)?,
+    ) {
+        val settings =
+            playerConfigurator?.audioProcessingSettings ?: run {
+                playlistManager?.setPlaylist(
+                    filePaths,
+                    metadata,
+                    initialTrackIndex,
+                    initialPosition,
+                    groupPath,
+                    callback,
+                    playlistItems,
+                )
+                return
+            }
+        val cfp =
+            crossFadePlayer ?: run {
+                playlistManager?.setPlaylist(
+                    filePaths,
+                    metadata,
+                    initialTrackIndex,
+                    initialPosition,
+                    groupPath,
+                    callback,
+                    playlistItems,
+                )
+                return
+            }
+        val pm =
+            playlistManager ?: run {
+                callback?.invoke(false, IllegalStateException("PlaylistManager not initialized"))
+                return
+            }
+        val durationMs = settings.crossfadeBetweenBooksMs.coerceAtLeast(0L)
+
+        // Preserve the canonical chapter order supplied by the caller.
+        val sessionState = PlaylistSessionStatePolicy.buildSnapshot(filePaths, initialTrackIndex)
+        val playlistPaths = sessionState.filePaths
+        val normalizedIndex = sessionState.normalizedTrackIndex
+
+        playerServiceScope.launch {
+            val firstSource = pm.createMediaSourceForItems(playlistItems, normalizedIndex, metadata)
+            if (firstSource == null) {
+                LogUtils.w("AudioPlayerService", "Failed to create first MediaSource for book crossfade, falling back")
+                pm.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback, playlistItems)
+                return@launch
+            }
+
+            // A newer explicit book selection must not be left as an unobserved preload.
+            // Cancel the old transition and let PlaylistManager apply the latest selection.
+            if (cfp.isTransitionRunning()) {
+                cfp.pause()
+                pm.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback, playlistItems)
+                return@launch
+            }
+
+            // Stop crossfadeHandler monitoring during the transition
+            crossfadeHandler?.stopMonitoring()
+
+            // Same guard as the crossfade onPlayerChanged hook: an older incremental
+            // loader must not append sources after this swap starts.
+            pm.cancelAsyncLoadingForPlayerSwitch()
+            val crossfadeGeneration = pm.currentGeneration()
+
+            cfp.crossFadeDurationMs = durationMs
+            cfp.setNextMediaSource(firstSource)
+            cfp.getNextPlayer().seekTo((initialPosition ?: 0L).coerceAtLeast(0L))
+            cfp.startCrossFade {
+                // After crossfade completes:
+                // 1. Update PlaylistManager state with new book info
+                // 2. Load remaining tracks onto the current player
+                // 3. Seek to the requested track/position
+                playerServiceScope.launch(Dispatchers.Main) {
+                    try {
+                        // A setPlaylist (e.g. same book re-selected) raced the fade and
+                        // bumped the generation — it owns the player now; write nothing.
+                        if (!pm.isGenerationCurrent(crossfadeGeneration)) {
+                            LogUtils.w(
+                                "AudioPlayerService",
+                                "Skipping stale crossfade completion (generation=$crossfadeGeneration, active=${pm.currentGeneration()})",
+                            )
+                            return@launch
+                        }
+
+                        pm.currentFilePaths = playlistPaths
+                        pm.currentPlaylistItems = playlistItems
+                        pm.currentMetadata = metadata
+                        pm.currentGroupPath = groupPath
+                        pm.actualTrackIndex = normalizedIndex
+                        pm.isBookCompleted = false
+                        pm.lastCompletedTrackIndex = -1
+
+                        // The selected source was preloaded. Insert preceding sources in reverse so it
+                        // remains at its intended timeline index, then append following sources.
+                        val currentPlayer = getActivePlayer()
+                        for (index in PlaylistSessionStatePolicy.crossfadeRemainingSourceIndices(playlistPaths.size, normalizedIndex)) {
+                            if (!pm.isGenerationCurrent(crossfadeGeneration)) {
+                                LogUtils.w(
+                                    "AudioPlayerService",
+                                    "Skipping stale crossfade source append (generation=$crossfadeGeneration, active=${pm.currentGeneration()})",
+                                )
+                                return@launch
+                            }
+                            val source = pm.createMediaSourceForItems(playlistItems, index, metadata)
+                            if (source != null) {
+                                if (index < normalizedIndex) {
+                                    currentPlayer.addMediaSource(0, source)
+                                } else {
+                                    currentPlayer.addMediaSource(source)
+                                }
+                            }
+                        }
+
+                        LogUtils.i(
+                            "AudioPlayerService",
+                            "Book switch crossfade complete: ${filePaths.size} tracks, targetIndex=$normalizedIndex",
+                        )
+
+                        // Resume crossfade monitoring for chapter transitions
+                        crossfadeHandler?.startMonitoring()
+
+                        callback?.invoke(true, null)
+                    } catch (e: Exception) {
+                        LogUtils.e("AudioPlayerService", "Failed to complete book switch crossfade", e)
+                        // Fallback: load playlist normally
+                        pm.setPlaylist(filePaths, metadata, initialTrackIndex, initialPosition, groupPath, callback, playlistItems)
+                    }
+                }
+            }
         }
     }
 
@@ -539,8 +865,52 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun stop(): Unit = commandRouter.stop()
 
+    /**
+     * Applies lifecycle side effects after MediaSession changes the player directly.
+     *
+     * Deliberate bypass of [AudioServiceCommandRouter]: Media3 delivers session-initiated
+     * play (notification, headset, Auto) by writing playWhenReady straight onto the player,
+     * so only these listener callbacks can apply side effects. Routing back through the
+     * router would re-enter Media3 from inside a Player.Listener and re-run
+     * resetBookCompletionIfNeeded. Side effects are idempotent, so double-application
+     * when the router path fires this callback is harmless.
+     */
+    internal fun onMediaSessionPlaybackStarted() {
+        playbackLifecycleActions.onPlay()
+    }
+
+    /** Applies lifecycle side effects after MediaSession pauses the player directly. */
+    internal fun onMediaSessionPlaybackPaused() {
+        // MediaSession invokes Player.pause() directly, bypassing AudioServiceCommandRouter.
+        // Cancel both sides of an active fade so playback cannot resume after a user pause.
+        crossFadePlayer?.pause()
+        playbackLifecycleActions.onPause()
+    }
+
     internal fun savePositionToRepository() {
         periodicPositionSaver.save()
+    }
+
+    /** Persists the final position before a terminal lifecycle event can kill this process. */
+    internal fun saveCurrentPositionSynchronously() {
+        // Only the blocking write belongs on this path: the async saver may never run
+        // before process death. Async saves stay in their regular call sites.
+        if (!::crashSafePositionWriter.isInitialized) {
+            LogUtils.w("AudioPlayerService", "Crash-safe position writer is not initialized")
+            return
+        }
+
+        val bookId = currentGroupPath ?: return
+        val player = getActivePlayer()
+        // After stop() (items retained) currentPosition reads 0; never overwrite
+        // good progress with that.
+        if (player.mediaItemCount == 0 || player.playbackState == Player.STATE_IDLE) return
+
+        crashSafePositionWriter.writePositionSync(
+            bookId = bookId,
+            trackIndex = player.currentMediaItemIndex,
+            positionMs = player.currentPosition,
+        )
     }
 
     internal fun finishListeningSessionIfActive(reason: String) {
@@ -607,11 +977,6 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun seekToTrack(index: Int): Unit = commandRouter.seekToTrack(index)
 
-    public fun setPlaybackProgress(
-        filePaths: List<String>,
-        progressSeconds: Double?,
-    ): Unit = commandRouter.setPlaybackProgress(filePaths, progressSeconds)
-
     public fun rewind(seconds: Int = 15): Unit = commandRouter.rewind(seconds)
 
     public fun forward(seconds: Int = 30): Unit = commandRouter.forward(seconds)
@@ -643,10 +1008,68 @@ public class AudioPlayerService : MediaLibraryService() {
         mediaSessionLayoutHelper.updateSmart(rewindSeconds, forwardSeconds)
     }
 
-    /** Sets initial CustomLayout for MediaSession via [MediaSessionLayoutHelper]. */
-    internal fun setInitialCustomLayout() {
+    /** Sets initial MediaButtonPreferences for MediaSession via [MediaSessionLayoutHelper]. */
+    internal fun setInitialMediaButtonPreferences() {
         mediaSessionLayoutHelper.setInitialLayout()
     }
+
+    // ── Chapter progress notification subtitle ──────────────────────────────
+
+    private fun startChapterNotificationUpdates() {
+        stopChapterNotificationUpdates()
+        chapterNotificationJob =
+            playerServiceScope.launch {
+                while (true) {
+                    val player = getActivePlayer()
+                    if (!player.isPlaying) break
+
+                    val currentIndex = player.currentMediaItemIndex
+                    val totalTracks = player.mediaItemCount
+                    val currentPos = player.currentPosition
+                    val duration = player.duration
+
+                    if (duration > 0 && currentPos >= 0 && totalTracks > 0) {
+                        val remaining = (duration - currentPos).coerceAtLeast(0L)
+                        val timeStr = formatDuration(remaining)
+                        val subtitle =
+                            resources.getQuantityString(
+                                R.plurals.chapter_progress_subtitle,
+                                totalTracks,
+                                currentIndex + 1,
+                                totalTracks,
+                                timeStr,
+                            )
+                        notificationSubtitleOverride = subtitle
+                        notificationProviderRef?.invalidateNotification()
+                    }
+
+                    delay(5000)
+                }
+            }
+    }
+
+    private fun stopChapterNotificationUpdates() {
+        chapterNotificationJob?.cancel()
+        chapterNotificationJob = null
+        // Drop stale "Глава X из Y" so it cannot leak into notifications of another
+        // book or a paused state.
+        notificationSubtitleOverride = null
+        notificationProviderRef?.invalidateNotification()
+    }
+
+    internal fun onPlaybackIsPlayingChanged(isPlaying: Boolean) {
+        if (isPlaying) {
+            startChapterNotificationUpdates()
+        } else {
+            stopChapterNotificationUpdates()
+        }
+    }
+
+    private fun formatDuration(ms: Long): String =
+        com.jabook.app.jabook.compose.core.util.UiFormatters
+            .formatDuration(ms)
+
+    // ──────────────────────────────────────────────────────────────────────────
 
     public fun getCurrentPosition(): Long = commandRouter.getCurrentPosition()
 
@@ -669,7 +1092,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     public fun getCurrentMediaItemInfo(): Map<String, Any?> = commandRouter.getCurrentMediaItemInfo()
 
-    public fun extractArtworkFromFile(filePath: String): String? = commandRouter.extractArtworkFromFile(filePath)
+    public suspend fun extractArtworkFromFile(filePath: String): String? = commandRouter.extractArtworkFromFile(filePath)
 
     public fun getPlaylistInfo(): Map<String, Any> = commandRouter.getPlaylistInfo()
 
@@ -683,25 +1106,9 @@ public class AudioPlayerService : MediaLibraryService() {
     @OptIn(UnstableApi::class)
     internal fun setNotificationProvider(provider: MediaNotification.Provider) {
         setMediaNotificationProvider(provider)
-    }
-
-    @OptIn(UnstableApi::class)
-    internal fun setupPlayerNotificationManager() {
-        // Guard: Prevent duplicate initialization
-        if (playerNotificationManager != null) {
-            LogUtils.w("AudioPlayerService", "PlayerNotificationManager already initialized, skipping")
-            return
+        if (provider is AudioPlayerNotificationProvider) {
+            notificationProviderRef = provider
         }
-        playerNotificationManager =
-            PlayerNotificationSetup(
-                service = this,
-                scope = playerServiceScope,
-                notificationHelper = notificationHelper ?: NotificationHelper(this),
-                foregroundNotificationCoordinator = foregroundNotificationCoordinator,
-                getActivePlayer = { exoPlayer },
-                getMediaLibrarySession = { mediaLibrarySession },
-            ).setup()
-        return
     }
 
     private fun cleanupExistingComponents() {
@@ -709,9 +1116,14 @@ public class AudioPlayerService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
-        releaseHandler.releaseRuntimeComponents(cancelServiceScopeChildren = true)
-        // Delegate to lifecycle manager
+        instance = null
+        // Guard: onDestroy can run before Hilt injects (teardown tests, early death).
+        if (::audioEqualizerManager.isInitialized) {
+            audioEqualizerManager.release()
+        }
+        // Persist the active player's position before releaseHandler can release a custom player.
         lifecycleManager?.onDestroy()
+        releaseHandler.releaseRuntimeComponents(cancelServiceScopeChildren = true)
         super.onDestroy()
     }
 
@@ -725,9 +1137,11 @@ public class AudioPlayerService : MediaLibraryService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
         val session = mediaLibrarySession
         if (session == null) {
-            LogUtils.w(
+            LogUtils.e(
                 "AudioPlayerService",
-                "Rejecting controller ${controllerInfo.packageName}: MediaLibrarySession is not ready yet",
+                "Rejecting controller ${controllerInfo.packageName}: MediaLibrarySession is null. " +
+                    "If this happens persistently the player will appear broken — check 'media_session_init_failed' " +
+                    "crash reports (session build failure is no longer swallowed).",
             )
             return null
         }

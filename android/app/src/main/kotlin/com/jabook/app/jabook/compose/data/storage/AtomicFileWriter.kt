@@ -14,12 +14,16 @@
 
 package com.jabook.app.jabook.compose.data.storage
 
+import kotlinx.coroutines.CancellationException
+import okio.FileSystem
+import okio.Path.Companion.toOkioPath
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.nio.channels.FileChannel
 import java.nio.channels.FileLock
 import java.nio.file.StandardOpenOption
+import java.util.UUID
 
 /**
  * Result of an atomic file write operation.
@@ -76,15 +80,21 @@ public object AtomicFileWriter {
         block: (FileOutputStream) -> Long,
     ): AtomicWriteResult {
         val parentDir = targetFile.parentFile
-        require(parentDir != null && (parentDir.exists() || parentDir.mkdirs())) {
-            "Cannot access parent directory for ${targetFile.absolutePath}"
+        requireNotNull(parentDir) { "Cannot access parent directory for ${targetFile.absolutePath}" }
+        val parentPath = parentDir.toOkioPath()
+        try {
+            FileSystem.SYSTEM.createDirectories(parentPath)
+        } catch (e: IOException) {
+            throw IOException("Cannot create parent directory for ${targetFile.absolutePath}", e)
         }
 
-        if (!overwrite && targetFile.exists()) {
+        if (!overwrite && FileSystem.SYSTEM.exists(targetFile.toOkioPath())) {
             throw IOException("Target file already exists: ${targetFile.absolutePath}")
         }
 
-        val tempFile = File(parentDir, "${targetFile.name}.tmp")
+        // Unique suffix: two concurrent writers targeting the same file must not
+        // interleave on a shared temp path before the atomic rename.
+        val tempFile = File(parentDir, "${targetFile.name}.tmp.${UUID.randomUUID()}")
 
         try {
             // Step 1: Write to temp file
@@ -96,11 +106,18 @@ public object AtomicFileWriter {
                     written
                 }
 
-            // Step 3: Atomic rename (same filesystem guarantee)
-            if (!tempFile.renameTo(targetFile)) {
-                throw IOException(
-                    "Atomic rename failed: ${tempFile.absolutePath} -> ${targetFile.absolutePath}",
-                )
+            // Step 3: Atomic move via okio — handles cross-filesystem fallback (copy+delete)
+            // and is more robust than File.renameTo. Uses FileSystem.SYSTEM for platform FS.
+            try {
+                FileSystem.SYSTEM.atomicMove(tempFile.toOkioPath(), targetFile.toOkioPath())
+            } catch (e: IOException) {
+                // Fallback: renameTo for edge cases where okio atomicMove reports failure
+                if (!tempFile.renameTo(targetFile)) {
+                    throw IOException(
+                        "Atomic move failed: ${tempFile.absolutePath} -> ${targetFile.absolutePath}",
+                        e,
+                    )
+                }
             }
 
             // Step 4: Sync parent directory for rename durability
@@ -113,6 +130,7 @@ public object AtomicFileWriter {
         } catch (e: Exception) {
             // Cleanup temp file on any failure
             tempFile.delete()
+            if (e is CancellationException) throw e
             if (e is IOException) throw e
             throw IOException("Atomic write failed for ${targetFile.absolutePath}", e)
         }
@@ -172,13 +190,12 @@ public object AtomicFileWriter {
      */
     public fun tryAcquireLock(lockFile: File): FileLock? =
         try {
-            val channel =
-                java.nio.file.Files.newByteChannel(
+            java.nio.file.Files
+                .newByteChannel(
                     lockFile.toPath(),
                     StandardOpenOption.CREATE,
                     StandardOpenOption.WRITE,
-                )
-            (channel as FileChannel).tryLock()
+                ).use { (it as? FileChannel)?.tryLock() }
         } catch (_: Exception) {
             null
         }

@@ -14,8 +14,18 @@
 
 package com.jabook.app.jabook.compose.core.util
 
-import android.text.format.DateUtils
 import com.jabook.app.jabook.compose.domain.model.Chapter
+
+// Matches generic prefixes (Chapter, Track, etc) followed by a number
+// Matches: "Chapter 1", "Ch. 1", "Track 01", "Глава 1"
+// Group 1: Prefix
+// Group 2: Number
+// Group 3: Remainder (suffix)
+private val GENERIC_CHAPTER_TITLE_PATTERN =
+    Regex("""^(?:Chapter|Глава|Ch|Гл|Track|File|Audio)[ ._-]*(\d+)(.*)$""", RegexOption.IGNORE_CASE)
+
+// Matches titles that are just a number (e.g. "01", "1")
+private val NUMERIC_TITLE_PATTERN = Regex("""^\d+$""")
 
 /**
  * Utilities for parsing and formatting chapter information.
@@ -74,16 +84,7 @@ public object ChapterUtils {
             return chapter.title
         }
 
-        val number = extractChapterNumber(chapter.title, index)
-
-        // Regex to match generic prefixes (Chapter, Track, etc) followed by a number
-        // Matches: "Chapter 1", "Ch. 1", "Track 01", "Глава 1"
-        // Group 1: Prefix
-        // Group 2: Number
-        // Group 3: Remainder (suffix)
-        val genericPattern =
-            Regex("""^(?:Chapter|Глава|Ch|Гл|Track|File|Audio)[ ._-]*(\d+)(.*)$""", RegexOption.IGNORE_CASE)
-        val match = genericPattern.find(chapter.title)
+        val match = GENERIC_CHAPTER_TITLE_PATTERN.find(chapter.title)
 
         if (match != null) {
             val matchedNumber = match.groupValues[1]
@@ -92,9 +93,10 @@ public object ChapterUtils {
             return "$localizedPrefix $matchedNumber$suffix"
         }
 
-        // If the title is just a number (e.g. "01", "1")
-        if (chapter.title.matches(Regex("""^\d+$"""))) {
-            return "$localizedPrefix ${chapter.title.toInt()}"
+        // If the title is just a number (e.g. "01", "1"); guard against Int overflow
+        if (NUMERIC_TITLE_PATTERN.matches(chapter.title)) {
+            val number = chapter.title.toIntOrNull() ?: return chapter.title
+            return "$localizedPrefix $number"
         }
 
         // If the title contains the number but isn't a direct generic match,
@@ -128,18 +130,7 @@ public object ChapterUtils {
         normalizeEnabled: Boolean = true,
     ): String {
         val name = formatChapterName(chapter, index, localizedPrefix, normalizeEnabled)
-        val duration = formatDuration(chapter.duration.inWholeMilliseconds)
+        val duration = UiFormatters.formatDuration(chapter.duration.inWholeMilliseconds)
         return "$name • $duration"
-    }
-
-    /**
-     * Format duration in milliseconds to HH:MM:SS or MM:SS.
-     *
-     * @param millis Duration in milliseconds
-     * @return Formatted duration string
-     */
-    private fun formatDuration(millis: Long): String {
-        val totalSeconds = (millis.coerceAtLeast(0L) / 1000L)
-        return DateUtils.formatElapsedTime(totalSeconds)
     }
 }

@@ -138,7 +138,7 @@ public object PlayerPerformanceLogger {
         }
 
         // Find bottlenecks (gaps > 100ms)
-        LogUtils.d(TAG, "⚠️ Bottlenecks (gaps > 100ms):")
+        LogUtils.d(TAG, "Bottlenecks (gaps > 100ms):")
         for (i in 1 until events.size) {
             val prev = events[i - 1]
             val curr = events[i]
@@ -153,10 +153,8 @@ public object PlayerPerformanceLogger {
         LogUtils.d(TAG, "===================================================")
     }
 
-    /**
-     * Enable/disable logging (for production builds).
-     */
-    public fun setEnabled() {
+    /** Enable or disable timing logs outside a measurement session. */
+    public fun setEnabled(enabled: Boolean) {
         this.enabled = enabled
     }
 

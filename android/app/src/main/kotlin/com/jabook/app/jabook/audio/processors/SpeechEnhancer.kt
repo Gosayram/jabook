@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.AudioProcessor.StreamMetadata
 import androidx.media3.common.util.UnstableApi
 import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
@@ -42,21 +43,22 @@ public class SpeechEnhancer : AudioProcessor {
     private val peakEqGainDb = 4.5f // Average of +3-6 dB
     private val peakEqQ = 1.5f
 
-    // DeEsser parameters
-    private val deEsserFreqLowHz = 4000.0f
-    private val deEsserFreqHighHz = 8000.0f
-
     // Compression parameters (gentle)
     private val compressionThresholdDb = -28.0f
     private val compressionRatio = 2.0f
     private val compressionThresholdLinear = 10.0.pow((compressionThresholdDb / 20.0f).toDouble()).toFloat()
 
-    // High-pass filter state (simple first-order IIR)
-    private val highPassCoeff = mutableMapOf<Int, Float>() // Per channel
-    private var highPassPrev = mutableMapOf<Int, Float>() // Previous sample per channel
+    // High-pass filter state (simple first-order IIR), per channel
+    private var highPassAlpha = 0.0f
+    private var highPassPrev = FloatArray(0)
 
-    // Peak EQ state (simplified - using gain multiplier for target frequency range)
-    private val peakEqGainLinear = 10.0.pow((peakEqGainDb / 20.0f).toDouble()).toFloat()
+    // Peak EQ biquad state (frequency-selective 3kHz boost), per channel
+    private var peakEqB0 = 0f
+    private var peakEqB1 = 0f
+    private var peakEqB2 = 0f
+    private var peakEqA1 = 0f
+    private var peakEqA2 = 0f
+    private lateinit var peakEqState: Array<BiquadState>
 
     // DeEsser state (dynamic suppression in 4-8 kHz range)
     private var deEsserGain = 1.0f
@@ -67,7 +69,9 @@ public class SpeechEnhancer : AudioProcessor {
     private var compressionGainReduction = 1.0f
 
     // Input/output buffers
-    private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var queuedInputBuffer: ByteBuffer? = null
+    private var queuedInputCapacity: Int = 0
+    private var queuedInputBytes = 0
     private var outputBuffer: ByteBuffer? = null
     private var inputEnded = false
 
@@ -81,11 +85,22 @@ public class SpeechEnhancer : AudioProcessor {
         // Calculate high-pass filter coefficient
         // First-order high-pass: y[n] = x[n] - x[n-1] + a * y[n-1]
         // Simplified: using alpha = 1 - 2*pi*fc/fs for approximation
-        val alpha = 1.0f - (2.0f * kotlin.math.PI.toFloat() * highPassCutoffHz / sampleRate)
-        for (ch in 0 until channels) {
-            highPassCoeff[ch] = alpha.coerceIn(0.0f, 1.0f)
-            highPassPrev[ch] = 0.0f
-        }
+        val hpAlpha = 1.0f - (2.0f * kotlin.math.PI.toFloat() * highPassCutoffHz / sampleRate)
+        highPassAlpha = hpAlpha.coerceIn(0.0f, 1.0f)
+        highPassPrev = FloatArray(channels)
+
+        // Compute peak EQ biquad coefficients (peak/notch filter)
+        val w0 = (2.0f * kotlin.math.PI.toFloat() * peakEqFreqHz / sampleRate)
+        val sinW0 = kotlin.math.sin(w0.toDouble()).toFloat()
+        val peakAlpha = sinW0 / (2.0f * peakEqQ)
+        val amplitude = 10.0.pow(peakEqGainDb / 40.0).toFloat() // sqrt(10^(dBgain/20))
+        val norm = 1.0f / (1.0f + peakAlpha / amplitude)
+        peakEqB0 = (1.0f + peakAlpha * amplitude) * norm
+        peakEqB1 = (-2.0f * kotlin.math.cos(w0.toDouble())).toFloat() * norm
+        peakEqB2 = (1.0f - peakAlpha * amplitude) * norm
+        peakEqA1 = peakEqB1 // same as -2*cos(w0)*norm
+        peakEqA2 = (1.0f - peakAlpha / amplitude) * norm
+        peakEqState = Array(channels) { BiquadState() }
 
         // Reset states
         deEsserGain = 1.0f
@@ -113,12 +128,24 @@ public class SpeechEnhancer : AudioProcessor {
         }
 
         if (inputBuffer.hasRemaining()) {
-            val buffer = ByteBuffer.allocateDirect(inputBuffer.remaining())
-            buffer.order(ByteOrder.nativeOrder())
-            buffer.put(inputBuffer)
-            buffer.flip()
-            inputBuffers.add(buffer)
+            val remaining = inputBuffer.remaining()
+            ensureQueuedInputCapacity(remaining)
+            queuedInputBytes += remaining
+            queuedInputBuffer!!.put(inputBuffer)
         }
+    }
+
+    private fun ensureQueuedInputCapacity(additionalBytes: Int) {
+        val required = queuedInputBytes + additionalBytes
+        if (required <= queuedInputCapacity) return
+        val newCapacity = maxOf(required, queuedInputCapacity * 2, 4096)
+        val newBuffer = ByteBuffer.allocateDirect(newCapacity).order(ByteOrder.nativeOrder())
+        queuedInputBuffer?.let { old ->
+            old.flip()
+            newBuffer.put(old)
+        }
+        queuedInputBuffer = newBuffer
+        queuedInputCapacity = newCapacity
     }
 
     override fun queueEndOfStream() {
@@ -126,26 +153,33 @@ public class SpeechEnhancer : AudioProcessor {
     }
 
     override fun getOutput(): ByteBuffer {
-        if (!isActive || inputBuffers.isEmpty()) {
+        if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
+        if (!isActive || queuedInputBytes == 0) {
             return EMPTY_BUFFER
         }
 
-        val totalSize = inputBuffers.sumOf { it.remaining() }
-        if (totalSize == 0) {
-            return EMPTY_BUFFER
+        val totalSize = queuedInputBytes
+
+        val preparedOutputBuffer =
+            if (outputBuffer == null || outputBuffer!!.capacity() < totalSize) {
+                ByteBuffer.allocateDirect(totalSize).order(ByteOrder.nativeOrder()).also {
+                    outputBuffer = it
+                }
+            } else {
+                outputBuffer!!.clear()
+                outputBuffer
+            } ?: return EMPTY_BUFFER
+
+        queuedInputBuffer?.let { buf ->
+            buf.flip()
+            processBuffer(buf, preparedOutputBuffer)
         }
 
-        outputBuffer = ByteBuffer.allocateDirect(totalSize)
-        outputBuffer!!.order(ByteOrder.nativeOrder())
+        queuedInputBuffer?.clear()
+        queuedInputBytes = 0
+        preparedOutputBuffer.flip()
 
-        for (inputBuffer in inputBuffers) {
-            processBuffer(inputBuffer, outputBuffer!!)
-        }
-
-        inputBuffers.clear()
-        outputBuffer!!.flip()
-
-        return outputBuffer!!
+        return preparedOutputBuffer
     }
 
     /**
@@ -182,7 +216,6 @@ public class SpeechEnhancer : AudioProcessor {
         // Pre-compute constants
         val invMaxValue = 1.0f / Short.MAX_VALUE
         val maxValue = Short.MAX_VALUE.toFloat()
-        val peakEqGain = 1.1f
         val deEsserAttack = 0.85f
         val deEsserRecovery = 0.9f
         val deEsserRecoveryTarget = 0.1f
@@ -196,13 +229,12 @@ public class SpeechEnhancer : AudioProcessor {
                 var normalized = sample * invMaxValue // Faster than division
 
                 // 1. High-pass filter (<120 Hz)
-                val coeff = highPassCoeff[ch] ?: 0.0f
-                val prev = highPassPrev[ch] ?: 0.0f
-                normalized = normalized - prev + coeff * prev
+                val prev = highPassPrev[ch]
+                normalized = normalized - prev + highPassAlpha * prev
                 highPassPrev[ch] = normalized
 
-                // 2. Peak EQ (2-4 kHz boost) - simplified: apply gain to mid frequencies
-                normalized *= peakEqGain
+                // 2. Peak EQ (3 kHz boost via biquad — frequency-selective, not broadband)
+                normalized = processPeakEqBiquad(normalized, ch)
 
                 // 3. DeEsser (4-8 kHz dynamic suppression)
                 // Simplified: detect high frequencies and reduce if too loud
@@ -243,29 +275,66 @@ public class SpeechEnhancer : AudioProcessor {
         }
     }
 
-    override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
+    override fun isEnded(): Boolean = inputEnded && queuedInputBytes == 0
 
-    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
-    override fun flush() {
+    override fun flush(streamMetadata: StreamMetadata) {
         // Reset filter states
-        highPassPrev.clear()
+        highPassPrev.fill(0f)
+        if (this::peakEqState.isInitialized) {
+            for (state in peakEqState) {
+                state.x1 = 0f
+                state.x2 = 0f
+                state.y1 = 0f
+                state.y2 = 0f
+            }
+        }
         deEsserGain = 1.0f
         compressionEnvelope = 0.0f
         compressionGainReduction = 1.0f
-        inputBuffers.clear()
+        queuedInputBuffer?.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
     }
 
     override fun reset() {
         flush()
-        highPassCoeff.clear()
+        highPassAlpha = 0.0f
+        highPassPrev = FloatArray(0)
         inputAudioFormat = null
         outputAudioFormat = null
         isActive = false
     }
 
+    /**
+     * Processes one sample through the peak EQ biquad filter.
+     */
+    private fun processPeakEqBiquad(
+        input: Float,
+        channel: Int,
+    ): Float {
+        val state = peakEqState[channel]
+        val output =
+            peakEqB0 * input +
+                peakEqB1 * state.x1 +
+                peakEqB2 * state.x2 -
+                peakEqA1 * state.y1 -
+                peakEqA2 * state.y2
+        state.x2 = state.x1
+        state.x1 = input
+        state.y2 = state.y1
+        state.y1 = output
+        return output
+    }
+
     public companion object {
         private val EMPTY_BUFFER = ByteBuffer.allocateDirect(0).order(ByteOrder.nativeOrder())
+
+        private class BiquadState {
+            var x1 = 0f
+            var x2 = 0f
+            var y1 = 0f
+            var y2 = 0f
+        }
     }
 }

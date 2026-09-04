@@ -18,6 +18,7 @@ import android.os.Bundle
 import android.view.View
 import androidx.leanback.app.BrowseSupportFragment
 import androidx.leanback.widget.ArrayObjectAdapter
+import androidx.leanback.widget.DiffCallback
 import androidx.leanback.widget.HeaderItem
 import androidx.leanback.widget.ListRow
 import androidx.leanback.widget.ListRowPresenter
@@ -25,15 +26,17 @@ import androidx.leanback.widget.OnItemViewClickedListener
 import androidx.leanback.widget.Presenter
 import androidx.leanback.widget.Row
 import androidx.leanback.widget.RowPresenter
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Main browse fragment for Android TV.
@@ -64,9 +67,6 @@ public class TvBrowseFragment : BrowseSupportFragment() {
         headersState = HEADERS_ENABLED
         isHeadersTransitionOnBackEnabled = true
 
-        // Set search affordance (optional - can implement search later)
-        // setOnSearchClickedListener { /* Navigate to search */ }
-
         // Row click listener
         onItemViewClickedListener =
             OnItemViewClickedListener { _: Presenter.ViewHolder?, item: Any?, _: RowPresenter.ViewHolder?, _: Row? ->
@@ -83,51 +83,86 @@ public class TvBrowseFragment : BrowseSupportFragment() {
 
     private fun loadData() {
         lifecycleScope.launch {
-            try {
-                val books = booksRepository.getAllBooks().first()
-
-                if (books.isEmpty()) {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                try {
+                    booksRepository.getAllBooks().collect { books ->
+                        updateRows(books)
+                    }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    LogUtils.e("TvBrowseFragment", "Error loading books", e)
                     showEmptyState()
-                    return@launch
                 }
-
-                // Create book presenter
-                val cardPresenter = TvCardPresenter()
-
-                // Group books by author or show all in one row
-                val booksByAuthor: Map<String, List<Book>> = books.groupBy { book -> book.author }
-
-                if (booksByAuthor.size > 1) {
-                    // Multiple authors - show rows per author
-                    booksByAuthor.forEach { (author: String, authorBooks: List<Book>) ->
-                        val header = HeaderItem(author)
-                        val listRowAdapter = ArrayObjectAdapter(cardPresenter)
-                        authorBooks.forEach { book: Book ->
-                            listRowAdapter.add(book)
-                        }
-                        rowsAdapter.add(ListRow(header, listRowAdapter))
-                    }
-                } else {
-                    // Single author or all books - show in one row
-                    val header = HeaderItem(getString(R.string.library))
-                    val listRowAdapter = ArrayObjectAdapter(cardPresenter)
-                    books.forEach { book: Book ->
-                        listRowAdapter.add(book)
-                    }
-                    rowsAdapter.add(ListRow(header, listRowAdapter))
-                }
-            } catch (e: Exception) {
-                LogUtils.e("TvBrowseFragment", "Error loading books", e)
-                showEmptyState()
             }
         }
     }
 
+    private fun updateRows(books: List<Book>) {
+        if (books.isEmpty()) {
+            showEmptyState()
+            return
+        }
+
+        // Create book presenter
+        val cardPresenter = TvCardPresenter()
+
+        // Group books by author or show all in one row
+        val booksByAuthor: Map<String, List<Book>> = books.groupBy { book -> book.author }
+
+        val newRows = mutableListOf<ListRow>()
+
+        if (booksByAuthor.size > 1) {
+            // Multiple authors - show rows per author
+            booksByAuthor.forEach { (author: String, authorBooks: List<Book>) ->
+                val header = HeaderItem(author)
+                val listRowAdapter = ArrayObjectAdapter(cardPresenter)
+                authorBooks.forEach { book: Book ->
+                    listRowAdapter.add(book)
+                }
+                newRows.add(ListRow(header, listRowAdapter))
+            }
+        } else {
+            // Single author or all books - show in one row
+            val header = HeaderItem(getString(R.string.library))
+            val listRowAdapter = ArrayObjectAdapter(cardPresenter)
+            books.forEach { book: Book ->
+                listRowAdapter.add(book)
+            }
+            newRows.add(ListRow(header, listRowAdapter))
+        }
+
+        // Diff instead of clear()+rebuild so unchanged rows keep their adapters
+        // and the d-pad focus survives DB emissions.
+        rowsAdapter.setItems(newRows, BookRowDiffCallback())
+    }
+
     private fun showEmptyState() {
-        // Show empty state row
+        // Show empty state row (replaces any existing rows)
         val header = HeaderItem(getString(R.string.library))
         val emptyAdapter = ArrayObjectAdapter(TvCardPresenter())
-        rowsAdapter.add(ListRow(header, emptyAdapter))
+        rowsAdapter.setItems(listOf(ListRow(header, emptyAdapter)), BookRowDiffCallback())
+    }
+
+    /**
+     * Diffs rows by header name. Rows whose books are unchanged keep their existing
+     * [ListRow] instance, preserving Spotlight/d-pad focus across library updates.
+     */
+    internal class BookRowDiffCallback : DiffCallback<ListRow>() {
+        override fun areItemsTheSame(
+            oldItem: ListRow,
+            newItem: ListRow,
+        ): Boolean = oldItem.headerItem.name == newItem.headerItem.name
+
+        override fun areContentsTheSame(
+            oldItem: ListRow,
+            newItem: ListRow,
+        ): Boolean {
+            val oldBooks = oldItem.adapter.books()
+            val newBooks = newItem.adapter.books()
+            return oldBooks == newBooks
+        }
+
+        private fun androidx.leanback.widget.ObjectAdapter.books(): List<Book> = (0 until size()).mapNotNull { get(it) as? Book }
     }
 
     private fun launchPlayer(book: Book) {

@@ -19,7 +19,6 @@ import android.app.NotificationChannel
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.ComposeMainActivity
@@ -35,6 +34,9 @@ internal class NotificationHelper(
     companion object {
         internal const val CHANNEL_ID = "media_playback_channel"
         internal const val NOTIFICATION_ID = 1
+
+        /** Notification ID for the "playback could not be resumed" error notification. */
+        internal const val RESUME_ERROR_NOTIFICATION_ID = 1002
     }
 
     /**
@@ -96,25 +98,25 @@ internal class NotificationHelper(
      * @param channelId Channel ID to ensure exists
      */
     internal fun ensureNotificationChannel(channelId: String) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            try {
-                val channel =
-                    NotificationChannel(
-                        channelId,
-                        context.getString(R.string.notification_channel_name),
-                        AndroidNotificationManager.IMPORTANCE_LOW,
-                    ).apply {
-                        description = context.getString(R.string.notification_channel_description)
-                        setShowBadge(false)
-                    }
-                val notificationManager =
-                    context.getSystemService(
-                        Context.NOTIFICATION_SERVICE,
-                    ) as AndroidNotificationManager
-                notificationManager.createNotificationChannel(channel)
-            } catch (e: Exception) {
-                LogUtils.e("AudioPlayerService", "Failed to create notification channel", e)
-            }
+        try {
+            // Android 8+ freezes importance after first channel creation; raising it later
+            // requires a NEW channel id (migration), not changing IMPORTANCE_LOW here.
+            val channel =
+                NotificationChannel(
+                    channelId,
+                    context.getString(R.string.notification_channel_name),
+                    AndroidNotificationManager.IMPORTANCE_LOW,
+                ).apply {
+                    description = context.getString(R.string.notification_channel_description)
+                    setShowBadge(false)
+                }
+            val notificationManager =
+                context.getSystemService(
+                    Context.NOTIFICATION_SERVICE,
+                ) as AndroidNotificationManager
+            notificationManager.createNotificationChannel(channel)
+        } catch (e: Exception) {
+            LogUtils.e("AudioPlayerService", "Failed to create notification channel", e)
         }
     }
 }

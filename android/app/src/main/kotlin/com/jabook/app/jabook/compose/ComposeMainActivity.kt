@@ -23,9 +23,9 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.getValue
@@ -37,6 +37,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.MediaControllerConstants
@@ -44,6 +45,7 @@ import com.jabook.app.jabook.audio.MediaControllerExtensions
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.torrent.MagnetUriValidationPolicy
+import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -54,26 +56,23 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 /**
- * Compose UI Activity for testing parallel Compose implementation.
+ * Main Compose UI Activity.
  *
- * This activity allows testing the Compose UI in parallel with the existing
- * Flutter implementation. Once the Compose UI is complete and tested,
- * MainActivity will be migrated to use this pattern.
- *
- * This activity also handles deep links:
+ * This activity handles deep links:
  * - magnet: links for torrent downloads
  * - jabook:// custom scheme for app navigation
- *
- * @see MainActivity for the current Flutter-based implementation
  */
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @AndroidEntryPoint
-public class ComposeMainActivity : ComponentActivity() {
+public class ComposeMainActivity : AppCompatActivity() {
     @Inject
     public lateinit var loggerFactory: LoggerFactory
 
     @Inject
     public lateinit var settingsRepository: SettingsRepository
+
+    @Inject
+    public lateinit var torrentManager: TorrentManager
 
     private val logger by lazy { loggerFactory.get("ComposeMainActivity") }
 
@@ -82,8 +81,8 @@ public class ComposeMainActivity : ComponentActivity() {
     private var isPlayerScreenVisible: Boolean = false
     private var autoPipEnabled: Boolean = false
 
-    private companion object {
-        private val ALLOWED_JABOOK_HOSTS =
+    internal companion object {
+        internal val ALLOWED_JABOOK_HOSTS =
             setOf(
                 "library",
                 "settings",
@@ -93,8 +92,9 @@ public class ComposeMainActivity : ComponentActivity() {
                 "search",
                 "favorites",
                 "auth",
+                "rutracker",
             )
-        private val ALLOWED_JABOOK_PATH_PREFIXES =
+        internal val ALLOWED_JABOOK_PATH_PREFIXES =
             listOf(
                 "/library",
                 "/settings",
@@ -104,7 +104,20 @@ public class ComposeMainActivity : ComponentActivity() {
                 "/search",
                 "/favorites",
                 "/auth",
+                "/rutracker",
             )
+
+        internal fun isAllowedJabookDeepLink(
+            uri: Uri,
+            isDebugBuild: Boolean = BuildConfig.DEBUG,
+        ): Boolean {
+            if (uri.scheme != "jabook") return false
+            val host = uri.host?.lowercase().orEmpty()
+            val path = uri.path.orEmpty()
+            return (isDebugBuild && (host == "debug" || path.startsWith("/debug", ignoreCase = true))) ||
+                host in ALLOWED_JABOOK_HOSTS ||
+                ALLOWED_JABOOK_PATH_PREFIXES.any { prefix -> path.startsWith(prefix, ignoreCase = true) }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -116,10 +129,12 @@ public class ComposeMainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        // Handle initial intent
-        deepLinkIntent = sanitizeNavigableIntent(intent)
-        handleIntent(intent)
-        handleIntentExtras(intent)
+        // Handle initial intent only on fresh creation — on recreation
+        // (rotation/process death) the original deep link must not re-fire
+        if (savedInstanceState == null) {
+            deepLinkIntent = sanitizeNavigableIntent(intent)
+            handleIntent(intent)
+        }
         observeAutoPipSettings()
 
         setContent {
@@ -154,7 +169,6 @@ public class ComposeMainActivity : ComponentActivity() {
         deepLinkIntent = sanitizeNavigableIntent(intent)
         // Handle intent when activity is already running (singleTop mode)
         handleIntent(intent)
-        handleIntentExtras(intent)
     }
 
     /**
@@ -198,16 +212,6 @@ public class ComposeMainActivity : ComponentActivity() {
         }
     }
 
-    // Handle special intent extras that don't use a scheme
-    private fun handleIntentExtras(intent: Intent?) {
-        if (intent?.getBooleanExtra("navigate_to_player", false) == true) {
-            logger.d { "Handling navigate_to_player extra" }
-            // Navigation provided by JabookApp.LaunchedEffect(intent) which handles
-            // this specific extra and navigates to PlayerRoute.
-            // deepLinkIntent is already updated in onNewIntent/onCreate.
-        }
-    }
-
     /**
      * Handles magnet: links by starting the download service.
      *
@@ -220,22 +224,16 @@ public class ComposeMainActivity : ComponentActivity() {
         // Get default save path (app-specific storage)
         val savePath = "${getExternalFilesDir(null)}/JabookAudio/downloads"
 
-        // Start download service
-        com.jabook.app.jabook.download.DownloadForegroundService.startDownload(
-            context = this,
-            magnetUri = magnetUrl,
-            savePath = savePath,
-        )
+        lifecycleScope.launch {
+            runCatching {
+                // addMagnetLink does disk work (mkdirs/canWrite) + native session calls — off Main
+                withContext(Dispatchers.IO) { torrentManager.addMagnetLink(magnetUrl, savePath) }
+            }.onSuccess {
+                Toast.makeText(this@ComposeMainActivity, getString(R.string.downloadStarted), Toast.LENGTH_SHORT).show()
+            }.onFailure { logger.e({ "Failed to start torrent download" }, it) }
+        }
 
         logger.i { "Started torrent download: $magnetUrl" }
-
-        // Show feedback
-        android.widget.Toast
-            .makeText(
-                this,
-                getString(R.string.downloadStarted),
-                android.widget.Toast.LENGTH_SHORT,
-            ).show()
 
         // Navigate to downloads screen by creating a deep link intent
         // that JabookApp will handle
@@ -364,18 +362,6 @@ public class ComposeMainActivity : ComponentActivity() {
             }
             else -> incomingIntent
         }
-    }
-
-    private fun isAllowedJabookDeepLink(uri: Uri): Boolean {
-        if (uri.scheme != "jabook") return false
-        val host = uri.host?.lowercase().orEmpty()
-        val path = uri.path.orEmpty()
-        val hasAllowedHost = host in ALLOWED_JABOOK_HOSTS
-        val hasAllowedPath =
-            ALLOWED_JABOOK_PATH_PREFIXES.any { prefix ->
-                path.startsWith(prefix, ignoreCase = true)
-            }
-        return hasAllowedHost || hasAllowedPath
     }
 
     private fun isValidMagnetUri(uri: Uri): Boolean = MagnetUriValidationPolicy.isValidMagnetUri(uri)

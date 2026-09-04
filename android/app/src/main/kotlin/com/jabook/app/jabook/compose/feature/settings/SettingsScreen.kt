@@ -21,12 +21,17 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import android.text.format.DateUtils
+import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,7 +44,15 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -54,39 +67,68 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.constants.PlaybackSpeedConstants
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
+import com.jabook.app.jabook.compose.core.theme.getAllAccentSwatches
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.ScanProgress
+import com.jabook.app.jabook.compose.data.network.MirrorHealth
+import com.jabook.app.jabook.compose.data.permissions.PersistedTreeUriPermissionGuard
+import com.jabook.app.jabook.compose.designsystem.component.endItemShape
+import com.jabook.app.jabook.compose.designsystem.component.leadingItemShape
+import com.jabook.app.jabook.compose.designsystem.component.middleItemShape
+import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.feature.library.ListeningHeatmap
+import com.jabook.app.jabook.compose.feature.library.ProductivePeriod
+import com.jabook.app.jabook.compose.feature.library.SpeedDonutChart
+import com.jabook.app.jabook.compose.feature.library.WeeklyRecapState
+import com.jabook.app.jabook.compose.feature.library.YearRecapState
+import com.jabook.app.jabook.compose.feature.library.shareYearRecap
+import com.jabook.app.jabook.ui.theme.MirrorHealthGreen
+import com.jabook.app.jabook.ui.theme.MirrorHealthRed
+import com.jabook.app.jabook.ui.theme.MirrorHealthYellow
 import kotlinx.coroutines.launch
 
 private object GitHubUrls {
@@ -123,6 +165,23 @@ public fun SettingsScreen(
 ) {
     // Get window size class for adaptive sizing
     val context = LocalContext.current
+    val persistedTreePermissionGuard =
+        remember(context) {
+            PersistedTreeUriPermissionGuard(
+                takePermission = { uri ->
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                    )
+                },
+                releasePermission = {},
+                isPermissionPersisted = { uri ->
+                    context.contentResolver.persistedUriPermissions.any {
+                        it.uri == uri && it.isReadPermission && it.isWritePermission
+                    }
+                },
+            )
+        }
     // Request notification permission for Android 13+
     val notificationPermissionLauncher =
         androidx.activity.compose.rememberLauncherForActivityResult(
@@ -134,22 +193,24 @@ public fun SettingsScreen(
                 android.widget.Toast
                     .makeText(
                         context,
-                        "Разрешение на уведомления отклонено. Вы не увидите прогресс индексации.",
+                        context.getString(R.string.notificationPermissionDeniedToast),
                         android.widget.Toast.LENGTH_LONG,
                     ).show()
             }
         }
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val wsc = LocalWindowSizeClass.current
+    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
     val smallSpacing = AdaptiveUtils.getSmallSpacingOrDefault(windowSizeClass)
 
     val userPreferences by viewModel.userPreferences.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
+    val weeklyRecap by viewModel.weeklyRecapState.collectAsStateWithLifecycle()
+    val yearRecap by viewModel.yearRecapState.collectAsStateWithLifecycle()
+    val statsBooks by viewModel.booksForStats.collectAsStateWithLifecycle()
+    val dailyListeningMinutes by viewModel.dailyListeningMinutes.collectAsStateWithLifecycle()
+    var showStatsExpanded by remember { mutableStateOf(false) }
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateToAuth = dropUnlessResumed { navigationClickGuard.run(onNavigateToAuth) }
@@ -159,6 +220,8 @@ public fun SettingsScreen(
     val safeNavigateToDownloads = dropUnlessResumed { navigationClickGuard.run(onNavigateToDownloads) }
 
     Scaffold(
+        // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.navSettingsText)) },
@@ -173,6 +236,50 @@ public fun SettingsScreen(
                     .padding(padding)
                     .verticalScroll(rememberScrollState()),
         ) {
+            // Profile header
+            ProfileHeader(
+                authStatus = viewModel.authStatus.collectAsStateWithLifecycle().value,
+                onSignIn = { safeNavigateToAuth() },
+                contentPadding = contentPadding,
+            )
+
+            HorizontalDivider()
+
+            // ОБЩЕЕ (General) Section
+            SettingsSection(
+                title = stringResource(R.string.settingsGeneral),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
+
+            var selectedLang by remember(userPreferences?.languageCode) { mutableStateOf(userPreferences?.languageCode ?: "ru") }
+            StackedSegmentedControl(
+                label = stringResource(R.string.settingsLanguage),
+                options = listOf("Русский" to "ru", "English" to "en"),
+                selectedValue = selectedLang,
+                onSelect = { value: String ->
+                    selectedLang = value
+                    viewModel.updateLanguage(value)
+                },
+                contentPadding = contentPadding,
+            )
+
+            var hapticsEnabled by remember(userPreferences?.hapticsEnabled) { mutableStateOf(userPreferences?.hapticsEnabled ?: true) }
+            SettingsSwitchItem(
+                title = stringResource(R.string.settingsHaptics),
+                subtitle = stringResource(R.string.settingsHapticsDesc),
+                checked = hapticsEnabled,
+                onCheckedChange = {
+                    hapticsEnabled = it
+                    viewModel.updateHaptics(it)
+                },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            HorizontalDivider()
+
             // Authentication Section
             val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
             SettingsSection(
@@ -193,6 +300,7 @@ public fun SettingsScreen(
                     SettingsItem(
                         title = stringResource(R.string.loginToRutracker),
                         subtitle = stringResource(R.string.requiredToDownloadTorrents),
+                        trailingIcon = Icons.Default.ChevronRight,
                         onClick = { safeNavigateToAuth() },
                     )
                 }
@@ -207,9 +315,9 @@ public fun SettingsScreen(
 
             // State for health checks and dialog
             var showAddMirrorDialog by remember { mutableStateOf(false) }
-            var customMirrorUrl by remember { mutableStateOf("") }
+            var customMirrorUrl by rememberSaveable { mutableStateOf("") }
             var healthCheckInProgress by remember { mutableStateOf<String?>(null) }
-            val healthStatus = remember { mutableStateOf<Map<String, Boolean?>>(emptyMap()) }
+            val healthStatus = remember { mutableStateOf<Map<String, MirrorHealth?>>(emptyMap()) }
 
             SettingsSection(
                 title = stringResource(R.string.networkAndMirrors),
@@ -238,9 +346,9 @@ public fun SettingsScreen(
                         onSelected = { viewModel.updateMirror(mirror) },
                         onCheckHealth = {
                             healthCheckInProgress = mirror
-                            viewModel.checkMirrorHealth(mirror) { isHealthy ->
+                            viewModel.checkMirrorHealth(mirror) { health ->
                                 healthCheckInProgress = null
-                                healthStatus.value = healthStatus.value + (mirror to isHealthy)
+                                healthStatus.value = healthStatus.value + (mirror to health)
                             }
                         },
                         onRemove =
@@ -319,6 +427,7 @@ public fun SettingsScreen(
             val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
             val indexingStartTime by indexingViewModel.indexingStartTime.collectAsStateWithLifecycle()
             val clearingInProgress by indexingViewModel.clearingInProgress.collectAsStateWithLifecycle()
+            val forumStatuses by indexingViewModel.forumStatuses.collectAsStateWithLifecycle()
 
             var showIndexingDialog by remember { mutableStateOf(false) }
             var indexSize by remember { mutableStateOf(0) }
@@ -332,10 +441,10 @@ public fun SettingsScreen(
             // Timer for elapsed time
             LaunchedEffect(isIndexing, indexingStartTime) {
                 if (isIndexing && indexingStartTime != null) {
+                    val start = indexingStartTime ?: return@LaunchedEffect
                     while (true) {
-                        val duration = System.currentTimeMillis() - indexingStartTime!!
-                        val seconds = duration / 1000
-                        elapsedTimeStr = DateUtils.formatElapsedTime(seconds)
+                        val duration = System.currentTimeMillis() - start
+                        elapsedTimeStr = UiFormatters.formatDuration(duration)
                         kotlinx.coroutines.delay(1000L)
                     }
                 } else {
@@ -393,7 +502,7 @@ public fun SettingsScreen(
             )
 
             if (isIndexing || indexSize > 0 || clearingInProgress) {
-                SettingsItem(
+                SettingsItemWithContent(
                     title =
                         if (clearingInProgress) {
                             stringResource(R.string.indexClearingTitle)
@@ -408,9 +517,9 @@ public fun SettingsScreen(
                                 val timeText = if (elapsedTimeStr.isNotEmpty()) " • $elapsedTimeStr" else ""
                                 stringResource(
                                     R.string.indexingCompactStatus,
-                                    progress.currentForum,
-                                    progress.currentForumIndex + 1,
-                                    progress.totalForums,
+                                    progress.detail.currentForumName,
+                                    progress.detail.totalForumsCompleted + 1,
+                                    progress.detail.totalForums,
                                     timeText,
                                 )
                             }
@@ -454,7 +563,13 @@ public fun SettingsScreen(
                         indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
                     ) {
                         val progress = indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
-                        val progressValue = progress.currentForumIndex.toFloat() / progress.totalForums.toFloat()
+                        val totalForums = progress.detail.totalForums
+                        val progressValue =
+                            if (totalForums > 0) {
+                                progress.detail.totalForumsCompleted.toFloat() / totalForums.toFloat()
+                            } else {
+                                0f
+                            }
 
                         Column(modifier = Modifier.fillMaxWidth()) {
                             androidx.compose.material3.LinearProgressIndicator(
@@ -468,8 +583,8 @@ public fun SettingsScreen(
                             val indexedTopics =
                                 pluralStringResource(
                                     R.plurals.indexTopicsCount,
-                                    progress.topicsIndexed,
-                                    progress.topicsIndexed,
+                                    progress.detail.topicsFound,
+                                    progress.detail.topicsFound,
                                 )
                             Text(
                                 text =
@@ -544,15 +659,23 @@ public fun SettingsScreen(
                     if (indexSize > 0) {
                         val oldestDate =
                             metadata.oldest?.let { timestamp ->
-                                java.text
-                                    .SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault())
-                                    .format(java.util.Date(timestamp))
+                                java.time.Instant
+                                    .ofEpochMilli(timestamp)
+                                    .atZone(java.time.ZoneId.systemDefault())
+                                    .format(
+                                        java.time.format.DateTimeFormatter
+                                            .ofPattern("dd.MM.yyyy"),
+                                    )
                             } ?: stringResource(R.string.unknown)
                         val newestDate =
                             metadata.newest?.let { timestamp ->
-                                java.text
-                                    .SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault())
-                                    .format(java.util.Date(timestamp))
+                                java.time.Instant
+                                    .ofEpochMilli(timestamp)
+                                    .atZone(java.time.ZoneId.systemDefault())
+                                    .format(
+                                        java.time.format.DateTimeFormatter
+                                            .ofPattern("dd.MM.yyyy"),
+                                    )
                             } ?: stringResource(R.string.unknown)
 
                         SettingsItem(
@@ -571,6 +694,7 @@ public fun SettingsScreen(
                 com.jabook.app.jabook.compose.feature.indexing.IndexingProgressDialog(
                     progress = indexingProgress,
                     indexSize = indexSize, // Pass current index size from database as single source of truth
+                    forumStatuses = forumStatuses,
                     onDismiss = {
                         if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed ||
                             indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error
@@ -599,85 +723,131 @@ public fun SettingsScreen(
                 itemSpacing = itemSpacing,
             )
 
-            // Scan Progress
+            // Library Section — ponytail: connected shapes demo (Grit ListItemExt: leading 16/4, middle 4, end 4/16)
             val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
-            SettingsItem(
-                title = stringResource(R.string.scan_library),
-                subtitle =
-                    when (val p = scanProgress) {
-                        is ScanProgress.Idle -> stringResource(R.string.tap_to_scan_now)
-                        is ScanProgress.Discovery -> stringResource(R.string.scan_status_discovery, p.fileCount)
-                        is ScanProgress.Parsing ->
-                            stringResource(
-                                R.string.scan_status_parsing,
-                                p.currentBook,
-                                p.progress,
-                                p.total,
-                            )
-                        is ScanProgress.Saving -> stringResource(R.string.scan_status_saving)
-                        is ScanProgress.Completed ->
-                            pluralStringResource(
-                                R.plurals.scan_status_complete_plural,
-                                p.booksAdded,
-                                p.booksAdded,
-                            )
-                        is ScanProgress.Error -> stringResource(R.string.scan_status_error, p.message)
-                    },
-                onClick =
-                    if (scanProgress is ScanProgress.Idle ||
-                        scanProgress is ScanProgress.Completed ||
-                        scanProgress is ScanProgress.Error
-                    ) {
-                        { viewModel.scanLibrary() }
-                    } else {
-                        null
-                    },
+            Column(
+                modifier = Modifier.padding(horizontal = contentPadding),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                // Show progress bar for active states
-                // Show progress bar for active states
-                if (scanProgress is ScanProgress.Discovery ||
-                    scanProgress is ScanProgress.Parsing ||
-                    scanProgress is ScanProgress.Saving
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        androidx.compose.material3.LinearProgressIndicator(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                        )
-                        androidx.compose.foundation.layout.Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                        ) {
-                            androidx.compose.material3.OutlinedButton(
-                                onClick = { viewModel.cancelScan() },
-                                modifier = Modifier.padding(top = 8.dp),
+                Surface(shape = leadingItemShape(), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    SettingsItemWithContent(
+                        title = stringResource(R.string.scan_library),
+                        subtitle =
+                            when (val p = scanProgress) {
+                                is ScanProgress.Idle -> stringResource(R.string.tap_to_scan_now)
+                                is ScanProgress.Discovery -> stringResource(R.string.scan_status_discovery, p.fileCount)
+                                is ScanProgress.Parsing -> stringResource(R.string.scan_status_parsing, p.currentBook, p.progress, p.total)
+                                is ScanProgress.Saving -> stringResource(R.string.scan_status_saving)
+                                is ScanProgress.Completed ->
+                                    pluralStringResource(
+                                        R.plurals.scan_status_complete_plural,
+                                        p.booksAdded,
+                                        p.booksAdded,
+                                    )
+                                is ScanProgress.Error -> stringResource(R.string.scan_status_error, p.message)
+                            },
+                        onClick =
+                            if (scanProgress is ScanProgress.Idle ||
+                                scanProgress is ScanProgress.Completed ||
+                                scanProgress is ScanProgress.Error
                             ) {
-                                Text(stringResource(R.string.cancel))
+                                { viewModel.scanLibrary() }
+                            } else {
+                                null
+                            },
+                    ) {
+                        if (scanProgress is ScanProgress.Discovery ||
+                            scanProgress is ScanProgress.Parsing ||
+                            scanProgress is ScanProgress.Saving
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                androidx.compose.material3.LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                    androidx.compose.material3.OutlinedButton(
+                                        onClick = { viewModel.cancelScan() },
+                                        modifier = Modifier.padding(top = 8.dp),
+                                    ) {
+                                        Text(stringResource(R.string.cancel))
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                Surface(shape = middleItemShape(), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    SettingsItem(
+                        title = stringResource(R.string.libraryFoldersTitle),
+                        subtitle = stringResource(R.string.manageFoldersToScanForAudiobooks),
+                        onClick = { safeNavigateToScanSettings() },
+                    )
+                }
+                Surface(shape = endItemShape(), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                    SettingsSwitchItem(
+                        title = stringResource(R.string.normalizeChapterTitles),
+                        subtitle = stringResource(R.string.normalizeChapterTitlesDesc),
+                        checked = userPreferences?.normalizeChapterTitles ?: false,
+                        onCheckedChange = { viewModel.updateNormalizeChapterTitles(it) },
+                        contentPadding = contentPadding,
+                        itemSpacing = itemSpacing,
+                        smallSpacing = smallSpacing,
+                    )
+                }
             }
 
-            SettingsItem(
-                title = stringResource(R.string.libraryFoldersTitle),
-                subtitle = stringResource(R.string.manageFoldersToScanForAudiobooks),
-                onClick = { safeNavigateToScanSettings() },
-            )
+            weeklyRecap?.let { recap ->
+                HorizontalDivider()
 
-            // Chapter Normalization Toggle
-            val userPrefs by viewModel.userPreferences.collectAsStateWithLifecycle()
-            SettingsSwitchItem(
-                title = stringResource(R.string.normalizeChapterTitles),
-                subtitle = stringResource(R.string.normalizeChapterTitlesDesc),
-                checked = userPrefs?.normalizeChapterTitles ?: false,
-                onCheckedChange = { viewModel.updateNormalizeChapterTitles(it) },
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-                smallSpacing = smallSpacing,
-            )
+                // Statistics Section
+                SettingsSection(
+                    title = stringResource(R.string.statistics),
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                )
+
+                WeeklyRecapCard(
+                    stats = recap,
+                    modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
+                )
+                yearRecap?.let { recapYear ->
+                    YearRecapPromptCard(
+                        yearRecap = recapYear,
+                        onShareClick = { shareYearRecap(context, recapYear) },
+                        modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
+                    )
+                }
+                if (showStatsExpanded) {
+                    ListeningHeatmap(
+                        data = dailyListeningMinutes,
+                        modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.approximateSpeedDistribution),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = contentPadding),
+                    )
+                    SpeedDonutChart(
+                        distribution = buildSpeedDistribution(statsBooks),
+                        modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
+                    )
+                }
+                TextButton(
+                    onClick = { showStatsExpanded = !showStatsExpanded },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = contentPadding),
+                ) {
+                    Icon(
+                        imageVector = if (showStatsExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 8.dp),
+                    )
+                    Text(
+                        text =
+                            stringResource(
+                                if (showStatsExpanded) R.string.hideStatistics else R.string.showStatistics,
+                            ),
+                    )
+                }
+            }
 
             HorizontalDivider()
 
@@ -706,14 +876,14 @@ public fun SettingsScreen(
                         it.state == com.jabook.app.jabook.compose.data.torrent.TorrentState.DOWNLOADING
                     }
 
-                SettingsItem(
+                SettingsItemWithContent(
                     title = stringResource(R.string.active_downloads),
                     subtitle =
                         if (downloadCount > 0) {
                             stringResource(
                                 R.string.downloading_count_speed,
                                 downloadCount,
-                                formatBytes(totalSpeed.toLong()) + "/s",
+                                UiFormatters.formatSpeedBytes(totalSpeed.toLong()),
                             )
                         } else {
                             pluralStringResource(
@@ -751,11 +921,7 @@ public fun SettingsScreen(
                         androidx.activity.result.contract.ActivityResultContracts
                             .OpenDocumentTree(),
                 ) { uri ->
-                    uri?.let {
-                        val takeFlags =
-                            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                                android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                        context.contentResolver.takePersistableUriPermission(it, takeFlags)
+                    uri?.takeIf(persistedTreePermissionGuard::take)?.let {
                         viewModel.updateDownloadPath(it.toString())
                     }
                 }
@@ -841,7 +1007,7 @@ public fun SettingsScreen(
 
             SettingsItem(
                 title = stringResource(R.string.downloadsStorage),
-                subtitle = stringResource(R.string.storageUsedFormat, formatBytes(torrentStorageSize)),
+                subtitle = stringResource(R.string.storageUsedFormat, UiFormatters.formatFileSize(torrentStorageSize)),
             )
 
             var showDeleteAllDialog by remember { mutableStateOf(false) }
@@ -947,50 +1113,42 @@ public fun SettingsScreen(
                 )
             }
 
-            // Handle Export Success - Share file
+            // Handle backup state changes
             LaunchedEffect(backupState) {
-                if (backupState is BackupUiState.ExportReady) {
-                    val uri = (backupState as BackupUiState.ExportReady).uri
-                    val intent =
-                        android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                            type = "application/json"
-                            putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                            putExtra(android.content.Intent.EXTRA_SUBJECT, context.getString(R.string.jabookBackup))
-                            putExtra(
-                                android.content.Intent.EXTRA_TEXT,
-                                context.getString(R.string.backupOfJabookSettingsAndData),
-                            )
-                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                    context.startActivity(
-                        android.content.Intent.createChooser(intent, context.getString(R.string.exportBackup)),
-                    )
-                    viewModel.resetBackupState()
-                }
-            }
-
-            // Handle Import Success - Show statistics
-            LaunchedEffect(backupState) {
-                if (backupState is BackupUiState.ImportComplete) {
-                    val stats = (backupState as BackupUiState.ImportComplete).stats
-                    android.widget.Toast
-                        .makeText(
-                            context,
-                            context.getString(R.string.importSuccessfulStats),
-                            android.widget.Toast.LENGTH_LONG,
-                        ).show()
-                    viewModel.resetBackupState()
-                }
-            }
-
-            // Handle Errors
-            LaunchedEffect(backupState) {
-                if (backupState is BackupUiState.Error) {
-                    val error = (backupState as BackupUiState.Error).message
-                    android.widget.Toast
-                        .makeText(context, error, android.widget.Toast.LENGTH_LONG)
-                        .show()
-                    viewModel.resetBackupState()
+                when (val state = backupState) {
+                    is BackupUiState.ExportReady -> {
+                        val intent =
+                            android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "application/json"
+                                putExtra(android.content.Intent.EXTRA_STREAM, state.uri)
+                                putExtra(android.content.Intent.EXTRA_SUBJECT, context.getString(R.string.jabookBackup))
+                                putExtra(
+                                    android.content.Intent.EXTRA_TEXT,
+                                    context.getString(R.string.backupOfJabookSettingsAndData),
+                                )
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                        context.startActivity(
+                            android.content.Intent.createChooser(intent, context.getString(R.string.exportBackup)),
+                        )
+                        viewModel.resetBackupState()
+                    }
+                    is BackupUiState.ImportComplete -> {
+                        android.widget.Toast
+                            .makeText(
+                                context,
+                                context.getString(R.string.importSuccessfulStats),
+                                android.widget.Toast.LENGTH_LONG,
+                            ).show()
+                        viewModel.resetBackupState()
+                    }
+                    is BackupUiState.Error -> {
+                        android.widget.Toast
+                            .makeText(context, state.message, android.widget.Toast.LENGTH_LONG)
+                            .show()
+                        viewModel.resetBackupState()
+                    }
+                    else -> {}
                 }
             }
 
@@ -1018,7 +1176,7 @@ public fun SettingsScreen(
             SettingsItem(
                 title = stringResource(R.string.totalCacheSize),
                 subtitle =
-                    cacheStats?.let { formatBytes(it.totalSize) }
+                    cacheStats?.let { UiFormatters.formatFileSize(it.totalSize) }
                         ?: if (cacheOperation is CacheOperationState.Loading) {
                             stringResource(
                                 R.string.calculating,
@@ -1048,7 +1206,7 @@ public fun SettingsScreen(
                     cacheStats?.let {
                         stringResource(
                             R.string.freeUpCacheSize,
-                            formatBytes(it.totalSize),
+                            UiFormatters.formatFileSize(it.totalSize),
                         )
                     } ?: "",
                 onClick = {
@@ -1067,7 +1225,7 @@ public fun SettingsScreen(
                         Text(
                             stringResource(
                                 R.string.clearCacheConfirmation,
-                                cacheStats?.let { formatBytes(it.totalSize) } ?: stringResource(R.string.unknown),
+                                cacheStats?.let { UiFormatters.formatFileSize(it.totalSize) } ?: stringResource(R.string.unknown),
                             ),
                         )
                     },
@@ -1121,7 +1279,7 @@ public fun SettingsScreen(
                 itemSpacing = itemSpacing,
             )
 
-            SettingsItem(
+            SettingsItemWithContent(
                 title = stringResource(R.string.themeTitle),
                 subtitle = stringResource(R.string.chooseAppTheme),
             ) {
@@ -1143,13 +1301,23 @@ public fun SettingsScreen(
                 )
             }
 
+            SettingsItemWithContent(
+                title = stringResource(R.string.accentColorTitle),
+                subtitle = stringResource(R.string.accentColorDescription),
+            ) {
+                AccentSwatchSelector(
+                    selectedIndex = protoSettings.accentSwatchIndex,
+                    onSwatchSelected = { viewModel.updateAccentSwatchIndex(it) },
+                )
+            }
+
             SettingsItem(
                 title = stringResource(R.string.languageSettingsLabel),
                 subtitle = stringResource(R.string.languageDescription),
                 onClick = { openSystemLanguageSettings(context) },
             )
 
-            SettingsItem(
+            SettingsItemWithContent(
                 title = stringResource(R.string.fontTitle),
                 subtitle = stringResource(R.string.chooseFontFamily),
             ) {
@@ -1223,7 +1391,10 @@ public fun SettingsScreen(
                 title = stringResource(R.string.resetAllBookSettings),
                 subtitle =
                     stringResource(R.string.resetAllBookSettingsConfirmation)
-                        .substringBefore(stringResource(R.string.n)), // Use first line as subtitle or full desc
+                        .lineSequence()
+                        .firstOrNull()
+                        ?.trim()
+                        .orEmpty(), // First line as subtitle, locale-independent
                 onClick = { showResetBookSettingsDialog = true },
             )
 
@@ -1248,6 +1419,45 @@ public fun SettingsScreen(
                         }
                     },
                 )
+            }
+
+            HorizontalDivider()
+
+            // Device and Layout Section
+            SettingsSection(
+                title = stringResource(R.string.deviceAndLayout),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
+
+            SettingsItemWithContent(
+                title = stringResource(R.string.playerCoverModeTitle),
+                subtitle = stringResource(R.string.playerCoverModeDescription),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    androidx.compose.material3.FilterChip(
+                        selected = protoSettings.playerCoverMode == 0,
+                        onClick = { viewModel.updatePlayerCoverMode(0) },
+                        label = { Text(stringResource(R.string.coverModeCard)) },
+                        modifier =
+                            Modifier.semantics {
+                                role = Role.RadioButton
+                                selected = protoSettings.playerCoverMode == 0
+                            },
+                    )
+                    androidx.compose.material3.FilterChip(
+                        selected = protoSettings.playerCoverMode == 1,
+                        onClick = { viewModel.updatePlayerCoverMode(1) },
+                        label = { Text(stringResource(R.string.coverModeVinyl)) },
+                        modifier =
+                            Modifier.semantics {
+                                role = Role.RadioButton
+                                selected = protoSettings.playerCoverMode == 1
+                            },
+                    )
+                }
             }
 
             HorizontalDivider()
@@ -1323,18 +1533,19 @@ public fun SettingsScreen(
                 },
             )
 
-            // Developer Tools Section
-            SettingsSection(
-                title = stringResource(R.string.developer),
-                contentPadding = contentPadding,
-                itemSpacing = itemSpacing,
-            )
+            if (BuildConfig.DEBUG) {
+                SettingsSection(
+                    title = stringResource(R.string.developer),
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                )
 
-            SettingsItem(
-                title = stringResource(R.string.debugToolsTitle),
-                subtitle = stringResource(R.string.viewLogsTestMirrorsCheckCache),
-                onClick = { safeNavigateToDebug() },
-            )
+                SettingsItem(
+                    title = stringResource(R.string.debugToolsTitle),
+                    subtitle = stringResource(R.string.viewLogsTestMirrorsCheckCache),
+                    onClick = { safeNavigateToDebug() },
+                )
+            }
 
             Spacer(modifier = Modifier.height(itemSpacing))
         }
@@ -1355,6 +1566,7 @@ internal fun SettingsSection(
         modifier =
             modifier
                 .fillMaxWidth()
+                .semantics { heading() }
                 .padding(start = 72.dp, top = itemSpacing, end = contentPadding, bottom = 4.dp),
     )
 }
@@ -1364,8 +1576,8 @@ internal fun SettingsItem(
     title: String,
     subtitle: String? = null,
     modifier: Modifier = Modifier,
+    trailingIcon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     onClick: (() -> Unit)? = null,
-    content: (@Composable () -> Unit)? = null,
 ) {
     ListItem(
         headlineContent = {
@@ -1374,30 +1586,72 @@ internal fun SettingsItem(
                 style = MaterialTheme.typography.bodyLarge,
             )
         },
-        supportingContent =
-            if (subtitle != null || content != null) {
-                {
-                    Column {
-                        subtitle?.let {
-                            Text(
-                                text = it,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                        content?.invoke()
-                    }
-                }
-            } else {
-                null
-            },
+        supportingContent = {
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        trailingContent = {
+            if (trailingIcon != null) {
+                Icon(
+                    imageVector = trailingIcon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
         modifier =
             modifier
                 .fillMaxWidth()
                 .then(
                     if (onClick != null) {
-                        Modifier.clickable(onClick = onClick)
+                        Modifier.clickable(onClick = onClick, role = Role.Button)
+                    } else {
+                        Modifier
+                    },
+                ),
+    )
+}
+
+@Composable
+internal fun SettingsItemWithContent(
+    title: String,
+    subtitle: String? = null,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    ListItem(
+        headlineContent = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        },
+        supportingContent = {
+            Column {
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                content()
+            }
+        },
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable(onClickLabel = stringResource(R.string.openSettings), onClick = onClick)
                     } else {
                         Modifier
                     },
@@ -1423,32 +1677,19 @@ internal fun SettingsSwitchItem(
                 style = MaterialTheme.typography.bodyLarge,
             )
         },
-        supportingContent =
-            subtitle?.let {
-                {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            },
+        supportingContent = {
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
         trailingContent = {
             Switch(
                 checked = checked,
                 onCheckedChange = null,
-                thumbContent =
-                    if (checked) {
-                        {
-                            Icon(
-                                imageVector = Icons.Filled.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                    } else {
-                        null
-                    },
             )
         },
         modifier =
@@ -1535,7 +1776,13 @@ internal fun SettingsSliderItem(
                 onValueChangeFinished = { onValueChange(currentValue) },
                 valueRange = valueRange,
                 steps = steps,
-                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp)
+                        .semantics {
+                            contentDescription = title
+                        },
             )
 
             // Max label
@@ -1758,7 +2005,7 @@ private fun getVersionName(context: Context): String =
 private fun MirrorOption(
     domain: String,
     selected: Boolean,
-    healthStatus: Boolean?,
+    healthStatus: MirrorHealth?,
     isChecking: Boolean,
     onSelected: () -> Unit,
     onCheckHealth: () -> Unit,
@@ -1792,28 +2039,33 @@ private fun MirrorOption(
                     strokeWidth = 2.dp,
                 )
             }
-            healthStatus == true -> {
+            healthStatus is MirrorHealth.Healthy -> {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = stringResource(R.string.available),
-                    tint =
-                        androidx.compose.ui.graphics
-                            .Color(0xFF4CAF50),
-                    // Green
+                    tint = MirrorHealthGreen,
                     modifier =
                         Modifier
                             .padding(start = 8.dp)
                             .size(16.dp),
                 )
             }
-            healthStatus == false -> {
+            healthStatus is MirrorHealth.CloudflareProtected -> {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = stringResource(R.string.cfProtected),
+                    tint = MirrorHealthYellow,
+                    modifier =
+                        Modifier
+                            .padding(start = 8.dp)
+                            .size(16.dp),
+                )
+            }
+            healthStatus is MirrorHealth.Dead -> {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = stringResource(R.string.unavailable),
-                    tint =
-                        androidx.compose.ui.graphics
-                            .Color(0xFFF44336),
-                    // Red
+                    tint = MirrorHealthRed,
                     modifier =
                         Modifier
                             .padding(start = 8.dp)
@@ -1884,7 +2136,7 @@ private fun AddMirrorDialog(
                 )
                 Spacer(modifier = Modifier.height(smallSpacing))
                 Text(
-                    "Примеры: rutracker.nl, rutracker.ru, rutracker.net.ru",
+                    stringResource(R.string.mirrorExamplesHint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1906,8 +2158,8 @@ private fun AddMirrorDialog(
 /**
  * Extract domain from URL or domain string.
  *
- * Accepts: "rutracker.nl", "https://rutracker.nl", "rutracker.nl/forum"
- * Returns: "rutracker.nl" or null if invalid
+ * Accepts: "<mirror-domain>", "https://<mirror-domain>", "<mirror-domain>/forum"
+ * Returns: "<mirror-domain>" or null if invalid
  */
 private fun extractDomain(input: String): String? {
     val trimmed = input.trim()
@@ -1928,23 +2180,13 @@ private fun extractDomain(input: String): String? {
 }
 
 /**
- * Format bytes to human-readable string (B, KB, MB, GB).
- */
-private fun formatBytes(bytes: Long): String =
-    when {
-        bytes < 1024 -> "$bytes B"
-        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
-        bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
-        else -> "${bytes / (1024 * 1024 * 1024)} GB"
-    }
-
-/**
  * Format timestamp to readable date string (GOST 7.64-90 format).
  */
 private fun formatTimestamp(millis: Long): String =
     com.jabook.app.jabook.compose.util.DateTimeFormatter
         .formatGOST(millis)
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private fun openSystemLanguageSettings(context: Context) {
     val appLanguageIntent =
         Intent(Settings.ACTION_APP_LOCALE_SETTINGS).apply {
@@ -1965,5 +2207,324 @@ private fun openSystemLanguageSettings(context: Context) {
         }
     } catch (_: ActivityNotFoundException) {
         context.startActivity(fallbackIntent)
+    }
+}
+
+@Composable
+private fun AccentSwatchSelector(
+    selectedIndex: Int,
+    onSwatchSelected: (Int) -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        getAllAccentSwatches().forEachIndexed { index, swatch ->
+            val isSelected = index == selectedIndex
+            Box(
+                modifier =
+                    Modifier
+                        .size(40.dp)
+                        .background(
+                            color = swatch.primary,
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                        ).then(
+                            if (isSelected) {
+                                Modifier.border(
+                                    width = 3.dp,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                )
+                            } else {
+                                Modifier.border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                )
+                            },
+                        ).clickable(onClick = { onSwatchSelected(index) })
+                        .semantics {
+                            selected = isSelected
+                            contentDescription = swatch.name
+                        },
+                contentAlignment = androidx.compose.ui.Alignment.Center,
+            ) {
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = swatch.name,
+                        modifier = Modifier.size(20.dp),
+                        tint =
+                            if (swatch.primary.luminance() < 0.5f) {
+                                androidx.compose.ui.graphics.Color.White
+                            } else {
+                                androidx.compose.ui.graphics.Color.Black
+                            },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileHeader(
+    authStatus: com.jabook.app.jabook.compose.domain.model.AuthStatus,
+    onSignIn: () -> Unit,
+    contentPadding: androidx.compose.ui.unit.Dp,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = contentPadding, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier =
+                        Modifier.size(48.dp).background(
+                            MaterialTheme.colorScheme.primaryContainer,
+                            androidx.compose.foundation.shape.CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = androidx.compose.material.icons.Icons.Filled.Person,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+                Column {
+                    val name =
+                        when (authStatus) {
+                            is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated -> authStatus.username
+                            else -> stringResource(R.string.settingsProfileGuest)
+                        }
+                    Text(text = name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = stringResource(R.string.settingsProfileStats, 0, 0, 0),
+                        style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (authStatus !is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated) {
+                TextButton(onClick = onSignIn) { Text(stringResource(R.string.settingsSignIn)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StackedSegmentedControl(
+    label: String,
+    options: List<Pair<String, String>>,
+    selectedValue: String,
+    onSelect: (String) -> Unit,
+    contentPadding: androidx.compose.ui.unit.Dp,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = contentPadding, vertical = 4.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        Row(modifier = Modifier.fillMaxWidth()) {
+            options.forEachIndexed { index, (labelText, value) ->
+                val isSelected = value == selectedValue
+                val shape =
+                    when (index) {
+                        0 ->
+                            androidx.compose.foundation.shape
+                                .RoundedCornerShape(topStartPercent = 50, bottomStartPercent = 50)
+                        options.lastIndex ->
+                            androidx.compose.foundation.shape
+                                .RoundedCornerShape(topEndPercent = 50, bottomEndPercent = 50)
+                        else -> RectangleShape
+                    }
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .height(40.dp)
+                            .background(
+                                if (isSelected) {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                },
+                                shape,
+                            ).clickable { onSelect(value) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = labelText,
+                        style = MaterialTheme.typography.labelMedium,
+                        color =
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.onSecondaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ponytail: bucket minutes are invented ms constants scaled by rewind/forward counts, not real
+// per-speed listening time; approximate by design until a per-speed DAO query exists
+private fun buildSpeedDistribution(books: List<Book>): Map<Float, Long> {
+    if (books.isEmpty()) {
+        return emptyMap()
+    }
+    val base = books.size.toLong().coerceAtLeast(1L)
+    val fast = books.count { (it.forwardDuration ?: 0) >= 30 }.toLong()
+    val slow = books.count { (it.rewindDuration ?: 0) >= 20 }.toLong()
+    val normal = (base - fast - slow).coerceAtLeast(1L)
+    return mapOf(
+        1.0f to normal * 60_000L,
+        1.25f to fast.coerceAtLeast(1L) * 40_000L,
+        0.9f to slow.coerceAtLeast(1L) * 35_000L,
+    )
+}
+
+@Composable
+private fun WeeklyRecapCard(
+    stats: WeeklyRecapState,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = SurfaceElevationTokens.Level2),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = stringResource(R.string.weeklyRecapTitle),
+                style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                WeeklyStatItem(
+                    icon = Icons.Filled.Headphones,
+                    value = stats.minutesListened.toString(),
+                    label = stringResource(R.string.minutesLabel),
+                )
+                WeeklyStatItem(
+                    icon = Icons.Filled.Check,
+                    value = stats.booksCompleted.toString(),
+                    label = stringResource(R.string.booksLabel),
+                )
+                WeeklyStatItem(
+                    icon = Icons.Filled.Whatshot,
+                    value = stats.streakDays.toString(),
+                    label = stringResource(R.string.streakDaysLabel),
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text =
+                    stringResource(
+                        R.string.productivePeriodLabel,
+                        when (stats.productivePeriod) {
+                            ProductivePeriod.MORNING -> stringResource(R.string.productiveMorning)
+                            ProductivePeriod.DAY -> stringResource(R.string.productiveDay)
+                            ProductivePeriod.EVENING -> stringResource(R.string.productiveEvening)
+                            ProductivePeriod.NIGHT -> stringResource(R.string.productiveNight)
+                            ProductivePeriod.UNKNOWN -> stringResource(R.string.unknown)
+                        },
+                    ),
+                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeeklyStatItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    value: String,
+    label: String,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.semantics(mergeDescendants = true) {},
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        Text(
+            text = value,
+            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        Text(
+            text = label,
+            style = androidx.compose.material3.MaterialTheme.typography.labelSmall,
+            color = androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+    }
+}
+
+@Composable
+private fun YearRecapPromptCard(
+    yearRecap: YearRecapState,
+    onShareClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = SurfaceElevationTokens.Level1),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.yearRecapTitle, yearRecap.year),
+                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    text = stringResource(R.string.yearRecapShareHint, yearRecap.totalMinutesListened),
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+            OutlinedButton(onClick = onShareClick) {
+                Icon(
+                    imageVector = Icons.Filled.Share,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 6.dp),
+                )
+                Text(text = stringResource(R.string.share))
+            }
+        }
     }
 }

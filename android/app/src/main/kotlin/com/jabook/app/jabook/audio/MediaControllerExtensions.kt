@@ -49,12 +49,25 @@ public object MediaControllerExtensions {
         initialTrackIndex: Int? = null,
         initialPosition: Long? = null,
         groupPath: String? = null,
+        playlistItems: List<PlaylistItem> = filePaths.map(::PlaylistItem),
     ): ListenableFuture<SessionResult> {
         val args =
             Bundle().apply {
+                require(playlistItems.map(PlaylistItem::path) == filePaths) {
+                    "playlistItems must match filePaths"
+                }
                 putStringArray(
                     AudioPlayerLibrarySessionCallback.ARG_FILE_PATHS,
                     filePaths.toTypedArray(),
+                )
+                putStringArray(AudioPlayerLibrarySessionCallback.ARG_MEDIA_IDS, playlistItems.map(PlaylistItem::mediaId).toTypedArray())
+                putLongArray(
+                    AudioPlayerLibrarySessionCallback.ARG_CLIP_STARTS_MS,
+                    playlistItems.map { it.clipStartPositionMs ?: CLIP_POSITION_UNSET }.toLongArray(),
+                )
+                putLongArray(
+                    AudioPlayerLibrarySessionCallback.ARG_CLIP_ENDS_MS,
+                    playlistItems.map { it.clipEndPositionMs ?: CLIP_POSITION_UNSET }.toLongArray(),
                 )
                 if (metadata != null) {
                     val metadataBundle = Bundle()
@@ -81,6 +94,8 @@ public object MediaControllerExtensions {
             )
         return controller.sendCustomCommand(command, Bundle.EMPTY)
     }
+
+    private const val CLIP_POSITION_UNSET = Long.MIN_VALUE
 
     /**
      * Sets sleep timer with duration in minutes.
@@ -142,154 +157,148 @@ public object MediaControllerExtensions {
      * Returns null if timer is not active or set to end of chapter.
      */
     public suspend fun getSleepTimerRemainingSeconds(controller: MediaController): Int? =
-        withContext(Dispatchers.IO) {
-            try {
-                val command =
-                    SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING,
-                        Bundle.EMPTY,
-                    )
-                val future = controller.sendCustomCommand(command, Bundle.EMPTY)
-                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
-                if (result.resultCode == SessionResult.RESULT_SUCCESS) {
-                    if (result.extras.containsKey(AudioPlayerLibrarySessionCallback.ARG_RESULT_REMAINING)) {
-                        result.extras.getInt(AudioPlayerLibrarySessionCallback.ARG_RESULT_REMAINING)
-                    } else {
-                        null
-                    }
+        try {
+            val command =
+                SessionCommand(
+                    AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_GET_SLEEP_TIMER_REMAINING,
+                    Bundle.EMPTY,
+                )
+            val future = withContext(Dispatchers.Main) { controller.sendCustomCommand(command, Bundle.EMPTY) }
+            val result =
+                withContext(Dispatchers.IO) { future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS) }
+            if (result.resultCode == SessionResult.RESULT_SUCCESS) {
+                if (result.extras.containsKey(AudioPlayerLibrarySessionCallback.ARG_RESULT_REMAINING)) {
+                    result.extras.getInt(AudioPlayerLibrarySessionCallback.ARG_RESULT_REMAINING)
                 } else {
                     null
                 }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                LogUtils.w("MediaControllerExtensions", "Failed to get sleep timer remaining", e)
+            } else {
                 null
             }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            LogUtils.w("MediaControllerExtensions", "Failed to get sleep timer remaining", e)
+            null
         }
 
     /**
      * Checks if sleep timer is active.
      */
     public suspend fun isSleepTimerActive(controller: MediaController): Boolean =
-        withContext(Dispatchers.IO) {
-            try {
-                val command =
-                    SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE,
-                        Bundle.EMPTY,
-                    )
-                val future = controller.sendCustomCommand(command, Bundle.EMPTY)
-                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
-                if (result.resultCode == SessionResult.RESULT_SUCCESS) {
-                    result.extras.getBoolean(AudioPlayerLibrarySessionCallback.ARG_RESULT_ACTIVE, false)
-                } else {
-                    false
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                LogUtils.w("MediaControllerExtensions", "Failed to check sleep timer active", e)
+        try {
+            val command =
+                SessionCommand(
+                    AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_IS_SLEEP_TIMER_ACTIVE,
+                    Bundle.EMPTY,
+                )
+            val future = withContext(Dispatchers.Main) { controller.sendCustomCommand(command, Bundle.EMPTY) }
+            val result =
+                withContext(Dispatchers.IO) { future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS) }
+            if (result.resultCode == SessionResult.RESULT_SUCCESS) {
+                result.extras.getBoolean(AudioPlayerLibrarySessionCallback.ARG_RESULT_ACTIVE, false)
+            } else {
                 false
             }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            LogUtils.w("MediaControllerExtensions", "Failed to check sleep timer active", e)
+            false
         }
 
     /**
      * Checks if sleep timer is set to end of chapter.
      */
     public suspend fun isSleepTimerEndOfChapter(controller: MediaController): Boolean =
-        withContext(Dispatchers.IO) {
-            try {
-                val command =
-                    SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER,
-                        Bundle.EMPTY,
-                    )
-                val future = controller.sendCustomCommand(command, Bundle.EMPTY)
-                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
-                if (result.resultCode == SessionResult.RESULT_SUCCESS) {
-                    result.extras.getBoolean(AudioPlayerLibrarySessionCallback.ARG_RESULT_END_OF_CHAPTER, false)
-                } else {
-                    false
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                LogUtils.w("MediaControllerExtensions", "Failed to check sleep timer end of chapter", e)
+        try {
+            val command =
+                SessionCommand(
+                    AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_CHAPTER,
+                    Bundle.EMPTY,
+                )
+            val future = withContext(Dispatchers.Main) { controller.sendCustomCommand(command, Bundle.EMPTY) }
+            val result =
+                withContext(Dispatchers.IO) { future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS) }
+            if (result.resultCode == SessionResult.RESULT_SUCCESS) {
+                result.extras.getBoolean(AudioPlayerLibrarySessionCallback.ARG_RESULT_END_OF_CHAPTER, false)
+            } else {
                 false
             }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            LogUtils.w("MediaControllerExtensions", "Failed to check sleep timer end of chapter", e)
+            false
         }
 
     /**
      * Checks if sleep timer is set to end of track.
      */
     public suspend fun isSleepTimerEndOfTrack(controller: MediaController): Boolean =
-        withContext(Dispatchers.IO) {
-            try {
-                val command =
-                    SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_TRACK,
-                        Bundle.EMPTY,
-                    )
-                val future = controller.sendCustomCommand(command, Bundle.EMPTY)
-                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
-                if (result.resultCode == SessionResult.RESULT_SUCCESS) {
-                    result.extras.getBoolean(AudioPlayerLibrarySessionCallback.ARG_RESULT_END_OF_TRACK, false)
-                } else {
-                    false
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                LogUtils.w("MediaControllerExtensions", "Failed to check sleep timer end of track", e)
+        try {
+            val command =
+                SessionCommand(
+                    AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_IS_SLEEP_TIMER_END_OF_TRACK,
+                    Bundle.EMPTY,
+                )
+            val future = withContext(Dispatchers.Main) { controller.sendCustomCommand(command, Bundle.EMPTY) }
+            val result =
+                withContext(Dispatchers.IO) { future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS) }
+            if (result.resultCode == SessionResult.RESULT_SUCCESS) {
+                result.extras.getBoolean(AudioPlayerLibrarySessionCallback.ARG_RESULT_END_OF_TRACK, false)
+            } else {
                 false
             }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            LogUtils.w("MediaControllerExtensions", "Failed to check sleep timer end of track", e)
+            false
         }
 
     /**
      * Gets current group path (book ID).
      */
     public suspend fun getCurrentGroupPath(controller: MediaController): String? =
-        withContext(Dispatchers.IO) {
-            try {
-                val command =
-                    SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH,
-                        Bundle.EMPTY,
-                    )
-                val future = controller.sendCustomCommand(command, Bundle.EMPTY)
-                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
-                if (result.resultCode == SessionResult.RESULT_SUCCESS) {
-                    result.extras.getString(AudioPlayerLibrarySessionCallback.ARG_RESULT_GROUP_PATH)
-                } else {
-                    null
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                LogUtils.w("MediaControllerExtensions", "Failed to get current group path", e)
+        try {
+            val command =
+                SessionCommand(
+                    AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_GET_CURRENT_GROUP_PATH,
+                    Bundle.EMPTY,
+                )
+            val future = withContext(Dispatchers.Main) { controller.sendCustomCommand(command, Bundle.EMPTY) }
+            val result =
+                withContext(Dispatchers.IO) { future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS) }
+            if (result.resultCode == SessionResult.RESULT_SUCCESS) {
+                result.extras.getString(AudioPlayerLibrarySessionCallback.ARG_RESULT_GROUP_PATH)
+            } else {
                 null
             }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            LogUtils.w("MediaControllerExtensions", "Failed to get current group path", e)
+            null
         }
 
     /**
      * Gets current file paths (playlist).
      */
     public suspend fun getCurrentFilePaths(controller: MediaController): List<String>? =
-        withContext(Dispatchers.IO) {
-            try {
-                val command =
-                    SessionCommand(
-                        AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS,
-                        Bundle.EMPTY,
-                    )
-                val future = controller.sendCustomCommand(command, Bundle.EMPTY)
-                val result = future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS)
-                if (result.resultCode == SessionResult.RESULT_SUCCESS) {
-                    result.extras.getStringArray(AudioPlayerLibrarySessionCallback.ARG_RESULT_FILE_PATHS)?.toList()
-                } else {
-                    null
-                }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                LogUtils.w("MediaControllerExtensions", "Failed to get current file paths", e)
+        try {
+            val command =
+                SessionCommand(
+                    AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_GET_CURRENT_FILE_PATHS,
+                    Bundle.EMPTY,
+                )
+            val future = withContext(Dispatchers.Main) { controller.sendCustomCommand(command, Bundle.EMPTY) }
+            val result =
+                withContext(Dispatchers.IO) { future.get(MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(), TimeUnit.SECONDS) }
+            if (result.resultCode == SessionResult.RESULT_SUCCESS) {
+                result.extras.getStringArray(AudioPlayerLibrarySessionCallback.ARG_RESULT_FILE_PATHS)?.toList()
+            } else {
                 null
             }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            LogUtils.w("MediaControllerExtensions", "Failed to get current file paths", e)
+            null
         }
 
     /**
@@ -321,21 +330,5 @@ public object MediaControllerExtensions {
                 args,
             )
         return controller.sendCustomCommand(command, Bundle.EMPTY)
-    }
-
-    /**
-     * Smart resume suggestion data for contextual resume.
-     */
-    public data class SmartResumeSuggestion(
-        public val pauseDurationMs: Long,
-        public val recapStartMs: Long,
-    )
-
-    /**
-     * Consumes and returns a pending smart resume suggestion, if any.
-     */
-    public suspend fun consumeSmartResumeSuggestion(controller: MediaController): SmartResumeSuggestion? {
-        // TODO: Implement via custom command when service supports it
-        return null
     }
 }

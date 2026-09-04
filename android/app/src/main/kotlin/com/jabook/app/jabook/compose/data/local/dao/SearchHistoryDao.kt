@@ -15,11 +15,11 @@
 package com.jabook.app.jabook.compose.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 /**
  * DAO for search history operations.
@@ -32,12 +32,14 @@ public interface SearchHistoryDao {
      * @param limit Maximum number of results (default 10)
      */
     @Query("SELECT * FROM search_history ORDER BY timestamp DESC LIMIT :limit")
-    public fun getRecentSearches(limit: Int = 10): Flow<List<SearchHistoryEntity>>
+    public fun getRecentSearchesInternal(limit: Int = 10): Flow<List<SearchHistoryEntity>>
+
+    public fun getRecentSearches(limit: Int = 10): Flow<List<SearchHistoryEntity>> = getRecentSearchesInternal(limit).distinctUntilChanged()
 
     /**
      * Insert a search query into history.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertSearch(search: SearchHistoryEntity)
 
     /**

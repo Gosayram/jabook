@@ -28,6 +28,8 @@ public data class UserCredentials(
     /**
      * Exposes password as a temporary [CharArray] and zeroes it after use.
      */
+    override fun toString(): String = "UserCredentials(username=$username, password=***)"
+
     public inline fun <T> withPasswordChars(block: (CharArray) -> T): T {
         val chars = password.toCharArray()
         return try {

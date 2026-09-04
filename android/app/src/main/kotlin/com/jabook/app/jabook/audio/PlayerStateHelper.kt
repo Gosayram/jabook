@@ -14,12 +14,17 @@
 
 package com.jabook.app.jabook.audio
 
+import android.content.Context
+import android.net.Uri
+import android.os.Looper
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 
 /**
  * Helper class for getting player state information.
@@ -34,6 +39,7 @@ internal class PlayerStateHelper(
     private val getActualTrackIndex: (() -> Int)? = null,
     private val getCurrentFilePaths: (() -> List<String>?)? = null,
     private val coroutineScope: CoroutineScope? = null, // Injected scope for async tasks
+    private val appContext: Context? = null, // ponytail: Media3 MetadataRetriever needs Context; null = skip to platform fallback
 ) {
     /**
      * Gets current playback position.
@@ -66,17 +72,59 @@ internal class PlayerStateHelper(
         )
     }
 
+    // ponytail: Media3 MetadataRetriever uses same extractor as ExoPlayer -> eliminates normalizedPosition drift
+    private fun getDurationViaMedia3(filePath: String): Long? {
+        val context = appContext ?: return null
+        return try {
+            val retriever =
+                androidx.media3.inspector.MetadataRetriever
+                    .Builder(
+                        context,
+                        MediaItem.fromUri(Uri.fromFile(java.io.File(filePath))),
+                    ).build()
+            try {
+                val durationUs = retriever.retrieveDurationUs().get(4L, TimeUnit.SECONDS)
+                if (durationUs != null && durationUs != C.TIME_UNSET && durationUs > 0) durationUs / 1000 else null
+            } finally {
+                retriever.close()
+            }
+        } catch (e: Exception) {
+            LogUtils.v("AudioPlayerService", "Media3 MetadataRetriever failed for $filePath: ${e.message}")
+            null
+        }
+    }
+
+    private fun getDurationViaPlatform(filePath: String): Long? {
+        val retriever = android.media.MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(filePath)
+            retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()?.takeIf { it > 0 }
+        } catch (e: Exception) {
+            LogUtils.v("AudioPlayerService", "Platform MediaMetadataRetriever failed for $filePath: ${e.message}")
+            null
+        } finally {
+            try {
+                retriever.release()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     /**
      * Gets current player state.
      *
      * According to best practices:
      * 1. Primary source: player.duration (after STATE_READY)
-     * 2. Fallback: MediaMetadataRetriever (only if player doesn't provide duration)
-     * 3. Cache duration after getting it from player
+     * 2. Fallback: Media3 MetadataRetriever (same extractor as ExoPlayer)
+     * 3. Defensive fallback: platform MediaMetadataRetriever
+     * 4. Cache duration after getting it from player
      *
      * @return Map with player state information
      */
     public fun getPlayerState(): Map<String, Any> {
+        check(Looper.getMainLooper() == Looper.myLooper()) {
+            "PlayerStateHelper.getPlayerState must be called on main thread (ExoPlayer is main-thread confined)"
+        }
         val player = getActivePlayer()
 
         // Get duration - PRIMARY SOURCE: player.duration (ExoPlayer/Media3)
@@ -115,39 +163,25 @@ internal class PlayerStateHelper(
                                 "Got duration from database for $filePath: ${duration}ms",
                             )
                         } else {
-                            // Database miss - fetch from MediaMetadataRetriever in BACKGROUND
+                            // Database miss - fetch via Media3 MetadataRetriever (same extractor as player) in BACKGROUND
                             if (coroutineScope != null) {
                                 coroutineScope.launch(Dispatchers.IO) {
-                                    val retriever = android.media.MediaMetadataRetriever()
-                                    try {
-                                        retriever.setDataSource(filePath)
-                                        val retrieverDuration =
-                                            retriever.extractMetadata(
-                                                android.media.MediaMetadataRetriever.METADATA_KEY_DURATION,
-                                            )
-
-                                        if (retrieverDuration != null) {
-                                            val parsedDuration = retrieverDuration.toLongOrNull()
-                                            if (parsedDuration != null && parsedDuration > 0) {
-                                                // Update cache safely
-                                                saveDurationToCache(filePath, parsedDuration)
-                                                LogUtils.d(
-                                                    "AudioPlayerService",
-                                                    "Async duration fetch success for $filePath: ${parsedDuration}ms",
-                                                )
-                                            }
-                                        }
-                                    } catch (e: Exception) {
+                                    // ponytail: try Media3 first, platform fallback defensive
+                                    var parsedDuration = getDurationViaMedia3(filePath)
+                                    if (parsedDuration == null) {
+                                        parsedDuration = getDurationViaPlatform(filePath)
+                                    }
+                                    if (parsedDuration != null && parsedDuration > 0) {
+                                        saveDurationToCache(filePath, parsedDuration)
+                                        LogUtils.d(
+                                            "AudioPlayerService",
+                                            "Async duration fetch success for $filePath: ${parsedDuration}ms",
+                                        )
+                                    } else {
                                         LogUtils.w(
                                             "AudioPlayerService",
-                                            "Async duration fetch failed for $filePath: ${e.message}",
+                                            "Async duration fetch failed for $filePath",
                                         )
-                                    } finally {
-                                        try {
-                                            retriever.release()
-                                        } catch (e: Exception) {
-                                            // Ignore errors during release
-                                        }
                                     }
                                 }
                                 LogUtils.v(
@@ -198,39 +232,6 @@ internal class PlayerStateHelper(
         // but the playlist is actually built from chapters array using chapter.fileIndex.
         // The real fix for chapter selection is in player_screen.dart (_seekToChapter)
         // where we now use chapter.fileIndex instead of chapters.indexOf(chapter).
-        //
-        // Keeping this code commented for reference, but it should NOT be used:
-
-        /*
-        if (currentIndex == 0 && totalTracks > 1) {
-            val currentItem = player.currentMediaItem
-            val currentUri = currentItem?.localConfiguration?.uri
-            val filePaths = getCurrentFilePaths?.invoke()
-
-            if (currentUri != null && filePaths != null && filePaths.isNotEmpty()) {
-                val currentPath = currentUri.path
-                if (currentPath != null) {
-                    // Find the index of the current file in filePaths
-                    val realIndex =
-                        filePaths.indexOfFirst { filePath ->
-                            // Compare paths (handle both absolute and relative paths)
-                            filePath == currentPath ||
-                            filePath.endsWith(currentPath) ||
-                            currentPath.endsWith(filePath)
-                        }
-
-                    if (realIndex >= 0 && realIndex != currentIndex) {
-                        LogUtils.d(
-                            "AudioPlayerService",
-                            "Found real index by URI: currentIndex=$currentIndex, realIndex=$realIndex, " +
-                                "file=${currentPath.substringAfterLast('/')}",
-                        )
-                        currentIndex = realIndex
-                    }
-                }
-            }
-        }
-         */
 
         // Log current state for debugging
         LogUtils.v(

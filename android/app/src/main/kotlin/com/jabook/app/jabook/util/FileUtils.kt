@@ -14,67 +14,55 @@
 
 package com.jabook.app.jabook.util
 
+import okio.FileSystem
+import okio.Path.Companion.toOkioPath
 import java.io.File
 
 public object FileUtils {
     /**
-     * Calculate total size of a directory recursively
+     * Calculate total size of a directory recursively.
+     * Uses okio: single-syscall metadata, symlink-safe, no intermediate File objects.
      */
     public fun getDirectorySize(directory: File): Long {
-        if (!directory.exists()) return 0
-        if (!directory.isDirectory) return directory.length()
-
-        var length: Long = 0L
-        directory.listFiles()?.forEach { file ->
-            length += if (file.isDirectory) getDirectorySize(file) else file.length()
-        }
-        return length
+        val path = directory.toOkioPath()
+        val fs = FileSystem.SYSTEM
+        if (!fs.exists(path)) return 0L
+        return fs
+            .listRecursively(path)
+            .mapNotNull { fs.metadataOrNull(it)?.let { m -> if (m.isRegularFile) m.size else null } }
+            .sum()
     }
 
     /**
-     * Resolve file path from URI string
+     * Resolve file path from SAF URI string.
+     *
+     * Handles both /tree/volume:path and /document/volume:path — the innermost
+     * (last) selector wins, so a "tree/primary:X/document/sdcard:Y" URI resolves
+     * to the document's volume, not the tree's.
      */
     public fun resolvePathFromUri(uriString: String): String {
         try {
             val uri = android.net.Uri.parse(uriString)
             if (uri.scheme == "content" && uri.authority == "com.android.externalstorage.documents") {
                 val path = uri.path ?: return uriString
-                // Handle /tree/primary:Folder or /document/primary:File
-                // The path usually comes as /tree/volumeID:path or /document/volumeID:path
-
-                // We split by ':' to separate volumeID from relative path
-                val split = path.split(":")
-
-                if (split.size > 1) {
-                    val volumeIdSection = split[0] // e.g. "/tree/primary" or "/tree/1234-5678"
-                    val relativePath = split[1] // e.g. "Downloads/MyFolder"
-
-                    val volumeId = volumeIdSection.substringAfterLast("/")
-
-                    if (volumeId.equals("primary", ignoreCase = true)) {
-                        return "/storage/emulated/0/$relativePath"
-                    } else {
-                        // For SD cards, the path is typically /storage/VOLUME_ID/relativePath
-                        return "/storage/$volumeId/$relativePath"
-                    }
+                // Innermost selector wins: /tree/vol:x/document/vol:y → document's volume.
+                val segment =
+                    path.substringAfterLast("/document/", path.substringAfterLast("/tree/", ""))
+                if (segment.isEmpty()) return uriString
+                val colonIdx = segment.indexOf(':')
+                if (colonIdx <= 0) return uriString
+                val volumeId = segment.substring(0, colonIdx)
+                val relativePath = segment.substring(colonIdx + 1)
+                return if (volumeId.equals("primary", ignoreCase = true)) {
+                    "/storage/emulated/0/$relativePath"
+                } else {
+                    // For SD cards, the path is typically /storage/VOLUME_ID/relativePath
+                    "/storage/$volumeId/$relativePath"
                 }
             }
         } catch (e: Exception) {
             // Ignore parsing errors and return original
         }
         return uriString
-    }
-
-    /**
-     * Formats size in bytes to human-readable string.
-     */
-    public fun formatSize(bytes: Long): String {
-        if (bytes < 1024) return "$bytes B"
-        val kb = bytes / 1024.0
-        if (kb < 1024) return String.format("%.2f KB", kb)
-        val mb = kb / 1024.0
-        if (mb < 1024) return String.format("%.2f MB", mb)
-        val gb = mb / 1024.0
-        return String.format("%.2f GB", gb)
     }
 }

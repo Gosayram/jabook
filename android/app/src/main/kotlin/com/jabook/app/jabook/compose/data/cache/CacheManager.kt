@@ -15,11 +15,15 @@
 package com.jabook.app.jabook.compose.data.cache
 
 import android.content.Context
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.cache.Cache
 import coil3.SingletonImageLoader
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
@@ -29,6 +33,7 @@ import javax.inject.Singleton
  * Manages app cache: tracks sizes, provides cleanup operations.
  */
 @Singleton
+@OptIn(UnstableApi::class)
 public class CacheManager
     @Inject
     constructor(
@@ -36,8 +41,13 @@ public class CacheManager
         private val database: JabookDatabase,
         private val rutrackerSearchCache: RutrackerSearchCache,
         private val loggerFactory: LoggerFactory,
+        private val mediaCache: Cache,
     ) {
         private val logger = loggerFactory.get("CacheManager")
+
+        // Serializes clearAllCache() so a concurrent full-cache wipe can't race an
+        // in-flight Media3 read (mediaCache.keys + removeResource are not atomic).
+        private val clearCacheMutex = kotlinx.coroutines.sync.Mutex()
 
         /**
          * Get total cache size in bytes.
@@ -45,9 +55,15 @@ public class CacheManager
         public suspend fun getTotalCacheSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    val appCache = context.cacheDir.walkFileTree().sumOf { it.length() }
-                    val externalCache = context.externalCacheDir?.walkFileTree()?.sumOf { it.length() } ?: 0L
-                    appCache + externalCache
+                    val appCache =
+                        com.jabook.app.jabook.util.FileUtils
+                            .getDirectorySize(context.cacheDir)
+                    val external =
+                        context.externalCacheDir?.let {
+                            com.jabook.app.jabook.util.FileUtils
+                                .getDirectorySize(it)
+                        } ?: 0L
+                    appCache + external
                 } catch (e: Exception) {
                     logger.e({ "Failed to calculate cache size" }, e)
                     0L
@@ -93,33 +109,47 @@ public class CacheManager
          * Clear all cache.
          */
         public suspend fun clearAllCache(): Boolean =
-            withContext(Dispatchers.IO) {
-                try {
-                    logger.d { "Clearing all cache" }
-
-                    // Clear Coil memory cache first (before deleting directories)
+            clearCacheMutex.withLock {
+                withContext(Dispatchers.IO) {
                     try {
-                        val imageLoader = SingletonImageLoader.get(context)
-                        imageLoader.memoryCache?.clear()
-                        logger.d { "Coil memory cache cleared" }
+                        logger.d { "Clearing all cache" }
+
+                        // Clear Coil memory cache first (before deleting directories)
+                        try {
+                            val imageLoader = SingletonImageLoader.get(context)
+                            imageLoader.memoryCache?.clear()
+                            imageLoader.diskCache?.clear()
+                            logger.d { "Coil memory + disk cache cleared" }
+                        } catch (e: Exception) {
+                            logger.e({ "Failed to clear Coil cache" }, e)
+                        }
+
+                        // Disk cleanup does not affect this singleton. Clear it explicitly so a
+                        // subsequent search cannot surface results the user just asked to remove.
+                        rutrackerSearchCache.clear()
+
+                        clearMediaCache()
+
+                        // The active Media3 cache owns playback_cache and must only be cleared via
+                        // its API. Deleting its files while it is open corrupts its index.
+                        context.cacheDir.listFiles()?.forEach { directory ->
+                            if (directory.name != PLAYBACK_CACHE_DIRECTORY) {
+                                directory.deleteRecursively()
+                            }
+                        }
+                        context.externalCacheDir?.deleteRecursively()
+
+                        // Recreate directories
+                        context.cacheDir.mkdirs()
+                        context.externalCacheDir?.mkdirs()
+
+                        saveLastCleanupTimestamp()
+                        logger.d { "All cache cleared successfully" }
+                        true
                     } catch (e: Exception) {
-                        logger.e({ "Failed to clear Coil memory cache" }, e)
+                        logger.e({ "Failed to clear cache" }, e)
+                        false
                     }
-
-                    // Clear cache directories (includes Coil disk cache in image_cache/)
-                    context.cacheDir.deleteRecursively()
-                    context.externalCacheDir?.deleteRecursively()
-
-                    // Recreate directories
-                    context.cacheDir.mkdirs()
-                    context.externalCacheDir?.mkdirs()
-
-                    saveLastCleanupTimestamp()
-                    logger.d { "All cache cleared successfully" }
-                    true
-                } catch (e: Exception) {
-                    logger.e({ "Failed to clear cache" }, e)
-                    false
                 }
             }
 
@@ -146,11 +176,14 @@ public class CacheManager
                 }
             }
 
+        private fun clearMediaCache() {
+            mediaCache.keys.forEach(mediaCache::removeResource)
+        }
+
         private suspend fun clearTopicCache(): Boolean =
             withContext(Dispatchers.IO) {
                 try {
                     database.offlineSearchDao().deleteAllTopics()
-                    database.offlineSearchDao().deleteAllMappings()
                     logger.d { "Topic cache cleared successfully" }
                     true
                 } catch (e: Exception) {
@@ -215,12 +248,8 @@ public class CacheManager
         private suspend fun getTempDownloadsSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    val tempDir = File(context.cacheDir, "downloads")
-                    if (tempDir.exists()) {
-                        tempDir.walkFileTree().sumOf { it.length() }
-                    } else {
-                        0L
-                    }
+                    com.jabook.app.jabook.util.FileUtils
+                        .getDirectorySize(File(context.cacheDir, "downloads"))
                 } catch (e: Exception) {
                     0L
                 }
@@ -242,12 +271,9 @@ public class CacheManager
         private suspend fun getImageCacheSize(): Long =
             withContext(Dispatchers.IO) {
                 try {
-                    val imageCacheDir = File(context.cacheDir, "image_cache")
-                    if (imageCacheDir.exists()) {
-                        imageCacheDir.walkFileTree().sumOf { it.length() }
-                    } else {
-                        0L
-                    }
+                    // Coil's DiskCache is the source of truth — manual walkTopDown of
+                    // image_cache desyncs from its journal (undercounts + races clear()).
+                    SingletonImageLoader.get(context).diskCache?.size ?: 0L
                 } catch (e: Exception) {
                     logger.e({ "Failed to get image cache size" }, e)
                     0L
@@ -262,6 +288,10 @@ public class CacheManager
         private fun saveLastCleanupTimestamp() {
             val prefs = context.getSharedPreferences("cache_prefs", Context.MODE_PRIVATE)
             prefs.edit().putLong("last_cleanup", System.currentTimeMillis()).apply()
+        }
+
+        private companion object {
+            private const val PLAYBACK_CACHE_DIRECTORY = "playback_cache"
         }
     }
 
@@ -287,22 +317,3 @@ public enum class CacheType {
     TEMP_DOWNLOADS,
     LOGS,
 }
-
-/**
- * Helper extension to walk file tree and collect all files.
- */
-private fun File.walkFileTree(): Sequence<File> =
-    sequence {
-        if (exists()) {
-            if (isDirectory) {
-                val children = listFiles()
-                if (children != null) {
-                    for (child in children) {
-                        yieldAll(child.walkFileTree())
-                    }
-                }
-            } else {
-                yield(this@walkFileTree)
-            }
-        }
-    }

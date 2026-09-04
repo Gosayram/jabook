@@ -83,7 +83,6 @@ class DirectFileSystemScannerCancellationTest {
                         encodingDetector = EncodingDetector(loggerFactory),
                         metadataCache = MetadataCache(loggerFactory),
                         loggerFactory = loggerFactory,
-                        incrementalScanPolicy = IncrementalScanPolicy(),
                     )
 
                 val scanJob = async { scanner.scanAudiobooks() }

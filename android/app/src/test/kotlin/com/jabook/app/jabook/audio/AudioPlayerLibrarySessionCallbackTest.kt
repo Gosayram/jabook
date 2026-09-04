@@ -28,6 +28,7 @@ import androidx.media3.session.SessionResult
 import androidx.test.core.app.ApplicationProvider
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
+import com.jabook.app.jabook.compose.data.torrent.TorrentFile
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +43,6 @@ import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
-import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -52,6 +52,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class AudioPlayerLibrarySessionCallbackTest {
     private lateinit var callback: AudioPlayerLibrarySessionCallback
     private lateinit var service: AudioPlayerService
@@ -99,6 +100,8 @@ class AudioPlayerLibrarySessionCallbackTest {
         librarySession = mock()
         controller = mock()
         whenever(controller.packageName).thenReturn("com.jabook.app.jabook")
+        whenever(controller.isTrusted).thenReturn(true)
+        whenever(service.isFullyInitialized()).thenReturn(true)
 
         callback =
             AudioPlayerLibrarySessionCallback(
@@ -130,8 +133,9 @@ class AudioPlayerLibrarySessionCallbackTest {
         whenever(session.isAutomotiveController(controller)).thenReturn(true)
         whenever(session.isAutoCompanionController(controller)).thenReturn(false)
         whenever(controller.packageName).thenReturn("com.android.car.media")
+        whenever(controller.isTrusted).thenReturn(true)
 
-        val result = callback.onConnect(session, controller)
+        val result = callback.onConnectAsync(session, controller).get(1, TimeUnit.SECONDS)
 
         val sleepTimerCommand =
             SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY)
@@ -148,8 +152,9 @@ class AudioPlayerLibrarySessionCallbackTest {
         whenever(session.isAutomotiveController(controller)).thenReturn(false)
         whenever(session.isAutoCompanionController(controller)).thenReturn(false)
         whenever(controller.packageName).thenReturn("com.jabook.app.jabook")
+        whenever(controller.isTrusted).thenReturn(true)
 
-        val result = callback.onConnect(session, controller)
+        val result = callback.onConnectAsync(session, controller).get(1, TimeUnit.SECONDS)
 
         val sleepTimerCommand =
             SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY)
@@ -158,6 +163,30 @@ class AudioPlayerLibrarySessionCallbackTest {
 
         assertTrue(result.availableSessionCommands.contains(sleepTimerCommand))
         assertTrue(result.availableSessionCommands.contains(setPlaylistCommand))
+    }
+
+    @Test
+    fun `onConnect preserves Media3 read-only commands for untrusted controller`() {
+        whenever(session.isMediaNotificationController(controller)).thenReturn(false)
+        whenever(session.isAutomotiveController(controller)).thenReturn(false)
+        whenever(session.isAutoCompanionController(controller)).thenReturn(false)
+        whenever(controller.packageName).thenReturn("com.example.untrusted")
+        whenever(controller.isTrusted).thenReturn(false)
+
+        val result = callback.onConnectAsync(session, controller).get(1, TimeUnit.SECONDS)
+
+        val sleepTimerCommand =
+            SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_SLEEP_TIMER_MINUTES, Bundle.EMPTY)
+        val setPlaylistCommand =
+            SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_PLAYLIST, Bundle.EMPTY)
+        val rewindCommand =
+            SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_REWIND, Bundle.EMPTY)
+        val setRatingCommand = SessionCommand(SessionCommand.COMMAND_CODE_SESSION_SET_RATING)
+
+        assertTrue(!result.availableSessionCommands.contains(sleepTimerCommand))
+        assertTrue(!result.availableSessionCommands.contains(setPlaylistCommand))
+        assertTrue(!result.availableSessionCommands.contains(rewindCommand))
+        assertTrue(!result.availableSessionCommands.contains(setRatingCommand))
     }
 
     @Test
@@ -286,42 +315,32 @@ class AudioPlayerLibrarySessionCallbackTest {
             }
         val command = SessionCommand(AudioPlayerLibrarySessionCallback.CUSTOM_COMMAND_SET_PLAYLIST, Bundle.EMPTY)
 
-        doAnswer { invocation ->
-            @Suppress("UNCHECKED_CAST")
-            val callback = invocation.getArgument<((Boolean, Exception?) -> Unit)?>(5)
-            callback?.invoke(true, null)
-            Unit
-        }.whenever(service).setPlaylist(
-            filePaths = any(),
-            metadata = anyOrNull(),
-            initialTrackIndex = anyOrNull(),
-            initialPosition = anyOrNull(),
-            groupPath = anyOrNull(),
-            callback = anyOrNull(),
-        )
-
         val future = callback.onCustomCommand(session, controller, command, args)
 
         val filePathsCaptor = argumentCaptor<List<String>>()
+        val playlistItemsCaptor = argumentCaptor<List<PlaylistItem>>()
         val metadataCaptor = argumentCaptor<Map<String, String>?>()
         val initialTrackIndexCaptor = argumentCaptor<Int?>()
         val initialPositionCaptor = argumentCaptor<Long?>()
         val groupPathCaptor = argumentCaptor<String?>()
         val callbackCaptor = argumentCaptor<((Boolean, Exception?) -> Unit)?>()
         verify(service).setPlaylist(
-            filePaths = filePathsCaptor.capture(),
-            metadata = metadataCaptor.capture(),
-            initialTrackIndex = initialTrackIndexCaptor.capture(),
-            initialPosition = initialPositionCaptor.capture(),
-            groupPath = groupPathCaptor.capture(),
-            callback = callbackCaptor.capture(),
+            filePathsCaptor.capture(),
+            metadataCaptor.capture(),
+            initialTrackIndexCaptor.capture(),
+            initialPositionCaptor.capture(),
+            groupPathCaptor.capture(),
+            callbackCaptor.capture(),
+            playlistItemsCaptor.capture(),
         )
         assertEquals(listOf("content://books/ch1.mp3", "content://books/ch2.mp3"), filePathsCaptor.firstValue)
+        assertEquals(filePathsCaptor.firstValue, playlistItemsCaptor.firstValue.map(PlaylistItem::path))
         assertEquals(null, metadataCaptor.firstValue)
         assertEquals(1, initialTrackIndexCaptor.firstValue)
         assertEquals(12_345L, initialPositionCaptor.firstValue)
         assertEquals("external://shared-audio", groupPathCaptor.firstValue)
         assertNotEquals(null, callbackCaptor.firstValue)
+        callbackCaptor.firstValue?.invoke(true, null)
 
         val result = future.get(1, TimeUnit.SECONDS)
         assertEquals(SessionResult.RESULT_SUCCESS, result.resultCode)
@@ -340,7 +359,15 @@ class AudioPlayerLibrarySessionCallbackTest {
             "bad_value",
             result.extras.getString(SetPlaylistCommandResultPolicy.EXTRA_ERROR_REASON),
         )
-        verify(service, never()).setPlaylist(any(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull())
+        verify(service, never()).setPlaylist(
+            any(),
+            anyOrNull(),
+            anyOrNull(),
+            anyOrNull(),
+            anyOrNull(),
+            anyOrNull(),
+            any(),
+        )
     }
 
     @Test
@@ -348,7 +375,7 @@ class AudioPlayerLibrarySessionCallbackTest {
         runTest {
             whenever(service.isBookCompleted).thenReturn(true)
 
-            val result = callback.onPlaybackResumption(session, controller).get(1, TimeUnit.SECONDS)
+            val result = callback.onPlaybackResumption(session, controller, true).get(1, TimeUnit.SECONDS)
 
             assertTrue(result.mediaItems.isEmpty())
             assertEquals(0, result.startIndex)
@@ -374,12 +401,85 @@ class AudioPlayerLibrarySessionCallbackTest {
                 ),
             )
 
-            val result = callback.onPlaybackResumption(session, controller).get(1, TimeUnit.SECONDS)
+            val result = callback.onPlaybackResumption(session, controller, true).get(1, TimeUnit.SECONDS)
 
             assertEquals(1, result.mediaItems.size)
             assertEquals(existingFile.absolutePath, result.mediaItems.first().mediaId)
             assertEquals(0, result.startIndex)
             assertEquals(42_000L, result.startPositionMs)
+        }
+
+    @Test
+    fun `onPlaybackResumption marks the current embedded chapter by index`() =
+        runTest {
+            whenever(service.isBookCompleted).thenReturn(false)
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val bookFile = File(context.cacheDir, "resume_embedded_chapters.m4b").apply { writeText("audio") }
+            whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(
+                PlayerPersistenceManager.PersistedPlayerState(
+                    groupPath = "book://embedded-chapters",
+                    filePaths = listOf(bookFile.absolutePath, bookFile.absolutePath),
+                    playlistItems =
+                        listOf(
+                            PlaylistItem(bookFile.absolutePath, "chapter-1", 0L, 10_000L),
+                            PlaylistItem(bookFile.absolutePath, "chapter-2", 10_000L, null),
+                        ),
+                    currentIndex = 1,
+                    currentPosition = 42_000L,
+                    metadata = mapOf("title" to "Current chapter"),
+                ),
+            )
+
+            val result = callback.onPlaybackResumption(session, controller, true).get(1, TimeUnit.SECONDS)
+
+            assertEquals(listOf("chapter-1", "chapter-2"), result.mediaItems.map { it.mediaId })
+            assertEquals(bookFile.nameWithoutExtension, result.mediaItems[0].mediaMetadata.title)
+            assertEquals("Current chapter", result.mediaItems[1].mediaMetadata.title)
+        }
+
+    @Test
+    fun `onPlaybackResumption clamps a negative persisted index`() =
+        runTest {
+            whenever(service.isBookCompleted).thenReturn(false)
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val chapter = File(context.cacheDir, "resume_negative_index.mp3").apply { writeText("audio") }
+            whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(
+                PlayerPersistenceManager.PersistedPlayerState(
+                    groupPath = "book://negative-index",
+                    filePaths = listOf(chapter.absolutePath),
+                    currentIndex = -1,
+                    currentPosition = 42_000L,
+                    metadata = null,
+                ),
+            )
+
+            val result = callback.onPlaybackResumption(session, controller, true).get(1, TimeUnit.SECONDS)
+
+            assertEquals(0, result.startIndex)
+            assertEquals(listOf(chapter.absolutePath), result.mediaItems.map { it.mediaId })
+        }
+
+    @Test
+    fun `onPlaybackResumption returns only current item when playback is not requested`() =
+        runTest {
+            whenever(service.isBookCompleted).thenReturn(false)
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val first = File(context.cacheDir, "resume_metadata_01.mp3").apply { writeText("audio") }
+            val second = File(context.cacheDir, "resume_metadata_02.mp3").apply { writeText("audio") }
+            whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(
+                PlayerPersistenceManager.PersistedPlayerState(
+                    groupPath = "book://resume-metadata",
+                    filePaths = listOf(first.absolutePath, second.absolutePath),
+                    currentIndex = 1,
+                    currentPosition = 42_000L,
+                    metadata = null,
+                ),
+            )
+
+            val result = callback.onPlaybackResumption(session, controller, false).get(1, TimeUnit.SECONDS)
+
+            assertEquals(listOf(second.absolutePath), result.mediaItems.map { it.mediaId })
+            assertEquals(0, result.startIndex)
         }
 
     @Test
@@ -389,7 +489,7 @@ class AudioPlayerLibrarySessionCallbackTest {
             whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(null)
             whenever(persistenceManager.retrieveLastStoredMediaItem()).thenReturn(null)
 
-            val result = callback.onPlaybackResumption(session, controller).get(1, TimeUnit.SECONDS)
+            val result = callback.onPlaybackResumption(session, controller, true).get(1, TimeUnit.SECONDS)
 
             assertTrue(result.mediaItems.isEmpty())
             assertEquals(0, result.startIndex)
@@ -412,6 +512,22 @@ class AudioPlayerLibrarySessionCallbackTest {
 
         assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
         assertEquals(AudioPlayerLibrarySessionCallback.ROOT_ID_OFFLINE, result.value?.mediaId)
+    }
+
+    @Test
+    fun `onGetItem returns every browsable library root for MediaBrowser subscriptions`() {
+        listOf(
+            AudioPlayerLibrarySessionCallback.ROOT_ID,
+            AudioPlayerLibrarySessionCallback.ROOT_ID_RECENT,
+            AudioPlayerLibrarySessionCallback.ROOT_ID_OFFLINE,
+            AudioPlayerLibrarySessionCallback.ROOT_ID_SUGGESTED,
+        ).forEach { rootId ->
+            val result = callback.onGetItem(librarySession, controller, rootId).get(1, TimeUnit.SECONDS)
+
+            assertEquals(LibraryResult.RESULT_SUCCESS, result.resultCode)
+            assertEquals(rootId, result.value?.mediaId)
+            assertTrue(result.value?.mediaMetadata?.isBrowsable == true)
+        }
     }
 
     @Test
@@ -486,6 +602,65 @@ class AudioPlayerLibrarySessionCallbackTest {
         }
 
     @Test
+    fun `onGetChildren paginates without integer overflow`() =
+        runTest {
+            whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(null)
+            whenever(torrentRepository.getAllFlow()).thenReturn(
+                flowOf(
+                    listOf(
+                        TorrentDownload(hash = "h1", name = "One", state = TorrentState.COMPLETED),
+                        TorrentDownload(hash = "h2", name = "Two", state = TorrentState.COMPLETED),
+                    ),
+                ),
+            )
+
+            val result =
+                callback
+                    .onGetChildren(
+                        librarySession,
+                        controller,
+                        AudioPlayerLibrarySessionCallback.ROOT_ID,
+                        page = Int.MAX_VALUE,
+                        pageSize = Int.MAX_VALUE,
+                        params = null,
+                    ).get(1, TimeUnit.SECONDS)
+
+            assertTrue(result.value.isNullOrEmpty())
+        }
+
+    @Test
+    fun `onGetChildren skips unavailable chapter files`() =
+        runTest {
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val existingFile = File(context.cacheDir, "available_chapter.mp3").apply { writeText("audio") }
+            whenever(torrentRepository.getByHash("book")).thenReturn(
+                TorrentDownload(
+                    hash = "book",
+                    name = "Book",
+                    state = TorrentState.COMPLETED,
+                    files =
+                        listOf(
+                            TorrentFile(index = 0, path = existingFile.absolutePath, size = 1L),
+                            TorrentFile(index = 1, path = "/missing/chapter.mp3", size = 1L),
+                        ),
+                ),
+            )
+
+            val result =
+                callback
+                    .onGetChildren(
+                        librarySession,
+                        controller,
+                        parentId = "book",
+                        page = 0,
+                        pageSize = 10,
+                        params = null,
+                    ).get(1, TimeUnit.SECONDS)
+
+            assertEquals(listOf(existingFile.absolutePath), result.value?.map { it.mediaId })
+        }
+
+    @Test
     fun `onMediaButtonEvent routes NEXT to forward`() {
         val player = mock<ExoPlayer>()
         whenever(player.currentMediaItemIndex).thenReturn(0)
@@ -556,6 +731,31 @@ class AudioPlayerLibrarySessionCallbackTest {
     }
 
     @Test
+    fun `onMediaButtonEvent routes explicit PLAY and PAUSE commands without toggling`() {
+        val playIntent =
+            Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                putExtra(
+                    Intent.EXTRA_KEY_EVENT,
+                    KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY),
+                )
+            }
+        val pauseIntent =
+            Intent(Intent.ACTION_MEDIA_BUTTON).apply {
+                putExtra(
+                    Intent.EXTRA_KEY_EVENT,
+                    KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE),
+                )
+            }
+
+        assertTrue(callback.onMediaButtonEvent(session, controller, playIntent))
+        assertTrue(callback.onMediaButtonEvent(session, controller, pauseIntent))
+
+        verify(service).play()
+        verify(service).pause()
+        verify(mediaButtonHandler, never()).onMediaButtonEvent(any(), any(), any(), any(), any(), any())
+    }
+
+    @Test
     fun `onMediaButtonEvent routes single double triple clicks to play pause next previous`() {
         val playPauseIntent =
             Intent(Intent.ACTION_MEDIA_BUTTON).apply {
@@ -568,16 +768,21 @@ class AudioPlayerLibrarySessionCallbackTest {
         callback.onMediaButtonEvent(session, controller, playPauseIntent)
 
         val keyCodeCaptor = argumentCaptor<Int>()
+        val actionCaptor = argumentCaptor<Int>()
         val singleClickCaptor = argumentCaptor<() -> Unit>()
         val doubleClickCaptor = argumentCaptor<() -> Unit>()
         val tripleClickCaptor = argumentCaptor<() -> Unit>()
+        val longPressCaptor = argumentCaptor<() -> Unit>()
         verify(mediaButtonHandler).onMediaButtonEvent(
             keyCodeCaptor.capture(),
+            action = actionCaptor.capture(),
             onSingleClick = singleClickCaptor.capture(),
             onDoubleClick = doubleClickCaptor.capture(),
             onTripleClick = tripleClickCaptor.capture(),
+            onLongPress = longPressCaptor.capture(),
         )
         assertEquals(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, keyCodeCaptor.firstValue)
+        assertEquals(KeyEvent.ACTION_DOWN, actionCaptor.firstValue)
 
         whenever(service.isPlaying).thenReturn(false, true)
 
@@ -593,7 +798,7 @@ class AudioPlayerLibrarySessionCallbackTest {
     }
 
     @Test
-    fun `onMediaButtonEvent ignores ACTION_UP events`() {
+    fun `onMediaButtonEvent routes ACTION_UP to handler for long press detection`() {
         val actionUpIntent =
             Intent(Intent.ACTION_MEDIA_BUTTON).apply {
                 putExtra(
@@ -604,10 +809,12 @@ class AudioPlayerLibrarySessionCallbackTest {
 
         callback.onMediaButtonEvent(session, controller, actionUpIntent)
 
-        verify(mediaButtonHandler, never()).onMediaButtonEvent(any(), any(), any(), any())
+        verify(mediaButtonHandler).onMediaButtonEvent(any(), any(), any(), any(), any(), any())
+        // Should not trigger any action directly (handler decides based on timing)
         verify(service, never()).play()
         verify(service, never()).pause()
         verify(service, never()).next()
         verify(service, never()).previous()
+        verify(service, never()).forward(any())
     }
 }

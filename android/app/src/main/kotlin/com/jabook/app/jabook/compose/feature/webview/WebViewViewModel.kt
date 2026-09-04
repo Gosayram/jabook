@@ -17,9 +17,13 @@ package com.jabook.app.jabook.compose.feature.webview
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.network.MirrorManager
+import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import javax.inject.Inject
 
 @HiltViewModel
@@ -29,18 +33,59 @@ public class WebViewViewModel
         private val authRepository: AuthRepository,
         private val mirrorManager: MirrorManager,
     ) : ViewModel() {
-        /**
-         * Called when a page finishes loading in WebView.
-         * Syncs cookies from WebView to Native storage.
-         */
-        public fun onPageFinished(url: String) {
-            if (url.isBlank()) return
+        /** Only first-party, HTTPS RuTracker pages may participate in login. */
+        public fun isTrustedAuthenticationUrl(url: String): Boolean = Companion.isTrustedAuthenticationUrl(url)
 
-            // We only care about syncing if it's a relevant domain,
-            // but AuthRepository.syncCookiesFromWebView checks the base URL internally or uses CookieManager for the specific API URL.
-            // It's safe to call it.
+        /** Returns true if the URL is allowed to load during authentication mode. */
+        public fun isAllowedDuringAuth(url: String): Boolean {
+            if (isTrustedAuthenticationUrl(url)) return true
+            return isCloudflareChallengeUrl(url)
+        }
+
+        private fun isCloudflareChallengeUrl(url: String): Boolean {
+            val parsed = url.toHttpUrlOrNull() ?: return false
+            if (!parsed.isHttps) return false
+            val host = parsed.host
+            return host.endsWith(".cloudflare.com") ||
+                host == "cloudflare.com" ||
+                parsed.encodedPath.contains("cf-chl") ||
+                parsed.encodedPath.contains("turnstile")
+        }
+
+        public companion object {
+            public fun isTrustedAuthenticationUrl(url: String): Boolean {
+                val parsed = url.toHttpUrlOrNull() ?: return false
+                return (
+                    parsed.isHttps &&
+                        parsed.port == 443 &&
+                        parsed.username.isEmpty() &&
+                        parsed.password.isEmpty() &&
+                        parsed.host in TRUSTED_AUTH_HOSTS
+                )
+            }
+
+            private val TRUSTED_AUTH_HOSTS = MirrorManager.DEFAULT_MIRRORS.toSet()
+        }
+
+        /** Captures and validates the session only after the user explicitly confirms login. */
+        public fun completeLogin(
+            webViewUrl: String? = null,
+            onComplete: (Boolean) -> Unit,
+        ) {
             viewModelScope.launch {
-                authRepository.syncCookiesFromWebView()
+                val isLoggedIn =
+                    try {
+                        authRepository.syncCookiesFromWebView(webViewUrl)
+                        // syncCookiesFromWebView already sets AuthStatus if bb_session present.
+                        // Do NOT call isLoggedIn() here — it does HTTP validation which
+                        // Cloudflare blocks, causing false negatives.
+                        authRepository.authStatus.first() is AuthStatus.Authenticated
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        false
+                    }
+                onComplete(isLoggedIn)
             }
         }
 
@@ -50,5 +95,17 @@ public class WebViewViewModel
         public fun getLoginUrl(): String {
             val baseUrl = mirrorManager.getBaseUrl()
             return "$baseUrl/forum/login.php"
+        }
+
+        /**
+         * Pre-seed WebView with existing OkHttp cookies for the given URL.
+         * Must be awaited before loadUrl to avoid empty cookie state.
+         */
+        public suspend fun syncCookiesToWebView(url: String) {
+            try {
+                authRepository.syncCookiesToWebView(url)
+            } catch (_: Exception) {
+                // Best-effort; WebView works without pre-seeded cookies
+            }
         }
     }

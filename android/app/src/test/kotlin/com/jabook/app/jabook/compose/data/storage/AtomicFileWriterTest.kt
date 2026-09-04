@@ -2,17 +2,32 @@
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package com.jabook.app.jabook.compose.data.storage
 
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
 import kotlin.io.path.deleteIfExists
 
+// Not migratable to Jimfs: AtomicFileWriter operates on java.io.File plus okio
+// FileSystem.SYSTEM and FileOutputStream.fd.sync(), all bound to the default
+// filesystem; Jimfs only supplies in-memory java.nio.Path instances.
 class AtomicFileWriterTest {
     @Test
     fun `writeAtomically writes data and removes temp file`() {
@@ -46,6 +61,49 @@ class AtomicFileWriterTest {
                 stream.write("new".toByteArray())
                 3L
             }
+        } finally {
+            target.delete()
+            dir.delete()
+        }
+    }
+
+    @Test
+    fun `writeAtomically keeps the previous state when writing the replacement fails`() {
+        val dir = Files.createTempDirectory("jabook-atomic-recovery-test").toFile()
+        val target = File(dir, "session.state")
+        target.writeText("last-known-good")
+
+        try {
+            AtomicFileWriter.writeAtomically(target) { stream ->
+                stream.write("incomplete".toByteArray())
+                throw java.io.IOException("Simulated write failure")
+            }
+            fail("Expected writeAtomically to throw")
+        } catch (_: java.io.IOException) {
+            assertEquals("last-known-good", target.readText())
+            assertFalse(File(dir, "session.state.tmp").exists())
+        } finally {
+            target.delete()
+            dir.delete()
+        }
+    }
+
+    @Test
+    fun `writeAtomically propagates cancellation and removes the incomplete temp file`() {
+        val dir = Files.createTempDirectory("jabook-atomic-cancellation-test").toFile()
+        val target = File(dir, "backup.json")
+        val cancellation = CancellationException("Export cancelled")
+
+        try {
+            AtomicFileWriter.writeAtomically(target) { stream ->
+                stream.write("partial".toByteArray())
+                throw cancellation
+            }
+            fail("Expected writeAtomically to throw")
+        } catch (actual: CancellationException) {
+            assertSame(cancellation, actual)
+            assertFalse(target.exists())
+            assertFalse(File(dir, "backup.json.tmp").exists())
         } finally {
             target.delete()
             dir.delete()

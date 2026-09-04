@@ -19,6 +19,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
 import com.jabook.app.jabook.compose.data.worker.WorkConstraintsPolicy
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -26,18 +27,22 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import okio.FileSystem
+import okio.Path.Companion.toOkioPath
 import org.libtorrent4j.AddTorrentParams
 import org.libtorrent4j.AlertListener
 import org.libtorrent4j.LibTorrent
+import org.libtorrent4j.Priority
 import org.libtorrent4j.SessionManager
 import org.libtorrent4j.SessionParams
 import org.libtorrent4j.SettingsPack
 import org.libtorrent4j.TorrentHandle
-import org.libtorrent4j.TorrentInfo
 import org.libtorrent4j.TorrentStatus
 import org.libtorrent4j.Vectors
 import org.libtorrent4j.alerts.AddTorrentAlert
@@ -45,8 +50,10 @@ import org.libtorrent4j.alerts.Alert
 import org.libtorrent4j.alerts.AlertType
 import org.libtorrent4j.alerts.BlockFinishedAlert
 import org.libtorrent4j.alerts.DhtErrorAlert
+import org.libtorrent4j.alerts.ListenFailedAlert
+import org.libtorrent4j.alerts.MetadataFailedAlert
 import org.libtorrent4j.alerts.MetadataReceivedAlert
-import org.libtorrent4j.alerts.PeerLogAlert
+import org.libtorrent4j.alerts.PerformanceAlert
 import org.libtorrent4j.alerts.PieceFinishedAlert
 import org.libtorrent4j.alerts.SaveResumeDataAlert
 import org.libtorrent4j.alerts.SaveResumeDataFailedAlert
@@ -54,10 +61,14 @@ import org.libtorrent4j.alerts.StateChangedAlert
 import org.libtorrent4j.alerts.StateUpdateAlert
 import org.libtorrent4j.alerts.TorrentErrorAlert
 import org.libtorrent4j.alerts.TorrentFinishedAlert
-import org.libtorrent4j.alerts.TorrentLogAlert
+import org.libtorrent4j.alerts.TrackerAnnounceAlert
+import org.libtorrent4j.alerts.TrackerErrorAlert
+import org.libtorrent4j.alerts.TrackerReplyAlert
 import org.libtorrent4j.swig.error_code
 import org.libtorrent4j.swig.libtorrent
+import org.libtorrent4j.swig.settings_pack
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -73,36 +84,99 @@ public class TorrentSessionManager
         @param:ApplicationContext private val context: Context,
         private val loggerFactory: LoggerFactory,
         private val torrentDownloadDao: TorrentDownloadDao,
+        private val torrentResumeDao: TorrentResumeDao,
+        private val stateBuilder: TorrentStateBuilder,
     ) {
         private val logger = loggerFactory.get("TorrentSessionManager")
 
         // Use SessionManager(false) like libretorrent to avoid automatic alert listener issues
+        // @Volatile: initSession() is @Synchronized, but the field is also read from
+        // alert/IO threads without the monitor, so writes must be visible without it.
+        @Volatile
         private var session: SessionManager? = null
-        private val torrents = mutableMapOf<String, TorrentHandle>()
-        private val topicIds = mutableMapOf<String, String>()
+        private val torrents = ConcurrentHashMap<String, TorrentHandle>()
+        private val topicIds = ConcurrentHashMap<String, String>()
+
+        // Hashes added via addTorrent() whose ADD_TORRENT alert has not fired yet.
+        // Guards restoreActiveDownloads() (running concurrently after session init)
+        // from re-adding a just-added torrent via a second code path.
+        private val pendingAdds = ConcurrentHashMap.newKeySet<String>()
+
+        // File selections stashed by addTorrent() until metadata arrives — priorities
+        // cannot be applied earlier because a magnet has no file list. Cleared on
+        // removal and on application so failed magnets don't leak entries.
+        private val selectedFileIndicesByHash = ConcurrentHashMap<String, Set<Int>>()
+
+        // Ensures handleSaveResumeDataFailed retries at most once per failure burst:
+        // a repeated failure alert (from the retry itself) means the retry failed too.
+        private val resumeDataRetriesInFlight = ConcurrentHashMap.newKeySet<String>()
         private var lastLibrarySyncTriggerAtMs: Long = 0L
 
         private val _downloadsFlow = MutableStateFlow<Map<String, TorrentDownload>>(emptyMap())
         public val downloadsFlow: StateFlow<Map<String, TorrentDownload>> = _downloadsFlow.asStateFlow()
 
-        private val sessionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private var sessionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+        // Kept separate from sessionScope: stopSession() cancels alert processing, but must not
+        // cancel a state snapshot already requested by a memory-pressure callback.
+        private val statePersistenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
         // Tracks pending SaveResumeDataAlerts so stopSession() can await them before shutting down.
+        // @Volatile: set under the class monitor, counted down from the libtorrent alert thread.
+        @Volatile
         private var pendingResumeDataLatch: CountDownLatch? = null
 
         private companion object {
-            private const val LIBRARY_SYNC_AFTER_TORRENT_WORK = "library_scan_after_torrent_finish"
             private const val LIBRARY_SYNC_TRIGGER_COOLDOWN_MS = 3_000L
+            private const val SESSION_STATE_DIRECTORY = "torrent"
+            private const val SESSION_STATE_FILE = "session.state"
+
+            // METADATA_FAILED never fires for dead DHT / no peers — without a timeout a
+            // magnet-less-metadata torrent sits in DOWNLOADING_METADATA forever and is
+            // re-added as a zombie on every session restore.
+            private const val METADATA_TIMEOUT_MS = 90_000L
+
+            // Event-driven resume saves (pause/finish/stop) lose everything since the
+            // last event on a crash — a periodic checkpoint bounds that loss to 5 min.
+            private const val RESUME_CHECKPOINT_INTERVAL_MS = 300_000L
+
+            // One retry for SaveResumeData failures; retrying longer masks a real
+            // disk problem instead of surfacing it.
+            private const val RESUME_DATA_RETRY_DELAY_MS = 5_000L
+
+            // Fallback trackers used when magnet link has no tracker URLs
+            private val FALLBACK_TRACKERS =
+                listOf(
+                    "udp://tracker.opentrackr.org:1337/announce",
+                    "udp://open.stealth.si:80/announce",
+                    "udp://tracker.openbittorrent.com:6969/announce",
+                    "udp://open.demonii.com:1337/announce",
+                    "udp://exodus.desync.com:6969/announce",
+                )
+
+            /**
+             * Appends [FALLBACK_TRACKERS] to magnets without tracker URLs.
+             * Shared by the add path and the resume-data-less restore fallback.
+             */
+            private fun withFallbackTrackers(magnetUri: String): String {
+                if (magnetUri.contains("&tr=") || magnetUri.contains("&tr%3D")) return magnetUri
+                val suffix = FALLBACK_TRACKERS.joinToString("&") { "tr=${java.net.URLEncoder.encode(it, "UTF-8")}" }
+                return "$magnetUri&$suffix"
+            }
         }
 
         private val alertListener =
             object : AlertListener {
                 override fun types(): IntArray? {
                     // Specify alert types explicitly like libretorrent does
-                    // This is more efficient and avoids potential issues with null
+                    // This is more efficient and avoids potential issues with null.
+                    // Log alerts (PeerLog/TorrentLog/DhtLog) are excluded — SessionManager(false)
+                    // already removes log categories from the alert mask, so registering them
+                    // here would be dead code that can never fire.
                     return intArrayOf(
                         AlertType.ADD_TORRENT.swig(),
                         AlertType.METADATA_RECEIVED.swig(),
+                        AlertType.METADATA_FAILED.swig(),
                         AlertType.STATE_CHANGED.swig(),
                         AlertType.TORRENT_FINISHED.swig(),
                         AlertType.TORRENT_ERROR.swig(),
@@ -110,10 +184,13 @@ public class TorrentSessionManager
                         AlertType.PIECE_FINISHED.swig(),
                         AlertType.DHT_ERROR.swig(),
                         AlertType.STATE_UPDATE.swig(),
-                        AlertType.PEER_LOG.swig(),
-                        AlertType.TORRENT_LOG.swig(),
                         AlertType.SAVE_RESUME_DATA.swig(),
                         AlertType.SAVE_RESUME_DATA_FAILED.swig(),
+                        AlertType.TRACKER_REPLY.swig(),
+                        AlertType.TRACKER_ERROR.swig(),
+                        AlertType.TRACKER_ANNOUNCE.swig(),
+                        AlertType.LISTEN_FAILED.swig(),
+                        AlertType.PERFORMANCE.swig(),
                     )
                 }
 
@@ -128,22 +205,30 @@ public class TorrentSessionManager
                             is TorrentFinishedAlert -> handleTorrentFinished(alert)
                             is TorrentErrorAlert -> handleTorrentError(alert)
                             is MetadataReceivedAlert -> handleMetadataReceived(alert)
+                            is MetadataFailedAlert -> handleMetadataFailed(alert)
+                            is ListenFailedAlert -> {
+                                logger.e { "LISTEN_FAILED: ${alert.message()}" }
+                            }
+                            is PerformanceAlert -> {
+                                logger.d { "PERFORMANCE: ${alert.message()}" }
+                            }
                             is BlockFinishedAlert -> handleBlockFinished(alert)
                             is PieceFinishedAlert -> handlePieceFinished(alert)
                             is DhtErrorAlert -> handleDhtError(alert)
                             is StateUpdateAlert -> handleStateUpdate(alert)
                             is SaveResumeDataAlert -> handleSaveResumeData(alert)
-                            is SaveResumeDataFailedAlert ->
-                                logger.w {
-                                    "Save resume data failed for ${alert.handle().infoHash().toHex()}"
-                                }
-                            is PeerLogAlert -> {
-                                // Log peer-level debugging (can be verbose, so use debug level)
-                                logger.d { "PEER_LOG: ${alert.logMessage()}" }
+                            is SaveResumeDataFailedAlert -> handleSaveResumeDataFailed(alert)
+                            is TrackerReplyAlert -> {
+                                val hash = alert.handle().infoHash().toHex()
+                                logger.i { "TRACKER_REPLY for $hash: ${alert.numPeers()} peers from ${alert.trackerUrl()}" }
                             }
-                            is TorrentLogAlert -> {
-                                // Log torrent-level debugging
-                                logger.d { "TORRENT_LOG: ${alert.logMessage()}" }
+                            is TrackerErrorAlert -> {
+                                val hash = alert.handle().infoHash().toHex()
+                                logger.w { "TRACKER_ERROR for $hash: ${alert.errorMessage()} from ${alert.trackerUrl()}" }
+                            }
+                            is TrackerAnnounceAlert -> {
+                                val hash = alert.handle().infoHash().toHex()
+                                logger.d { "TRACKER_ANNOUNCE for $hash: ${alert.trackerUrl()}" }
                             }
                             else -> {
                                 // Log unhandled alerts for debugging (use debug to avoid spam)
@@ -158,12 +243,20 @@ public class TorrentSessionManager
             }
 
         /**
-         * Initialize libtorrent session
+         * Initialize libtorrent session.
+         *
+         * @Synchronized: without it, two concurrent callers can both pass the
+         * null-check and leak one native session. stopSession()'s teardown phase
+         * uses the same monitor, so init and teardown cannot interleave.
          */
+        @Synchronized
         public fun initSession() {
             if (session != null) {
                 logger.w { "Session already initialized" }
                 return
+            }
+            if (!sessionScope.isActive) {
+                sessionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
             }
 
             try {
@@ -178,12 +271,12 @@ public class TorrentSessionManager
                     logger.e({ "libtorrent4j classes not available - version mismatch" }, e)
                     session = null
                     return
-                } catch (e: LinkageError) {
-                    logger.e({ "libtorrent4j linkage error during class check" }, e)
-                    session = null
-                    return
                 } catch (e: NoSuchMethodError) {
                     logger.e({ "libtorrent4j native method not found - version mismatch" }, e)
+                    session = null
+                    return
+                } catch (e: LinkageError) {
+                    logger.e({ "libtorrent4j linkage error during class check" }, e)
                     session = null
                     return
                 } catch (e: Exception) {
@@ -205,6 +298,10 @@ public class TorrentSessionManager
                         downloadRateLimit(0) // Unlimited by default
                         uploadRateLimit(0) // Unlimited by default
 
+                        // Listen on a port range to avoid ISP blocks on default port.
+                        // IPv6 listener included: IPv6-only peers are otherwise invisible.
+                        listenInterfaces("0.0.0.0:6881-6889,[::]:6881-6889")
+
                         // DHT and other settings are enabled by default in libtorrent4j
                         // Just keeping defaults
 
@@ -212,9 +309,30 @@ public class TorrentSessionManager
                         activeDownloads(4)
                         activeSeeds(4)
                         activeLimit(8)
+
+                        // Memory guardrails — prevent unbounded memory growth during long sessions
+                        sendBufferWatermark(1024 * 1024) // 1 MiB send buffer watermark
+                        activeDhtLimit(80) // cap DHT routing-table peers
+                        try {
+                            setInteger(settings_pack.int_types.max_out_request_queue.swigValue(), 100)
+                        } catch (_: NoSuchMethodError) {
+                            // older libtorrent4j versions lack max_out_request_queue — safe to skip
+                        }
+
+                        // Best practices (libtorrent4j): improve peer discovery and resist
+                        // ISP throttling without forcing encryption (which would shrink
+                        // the reachable peer pool).
+                        try {
+                            setBoolean(settings_pack.bool_types.announce_to_all_trackers.swigValue(), true)
+                            setBoolean(settings_pack.bool_types.strict_end_game_mode.swigValue(), true)
+                            setBoolean(settings_pack.bool_types.announce_crypto_support.swigValue(), true)
+                            setBoolean(settings_pack.bool_types.prefer_rc4.swigValue(), true)
+                        } catch (_: NoSuchMethodError) {
+                            // older libtorrent4j versions lack these flags — safe to skip
+                        }
                     }
 
-                val params = SessionParams(settings)
+                val params = createSessionParams(settings)
                 // Use SessionManager(false) like libretorrent - this prevents automatic alert listener
                 // which can cause NoSuchMethodError with some libtorrent4j versions
                 session =
@@ -244,11 +362,6 @@ public class TorrentSessionManager
                 session = null // Ensure session is null on error
                 // Don't throw - allow app to continue without torrent functionality
                 // User will see error when trying to download
-            } catch (e: LinkageError) {
-                logger.e({ "libtorrent4j linkage error - version mismatch" }, e)
-                session = null // Ensure session is null on error
-                // Don't throw - allow app to continue without torrent functionality
-                // User will see error when trying to download
             } catch (e: NoSuchMethodError) {
                 logger.e({ "libtorrent4j version mismatch - native library incompatible" }, e)
                 session = null // Ensure session is null on error
@@ -258,10 +371,22 @@ public class TorrentSessionManager
                 logger.e({ "Failed to load libtorrent4j native library" }, e)
                 session = null // Ensure session is null on error
                 // Don't throw - allow app to continue
+            } catch (e: LinkageError) {
+                logger.e({ "libtorrent4j linkage error - version mismatch" }, e)
+                session = null // Ensure session is null on error
+                // Don't throw - allow app to continue without torrent functionality
+                // User will see error when trying to download
             } catch (e: Exception) {
                 logger.e({ "Failed to initialize torrent session" }, e)
                 session = null // Ensure session is null on error
                 // Don't throw - allow app to continue
+            }
+
+            // Only checkpoint when a session is actually live. The ticker lives on
+            // sessionScope, so stopSession()'s cancel() tears it down and the next
+            // initSession() starts a fresh one.
+            if (session != null) {
+                startResumeDataCheckpointTicker()
             }
         }
 
@@ -320,6 +445,12 @@ public class TorrentSessionManager
                     topicIds[hash] = topicId
                 }
 
+                // Stash the selection for applySelectedFilePriorities() — file
+                // priorities need metadata, which a magnet only gets later.
+                if (!selectedFileIndices.isNullOrEmpty()) {
+                    selectedFileIndicesByHash[hash] = selectedFileIndices.toSet()
+                }
+
                 // Create save directory
                 val saveDir = File(savePath)
                 if (!saveDir.exists()) {
@@ -348,18 +479,21 @@ public class TorrentSessionManager
                 } catch (e: NoClassDefFoundError) {
                     logger.e({ "libtorrent4j classes not available when checking session" }, e)
                     return Result.failure(IllegalStateException("libtorrent4j not available: ${e.message}", e))
-                } catch (e: LinkageError) {
-                    logger.e({ "libtorrent4j linkage error when checking session" }, e)
-                    return Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                 } catch (e: NoSuchMethodError) {
                     // isRunning() not available, assume session is running if no exception
                     logger.d { "isRunning() not available, assuming session is running" }
+                } catch (e: LinkageError) {
+                    logger.e({ "libtorrent4j linkage error when checking session" }, e)
+                    return Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                 }
 
                 // Add torrent - download(String magnetUri, File saveDir, torrent_flags_t flags)
                 // Using empty flags (defaults) - SessionManager will handle magnet URI parsing
                 // Wrap in try-catch to handle any native exceptions
                 try {
+                    // Append fallback trackers if magnet has no tracker URLs
+                    val effectiveMagnetUri = withFallbackTrackers(magnetUri)
+
                     logger.d { "Calling session.download() for hash=$hash, savePath=$savePath" }
 
                     // Create flags - this may fail if libtorrent4j classes are not available
@@ -374,9 +508,26 @@ public class TorrentSessionManager
                             return Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                         }
 
-                    session.download(magnetUri, saveDir, flags)
+                    session.download(effectiveMagnetUri, saveDir, flags)
+                    // Track as pending until ADD_TORRENT fires, so a concurrent
+                    // restoreActiveDownloads() doesn't re-add it via a second path.
+                    pendingAdds.add(hash)
                     logger.i {
                         "Successfully called session.download() for hash=$hash. Waiting for ADD_TORRENT alert..."
+                    }
+                    // Persist a placeholder row immediately so a process death before the
+                    // ADD_TORRENT alert cannot lose the download (the alert overwrites it).
+                    sessionScope.launch {
+                        try {
+                            torrentDownloadDao.insertPendingRow(
+                                hash = hash,
+                                savePath = savePath,
+                                topicId = topicId,
+                                now = System.currentTimeMillis(),
+                            )
+                        } catch (e: Exception) {
+                            logger.e({ "Failed to persist pending torrent row for $hash" }, e)
+                        }
                     }
                     // Note: The actual torrent handle will be available in ADD_TORRENT alert
                     // We return the hash now, but the torrent won't be in torrents map until alert fires
@@ -384,15 +535,15 @@ public class TorrentSessionManager
                 } catch (e: NoClassDefFoundError) {
                     logger.e({ "Class not found error while adding torrent: hash=$hash" }, e)
                     Result.failure(IllegalStateException("libtorrent4j not available: ${e.message}", e))
-                } catch (e: LinkageError) {
-                    logger.e({ "Linkage error while adding torrent: hash=$hash" }, e)
-                    Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                 } catch (e: UnsatisfiedLinkError) {
                     logger.e({ "Native library error while adding torrent: hash=$hash" }, e)
                     Result.failure(IllegalStateException("Native library error: ${e.message}", e))
                 } catch (e: NoSuchMethodError) {
                     logger.e({ "Method not found error while adding torrent: hash=$hash" }, e)
                     Result.failure(IllegalStateException("Library version mismatch: ${e.message}", e))
+                } catch (e: LinkageError) {
+                    logger.e({ "Linkage error while adding torrent: hash=$hash" }, e)
+                    Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                 } catch (e: RuntimeException) {
                     // libtorrent4j may throw RuntimeException for various errors
                     logger.e({ "Runtime error while adding torrent: hash=$hash, error=${e.message}" }, e)
@@ -419,19 +570,63 @@ public class TorrentSessionManager
         /**
          * Remove torrent
          */
+        @Synchronized
         public fun removeTorrent(
             hash: String,
             deleteFiles: Boolean = false,
         ) {
-            val handle = torrents.remove(hash) ?: return
-            topicIds.remove(hash)
+            val handle = torrents[hash] ?: return
 
             try {
+                // Capture the save path, per-file paths and name BEFORE removing: after
+                // session.remove(handle) the handle is invalid and its accessors throw.
+                var savePath: String? = null
+                var torrentFilePaths: List<String> = emptyList()
+                var torrentName: String? = null
+                if (deleteFiles) {
+                    savePath = runCatching { handle.savePath() }.getOrNull()
+                    val storage = runCatching { handle.torrentFile()?.files() }.getOrNull()
+                    if (storage != null) {
+                        torrentFilePaths =
+                            (0 until storage.numFiles())
+                                .filterNot { storage.padFileAt(it) }
+                                .mapNotNull { index -> runCatching { storage.filePath(index) }.getOrNull() }
+                    }
+                    torrentName = runCatching { handle.getName() }.getOrNull()
+                }
+
+                // Remove natively first: if that throws, the handle stays in the map so
+                // stopSession() can still request its resume data and session.stop() cleans it up.
                 session?.remove(handle)
 
-                if (deleteFiles) {
-                    val savePath = handle.savePath()
-                    File(savePath).deleteRecursively()
+                if (deleteFiles && savePath != null) {
+                    // NEVER delete the save root itself — it is shared by all torrents
+                    // (deleting it would wipe every other download in the directory).
+                    deleteTorrentFiles(savePath, torrentFilePaths, torrentName)
+                }
+
+                torrents.remove(hash)
+                topicIds.remove(hash)
+                pendingAdds.remove(hash)
+                selectedFileIndicesByHash.remove(hash)
+                resumeDataRetriesInFlight.remove(hash)
+
+                // Persist the terminal state so restoreActiveDownloads() on the next
+                // start doesn't silently re-add this torrent:
+                //  - deleteFiles=true  -> the torrent is gone, delete the row (+resume).
+                //  - deleteFiles=false -> stopped, keep files/history, mark STOPPED.
+                // Uses statePersistenceScope: it survives stopSession()/shutdown(), which
+                // cancels sessionScope (e.g. deleteAllTorrents() -> stopDownloadService()).
+                statePersistenceScope.launch {
+                    try {
+                        if (deleteFiles) {
+                            torrentResumeDao.deleteTorrent(torrentDownloadDao, hash)
+                        } else {
+                            torrentDownloadDao.updateState(hash, TorrentState.STOPPED)
+                        }
+                    } catch (e: Exception) {
+                        logger.w({ "Failed to persist terminal state for $hash" }, e)
+                    }
                 }
 
                 updateDownloads()
@@ -442,13 +637,80 @@ public class TorrentSessionManager
         }
 
         /**
+         * Deletes only this torrent's files from disk.
+         *
+         * The save root is shared by all torrents and is NEVER deleted: with known file
+         * paths only the leaf files are removed (plus now-empty parent directories up
+         * to, but never including, the root); without metadata the fallback is the
+         * torrent's own name directory. Every resolved path is guarded against escape
+         * (symlinks, "..", absolute paths) — it must resolve strictly under the root.
+         */
+        private fun deleteTorrentFiles(
+            savePath: String,
+            filePaths: List<String>,
+            torrentName: String?,
+        ) {
+            val root =
+                runCatching { File(savePath).canonicalFile }.getOrNull()
+                    ?: run {
+                        logger.w { "Cannot resolve save root for file deletion: $savePath" }
+                        return
+                    }
+            val rootPrefix = root.path + File.separator
+            val fs = FileSystem.SYSTEM
+
+            if (filePaths.isNotEmpty()) {
+                for (path in filePaths) {
+                    val raw = File(path)
+                    val file = if (raw.isAbsolute) raw else File(root, path)
+                    // canonicalFile resolves ".." and symlinks, so a torrent with
+                    // crafted paths cannot make us delete outside the save root.
+                    val resolved = runCatching { file.canonicalFile }.getOrNull() ?: continue
+                    if (!resolved.path.startsWith(rootPrefix)) continue
+
+                    try {
+                        // okio: throws on failure, symlink-safe.
+                        fs.delete(resolved.toOkioPath(), mustExist = false)
+                        // Clean up now-empty parent dirs up to (never including) the root.
+                        var dir = resolved.parentFile
+                        while (dir != null && dir != root && dir.path.startsWith(rootPrefix)) {
+                            if (!dir.delete()) break // not empty (or IO error) — stop climbing
+                            dir = dir.parentFile
+                        }
+                    } catch (e: Exception) {
+                        logger.w({ "Failed to delete torrent file ${resolved.path}" }, e)
+                    }
+                }
+            } else if (!torrentName.isNullOrBlank()) {
+                // No metadata yet (magnet-only torrent): fall back to the torrent's
+                // own name directory under the save root.
+                val dir = File(root, torrentName)
+                val resolved = runCatching { dir.canonicalFile }.getOrNull() ?: return
+                if (resolved.path.startsWith(rootPrefix)) {
+                    try {
+                        fs.deleteRecursively(resolved.toOkioPath())
+                    } catch (e: Exception) {
+                        logger.w({ "Failed to delete torrent directory ${resolved.path}" }, e)
+                    }
+                } else {
+                    logger.w { "Refusing to delete path outside save root: ${resolved.path}" }
+                }
+            }
+        }
+
+        /**
          * Pause torrent
          */
+        @Synchronized
         public fun pauseTorrent(hash: String) {
             val handle = torrents[hash] ?: return
 
             try {
                 handle.pause()
+                // Request resume data: pause alone never persists progress, so a process
+                // death after pause (or FGS timeout) would lose all pieces since the last
+                // stop. need_save_resume is auto-set by libtorrent on state change.
+                runCatching { handle.saveResumeData(TorrentHandle.SAVE_INFO_DICT) }
                 updateDownloads()
                 logger.i { "Paused torrent: $hash" }
             } catch (e: Exception) {
@@ -459,6 +721,7 @@ public class TorrentSessionManager
         /**
          * Resume torrent
          */
+        @Synchronized
         public fun resumeTorrent(hash: String) {
             val handle = torrents[hash] ?: return
 
@@ -468,27 +731,6 @@ public class TorrentSessionManager
                 logger.i { "Resumed torrent: $hash" }
             } catch (e: Exception) {
                 logger.e({ "Failed to resume torrent" }, e)
-            }
-        }
-
-        /**
-         * Move torrent storage to new path
-         */
-        public fun moveTorrentStorage(
-            hash: String,
-            newPath: String,
-        ) {
-            val handle = torrents[hash] ?: return
-            val newDir = File(newPath)
-            if (!newDir.exists()) {
-                newDir.mkdirs()
-            }
-
-            try {
-                handle.moveStorage(newPath)
-                logger.i { "Moving storage for $hash to $newPath" }
-            } catch (e: Exception) {
-                logger.e({ "Failed to move storage" }, e)
             }
         }
 
@@ -521,17 +763,46 @@ public class TorrentSessionManager
         /**
          * Pause all torrents
          */
+        @Synchronized
         public fun pauseAll() {
-            torrents.values.forEach { it.pause() }
+            torrents.values.toList().forEach {
+                it.pause()
+                runCatching { it.saveResumeData(TorrentHandle.SAVE_INFO_DICT) }
+            }
             updateDownloads()
         }
 
         /**
          * Resume all torrents
          */
+        @Synchronized
         public fun resumeAll() {
-            torrents.values.forEach { it.resume() }
+            torrents.values.toList().forEach { it.resume() }
             updateDownloads()
+        }
+
+        /**
+         * Pauses libtorrent's native session and snapshots its session state when Android
+         * reports critical memory pressure. This is deliberately session-level: pausing
+         * individual handles leaves native networking and DHT buffers allocated.
+         *
+         * The operation is synchronized with other lifecycle work so a trim callback cannot
+         * race session shutdown or a second trim callback.
+         */
+        @Synchronized
+        public fun pauseForMemoryPressure() {
+            val activeSession = session ?: return
+
+            try {
+                activeSession.pause()
+                val state = activeSession.saveState()
+                statePersistenceScope.launch {
+                    persistSessionState(state)
+                }
+                logger.w { "Paused torrent session and saved native state after critical memory pressure" }
+            } catch (e: Exception) {
+                logger.e({ "Failed to guard torrent session after critical memory pressure" }, e)
+            }
         }
 
         /**
@@ -545,38 +816,113 @@ public class TorrentSessionManager
          * Requests resume data for all active torrents before stopping so that
          * downloads can be resumed on next session start without re-downloading
          * already-completed pieces.
+         *
+         * Structured as three phases: the up-to-5s wait for SaveResumeDataAlerts
+         * happens OUTSIDE the class monitor — holding it for the full wait would
+         * block main-thread callers of sibling synchronized methods
+         * (pause/resume/pauseAll from TorrentActionReceiver) and risk an ANR.
          */
         public fun stopSession() {
-            try {
-                // Request resume data for all active handles before stopping.
-                // saveResumeData is async — alerts arrive via the alert queue, so we
-                // use a CountDownLatch to await all SaveResumeDataAlerts before stop().
-                val handles = torrents.values.filter { it.isValid }
-                if (handles.isNotEmpty()) {
-                    val latch = CountDownLatch(handles.size)
-                    pendingResumeDataLatch = latch
-                    handles.forEach { handle ->
-                        try {
-                            handle.saveResumeData(TorrentHandle.SAVE_INFO_DICT)
-                        } catch (e: Exception) {
-                            latch.countDown()
-                            logger.w {
-                                "Could not request resume data for ${handle.infoHash().toHex()}: ${e.message}"
+            // Phase 1 (short, under lock): request resume data for all active handles.
+            // saveResumeData is async — alerts arrive via the alert queue.
+            val latch =
+                synchronized(this) {
+                    val handles = torrents.values.filter { it.isValid }
+                    if (handles.isEmpty()) {
+                        null
+                    } else {
+                        val newLatch = CountDownLatch(handles.size)
+                        pendingResumeDataLatch = newLatch
+                        handles.forEach { handle ->
+                            try {
+                                // FLUSH_DISK_CACHE: process may die right after stop — unflushed
+                                // pieces must not sit in the page cache when the BLOB claims them done.
+                                handle.saveResumeData(
+                                    TorrentHandle.SAVE_INFO_DICT.or_(
+                                        TorrentHandle.FLUSH_DISK_CACHE,
+                                    ),
+                                )
+                            } catch (e: Exception) {
+                                newLatch.countDown()
+                                logger.w {
+                                    "Could not request resume data for ${handle.infoHash().toHex()}: ${e.message}"
+                                }
                             }
                         }
-                    }
-                    // Wait up to 5 seconds for all SaveResumeDataAlerts to arrive
-                    if (!latch.await(5, TimeUnit.SECONDS)) {
-                        logger.w { "Timeout waiting for save resume data alerts (${handles.size} handles)" }
+                        newLatch
                     }
                 }
-                torrents.clear()
-                session?.stop()
-                session = null
-                sessionScope.cancel()
-                logger.i { "Session stopped" }
+
+            // Phase 2 (no lock): wait up to 5 seconds for all SaveResumeDataAlerts
+            // to arrive. The alert thread counts the latch down without needing the
+            // monitor, and other session operations stay responsive meanwhile.
+            if (latch != null && !latch.await(5, TimeUnit.SECONDS)) {
+                logger.w { "Timeout waiting for save resume data alerts (${latch.count} remaining)" }
+            }
+
+            // Phase 3 (short, under lock): final teardown.
+            synchronized(this) {
+                try {
+                    // Save session-level state (DHT routing table, peer lists) BEFORE stopping
+                    // so the next start boots with a warm DHT — libtorrent4j best practice.
+                    // Written on statePersistenceScope, which stopSession() does NOT cancel.
+                    try {
+                        val state = session?.saveState()
+                        if (state != null) {
+                            statePersistenceScope.launch {
+                                persistSessionState(state)
+                            }
+                            logger.i { "Saved torrent session state (${state.size} bytes)" }
+                        }
+                    } catch (e: Exception) {
+                        logger.w({ "Failed to save session state on shutdown" }, e)
+                    }
+
+                    torrents.clear()
+                    session?.stop()
+                    session = null
+                    sessionScope.cancel()
+                    logger.i { "Session stopped" }
+                } catch (e: Exception) {
+                    logger.e({ "Error stopping session" }, e)
+                } finally {
+                    pendingResumeDataLatch = null
+                }
+            }
+        }
+
+        @Synchronized
+        private fun persistSessionState(state: ByteArray) {
+            try {
+                val stateDirectory = File(context.filesDir, SESSION_STATE_DIRECTORY)
+                if (!stateDirectory.exists() && !stateDirectory.mkdirs()) {
+                    logger.w { "Unable to create torrent session state directory" }
+                    return
+                }
+
+                val stateFile = File(stateDirectory, SESSION_STATE_FILE)
+                AtomicFileWriter.writeAtomically(stateFile) { output ->
+                    output.write(state)
+                    state.size.toLong()
+                }
             } catch (e: Exception) {
-                logger.e({ "Error stopping session" }, e)
+                logger.e({ "Failed to persist torrent session state" }, e)
+            }
+        }
+
+        private fun createSessionParams(settings: SettingsPack): SessionParams {
+            val stateFile = File(File(context.filesDir, SESSION_STATE_DIRECTORY), SESSION_STATE_FILE)
+            if (!stateFile.exists()) return SessionParams(settings)
+
+            return try {
+                SessionParams(stateFile.readBytes()).apply {
+                    // Current application limits take precedence over an older snapshot.
+                    setSettings(settings)
+                }
+            } catch (e: Exception) {
+                logger.w { "Ignoring invalid persisted torrent session state: ${e.message}" }
+                stateFile.delete()
+                SessionParams(settings)
             }
         }
 
@@ -593,33 +939,38 @@ public class TorrentSessionManager
                     val active = torrentDownloadDao.getActiveDownloads()
                     if (active.isEmpty()) return@launch
                     logger.i { "Restoring ${active.size} active torrent downloads" }
-                    active.forEach { entity ->
+                    // Resume BLOBs are read in a single query (not on the list path).
+                    val resumeDataByHash = torrentResumeDao.getAllResumeData().associate { it.hash to it.resumeData }
+                    active.forEach { row ->
                         try {
-                            if (torrents.containsKey(entity.hash)) return@forEach
-                            val resumeBytes = entity.resumeData
+                            if (torrents.containsKey(row.hash) || pendingAdds.contains(row.hash)) return@forEach
+                            val resumeBytes = resumeDataByHash[row.hash]
                             if (resumeBytes != null) {
                                 val byteVector = Vectors.bytes2byte_vector(resumeBytes)
                                 val errorCode = error_code()
                                 val swigParams = libtorrent.read_resume_data_ex(byteVector, errorCode)
                                 if (errorCode.failed()) {
-                                    logger.w { "Resume data rejected for ${entity.hash}: ${errorCode.message()}" }
+                                    logger.w { "Resume data rejected for ${row.hash}: ${errorCode.message()}" }
                                     return@forEach
                                 }
                                 val params =
                                     AddTorrentParams(swigParams).apply {
-                                        setSavePath(entity.savePath)
+                                        setSavePath(row.savePath)
                                     }
                                 session?.swig()?.async_add_torrent(params.swig())
-                                logger.d { "Restored torrent with resume data: ${entity.hash}" }
+                                logger.d { "Restored torrent with resume data: ${row.hash}" }
                             } else {
-                                val magnetUri = "magnet:?xt=urn:btih:" + entity.hash
+                                // Restore path has no stored magnet URI (entity keeps hash only),
+                                // so reuse the same fallback trackers as the add path — a bare
+                                // hash restores DHT-only and stalls where DHT is blocked.
+                                val magnetUri = withFallbackTrackers("magnet:?xt=urn:btih:" + row.hash)
                                 val params = AddTorrentParams.parseMagnetUri(magnetUri)
-                                params.setSavePath(entity.savePath)
+                                params.setSavePath(row.savePath)
                                 session?.swig()?.async_add_torrent(params.swig())
-                                logger.d { "Restored torrent via magnet URI fallback: ${entity.hash}" }
+                                logger.d { "Restored torrent via magnet URI fallback: ${row.hash}" }
                             }
                         } catch (e: Exception) {
-                            logger.e({ "Failed to restore torrent ${entity.hash}" }, e)
+                            logger.e({ "Failed to restore torrent ${row.hash}" }, e)
                         }
                     }
                 } catch (e: Exception) {
@@ -635,10 +986,15 @@ public class TorrentSessionManager
                 val handle = alert.handle()
                 if (!handle.isValid) return
                 val hash = handle.infoHash().toHex()
+                // A successful save resets the retry guard so a later failure can retry again.
+                resumeDataRetriesInFlight.remove(hash)
                 val resumeBytes = AddTorrentParams.writeResumeDataBuf(alert.params())
-                sessionScope.launch {
+                // Write on statePersistenceScope: it is NEVER cancelled (not even by
+                // stopSession()), so the BLOB always lands — while the libtorrent alert
+                // thread stays responsive instead of blocking on the DB write.
+                statePersistenceScope.launch {
                     try {
-                        torrentDownloadDao.updateResumeData(hash, resumeBytes)
+                        torrentResumeDao.updateResumeData(hash, resumeBytes)
                         logger.d { "Resume data saved for $hash (${resumeBytes.size} bytes)" }
                     } catch (e: Exception) {
                         logger.e({ "Failed to persist resume data for $hash" }, e)
@@ -648,6 +1004,136 @@ public class TorrentSessionManager
                 logger.e({ "Error handling SaveResumeDataAlert" }, e)
             } finally {
                 pendingResumeDataLatch?.countDown()
+            }
+        }
+
+        /**
+         * Periodically checkpoints resume data for active torrents.
+         *
+         * Event-driven saves alone leave an unbounded crash window — a process death
+         * between events loses every piece since the last save. [TorrentHandle.ONLY_IF_MODIFIED]
+         * keeps the ticker cheap: libtorrent skips handles that have nothing new to save.
+         * Cancelled implicitly when stopSession() cancels sessionScope.
+         */
+        private fun startResumeDataCheckpointTicker() {
+            sessionScope.launch {
+                while (isActive) {
+                    delay(RESUME_CHECKPOINT_INTERVAL_MS)
+                    // Skip early: no torrents means no alert churn and no wake-ups.
+                    if (torrents.isEmpty()) continue
+                    for (handle in torrents.values) {
+                        try {
+                            val state = handle.status().state()
+                            if (
+                                state == TorrentStatus.State.DOWNLOADING ||
+                                state == TorrentStatus.State.SEEDING
+                            ) {
+                                handle.saveResumeData(
+                                    TorrentHandle.SAVE_INFO_DICT.or_(TorrentHandle.ONLY_IF_MODIFIED),
+                                )
+                            }
+                        } catch (e: Exception) {
+                            // One bad handle must not starve the others' checkpoints.
+                            logger.w({ "Periodic resume checkpoint failed" }, e)
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Applies the file selection stashed by addTorrent() once metadata is available:
+         * unselected files get [Priority.IGNORE] so their data is never downloaded.
+         * A null/empty selection means "download everything" — the historical default.
+         */
+        private fun applySelectedFilePriorities(
+            hash: String,
+            handle: TorrentHandle,
+            numFiles: Int,
+        ) {
+            val selected = selectedFileIndicesByHash.remove(hash) ?: return
+            if (selected.isEmpty()) return
+            try {
+                val priorities =
+                    Array(numFiles) { index ->
+                        if (index in selected) Priority.DEFAULT else Priority.IGNORE
+                    }
+                handle.prioritizeFiles(priorities)
+                logger.i { "Applied file selection for $hash: ${selected.size}/$numFiles files" }
+            } catch (e: Exception) {
+                // Priority API failure must not abort the download — fall back to
+                // the default "download everything" behavior.
+                logger.w({ "Failed to apply file selection for $hash, downloading all files" }, e)
+            }
+        }
+
+        /**
+         * SaveResumeData failure path.
+         *
+         * Mirrors handleSaveResumeData's latch handling — a stuck latch makes
+         * stopSession() wait its full 5s timeout. One retry after 5s bounds transient
+         * failures (disk flush timing); if it fails too, the row is marked ERROR so
+         * the next restore re-checks files instead of trusting a stale resume BLOB.
+         */
+        private fun handleSaveResumeDataFailed(alert: SaveResumeDataFailedAlert) {
+            try {
+                val handle = alert.handle()
+                if (!handle.isValid) return
+                val hash = handle.infoHash().toHex()
+                // Release the stop-wait latch on every failure path: the retry below
+                // runs on statePersistenceScope, which survives stopSession().
+                pendingResumeDataLatch?.countDown()
+
+                val firstFailure = resumeDataRetriesInFlight.add(hash)
+                if (!firstFailure) {
+                    // This failure came from the retry itself — no more retries,
+                    // surface the problem instead of silently looping.
+                    logger.e { "Resume data retry failed for $hash — marking ERROR" }
+                    persistTorrentErrorState(hash)
+                    return
+                }
+
+                logger.w { "Save resume data failed for $hash — retrying once" }
+                statePersistenceScope.launch {
+                    delay(RESUME_DATA_RETRY_DELAY_MS)
+                    // Re-fetch the handle: the captured one may be stale after the delay.
+                    val retryHandle = torrents[hash]
+                    if (retryHandle == null) {
+                        // Torrent gone; its terminal state was already persisted elsewhere.
+                        resumeDataRetriesInFlight.remove(hash)
+                        return@launch
+                    }
+                    val requested =
+                        runCatching {
+                            retryHandle.saveResumeData(TorrentHandle.SAVE_INFO_DICT.or_(TorrentHandle.ONLY_IF_MODIFIED))
+                        }
+                    if (requested.isFailure) {
+                        // The retry request itself threw — no alert will follow, fail now.
+                        resumeDataRetriesInFlight.remove(hash)
+                        logger.e({ "Resume data retry request failed for $hash — marking ERROR" }, requested.exceptionOrNull())
+                        persistTorrentErrorState(hash)
+                    }
+                    // On a successful request the outcome arrives as an alert: success
+                    // clears the retry flag in handleSaveResumeData, failure re-enters
+                    // this handler and marks ERROR.
+                }
+            } catch (e: Exception) {
+                logger.e({ "Error handling SaveResumeDataFailedAlert" }, e)
+                pendingResumeDataLatch?.countDown()
+            }
+        }
+
+        /**
+         * Persists ERROR for a hash on the un-cancellable persistence scope, so
+         * restoreActiveDownloads() re-checks the torrent next session.
+         */
+        private fun persistTorrentErrorState(hash: String) {
+            statePersistenceScope.launch {
+                try {
+                    torrentDownloadDao.updateState(hash, TorrentState.ERROR)
+                } catch (e: Exception) {
+                    logger.w({ "Failed to persist ERROR state for $hash" }, e)
+                }
             }
         }
 
@@ -672,6 +1158,37 @@ public class TorrentSessionManager
                 }
 
                 torrents[hash] = handle
+                pendingAdds.remove(hash)
+
+                // Metadata timeout guard: magnet added without metadata must not linger forever.
+                if (torrentInfo == null) {
+                    sessionScope.launch {
+                        kotlinx.coroutines.delay(METADATA_TIMEOUT_MS)
+                        val h = torrents[hash]
+                        if (h != null && h.isValid) {
+                            val hasMetadata =
+                                runCatching { h.torrentFile() != null }.getOrDefault(false)
+                            if (!hasMetadata) {
+                                logger.w { "Metadata timeout for $hash after ${METADATA_TIMEOUT_MS / 1000}s — failing torrent" }
+                                synchronized(this@TorrentSessionManager) {
+                                    if (torrents.remove(hash) === h) {
+                                        runCatching { session?.remove(h) }
+                                    }
+                                }
+                                // Metadata never arrived, so the stash will never apply — drop it.
+                                selectedFileIndicesByHash.remove(hash)
+                                statePersistenceScope.launch {
+                                    try {
+                                        torrentDownloadDao.updateState(hash, TorrentState.ERROR)
+                                    } catch (e: Exception) {
+                                        logger.w({ "Failed to persist ERROR state for $hash" }, e)
+                                    }
+                                }
+                                updateDownloads()
+                            }
+                        }
+                    }
+                }
 
                 // Resume torrent to start downloading (required by libtorrent4j)
                 // According to libtorrent4j examples, handle.resume() must be called after adding
@@ -747,6 +1264,13 @@ public class TorrentSessionManager
                             "uploaded=${status.totalUpload()} bytes, " +
                             "downloadRate=${status.downloadRate()} bytes/s"
                     }
+                    // Persist the final resume state so a completed torrent restores
+                    // with piece hashes (SEEDING) instead of re-checking from scratch.
+                    try {
+                        handle.saveResumeData(TorrentHandle.SAVE_INFO_DICT)
+                    } catch (e: Exception) {
+                        logger.w({ "Failed to request final resume data for $hash" }, e)
+                    }
                     scheduleImmediateLibrarySync(hash)
                 }
                 updateDownloads()
@@ -777,7 +1301,7 @@ public class TorrentSessionManager
                         .build()
 
                 WorkManager.getInstance(context).enqueueUniqueWork(
-                    LIBRARY_SYNC_AFTER_TORRENT_WORK,
+                    LibraryScanWorker.WORK_NAME,
                     ExistingWorkPolicy.KEEP,
                     workRequest,
                 )
@@ -810,9 +1334,44 @@ public class TorrentSessionManager
                         "numPeers=${status.numPeers()}, " +
                         "numSeeds=${status.numSeeds()}"
                 }
+                // Persist ERROR so restoreActiveDownloads() doesn't re-add a torrent
+                // that can never complete (e.g. disk failure) — same as handleMetadataFailed.
+                statePersistenceScope.launch {
+                    try {
+                        torrentDownloadDao.updateState(hash, TorrentState.ERROR)
+                    } catch (e: Exception) {
+                        logger.w({ "Failed to persist ERROR state for $hash" }, e)
+                    }
+                }
                 updateDownloads()
             } catch (e: Exception) {
                 logger.e({ "Error handling torrent error alert" }, e)
+            }
+        }
+
+        private fun handleMetadataFailed(alert: MetadataFailedAlert) {
+            try {
+                val handle = alert.handle()
+                if (!handle.isValid) {
+                    logger.e { "Metadata failed alert with invalid handle" }
+                    return
+                }
+                val hash = handle.infoHash().toHex()
+                val error = runCatching { alert.error.message }.getOrNull()
+                logger.e { "Metadata failed for $hash: error='$error'" }
+                // Persist ERROR so restoreActiveDownloads() doesn't re-add a magnet that
+                // can never fetch metadata (otherwise stuck in DOWNLOADING_METADATA forever
+                // with no UI feedback). Same scope pattern as STOPPED terminal state above.
+                statePersistenceScope.launch {
+                    try {
+                        torrentDownloadDao.updateState(hash, TorrentState.ERROR)
+                    } catch (e: Exception) {
+                        logger.w({ "Failed to persist ERROR state for $hash" }, e)
+                    }
+                }
+                updateDownloads()
+            } catch (e: Exception) {
+                logger.e({ "Error handling metadata failed alert" }, e)
             }
         }
 
@@ -826,6 +1385,18 @@ public class TorrentSessionManager
                         logger.i {
                             "Metadata received for $hash: name='${torrentInfo.name()}', files=${torrentInfo.numFiles()}, size=${torrentInfo.totalSize()} bytes"
                         }
+                        // Metadata is the first point where the file list exists, so
+                        // this is the earliest a stashed file selection can be applied.
+                        applySelectedFilePriorities(hash, handle, torrentInfo.numFiles())
+                        // Persist metadata into the resume BLOB now: a BLOB written before
+                        // metadata arrived (e.g. stopSession path) restores as metadata-less
+                        // and re-enters DOWNLOADING_METADATA. saveResumeData is latch-safe;
+                        // handleSaveResumeData does the DB write.
+                        try {
+                            handle.saveResumeData(TorrentHandle.SAVE_INFO_DICT)
+                        } catch (e: Exception) {
+                            logger.w({ "Failed to request resume data on metadata for $hash" }, e)
+                        }
                     } else {
                         logger.i { "Metadata received for $hash (torrent info not yet available)" }
                     }
@@ -836,11 +1407,14 @@ public class TorrentSessionManager
             }
         }
 
+        private var lastBlockFinishedUpdateTimeMs: Long = 0L
+        private var lastPieceFinishedUpdateTimeMs: Long = 0L
+
         private fun handleBlockFinished(alert: BlockFinishedAlert) {
-            // Update less frequently for performance
-            if (System.currentTimeMillis() % 1000 < 100) {
-                updateDownloads()
-            }
+            val now = System.currentTimeMillis()
+            if (now - lastBlockFinishedUpdateTimeMs < 1000L) return
+            lastBlockFinishedUpdateTimeMs = now
+            updateDownloads()
         }
 
         private fun handlePieceFinished(alert: PieceFinishedAlert) {
@@ -852,10 +1426,10 @@ public class TorrentSessionManager
                     val pieceIndex = alert.pieceIndex()
                     logger.d { "Piece finished: hash=$hash, piece=$pieceIndex, progress=$progress%" }
                 }
-                // Update downloads less frequently for performance
-                if (System.currentTimeMillis() % 2000 < 200) {
-                    updateDownloads()
-                }
+                val now = System.currentTimeMillis()
+                if (now - lastPieceFinishedUpdateTimeMs < 2000L) return
+                lastPieceFinishedUpdateTimeMs = now
+                updateDownloads()
             } catch (e: Exception) {
                 logger.e({ "Error handling piece finished alert" }, e)
             }
@@ -880,6 +1454,7 @@ public class TorrentSessionManager
 
         // Helper methods
 
+        @Synchronized
         private fun updateDownloads() {
             try {
                 val downloads =
@@ -891,7 +1466,7 @@ public class TorrentSessionManager
                                     logger.w { "Handle invalid for torrent $hash, skipping update" }
                                     null
                                 } else {
-                                    hash to createTorrentDownload(hash, handle)
+                                    hash to stateBuilder.buildTorrentDownload(hash, handle, topicIds[hash])
                                 }
                             } catch (e: Exception) {
                                 logger.e({ "Failed to create download info for torrent $hash" }, e)
@@ -904,183 +1479,6 @@ public class TorrentSessionManager
                 // Don't clear downloads on error, keep last known state
             }
         }
-
-        private fun createTorrentDownload(
-            hash: String,
-            handle: TorrentHandle,
-        ): TorrentDownload {
-            try {
-                val status = handle.status()
-                val torrentInfo = handle.torrentFile()
-
-                // Get name with fallback: try status.name(), then torrentInfo.name(), then hash
-                val name =
-                    try {
-                        val statusName = status.name()
-                        if (statusName.isNotBlank()) {
-                            statusName
-                        } else {
-                            torrentInfo?.name()?.takeIf { it.isNotBlank() } ?: hash
-                        }
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to get name for torrent $hash, using hash as fallback" }
-                        hash
-                    }
-
-                // Get save path with error handling
-                val savePath =
-                    try {
-                        handle.savePath()
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to get save path for torrent $hash" }
-                        ""
-                    }
-
-                // Get progress with bounds checking
-                val progress = status.progress().coerceIn(0f, 1f)
-
-                // Get speeds with error handling
-                val downloadSpeed =
-                    try {
-                        status.downloadRate().toLong().coerceAtLeast(0L)
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to get download speed for torrent $hash" }
-                        0L
-                    }
-
-                val uploadSpeed =
-                    try {
-                        status.uploadRate().toLong().coerceAtLeast(0L)
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to get upload speed for torrent $hash" }
-                        0L
-                    }
-
-                // Get sizes with error handling
-                val totalSize =
-                    try {
-                        status.totalWanted().coerceAtLeast(0L)
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to get total size for torrent $hash" }
-                        0L
-                    }
-
-                val downloadedSize =
-                    try {
-                        status.totalWantedDone().coerceAtLeast(0L)
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to get downloaded size for torrent $hash" }
-                        0L
-                    }
-
-                val uploadedSize =
-                    try {
-                        status.allTimeUpload().coerceAtLeast(0L)
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to get uploaded size for torrent $hash" }
-                        0L
-                    }
-
-                // Get peer counts with error handling
-                val numPeers =
-                    try {
-                        status.numPeers()
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to get num peers for torrent $hash" }
-                        0
-                    }
-
-                val numSeeds =
-                    try {
-                        status.numSeeds()
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to get num seeds for torrent $hash" }
-                        0
-                    }
-
-                // Calculate ETA with error handling
-                val eta =
-                    try {
-                        calculateEta(status)
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to calculate ETA for torrent $hash" }
-                        -1L
-                    }
-
-                // val state = mapTorrentStatus(status) // Unused and unresolved
-
-                val dateAdded = System.currentTimeMillis() // creationDate not resolved in TorrentInfo
-                    /* try {
-                        torrentInfo?.creationDate?.let { it * 1000L } ?: System.currentTimeMillis()
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to get creation date for torrent $hash" }
-                        System.currentTimeMillis()
-                    } */
-
-                // Get files with error handling
-                val files =
-                    try {
-                        if (torrentInfo != null) {
-                            mapFiles(torrentInfo, handle)
-                        } else {
-                            emptyList()
-                        }
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to map files for torrent $hash" }
-                        emptyList()
-                    }
-
-                return TorrentDownload(
-                    hash = hash,
-                    name = name,
-                    state = mapState(status.state()),
-                    progress = progress,
-                    downloadSpeed = downloadSpeed.toInt(),
-                    uploadSpeed = uploadSpeed.toInt(),
-                    totalSize = totalSize,
-                    downloadedSize = downloadedSize,
-                    uploadedSize = uploadedSize,
-                    numPeers = numPeers,
-                    numSeeds = numSeeds,
-                    eta = eta,
-                    savePath = savePath,
-                    files = files,
-                    errorMessage = null, // Error tracking not available in current libtorrent4j binding
-                    topicId = topicIds[hash],
-                )
-            } catch (e: Exception) {
-                // If anything goes wrong, return a minimal valid TorrentDownload
-                logger.e({ "Critical error creating TorrentDownload for $hash" }, e)
-                return TorrentDownload(
-                    hash = hash,
-                    name = hash, // Fallback to hash
-                    state = TorrentState.ERROR,
-                    progress = 0f,
-                    downloadSpeed = 0,
-                    uploadSpeed = 0,
-                    totalSize = 0,
-                    downloadedSize = 0,
-                    uploadedSize = 0,
-                    numPeers = 0,
-                    numSeeds = 0,
-                    eta = -1L,
-                    savePath = "",
-                    files = emptyList(),
-                    errorMessage = "Error creating download info: ${e.message}",
-                    topicId = topicIds[hash],
-                )
-            }
-        }
-
-        private fun mapState(state: TorrentStatus.State): TorrentState =
-            when (state) {
-                TorrentStatus.State.CHECKING_FILES -> TorrentState.CHECKING
-                TorrentStatus.State.DOWNLOADING_METADATA -> TorrentState.DOWNLOADING_METADATA
-                TorrentStatus.State.DOWNLOADING -> TorrentState.DOWNLOADING
-                TorrentStatus.State.SEEDING -> TorrentState.SEEDING
-                TorrentStatus.State.FINISHED -> TorrentState.COMPLETED
-                else -> TorrentState.QUEUED
-            }
 
         /**
          * Prioritize specific file
@@ -1122,101 +1520,6 @@ public class TorrentSessionManager
                 updateDownloads()
             } catch (e: Exception) {
                 logger.e(e) { "Failed to set file priorities" }
-            }
-        }
-
-        private fun mapFiles(
-            torrentInfo: TorrentInfo,
-            handle: TorrentHandle,
-        ): List<TorrentFile> {
-            return try {
-                val fileStorage = torrentInfo.files() ?: return emptyList()
-                val numFiles = fileStorage.numFiles()
-
-                if (numFiles <= 0) {
-                    logger.w { "Torrent has no files" }
-                    return emptyList()
-                }
-
-                // Get priorities with error handling
-                val priorities =
-                    try {
-                        handle.filePriorities() // Returns Priority[]
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to get file priorities" }
-                        emptyArray()
-                    }
-
-                // Get progress with error handling
-                val progress =
-                    try {
-                        // Use empty flags to get progress in bytes, not pieces
-                        handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
-                    } catch (e: Exception) {
-                        logger.w(e) { "Failed to get file progress" }
-                        longArrayOf()
-                    }
-
-                (0 until numFiles).mapNotNull { index ->
-                    try {
-                        val priority =
-                            if (index < priorities.size) {
-                                try {
-                                    priorities[index].swig().toInt().coerceIn(0, 7)
-                                } catch (e: Exception) {
-                                    logger.w(e) { "Failed to get priority for file $index" }
-                                    4 // Default priority
-                                }
-                            } else {
-                                4 // Default priority
-                            }
-
-                        val size =
-                            try {
-                                fileStorage.fileSize(index).coerceAtLeast(0L)
-                            } catch (e: Exception) {
-                                logger.w(e) { "Failed to get size for file $index" }
-                                0L
-                            }
-
-                        val downloaded =
-                            if (index < progress.size) {
-                                try {
-                                    progress[index].coerceAtLeast(0L)
-                                } catch (e: Exception) {
-                                    logger.w(e) { "Failed to get downloaded bytes for file $index" }
-                                    0L
-                                }
-                            } else {
-                                0L
-                            }
-
-                        val fileProgress = if (size > 0) (downloaded.toFloat() / size).coerceIn(0f, 1f) else 0f
-
-                        val path =
-                            try {
-                                fileStorage.filePath(index) ?: "file_$index"
-                            } catch (e: Exception) {
-                                logger.w(e) { "Failed to get path for file $index" }
-                                "file_$index"
-                            }
-
-                        TorrentFile(
-                            index = index,
-                            path = path,
-                            size = size,
-                            priority = priority,
-                            progress = fileProgress,
-                            isSelected = priority != 0,
-                        )
-                    } catch (e: Exception) {
-                        logger.e(e) { "Failed to map file $index" }
-                        null // Skip this file
-                    }
-                }
-            } catch (e: Exception) {
-                logger.e(e) { "Critical error mapping files" }
-                emptyList()
             }
         }
 
@@ -1272,161 +1575,6 @@ public class TorrentSessionManager
             val handle = torrents[hash] ?: return 0L
             val progress = handle.fileProgress(org.libtorrent4j.swig.file_progress_flags_t())
             return if (fileIndex < progress.size) progress[fileIndex] else 0L
-        }
-
-        // ========================================
-        // Streaming-specific operations
-        // ========================================
-
-        /**
-         * Set sequential download range for a specific piece range.
-         *
-         * Limits sequential download to [range] pieces only, leaving the rest
-         * of the torrent in normal download mode. Pass `null` to reset.
-         */
-        public fun setSequentialRange(
-            hash: String,
-            range: Pair<Int, Int>?,
-        ) {
-            val handle = torrents[hash] ?: return
-            try {
-                if (range != null) {
-                    // Enable sequential for the torrent, then set piece priorities
-                    // to only sequence within the specified range
-                    val flags = org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
-                    val mask = org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
-                    handle.setFlags(flags, mask)
-
-                    val ti = handle.torrentFile()
-                    if (ti != null) {
-                        val totalPieces = ti.numPieces()
-                        // Lower priority for pieces outside the range
-                        for (i in 0 until range.first) {
-                            if (i < totalPieces) {
-                                handle.piecePriority(i, org.libtorrent4j.Priority.LOW)
-                            }
-                        }
-                        for (i in (range.second + 1) until totalPieces) {
-                            handle.piecePriority(i, org.libtorrent4j.Priority.LOW)
-                        }
-                    }
-                    logger.i { "Set sequential range for $hash: ${range.first}..${range.second}" }
-                } else {
-                    // Reset: disable sequential and restore normal priorities
-                    val flags = org.libtorrent4j.swig.torrent_flags_t()
-                    val mask = org.libtorrent4j.TorrentFlags.SEQUENTIAL_DOWNLOAD
-                    handle.setFlags(flags, mask)
-                    logger.i { "Reset sequential range for $hash" }
-                }
-            } catch (e: Exception) {
-                logger.e({ "Failed to set sequential range for $hash" }, e)
-            }
-        }
-
-        /**
-         * Set a deadline for a specific piece.
-         *
-         * Time-critical pieces with sooner deadlines are prioritized by libtorrent.
-         * A deadline of 0 means immediate/highest priority.
-         */
-        public fun setPieceDeadline(
-            hash: String,
-            pieceIndex: Int,
-            deadlineMs: Int,
-        ) {
-            val handle = torrents[hash] ?: return
-            try {
-                handle.setPieceDeadline(pieceIndex, deadlineMs)
-                logger.d { "Set piece deadline: hash=$hash piece=$pieceIndex deadline=${deadlineMs}ms" }
-            } catch (e: Exception) {
-                logger.e({ "Failed to set piece deadline for $hash piece $pieceIndex" }, e)
-            }
-        }
-
-        /**
-         * Clear all piece deadlines for a torrent.
-         */
-        public fun clearPieceDeadlines(hash: String) {
-            val handle = torrents[hash] ?: return
-            try {
-                handle.clearPieceDeadlines()
-                logger.d { "Cleared piece deadlines for $hash" }
-            } catch (e: Exception) {
-                logger.e({ "Failed to clear piece deadlines for $hash" }, e)
-            }
-        }
-
-        /**
-         * Check if a specific piece has been downloaded.
-         */
-        public fun havePiece(
-            hash: String,
-            pieceIndex: Int,
-        ): Boolean {
-            val handle = torrents[hash] ?: return false
-            return try {
-                handle.havePiece(pieceIndex)
-            } catch (e: Exception) {
-                logger.e({ "Failed to check piece $pieceIndex for $hash" }, e)
-                false
-            }
-        }
-
-        /**
-         * Read data from a downloaded piece.
-         *
-         * Returns empty array if the piece is not available or read fails.
-         */
-        public fun readPiece(
-            hash: String,
-            pieceIndex: Int,
-        ): ByteArray {
-            val handle = torrents[hash] ?: return ByteArray(0)
-            return try {
-                if (!handle.havePiece(pieceIndex)) return ByteArray(0)
-                // Synchronous piece read: readPiece in libtorrent4j is async (fires alert).
-                // For now, return empty — a proper async read-queue will be built in TS-B.
-                // TODO(TS-B): Implement async piece read with ReadPieceAlert listener.
-                ByteArray(0)
-            } catch (e: Exception) {
-                logger.e({ "Failed to read piece $pieceIndex for $hash" }, e)
-                ByteArray(0)
-            }
-        }
-
-        /**
-         * Get the piece range `(firstPiece..lastPiece)` for a file within a torrent.
-         *
-         * Returns null if metadata is not yet available.
-         */
-        public fun getFilePieceRange(
-            hash: String,
-            fileIndex: Int,
-        ): Pair<Int, Int>? {
-            val handle = torrents[hash] ?: return null
-            return try {
-                val ti = handle.torrentFile() ?: return null
-                if (fileIndex < 0 || fileIndex >= ti.numFiles()) return null
-                val firstPiece = ti.mapFile(fileIndex, 0, 0).piece()
-                val fileSize = ti.files().fileSize(fileIndex)
-                val lastByteOffset = (fileSize - 1).coerceAtLeast(0)
-                val lastPiece = ti.mapFile(fileIndex, lastByteOffset, 0).piece()
-                Pair(firstPiece, lastPiece)
-            } catch (e: Exception) {
-                logger.e({ "Failed to get piece range for file $fileIndex in $hash" }, e)
-                null
-            }
-        }
-
-        private fun calculateEta(status: TorrentStatus): Long {
-            val remaining = status.totalWanted() - status.totalWantedDone()
-            val speed = status.downloadRate()
-
-            return if (speed > 0 && remaining > 0) {
-                remaining / speed
-            } else {
-                -1
-            }
         }
 
         private fun parseMagnetHash(magnetUri: String): String? =

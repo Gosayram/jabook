@@ -33,7 +33,25 @@ class AudioDatabaseMigrationSmokeTest {
     }
 
     @Test
+    fun `migration contract includes 4 to 5`() {
+        assertEquals(4, AudioDatabaseMigrations.MIGRATION_4_5.startVersion)
+        assertEquals(5, AudioDatabaseMigrations.MIGRATION_4_5.endVersion)
+    }
+
+    @Test
+    fun `migration contract includes 5 to 6`() {
+        assertEquals(5, AudioDatabaseMigrations.MIGRATION_5_6.startVersion)
+        assertEquals(6, AudioDatabaseMigrations.MIGRATION_5_6.endVersion)
+    }
+
+    @Test
+    fun `migration contract includes 6 to 7`() {
+        assertEquals(6, AudioDatabaseMigrations.MIGRATION_6_7.startVersion)
+        assertEquals(7, AudioDatabaseMigrations.MIGRATION_6_7.endVersion)
+    }
+
+    @Test
     fun `schema version matches latest migration end version`() {
-        assertEquals(4, AudioDatabase.SCHEMA_VERSION)
+        assertEquals(7, AudioDatabase.SCHEMA_VERSION)
     }
 }

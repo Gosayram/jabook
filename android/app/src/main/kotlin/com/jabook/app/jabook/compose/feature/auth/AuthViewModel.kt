@@ -14,9 +14,11 @@
 
 package com.jabook.app.jabook.compose.feature.auth
 
+import android.content.Context
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.domain.model.AuthStatus
 import com.jabook.app.jabook.compose.domain.model.CaptchaData
@@ -24,6 +26,7 @@ import com.jabook.app.jabook.compose.domain.model.UserCredentials
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.repository.CaptchaRequiredException
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -42,13 +45,14 @@ public data class AuthUiState(
     val error: String? = null,
     val captchaData: CaptchaData? = null,
     val showWebViewLogin: Boolean = false,
-    val savedCredentials: UserCredentials? = null,
+    val savedUsername: String? = null,
 )
 
 @HiltViewModel
 public class AuthViewModel
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val authRepository: AuthRepository,
         private val mirrorManager: MirrorManager,
     ) : ViewModel() {
@@ -68,8 +72,8 @@ public class AuthViewModel
 
         private fun loadSavedCredentials() {
             viewModelScope.launch {
-                val credentials = authRepository.getStoredCredentials()
-                _uiState.update { it.copy(savedCredentials = credentials) }
+                val username = authRepository.getStoredCredentials()?.username
+                _uiState.update { it.copy(savedUsername = username) }
             }
         }
 
@@ -104,11 +108,11 @@ public class AuthViewModel
                                 it.copy(
                                     isLoading = false,
                                     captchaData = e.captchaData,
-                                    error = "Captcha required",
+                                    error = context.getString(R.string.captchaRequired),
                                 )
                             }
                         } else {
-                            _uiState.update { it.copy(isLoading = false, error = e.message ?: "Unknown error") }
+                            requestWebViewLogin(e.message ?: context.getString(R.string.unknown_error))
                         }
                     }
             }
@@ -125,23 +129,27 @@ public class AuthViewModel
         }
 
         public fun requestWebViewLogin() {
-            _uiState.update { it.copy(showWebViewLogin = true) }
+            requestWebViewLogin(error = null)
         }
 
-        public fun onWebViewLoginCompleted() {
+        private fun requestWebViewLogin(error: String?) {
+            _uiState.update { it.copy(isLoading = false, error = error, showWebViewLogin = true) }
+        }
+
+        public fun consumeWebViewLoginRequest() {
             _uiState.update { it.copy(showWebViewLogin = false) }
-            viewModelScope.launch {
-                // Sync cookies from WebView and refresh status
-                authRepository.syncCookiesFromWebView()
-                authRepository.isLoggedIn()
-            }
         }
 
-        /**
-         * Get login URL using current mirror.
-         */
-        public fun getLoginUrl(): String {
-            val baseUrl = mirrorManager.getBaseUrl()
-            return "$baseUrl/forum/login.php"
+        /** Clears the one-shot error so a cached entry does not re-show a stale snackbar. */
+        public fun consumeError() {
+            _uiState.update { it.copy(error = null) }
+        }
+
+        /** Uses one trusted origin for the WebView, cookie jar, and API validation. */
+        public suspend fun prepareWebViewLogin(): String {
+            if (mirrorManager.currentMirror.value !in MirrorManager.DEFAULT_MIRRORS) {
+                mirrorManager.setMirror(MirrorManager.DEFAULT_MIRRORS.first())
+            }
+            return "${mirrorManager.getBaseUrl()}/forum/login.php"
         }
     }

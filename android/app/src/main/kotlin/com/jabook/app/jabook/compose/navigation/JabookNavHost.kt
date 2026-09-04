@@ -14,21 +14,19 @@
 
 package com.jabook.app.jabook.compose.navigation
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
-import com.jabook.app.jabook.compose.core.theme.MotionTokens
+import com.jabook.app.jabook.compose.core.theme.MotionTokens // ponytail: kept for shimmer/rotation infinite specs not covered by motionScheme
 import com.jabook.app.jabook.compose.feature.favorites.FavoritesScreen
 import com.jabook.app.jabook.compose.feature.library.LibraryScreen
 import com.jabook.app.jabook.compose.feature.player.PlayerScreen
@@ -58,16 +56,25 @@ public fun JabookNavHost(
     modifier: Modifier = Modifier,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     onFirstMeaningfulContentDrawn: () -> Unit = {},
+    onMenuClick: () -> Unit = {},
 ) {
     val navController = appState.navController
+
+    // NavHost handles back navigation internally via its own BackHandler (dispatcher
+    // callback). No manual handler needed — it would shadow predictive-back support.
 
     // Log navigation changes
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     LaunchedEffect(currentBackStackEntry?.destination?.route) {
         currentBackStackEntry?.destination?.route?.let { route ->
-            navigationLogger.d { "📍 Navigation: Current screen = $route" }
+            navigationLogger.d { "Navigation: Current screen = $route" }
         }
     }
+
+    // ponytail: M3 1.4 fallback — motionScheme not in 1.4, use MotionTokens tween
+    val fastEffects =
+        androidx.compose.animation.core
+            .tween<Float>(durationMillis = MotionTokens.SHORT2)
 
     NavHost(
         navController = navController,
@@ -75,15 +82,11 @@ public fun JabookNavHost(
         modifier = modifier,
         enterTransition = {
             when {
-                initialState.destination.route.isTopLevelRoute() && targetState.destination.route.isTopLevelRoute() ->
+                initialState.destination.isTopLevelRoute() && targetState.destination.isTopLevelRoute() ->
                     androidx.compose.animation.fadeIn(
-                        animationSpec =
-                            androidx.compose.animation.core.tween(
-                                durationMillis = MotionTokens.SHORT2,
-                                easing = MotionTokens.Emphasized,
-                            ),
+                        animationSpec = fastEffects,
                     )
-                targetState.destination.route.isPlayerRoute() ->
+                targetState.destination.isPlayerRoute() ->
                     slideIntoContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Up,
                         animationSpec =
@@ -119,15 +122,11 @@ public fun JabookNavHost(
         },
         exitTransition = {
             when {
-                initialState.destination.route.isTopLevelRoute() && targetState.destination.route.isTopLevelRoute() ->
+                initialState.destination.isTopLevelRoute() && targetState.destination.isTopLevelRoute() ->
                     androidx.compose.animation.fadeOut(
-                        animationSpec =
-                            androidx.compose.animation.core.tween(
-                                durationMillis = MotionTokens.SHORT2,
-                                easing = MotionTokens.Emphasized,
-                            ),
+                        animationSpec = fastEffects,
                     )
-                targetState.destination.route.isPlayerRoute() ->
+                targetState.destination.isPlayerRoute() ->
                     slideOutOfContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Up,
                         animationSpec =
@@ -163,7 +162,7 @@ public fun JabookNavHost(
         },
         popEnterTransition = {
             when {
-                initialState.destination.route.isTopLevelRoute() && targetState.destination.route.isTopLevelRoute() ->
+                initialState.destination.isTopLevelRoute() && targetState.destination.isTopLevelRoute() ->
                     androidx.compose.animation.fadeIn(
                         animationSpec =
                             androidx.compose.animation.core.tween(
@@ -171,7 +170,7 @@ public fun JabookNavHost(
                                 easing = MotionTokens.Emphasized,
                             ),
                     )
-                initialState.destination.route.isPlayerRoute() ->
+                initialState.destination.isPlayerRoute() ->
                     slideIntoContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Down,
                         animationSpec =
@@ -207,7 +206,7 @@ public fun JabookNavHost(
         },
         popExitTransition = {
             when {
-                initialState.destination.route.isTopLevelRoute() && targetState.destination.route.isTopLevelRoute() ->
+                initialState.destination.isTopLevelRoute() && targetState.destination.isTopLevelRoute() ->
                     androidx.compose.animation.fadeOut(
                         animationSpec =
                             androidx.compose.animation.core.tween(
@@ -215,7 +214,7 @@ public fun JabookNavHost(
                                 easing = MotionTokens.Emphasized,
                             ),
                     )
-                initialState.destination.route.isPlayerRoute() ->
+                initialState.destination.isPlayerRoute() ->
                     slideOutOfContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Down,
                         animationSpec =
@@ -259,31 +258,44 @@ public fun JabookNavHost(
         ) {
             LibraryScreen(
                 onBookClick = { bookId ->
-                    navController.navigate(PlayerRoute(bookId = bookId))
-                },
-                onNavigateToSearch = {
-                    navController.navigate(SearchRoute)
-                },
-                onNavigateToDownloads = {
-                    navController.navigate(DownloadsRoute())
-                },
-                onNavigateToFavorites = {
-                    navController.navigate(FavoritesRoute)
-                },
-                onFirstMeaningfulContentDrawn = onFirstMeaningfulContentDrawn,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = this,
-            )
-        }
-
-        // Onboarding screen - introduces the app
-        composable<OnboardingRoute> {
-            com.jabook.app.jabook.compose.feature.onboarding.OnboardingScreen(
-                onFinish = {
-                    navController.navigate(LibraryRoute) {
-                        popUpTo(OnboardingRoute) { inclusive = true }
+                    navController.navigate(PlayerRoute(bookId = bookId)) {
+                        launchSingleTop = true
                     }
                 },
+                onNavigateToSearch = {
+                    navController.navigate(SearchRoute) {
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToDownloads = {
+                    navController.navigate(DownloadsRoute()) {
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToFavorites = {
+                    navController.navigate(FavoritesRoute) {
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToAudioSettings = {
+                    navController.navigate(AudioSettingsRoute) {
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToSettings = {
+                    navController.navigate(SettingsRoute) {
+                        launchSingleTop = true
+                    }
+                },
+                onNavigateToAuth = {
+                    navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute) {
+                        launchSingleTop = true
+                    }
+                },
+                onFirstMeaningfulContentDrawn = onFirstMeaningfulContentDrawn,
+                onMenuClick = onMenuClick,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = this,
             )
         }
 
@@ -292,6 +304,8 @@ public fun JabookNavHost(
             deepLinks =
                 listOf(
                     androidx.navigation.navDeepLink<PlayerRoute>(basePath = "jabook://player"),
+                    androidx.navigation.navDeepLink<PlayerRoute>(basePath = "jabook://player/{bookId}"),
+                    androidx.navigation.navDeepLink<PlayerRoute>(basePath = "jabook://player/{bookId}/chapter/{chapterIndex}"),
                 ),
             // Disable exit animations to prevent blank screen on back navigation
             popExitTransition = {
@@ -311,10 +325,22 @@ public fun JabookNavHost(
         ) { backStackEntry ->
             PlayerScreen(
                 onNavigateBack = {
-                    appState.navigateToLibrary()
+                    navController.popBackStack()
                 },
                 onNavigateToBook = { bookId ->
-                    navController.navigate(PlayerRoute(bookId = bookId))
+                    navController.navigate(PlayerRoute(bookId = bookId)) {
+                        launchSingleTop = true
+                        popUpTo<PlayerRoute> { inclusive = true }
+                    }
+                },
+                onNavigateToLibrary = {
+                    // Pop back to the existing Library entry; navigate only when
+                    // Library isn't on the stack (e.g. deep link into Player).
+                    if (!navController.popBackStack(LibraryRoute, inclusive = false)) {
+                        navController.navigate(LibraryRoute) {
+                            launchSingleTop = true
+                        }
+                    }
                 },
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = this,
@@ -335,7 +361,9 @@ public fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onMagnetLinkDetected = { magnetUrl ->
-                    navController.navigate(DownloadsRoute(magnetLink = magnetUrl))
+                    navController.navigate(DownloadsRoute(magnetLink = magnetUrl)) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -349,19 +377,29 @@ public fun JabookNavHost(
         ) {
             SettingsScreen(
                 onNavigateToAuth = {
-                    navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute)
+                    navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToDebug = {
-                    navController.navigate(DebugRoute)
+                    navController.navigate(DebugRoute) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToScanSettings = {
-                    navController.navigate(ScanSettingsRoute)
+                    navController.navigate(ScanSettingsRoute) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToAudioSettings = {
-                    navController.navigate(AudioSettingsRoute)
+                    navController.navigate(AudioSettingsRoute) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToDownloads = {
-                    navController.navigate(DownloadsRoute())
+                    navController.navigate(DownloadsRoute()) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -393,8 +431,10 @@ public fun JabookNavHost(
                 onNavigateToWebView = { url ->
                     navController.navigate(
                         com.jabook.app.jabook.compose.navigation
-                            .WebViewRoute(url),
-                    )
+                            .WebViewRoute(url, isAuthentication = true),
+                    ) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -406,11 +446,15 @@ public fun JabookNavHost(
                     navController.navigateUp()
                 },
                 onBookClick = { bookId ->
-                    navController.navigate(PlayerRoute(bookId = bookId))
+                    navController.navigate(PlayerRoute(bookId = bookId)) {
+                        launchSingleTop = true
+                    }
                 },
                 onOnlineBookClick = { searchResult ->
                     // Navigate to Topic Screen
-                    navController.navigate(TopicRoute(topicId = searchResult.topicId))
+                    navController.navigate(TopicRoute(topicId = searchResult.topicId)) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -427,23 +471,9 @@ public fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onTopicClick = { topicId ->
-                    navigationLogger.d { "🧭 Navigating to Topic: topicId=$topicId" }
-                    navController.navigate(TopicRoute(topicId = topicId))
-                },
-            )
-        }
-
-        // Migration screen - data migration from legacy app
-        composable<MigrationRoute>(
-            deepLinks =
-                listOf(
-                    androidx.navigation.navDeepLink { uriPattern = "jabook://migration" },
-                ),
-        ) {
-            com.jabook.app.jabook.compose.feature.migration.MigrationScreen(
-                onMigrationComplete = {
-                    navController.navigate(LibraryRoute) {
-                        popUpTo(MigrationRoute) { inclusive = true }
+                    navigationLogger.d { "Navigating to Topic: topicId=$topicId" }
+                    navController.navigate(TopicRoute(topicId = topicId)) {
+                        launchSingleTop = true
                     }
                 },
             )
@@ -461,7 +491,9 @@ public fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onNavigateToDetails = { hash ->
-                    navController.navigate(TorrentDetailsRoute(hash))
+                    navController.navigate(TorrentDetailsRoute(hash)) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -473,23 +505,27 @@ public fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onPlayBook = { bookId ->
-                    navController.navigate(PlayerRoute(bookId = bookId))
+                    navController.navigate(PlayerRoute(bookId = bookId)) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
 
-        // Debug screen - shows debug tools and logs
-        composable<DebugRoute>(
-            deepLinks =
-                listOf(
-                    androidx.navigation.navDeepLink { uriPattern = "jabook://debug" },
-                ),
-        ) {
-            com.jabook.app.jabook.compose.feature.debug.DebugScreen(
-                onNavigateBack = {
-                    navController.popBackStack()
-                },
-            )
+        if (BuildConfig.DEBUG) {
+            // Debug tools are intentionally unavailable from production builds.
+            composable<DebugRoute>(
+                deepLinks =
+                    listOf(
+                        androidx.navigation.navDeepLink { uriPattern = "jabook://debug" },
+                    ),
+            ) {
+                com.jabook.app.jabook.compose.feature.debug.DebugScreen(
+                    onNavigateBack = {
+                        navController.popBackStack()
+                    },
+                )
+            }
         }
 
         // Topic details screen - shows RuTracker topic information
@@ -501,7 +537,9 @@ public fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onNavigateToTopic = { topicId ->
-                    navController.navigate(TopicRoute(topicId = topicId))
+                    navController.navigate(TopicRoute(topicId = topicId)) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
@@ -518,37 +556,15 @@ public fun JabookNavHost(
                     navController.popBackStack()
                 },
                 onNavigateToTopic = { topicId: String ->
-                    navController.navigate(TopicRoute(topicId = topicId))
+                    navController.navigate(TopicRoute(topicId = topicId)) {
+                        launchSingleTop = true
+                    }
                 },
             )
         }
     }
 }
 
-private fun String?.isTopLevelRoute(): Boolean =
-    this?.contains("LibraryRoute", ignoreCase = true) == true ||
-        this?.contains("SearchRoute", ignoreCase = true) == true ||
-        this?.contains("SettingsRoute", ignoreCase = true) == true
+private fun NavDestination.isTopLevelRoute(): Boolean = hasRoute<LibraryRoute>() || hasRoute<SearchRoute>() || hasRoute<SettingsRoute>()
 
-private fun String?.isPlayerRoute(): Boolean = this?.contains("PlayerRoute", ignoreCase = true) == true
-
-/**
- * Temporary placeholder screen for navigation testing.
- * Will be replaced with actual screens in later phases.
- */
-@Composable
-private fun PlaceholderScreen(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-    }
-}
+private fun NavDestination.isPlayerRoute(): Boolean = hasRoute<PlayerRoute>()

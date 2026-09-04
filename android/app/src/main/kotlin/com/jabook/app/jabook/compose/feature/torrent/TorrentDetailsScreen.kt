@@ -14,11 +14,12 @@
 
 package com.jabook.app.jabook.compose.feature.torrent
 
-import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -27,6 +28,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,14 +39,19 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,10 +64,11 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.torrent.TorrentFile
 import kotlinx.coroutines.flow.collect
 import java.io.File
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -71,11 +79,8 @@ public fun TorrentDetailsScreen(
 ) {
     // Get window size class for adaptive sizing
     val context = LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val wsc = LocalWindowSizeClass.current
+    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 
@@ -84,13 +89,25 @@ public fun TorrentDetailsScreen(
 
     val download by viewModel.download.collectAsStateWithLifecycle()
 
+    val currentOnPlayBook by rememberUpdatedState(onPlayBook)
+
     LaunchedEffect(Unit) {
         viewModel.navigationEvent.collect { bookId: String ->
-            onPlayBook(bookId)
+            currentOnPlayBook(bookId)
+        }
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(Unit) {
+        viewModel.messages.collect { message ->
+            snackbarHostState.showSnackbar(message)
         }
     }
 
     Scaffold(
+        // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -109,7 +126,7 @@ public fun TorrentDetailsScreen(
     ) { padding ->
         val state = download
 
-        var showFileSelection by remember { androidx.compose.runtime.mutableStateOf(false) }
+        var showFileSelection by rememberSaveable { mutableStateOf(false) }
 
         if (showFileSelection && state != null) {
             FileSelectionDialog(
@@ -128,9 +145,12 @@ public fun TorrentDetailsScreen(
             }
         } else {
             val isBuffering by viewModel.isBuffering.collectAsStateWithLifecycle()
+            val monitoredHash by viewModel.monitoredHash.collectAsStateWithLifecycle()
 
-            if (isBuffering) {
-                androidx.compose.material3.AlertDialog(
+            // Only show the buffering dialog for THIS screen's torrent — the monitor
+            // is a singleton and may be streaming a different hash in background.
+            if (isBuffering && monitoredHash == viewModel.hash) {
+                AlertDialog(
                     onDismissRequest = { /* Disable dismiss */ },
                     title = { Text(stringResource(R.string.torrentBufferingTitle)) },
                     text = {
@@ -170,13 +190,13 @@ public fun TorrentDetailsScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                             Text(
-                                stringResource(R.string.torrentSizeLabel, formatSize(state.totalSize)),
+                                stringResource(R.string.torrentSizeLabel, UiFormatters.formatFileSize(state.totalSize)),
                                 style = MaterialTheme.typography.bodyMedium,
                             )
 
                             if (state.eta > 0) {
                                 Text(
-                                    stringResource(R.string.torrentEtaLabel, formatEta(state.eta)),
+                                    stringResource(R.string.torrentEtaLabel, UiFormatters.formatDuration(state.eta * 1000L)),
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                             }
@@ -185,7 +205,7 @@ public fun TorrentDetailsScreen(
                 }
 
                 item {
-                    androidx.compose.foundation.layout.Row(
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
@@ -195,7 +215,7 @@ public fun TorrentDetailsScreen(
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(vertical = 8.dp),
                         )
-                        androidx.compose.material3.TextButton(onClick = { showFileSelection = true }) {
+                        TextButton(onClick = { showFileSelection = true }) {
                             Text(stringResource(R.string.manageFiles))
                         }
                     }
@@ -204,6 +224,7 @@ public fun TorrentDetailsScreen(
                 items(
                     items = state.files,
                     key = { file -> file.index },
+                    contentType = { "file_item" },
                 ) { file ->
                     FileItem(
                         file = file,
@@ -221,6 +242,7 @@ private fun FileItem(
     file: TorrentFile,
     onPlay: () -> Unit,
 ) {
+    val fileName = remember(file.path) { File(file.path).name }
     val isAudio =
         remember(file.path) {
             val ext = File(file.path).extension.lowercase()
@@ -228,10 +250,10 @@ private fun FileItem(
         }
 
     ListItem(
-        headlineContent = { Text(File(file.path).name) },
+        headlineContent = { Text(fileName) },
         supportingContent = {
             Column {
-                Text(formatSize(file.size))
+                Text(UiFormatters.formatFileSize(file.size))
                 LinearProgressIndicator(
                     progress = { file.progress },
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -246,21 +268,4 @@ private fun FileItem(
             }
         },
     )
-}
-
-private fun formatSize(bytes: Long): String {
-    val kb = bytes / 1024.0
-    val mb = kb / 1024.0
-    val gb = mb / 1024.0
-    return when {
-        gb >= 1 -> "%.2f GB".format(Locale.US, gb)
-        mb >= 1 -> "%.2f MB".format(Locale.US, mb)
-        kb >= 1 -> "%.2f KB".format(Locale.US, kb)
-        else -> "$bytes B"
-    }
-}
-
-private fun formatEta(seconds: Long): String {
-    if (seconds < 0) return "∞"
-    return DateUtils.formatElapsedTime(seconds.coerceAtLeast(0))
 }

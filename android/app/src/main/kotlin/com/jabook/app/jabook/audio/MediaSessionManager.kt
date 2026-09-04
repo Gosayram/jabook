@@ -16,11 +16,9 @@ package com.jabook.app.jabook.audio
 
 import android.content.Context
 import androidx.annotation.OptIn
-import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.session.CommandButton
 import com.jabook.app.jabook.util.LogUtils
 
 /**
@@ -51,11 +49,10 @@ import com.jabook.app.jabook.util.LogUtils
 @OptIn(UnstableApi::class)
 public class MediaSessionManager(
     private val context: Context,
-    private val player: ExoPlayer,
+    private var player: ExoPlayer,
     private var playCallback: (() -> Unit)? = null,
     private var pauseCallback: (() -> Unit)? = null,
 ) {
-    // private var mediaSession: MediaSession? = null // Removed duplicate session
     private var rewindCallback: (() -> Unit)? = null
     private var forwardCallback: (() -> Unit)? = null
     private var rewindSeconds: Long = 0L
@@ -63,22 +60,8 @@ public class MediaSessionManager(
     private var lastPlayWhenReady: Boolean = player.playWhenReady
 
     public companion object {
-        private const val REWIND_COMMAND = "com.jabook.app.jabook.audio.REWIND"
-        private const val FORWARD_COMMAND = "com.jabook.app.jabook.audio.FORWARD"
         private const val DEFAULT_REWIND_SECONDS = 15L
         private const val DEFAULT_FORWARD_SECONDS = 30L
-
-        /**
-         * Provides rewind command icon.
-         * Inspired by lissen-android implementation.
-         */
-        private fun provideRewindCommand(): Int = CommandButton.ICON_SKIP_BACK
-
-        /**
-         * Provides forward command icon.
-         * Inspired by lissen-android implementation.
-         */
-        private fun provideForwardCommand(): Int = CommandButton.ICON_SKIP_FORWARD
     }
 
     /**
@@ -109,35 +92,14 @@ public class MediaSessionManager(
                         "lastPlayWhenReady=$lastPlayWhenReady, playbackState=${player.playbackState}",
                 )
 
-                // Only call callbacks if the change was triggered by user action
-                // PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST = 1 means user explicitly requested play/pause
-                // This happens when user clicks button in Quick Settings, notification, or lockscreen
-                if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST) {
-                    if (playWhenReady && !lastPlayWhenReady) {
-                        // User requested play via MediaSession (Quick Settings, notification, etc.)
-                        LogUtils.i(
-                            "MediaSessionManager",
-                            "Play command detected from MediaSession (USER_REQUEST), calling playCallback",
-                        )
+                if (playWhenReady != lastPlayWhenReady) {
+                    if (playWhenReady) {
+                        LogUtils.i("MediaSessionManager", "Playback started ($reasonText), calling playCallback")
                         playCallback?.invoke()
-                    } else if (!playWhenReady && lastPlayWhenReady) {
-                        // User requested pause via MediaSession (Quick Settings, notification, etc.)
-                        LogUtils.i(
-                            "MediaSessionManager",
-                            "Pause command detected from MediaSession (USER_REQUEST), calling pauseCallback",
-                        )
-                        pauseCallback?.invoke()
                     } else {
-                        LogUtils.d(
-                            "MediaSessionManager",
-                            "PlayWhenReady changed but no callback needed: playWhenReady=$playWhenReady, lastPlayWhenReady=$lastPlayWhenReady",
-                        )
+                        LogUtils.i("MediaSessionManager", "Playback paused ($reasonText), calling pauseCallback")
+                        pauseCallback?.invoke()
                     }
-                } else {
-                    LogUtils.d(
-                        "MediaSessionManager",
-                        "PlayWhenReady changed but not from user request (reason=$reasonText), skipping callbacks",
-                    )
                 }
                 lastPlayWhenReady = playWhenReady
             }
@@ -148,7 +110,6 @@ public class MediaSessionManager(
         forwardSeconds = DEFAULT_FORWARD_SECONDS
         lastPlayWhenReady = player.playWhenReady
         setupPlayerListener()
-        // initializeMediaSession() // Removed duplicate session creation
     }
 
     /**
@@ -159,6 +120,15 @@ public class MediaSessionManager(
      * CRITICAL: Enhanced logging for Play/Pause diagnostics, especially for Samsung devices.
      */
     private fun setupPlayerListener() {
+        player.addListener(playerListener)
+    }
+
+    /** Moves command observation to the player currently owned by the service. */
+    public fun updatePlayer(newPlayer: ExoPlayer) {
+        if (player === newPlayer) return
+        player.removeListener(playerListener)
+        player = newPlayer
+        lastPlayWhenReady = player.playWhenReady
         player.addListener(playerListener)
     }
 
@@ -208,46 +178,9 @@ public class MediaSessionManager(
     // initializeMediaSession removed to prevent duplicate session
     // Logic moved/handled by AudioPlayerLibrarySessionCallback and AudioPlayerService
 
-    /**
-     * Default rewind action: seek back by configured seconds.
-     */
-    private fun defaultRewind() {
-        val currentPosition = player.currentPosition
-        val newPosition = (currentPosition - rewindSeconds * 1000).coerceAtLeast(0L)
-        player.seekTo(newPosition)
-        LogUtils.d("MediaSessionManager", "Rewind: ${rewindSeconds}s")
-    }
-
-    /**
-     * Default forward action: seek forward by configured seconds.
-     */
-    private fun defaultForward() {
-        val currentPosition = player.currentPosition
-        val duration = player.duration
-        if (duration != C.TIME_UNSET) {
-            val newPosition = (currentPosition + forwardSeconds * 1000).coerceAtMost(duration)
-            player.seekTo(newPosition)
-            LogUtils.d("MediaSessionManager", "Forward: ${forwardSeconds}s")
-        }
-    }
-
-    // getMediaSession removed - use AudioPlayerService.mediaSession
-    // fun getMediaSession(): androidx.media3.session.MediaSession =
-    //    mediaSession ?: throw IllegalStateException("MediaSession not initialized")
-
-    /**
-     * Updates media metadata.
-     */
-    public fun updateMetadata() {
-        // Metadata is automatically updated from ExoPlayer
-        // This method can be used for custom metadata updates if needed
-    }
-
     public fun release() {
         try {
             player.removeListener(playerListener)
-            // mediaSession?.release()
-            // mediaSession = null
             LogUtils.d("MediaSessionManager", "MediaSession released successfully")
         } catch (e: Exception) {
             LogUtils.e("MediaSessionManager", "Failed to release MediaSession", e)

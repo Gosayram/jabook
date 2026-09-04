@@ -1,0 +1,12 @@
+# Startup profile (API 33+ dex layout optimization). AGP packages this file into
+# assets/dexopt automatically. Keep in sync with the startup path: Application ->
+# ComposeMainActivity -> JabookApp -> NavHost -> Library (startDestination).
+Lcom/jabook/app/jabook/JabookApplication;
+Lcom/jabook/app/jabook/compose/ComposeMainActivity;
+Lcom/jabook/app/jabook/compose/JabookAppKt;
+Lcom/jabook/app/jabook/compose/MainViewModel;
+Lcom/jabook/app/jabook/compose/navigation/JabookNavHostKt;
+Lcom/jabook/app/jabook/compose/feature/library/LibraryScreenKt;
+Lcom/jabook/app/jabook/compose/feature/library/LibraryViewModel;
+Lcom/jabook/app/jabook/compose/feature/library/UnifiedBooksViewKt;
+Lcom/jabook/app/jabook/compose/feature/library/EnhancedLibraryContentKt;

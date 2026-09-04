@@ -20,6 +20,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.cancel
 
 /**
  * Slim coordinator for ExoPlayer event listening.
@@ -62,7 +63,17 @@ internal class PlayerListener(
     updateAudioVisualizer: ((Int) -> Unit)? = null,
     getCrossfadeHandler: (() -> CrossfadeHandler?)? = null,
     coroutineScope: kotlinx.coroutines.CoroutineScope? = null,
+    private val onIsPlayingChanged: ((Boolean) -> Unit)? = null,
+    private val onTerminalPlaybackError: (String) -> Unit = {},
 ) : Player.Listener {
+    private var ownedScope: kotlinx.coroutines.CoroutineScope? = null
+
+    private val managedScope: kotlinx.coroutines.CoroutineScope =
+        coroutineScope
+            ?: kotlinx.coroutines
+                .CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Default)
+                .also { ownedScope = it }
+
     // --- Captured callbacks for direct use in listener overrides ---
     private val capturedActivePlayer: () -> ExoPlayer = getActivePlayer
     private val capturedSavePosition: () -> Unit = saveCurrentPosition
@@ -78,7 +89,7 @@ internal class PlayerListener(
     private val bookCompletionTracker: BookCompletionTracker =
         BookCompletionTracker(
             context = context,
-            scope = coroutineScope ?: kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default),
+            scope = managedScope,
             getActivePlayer = { getActivePlayer() },
             getIsBookCompleted = { getIsBookCompleted() },
             setIsBookCompleted = { setIsBookCompleted(it) },
@@ -88,20 +99,26 @@ internal class PlayerListener(
             saveCurrentPosition = { saveCurrentPosition() },
             getCurrentBookId = { getCurrentBookId?.invoke() },
             markBookCompleted = markBookCompleted,
+            getRepeatMode = { getActivePlayer().repeatMode },
+            prepareNextChapter = preloadNextTrack,
         )
 
     private val playerErrorHandler: PlayerErrorHandler =
         PlayerErrorHandler(
+            scope = managedScope,
             getActivePlayer = { getActivePlayer() },
             getActualPlaylistSize = { getActualPlaylistSize?.invoke() ?: getActivePlayer().mediaItemCount },
             getCurrentMetadata = { getCurrentMetadata() },
             getCurrentBookId = { getCurrentBookId?.invoke() },
+            onTerminalError = onTerminalPlaybackError,
         )
 
     private val metadataHandler: PlayerMetadataHandler =
         PlayerMetadataHandler(
             context = context,
             setEmbeddedArtworkPath = setEmbeddedArtworkPath,
+            getActivePlayer = capturedActivePlayer,
+            scope = managedScope,
         )
 
     private val trackTransitionCoordinator: TrackTransitionCoordinator =
@@ -121,6 +138,7 @@ internal class PlayerListener(
             saveCurrentPosition = saveCurrentPosition,
             bookCompletionTracker = bookCompletionTracker,
             playerErrorHandler = playerErrorHandler,
+            getRepeatMode = { getActivePlayer().repeatMode },
         )
 
     private val playbackEventProcessor: PlaybackEventProcessor =
@@ -143,16 +161,7 @@ internal class PlayerListener(
             getCrossfadeHandler = getCrossfadeHandler,
             playerErrorHandler = playerErrorHandler,
             bookCompletionTracker = bookCompletionTracker,
-        )
-
-    private val audioFocusDuckingController =
-        AudioFocusDuckingController(
-            getActivePlayer = getActivePlayer,
-            scope = coroutineScope,
-            onDuckApplied = {
-                saveCurrentPosition()
-                LogUtils.d("AudioPlayerService", "Saved position on transient audio focus duck event")
-            },
+            onIsPlayingChanged = onIsPlayingChanged,
         )
 
     /** Backward-compatible accessor for LoudnessNormalizer injection from PlayerConfigurator. */
@@ -207,10 +216,6 @@ internal class PlayerListener(
         }
     }
 
-    override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
-        audioFocusDuckingController.onPlaybackSuppressionReasonChanged(playbackSuppressionReason)
-    }
-
     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
         playerErrorHandler.logErrorContext(error)
         playerErrorHandler.handlePlayerError(error)
@@ -231,14 +236,17 @@ internal class PlayerListener(
             }
         LogUtils.i(
             "AudioPlayerService",
-            "🎵 Track switch: index=$currentIndex, reason=$reasonName, mediaId=${mediaItem?.mediaId ?: "unknown"}",
+            "Track switch: index=$currentIndex, reason=$reasonName, mediaId=${mediaItem?.mediaId ?: "unknown"}",
         )
 
         trackTransitionCoordinator.handleTrackTransitionEvent(currentIndex, "onMediaItemTransition")
 
-        // Sleep timer "end of chapter" on auto transition
+        // A repeated item also reached its end; do not let repeat-one bypass the timer.
         if ((capturedSleepTimerEndOfChapter() || capturedSleepTimerEndOfTrack()) &&
-            reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
+            (
+                reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
+                    reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
+            )
         ) {
             LogUtils.d("AudioPlayerService", "Sleep timer expired (end of chapter on auto transition)")
             capturedMarkSleepTimerPause()
@@ -271,6 +279,7 @@ internal class PlayerListener(
 
     fun release() {
         bookCompletionTracker.stopPositionCheck()
-        audioFocusDuckingController.release()
+        playerErrorHandler.cancelPendingRetry()
+        ownedScope?.cancel()
     }
 }

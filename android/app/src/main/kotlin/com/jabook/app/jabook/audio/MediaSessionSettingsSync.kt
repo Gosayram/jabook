@@ -14,8 +14,10 @@
 
 package com.jabook.app.jabook.audio
 
+import com.jabook.app.jabook.compose.core.util.safeEnum
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -83,28 +85,18 @@ public class MediaSessionSettingsSync(
                 .map { prefs ->
                     com.jabook.app.jabook.audio.processors.AudioProcessingSettings(
                         normalizeVolume = prefs.normalizeVolume,
+                        speechCompressorLevel =
+                            prefs.speechCompressorLevel.safeEnum(
+                                com.jabook.app.jabook.audio.processors.SpeechCompressorLevel.Off,
+                            ),
                         volumeBoostLevel =
-                            try {
-                                if (prefs.volumeBoostLevel.isNotEmpty()) {
-                                    com.jabook.app.jabook.audio.processors.VolumeBoostLevel
-                                        .valueOf(prefs.volumeBoostLevel)
-                                } else {
-                                    com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
-                                }
-                            } catch (e: Exception) {
-                                com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off
-                            },
+                            prefs.volumeBoostLevel.safeEnum(
+                                com.jabook.app.jabook.audio.processors.VolumeBoostLevel.Off,
+                            ),
                         drcLevel =
-                            try {
-                                if (prefs.drcLevel.isNotEmpty()) {
-                                    com.jabook.app.jabook.audio.processors.DRCLevel
-                                        .valueOf(prefs.drcLevel)
-                                } else {
-                                    com.jabook.app.jabook.audio.processors.DRCLevel.Off
-                                }
-                            } catch (e: Exception) {
-                                com.jabook.app.jabook.audio.processors.DRCLevel.Off
-                            },
+                            prefs.drcLevel.safeEnum(
+                                com.jabook.app.jabook.audio.processors.DRCLevel.Off,
+                            ),
                         speechEnhancer = prefs.speechEnhancer,
                         autoVolumeLeveling = prefs.autoVolumeLeveling,
                         skipSilence = prefs.skipSilence,
@@ -123,9 +115,16 @@ public class MediaSessionSettingsSync(
                             },
                         isCrossfadeEnabled = prefs.crossfadeEnabled,
                         crossfadeDurationMs = if (prefs.crossfadeDurationMs > 0) prefs.crossfadeDurationMs else 2000L,
+                        crossfadeBetweenBooksMs = prefs.crossfadeBetweenBooksMs.coerceAtLeast(0),
+                        noiseGateLevel =
+                            prefs.noiseGateLevel.safeEnum(
+                                com.jabook.app.jabook.audio.processors.NoiseGateLevel.Off,
+                            ),
                     )
                 }.distinctUntilChanged()
-                .collect { settings ->
+                .catch { e ->
+                    LogUtils.e("MediaSessionSettingsSync", "Audio-settings sync flow failed; stopping this collector", e)
+                }.collect { settings ->
                     LogUtils.d(
                         "MediaSessionSettingsSync",
                         "Syncing audio settings: $settings",

@@ -17,7 +17,6 @@ package com.jabook.app.jabook.compose.data.local.scanner
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 
 /**
@@ -27,13 +26,6 @@ import org.junit.Test
  * falls back to full scan when no timestamp is available, and respects the grace window.
  */
 public class IncrementalScanPolicyTest {
-    private lateinit var policy: IncrementalScanPolicy
-
-    @Before
-    public fun setUp() {
-        policy = IncrementalScanPolicy()
-    }
-
     // region filterChangedFiles — Full scan fallback
 
     @Test
@@ -44,7 +36,7 @@ public class IncrementalScanPolicyTest {
                 makeFileScanInfo("b.mp3", lastModified = 200L),
             )
 
-        val result = policy.filterChangedFiles(files, lastScanTimestampMs = null)
+        val result = IncrementalScanPolicy.filterChangedFiles(files, lastScanTimestampMs = null)
 
         assertTrue(result.isFullScan)
         assertEquals(2, result.filesToScan.size)
@@ -55,7 +47,7 @@ public class IncrementalScanPolicyTest {
     public fun `zero timestamp triggers full scan`() {
         val files = listOf(makeFileScanInfo("a.mp3", lastModified = 1000L))
 
-        val result = policy.filterChangedFiles(files, lastScanTimestampMs = 0L)
+        val result = IncrementalScanPolicy.filterChangedFiles(files, lastScanTimestampMs = 0L)
 
         assertTrue(result.isFullScan)
         assertEquals(1, result.filesToScan.size)
@@ -65,7 +57,7 @@ public class IncrementalScanPolicyTest {
     public fun `negative timestamp triggers full scan`() {
         val files = listOf(makeFileScanInfo("a.mp3", lastModified = 1000L))
 
-        val result = policy.filterChangedFiles(files, lastScanTimestampMs = -1L)
+        val result = IncrementalScanPolicy.filterChangedFiles(files, lastScanTimestampMs = -1L)
 
         assertTrue(result.isFullScan)
     }
@@ -85,7 +77,7 @@ public class IncrementalScanPolicyTest {
                 makeFileScanInfo("old2.mp3", lastModified = 8_000L),
             )
 
-        val result = policy.filterChangedFiles(files, lastScanTimestampMs = scanTime, graceWindowMs = 0L)
+        val result = IncrementalScanPolicy.filterChangedFiles(files, lastScanTimestampMs = scanTime, graceWindowMs = 0L)
 
         assertFalse(result.isFullScan)
         assertEquals(0, result.filesToScan.size)
@@ -102,7 +94,7 @@ public class IncrementalScanPolicyTest {
                 makeFileScanInfo("new.mp3", lastModified = 15_000L),
             )
 
-        val result = policy.filterChangedFiles(files, lastScanTimestampMs = scanTime, graceWindowMs = 0L)
+        val result = IncrementalScanPolicy.filterChangedFiles(files, lastScanTimestampMs = scanTime, graceWindowMs = 0L)
 
         assertFalse(result.isFullScan)
         assertEquals(1, result.filesToScan.size)
@@ -119,7 +111,7 @@ public class IncrementalScanPolicyTest {
                 makeFileScanInfo("exact.mp3", lastModified = 10_000L),
             )
 
-        val result = policy.filterChangedFiles(files, lastScanTimestampMs = scanTime, graceWindowMs = 0L)
+        val result = IncrementalScanPolicy.filterChangedFiles(files, lastScanTimestampMs = scanTime, graceWindowMs = 0L)
 
         assertEquals(1, result.filesToScan.size)
         assertEquals(0, result.skippedCount)
@@ -141,7 +133,7 @@ public class IncrementalScanPolicyTest {
             )
 
         val result =
-            policy.filterChangedFiles(
+            IncrementalScanPolicy.filterChangedFiles(
                 files,
                 lastScanTimestampMs = scanTime,
                 graceWindowMs = graceWindow,
@@ -163,7 +155,7 @@ public class IncrementalScanPolicyTest {
             )
 
         val result =
-            policy.filterChangedFiles(
+            IncrementalScanPolicy.filterChangedFiles(
                 files,
                 lastScanTimestampMs = scanTime,
                 graceWindowMs = graceWindow,
@@ -185,7 +177,7 @@ public class IncrementalScanPolicyTest {
             )
 
         val result =
-            policy.filterChangedFiles(
+            IncrementalScanPolicy.filterChangedFiles(
                 files,
                 lastScanTimestampMs = scanTime,
                 graceWindowMs = graceWindow,
@@ -212,7 +204,7 @@ public class IncrementalScanPolicyTest {
             )
 
         val result =
-            policy.filterChangedFiles(
+            IncrementalScanPolicy.filterChangedFiles(
                 files,
                 lastScanTimestampMs = scanTime,
                 graceWindowMs = graceWindow,
@@ -225,52 +217,11 @@ public class IncrementalScanPolicyTest {
 
     @Test
     public fun `empty file list returns empty result`() {
-        val result = policy.filterChangedFiles(emptyList(), lastScanTimestampMs = 10_000L)
+        val result = IncrementalScanPolicy.filterChangedFiles(emptyList(), lastScanTimestampMs = 10_000L)
 
         assertFalse(result.isFullScan)
         assertEquals(0, result.filesToScan.size)
         assertEquals(0, result.skippedCount)
-    }
-
-    // endregion
-
-    // region groupChangedDirectories
-
-    @Test
-    public fun `groupChangedDirectories groups by directory`() {
-        val files =
-            listOf(
-                makeFileScanInfo("a.mp3", directory = "/books/book1"),
-                makeFileScanInfo("b.mp3", directory = "/books/book1"),
-                makeFileScanInfo("c.mp3", directory = "/books/book2"),
-            )
-
-        val filterResult =
-            IncrementalScanPolicy.FilterResult(
-                filesToScan = files,
-                skippedCount = 0,
-                isFullScan = false,
-            )
-
-        val grouped = policy.groupChangedDirectories(filterResult)
-
-        assertEquals(2, grouped.size)
-        assertEquals(2, grouped["/books/book1"]?.size)
-        assertEquals(1, grouped["/books/book2"]?.size)
-    }
-
-    @Test
-    public fun `groupChangedDirectories with empty result returns empty map`() {
-        val filterResult =
-            IncrementalScanPolicy.FilterResult(
-                filesToScan = emptyList(),
-                skippedCount = 0,
-                isFullScan = false,
-            )
-
-        val grouped = policy.groupChangedDirectories(filterResult)
-
-        assertTrue(grouped.isEmpty())
     }
 
     // endregion

@@ -16,12 +16,15 @@ package com.jabook.app.jabook.compose.di
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.PreferenceDataStoreFactory
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.preferencesDataStoreFile
+import androidx.datastore.core.DataStoreFactory
+import androidx.datastore.dataStoreFile
+import com.jabook.app.jabook.compose.data.preferences.LegacyPreferencesDataMigration
+import com.jabook.app.jabook.compose.data.preferences.UserPreferences
+import com.jabook.app.jabook.compose.data.preferences.UserPreferencesDataMigration
+import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
-import com.jabook.app.jabook.compose.data.repository.DataStoreUserPreferencesRepository
 import com.jabook.app.jabook.compose.data.repository.OfflineFirstBooksRepository
+import com.jabook.app.jabook.compose.data.repository.ProtoBackedUserPreferencesRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import com.jabook.app.jabook.core.datastore.DataStoreCorruptionPolicy
 import dagger.Binds
@@ -35,11 +38,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import javax.inject.Singleton
 
-private fun createJabookPreferencesDataStore(context: Context): DataStore<Preferences> =
-    PreferenceDataStoreFactory.create(
-        corruptionHandler = DataStoreCorruptionPolicy.preferencesHandler(storeName = "jabook_preferences"),
+private fun createUserPreferencesDataStore(context: Context): DataStore<UserPreferences> =
+    DataStoreFactory.create(
+        serializer = UserPreferencesSerializer,
+        corruptionHandler =
+            DataStoreCorruptionPolicy.protoHandler(
+                storeName = "user_preferences",
+                defaultValue = UserPreferencesSerializer.defaultValue,
+            ),
+        migrations =
+            listOf(
+                // Legacy "jabook_preferences" -> proto copy must run before any read.
+                LegacyPreferencesDataMigration(context),
+                UserPreferencesDataMigration(),
+            ),
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
-        produceFile = { context.preferencesDataStoreFile("jabook_preferences") },
+        produceFile = { context.dataStoreFile("user_preferences.pb") },
     )
 
 /**
@@ -58,11 +72,11 @@ public abstract class DataModule {
     public abstract fun bindBooksRepository(repository: OfflineFirstBooksRepository): BooksRepository
 
     /**
-     * Binds the DataStoreUserPreferencesRepository implementation to the UserPreferencesRepository interface.
+     * Binds the ProtoBackedUserPreferencesRepository implementation to the UserPreferencesRepository interface.
      */
     @Binds
     @Singleton
-    public abstract fun bindUserPreferencesRepository(repository: DataStoreUserPreferencesRepository): UserPreferencesRepository
+    public abstract fun bindUserPreferencesRepository(repository: ProtoBackedUserPreferencesRepository): UserPreferencesRepository
 
     /**
      * Binds the RutrackerRepositoryImpl implementation to the RutrackerRepository interface.
@@ -99,13 +113,13 @@ public abstract class DataModule {
 
     public companion object {
         /**
-         * Provides DataStore<Preferences> for user preferences.
+         * Provides the single shared Proto DataStore for user preferences.
          */
         @Provides
         @Singleton
-        public fun provideDataStore(
+        public fun provideUserPreferencesDataStore(
             @ApplicationContext context: Context,
-        ): DataStore<Preferences> = createJabookPreferencesDataStore(context)
+        ): DataStore<UserPreferences> = createUserPreferencesDataStore(context)
 
         @Provides
         @Singleton

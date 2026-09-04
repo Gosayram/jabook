@@ -66,6 +66,7 @@ public class CrashActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val stackTrace = intent.getStringExtra(EXTRA_STACK_TRACE) ?: getString(R.string.crashNoStackTrace)
+        clearPendingCrashReport()
 
         setContent {
             JabookTheme(darkTheme = true) {
@@ -94,6 +95,15 @@ public class CrashActivity : ComponentActivity() {
         startActivity(intent)
         finish()
         Runtime.getRuntime().exit(0)
+    }
+
+    private fun clearPendingCrashReport() {
+        applicationContext
+            .getSharedPreferences("jabook_crash_handler", Context.MODE_PRIVATE)
+            .edit()
+            .remove("has_crash_report")
+            .apply()
+        java.io.File(applicationContext.filesDir, "last_crash_report.txt").delete()
     }
 
     private fun copyToClipboard(text: String) {

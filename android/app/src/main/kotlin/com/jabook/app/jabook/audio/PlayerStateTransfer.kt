@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio
 
+import android.os.Looper
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import com.jabook.app.jabook.util.LogUtils
@@ -46,6 +47,7 @@ public object PlayerStateTransfer {
      * @return SavedPlayerState containing all necessary state info
      */
     public fun savePlayerState(player: Player): SavedPlayerState {
+        check(Looper.getMainLooper() == Looper.myLooper()) { "player getters must stay on Main (SimpleBasePlayer.verifyApplicationThread)" }
         LogUtils.d(TAG, "Saving player state")
 
         val mediaItems = mutableListOf<MediaItem>()
@@ -73,6 +75,7 @@ public object PlayerStateTransfer {
         player: Player,
         savedState: SavedPlayerState,
     ) {
+        check(Looper.getMainLooper() == Looper.myLooper()) { "player getters must stay on Main (SimpleBasePlayer.verifyApplicationThread)" }
         LogUtils.d(TAG, "Restoring player state")
 
         // Set media items

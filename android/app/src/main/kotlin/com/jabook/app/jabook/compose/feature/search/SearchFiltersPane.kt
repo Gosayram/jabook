@@ -22,11 +22,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -44,6 +50,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.UiFormatters
+import com.jabook.app.jabook.compose.domain.model.QualityFilter
 import com.jabook.app.jabook.compose.domain.model.SearchFilters
 
 /**
@@ -57,6 +65,7 @@ import com.jabook.app.jabook.compose.domain.model.SearchFilters
  * @param onReset Callback to reset filters
  * @param modifier Modifier for the root composable
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 public fun SearchFiltersPane(
     filters: SearchFilters,
@@ -65,6 +74,7 @@ public fun SearchFiltersPane(
     modifier: Modifier = Modifier,
 ) {
     var minSeeders by remember(filters.minSeeders) { mutableStateOf(filters.minSeeders?.toString() ?: "") }
+    var selectedQuality by remember(filters.qualityFilter) { mutableStateOf(filters.qualityFilter) }
 
     // Size range in MB (0 to 10GB)
     val maxFileSizeMB = 10000f
@@ -121,6 +131,46 @@ public fun SearchFiltersPane(
 
             Spacer(Modifier.height(8.dp))
 
+            // Quality Filter
+            Text(
+                text = stringResource(R.string.searchQualityChipsTitle),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                QualityFilter.entries.forEach { quality ->
+                    val isSelected = selectedQuality == quality
+                    val label =
+                        when (quality) {
+                            QualityFilter.ALL -> stringResource(R.string.qualityAny)
+                            QualityFilter.HIGH -> stringResource(R.string.qualityAtLeastHigh)
+                            QualityFilter.STANDARD -> stringResource(R.string.qualityAtLeastStandard)
+                            QualityFilter.LOW -> stringResource(R.string.qualityLow)
+                        }
+                    androidx.compose.material3.FilterChip(
+                        selected = isSelected,
+                        onClick = { selectedQuality = quality },
+                        label = { Text(label) },
+                        leadingIcon =
+                            if (isSelected) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
+                            } else {
+                                null
+                            },
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
             // Size Range
             Text(
                 text = stringResource(R.string.sizeRange),
@@ -169,6 +219,7 @@ public fun SearchFiltersPane(
                                 } else {
                                     (sizeRange.endInclusive * 1024 * 1024).toLong()
                                 },
+                            qualityFilter = selectedQuality,
                         ),
                     )
                 },
@@ -183,9 +234,4 @@ public fun SearchFiltersPane(
 /**
  * Formats a file size from MB to human-readable string.
  */
-private fun formatSize(mb: Float): String {
-    if (mb >= 1024) {
-        return String.format("%.1f GB", mb / 1024)
-    }
-    return String.format("%.0f MB", mb)
-}
+private fun formatSize(mb: Float): String = UiFormatters.formatMegaBytes(mb)

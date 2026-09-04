@@ -18,8 +18,11 @@
     <!-- Exclude sensitive credential/cookie DataStore payloads -->
     <exclude domain="file" path="datastore/secure_credentials.preferences_pb" />
     <exclude domain="file" path="datastore/cookies.preferences_pb" />
+    <!-- Exclude legacy preferences DataStore (prevents restore re-triggering migration) -->
+    <exclude domain="file" path="datastore/jabook_preferences.preferences_pb" />
     <!-- Exclude Tink keyset preference container -->
     <exclude domain="sharedpref" path="secure_credentials_prefs.xml" />
+    <exclude domain="sharedpref" path="cookies_keyset_prefs.xml" />
     
     <!-- Exclude database files that may contain sensitive data -->
     <!-- Note: User data like audiobook metadata can be re-downloaded -->

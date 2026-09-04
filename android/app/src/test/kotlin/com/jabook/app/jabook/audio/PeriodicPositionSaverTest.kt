@@ -1,0 +1,181 @@
+// Copyright 2026 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.jabook.app.jabook.audio
+
+import androidx.media3.exoplayer.ExoPlayer
+import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
+import org.robolectric.RobolectricTestRunner
+
+@OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
+class PeriodicPositionSaverTest {
+    @Test
+    fun `final save survives service scope cancellation`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val serviceScope = CoroutineScope(SupervisorJob() + dispatcher)
+            val player: ExoPlayer = mock()
+            val repository: PlaybackPositionRepository = mock()
+            whenever(player.mediaItemCount).thenReturn(1)
+            whenever(player.currentMediaItemIndex).thenReturn(2)
+            whenever(player.currentPosition).thenReturn(45_000L)
+
+            PeriodicPositionSaver(
+                scope = serviceScope,
+                repository = repository,
+                updateCanonicalProgress = { _, _, _ -> },
+                getActivePlayer = { player },
+                getCurrentBookId = { "book-1" },
+                ioDispatcher = dispatcher,
+            ).save()
+            serviceScope.cancel()
+            advanceUntilIdle()
+
+            verify(repository).savePosition(eq("book-1"), eq(2), eq(45_000L))
+        }
+
+    @Test
+    fun `save keeps the position captured before asynchronous persistence`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val player: ExoPlayer = mock()
+            val repository: PlaybackPositionRepository = mock()
+            var trackIndex = 2
+            var position = 45_000L
+            whenever(player.mediaItemCount).thenReturn(1)
+            whenever(player.currentMediaItemIndex).thenAnswer { trackIndex }
+            whenever(player.currentPosition).thenAnswer { position }
+
+            PeriodicPositionSaver(
+                scope = CoroutineScope(SupervisorJob() + dispatcher),
+                repository = repository,
+                updateCanonicalProgress = { _, _, _ -> },
+                getActivePlayer = { player },
+                getCurrentBookId = { "book-1" },
+                ioDispatcher = dispatcher,
+            ).save()
+            trackIndex = 3
+            position = 60_000L
+            advanceUntilIdle()
+
+            verify(repository).savePosition(eq("book-1"), eq(2), eq(45_000L))
+        }
+
+    @Test
+    fun `save updates canonical book and chapter progress with captured playback state`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val player: ExoPlayer = mock()
+            val repository: PlaybackPositionRepository = mock()
+            var canonicalSave: Triple<String, Long, Int>? = null
+            whenever(player.mediaItemCount).thenReturn(1)
+            whenever(player.currentMediaItemIndex).thenReturn(2)
+            whenever(player.currentPosition).thenReturn(45_000L)
+
+            PeriodicPositionSaver(
+                scope = CoroutineScope(SupervisorJob() + dispatcher),
+                repository = repository,
+                updateCanonicalProgress = { bookId, position, chapterIndex ->
+                    canonicalSave = Triple(bookId, position, chapterIndex)
+                },
+                getActivePlayer = { player },
+                getCurrentBookId = { "book-1" },
+                ioDispatcher = dispatcher,
+            ).save()
+            advanceUntilIdle()
+
+            assertEquals(Triple("book-1", 45_000L, 2), canonicalSave)
+        }
+
+    @Test
+    fun `periodic loop skips writes when position is unchanged`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val player: ExoPlayer = mock()
+            val repository: PlaybackPositionRepository = mock()
+            whenever(player.mediaItemCount).thenReturn(1)
+            whenever(player.currentMediaItemIndex).thenReturn(2)
+            whenever(player.currentPosition).thenReturn(45_000L)
+
+            val saver =
+                PeriodicPositionSaver(
+                    scope = CoroutineScope(SupervisorJob() + dispatcher),
+                    repository = repository,
+                    updateCanonicalProgress = { _, _, _ -> },
+                    getActivePlayer = { player },
+                    getCurrentBookId = { "book-1" },
+                    intervalMs = 1_000L,
+                    ioDispatcher = dispatcher,
+                )
+            saver.start()
+            advanceTimeBy(3_500L)
+            runCurrent()
+            saver.stop()
+            advanceUntilIdle()
+
+            verify(repository, times(1)).savePosition(eq("book-1"), eq(2), eq(45_000L))
+        }
+
+    @Test
+    fun `periodic loop writes again once position advances`() =
+        runTest {
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val player: ExoPlayer = mock()
+            val repository: PlaybackPositionRepository = mock()
+            var position = 45_000L
+            whenever(player.mediaItemCount).thenReturn(1)
+            whenever(player.currentMediaItemIndex).thenReturn(2)
+            whenever(player.currentPosition).thenAnswer { position }
+
+            val saver =
+                PeriodicPositionSaver(
+                    scope = CoroutineScope(SupervisorJob() + dispatcher),
+                    repository = repository,
+                    updateCanonicalProgress = { _, _, _ -> },
+                    getActivePlayer = { player },
+                    getCurrentBookId = { "book-1" },
+                    intervalMs = 1_000L,
+                    ioDispatcher = dispatcher,
+                )
+            saver.start()
+            advanceTimeBy(1_500L)
+            runCurrent()
+            position = 50_000L
+            advanceTimeBy(1_500L)
+            runCurrent()
+            saver.stop()
+            advanceUntilIdle()
+
+            verify(repository, times(1)).savePosition(eq("book-1"), eq(2), eq(45_000L))
+            verify(repository, times(1)).savePosition(eq("book-1"), eq(2), eq(50_000L))
+        }
+}

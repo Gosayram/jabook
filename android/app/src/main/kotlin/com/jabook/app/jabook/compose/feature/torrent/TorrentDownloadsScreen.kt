@@ -14,17 +14,27 @@
 
 package com.jabook.app.jabook.compose.feature.torrent
 
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
@@ -33,6 +43,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -40,13 +52,16 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,6 +70,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -62,10 +80,14 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
+import com.jabook.app.jabook.compose.core.util.UiFormatters
+import com.jabook.app.jabook.compose.data.permissions.PersistedTreeUriPermissionGuard
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
+import com.jabook.app.jabook.compose.domain.model.DownloadHistoryItem
 
 /**
  * Screen for managing torrent downloads
@@ -84,16 +106,36 @@ public fun TorrentDownloadsScreen(
 ) {
     // Get window size class for adaptive sizing
     val context = LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val persistedTreePermissionGuard =
+        remember(context) {
+            PersistedTreeUriPermissionGuard(
+                takePermission = { uri ->
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                    )
+                },
+                releasePermission = {},
+                isPermissionPersisted = { uri ->
+                    context.contentResolver.persistedUriPermissions.any {
+                        it.uri == uri && it.isReadPermission && it.isWritePermission
+                    }
+                },
+            )
+        }
+    val wsc = LocalWindowSizeClass.current
+    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val showCompletedOnly by viewModel.showCompletedOnly.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(viewModel) {
+        viewModel.snackbarEvent.collect(snackbarHostState::showSnackbar)
+    }
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
@@ -105,16 +147,12 @@ public fun TorrentDownloadsScreen(
 
     // Folder picker launcher for Add Dialog
     val folderLauncher =
-        androidx.activity.compose.rememberLauncherForActivityResult(
+        rememberLauncherForActivityResult(
             contract =
-                androidx.activity.result.contract.ActivityResultContracts
+                ActivityResultContracts
                     .OpenDocumentTree(),
         ) { uri ->
-            uri?.let {
-                val takeFlags =
-                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                        android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                context.contentResolver.takePersistableUriPermission(it, takeFlags)
+            uri?.takeIf(persistedTreePermissionGuard::take)?.let {
                 viewModel.updatePendingPathFromUri(it.toString())
             }
         }
@@ -134,7 +172,7 @@ public fun TorrentDownloadsScreen(
                         text = pendingMagnetLink!!,
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 3,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(bottom = 16.dp),
                     )
 
@@ -143,14 +181,14 @@ public fun TorrentDownloadsScreen(
                         style = MaterialTheme.typography.labelMedium,
                     )
 
-                    androidx.compose.material3.OutlinedTextField(
+                    OutlinedTextField(
                         value = pendingDownloadPath,
                         onValueChange = {}, // Read-only
                         readOnly = true,
                         trailingIcon = {
                             IconButton(onClick = { folderLauncher.launch(null) }) {
                                 Icon(
-                                    imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.OpenInNew,
+                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                                     contentDescription = stringResource(R.string.change_folder),
                                 )
                             }
@@ -193,11 +231,18 @@ public fun TorrentDownloadsScreen(
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(top = 16.dp),
+                        modifier =
+                            Modifier
+                                .padding(top = 16.dp)
+                                .toggleable(
+                                    value = deleteFiles,
+                                    role = Role.Checkbox,
+                                    onValueChange = { deleteFiles = it },
+                                ),
                     ) {
                         Checkbox(
                             checked = deleteFiles,
-                            onCheckedChange = { deleteFiles = it },
+                            onCheckedChange = null,
                         )
                         Text(stringResource(R.string.deleteDownloadWithFiles))
                     }
@@ -222,6 +267,9 @@ public fun TorrentDownloadsScreen(
     }
 
     Scaffold(
+        // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.torrent_downloads)) },
@@ -311,7 +359,7 @@ public fun TorrentDownloadsScreen(
                 is TorrentDownloadsUiState.Error -> {
                     ErrorScreen(
                         message = state.message,
-                        onRetry = {}, // No retry action for now
+                        onRetry = { viewModel.retryLoad() },
                     )
                 }
 
@@ -321,10 +369,18 @@ public fun TorrentDownloadsScreen(
                         pausedDownloads = state.pausedDownloads,
                         completedDownloads = state.completedDownloads,
                         errorDownloads = state.errorDownloads,
+                        historyItems = state.historyItems,
+                        downloadingCount = state.downloadingCount,
+                        totalDownloadSpeed = state.totalDownloadSpeed,
+                        queuedCount = state.queuedCount,
+                        audiobookStorageUsed = state.audiobookStorageUsed,
+                        totalStorageUsed = state.totalStorageUsed,
+                        availableStorage = state.availableStorage,
                         onPauseClick = { hash -> viewModel.pauseDownload(hash) },
                         onResumeClick = { hash -> viewModel.resumeDownload(hash) },
                         onDeleteClick = { download -> downloadToDelete = download },
                         onItemClick = { download -> onNavigateToDetails(download.hash) },
+                        onOpenBook = { bookId -> onNavigateToDetails(bookId) },
                         showCompletedOnly = showCompletedOnly,
                         contentPadding = contentPadding,
                         itemSpacing = itemSpacing,
@@ -342,13 +398,21 @@ private fun TorrentDownloadsList(
     pausedDownloads: List<TorrentDownload>,
     completedDownloads: List<TorrentDownload>,
     errorDownloads: List<TorrentDownload>,
+    historyItems: List<DownloadHistoryItem>,
+    downloadingCount: Int,
+    totalDownloadSpeed: Long,
+    queuedCount: Int,
+    audiobookStorageUsed: Long,
+    totalStorageUsed: Long,
+    availableStorage: Long,
     onPauseClick: (String) -> Unit,
     onResumeClick: (String) -> Unit,
     onDeleteClick: (TorrentDownload) -> Unit,
     onItemClick: (TorrentDownload) -> Unit,
+    onOpenBook: (String) -> Unit,
     showCompletedOnly: Boolean,
-    contentPadding: androidx.compose.ui.unit.Dp,
-    itemSpacing: androidx.compose.ui.unit.Dp,
+    contentPadding: Dp,
+    itemSpacing: Dp,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -356,13 +420,37 @@ private fun TorrentDownloadsList(
         contentPadding = PaddingValues(contentPadding),
         verticalArrangement = Arrangement.spacedBy(itemSpacing),
     ) {
+        // Active summary card
+        if (!showCompletedOnly && activeDownloads.isNotEmpty()) {
+            item {
+                ActiveDownloadsSummaryCard(
+                    downloadingCount = downloadingCount,
+                    downloadSpeed = totalDownloadSpeed,
+                    queuedCount = queuedCount,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        // Storage summary card
+        if (!showCompletedOnly && availableStorage > 0) {
+            item {
+                StorageSummaryCard(
+                    audiobookStorageUsed = audiobookStorageUsed,
+                    totalStorageUsed = totalStorageUsed,
+                    availableStorage = availableStorage,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
         if (!showCompletedOnly) {
             // Active downloads
             if (activeDownloads.isNotEmpty()) {
                 stickyHeader {
                     SectionHeader(title = stringResource(R.string.downloading_state))
                 }
-                items(activeDownloads, key = { it.hash }) { download ->
+                items(activeDownloads, key = { it.hash }, contentType = { "download_item" }) { download ->
                     TorrentDownloadItem(
                         download = download,
                         onPauseClick = { onPauseClick(download.hash) },
@@ -378,7 +466,7 @@ private fun TorrentDownloadsList(
                 stickyHeader {
                     SectionHeader(title = stringResource(R.string.paused_state))
                 }
-                items(pausedDownloads, key = { it.hash }) { download ->
+                items(pausedDownloads, key = { it.hash }, contentType = { "download_item" }) { download ->
                     TorrentDownloadItem(
                         download = download,
                         onPauseClick = { onPauseClick(download.hash) },
@@ -395,7 +483,7 @@ private fun TorrentDownloadsList(
             stickyHeader {
                 SectionHeader(title = stringResource(R.string.completed_state))
             }
-            items(completedDownloads, key = { it.hash }) { download ->
+            items(completedDownloads, key = { it.hash }, contentType = { "download_item" }) { download ->
                 TorrentDownloadItem(
                     download = download,
                     onPauseClick = { onPauseClick(download.hash) },
@@ -411,7 +499,7 @@ private fun TorrentDownloadsList(
             stickyHeader {
                 SectionHeader(title = stringResource(R.string.error_state))
             }
-            items(errorDownloads, key = { it.hash }) { download ->
+            items(errorDownloads, key = { it.hash }, contentType = { "download_item" }) { download ->
                 TorrentDownloadItem(
                     download = download,
                     onPauseClick = { onPauseClick(download.hash) },
@@ -419,6 +507,150 @@ private fun TorrentDownloadsList(
                     onDeleteClick = { onDeleteClick(download) },
                     onItemClick = { onItemClick(download) },
                 )
+            }
+        }
+
+        // History section (past completed/failed/cancelled downloads)
+        if (historyItems.isNotEmpty()) {
+            stickyHeader {
+                SectionHeader(title = stringResource(R.string.downloadsHistorySection, historyItems.size))
+            }
+            items(historyItems, key = { it.id }, contentType = { "history_item" }) { item ->
+                DownloadHistoryItemRow(
+                    item = item,
+                    onOpenBook = onOpenBook,
+                    // History rows don't persist the source magnet link, so retry can't be wired yet.
+                    onRetry = null,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Active downloads summary card showing count and speed.
+ */
+@Composable
+private fun ActiveDownloadsSummaryCard(
+    downloadingCount: Int,
+    downloadSpeed: Long,
+    queuedCount: Int,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier,
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            ),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.downloadsActiveSummary),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text =
+                    if (downloadSpeed > 0) {
+                        stringResource(
+                            R.string.downloadsActiveStats,
+                            downloadingCount,
+                            UiFormatters.formatSpeedBytes(downloadSpeed),
+                            queuedCount,
+                        )
+                    } else if (downloadingCount > 0 || queuedCount > 0) {
+                        stringResource(R.string.downloadsPausedNoSpeed, downloadingCount, queuedCount)
+                    } else {
+                        stringResource(R.string.no_active_downloads)
+                    },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * Storage summary card showing used/available space with breakdown.
+ */
+@Composable
+private fun StorageSummaryCard(
+    audiobookStorageUsed: Long,
+    totalStorageUsed: Long,
+    availableStorage: Long,
+    modifier: Modifier = Modifier,
+) {
+    val totalStorage = audiobookStorageUsed + totalStorageUsed
+    val usageFraction = if (totalStorage > 0) audiobookStorageUsed.toFloat() / totalStorage.toFloat() else 0f
+
+    Card(
+        modifier = modifier,
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            ),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.storageSummaryTitle),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text =
+                    stringResource(
+                        R.string.storageUsedLabel,
+                        UiFormatters.formatFileSize(audiobookStorageUsed),
+                        UiFormatters.formatFileSize(availableStorage),
+                    ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+
+            // Legend for audiobooks vs downloading
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(12.dp)
+                                .background(MaterialTheme.colorScheme.primary, CircleShape),
+                    )
+                    Text(
+                        text = stringResource(R.string.storageLegendAudiobooks),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .size(12.dp)
+                                .background(MaterialTheme.colorScheme.secondary, CircleShape),
+                    )
+                    Text(
+                        text = stringResource(R.string.storageLegendDownloading),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

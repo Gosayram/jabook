@@ -36,6 +36,7 @@ internal sealed interface PlayerCommand {
 
     data class SkipToChapter(
         val chapterIndex: Int,
+        val positionMs: Long = 0L,
     ) : PlayerCommand
 
     data object InitializeVisualizer : PlayerCommand
@@ -46,6 +47,7 @@ internal sealed interface PlayerCommand {
 
     data class SetPlaybackSpeed(
         val speed: Float,
+        val isTemporary: Boolean = false,
     ) : PlayerCommand
 
     data class SetPitchCorrectionEnabled(
@@ -88,10 +90,10 @@ internal class PlayerCommandExecutor(
     private val skipToNext: () -> Unit,
     private val skipToPrevious: () -> Unit,
     private val seekTo: (Long) -> Unit,
-    private val skipToChapter: (Int) -> Unit,
+    private val skipToChapter: (Int, Long) -> Unit,
     private val initializeVisualizer: () -> Unit,
     private val setVisualizerEnabled: (Boolean) -> Unit,
-    private val setPlaybackSpeed: (Float) -> Unit,
+    private val setPlaybackSpeed: (Float, Boolean) -> Unit,
     private val setPitchCorrectionEnabled: (Boolean) -> Unit,
     private val startSleepTimer: (Int) -> Unit,
     private val startSleepTimerEndOfChapter: () -> Unit,
@@ -118,10 +120,10 @@ internal class PlayerCommandExecutor(
             PlayerCommand.SkipToNext -> skipToNext()
             PlayerCommand.SkipToPrevious -> skipToPrevious()
             is PlayerCommand.SeekTo -> seekTo(command.positionMs)
-            is PlayerCommand.SkipToChapter -> skipToChapter(command.chapterIndex)
+            is PlayerCommand.SkipToChapter -> skipToChapter(command.chapterIndex, command.positionMs)
             PlayerCommand.InitializeVisualizer -> initializeVisualizer()
             is PlayerCommand.SetVisualizerEnabled -> setVisualizerEnabled(command.enabled)
-            is PlayerCommand.SetPlaybackSpeed -> setPlaybackSpeed(command.speed)
+            is PlayerCommand.SetPlaybackSpeed -> setPlaybackSpeed(command.speed, command.isTemporary)
             is PlayerCommand.SetPitchCorrectionEnabled -> setPitchCorrectionEnabled(command.enabled)
             is PlayerCommand.StartSleepTimer -> startSleepTimer(command.minutes)
             PlayerCommand.StartSleepTimerEndOfChapter -> startSleepTimerEndOfChapter()
@@ -163,9 +165,10 @@ internal object PlayerIntentCommandRouter {
         intent: PlayerIntent,
         currentState: PlayerState,
         reducedState: PlayerState,
+        currentPositionMs: Long = 0L,
     ): PlayerCommand? =
         when {
-            isPlaybackIntent(intent) -> routePlaybackIntent(intent, currentState, reducedState)
+            isPlaybackIntent(intent) -> routePlaybackIntent(intent, currentState, reducedState, currentPositionMs)
             isSleepTimerIntent(intent) -> routeSleepTimerIntent(intent, currentState, reducedState)
             isSettingsIntent(intent) -> routeSettingsIntent(intent, currentState, reducedState)
             else ->
@@ -289,6 +292,7 @@ internal object PlayerIntentCommandRouter {
         intent: PlayerIntent,
         currentState: PlayerState,
         reducedState: PlayerState,
+        currentPositionMs: Long,
     ): PlayerCommand? =
         when (intent) {
             PlayerIntent.TogglePlayPause -> {
@@ -319,23 +323,38 @@ internal object PlayerIntentCommandRouter {
             PlayerIntent.SkipNext -> PlayerCommand.SkipToNext
             PlayerIntent.SkipPrevious -> PlayerCommand.SkipToPrevious
             is PlayerIntent.SeekTo -> {
-                val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: intent.positionMs
+                val activeState = reducedState as? PlayerState.Active
+                val chapterDurationMs = activeState?.currentChapter?.duration?.inWholeMilliseconds
+                val reducedPosition = PlayerIntentGuardPolicy.clampSeekPosition(intent.positionMs, chapterDurationMs)
                 PlayerCommand.SeekTo(reducedPosition)
             }
             PlayerIntent.SeekForward -> {
-                val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: return null
+                val activeState = currentState as? PlayerState.Active ?: return null
+                val chapterDurationMs = activeState.currentChapter?.duration?.inWholeMilliseconds
+                val requestedPosition = currentPositionMs + activeState.forwardInterval * 1_000L
+                val reducedPosition = PlayerIntentGuardPolicy.clampSeekPosition(requestedPosition, chapterDurationMs)
                 PlayerCommand.SeekTo(reducedPosition)
             }
             PlayerIntent.SeekBackward -> {
-                val reducedPosition = (reducedState as? PlayerState.Active)?.currentPosition ?: return null
+                val activeState = currentState as? PlayerState.Active ?: return null
+                val chapterDurationMs = activeState.currentChapter?.duration?.inWholeMilliseconds
+                val requestedPosition = currentPositionMs - activeState.rewindInterval * 1_000L
+                val reducedPosition = PlayerIntentGuardPolicy.clampSeekPosition(requestedPosition, chapterDurationMs)
                 PlayerCommand.SeekTo(reducedPosition)
             }
             is PlayerIntent.SelectChapter -> {
                 val reducedChapterIndex = (reducedState as? PlayerState.Active)?.currentChapterIndex ?: intent.chapterIndex
-                PlayerCommand.SkipToChapter(reducedChapterIndex)
+                PlayerCommand.SkipToChapter(reducedChapterIndex, intent.positionMs)
             }
             is PlayerIntent.SetPlaybackSpeed -> {
-                if (reducedState == currentState) {
+                if (intent.isTemporary) {
+                    // Hold-to-boost must apply even when it matches the current speed, and
+                    // must never be dropped for being a no-op state change.
+                    PlayerCommand.SetPlaybackSpeed(
+                        PlayerIntentGuardPolicy.clampPlaybackSpeed(intent.speed),
+                        isTemporary = true,
+                    )
+                } else if (reducedState == currentState) {
                     null
                 } else {
                     val reducedSpeed = (reducedState as? PlayerState.Active)?.playbackSpeed ?: return null

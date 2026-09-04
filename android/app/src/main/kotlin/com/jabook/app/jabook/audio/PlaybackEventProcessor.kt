@@ -51,6 +51,7 @@ internal class PlaybackEventProcessor(
     private val getCrossfadeHandler: (() -> CrossfadeHandler?)?,
     private val playerErrorHandler: PlayerErrorHandler,
     private val bookCompletionTracker: BookCompletionTracker,
+    private val onIsPlayingChanged: ((Boolean) -> Unit)? = null,
 ) {
     /**
      * Processes all ExoPlayer events in a consolidated callback.
@@ -102,8 +103,8 @@ internal class PlaybackEventProcessor(
 
         PlayerWidgetProvider.requestUpdate(context)
 
-        // Reset retry and skip counts on successful playback
-        if (playbackState == Player.STATE_READY || playbackState == Player.STATE_BUFFERING) {
+        // A rebuffer is not recovery; retain the bounded retry/skip budget until playback resumes.
+        if (PlaybackErrorResetPolicy.shouldReset(playbackState)) {
             playerErrorHandler.resetCounts()
         }
 
@@ -142,8 +143,6 @@ internal class PlaybackEventProcessor(
             val error = player.playerError
             if (error != null) {
                 LogUtils.e("AudioPlayerService", "Playback error: ${error.message}", error)
-                playerErrorHandler.logErrorContext(error)
-                playerErrorHandler.handlePlayerError(error)
             }
         }
     }
@@ -181,6 +180,7 @@ internal class PlaybackEventProcessor(
 
         // Update last played timestamp when playback starts
         if (isPlaying && playbackState == Player.STATE_READY) {
+            PlayerWidgetProvider.schedulePeriodicUpdate(context)
             LogUtils.v("AudioPlayerService", "Playback started, position will be saved periodically")
             getCurrentBookId?.invoke()?.let { bookId ->
                 updateLastPlayedTimestamp?.invoke(bookId)
@@ -216,6 +216,8 @@ internal class PlaybackEventProcessor(
         } else {
             getCrossfadeHandler?.invoke()?.stopMonitoring()
         }
+
+        onIsPlayingChanged?.invoke(player.isPlaying)
     }
 
     private fun handleMediaItemTransition(player: Player) {

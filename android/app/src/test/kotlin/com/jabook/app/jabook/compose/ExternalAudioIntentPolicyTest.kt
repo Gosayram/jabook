@@ -23,6 +23,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class ExternalAudioIntentPolicyTest {
     @Test
     fun `extractAudioUris returns data uri for audio view action`() {

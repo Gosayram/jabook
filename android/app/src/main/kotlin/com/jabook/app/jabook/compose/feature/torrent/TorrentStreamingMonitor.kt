@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.torrent
 import android.content.ComponentName
 import android.content.Context
 import androidx.core.content.ContextCompat
+import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
@@ -29,12 +30,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -54,10 +57,14 @@ public class TorrentStreamingMonitor
         private val logger = loggerFactory.get("TorrentMonitor")
         private val _isBuffering = kotlinx.coroutines.flow.MutableStateFlow(false)
         public val isBuffering: StateFlow<Boolean> = _isBuffering.asStateFlow()
+        private val _monitoredHash = MutableStateFlow<String?>(null)
+        public val monitoredHash: StateFlow<String?> = _monitoredHash.asStateFlow()
 
+        // MediaController is built with the main looper — polling it from any
+        // other dispatcher throws IllegalStateException. Keep the loop on Main.
         private val scope =
             CoroutineScope(
-                SupervisorJob() + Dispatchers.Default + loggingCoroutineExceptionHandler("TorrentStreamingMonitor"),
+                SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("TorrentStreamingMonitor"),
             )
         private var monitoringJob: Job? = null
 
@@ -80,7 +87,29 @@ public class TorrentStreamingMonitor
             private const val BUFFER_LOW_THRESHOLD_BYTES = 1 * 1024 * 1024L // 1MB
             private const val BUFFER_RESUME_THRESHOLD_BYTES = 5 * 1024 * 1024L // 5MB
             private const val POLLING_INTERVAL_MS = 1000L
+
+            // Auto-stop polling when the player is genuinely stopped (STATE_IDLE/STATE_ENDED)
+            // for this long — prevents endless 1s wake-ups after playback ends.
+            private const val STOPPED_GRACE_PERIOD_MS = 5 * 60_000L
+            private const val STOPPED_GRACE_TICKS = STOPPED_GRACE_PERIOD_MS / POLLING_INTERVAL_MS
+
+            // Auto-stop when the player stays paused without monitor-managed buffering
+            // (e.g. user pause) for this many consecutive ticks.
+            private const val PAUSED_STOP_TICKS = 30L
+
+            // Tolerate the player being on another item briefly (stream startup swaps
+            // items in after startMonitoring); stop the monitor when it persists.
+            private const val FOREIGN_ITEM_STOP_TICKS = 30L
         }
+
+        // Consecutive polls where the player was truly stopped (not paused)
+        private var stoppedTickCount = 0L
+
+        // Consecutive polls where the player was paused (not monitor-managed buffering)
+        private var pausedTickCount = 0L
+
+        // Consecutive polls where the player played a different item than the monitored one
+        private var foreignItemTickCount = 0L
 
         public fun startMonitoring(
             hash: String,
@@ -89,8 +118,12 @@ public class TorrentStreamingMonitor
             stopMonitoring()
             currentHash = hash
             currentFileIndex = fileIndex
+            _monitoredHash.value = hash
             isPausedForBuffering = false
             pausedByUser = false
+            stoppedTickCount = 0L
+            pausedTickCount = 0L
+            foreignItemTickCount = 0L
 
             // Initialize MediaController for service access
             initMediaController()
@@ -99,12 +132,16 @@ public class TorrentStreamingMonitor
                 scope.launch {
                     while (isActive) {
                         try {
-                            checkBufferState()
+                            if (checkBufferState()) {
+                                break
+                            }
                         } catch (e: Exception) {
                             logger.e({ "Buffer state check failed: ${e.message}" }, e)
                         }
                         delay(POLLING_INTERVAL_MS)
                     }
+                    // Clean up state (buffering flag, counters, controller) on auto-stop
+                    stopMonitoring()
                 }
         }
 
@@ -113,6 +150,7 @@ public class TorrentStreamingMonitor
             monitoringJob = null
             currentHash = null
             currentFileIndex = -1
+            _monitoredHash.value = null
             isPausedForBuffering = false
             pausedByUser = false
             releaseMediaController()
@@ -162,6 +200,10 @@ public class TorrentStreamingMonitor
                             logger.d { "MediaController initialized" }
                         } catch (e: Exception) {
                             logger.e({ "Failed to initialize MediaController" }, e)
+                            // Clear the failed future so the next poll tick retries
+                            // instead of waking forever with a null controller.
+                            mediaControllerFuture?.let { MediaController.releaseFuture(it) }
+                            mediaControllerFuture = null
                         }
                     },
                     ContextCompat.getMainExecutor(context),
@@ -180,10 +222,14 @@ public class TorrentStreamingMonitor
             mediaControllerFuture = null
         }
 
-        private fun checkBufferState() {
-            val hash = currentHash ?: return
+        /**
+         * Checks buffer state.
+         * @return true when the monitor should auto-stop (player stopped beyond grace period).
+         */
+        private fun checkBufferState(): Boolean {
+            val hash = currentHash ?: return false
             val fileIndex = currentFileIndex
-            if (fileIndex < 0) return
+            if (fileIndex < 0) return false
 
             // Use MediaController instead of getInstance()
             val controller =
@@ -192,18 +238,59 @@ public class TorrentStreamingMonitor
                     if (mediaControllerFuture == null) {
                         initMediaController()
                     }
-                    return
+                    return false
                 }
+
+            // Player genuinely stopped (not paused) — track grace period, then auto-stop
+            val playbackState = controller.playbackState
+            if (playbackState == Player.STATE_IDLE || playbackState == Player.STATE_ENDED) {
+                stoppedTickCount++
+                if (stoppedTickCount >= STOPPED_GRACE_TICKS) {
+                    logger.i { "Player stopped for $STOPPED_GRACE_PERIOD_MS ms — stopping stream monitor" }
+                    return true
+                }
+                return false
+            }
+            stoppedTickCount = 0L
 
             val currentDuration = controller.duration
             val currentPosition = controller.currentPosition
 
-            // Only if we are playing the file we think we are monitoring?
-            // Ideally check metadata or path, but simplified for now:
-            if (currentDuration <= 0) return // Not playing or unknown
+            if (currentDuration <= 0) return false // Not playing or unknown
 
-            val download = torrentManager.getDownload(hash) ?: return
-            val torrentFile = download.files.find { it.index == fileIndex } ?: return
+            val download = torrentManager.getDownload(hash) ?: return false
+            val torrentFile = download.files.find { it.index == fileIndex } ?: return false
+
+            // Only manage playback of the monitored torrent file — pausing or resuming
+            // an unrelated item (user started another book) would be wrong. The URI is
+            // built the same way as in TorrentDetailsViewModel.playFile.
+            val monitoredPath = File(download.savePath, torrentFile.path).absolutePath
+            val currentItemPath =
+                controller.currentMediaItem
+                    ?.localConfiguration
+                    ?.uri
+                    ?.path
+            if (currentItemPath != null && currentItemPath != monitoredPath) {
+                foreignItemTickCount++
+                if (foreignItemTickCount >= FOREIGN_ITEM_STOP_TICKS) {
+                    logger.i { "Player is on another item ($currentItemPath) — stopping stream monitor" }
+                    return true
+                }
+                return false
+            }
+            foreignItemTickCount = 0L
+
+            // Paused (playWhenReady=false) without monitor-managed buffering, e.g. user
+            // pause — stop after a bounded number of ticks instead of polling forever.
+            if (!controller.playWhenReady && !isPausedForBuffering) {
+                pausedTickCount++
+                if (pausedTickCount >= PAUSED_STOP_TICKS) {
+                    logger.i { "Player paused (not buffering) for $PAUSED_STOP_TICKS ticks — stopping stream monitor" }
+                    return true
+                }
+                return false
+            }
+            pausedTickCount = 0L
 
             val totalBytes = torrentFile.size
 
@@ -237,5 +324,6 @@ public class TorrentStreamingMonitor
                 // Reset buffering flag if user manually paused
                 isPausedForBuffering = false
             }
+            return false
         }
     }

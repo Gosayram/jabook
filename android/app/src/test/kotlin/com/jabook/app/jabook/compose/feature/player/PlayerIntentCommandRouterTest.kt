@@ -22,9 +22,12 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
+@RunWith(RobolectricTestRunner::class)
 class PlayerIntentCommandRouterTest {
     @Test
     fun `isPlaybackIntent returns true for playback controls`() {
@@ -66,7 +69,7 @@ class PlayerIntentCommandRouterTest {
     fun `routePlaybackIntent returns null for idempotent play command`() {
         val state = activeState(isPlaying = true)
 
-        val command = PlayerIntentCommandRouter.routePlaybackIntent(PlayerIntent.Play, state, state)
+        val command = PlayerIntentCommandRouter.routePlaybackIntent(PlayerIntent.Play, state, state, currentPositionMs = 0L)
 
         assertNull(command)
     }
@@ -81,6 +84,7 @@ class PlayerIntentCommandRouterTest {
                 intent = PlayerIntent.TogglePlayPause,
                 currentState = currentState,
                 reducedState = reducedState,
+                currentPositionMs = 0L,
             )
 
         assertEquals(PlayerCommand.Play, command)
@@ -88,16 +92,17 @@ class PlayerIntentCommandRouterTest {
 
     @Test
     fun `routePlaybackIntent maps seek forward to reduced position`() {
-        val reducedState = activeState(currentPosition = 23_000L)
+        val reducedState = activeState()
 
         val command =
             PlayerIntentCommandRouter.routePlaybackIntent(
                 intent = PlayerIntent.SeekForward,
-                currentState = activeState(currentPosition = 10_000L),
+                currentState = activeState(),
                 reducedState = reducedState,
+                currentPositionMs = 23_000L,
             )
 
-        assertEquals(PlayerCommand.SeekTo(23_000L), command)
+        assertEquals(PlayerCommand.SeekTo(53_000L), command)
     }
 
     @Test
@@ -109,9 +114,23 @@ class PlayerIntentCommandRouterTest {
                 intent = PlayerIntent.SelectChapter(chapterIndex = 99),
                 currentState = activeState(currentChapterIndex = 0),
                 reducedState = reducedState,
+                currentPositionMs = 0L,
             )
 
-        assertEquals(PlayerCommand.SkipToChapter(2), command)
+        assertEquals(PlayerCommand.SkipToChapter(chapterIndex = 2, positionMs = 0L), command)
+    }
+
+    @Test
+    fun `routePlaybackIntent keeps the requested chapter position in milliseconds`() {
+        val command =
+            PlayerIntentCommandRouter.routePlaybackIntent(
+                intent = PlayerIntent.SelectChapter(chapterIndex = 2, positionMs = 42_000L),
+                currentState = activeState(currentChapterIndex = 0),
+                reducedState = activeState(currentChapterIndex = 2),
+                currentPositionMs = 0L,
+            )
+
+        assertEquals(PlayerCommand.SkipToChapter(chapterIndex = 2, positionMs = 42_000L), command)
     }
 
     @Test
@@ -124,16 +143,50 @@ class PlayerIntentCommandRouterTest {
                 intent = PlayerIntent.SetPlaybackSpeed(1.75f),
                 currentState = unchanged,
                 reducedState = unchanged,
+                currentPositionMs = 0L,
             )
         val changedCommand =
             PlayerIntentCommandRouter.routePlaybackIntent(
                 intent = PlayerIntent.SetPlaybackSpeed(1.75f),
                 currentState = unchanged,
                 reducedState = changed,
+                currentPositionMs = 0L,
             )
 
         assertNull(unchangedCommand)
         assertEquals(PlayerCommand.SetPlaybackSpeed(1.75f), changedCommand)
+    }
+
+    @Test
+    fun `routePlaybackIntent routes temporary speed even when reduced state is unchanged`() {
+        val state = activeState(playbackSpeed = 1.5f)
+
+        val command =
+            PlayerIntentCommandRouter.routePlaybackIntent(
+                // Hold-to-boost matching the current speed must still reach the player,
+                // and the command must carry isTemporary so the boost is not persisted.
+                intent = PlayerIntent.SetPlaybackSpeed(1.9f, isTemporary = true),
+                currentState = state,
+                reducedState = state,
+                currentPositionMs = 0L,
+            )
+
+        assertEquals(PlayerCommand.SetPlaybackSpeed(1.9f, isTemporary = true), command)
+    }
+
+    @Test
+    fun `routePlaybackIntent clamps out-of-range temporary boost speed`() {
+        val state = activeState(playbackSpeed = 1.5f)
+
+        val command =
+            PlayerIntentCommandRouter.routePlaybackIntent(
+                intent = PlayerIntent.SetPlaybackSpeed(99f, isTemporary = true),
+                currentState = state,
+                reducedState = state,
+                currentPositionMs = 0L,
+            )
+
+        assertEquals(PlayerCommand.SetPlaybackSpeed(2.0f, isTemporary = true), command)
     }
 
     @Test
@@ -232,7 +285,6 @@ class PlayerIntentCommandRouterTest {
 
     private fun activeState(
         isPlaying: Boolean = false,
-        currentPosition: Long = 0L,
         currentChapterIndex: Int = 0,
         playbackSpeed: Float = 1.0f,
         sleepTimerMode: PlayerSleepTimerMode = PlayerSleepTimerMode.IDLE,
@@ -253,7 +305,6 @@ class PlayerIntentCommandRouterTest {
             book = Book.preview().copy(id = "book-1"),
             chapters = listOf(chapter).toImmutableList(),
             isPlaying = isPlaying,
-            currentPosition = currentPosition,
             currentChapterIndex = currentChapterIndex,
             currentChapter = chapter,
             rewindInterval = rewindInterval,

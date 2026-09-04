@@ -19,6 +19,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.media.audiofx.Visualizer
 import androidx.core.content.ContextCompat
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,6 +51,8 @@ public class AudioVisualizerManager(
     private var lastRequestedAudioSessionId: Int = 0
     private var desiredEnabled: Boolean = true
     private var suspendedForAudioOffload: Boolean = false
+    private var suspendedForRecording: Boolean = false
+    private var captureGeneration: Long = 0
 
     private val _waveformData = MutableStateFlow(FloatArray(CAPTURE_SIZE))
     public val waveformData: StateFlow<FloatArray> = _waveformData.asStateFlow()
@@ -63,6 +66,7 @@ public class AudioVisualizerManager(
     /**
      * Initialize visualizer with the player's audio session ID.
      */
+    @Synchronized
     public fun initialize(audioSessionId: Int) {
         if (audioSessionId <= 0) {
             LogUtils.w(TAG, "Invalid audio session id: $audioSessionId, visualizer disabled")
@@ -90,6 +94,7 @@ public class AudioVisualizerManager(
 
         release(clearRequestedSessionId = false)
         this.audioSessionId = audioSessionId
+        val generation = captureGeneration
 
         try {
             visualizer =
@@ -109,7 +114,7 @@ public class AudioVisualizerManager(
                                         FloatArray(data.size) { i ->
                                             (data[i].toInt() and 0xFF) / 128f - 1f
                                         }
-                                    _waveformData.value = floatData
+                                    updateWaveformIfCurrent(generation, floatData)
                                 }
                             }
 
@@ -126,7 +131,7 @@ public class AudioVisualizerManager(
                                             val imaginary = data[i * 2 + 1].toInt()
                                             kotlin.math.sqrt((real * real + imaginary * imaginary).toFloat()) / 128f
                                         }
-                                    _fftData.value = magnitudes
+                                    updateFftIfCurrent(generation, magnitudes)
                                 }
                             }
                         },
@@ -135,13 +140,14 @@ public class AudioVisualizerManager(
                         true, // fft
                     )
 
-                    val shouldEnable = desiredEnabled && !suspendedForAudioOffload
+                    val shouldEnable = desiredEnabled && !suspendedForAudioOffload && !suspendedForRecording
                     enabled = shouldEnable
                     _isActive.value = shouldEnable
                 }
             LogUtils.d(TAG, "Visualizer initialized with session $audioSessionId")
         } catch (e: Exception) {
             LogUtils.e(TAG, "Failed to initialize visualizer", e)
+            CrashDiagnostics.reportNonFatal("audio_visualizer_initialize", e)
             release(clearRequestedSessionId = false)
         }
     }
@@ -149,10 +155,11 @@ public class AudioVisualizerManager(
     /**
      * Enable or disable the visualizer.
      */
+    @Synchronized
     public fun setEnabled(enabled: Boolean) {
         desiredEnabled = enabled
 
-        if (suspendedForAudioOffload) {
+        if (suspendedForAudioOffload || suspendedForRecording) {
             if (!enabled) {
                 applyVisualizerEnabledState(enabled = false)
             } else {
@@ -182,6 +189,7 @@ public class AudioVisualizerManager(
             applyVisualizerEnabledState(enabled)
         } catch (e: Exception) {
             LogUtils.e(TAG, "Failed to set visualizer enabled state", e)
+            CrashDiagnostics.reportNonFatal("audio_visualizer_enable", e)
             release(clearRequestedSessionId = false)
         }
     }
@@ -192,6 +200,7 @@ public class AudioVisualizerManager(
      * This keeps the user's desired visualizer setting intact and automatically restores it once
      * offload mode is disabled.
      */
+    @Synchronized
     public fun setSuspendedForAudioOffload(suspended: Boolean) {
         if (suspendedForAudioOffload == suspended) return
         suspendedForAudioOffload = suspended
@@ -207,13 +216,38 @@ public class AudioVisualizerManager(
     }
 
     /**
+     * Temporarily suspends visualization while a microphone recording is active.
+     *
+     * This keeps the user's desired visualizer setting intact and automatically restores it once
+     * the recording is finished.
+     */
+    @Synchronized
+    public fun setSuspendedForRecording(suspended: Boolean) {
+        if (suspendedForRecording == suspended) return
+        suspendedForRecording = suspended
+
+        if (suspended) {
+            applyVisualizerEnabledState(enabled = false)
+            return
+        }
+
+        if (desiredEnabled && !suspendedForAudioOffload) {
+            setEnabled(enabled = true)
+        }
+    }
+
+    /**
      * Release visualizer resources.
      */
+    @Synchronized
     public fun release() {
         release(clearRequestedSessionId = true)
     }
 
     private fun release(clearRequestedSessionId: Boolean) {
+        // Invalidate callbacks before releasing the platform effect: a callback can arrive after
+        // release() or after a new audio session has already been attached.
+        captureGeneration++
         try {
             visualizer?.enabled = false
             visualizer?.release()
@@ -227,6 +261,7 @@ public class AudioVisualizerManager(
             LogUtils.d(TAG, "Visualizer released")
         } catch (e: Exception) {
             LogUtils.e(TAG, "Failed to release visualizer", e)
+            CrashDiagnostics.reportNonFatal("audio_visualizer_release", e)
             visualizer = null
             audioSessionId = 0
             if (clearRequestedSessionId) {
@@ -240,6 +275,26 @@ public class AudioVisualizerManager(
     private fun clearVisualizationData() {
         _waveformData.value = FloatArray(CAPTURE_SIZE)
         _fftData.value = FloatArray(CAPTURE_SIZE / 2)
+    }
+
+    @Synchronized
+    private fun updateWaveformIfCurrent(
+        generation: Long,
+        waveform: FloatArray,
+    ) {
+        if (generation == captureGeneration && visualizer != null) {
+            _waveformData.value = waveform
+        }
+    }
+
+    @Synchronized
+    private fun updateFftIfCurrent(
+        generation: Long,
+        fft: FloatArray,
+    ) {
+        if (generation == captureGeneration && visualizer != null) {
+            _fftData.value = fft
+        }
     }
 
     private fun applyVisualizerEnabledState(enabled: Boolean) {

@@ -24,6 +24,8 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.jabook.app.jabook.audio.domain.usecase.ListeningStatsUseCase
+import com.jabook.app.jabook.compose.core.SideEffect
+import com.jabook.app.jabook.compose.core.util.runCatchingCancelable
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
 import com.jabook.app.jabook.compose.data.repository.FavoritesRepository
@@ -46,12 +48,19 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -87,25 +96,30 @@ public class LibraryViewModel
         private val workManager: WorkManager,
         private val userPreferencesRepository: UserPreferencesRepository,
         private val booksDao: com.jabook.app.jabook.compose.data.local.dao.BooksDao,
+        private val playbackPositionDao: com.jabook.app.jabook.audio.data.local.dao.PlaybackPositionDao,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val application: android.app.Application,
         private val listeningStatsUseCase: ListeningStatsUseCase,
     ) : ViewModel() {
         // Search query state
         private val _searchQuery = MutableStateFlow("")
-        public val searchQuery: StateFlow<String> = _searchQuery
+        public val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
         // Sort order state
         private val _sortOrder = MutableStateFlow(BookSortOrder.BY_ACTIVITY)
-        public val sortOrder: StateFlow<BookSortOrder> = _sortOrder
+        public val sortOrder: StateFlow<BookSortOrder> = _sortOrder.asStateFlow()
 
         // View mode state
         private val _viewMode = MutableStateFlow(LibraryViewMode.LIST_COMPACT)
-        public val viewMode: StateFlow<LibraryViewMode> = _viewMode
+        public val viewMode: StateFlow<LibraryViewMode> = _viewMode.asStateFlow()
 
         // Selected book for properties dialog
         private val _selectedBookForProperties = MutableStateFlow<Book?>(null)
-        public val selectedBookForProperties: StateFlow<Book?> = _selectedBookForProperties
+        public val selectedBookForProperties: StateFlow<Book?> = _selectedBookForProperties.asStateFlow()
+
+        // Spotlight coachmarks completed state
+        private val _spotlightCompleted = MutableStateFlow(false)
+        public val spotlightCompleted: StateFlow<Boolean> = _spotlightCompleted.asStateFlow()
 
         init {
             // Load saved settings from preferences
@@ -113,7 +127,18 @@ public class LibraryViewModel
                 userPreferencesRepository.userData.collect { userData ->
                     _viewMode.value = userData.viewMode
                     _sortOrder.value = userData.sortOrder
+                    _spotlightCompleted.value = userData.spotlightCompleted
                 }
+            }
+        }
+
+        /**
+         * Mark spotlight coachmarks as completed and persist.
+         */
+        public fun completeSpotlight() {
+            viewModelScope.launch {
+                userPreferencesRepository.setSpotlightCompleted(true)
+                _spotlightCompleted.value = true
             }
         }
 
@@ -146,9 +171,12 @@ public class LibraryViewModel
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
-                            LibraryUiState.Error(e.message ?: "Unknown error")
+                            LibraryUiState.Error(e.message ?: application.getString(com.jabook.app.jabook.R.string.unknown_error))
                         }
                     }
+                }.catch { e ->
+                    if (e is CancellationException) throw e
+                    emit(LibraryUiState.Error(e.message ?: application.getString(com.jabook.app.jabook.R.string.unknown_error)))
                 }.stateIn(
                     scope = viewModelScope,
                     started = SharingStarted.WhileSubscribed(5000),
@@ -156,65 +184,74 @@ public class LibraryViewModel
                 )
 
         public val weeklyRecapState: StateFlow<WeeklyRecapState?> =
-            combine(
-                uiState,
-                listeningStatsUseCase.observeSummary(
-                    fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
-                    toEpochMs = System.currentTimeMillis(),
-                ),
-            ) { state, summary ->
-                val books = (state as? LibraryUiState.Success)?.books ?: return@combine null
-                val fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
-                val weeklyCompletedBooks =
-                    books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= fromEpochMs }
-                WeeklyRecapState(
-                    minutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt(),
-                    booksCompleted = weeklyCompletedBooks,
-                    productivePeriod = resolveProductivePeriod(books),
-                    streakDays = summary.activeDays.coerceAtLeast(0),
+            // Boundaries computed per subscription so the window tracks "now"
+            // instead of freezing at ViewModel construction.
+            uiState
+                .flatMapLatest { state ->
+                    listeningStatsUseCase
+                        .observeSummary(
+                            fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
+                            toEpochMs = System.currentTimeMillis(),
+                        ).map { summary ->
+                            val books = (state as? LibraryUiState.Success)?.books ?: return@map null
+                            val fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
+                            val weeklyCompletedBooks =
+                                books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= fromEpochMs }
+                            WeeklyRecapState(
+                                minutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt(),
+                                booksCompleted = weeklyCompletedBooks,
+                                productivePeriod = resolveProductivePeriod(books),
+                                streakDays = summary.activeDays.coerceAtLeast(0),
+                            )
+                        }
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = null,
                 )
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = null,
-            )
 
         public val yearRecapState: StateFlow<YearRecapState?> =
-            combine(
-                uiState,
-                listeningStatsUseCase.observeSummary(
-                    fromEpochMs = resolveYearStartEpochMs(),
-                    toEpochMs = System.currentTimeMillis(),
-                ),
-            ) { state, summary ->
-                val books = (state as? LibraryUiState.Success)?.books ?: return@combine null
-                val yearStartEpochMs = resolveYearStartEpochMs()
-                val completedBooks =
-                    books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= yearStartEpochMs }
-                val topAuthor =
-                    books
-                        .groupingBy { it.author.ifBlank { "Unknown author" } }
-                        .eachCount()
-                        .maxByOrNull { it.value }
-                        ?.key
-                        ?: "Unknown author"
+            uiState
+                .flatMapLatest { state ->
+                    listeningStatsUseCase
+                        .observeSummary(
+                            fromEpochMs = resolveYearStartEpochMs(),
+                            toEpochMs = System.currentTimeMillis(),
+                        ).map { summary ->
+                            val books = (state as? LibraryUiState.Success)?.books ?: return@map null
+                            val yearStartEpochMs = resolveYearStartEpochMs()
+                            val completedBooks =
+                                books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= yearStartEpochMs }
+                            val topAuthor =
+                                books
+                                    .groupingBy {
+                                        it.author.ifBlank {
+                                            application.getString(
+                                                com.jabook.app.jabook.R.string.unknownAuthor,
+                                            )
+                                        }
+                                    }.eachCount()
+                                    .maxByOrNull { it.value }
+                                    ?.key
+                                    ?: application.getString(com.jabook.app.jabook.R.string.unknownAuthor)
 
-                YearRecapState(
-                    year =
-                        java.time.LocalDate
-                            .now()
-                            .year,
-                    totalMinutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt().coerceAtLeast(0),
-                    booksCompleted = completedBooks.coerceAtLeast(0),
-                    activeDays = summary.activeDays.coerceAtLeast(0),
-                    sessions = summary.totalSessions.coerceAtLeast(0),
-                    topAuthor = topAuthor,
+                            YearRecapState(
+                                year =
+                                    java.time.LocalDate
+                                        .now()
+                                        .year,
+                                totalMinutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt().coerceAtLeast(0),
+                                booksCompleted = completedBooks.coerceAtLeast(0),
+                                activeDays = summary.activeDays.coerceAtLeast(0),
+                                sessions = summary.totalSessions.coerceAtLeast(0),
+                                topAuthor = topAuthor,
+                            )
+                        }
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = null,
                 )
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = null,
-            )
 
         /**
          * Update search query.
@@ -325,7 +362,13 @@ public class LibraryViewModel
         public fun deleteBook(bookId: String) {
             viewModelScope.launch {
                 deleteBookUseCase(bookId)
-                // Result handling can be added if needed for user feedback
+                // Clean up rows/files not covered by the books-table FK cascade
+                favoritesRepository.removeFromFavorites(bookId)
+                runCatching { playbackPositionDao.deletePosition(bookId) }
+                // ponytail: covers are named "$bookId.$ext" with unknown ext — glob by prefix
+                File(application.filesDir, "covers")
+                    .listFiles { file -> file.nameWithoutExtension == bookId }
+                    ?.forEach { it.delete() }
             }
         }
 
@@ -363,7 +406,7 @@ public class LibraryViewModel
             coverUri: Uri,
         ): Result<Unit> =
             withContext(kotlinx.coroutines.Dispatchers.IO) {
-                runCatching {
+                runCatchingCancelable {
                     val resolver = application.contentResolver
                     val extension = resolveCoverExtension(resolver.getType(coverUri))
                     val coversDir = File(application.filesDir, "covers").apply { mkdirs() }
@@ -388,75 +431,114 @@ public class LibraryViewModel
 
         // Library scan state
         private val _scanState = MutableStateFlow<ScanState>(ScanState.Idle)
-        public val scanState: StateFlow<ScanState> = _scanState
+        public val scanState: StateFlow<ScanState> = _scanState.asStateFlow()
+
+        // One-shot UI events (scan result snackbars). Channel so each is consumed
+        // exactly once and buffered while the screen is detached — no loss across
+        // recomposition, unlike SharedFlow(replay = 0).
+        private val _sideEffects = Channel<SideEffect>(Channel.BUFFERED)
+        public val sideEffects: Flow<SideEffect> = _sideEffects.receiveAsFlow()
 
         // Track current scan work for cancellation
         private var currentScanWorkId: java.util.UUID? = null
+        private var scanObservationJob: Job? = null
 
         /**
          * Start library scan for local audiobooks.
          */
         public fun startLibraryScan() {
-            viewModelScope.launch {
-                // Check if scan folders are configured
-                val scanFolders = scanPathDao.getAllPathsList()
-                if (scanFolders.isEmpty()) {
-                    // No folders configured - skip scan and show completion with flag
-                    _scanState.value =
-                        ScanState.Completed(
-                            booksFound = 0,
-                            noFoldersConfigured = true,
+            scanObservationJob?.cancel()
+            scanObservationJob =
+                viewModelScope.launch {
+                    // Check if scan folders are configured
+                    val scanFolders = scanPathDao.getAllPathsList()
+                    if (scanFolders.isEmpty()) {
+                        // No folders configured - skip scan and show completion with flag
+                        _scanState.value =
+                            ScanState.Completed(
+                                booksFound = 0,
+                                noFoldersConfigured = true,
+                            )
+                        emitSideEffect(
+                            SideEffect.ShowSnackbar(
+                                application.getString(com.jabook.app.jabook.R.string.noFoldersConfiguredPleaseAddInSettings),
+                            ),
                         )
-                    return@launch
+                        return@launch
+                    }
+
+                    // Folders configured - proceed with scan
+                    val scanRequest =
+                        OneTimeWorkRequestBuilder<LibraryScanWorker>()
+                            .setConstraints(WorkConstraintsPolicy.libraryScan())
+                            .build()
+
+                    // Track work ID for cancellation
+                    currentScanWorkId = scanRequest.id
+                    workManager.enqueueUniqueWork(
+                        LibraryScanWorker.WORK_NAME,
+                        // KEEP: don't cancel an in-flight auto-scan when user pulls to refresh
+                        ExistingWorkPolicy.KEEP,
+                        scanRequest,
+                    )
+
+                    // Observe work progress
+                    workManager.getWorkInfoByIdFlow(scanRequest.id).collect { workInfo ->
+                        _scanState.value =
+                            when (workInfo?.state) {
+                                WorkInfo.State.RUNNING -> {
+                                    val status =
+                                        workInfo.progress.getString("status")
+                                            ?: application.getString(com.jabook.app.jabook.R.string.scanningLibrary)
+                                    ScanState.Scanning(status)
+                                }
+                                WorkInfo.State.SUCCEEDED -> {
+                                    val count = workInfo.outputData.getInt("booksFound", 0)
+                                    emitSideEffect(
+                                        SideEffect.ShowSnackbar(
+                                            if (count == 0) {
+                                                application.getString(com.jabook.app.jabook.R.string.scanCompleteNoBooks)
+                                            } else {
+                                                application.getString(
+                                                    com.jabook.app.jabook.R.string.foundBooksMessage,
+                                                    count,
+                                                )
+                                            },
+                                        ),
+                                    )
+                                    ScanState.Completed(count)
+                                }
+                                WorkInfo.State.FAILED -> {
+                                    val error =
+                                        workInfo.outputData.getString("error")
+                                            ?: application.getString(com.jabook.app.jabook.R.string.libraryUnknownError)
+                                    emitSideEffect(
+                                        SideEffect.ShowSnackbar(
+                                            application.getString(com.jabook.app.jabook.R.string.scanFailedMessage, error),
+                                        ),
+                                    )
+                                    ScanState.Failed(error)
+                                }
+                                else -> ScanState.Idle
+                            }
+                    }
                 }
-
-                // Folders configured - proceed with scan
-                val scanRequest =
-                    OneTimeWorkRequestBuilder<LibraryScanWorker>()
-                        .setConstraints(WorkConstraintsPolicy.libraryScan())
-                        .build()
-
-                // Track work ID for cancellation
-                currentScanWorkId = scanRequest.id
-                workManager.enqueueUniqueWork(
-                    LibraryScanWorker.WORK_NAME,
-                    ExistingWorkPolicy.REPLACE,
-                    scanRequest,
-                )
-
-                // Observe work progress
-                workManager.getWorkInfoByIdFlow(scanRequest.id).collect { workInfo ->
-                    _scanState.value =
-                        when (workInfo?.state) {
-                            WorkInfo.State.RUNNING -> {
-                                val status =
-                                    workInfo.progress.getString("status")
-                                        ?: application.getString(com.jabook.app.jabook.R.string.scanningLibrary)
-                                ScanState.Scanning(status)
-                            }
-                            WorkInfo.State.SUCCEEDED -> {
-                                val count = workInfo.outputData.getInt("booksFound", 0)
-                                ScanState.Completed(count)
-                            }
-                            WorkInfo.State.FAILED -> {
-                                val error =
-                                    workInfo.outputData.getString("error")
-                                        ?: application.getString(com.jabook.app.jabook.R.string.libraryUnknownError)
-                                ScanState.Failed(error)
-                            }
-                            else -> ScanState.Idle
-                        }
-                }
-            }
         }
 
         /**
          * Cancel the currently running library scan.
          */
         public fun cancelLibraryScan() {
+            scanObservationJob?.cancel()
+            scanObservationJob = null
             workManager.cancelUniqueWork(LibraryScanWorker.WORK_NAME)
             currentScanWorkId = null
             _scanState.value = ScanState.Idle
+        }
+
+        // ponytail: trySend on BUFFERED(64); UNLIMITED if a burst is ever observed.
+        private fun emitSideEffect(effect: SideEffect) {
+            _sideEffects.trySend(effect)
         }
     }
 

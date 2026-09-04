@@ -16,29 +16,54 @@ package com.jabook.app.jabook.compose.data.local.dao
 
 import androidx.room.ColumnInfo
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.RawQuery
 import androidx.room.RewriteQueriesToDropUnusedColumns
 import androidx.room.Transaction
+import androidx.room.Upsert
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchQueryEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Dao
 public interface OfflineSearchDao {
     /**
-     * Insert or update cached topics.
-     * Uses OnConflictStrategy.REPLACE to update existing topics with fresh data.
+     * Insert or update cached topics, preserving any cover URL already saved
+     * by fetchAndSaveCover when the incoming row has none (index rows don't).
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    public suspend fun upsertTopics(topics: List<CachedTopicEntity>)
+    @Transaction
+    public suspend fun upsertTopics(topics: List<CachedTopicEntity>) {
+        if (topics.isEmpty()) return
+        val existingCovers =
+            getExistingCoverUrls(topics.map { it.topicId })
+                .associate { it.topicId to it.coverUrl }
+        upsertTopicsInternal(
+            topics.map { topic ->
+                if (topic.coverUrl == null) topic.copy(coverUrl = existingCovers[topic.topicId]) else topic
+            },
+        )
+    }
+
+    @Upsert
+    public suspend fun upsertTopicsInternal(topics: List<CachedTopicEntity>)
+
+    /**
+     * Cover URLs already stored for the given topics (nulls excluded).
+     */
+    @Query(
+        """
+        SELECT topic_id AS topicId, cover_url AS coverUrl FROM cached_topics
+        WHERE topic_id IN (:topicIds) AND cover_url IS NOT NULL
+    """,
+    )
+    public suspend fun getExistingCoverUrls(topicIds: List<String>): List<TopicCoverUrl>
 
     /**
      * Insert search query mappings.
      * Should be called inside a transaction after clearing old mappings for the query.
      */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun insertQueryMappings(mappings: List<SearchQueryEntity>)
 
     /**
@@ -76,7 +101,6 @@ public interface OfflineSearchDao {
      * Get search results for a specific query.
      * Joins CachedTopicEntity with SearchQueryEntity to return ordered topics.
      */
-    @Transaction
     @Query(
         """
         SELECT T.* FROM cached_topics T
@@ -105,12 +129,6 @@ public interface OfflineSearchDao {
      */
     @Query("DELETE FROM cached_topics")
     public suspend fun deleteAllTopics()
-
-    /**
-     * Delete all search query mappings.
-     */
-    @Query("DELETE FROM search_query_map")
-    public suspend fun deleteAllMappings()
 
     /**
      * Get count of cached topics.
@@ -144,11 +162,26 @@ public interface OfflineSearchDao {
     ): List<CachedTopicEntity>
 
     /**
+     * FTS5-powered search with bm25 ranking for instant offline search.
+     * Uses MATCH + bm25() for relevance sorting instead of LIKE full-scan.
+     *
+     * @param ftsQuery Pre-sanitized FTS5 query with bind args (e.g. "гарри поттер*")
+     * @param limit Maximum number of results
+     * @return List of matching topics ranked by relevance and seeders
+     */
+    @RewriteQueriesToDropUnusedColumns
+    @RawQuery(observedEntities = [CachedTopicEntity::class])
+    public suspend fun searchIndexedTopicsFtsRaw(query: androidx.sqlite.db.SupportSQLiteQuery): List<CachedTopicEntity>
+
+    /**
      * Raw query string search for dynamic token-based matching.
      * Allows constructs like: (title LIKE %t1% OR author LIKE %t1%) AND (title LIKE %t2% OR author LIKE %t2%)
      */
     @androidx.room.RawQuery(observedEntities = [CachedTopicEntity::class])
-    public fun searchIndexedTopicsRaw(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<List<CachedTopicEntity>>
+    public fun searchIndexedTopicsRawInternal(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<List<CachedTopicEntity>>
+
+    public fun searchIndexedTopicsRaw(query: androidx.sqlite.db.SupportSQLiteQuery): Flow<List<CachedTopicEntity>> =
+        searchIndexedTopicsRawInternal(query).distinctUntilChanged()
 
     /**
      * Update cover URL for a specific topic.
@@ -201,13 +234,13 @@ public interface OfflineSearchDao {
     @Query(
         """
         SELECT * FROM cached_topics
-        WHERE last_updated < :maxAgeMs OR index_version != :currentIndexVersion
+        WHERE last_updated < :cutoffMs OR index_version != :currentIndexVersion
         ORDER BY last_updated ASC
         LIMIT :limit
     """,
     )
     public suspend fun getTopicsNeedingUpdate(
-        maxAgeMs: Long,
+        cutoffMs: Long,
         currentIndexVersion: Int,
         limit: Int = 1000,
     ): List<CachedTopicEntity>
@@ -242,7 +275,22 @@ public interface OfflineSearchDao {
     """,
     )
     public suspend fun getIndexMetadata(): IndexMetadata?
+
+    /**
+     * Get the maximum index_version across all cached topics.
+     * Returns 0 if no topics exist.
+     */
+    @Query("SELECT COALESCE(MAX(index_version), 0) FROM cached_topics")
+    public suspend fun getMaxIndexVersion(): Int
 }
+
+/**
+ * Cover URL projection for [OfflineSearchDao.getExistingCoverUrls].
+ */
+public data class TopicCoverUrl(
+    val topicId: String,
+    val coverUrl: String,
+)
 
 /**
  * Index metadata for monitoring.

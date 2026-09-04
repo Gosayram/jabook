@@ -20,15 +20,22 @@ import org.junit.Test
 
 class TorrentDownloadNetworkPolicyTest {
     @Test
-    fun `wifi-only off never pauses downloads`() {
-        NetworkType.entries.forEach { type ->
-            assertFalse(
-                TorrentDownloadNetworkPolicy.shouldPauseForNetwork(
-                    wifiOnlyEnabled = false,
-                    networkType = type,
-                ),
-            )
-        }
+    fun `wifi-only off permits every connected network`() {
+        NetworkType.entries
+            .filterNot { it == NetworkType.NONE }
+            .forEach { type ->
+                assertFalse(
+                    TorrentDownloadNetworkPolicy.shouldPauseForNetwork(
+                        wifiOnlyEnabled = false,
+                        networkType = type,
+                    ),
+                )
+            }
+    }
+
+    @Test
+    fun `downloads pause while offline even when wifi-only is off`() {
+        assertTrue(TorrentDownloadNetworkPolicy.shouldPauseForNetwork(false, NetworkType.NONE))
     }
 
     @Test

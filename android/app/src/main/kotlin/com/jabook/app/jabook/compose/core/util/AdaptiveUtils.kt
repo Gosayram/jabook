@@ -15,16 +15,13 @@
 package com.jabook.app.jabook.compose.core.util
 
 import android.content.Context
-import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowHeightSizeClass
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import kotlin.math.max
-import kotlin.math.min
+import com.jabook.app.jabook.compose.core.theme.SpacingTokens
 
 /**
  * Utility object for adaptive UI values based on WindowSizeClass.
@@ -34,97 +31,16 @@ import kotlin.math.min
  */
 public object AdaptiveUtils {
     /**
-     * Threshold for smallest screen width in dp to distinguish phones from tablets.
-     * Devices with smallestScreenWidthDp >= 600dp are typically tablets.
-     */
-    private const val TABLET_SMALLEST_WIDTH_DP = 600
-
-    /**
-     * Maximum aspect ratio for phones in portrait mode.
-     * Modern phones typically have aspect ratios around 2:1 or less.
-     * Devices with very tall aspect ratios (> 2.5:1) are likely phones, not tablets.
-     */
-    private const val MAX_PHONE_ASPECT_RATIO = 2.5f
-
-    /**
-     * Minimum density for high-DPI phones that might be misclassified.
-     * Very high density (>= 420dpi) combined with narrow width suggests a phone.
-     */
-    private const val HIGH_DENSITY_THRESHOLD = 420f
-
-    /**
-     * Checks if the device should be forced to Compact size class based on
-     * physical screen characteristics rather than just WindowSizeClass calculation.
-     *
-     * This method detects phones that have high-resolution displays which
-     * WindowSizeClass incorrectly classifies as tablets (Medium/Expanded).
-     *
-     * Detection logic:
-     * 1. If smallestScreenWidthDp < 600dp, it's definitely a phone
-     * 2. If smallestScreenWidthDp >= 600dp but has very tall aspect ratio (> 2.5:1),
-     *    it's likely a phone (modern phones are tall and narrow)
-     * 3. If smallestScreenWidthDp >= 600dp but has very high density (>= 420dpi)
-     *    and narrow width, it's likely a phone
-     *
-     * @param context Android context to get screen configuration
-     * @return true if device should be treated as Compact (phone)
-     */
-    public fun shouldForceCompact(context: Context): Boolean {
-        val configuration = context.resources.configuration
-        val displayMetrics = context.resources.displayMetrics
-
-        // Get smallest screen width in dp (always in portrait orientation)
-        val smallestScreenWidthDp = configuration.smallestScreenWidthDp
-
-        // If smallestScreenWidthDp < 600dp, it's definitely a phone
-        if (smallestScreenWidthDp < TABLET_SMALLEST_WIDTH_DP) {
-            return true
-        }
-
-        // For devices with smallestScreenWidthDp >= 600dp, check additional characteristics
-        val screenWidthDp = configuration.screenWidthDp
-        val screenHeightDp = configuration.screenHeightDp
-
-        // Calculate aspect ratio (always use portrait dimensions)
-        val widthDp = min(screenWidthDp, screenHeightDp)
-        val heightDp = max(screenWidthDp, screenHeightDp)
-        val aspectRatio = heightDp.toFloat() / widthDp.toFloat()
-
-        // Get density
-        val density = displayMetrics.densityDpi / 160f // Convert to density scale
-
-        // Check if it's a tall, narrow phone with high density
-        // Modern phones have tall aspect ratios (often > 2:1) and high density
-        val isTallNarrowPhone = aspectRatio > MAX_PHONE_ASPECT_RATIO
-        val isHighDensityPhone = density >= HIGH_DENSITY_THRESHOLD && widthDp < 450
-
-        // If device has very tall aspect ratio or high density with narrow width,
-        // it's likely a phone, not a tablet
-        return isTallNarrowPhone || isHighDensityPhone
-    }
-
-    /**
      * Gets effective window size class, applying device-specific overrides.
      *
      * @param windowSizeClass Original WindowSizeClass from calculateWindowSizeClass
      * @param context Android context for device detection
      * @return WindowSizeClass with device-specific overrides applied
      */
-    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     public fun getEffectiveWindowSizeClass(
         windowSizeClass: WindowSizeClass?,
-        context: Context,
-    ): WindowSizeClass? {
-        if (windowSizeClass == null) return null
-        if (shouldForceCompact(context) && windowSizeClass.widthSizeClass != WindowWidthSizeClass.Compact) {
-            // Force to Compact by creating a new WindowSizeClass with Compact width
-            // Use a size that will result in Compact classification (360dp x 800dp)
-            return WindowSizeClass.calculateFromSize(
-                DpSize(360.dp, 800.dp), // Force compact size
-            )
-        }
-        return windowSizeClass
-    }
+        @Suppress("UNUSED_PARAMETER") context: Context,
+    ): WindowSizeClass? = windowSizeClass
 
     /**
      * Resolves window size class with device-specific overrides and compact fallback.
@@ -171,10 +87,10 @@ public object AdaptiveUtils {
      */
     public fun getContentPadding(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
-            WindowWidthSizeClass.Compact -> 16.dp
-            WindowWidthSizeClass.Medium -> 24.dp
-            WindowWidthSizeClass.Expanded -> 32.dp
-            else -> 16.dp
+            WindowWidthSizeClass.Compact -> SpacingTokens.ContentPaddingCompact
+            WindowWidthSizeClass.Medium -> SpacingTokens.ContentPaddingMedium
+            WindowWidthSizeClass.Expanded -> SpacingTokens.ContentPaddingExpanded
+            else -> SpacingTokens.ContentPaddingCompact
         }
 
     /**
@@ -186,10 +102,10 @@ public object AdaptiveUtils {
      */
     public fun getHorizontalPadding(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
-            WindowWidthSizeClass.Compact -> 16.dp
-            WindowWidthSizeClass.Medium -> 24.dp
-            WindowWidthSizeClass.Expanded -> 32.dp
-            else -> 16.dp
+            WindowWidthSizeClass.Compact -> SpacingTokens.ContentPaddingCompact
+            WindowWidthSizeClass.Medium -> SpacingTokens.ContentPaddingMedium
+            WindowWidthSizeClass.Expanded -> SpacingTokens.ContentPaddingExpanded
+            else -> SpacingTokens.ContentPaddingCompact
         }
 
     /**
@@ -201,10 +117,10 @@ public object AdaptiveUtils {
      */
     public fun getVerticalPadding(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.heightSizeClass) {
-            WindowHeightSizeClass.Compact -> 16.dp
-            WindowHeightSizeClass.Medium -> 24.dp
-            WindowHeightSizeClass.Expanded -> 32.dp
-            else -> 16.dp
+            WindowHeightSizeClass.Compact -> SpacingTokens.ContentPaddingCompact
+            WindowHeightSizeClass.Medium -> SpacingTokens.ContentPaddingMedium
+            WindowHeightSizeClass.Expanded -> SpacingTokens.ContentPaddingExpanded
+            else -> SpacingTokens.ContentPaddingCompact
         }
 
     /**
@@ -261,36 +177,6 @@ public object AdaptiveUtils {
      * Checks if the window is considered large (Expanded width).
      */
     public fun isLargeScreen(windowSizeClass: WindowSizeClass): Boolean = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
-
-    /**
-     * Returns adaptive grid column count for compact grid mode.
-     *
-     * - Compact: 3 columns
-     * - Medium: 5 columns
-     * - Expanded: 7 columns
-     */
-    public fun getCompactGridColumns(windowSizeClass: WindowSizeClass): Int =
-        when (windowSizeClass.widthSizeClass) {
-            WindowWidthSizeClass.Compact -> 3
-            WindowWidthSizeClass.Medium -> 5
-            WindowWidthSizeClass.Expanded -> 7
-            else -> 3
-        }
-
-    /**
-     * Returns adaptive grid column count for comfortable grid mode.
-     *
-     * - Compact: 2 columns
-     * - Medium: 4 columns
-     * - Expanded: 6 columns
-     */
-    public fun getComfortableGridColumns(windowSizeClass: WindowSizeClass): Int =
-        when (windowSizeClass.widthSizeClass) {
-            WindowWidthSizeClass.Compact -> 2
-            WindowWidthSizeClass.Medium -> 4
-            WindowWidthSizeClass.Expanded -> 6
-            else -> 2
-        }
 
     /**
      * Returns adaptive max content width for centered layouts.
@@ -431,4 +317,49 @@ public object AdaptiveUtils {
             WindowWidthSizeClass.Expanded -> 72.dp
             else -> 40.dp
         }
+
+    // --- 5-breakpoint pane widths (foundations/layout) ---
+
+    /** Canonical 5 breakpoints overlayed on WSC: widthDp maps to compact/medium/expanded/large/xl. */
+    public fun getBreakpoint(screenWidthDp: Int): Int =
+        when {
+            screenWidthDp < 600 -> 0 // compact
+            screenWidthDp < 840 -> 1 // medium
+            screenWidthDp < 1200 -> 2 // expanded (360 pane)
+            screenWidthDp < 1600 -> 3 // large (412 pane)
+            else -> 4 // xl (412 centered)
+        }
+
+    /** Supporting pane width per spec: 360 expanded, 412 large/xl, 360 otherwise. */
+    public fun getSupportingPaneWidth(screenWidthDp: Int): Dp =
+        when (getBreakpoint(screenWidthDp)) {
+            3, 4 -> 412.dp
+            else -> 360.dp
+        }
+
+    /** ponytail: WSC fallback 360 — WSC can't distinguish large/xl (ceiling), use getSupportingPaneWidth(screenWidthDp: Int) for 412 where widthDp available. */
+    public fun getSupportingPaneWidth(windowSizeClass: WindowSizeClass?): Dp {
+        // ponytail: WSC alone can't distinguish large/xl (ceiling) -> 360; Int overload returns 412 for large/xl.
+        if (windowSizeClass == null) return 360.dp
+        return when (windowSizeClass.widthSizeClass) {
+            WindowWidthSizeClass.Expanded -> 360.dp // ponytail ceiling: large/xl needs widthDp overload for 412
+            else -> 360.dp
+        }
+    }
+
+    /**
+     * Override PaneScaffoldDirective to enforce 8dp scaffold spacing + canonical pane width.
+     * Use via `directive = remember(widthDp, baseDirective){ canonicalDirective(baseDirective, widthDp) }`
+     */
+    public fun canonicalDirective(
+        base: androidx.compose.material3.adaptive.layout.PaneScaffoldDirective,
+        screenWidthDp: Int,
+    ): androidx.compose.material3.adaptive.layout.PaneScaffoldDirective {
+        val paneWidth = getSupportingPaneWidth(screenWidthDp)
+        return base.copy(defaultPanePreferredWidth = paneWidth, horizontalPartitionSpacerSize = 8.dp)
+    }
+
+    // ponytail: Ruler API (Compose UI 1.7+) available but skipped — grid spacing already 8dp-aligned via SpacingTokens;
+    // cross-layout Ruler alignment adds measurability cost for no current misalignment. Wire when a shared header/grid
+    // ruler is visibly off.
 }

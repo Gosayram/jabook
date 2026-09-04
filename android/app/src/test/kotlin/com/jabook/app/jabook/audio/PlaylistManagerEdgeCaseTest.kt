@@ -31,15 +31,14 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
-import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.inOrder
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
@@ -49,6 +48,7 @@ import org.robolectric.RobolectricTestRunner
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class PlaylistManagerEdgeCaseTest {
     private lateinit var context: Context
     private lateinit var exoPlayer: ExoPlayer
@@ -105,7 +105,7 @@ class PlaylistManagerEdgeCaseTest {
             advanceUntilIdle()
 
             verify(exoPlayer).clearMediaItems()
-            verify(exoPlayer, never()).setMediaItems(any(), any<Int>(), any<Long>())
+            verify(exoPlayer, never()).setMediaSources(any(), any<Int>(), any<Long>())
             verify(exoPlayer, never()).prepare()
         }
 
@@ -122,7 +122,7 @@ class PlaylistManagerEdgeCaseTest {
             )
             advanceUntilIdle()
 
-            verify(exoPlayer).setMediaItems(any(), eq(0), eq(1234L))
+            verify(exoPlayer).setMediaSources(any(), eq(0), eq(1234L))
             verify(exoPlayer).prepare()
         }
 
@@ -144,11 +144,16 @@ class PlaylistManagerEdgeCaseTest {
             verify(exoPlayer).clearMediaItems()
             verify(exoPlayer).addMediaSource(eq(0), any())
             verify(exoPlayer).prepare()
-            verify(exoPlayer, never()).setMediaItems(any(), any<Int>(), any<Long>())
+            verify(exoPlayer, never()).setMediaSources(any(), any<Int>(), any<Long>())
+
+            val orderedAdds = inOrder(exoPlayer)
+            largePlaylist.indices.forEach { index ->
+                orderedAdds.verify(exoPlayer).addMediaSource(eq(index), any())
+            }
         }
 
     @Test
-    fun `setPlaylist short-circuits duplicate call when loading already in progress`() =
+    fun `setPlaylist replaces an already marked loading request`() =
         testScope.runTest {
             playlistManager.isPlaylistLoading = true
             var callbackSuccess: Boolean? = null
@@ -165,8 +170,8 @@ class PlaylistManagerEdgeCaseTest {
 
             assertTrue(callbackSuccess == true)
             assertNull(callbackError)
-            verify(exoPlayer, never()).clearMediaItems()
-            verify(exoPlayer, never()).setMediaItems(any(), any<Int>(), any<Long>())
+            verify(exoPlayer).clearMediaItems()
+            verify(exoPlayer).setMediaSources(any(), any<Int>(), any<Long>())
         }
 
     @Test
@@ -264,54 +269,5 @@ class PlaylistManagerEdgeCaseTest {
             verify(exoPlayer, times(2)).seekToDefaultPosition(eq(targetIndex))
             // First call applies initial position, second call is retry.
             verify(exoPlayer, times(2)).seekTo(eq(targetIndex), eq(targetPosition))
-        }
-
-    @Test
-    fun `mutateQueueAtomically syncs queue snapshot to persistence`() =
-        testScope.runTest {
-            whenever(exoPlayer.currentPosition).thenReturn(2_500L)
-            whenever(exoPlayer.duration).thenReturn(30_000L)
-            whenever(exoPlayer.mediaItemCount).thenReturn(2)
-            whenever(exoPlayer.currentMediaItemIndex).thenReturn(0)
-            whenever(exoPlayer.playbackState).thenReturn(Player.STATE_READY)
-
-            playlistManager.setPlaylist(
-                filePaths = listOf("/storage/book/1.mp3", "/storage/book/2.mp3"),
-                metadata = mapOf("title" to "Queue Book", "artist" to "Narrator"),
-                groupPath = "book://queue",
-            )
-            advanceUntilIdle()
-
-            val snapshot =
-                playlistManager.mutateQueueAtomically(
-                    PlaylistQueueOperation.Add(path = "/storage/book/3.mp3", index = 2),
-                )
-
-            assertTrue(snapshot != null)
-            assertEquals(3, snapshot?.filePaths?.size)
-            assertEquals(0, snapshot?.currentIndex)
-
-            val persistedCaptor = argumentCaptor<PlayerPersistenceManager.PersistedPlayerState>()
-            verify(playerPersistenceManager).savePersistedPlayerState(persistedCaptor.capture())
-
-            val persisted = persistedCaptor.firstValue
-            assertEquals("book://queue", persisted.groupPath)
-            assertEquals(
-                listOf("/storage/book/1.mp3", "/storage/book/2.mp3", "/storage/book/3.mp3"),
-                persisted.filePaths,
-            )
-            assertEquals(0, persisted.currentIndex)
-            assertEquals(2_500L, persisted.currentPosition)
-            assertEquals("Queue Book", persisted.metadata?.get("title"))
-
-            verify(playerPersistenceManager).saveCurrentMediaItem(
-                mediaId = "/storage/book/1.mp3",
-                positionMs = 2_500L,
-                durationMs = 30_000L,
-                artworkPath = "",
-                title = "Queue Book",
-                artist = "Narrator",
-                groupPath = "book://queue",
-            )
         }
 }

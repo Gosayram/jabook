@@ -25,7 +25,7 @@ import androidx.datastore.core.DataMigration
  */
 public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
     public companion object {
-        public const val CURRENT_SCHEMA_VERSION: Int = 5
+        public const val CURRENT_SCHEMA_VERSION: Int = 9
     }
 
     override suspend fun shouldMigrate(currentData: UserPreferences): Boolean = currentData.schemaVersion < CURRENT_SCHEMA_VERSION
@@ -97,6 +97,47 @@ public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
                 }
             builder.holdToBoostSpeed = speed
             builder.schemaVersion = 5
+            migrated = builder.build()
+        }
+
+        // v6: audio visualizer mode default.
+        if (migrated.schemaVersion < 6) {
+            val builder = migrated.toBuilder()
+            builder.audioVisualizerMode = 0
+            builder.schemaVersion = 6
+            migrated = builder.build()
+        }
+
+        // v7: match the app-wide haptics default for existing Proto stores.
+        if (migrated.schemaVersion < 7) {
+            val builder = migrated.toBuilder()
+            builder.hapticsEnabled = true
+            builder.schemaVersion = 7
+            migrated = builder.build()
+        }
+
+        // v8: seed the legacy-intended `true` defaults for autoPlayNext / pitchCorrectionEnabled.
+        // Fields 66/67 did not exist before v8, so absence in a v<8 store means "never set",
+        // not "user opted out" — safe to set unconditionally. Stores freshly written by
+        // LegacyPreferencesDataMigration carry schemaVersion 8, so their explicit values
+        // (including `false`) skip this step and are preserved.
+        if (migrated.schemaVersion < 8) {
+            val builder = migrated.toBuilder()
+            builder.autoPlayNext = true
+            builder.pitchCorrectionEnabled = true
+            builder.schemaVersion = 8
+            migrated = builder.build()
+        }
+
+        // v9: sleepTimerShakeExtendEnabled (field 35) shipped without a migration, so every
+        // pre-v9 store silently read `false`. The field is `optional` (explicit presence),
+        // and has*() is what distinguishes "never set" from the user's explicit `false`.
+        if (migrated.schemaVersion < 9) {
+            val builder = migrated.toBuilder()
+            if (!builder.hasSleepTimerShakeExtendEnabled()) {
+                builder.sleepTimerShakeExtendEnabled = true
+            }
+            builder.schemaVersion = 9
             migrated = builder.build()
         }
 

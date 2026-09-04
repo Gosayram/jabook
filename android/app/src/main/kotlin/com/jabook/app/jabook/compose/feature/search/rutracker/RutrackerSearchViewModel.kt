@@ -18,10 +18,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
-import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.domain.model.AppError
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +34,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.jabook.app.jabook.compose.domain.model.Result as DomainResult
 
 /**
  * UI model for search result with library status.
@@ -67,6 +71,7 @@ public class RutrackerSearchViewModel
 
         // Store original results for client-side filtering/sorting
         private var originalResults: List<RutrackerSearchResult> = emptyList()
+        private var searchJob: Job? = null
         private val eagerCoverBatchSize = 24
 
         // Cache of library book source URLs to check "In Library" status against
@@ -102,100 +107,127 @@ public class RutrackerSearchViewModel
             forumIds: String? = RutrackerApi.AUDIOBOOKS_FORUM_IDS,
         ) {
             if (query.isBlank()) {
+                searchJob?.cancel()
+                searchJob = null
                 logger.d { "Empty query, clearing search state" }
                 _searchState.value = SearchState.Empty
                 return
             }
 
-            logger.d { "🔍 Starting search: query='$query', forumIds=$forumIds" }
-            viewModelScope.launch {
-                _searchState.value = SearchState.Loading
+            logger.d { "Starting search: query='$query', forumIds=$forumIds" }
+            searchJob?.cancel()
+            originalResults = emptyList()
+            searchJob =
+                viewModelScope.launch {
+                    _searchState.value = SearchState.Loading
 
-                var isFirstEmission: Boolean = true
-                // Combine search results flow with library books flow
-                combine(
-                    repository.searchAudiobooksFlow(query, forumIds),
-                    librarySourceUrls,
-                ) { result, libraryUrls ->
-                    result to libraryUrls
-                }.collect { (result, libraryUrls) ->
-                    val isCachedEmission = isFirstEmission
-                    isFirstEmission = false
+                    try {
+                        var isFirstEmission: Boolean = true
+                        // Combine search results flow with library books flow
+                        combine(
+                            repository.searchAudiobooksFlow(query, forumIds),
+                            librarySourceUrls,
+                        ) {
+                            result: DomainResult<List<RutrackerSearchResult>, AppError>,
+                            libraryUrls: Set<String>,
+                            ->
+                            result to libraryUrls
+                        }.collect { (result, libraryUrls) ->
+                            val isCachedEmission = isFirstEmission
+                            isFirstEmission = false
 
-                    result
-                        .onSuccess { results ->
-                            logger.d {
-                                "✅ Search results received: ${results.size} results " +
-                                    "(cached: $isCachedEmission, libraryUrls: ${libraryUrls.size})"
-                            }
-                            originalResults = results
-                            val filtered = applyFiltersAndSort(results)
-                            logger.d {
-                                "🔄 After filters/sort: ${filtered.size} results " +
-                                    "(from ${results.size} original)"
-                            }
+                            when (result) {
+                                is DomainResult.Success -> {
+                                    val results = result.data
+                                    logger.d {
+                                        "Search results received: ${results.size} results " +
+                                            "(cached: $isCachedEmission, libraryUrls: ${libraryUrls.size})"
+                                    }
+                                    originalResults = results
+                                    val filtered = applyFiltersAndSort(results)
+                                    logger.d {
+                                        "After filters/sort: ${filtered.size} results " +
+                                            "(from ${results.size} original)"
+                                    }
 
-                            // Map to UI model
-                            val uiResults =
-                                filtered.map {
-                                    val inLib =
-                                        libraryUrls.contains(it.topicId) ||
-                                            libraryUrls.any { url -> url.contains(it.topicId) }
-                                    SearchResultUi(
-                                        result = it,
-                                        isInLibrary = inLib,
-                                    )
+                                    // Map to UI model
+                                    val uiResults =
+                                        filtered.map {
+                                            val inLib =
+                                                libraryUrls.contains(it.topicId) ||
+                                                    libraryUrls.any { url -> url.contains(it.topicId) }
+                                            SearchResultUi(
+                                                result = it,
+                                                isInLibrary = inLib,
+                                            )
+                                        }
+
+                                    logger.d {
+                                        "UI results: ${uiResults.size} items, " +
+                                            "${uiResults.count { it.isInLibrary }} in library"
+                                    }
+
+                                    _searchState.value =
+                                        if (filtered.isEmpty()) {
+                                            if (!isCachedEmission) {
+                                                logger.w { "No results after filtering, setting Empty state" }
+                                                SearchState.Empty
+                                            } else {
+                                                logger.d { "Keeping current state (cached empty)" }
+                                                _searchState.value
+                                            }
+                                        } else {
+                                            logger.d { "Setting Success state with ${uiResults.size} results" }
+                                            SearchState.Success(uiResults, isCached = isCachedEmission)
+                                        }
+
+                                    // Eager-load only first visible-ish batch to avoid network fan-out stalls.
+                                    if (filtered.isNotEmpty()) {
+                                        filtered.take(eagerCoverBatchSize).forEach { item ->
+                                            if (item.coverUrl.isNullOrBlank()) {
+                                                coverLoader.loadCover(item.topicId)
+                                            }
+                                        }
+                                    }
                                 }
-
-                            logger.d {
-                                "📊 UI results: ${uiResults.size} items, " +
-                                    "${uiResults.count { it.isInLibrary }} in library"
-                            }
-
-                            _searchState.value =
-                                if (filtered.isEmpty()) {
-                                    if (!isCachedEmission) {
-                                        logger.w { "⚠️ No results after filtering, setting Empty state" }
-                                        SearchState.Empty
+                                is DomainResult.Error -> {
+                                    logger.e {
+                                        "Search failed for query '$query': ${result.error.message}"
+                                    }
+                                    val currentState = _searchState.value
+                                    if (currentState !is SearchState.Success) {
+                                        _searchState.value =
+                                            SearchState.Error(
+                                                result.error.message,
+                                            )
                                     } else {
-                                        logger.d { "⏭️ Keeping current state (cached empty)" }
-                                        _searchState.value
-                                    }
-                                } else {
-                                    logger.d { "✅ Setting Success state with ${uiResults.size} results" }
-                                    SearchState.Success(uiResults, isCached = isCachedEmission)
-                                }
-
-                            // Eager-load only first visible-ish batch to avoid network fan-out stalls.
-                            if (filtered.isNotEmpty()) {
-                                filtered.take(eagerCoverBatchSize).forEach { item ->
-                                    if (item.coverUrl.isNullOrBlank()) {
-                                        coverLoader.loadCover(item.topicId)
+                                        logger.d { "Keeping current Success state despite error" }
                                     }
                                 }
-                            }
-                        }.onFailure { error ->
-                            logger.e(error) {
-                                "❌ Search failed for query '$query': ${error.message}"
-                            }
-                            val currentState = _searchState.value
-                            if (currentState !is SearchState.Success) {
-                                _searchState.value =
-                                    SearchState.Error(
-                                        error.message,
-                                    )
-                            } else {
-                                logger.d { "⏭️ Keeping current Success state despite error" }
+                                is DomainResult.Loading -> {}
                             }
                         }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.e(e) { "Search flow failed for query '$query'" }
+                        _searchState.value = SearchState.Error(e.message ?: "Unknown error")
+                    }
+                    // Flow completed without a fresh network result (e.g. offline
+                    // cache-only emission) — don't leave the user on an eternal spinner.
+                    if (_searchState.value is SearchState.Loading) {
+                        logger.w { "Search flow completed while still Loading; transitioning to Empty" }
+                        _searchState.value = SearchState.Empty
+                    }
                 }
-            }
         }
 
         /**
          * Clear search results.
          */
         public fun clearSearch() {
+            searchJob?.cancel()
+            searchJob = null
             _searchState.value = SearchState.Empty
             originalResults = emptyList()
         }
@@ -326,7 +358,7 @@ public class RutrackerSearchViewModel
          * Handles formats like "1.5 GB", "500 MB", etc.
          */
         private fun parseSizeToMb(sizeStr: String): Double {
-            val pattern = """([\d.]+)\\s*(GB|MB|KB)""".toRegex(RegexOption.IGNORE_CASE)
+            val pattern = """([\d.]+)\s*(GB|MB|KB)""".toRegex(RegexOption.IGNORE_CASE)
             val match = pattern.find(sizeStr) ?: return 0.0
 
             val value = match.groupValues[1].toDoubleOrNull() ?: return 0.0

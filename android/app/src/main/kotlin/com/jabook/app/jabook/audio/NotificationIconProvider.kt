@@ -17,6 +17,7 @@ package com.jabook.app.jabook.audio
 import android.content.Context
 import android.graphics.drawable.Icon
 import androidx.annotation.DrawableRes
+import androidx.annotation.RequiresApi
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.util.LogUtils
 
@@ -116,6 +117,7 @@ public object NotificationIconProvider {
      * @param icon Icon to tint
      * @return Tinted icon with Material You colors (Android 12+) or original icon (older versions)
      */
+    @RequiresApi(android.os.Build.VERSION_CODES.S)
     public fun applyTheming(
         context: Context,
         icon: Icon,

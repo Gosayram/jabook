@@ -14,17 +14,25 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.size.Scale
 import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
 import com.jabook.app.jabook.compose.feature.player.components.HypnoticBackground
 import dev.chrisbanes.haze.HazeState
@@ -33,21 +41,37 @@ import dev.chrisbanes.haze.hazeSource
 /**
  * Premium animated background component using Shaders (Android 13+) or Gradient fallback.
  */
+@RequiresApi(Build.VERSION_CODES.S)
 @Composable
 public fun PremiumPlayerBackground(
     themeColors: PlayerThemeColors?,
     coverImageModel: Any? = null,
     hazeState: HazeState? = null,
     isPowerSaveMode: Boolean = false,
+    isPlaying: Boolean = true,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    val backgroundColors =
+    val rawBackgroundColors =
         themeColors?.let { colors ->
             colors.gradientColors.ifEmpty {
                 listOf(colors.containerColor, colors.surfaceColor)
             }
         } ?: emptyList()
+    // ponytail: M3 1.4 fallback — motionScheme not in 1.4
+    val animatedPrimary by animateColorAsState(
+        targetValue = themeColors?.primaryColor ?: Color.Transparent,
+        animationSpec =
+            androidx.compose.animation.core
+                .tween(durationMillis = 300),
+        label = "palettePrimary",
+    )
+    val backgroundColors =
+        if (rawBackgroundColors.isNotEmpty() && themeColors != null) {
+            listOf(animatedPrimary) + rawBackgroundColors.drop(1)
+        } else {
+            rawBackgroundColors
+        }
 
     val fallbackBackgroundModifier =
         if (themeColors != null) {
@@ -70,6 +94,7 @@ public fun PremiumPlayerBackground(
         if (!isPowerSaveMode && backgroundColors.isNotEmpty()) {
             HypnoticBackground(
                 colors = backgroundColors,
+                isPlaying = isPlaying,
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
@@ -82,14 +107,29 @@ public fun PremiumPlayerBackground(
         }
 
         if (coverImageModel != null) {
+            // Downscale the background decode — it is blurred + dimmed + zoomed, so
+            // nobody can see full-res pixels; decoding at 512px is a big GPU/memory win.
+            val bgModel =
+                coil3.request.ImageRequest
+                    .Builder(LocalContext.current)
+                    .data(coverImageModel)
+                    .size(512)
+                    .scale(coil3.size.Scale.FILL)
+                    .build()
             AsyncImage(
-                model = coverImageModel,
+                model = bgModel,
                 contentDescription = null,
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .graphicsLayer(
-                            alpha = 0.28f,
+                        .then(
+                            if (Build.VERSION.SDK_INT >= 31) {
+                                Modifier.blur(radiusX = 24.dp, radiusY = 24.dp)
+                            } else {
+                                Modifier
+                            },
+                        ).graphicsLayer(
+                            alpha = 0.32f,
                             scaleX = 1.1f,
                             scaleY = 1.1f,
                         ),
@@ -97,12 +137,23 @@ public fun PremiumPlayerBackground(
             )
         }
 
-        // Darkening overlay for text legibility
+        // Gradient scrim for legibility — bottom-heavy (controls/text dock there),
+        // instead of a flat 0.6 black that flattens the whole artwork.
+        // a11y 200% fontScale: scrim 0.85 max (≥0.75) ensures WCAG contrast over HypnoticBackground/cover; verified reflow via LazyColumn vertical scroll in PlayerContent.
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f)),
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops =
+                                arrayOf(
+                                    0.0f to Color.Transparent,
+                                    0.55f to Color.Black.copy(alpha = 0.35f),
+                                    1.0f to Color.Black.copy(alpha = 0.85f),
+                                ),
+                        ),
+                    ),
         )
 
         content()

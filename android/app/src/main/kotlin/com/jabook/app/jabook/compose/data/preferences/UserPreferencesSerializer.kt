@@ -39,7 +39,7 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setSpeechEnhancer(false)
             .setAutoVolumeLeveling(false)
             .setNormalizeVolume(true)
-            .setLanguageCode("en")
+            .setLanguageCode("ru")
             .setNotificationsEnabled(true)
             .setDownloadNotifications(true)
             .setPlayerNotifications(true)
@@ -61,14 +61,34 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setAutoLoadCoversOnCellular(true)
             .setPlayerSnapshotPlaybackSpeed(1.0f)
             .setPlayerSnapshotSleepMode("idle")
+            .setHapticsEnabled(true)
+            .setAutoPlayNext(true)
+            .setPitchCorrectionEnabled(true)
             .setSchemaVersion(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION)
             .build()
 
     override suspend fun readFrom(input: InputStream): UserPreferences =
         try {
-            UserPreferences.parseFrom(input)
+            // Downgrade safety: a proto written by a newer build may carry enum
+            // values this version doesn't know (parsed as UNRECOGNIZED). Such a
+            // value poisons every later builder chain with IAE, so sanitize on read.
+            UserPreferences.parseFrom(input).sanitizeEnums()
         } catch (exception: InvalidProtocolBufferException) {
             throw CorruptionException("Cannot read proto.", exception)
+        }
+
+    private fun UserPreferences.sanitizeEnums(): UserPreferences =
+        if (themeMode != ThemeMode.UNRECOGNIZED &&
+            skipSilenceMode != SkipSilenceMode.UNRECOGNIZED &&
+            resumeRewindMode != ResumeRewindMode.UNRECOGNIZED
+        ) {
+            this
+        } else {
+            toBuilder()
+                .setThemeMode(if (themeMode == ThemeMode.UNRECOGNIZED) ThemeMode.SYSTEM else themeMode)
+                .setSkipSilenceMode(if (skipSilenceMode == SkipSilenceMode.UNRECOGNIZED) SkipSilenceMode.SKIP else skipSilenceMode)
+                .setResumeRewindMode(if (resumeRewindMode == ResumeRewindMode.UNRECOGNIZED) ResumeRewindMode.SMART else resumeRewindMode)
+                .build()
         }
 
     override suspend fun writeTo(

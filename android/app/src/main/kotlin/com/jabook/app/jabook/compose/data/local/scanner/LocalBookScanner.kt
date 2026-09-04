@@ -70,18 +70,22 @@ public data class ScannedBook(
 }
 
 /**
- * Represents a single chapter (audio file) in an audiobook.
+ * Represents a single chapter (audio file or segment) in an audiobook.
  *
  * @property filePath Absolute path to audio file
  * @property title Chapter title
  * @property index Chapter index (0-based)
  * @property duration Duration in milliseconds
+ * @property startMs In-file start offset for embedded chapters (null = whole file)
+ * @property endMs In-file end offset for embedded chapters (null = whole file/EOF)
  */
 public data class ScannedChapter(
     val filePath: String,
     val title: String,
     val index: Int,
     val duration: Long,
+    val startMs: Long? = null,
+    val endMs: Long? = null,
 )
 
 /**

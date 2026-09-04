@@ -45,7 +45,7 @@ class MetadataExtractionTest {
         )
         fieldExtractor = DefensiveFieldExtractor(mockLoggerFactory)
         // Mock getBaseUrl behavior
-        whenever(mirrorManager.getBaseUrl()).thenReturn("https://rutracker.org")
+        whenever(mirrorManager.getBaseUrl()).thenReturn("https://mirror.example")
         coverExtractor = CoverUrlExtractor(mirrorManager, mockLoggerFactory)
         parser =
             RutrackerParser(

@@ -19,26 +19,33 @@ import androidx.room.RoomDatabase
 import com.jabook.app.jabook.compose.data.local.dao.BookmarkDao
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
-import com.jabook.app.jabook.compose.data.local.dao.CookiesDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.dao.ScanPathDao
 import com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao
+import com.jabook.app.jabook.compose.data.local.dao.UserEqPresetDao
 import com.jabook.app.jabook.compose.data.local.entity.BookEntity
 import com.jabook.app.jabook.compose.data.local.entity.BookmarkEntity
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.ChapterEntity
-import com.jabook.app.jabook.compose.data.local.entity.CookieEntity
 import com.jabook.app.jabook.compose.data.local.entity.DownloadHistoryEntity
 import com.jabook.app.jabook.compose.data.local.entity.DownloadQueueEntity
 import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchQueryEntity
+import com.jabook.app.jabook.compose.data.local.entity.UserEqPresetEntity
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadDao
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
+import com.jabook.app.jabook.compose.data.torrent.TorrentResumeEntity
+
+/**
+ * Current Jabook database schema version. Single source of truth for [Database]'s `version`
+ * and crash-diagnostics reporting. Bump together with a new [MIGRATION] and a changelog line.
+ */
+public const val JABOOK_DB_VERSION: Int = 34
 
 /**
  * The Room database for this app.
@@ -46,7 +53,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 2: Added new fields to BookEntity and ChapterEntity for
  * enhanced library and playback features.
  * Database version 3: Added SearchHistoryEntity for search history persistence.
- * Database version 4: Added CookieEntity for multi-stage cookie persistence.
+ * Database version 4: (cookies table removed — replaced by PersistentCookieJar).
  * Database version 5: Added download_queue table for download queue management.
  * Database version 6: Added download_history table for tracking completed/failed downloads.
  * Database version 7: Added favorites table for favorite audiobooks management.
@@ -65,6 +72,18 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
  * Database version 20: Added bookmarks table for timeline bookmarks and voice-note metadata.
  * Database version 21: Upgraded books_fts from FTS4 to FTS5 for bm25 ranking and better Unicode support.
  * Database version 22: Added resumeData BLOB column to torrent_downloads for crash-safe download resumption.
+ * Database version 23: Added topics_fts FTS5 virtual table with triggers for instant offline search (MATCH + bm25).
+ * Database version 24: Added narrator column to books table for audiobook narrator information.
+ * Database version 25: Rebuilt topics_fts as contentless FTS5 to reduce index size.
+ * Database version 26: Added lufs_value column to chapters table for per-chapter loudness normalization.
+ * Database version 27: Added eq_preset_override column to books table for per-book EQ preset override.
+ * Database version 28: Added user_eq_presets table for saved custom EQ presets.
+ * Database version 29: Added normalized_position column to bookmarks for re-scan-safe restore.
+ * Database version 30: Added start_position_ms/end_position_ms columns to chapters for embedded M4B/MP4 chapters.
+ * Database version 31: Added index on last_updated column for faster getTopicsNeedingUpdate() queries.
+ * Database version 32: Added indices on download_history (status, completedAt) and download_queue (status) for faster queries.
+ * Database version 33: Scoped books_fts UPDATE trigger to title/author/description so playback-progress saves stop rewriting the FTS row.
+ * Database version 34: Moved torrent resume data BLOB into a separate torrent_resume table so list reads never pull BLOBs.
  */
 @Database(
     entities = [
@@ -72,16 +91,17 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadEntity
         BookmarkEntity::class,
         ChapterEntity::class,
         SearchHistoryEntity::class,
-        CookieEntity::class,
         DownloadQueueEntity::class,
         DownloadHistoryEntity::class,
         FavoriteEntity::class,
         ScanPathEntity::class,
         TorrentDownloadEntity::class,
+        TorrentResumeEntity::class,
         CachedTopicEntity::class,
         SearchQueryEntity::class,
+        UserEqPresetEntity::class,
     ],
-    version = 22,
+    version = JABOOK_DB_VERSION,
     exportSchema = true, // Enable schema export for migration validation and debugging
 )
 public abstract class JabookDatabase : RoomDatabase() {
@@ -93,8 +113,6 @@ public abstract class JabookDatabase : RoomDatabase() {
 
     public abstract fun searchHistoryDao(): SearchHistoryDao
 
-    public abstract fun cookiesDao(): CookiesDao
-
     public abstract fun downloadQueueDao(): DownloadQueueDao
 
     public abstract fun downloadHistoryDao(): DownloadHistoryDao
@@ -105,5 +123,9 @@ public abstract class JabookDatabase : RoomDatabase() {
 
     public abstract fun torrentDownloadDao(): TorrentDownloadDao
 
+    public abstract fun torrentResumeDao(): com.jabook.app.jabook.compose.data.torrent.TorrentResumeDao
+
     public abstract fun offlineSearchDao(): OfflineSearchDao
+
+    public abstract fun userEqPresetDao(): UserEqPresetDao
 }

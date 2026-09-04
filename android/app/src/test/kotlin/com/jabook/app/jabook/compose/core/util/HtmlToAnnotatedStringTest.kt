@@ -15,6 +15,9 @@
 package com.jabook.app.jabook.compose.core.util
 
 import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -22,6 +25,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class HtmlToAnnotatedStringTest {
     @Test
     fun `convert handles basic formatting`() {
@@ -29,8 +33,10 @@ class HtmlToAnnotatedStringTest {
         val annotated = HtmlToAnnotatedString.convert(html)
 
         assertEquals("Bold Italic Underline", annotated.text)
-        // Verify we have spans (simplified check)
-        assertTrue(annotated.spanStyles.isNotEmpty())
+        assertEquals(3, annotated.spanStyles.size)
+        assertEquals(FontWeight.Bold, annotated.spanStyles[0].item.fontWeight)
+        assertEquals(FontStyle.Italic, annotated.spanStyles[1].item.fontStyle)
+        assertEquals(TextDecoration.Underline, annotated.spanStyles[2].item.textDecoration)
     }
 
     @Test

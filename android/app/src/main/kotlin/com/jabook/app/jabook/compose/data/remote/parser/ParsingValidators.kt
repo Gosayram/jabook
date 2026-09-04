@@ -36,12 +36,14 @@ internal object ParsingValidators {
      * @return true if topic exists, false otherwise
      */
     public fun isTopicExists(html: String): Boolean {
-        val lowerHtml = html.lowercase()
+        val lowerHtml = html.lowercase(java.util.Locale.ROOT)
         return !lowerHtml.contains("тема не найдена") &&
             !lowerHtml.contains("тема находится в мусорке") &&
             !lowerHtml.contains("ошибочный запрос: не указан topic_id") &&
             !lowerHtml.contains("topic not found") &&
             !lowerHtml.contains("topic deleted") &&
+            !lowerHtml.contains("topic does not exist") &&
+            !lowerHtml.contains("topic was not found") &&
             !lowerHtml.contains("invalid topic id")
     }
 
@@ -52,7 +54,7 @@ internal object ParsingValidators {
      * @return true if blocked for region, false otherwise
      */
     public fun isBlockedForRegion(html: String): Boolean {
-        val lowerHtml = html.lowercase()
+        val lowerHtml = html.lowercase(java.util.Locale.ROOT)
         return lowerHtml.contains("извините, раздача недоступна для вашего региона") ||
             lowerHtml.contains("недоступна для вашего региона") ||
             lowerHtml.contains("region blocked") ||
@@ -66,12 +68,14 @@ internal object ParsingValidators {
      * @return true if authentication required, false otherwise
      */
     public fun requiresAuthentication(html: String): Boolean {
-        val lowerHtml = html.lowercase()
+        val lowerHtml = html.lowercase(java.util.Locale.ROOT)
         return lowerHtml.contains("войдите в систему") ||
             lowerHtml.contains("авторизация") ||
             lowerHtml.contains("profile.php?mode=register") ||
-            lowerHtml.contains("login.php") &&
-            lowerHtml.contains("name=\"login_username\"") ||
+            (
+                lowerHtml.contains("login.php") &&
+                    lowerHtml.contains("name=\"login_username\"")
+            ) ||
             lowerHtml.contains("please login") ||
             lowerHtml.contains("authentication required")
     }
@@ -83,12 +87,30 @@ internal object ParsingValidators {
      * @return true if access forbidden, false otherwise
      */
     public fun isAccessForbidden(html: String): Boolean {
-        val lowerHtml = html.lowercase()
+        val lowerHtml = html.lowercase(java.util.Locale.ROOT)
         return lowerHtml.contains("доступ запрещен") ||
             lowerHtml.contains("access forbidden") ||
-            lowerHtml.contains("403") &&
-            lowerHtml.contains("forbidden") ||
+            (
+                lowerHtml.contains("403") &&
+                    lowerHtml.contains("forbidden")
+            ) ||
             lowerHtml.contains("у вас нет прав для просмотра")
+    }
+
+    /**
+     * Check if content is a Cloudflare challenge page.
+     *
+     * @param html HTML content to check
+     * @return true if Cloudflare challenge detected, false otherwise
+     */
+    public fun isCloudflareChallenge(html: String): Boolean {
+        val lowerHtml = html.lowercase(java.util.Locale.ROOT)
+        return lowerHtml.contains("just a moment") ||
+            lowerHtml.contains("checking your browser") ||
+            lowerHtml.contains("cf-browser-verification") ||
+            lowerHtml.contains("cf_chl_") ||
+            lowerHtml.contains("turnstile") ||
+            lowerHtml.contains("attention required")
     }
 
     /**
@@ -98,13 +120,14 @@ internal object ParsingValidators {
      * @return true if bad request, false otherwise
      */
     public fun isBadRequest(html: String): Boolean {
-        val lowerHtml = html.lowercase()
+        val lowerHtml = html.lowercase(java.util.Locale.ROOT)
         // More specific patterns to avoid false positives
         // Check for explicit error messages, not just presence of "400" and "error" separately
         // Check for specific RuTracker error patterns (usually in a message box or title)
         // More strict to avoid false positives in forum posts
         return (lowerHtml.contains("неверный запрос") && lowerHtml.contains("class=\"maintitle\"")) ||
-            (lowerHtml.contains("bad request") && lowerHtml.contains("<title>rubet.org :: 400 bad request</title>")) ||
+            // Mirror-agnostic: the 400 page title is "<any domain> :: 400 bad request"
+            (lowerHtml.contains("bad request") && lowerHtml.contains(":: 400 bad request</title>")) ||
             (lowerHtml.contains("bad request") && lowerHtml.contains("<h1>400 bad request</h1>")) ||
             (lowerHtml.contains("error 400") && lowerHtml.contains("bad request"))
     }
@@ -119,8 +142,10 @@ internal object ParsingValidators {
         html.isNotBlank() &&
             html.length > 100 &&
             // Minimum reasonable HTML size
-            html.contains("<html", ignoreCase = true) ||
-            html.contains("<body", ignoreCase = true)
+            (
+                html.contains("<html", ignoreCase = true) ||
+                    html.contains("<body", ignoreCase = true)
+            )
 
     /**
      * Validate HTML content and return appropriate error if validation fails.
@@ -131,6 +156,10 @@ internal object ParsingValidators {
     public fun validateContent(html: String): RuTrackerError? {
         if (!isValidContent(html)) {
             return RuTrackerError.NoData
+        }
+
+        if (isCloudflareChallenge(html)) {
+            return RuTrackerError.CloudflareChallenge
         }
 
         if (requiresAuthentication(html)) {
@@ -165,6 +194,10 @@ internal object ParsingValidators {
     public fun validateSearchResults(html: String): RuTrackerError? {
         if (!isValidContent(html)) {
             return RuTrackerError.NoData
+        }
+
+        if (isCloudflareChallenge(html)) {
+            return RuTrackerError.CloudflareChallenge
         }
 
         if (requiresAuthentication(html)) {
@@ -205,6 +238,10 @@ internal object ParsingValidators {
             return RuTrackerError.NoData
         }
 
+        if (isCloudflareChallenge(html)) {
+            return RuTrackerError.CloudflareChallenge
+        }
+
         if (requiresAuthentication(html)) {
             return RuTrackerError.Unauthorized
         }
@@ -215,7 +252,7 @@ internal object ParsingValidators {
 
         // For forum pages, only check for explicit bad request errors, not general patterns
         // This avoids false positives from normal forum HTML content
-        val lowerHtml = html.lowercase()
+        val lowerHtml = html.lowercase(java.util.Locale.ROOT)
         val hasExplicitBadRequest =
             lowerHtml.contains("неверный запрос") ||
                 (lowerHtml.contains("bad request") && (lowerHtml.contains("400") || lowerHtml.contains("http"))) ||

@@ -14,14 +14,19 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.res.Configuration
 import android.media.AudioManager
-import android.media.MediaPlayer
-import android.media.MediaRecorder
+import android.os.Build
 import android.os.PowerManager
-import android.view.WindowManager
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
@@ -37,8 +42,9 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -47,7 +53,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -57,127 +65,113 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.FastForward
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.RepeatOne
-import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Repeat
-import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.invisibleToUser
 import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.getSystemService
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.jabook.app.jabook.BuildConfig
+import coil3.request.ImageRequest
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.theme.GlassmorphismTokens
-import com.jabook.app.jabook.compose.core.theme.MotionTokens
+import com.jabook.app.jabook.compose.core.theme.PlayerThemeColors
 import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.ContrastPolicy
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.core.util.HapticManager
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
+import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
-import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
+import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
+import com.jabook.app.jabook.compose.domain.model.BookmarkItem
 import com.jabook.app.jabook.compose.feature.player.SquigglySlider
-import com.jabook.app.jabook.compose.feature.player.lyrics.LyricsView
 import com.jabook.app.jabook.compose.util.rememberClickDebouncer
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.android.EntryPointAccessors
-import dagger.hilt.components.SingletonComponent
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -188,15 +182,6 @@ import java.io.File
  * Logger for PlayerScreen Composable functions.
  */
 private val playerScreenLogger by lazy { LoggerFactoryImpl().get("PlayerScreen") }
-
-/**
- * EntryPoint to access AudioMetadataParser from Hilt in Composable.
- */
-@EntryPoint
-@InstallIn(SingletonComponent::class)
-public interface AudioMetadataParserEntryPoint {
-    public fun audioMetadataParser(): AudioMetadataParser
-}
 
 /**
  * Player screen - full screen audio player.
@@ -212,6 +197,7 @@ public interface AudioMetadataParserEntryPoint {
  * @param viewModel ViewModel provided by Hilt
  */
 @OptIn(
+    ExperimentalFoundationApi::class,
     ExperimentalMaterial3Api::class,
     ExperimentalMaterial3AdaptiveApi::class,
     ExperimentalMaterial3WindowSizeClassApi::class,
@@ -220,12 +206,16 @@ public interface AudioMetadataParserEntryPoint {
 public fun PlayerScreen(
     onNavigateBack: () -> Unit,
     onNavigateToBook: (String) -> Unit,
+    onNavigateToLibrary: () -> Unit = onNavigateBack,
     modifier: Modifier = Modifier,
     viewModel: PlayerViewModel = hiltViewModel(),
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentPosition by viewModel.currentPosition.collectAsStateWithLifecycle()
+    val hasNextChapter by viewModel.hasNextChapter.collectAsStateWithLifecycle()
+    val hasPreviousChapter by viewModel.hasPreviousChapter.collectAsStateWithLifecycle()
     val playbackSpeed by viewModel.playbackSpeed.collectAsStateWithLifecycle()
     val pitchCorrectionEnabled by viewModel.pitchCorrectionEnabled.collectAsStateWithLifecycle()
     val sleepTimerState by viewModel.sleepTimerState.collectAsStateWithLifecycle()
@@ -235,6 +225,9 @@ public fun PlayerScreen(
     val visualizerWaveformDataRaw by viewModel.visualizerWaveformData.collectAsStateWithLifecycle()
     val seekbarWaveformDataRaw by viewModel.seekbarWaveformData.collectAsStateWithLifecycle()
     val nextBookAutoplayState by viewModel.nextBookAutoplayState.collectAsStateWithLifecycle()
+    val visualizerMode by viewModel.visualizerMode.collectAsStateWithLifecycle()
+    val playerStats by viewModel.playerStats.collectAsStateWithLifecycle()
+    val abRepeatState by viewModel.abRepeatState.collectAsStateWithLifecycle()
 
     // Phased init (#59): defer heavy waveform data to avoid janky first frame
     var waveformReady by remember { mutableStateOf(false) }
@@ -245,54 +238,78 @@ public fun PlayerScreen(
     val emptyWaveform = remember { FloatArray(0) }
     val visualizerWaveformData = if (waveformReady) visualizerWaveformDataRaw else emptyWaveform
     val seekbarWaveformData = if (waveformReady) seekbarWaveformDataRaw else emptyWaveform
-    val hapticFeedback = LocalHapticFeedback.current
     val reduceMotion = rememberReduceMotion()
+    val hapticFeedback = LocalHapticFeedback.current
+    // ponytail: Media3 1.11 PlaybackSpeedState — system UI slider reflects 3× boost via temporarilyOverride
+    val playerForSpeedState = viewModel.getPlayerForPlaybackSpeedState()
+    val playbackSpeedState =
+        androidx.media3.ui.compose.state
+            .rememberPlaybackSpeedState(playerForSpeedState)
 
     val navigationClickGuard = remember { NavigationClickGuard() }
 
     // Auto-initialize player when book data is ready
     // Only initialize once when we have Success state with actual chapters
-    // Use specific keys to avoid unnecessary recomposition
-    val shouldInitializePlayer =
-        remember(uiState) {
+    // Use derivedStateOf to avoid recomputing on every uiState emission (hot path)
+    val shouldInitializePlayer by remember {
+        derivedStateOf {
             uiState is PlayerState.Active && (uiState as? PlayerState.Active)?.chapters?.isNotEmpty() == true
         }
+    }
     androidx.compose.runtime.LaunchedEffect(shouldInitializePlayer) {
         if (shouldInitializePlayer) {
             viewModel.dispatch(PlayerIntent.InitializePlayer)
         }
     }
 
-    var showSpeedSheet by remember { mutableStateOf(false) }
-    var showSleepTimerSheet by remember { mutableStateOf(false) }
-    var showAudioSettingsSheet by remember { mutableStateOf(false) }
-    var showChapterSheet by remember { mutableStateOf(false) }
-    // Legacy settings sheet (if unused, we might want to consolidate or remove)
-    var showSettingsSheet by remember { mutableStateOf(false) }
-    var showRatingDialog by remember { mutableStateOf(false) }
-    var selectedRating by remember { mutableIntStateOf(0) }
-    var ratedBookId by remember { mutableStateOf<String?>(null) }
+    var showSpeedSheet by rememberSaveable { mutableStateOf(false) }
+    var showSleepTimerSheet by rememberSaveable { mutableStateOf(false) }
+    var showAudioSettingsSheet by rememberSaveable { mutableStateOf(false) }
+    var showChapterSheet by rememberSaveable { mutableStateOf(false) }
+    var showOverflowMenu by rememberSaveable { mutableStateOf(false) }
+    var showStatsOverlay by rememberSaveable { mutableStateOf(false) }
+    var isBookmarkNoteSheetVisible by rememberSaveable { mutableStateOf(false) }
 
     // Vinyl Mode State
-    var isVinylMode by remember { mutableStateOf(false) }
+    var isVinylMode by rememberSaveable { mutableStateOf(false) }
+    var showBookmarkSheet by rememberSaveable { mutableStateOf(false) }
+    var showLyrics by rememberSaveable { mutableStateOf(false) }
 
-    // Navigator for SupportingPaneScaffold
+    // Navigator for SupportingPaneScaffold — supporting pane for chapters, 360/412 widths, 8dp spacer
     val scaffoldNavigator = rememberSupportingPaneScaffoldNavigator()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val context = androidx.compose.ui.platform.LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
+    val audioManager = remember(context) { context.getSystemService<AudioManager>() }
+    val wsc = LocalWindowSizeClass.current
+    val resolved = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val isCompactScreen =
-        activity?.let {
-            val rawWindowSizeClass = calculateWindowSizeClass(it)
-            val windowSizeClass = AdaptiveUtils.resolveWindowSizeClass(rawWindowSizeClass, context)
-            windowSizeClass.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
-        } ?: true
+        resolved?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
+    val playerScreenWidthDp = LocalConfiguration.current.screenWidthDp
+    val playerCanonicalDirective =
+        remember(scaffoldNavigator.scaffoldDirective, playerScreenWidthDp) {
+            AdaptiveUtils.canonicalDirective(scaffoldNavigator.scaffoldDirective, playerScreenWidthDp)
+        }
     val openSettingsLabel = stringResource(R.string.openSettings)
     val notificationPermissionPlaybackHint = stringResource(R.string.notificationPermissionPlaybackHint)
     val audioVisualizerPermissionHint = stringResource(R.string.audioVisualizerPermissionHint)
+
+    val currentOnNavigateBack by rememberUpdatedState(onNavigateBack)
+    val currentOnNavigateToBook by rememberUpdatedState(onNavigateToBook)
+
+    // Sleep timer expiry haptic — double vibration when timer transitions from active to idle
+    val sleepTimerMode = (uiState as? PlayerState.Active)?.sleepTimerMode
+    var previousSleepTimerMode by remember { mutableStateOf(sleepTimerMode) }
+    LaunchedEffect(sleepTimerMode) {
+        val prev = previousSleepTimerMode
+        val curr = sleepTimerMode
+        previousSleepTimerMode = curr
+        if (prev != null && prev != PlayerSleepTimerMode.IDLE && curr == PlayerSleepTimerMode.IDLE) {
+            HapticManager.performLongPress(hapticFeedback)
+            delay(100)
+            HapticManager.performLongPress(hapticFeedback)
+        }
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.effects.collectLatest { effect ->
@@ -311,24 +328,34 @@ public fun PlayerScreen(
                         viewModel.dispatch(effect.actionIntent)
                     }
                 }
-                PlayerEffect.NavigateBack -> navigationClickGuard.run(onNavigateBack)
-                is PlayerEffect.NavigateToBook -> navigationClickGuard.run { onNavigateToBook(effect.bookId) }
+                PlayerEffect.NavigateBack -> navigationClickGuard.run(currentOnNavigateBack)
+                is PlayerEffect.NavigateToBook -> navigationClickGuard.run { currentOnNavigateToBook(effect.bookId) }
             }
         }
     }
 
-    val completedBookId = (uiState as? PlayerState.Active)?.book?.takeIf { it.isCompleted }?.id
-    LaunchedEffect(completedBookId) {
-        if (completedBookId != null && ratedBookId != completedBookId && !showRatingDialog) {
-            selectedRating = 0
-            showRatingDialog = true
-        }
-    }
-
-    // Check for Power Save Mode to disable expensive visual effects
-    val isPowerSaveMode by remember(context) {
+    // Keep expensive visual effects in sync with Battery Saver while the player is visible.
+    var isPowerSaveMode by remember(context) {
         val powerManager = context.getSystemService<PowerManager>()
         mutableStateOf(powerManager?.isPowerSaveMode == true)
+    }
+    DisposableEffect(context) {
+        val receiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(
+                    receiverContext: Context,
+                    intent: Intent,
+                ) {
+                    isPowerSaveMode = receiverContext.getSystemService<PowerManager>()?.isPowerSaveMode == true
+                }
+            }
+        androidx.core.content.ContextCompat.registerReceiver(
+            context,
+            receiver,
+            IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED),
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        onDispose { context.unregisterReceiver(receiver) }
     }
 
     var hasRecordAudioPermission by remember {
@@ -339,33 +366,13 @@ public fun PlayerScreen(
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED,
         )
     }
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(context, lifecycleOwner) {
-        val observer =
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) {
-                    hasRecordAudioPermission =
-                        androidx.core.content.ContextCompat.checkSelfPermission(
-                            context,
-                            android.Manifest.permission.RECORD_AUDIO,
-                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                }
-            }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    // FLAG_SECURE: Prevent screenshots and screen recording on PlayerScreen
-    // Protects copyrighted audiobook content
-    DisposableEffect(Unit) {
-        val activity = context as? android.app.Activity
-        val window = activity?.window
-        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose {
-            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        }
+    LifecycleResumeEffect(context) {
+        hasRecordAudioPermission =
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.RECORD_AUDIO,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        onPauseOrDispose { }
     }
 
     val notificationPermissionsLauncher =
@@ -385,7 +392,7 @@ public fun PlayerScreen(
                                 snackbarHostState.showSnackbar(
                                     message = notificationPermissionPlaybackHint,
                                     actionLabel = openSettingsLabel,
-                                    duration = androidx.compose.material3.SnackbarDuration.Long,
+                                    duration = androidx.compose.material3.SnackbarDuration.Indefinite,
                                 )
                             if (snackResult == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                                 try {
@@ -424,7 +431,7 @@ public fun PlayerScreen(
                             snackbarHostState.showSnackbar(
                                 message = audioVisualizerPermissionHint,
                                 actionLabel = openSettingsLabel,
-                                duration = androidx.compose.material3.SnackbarDuration.Long,
+                                duration = androidx.compose.material3.SnackbarDuration.Indefinite,
                             )
                         if (snackResult == androidx.compose.material3.SnackbarResult.ActionPerformed) {
                             try {
@@ -459,7 +466,7 @@ public fun PlayerScreen(
         }
     }
 
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    val requestNotificationPermissionForPlayback: () -> Unit = {
         val notificationPermissionGranted =
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                 androidx.core.content.ContextCompat
@@ -471,7 +478,7 @@ public fun PlayerScreen(
                 true
             }
         val permissionsToRequest =
-            PlayerPermissionPolicy.entryPermissionsToRequest(
+            PlayerPermissionPolicy.playbackPermissionsToRequest(
                 sdkInt = android.os.Build.VERSION.SDK_INT,
                 isNotificationPermissionGranted = notificationPermissionGranted,
             )
@@ -482,20 +489,37 @@ public fun PlayerScreen(
             }
 
         if (permissionsMissing.isNotEmpty()) {
-            playerScreenLogger.d { "Requesting permissions: $permissionsMissing" }
+            playerScreenLogger.d { "Requesting playback permissions: $permissionsMissing" }
             notificationPermissionsLauncher.launch(permissionsMissing.toTypedArray())
         }
     }
 
-    // Handle back gesture - prioritize chapters pane, then screen exit
-    // Always intercept to ensure proper navigation handling
+    // ponytail: auto-open supporting pane on Expanded when book loaded
+    LaunchedEffect(resolved?.widthSizeClass, uiState is PlayerState.Active) {
+        if (resolved?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Expanded &&
+            uiState is PlayerState.Active &&
+            !scaffoldNavigator.canNavigateBack()
+        ) {
+            scaffoldNavigator.navigateTo(SupportingPaneScaffoldRole.Supporting)
+        }
+    }
+
+    // Back priority chain. ModalBottomSheets and the rating Dialog register their
+    // own back handlers and win while shown. StatsOverlay is a plain
+    // AnimatedVisibility with no handler, so it must be dismissed here first.
+    // Then collapse the supporting chapters pane, then navigate back to library.
+    // androidx.activity.compose.BackHandler already participates in Android 14+
+    // predictive back; a finger-following pane animation would need
+    // PredictiveBackHandler + a progress-driven partial expand (skipped — ceiling).
     androidx.activity.compose.BackHandler {
-        if (scaffoldNavigator.canNavigateBack()) {
-            scope.launch {
-                scaffoldNavigator.navigateBack()
+        when {
+            showStatsOverlay -> showStatsOverlay = false
+            scaffoldNavigator.canNavigateBack() -> {
+                scope.launch {
+                    scaffoldNavigator.navigateBack()
+                }
             }
-        } else {
-            navigationClickGuard.run { onNavigateBack() }
+            else -> navigationClickGuard.run { currentOnNavigateBack() }
         }
     }
 
@@ -535,6 +559,29 @@ public fun PlayerScreen(
         )
     }
 
+    // Resume after long pause sheet (TASK-PLAYER-38)
+    val resumeState by viewModel.resumeAfterLongPauseState.collectAsStateWithLifecycle()
+    if (resumeState != null) {
+        resumeState?.let { data ->
+            JabookModalBottomSheet(
+                onDismissRequest = { viewModel.dismissResumeAfterLongPause() },
+            ) {
+                ResumeAfterLongPauseSheet(
+                    chapterName = data.chapterName,
+                    chapterPosition = data.chapterPosition,
+                    daysAgo = data.daysAgo,
+                    onContinue = { viewModel.resumeAfterLongPauseContinue() },
+                    onRestartChapter = { viewModel.resumeAfterLongPauseRestartChapter() },
+                    onSelectChapter = {
+                        viewModel.resumeAfterLongPauseSelectChapter()
+                        showChapterSheet = true
+                    },
+                    onDismiss = { viewModel.dismissResumeAfterLongPause() },
+                )
+            }
+        }
+    }
+
     // Removed Chapter Selector Sheet - using adaptive pane instead
     if (showChapterSheet && uiState is PlayerState.Active) {
         val state = uiState as PlayerState.Active
@@ -551,26 +598,6 @@ public fun PlayerScreen(
                 },
             )
         }
-    }
-
-    // Player Settings Sheet (Book Specific)
-    if (showSettingsSheet && uiState is PlayerState.Active) {
-        val state = uiState as PlayerState.Active
-        PlayerSettingsSheet(
-            book = state.book,
-            onUpdateSettings = { rewindSeconds, forwardSeconds ->
-                viewModel.dispatch(
-                    PlayerIntent.UpdateBookSeekSettings(
-                        rewindSeconds = rewindSeconds,
-                        forwardSeconds = forwardSeconds,
-                    ),
-                )
-            },
-            onResetSettings = { viewModel.dispatch(PlayerIntent.ResetBookSeekSettings) },
-            onDismiss = { showSettingsSheet = false },
-            isVinylMode = isVinylMode,
-            onVinylModeChange = { isVinylMode = it },
-        )
     }
 
     // Audio Enhancements Sheet
@@ -604,26 +631,140 @@ public fun PlayerScreen(
         )
     }
 
-    // Stats for Nerds Overlay
-    var showStatsOverlay by remember { mutableStateOf(false) }
-    var isBookmarkNoteSheetVisible by remember { mutableStateOf(false) }
-    if (showStatsOverlay) {
-        val stats by viewModel.playerStats.collectAsStateWithLifecycle()
-        StatsOverlay(
-            stats = stats,
-            onDismiss = { showStatsOverlay = false },
-        )
+    // Player Overflow Menu Sheet
+    if (showOverflowMenu && uiState is PlayerState.Active) {
+        val state = uiState as PlayerState.Active
+        JabookModalBottomSheet(
+            onDismissRequest = { showOverflowMenu = false },
+        ) {
+            PlayerOverflowMenuSheet(
+                isFavorite = state.book.isFavorite,
+                hasLyrics = !state.lyrics.isNullOrEmpty(),
+                showingLyrics = showLyrics && !state.lyrics.isNullOrEmpty(),
+                onShareClick = {
+                    val shareIntent =
+                        android.content.Intent().apply {
+                            action = android.content.Intent.ACTION_SEND
+                            putExtra(
+                                android.content.Intent.EXTRA_TEXT,
+                                context.getString(R.string.playerShareByFormat, state.book.title, state.book.author),
+                            )
+                            type = "text/plain"
+                        }
+                    context.startActivity(
+                        android.content.Intent.createChooser(shareIntent, null),
+                    )
+                },
+                onToggleFavorite = {
+                    viewModel.toggleFavorite()
+                },
+                onToggleLyrics = {
+                    HapticManager.performTap(hapticFeedback)
+                    showLyrics = !showLyrics
+                },
+                onAudioSettingsClick = { showAudioSettingsSheet = true },
+                onVisualizerModeCycle = { viewModel.dispatch(PlayerIntent.CycleVisualizerMode) },
+                onChapterRepeatClick = { viewModel.dispatch(PlayerIntent.ToggleChapterRepeat) },
+                onABRepeatClick = { viewModel.dispatch(PlayerIntent.ToggleABRepeat) },
+                chapterRepeatMode = state.chapterRepeatMode,
+                abRepeatState = abRepeatState,
+                onStatsClick = { showStatsOverlay = true },
+                onDismiss = { showOverflowMenu = false },
+            )
+        }
     }
 
-    // SupportingPaneScaffold for adaptive chapter display
+    // Bookmarks Sheet
+    if (showBookmarkSheet && uiState is PlayerState.Active) {
+        val state = uiState as PlayerState.Active
+        JabookModalBottomSheet(
+            onDismissRequest = { showBookmarkSheet = false },
+        ) {
+            BookmarksSheet(
+                bookmarks = state.bookmarks,
+                currentPositionMs = currentPosition,
+                chapters = state.chapters,
+                currentChapterIndex = state.currentChapterIndex,
+                onJumpToBookmark = { bookmark ->
+                    viewModel.seekToBookmark(bookmark)
+                },
+                onDeleteBookmark = { bookmarkId ->
+                    val deleted = state.bookmarks.firstOrNull { it.id == bookmarkId }
+                    deleteBookmarkVoiceNotes(context.filesDir, bookmarkId)
+                    viewModel.deleteBookmark(bookmarkId)
+                    if (deleted != null) {
+                        scope.launch {
+                            val result =
+                                snackbarHostState.showSnackbar(
+                                    message = context.getString(R.string.bookmarkDeleted),
+                                    actionLabel = context.getString(R.string.undoAction),
+                                    duration = androidx.compose.material3.SnackbarDuration.Indefinite,
+                                )
+                            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                viewModel.restoreBookmark(deleted)
+                            }
+                        }
+                    }
+                },
+                onDismiss = { showBookmarkSheet = false },
+            )
+        }
+    }
+
+    // Player content
+
+    // SupportingPaneScaffold for adaptive chapter display (5 breakpoints 360/412, 8dp)
     SupportingPaneScaffold(
-        directive = scaffoldNavigator.scaffoldDirective,
+        directive = playerCanonicalDirective,
         value = scaffoldNavigator.scaffoldValue,
         mainPane = {
             AnimatedPane(modifier = Modifier) {
                 Scaffold(
+                    // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
                     modifier = Modifier.fillMaxSize(),
                     snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
+                    topBar = {
+                        androidx.compose.material3.TopAppBar(
+                            title = {
+                                androidx.compose.material3.Text(
+                                    text = stringResource(R.string.nowListening),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                )
+                            },
+                            navigationIcon = {
+                                androidx.compose.material3.IconButton(
+                                    onClick = { navigationClickGuard.run(currentOnNavigateBack) },
+                                ) {
+                                    androidx.compose.material3.Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = stringResource(R.string.backAction),
+                                    )
+                                }
+                            },
+                            actions = {
+                                if (com.jabook.app.jabook.BuildConfig.DEBUG) {
+                                    IconButton(onClick = { showStatsOverlay = true }) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Info,
+                                            contentDescription = stringResource(R.string.statsForNerds),
+                                        )
+                                    }
+                                }
+                                IconButton(onClick = { showOverflowMenu = true }) {
+                                    Icon(
+                                        imageVector = Icons.Filled.MoreVert,
+                                        contentDescription = stringResource(R.string.playerOverflowMenu),
+                                    )
+                                }
+                            },
+                            colors =
+                                androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                                    containerColor = androidx.compose.ui.graphics.Color.Transparent,
+                                ),
+                        )
+                    },
                 ) { padding ->
                     Box(
                         modifier =
@@ -632,32 +773,26 @@ public fun PlayerScreen(
                                 .onPreviewKeyEvent { keyEvent ->
                                     if (keyEvent.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                                     val shouldIgnoreShortcuts =
-                                        showSpeedSheet ||
+                                        showStatsOverlay ||
+                                            showSpeedSheet ||
                                             showSleepTimerSheet ||
                                             showAudioSettingsSheet ||
                                             showChapterSheet ||
-                                            showSettingsSheet ||
-                                            showRatingDialog ||
-                                            isBookmarkNoteSheetVisible
+                                            isBookmarkNoteSheetVisible ||
+                                            showOverflowMenu
                                     if (shouldIgnoreShortcuts) return@onPreviewKeyEvent false
                                     when (keyEvent.key) {
                                         Key.DirectionUp -> {
-                                            val audioManager =
-                                                context.getSystemService(android.content.Context.AUDIO_SERVICE) as? AudioManager
-                                            audioManager?.adjustStreamVolume(
-                                                AudioManager.STREAM_MUSIC,
-                                                AudioManager.ADJUST_RAISE,
-                                                AudioManager.FLAG_SHOW_UI,
+                                            audioManager?.adjustMusicVolumeIfMutable(
+                                                direction = AudioManager.ADJUST_RAISE,
+                                                flags = AudioManager.FLAG_SHOW_UI,
                                             )
                                             true
                                         }
                                         Key.DirectionDown -> {
-                                            val audioManager =
-                                                context.getSystemService(android.content.Context.AUDIO_SERVICE) as? AudioManager
-                                            audioManager?.adjustStreamVolume(
-                                                AudioManager.STREAM_MUSIC,
-                                                AudioManager.ADJUST_LOWER,
-                                                AudioManager.FLAG_SHOW_UI,
+                                            audioManager?.adjustMusicVolumeIfMutable(
+                                                direction = AudioManager.ADJUST_LOWER,
+                                                flags = AudioManager.FLAG_SHOW_UI,
                                             )
                                             true
                                         }
@@ -665,7 +800,7 @@ public fun PlayerScreen(
                                             val activeState = uiState as? PlayerState.Active ?: return@onPreviewKeyEvent false
                                             viewModel.addBookmarkAtPosition(
                                                 chapterIndex = activeState.currentChapterIndex,
-                                                positionMs = activeState.currentPosition,
+                                                positionMs = currentPosition,
                                             )
                                             true
                                         }
@@ -686,6 +821,19 @@ public fun PlayerScreen(
                                 },
                     ) {
                         val overlayHazeState = rememberHazeState()
+                        // ponytail: M3 1.4 fallback — motionScheme not in 1.4, use MotionTokens / tween fallback
+                        val spatialSpec =
+                            androidx.compose.animation.core
+                                .tween<Float>(durationMillis = 400)
+                        val effectsSpec =
+                            androidx.compose.animation.core
+                                .tween<Float>(durationMillis = 300)
+                        val fastEffectsSpec =
+                            androidx.compose.animation.core
+                                .tween<Float>(durationMillis = 200)
+                        val fastSpatialSpec =
+                            androidx.compose.animation.core
+                                .tween<Float>(durationMillis = 250)
                         AnimatedContent(
                             targetState = uiState,
                             transitionSpec = {
@@ -693,37 +841,11 @@ public fun PlayerScreen(
                                     EnterTransition.None togetherWith ExitTransition.None
                                 } else {
                                     (
-                                        fadeIn(
-                                            animationSpec =
-                                                tween(
-                                                    durationMillis = MotionTokens.MEDIUM1,
-                                                    easing = MotionTokens.Emphasized,
-                                                ),
-                                        ) +
-                                            scaleIn(
-                                                initialScale = 0.98f,
-                                                animationSpec =
-                                                    tween(
-                                                        durationMillis = MotionTokens.MEDIUM1,
-                                                        easing = MotionTokens.Emphasized,
-                                                    ),
-                                            )
+                                        fadeIn(animationSpec = effectsSpec) +
+                                            scaleIn(initialScale = 0.98f, animationSpec = spatialSpec)
                                     ).togetherWith(
-                                        fadeOut(
-                                            animationSpec =
-                                                tween(
-                                                    durationMillis = MotionTokens.SHORT2,
-                                                    easing = MotionTokens.EmphasizedDecelerate,
-                                                ),
-                                        ) +
-                                            scaleOut(
-                                                targetScale = 1.02f,
-                                                animationSpec =
-                                                    tween(
-                                                        durationMillis = MotionTokens.SHORT2,
-                                                        easing = MotionTokens.EmphasizedDecelerate,
-                                                    ),
-                                            ),
+                                        fadeOut(animationSpec = fastEffectsSpec) +
+                                            scaleOut(targetScale = 1.02f, animationSpec = fastSpatialSpec),
                                     )
                                 }
                             },
@@ -742,16 +864,18 @@ public fun PlayerScreen(
                                     // Click debouncer for preventing double clicks (inspired by Easybook)
                                     val clickDebouncer = rememberClickDebouncer(debounceTimeMs = 300)
 
-                                    // Removed GestureOverlay as per user request to disable brightness/volume/seek swipes
                                     PremiumPlayerBackground(
                                         themeColors = state.themeColors,
                                         coverImageModel = CoverUtils.getCoverModel(state.book, context),
                                         hazeState = overlayHazeState,
                                         isPowerSaveMode = isPowerSaveMode,
+                                        isPlaying = state.isPlaying,
                                     ) {
                                         PlayerContent(
                                             state = state,
+                                            parseChapterMetadata = viewModel::parseChapterMetadata,
                                             playbackSpeed = playbackSpeed,
+                                            reduceMotion = reduceMotion,
                                             hazeState = overlayHazeState,
                                             isVinylMode = isVinylMode,
                                             sleepTimerState = sleepTimerState,
@@ -759,23 +883,53 @@ public fun PlayerScreen(
                                             chapterRepeatMode = state.chapterRepeatMode,
                                             visualizerWaveformData = visualizerWaveformData,
                                             seekbarWaveformData = seekbarWaveformData,
-                                            onPlayPause = {
+                                            abRepeatState = abRepeatState,
+                                            onABRepeatClick = {
                                                 HapticManager.performTap(hapticFeedback)
+                                                viewModel.dispatch(PlayerIntent.ToggleABRepeat)
+                                            },
+                                            onPlayPause = {
+                                                HapticManager.performLongPress(hapticFeedback)
+                                                requestNotificationPermissionForPlayback()
                                                 clickDebouncer.debounce {
                                                     viewModel.dispatch(PlayerIntent.TogglePlayPause)
                                                 }
                                             },
                                             onSkipNext = {
                                                 HapticManager.performGesture(hapticFeedback)
-                                                clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipNext) }
+                                                clickDebouncer.debounce {
+                                                    val activeState = uiState as? PlayerState.Active ?: return@debounce
+                                                    when (
+                                                        val action =
+                                                            ChapterNavigationPolicy.resolveNextAction(
+                                                                activeState.chapters,
+                                                                activeState.currentChapterIndex,
+                                                            )
+                                                    ) {
+                                                        is ChapterNavigationAction.JumpToChapter ->
+                                                            viewModel.skipToChapter(
+                                                                action.chapterIndex,
+                                                            )
+                                                        is ChapterNavigationAction.EndOfBook -> viewModel.dispatch(PlayerIntent.SkipNext)
+                                                        is ChapterNavigationAction.RestartCurrentChapter ->
+                                                            viewModel.skipToChapter(
+                                                                action.chapterIndex,
+                                                            )
+                                                    }
+                                                }
                                             },
                                             onSkipPrevious = {
                                                 HapticManager.performGesture(hapticFeedback)
-                                                clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SkipPrevious) }
+                                                clickDebouncer.debounce {
+                                                    viewModel.dispatch(PlayerIntent.SkipPrevious)
+                                                }
                                             },
+                                            hasNextChapter = hasNextChapter,
+                                            hasPreviousChapter = hasPreviousChapter,
                                             onSeek = { positionMs ->
                                                 viewModel.dispatch(PlayerIntent.SeekTo(positionMs))
                                             },
+                                            onScrubbingMode = viewModel::setScrubbingMode,
                                             onSeekForward = {
                                                 HapticManager.performTap(hapticFeedback)
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekForward) }
@@ -784,8 +938,8 @@ public fun PlayerScreen(
                                                 HapticManager.performTap(hapticFeedback)
                                                 clickDebouncer.debounce { viewModel.dispatch(PlayerIntent.SeekBackward) }
                                             },
-                                            onSelectChapter = { chapterIndex ->
-                                                viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex))
+                                            onSelectChapter = { chapterIndex, positionMs ->
+                                                viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex, positionMs))
                                             },
                                             onChapterClick = {
                                                 // Phone: bottom sheet, larger screens: supporting pane.
@@ -805,13 +959,17 @@ public fun PlayerScreen(
                                                     }
                                                 }
                                             },
-                                            onSpeedClick = { showSpeedSheet = true },
+                                            onSpeedClick = {
+                                                HapticManager.performLongPress(hapticFeedback)
+                                                showSpeedSheet = true
+                                            },
                                             onHoldToBoostStart = {
                                                 HapticManager.performLongPress(hapticFeedback)
-                                                viewModel.startHoldToBoost(playbackSpeed)
+                                                // ponytail fallback: if player null, ViewModel uses SetPlaybackSpeed intent
+                                                viewModel.startHoldToBoost(playbackSpeed, playbackSpeedState)
                                             },
                                             onHoldToBoostEnd = {
-                                                viewModel.endHoldToBoost()
+                                                viewModel.endHoldToBoost(playbackSpeedState)
                                             },
                                             onAudioSettingsClick = { showAudioSettingsSheet = true },
                                             onSleepTimerClick = {
@@ -823,6 +981,10 @@ public fun PlayerScreen(
                                                 clickDebouncer.debounce {
                                                     viewModel.dispatch(PlayerIntent.ToggleChapterRepeat)
                                                 }
+                                            },
+                                            onBookmarksClick = {
+                                                HapticManager.performLongPress(hapticFeedback)
+                                                showBookmarkSheet = true
                                             },
                                             onStatsClick = { showStatsOverlay = true },
                                             onAddBookmarkAtPosition = { chapterIndex, positionMs, onCreated ->
@@ -840,7 +1002,25 @@ public fun PlayerScreen(
                                                 )
                                             },
                                             onDeleteBookmark = { bookmarkId ->
+                                                val deleted =
+                                                    (uiState as? PlayerState.Active)?.bookmarks?.firstOrNull {
+                                                        it.id == bookmarkId
+                                                    }
+                                                deleteBookmarkVoiceNotes(context.filesDir, bookmarkId)
                                                 viewModel.deleteBookmark(bookmarkId)
+                                                if (deleted != null) {
+                                                    scope.launch {
+                                                        val result =
+                                                            snackbarHostState.showSnackbar(
+                                                                message = context.getString(R.string.bookmarkDeleted),
+                                                                actionLabel = context.getString(R.string.undoAction),
+                                                                duration = androidx.compose.material3.SnackbarDuration.Indefinite,
+                                                            )
+                                                        if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                                            viewModel.restoreBookmark(deleted)
+                                                        }
+                                                    }
+                                                }
                                             },
                                             hasRecordAudioPermission = hasRecordAudioPermission,
                                             onRequestRecordAudioPermission = requestRecordAudioPermission,
@@ -850,9 +1030,50 @@ public fun PlayerScreen(
                                             onSetVisualizerEnabled = { enabled ->
                                                 viewModel.dispatch(PlayerIntent.SetVisualizerEnabled(enabled))
                                             },
+                                            visualizerMode = visualizerMode,
+                                            onVisualizerModeCycle = {
+                                                viewModel.dispatch(PlayerIntent.CycleVisualizerMode)
+                                            },
                                             onBookmarkNoteSheetVisibilityChanged = { isBookmarkNoteSheetVisible = it },
                                             snackbarHostState = snackbarHostState,
-                                            modifier = Modifier.hazeEffect(state = overlayHazeState),
+                                            currentPositionMs = currentPosition,
+                                            hasLyrics = !state.lyrics.isNullOrEmpty(),
+                                            showingLyrics = showLyrics && !state.lyrics.isNullOrEmpty(),
+                                            onToggleLyrics = {
+                                                HapticManager.performTap(hapticFeedback)
+                                                showLyrics = !showLyrics
+                                            },
+                                            modifier =
+                                                Modifier.hazeEffect(
+                                                    state = overlayHazeState,
+                                                    style =
+                                                        dev.chrisbanes.haze.HazeDefaults.style(
+                                                            backgroundColor =
+                                                                MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
+                                                            tint =
+                                                                dev.chrisbanes.haze.HazeTint(
+                                                                    Brush.verticalGradient(
+                                                                        listOf(
+                                                                            Color.Black.copy(alpha = 0.35f),
+                                                                            Color.Black.copy(alpha = 0.55f),
+                                                                        ),
+                                                                    ),
+                                                                ),
+                                                            blurRadius = 24.dp,
+                                                        ),
+                                                ) {
+                                                    // Half-resolution blur input (~75% fewer pixels,
+                                                    // visually imperceptible) — haze's built-in
+                                                    // downscaled-blur pattern.
+                                                    inputScale =
+                                                        dev.chrisbanes.haze.HazeInputScale
+                                                            .Fixed(0.5f)
+                                                    // Pre-S / power-save: no RenderEffect, fall back to a tint scrim.
+                                                    fallbackTint =
+                                                        dev.chrisbanes.haze.HazeTint(
+                                                            Color.Black.copy(alpha = 0.6f),
+                                                        )
+                                                },
                                             sharedTransitionScope = sharedTransitionScope,
                                             animatedVisibilityScope = animatedVisibilityScope,
                                         )
@@ -862,6 +1083,18 @@ public fun PlayerScreen(
                                     val state = animatedState
                                     ErrorScreen(
                                         message = state.message,
+                                        onRetry = viewModel::retryAfterError,
+                                    )
+                                }
+                                is PlayerState.Empty -> {
+                                    EmptyState(
+                                        message = stringResource(R.string.noBookSelected),
+                                        title = stringResource(R.string.noBookSelected),
+                                        subtitle = stringResource(R.string.noBookSelectedSubtitle),
+                                        icon = androidx.compose.material.icons.Icons.Filled.Info,
+                                        ctaText = stringResource(R.string.browseLibrary),
+                                        onCta = onNavigateToLibrary,
+                                        modifier = Modifier.fillMaxSize(),
                                     )
                                 }
                             }
@@ -880,6 +1113,18 @@ public fun PlayerScreen(
                                         .hazeEffect(state = overlayHazeState),
                             )
                         }
+
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = showStatsOverlay,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            StatsOverlay(
+                                stats = playerStats,
+                                onDismiss = { showStatsOverlay = false },
+                            )
+                        }
                     }
                 }
             }
@@ -896,91 +1141,12 @@ public fun PlayerScreen(
                         onChapterClick = { chapterIndex ->
                             // Start playback immediately (skipToChapter now includes play())
                             viewModel.dispatch(PlayerIntent.SelectChapter(chapterIndex))
-                            // On compact screens, smoothly close the pane after selection
-                            scope.launch {
-                                // Small delay to ensure playback starts before closing
-                                kotlinx.coroutines.delay(50L)
-                                if (scaffoldNavigator.canNavigateBack()) {
-                                    scaffoldNavigator.navigateBack()
-                                }
-                            }
                         },
                     )
                 }
             }
         },
         modifier = modifier.background(MaterialTheme.colorScheme.background),
-    )
-
-    if (showRatingDialog) {
-        RatingDialog(
-            selectedRating = selectedRating,
-            onDismiss = {
-                ratedBookId = (uiState as? PlayerState.Active)?.book?.id
-                selectedRating = 0
-                showRatingDialog = false
-            },
-            onRate = { rating ->
-                selectedRating = rating
-                ratedBookId = (uiState as? PlayerState.Active)?.book?.id
-                showRatingDialog = false
-                scope.launch {
-                    snackbarHostState.showSnackbar(
-                        message = context.getString(R.string.rateCompletedBookThanks, rating),
-                    )
-                }
-            },
-        )
-    }
-}
-
-@Composable
-internal fun StarRatingRow(
-    selected: Int,
-    onRate: (Int) -> Unit,
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        (1..5).forEach { star ->
-            IconButton(
-                onClick = { onRate(star) },
-                modifier = Modifier.size(44.dp),
-            ) {
-                Icon(
-                    imageVector = if (star <= selected) Icons.Filled.Star else Icons.Outlined.StarOutline,
-                    contentDescription = stringResource(R.string.rateCompletedBookStar, star),
-                    tint =
-                        if (star <= selected) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                    modifier = Modifier.size(if (star <= selected) 32.dp else 28.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-internal fun RatingDialog(
-    selectedRating: Int,
-    onDismiss: () -> Unit,
-    onRate: (Int) -> Unit,
-) {
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = stringResource(R.string.rateCompletedBookTitle)) },
-        text = {
-            StarRatingRow(
-                selected = selectedRating,
-                onRate = onRate,
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = stringResource(R.string.laterAction))
-            }
-        },
     )
 }
 
@@ -1013,13 +1179,23 @@ private fun NextBookCountdownCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             AsyncImage(
-                model = CoverUtils.getCoverModel(book, LocalContext.current),
-                contentDescription = null,
+                model =
+                    ImageRequest
+                        .Builder(LocalContext.current)
+                        .data(CoverUtils.getCoverModel(book, LocalContext.current))
+                        .size(
+                            44 *
+                                LocalContext.current.resources.displayMetrics.density
+                                    .toInt(),
+                        ).build(),
+                contentDescription = book.title,
                 contentScale = ContentScale.Crop,
                 modifier =
                     Modifier
                         .size(44.dp)
                         .clip(RoundedCornerShape(8.dp)),
+                placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
+                error = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),
             )
 
             Column(modifier = Modifier.weight(1f)) {
@@ -1066,29 +1242,31 @@ private fun NextBookCountdownCard(
     }
 }
 
-@OptIn(
-    androidx.compose.animation.ExperimentalSharedTransitionApi::class,
-    ExperimentalMaterial3Api::class,
-    ExperimentalMaterial3WindowSizeClassApi::class,
-)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PlayerContent(
+private fun PlayerLandscapeLayout(
     state: PlayerState.Active,
-    playbackSpeed: Float,
-    hazeState: HazeState?,
+    isCompact: Boolean,
+    showingLyrics: Boolean,
+    showLyrics: (Boolean) -> Unit,
     isVinylMode: Boolean,
-    sleepTimerState: com.jabook.app.jabook.compose.domain.model.SleepTimerState,
-    normalizeEnabled: Boolean,
-    chapterRepeatMode: ChapterRepeatMode,
-    visualizerWaveformData: FloatArray,
-    seekbarWaveformData: FloatArray,
+    displayAuthor: String,
+    adaptiveOnSurface: androidx.compose.ui.graphics.Color,
+    adaptiveOnSurfaceVariant: androidx.compose.ui.graphics.Color,
+    themeColors: PlayerThemeColors?,
+    hasLyrics: Boolean,
+    abRepeatState: ABRepeatState,
+    onABRepeatClick: () -> Unit,
     onPlayPause: () -> Unit,
     onSkipNext: () -> Unit,
     onSkipPrevious: () -> Unit,
+    hasNextChapter: Boolean,
+    hasPreviousChapter: Boolean,
     onSeek: (Long) -> Unit,
+    onScrubbingMode: (Boolean) -> Unit,
     onSeekForward: () -> Unit,
     onSeekBackward: () -> Unit,
-    onSelectChapter: (Int) -> Unit,
+    onSelectChapter: (Int, Long) -> Unit,
     onChapterClick: () -> Unit,
     onSpeedClick: () -> Unit,
     onHoldToBoostStart: () -> Unit,
@@ -1097,6 +1275,7 @@ private fun PlayerContent(
     onSleepTimerClick: () -> Unit,
     onChapterRepeatClick: () -> Unit,
     onStatsClick: () -> Unit,
+    onBookmarksClick: () -> Unit,
     onAddBookmarkAtPosition: (Int, Long, (com.jabook.app.jabook.compose.domain.model.BookmarkItem?) -> Unit) -> Unit,
     onUpdateBookmark: (String, String?, String?) -> Unit,
     onDeleteBookmark: (String) -> Unit,
@@ -1104,24 +1283,350 @@ private fun PlayerContent(
     onRequestRecordAudioPermission: () -> Unit,
     onInitializeVisualizer: () -> Unit,
     onSetVisualizerEnabled: (Boolean) -> Unit,
+    visualizerMode: Int,
+    onVisualizerModeCycle: () -> Unit,
+    onBookmarkNoteSheetVisibilityChanged: (Boolean) -> Unit,
+    snackbarHostState: androidx.compose.material3.SnackbarHostState,
+    currentPositionMs: Long,
+    seekbarWaveformData: FloatArray,
+    sharedTransitionScope: androidx.compose.animation.SharedTransitionScope?,
+    animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope?,
+) {
+    val hapticFeedback = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val seekState = rememberPlayerSeekState(state = state, abRepeatState = abRepeatState, currentPositionMs = currentPositionMs)
+    val playbackPositionLabel = stringResource(R.string.playbackPositionLabel)
+    val seekBackwardActionLabel = stringResource(R.string.seekBackwardDescription, state.rewindInterval)
+    val seekForwardActionLabel = stringResource(R.string.seekForwardDescription, state.forwardInterval)
+
+    Row(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier.weight(0.4f).fillMaxHeight(),
+            contentAlignment = Alignment.Center,
+        ) {
+            val imageModifier =
+                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                    with(sharedTransitionScope) {
+                        Modifier.sharedElement(
+                            sharedContentState = rememberSharedContentState(key = "cover_${state.book.id}"),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                        )
+                    }
+                } else {
+                    Modifier
+                }
+            val imageRequest =
+                CoverUtils
+                    .createCoverImageRequest(
+                        book = state.book,
+                        context = context,
+                        placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
+                        errorColor = MaterialTheme.colorScheme.error,
+                        fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        cornerRadius = 16f,
+                    ).build()
+
+            // Full-bleed blurred cover as the column background (Spotify-style),
+            // with the full cover shown un-cropped on top.
+            // Resolve the cover model like PremiumPlayerBackground does — a Book has no
+            // Coil mapper, so .data(state.book) always failed and left the bg blank.
+            val bgRequest =
+                coil3.request.ImageRequest
+                    .Builder(context)
+                    .data(CoverUtils.getCoverModel(state.book, context))
+                    .size(512)
+                    .scale(coil3.size.Scale.FILL)
+                    .build()
+            AsyncImage(
+                model = bgRequest,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (Build.VERSION.SDK_INT >= 31) {
+                                Modifier.blur(radiusX = 24.dp, radiusY = 24.dp)
+                            } else {
+                                Modifier
+                            },
+                        ).graphicsLayer(alpha = 0.35f, scaleX = 1.1f, scaleY = 1.1f),
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colorStops =
+                                    arrayOf(
+                                        0.0f to Color.Transparent,
+                                        0.6f to Color.Black.copy(alpha = 0.3f),
+                                        1.0f to Color.Black.copy(alpha = 0.6f),
+                                    ),
+                            ),
+                        ),
+            )
+
+            val coverScale = 0.85f
+            AsyncImage(
+                model = imageRequest,
+                contentDescription = stringResource(R.string.playerCoverAccessibilityDescription, state.book.title, state.book.author),
+                contentScale = ContentScale.Fit,
+                modifier =
+                    imageModifier
+                        .fillMaxWidth(coverScale)
+                        .aspectRatio(1f)
+                        .clip(RoundedCornerShape(24.dp))
+                        .combinedClickable(
+                            onClick = { if (hasLyrics) showLyrics(!showingLyrics) },
+                            onDoubleClick = onStatsClick,
+                        ),
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(0.6f).fillMaxHeight().padding(end = 16.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            // ponytail: TooltipBox shows full title on long-press when truncated
+            PlayerTruncatedTitle(
+                text = state.book.title,
+                style = MaterialTheme.typography.titleLarge,
+                color = adaptiveOnSurface,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            AssistChip(
+                onClick = onChapterClick,
+                label = { Text(text = stringResource(R.string.chapterOf, state.currentChapterIndex + 1, state.chapters.size)) },
+                modifier = Modifier,
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SquigglySlider(
+                value = seekState.displayedProgress.value,
+                onValueChange = { newProgress ->
+                    onScrubbingMode(true)
+                    seekState.onSliderValueChange(newProgress, hapticFeedback)
+                },
+                onValueChangeFinished = {
+                    HapticManager.performTap(hapticFeedback)
+                    onScrubbingMode(false)
+                    seekState.onSliderValueChangeFinished(onSeek, onSelectChapter)
+                },
+                onLongPress = { pressedProgress ->
+                    if (seekState.timeline.totalDurationMs <= 0) return@SquigglySlider
+                    val target =
+                        ChapterSeekbarPolicy.resolveSeekTarget(
+                            chapters = state.chapters,
+                            progress = pressedProgress.coerceIn(0f, 1f),
+                        )
+                    HapticManager.performTap(hapticFeedback)
+                    onAddBookmarkAtPosition(target.chapterIndex, target.chapterPositionMs) { }
+                },
+                isPlaying = state.isPlaying,
+                chapterMarkersFractions = seekState.timeline.chapterMarkersFractions,
+                bookmarkMarkersFractions = seekState.bookmarkMarkersFractions.value,
+                abRepeatRange = seekState.abRepeatFractions.value,
+                waveformData = seekbarWaveformData,
+                activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(alpha = 0.24f),
+                valueFormatter = seekState.valueFormatter,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .semantics {
+                            contentDescription = playbackPositionLabel
+                            // ponytail: no stateDescription with live time — TalkBack would spam "14:23...14:24" every second
+                            progressBarRangeInfo = ProgressBarRangeInfo(seekState.displayedProgress.value, 0f..1f)
+                            setProgress { targetProgress ->
+                                if (seekState.timeline.totalDurationMs <= 0) return@setProgress false
+                                val target =
+                                    ChapterSeekbarPolicy.resolveSeekTarget(
+                                        chapters = state.chapters,
+                                        progress = targetProgress.coerceIn(0f, 1f),
+                                    )
+                                if (target.chapterIndex != state.currentChapterIndex) {
+                                    onSelectChapter(target.chapterIndex, target.chapterPositionMs)
+                                } else {
+                                    onSeek(target.chapterPositionMs)
+                                }
+                                true
+                            }
+                            customActions =
+                                listOf(
+                                    CustomAccessibilityAction(
+                                        label = seekBackwardActionLabel,
+                                    ) {
+                                        onSeekBackward()
+                                        true
+                                    },
+                                    CustomAccessibilityAction(
+                                        label = seekForwardActionLabel,
+                                    ) {
+                                        onSeekForward()
+                                        true
+                                    },
+                                )
+                        },
+            )
+
+            val elapsedFormatted = formatDuration(seekState.currentGlobalPositionMs)
+            val totalFormatted = formatDuration(seekState.timeline.totalDurationMs)
+            Row(
+                modifier = Modifier.fillMaxWidth().semantics { invisibleToUser() },
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = elapsedFormatted,
+                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                    color = adaptiveOnSurfaceVariant,
+                )
+                Text(
+                    text = totalFormatted,
+                    style = MaterialTheme.typography.labelSmall.copy(fontFeatureSettings = "tnum"),
+                    color = adaptiveOnSurfaceVariant,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            PlayerPlaybackButtons(
+                isPlaying = state.isPlaying,
+                rewindInterval = state.rewindInterval,
+                forwardInterval = state.forwardInterval,
+                onPlayPause = onPlayPause,
+                onSkipNext = onSkipNext,
+                onSkipPrevious = onSkipPrevious,
+                hasNextChapter = hasNextChapter,
+                hasPreviousChapter = hasPreviousChapter,
+                onSeekForward = onSeekForward,
+                onSeekBackward = onSeekBackward,
+                isCompact = isCompact,
+                primaryColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                onPrimaryColor = themeColors?.onPrimaryColor ?: MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            val controlButtonHeight = if (isCompact) 44.dp else 52.dp
+            val controlButtonIconSize = if (isCompact) 20.dp else 22.dp
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            ) {
+                FilledTonalButton(
+                    onClick = onSpeedClick,
+                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                ) {
+                    Icon(Icons.Filled.Speed, stringResource(R.string.playbackSpeedTitle), Modifier.size(controlButtonIconSize))
+                }
+                FilledTonalButton(
+                    onClick = onSleepTimerClick,
+                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                ) {
+                    Icon(Icons.Outlined.Timer, stringResource(R.string.sleepTimer), Modifier.size(controlButtonIconSize))
+                }
+                FilledTonalButton(
+                    onClick = onChapterClick,
+                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                ) {
+                    Icon(Icons.Filled.List, stringResource(R.string.chaptersLabel), Modifier.size(controlButtonIconSize))
+                }
+                FilledTonalButton(
+                    onClick = onBookmarksClick,
+                    modifier = Modifier.weight(1f).height(controlButtonHeight),
+                ) {
+                    Icon(
+                        if (state.bookmarks.isNotEmpty()) Icons.Filled.Bookmark else Icons.Outlined.Bookmark,
+                        stringResource(R.string.bookmarks),
+                        Modifier.size(controlButtonIconSize),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(
+    ExperimentalFoundationApi::class,
+    androidx.compose.animation.ExperimentalSharedTransitionApi::class,
+    ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3WindowSizeClassApi::class,
+)
+@RequiresApi(android.os.Build.VERSION_CODES.S)
+@Composable
+private fun PlayerContent(
+    state: PlayerState.Active,
+    parseChapterMetadata: suspend (String) -> com.jabook.app.jabook.compose.data.local.parser.AudioMetadata?,
+    playbackSpeed: Float,
+    reduceMotion: Boolean,
+    hazeState: HazeState?,
+    isVinylMode: Boolean,
+    sleepTimerState: com.jabook.app.jabook.compose.domain.model.SleepTimerState,
+    normalizeEnabled: Boolean,
+    chapterRepeatMode: ChapterRepeatMode,
+    visualizerWaveformData: FloatArray,
+    seekbarWaveformData: FloatArray,
+    abRepeatState: ABRepeatState = ABRepeatState(),
+    onABRepeatClick: () -> Unit = {},
+    onPlayPause: () -> Unit,
+    onSkipNext: () -> Unit,
+    onSkipPrevious: () -> Unit,
+    hasNextChapter: Boolean,
+    hasPreviousChapter: Boolean,
+    onSeek: (Long) -> Unit,
+    onScrubbingMode: (Boolean) -> Unit,
+    onSeekForward: () -> Unit,
+    onSeekBackward: () -> Unit,
+    onSelectChapter: (Int, Long) -> Unit,
+    onChapterClick: () -> Unit,
+    onSpeedClick: () -> Unit,
+    onHoldToBoostStart: () -> Unit,
+    onHoldToBoostEnd: () -> Unit,
+    onAudioSettingsClick: () -> Unit,
+    onSleepTimerClick: () -> Unit,
+    onChapterRepeatClick: () -> Unit,
+    onStatsClick: () -> Unit,
+    onBookmarksClick: () -> Unit,
+    onAddBookmarkAtPosition: (Int, Long, (com.jabook.app.jabook.compose.domain.model.BookmarkItem?) -> Unit) -> Unit,
+    onUpdateBookmark: (String, String?, String?) -> Unit,
+    onDeleteBookmark: (String) -> Unit,
+    hasRecordAudioPermission: Boolean,
+    onRequestRecordAudioPermission: () -> Unit,
+    onInitializeVisualizer: () -> Unit,
+    onSetVisualizerEnabled: (Boolean) -> Unit,
+    visualizerMode: Int,
+    onVisualizerModeCycle: () -> Unit,
     onBookmarkNoteSheetVisibilityChanged: (Boolean) -> Unit = {},
     snackbarHostState: androidx.compose.material3.SnackbarHostState,
+    currentPositionMs: Long = 0L,
+    hasLyrics: Boolean = false,
+    showingLyrics: Boolean = false,
+    onToggleLyrics: () -> Unit = {},
     modifier: Modifier = Modifier,
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     animatedVisibilityScope: androidx.compose.animation.AnimatedVisibilityScope? = null,
 ) {
+    val currentOnHoldToBoostStart by rememberUpdatedState(onHoldToBoostStart)
+    val currentOnHoldToBoostEnd by rememberUpdatedState(onHoldToBoostEnd)
+    val currentOnInitializeVisualizer by rememberUpdatedState(onInitializeVisualizer)
+    val currentOnSetVisualizerEnabled by rememberUpdatedState(onSetVisualizerEnabled)
     // Get window size class for adaptive sizing
     val context = LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-            ?: throw IllegalStateException("Cannot get Activity from context")
-    val rawWindowSizeClass = calculateWindowSizeClass(activity)
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClass(rawWindowSizeClass, context)
+    val wsc = LocalWindowSizeClass.current
+    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
 
     // Adaptive sizes for compact screens (phones)
     val isCompact =
-        windowSizeClass.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
+        windowSizeClass == null ||
+            windowSizeClass.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
     val playPauseButtonSize = if (isCompact) 72.dp else 80.dp
     val skipButtonSize = if (isCompact) 56.dp else 64.dp
     val seekButtonSize = if (isCompact) 48.dp else 56.dp
@@ -1146,22 +1651,17 @@ private fun PlayerContent(
             ),
         label = "play_pause_icon_scale",
     )
-    // Adaptive sizes for control buttons (Speed, Repeat, Timer) - increased for better ergonomics
-    val controlButtonHeight = if (isCompact) 48.dp else 56.dp
-    val controlButtonIconSize = if (isCompact) 22.dp else 24.dp
-    val controlButtonTextSize =
-        if (isCompact) 14.sp else 16.sp
-    val controlButtonSpacing = if (isCompact) 8.dp else 12.dp
     // Optimized cover size: 70% for compact (phone optimization), 88% for larger screens
     val coverWidth = if (isCompact) 0.70f else 0.88f
-    val contentPadding = AdaptiveUtils.getContentPadding(windowSizeClass)
+    val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     // Increased spacing for better ergonomics
-    val itemSpacing = if (isCompact) 16.dp else AdaptiveUtils.getItemSpacing(windowSizeClass)
+    val itemSpacing = if (isCompact) 16.dp else AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
     // Spacing for compact screens between specific elements
     val smallItemSpacing = if (isCompact) 8.dp else 12.dp
-    val playbackSpeedLabel by remember(playbackSpeed) {
-        derivedStateOf { formatPlaybackSpeedLabel(playbackSpeed) }
-    }
+    val playbackSpeedLabel =
+        remember(playbackSpeed) {
+            formatPlaybackSpeedLabel(playbackSpeed)
+        }
     val speedButtonInteractionSource = remember { MutableInteractionSource() }
     val speedButtonPressed by speedButtonInteractionSource.collectIsPressedAsState()
     var holdToBoostActivated by remember { mutableStateOf(false) }
@@ -1173,11 +1673,11 @@ private fun PlayerContent(
             if (speedButtonPressed && !holdToBoostActivated) {
                 holdToBoostActivated = true
                 suppressNextSpeedClick = true
-                onHoldToBoostStart()
+                currentOnHoldToBoostStart()
             }
         } else if (holdToBoostActivated) {
             holdToBoostActivated = false
-            onHoldToBoostEnd()
+            currentOnHoldToBoostEnd()
         }
     }
     // Large spacing for major sections
@@ -1185,14 +1685,6 @@ private fun PlayerContent(
 
     // Get author from audio metadata if available
     var authorFromMetadata by remember { mutableStateOf<String?>(null) }
-    val metadataParser =
-        remember {
-            EntryPointAccessors
-                .fromApplication(
-                    context.applicationContext,
-                    AudioMetadataParserEntryPoint::class.java,
-                ).audioMetadataParser()
-        }
 
     LaunchedEffect(state.currentChapter?.fileUrl) {
         authorFromMetadata = null
@@ -1202,66 +1694,35 @@ private fun PlayerContent(
             if (file.exists()) {
                 val metadata =
                     withContext(Dispatchers.IO) {
-                        metadataParser.parseMetadata(fileUrl)
+                        parseChapterMetadata(fileUrl)
                     }
                 authorFromMetadata = metadata?.artist?.takeIf { it.isNotBlank() }
             }
         }
     }
 
-    val displayAuthor = authorFromMetadata
-    val sleepTimerAccessibilityDescription =
-        when (sleepTimerState) {
-            is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active ->
-                "${stringResource(R.string.sleepTimer)}, ${formatSleepTimerRemaining(sleepTimerState.remainingSeconds)}"
-            com.jabook.app.jabook.compose.domain.model.SleepTimerState.EndOfChapter ->
-                "${stringResource(R.string.sleepTimer)}, ${stringResource(R.string.endOfChapterLabel)}"
-            is com.jabook.app.jabook.compose.domain.model.SleepTimerState.EndOfTrack ->
-                "${stringResource(R.string.sleepTimer)}, ${stringResource(R.string.endOfTrackLabel)}"
-            com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle ->
-                stringResource(R.string.sleepTimer)
-        }
+    val displayAuthor = authorFromMetadata ?: state.book.author
 
-    // Lyrics visibility state
-    var showLyrics by remember { mutableStateOf(false) }
-    val hasLyrics by remember(state.lyrics) {
-        derivedStateOf { !state.lyrics.isNullOrEmpty() }
-    }
-    val showingLyrics by remember(showLyrics, hasLyrics) {
-        derivedStateOf { showLyrics && hasLyrics }
-    }
+    // Lyrics state hoisted to PlayerScreen; fallback to state.lyrics when not provided (default false).
+    val effectiveHasLyrics = hasLyrics || !state.lyrics.isNullOrEmpty()
+    val effectiveShowingLyrics = showingLyrics
     val seekScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
-    var showBookmarkNoteSheet by remember { mutableStateOf(false) }
+    var showBookmarkNoteSheet by rememberSaveable { mutableStateOf(false) }
     var showBookmarkMomentStamp by remember { mutableStateOf(false) }
-    var pendingBookmarkId by remember { mutableStateOf<String?>(null) }
-    var pendingBookmarkNote by remember { mutableStateOf("") }
-    var pendingBookmarkAudioPath by remember { mutableStateOf<String?>(null) }
-    var isRecordingBookmark by remember { mutableStateOf(false) }
-    var isPlayingBookmarkAudio by remember { mutableStateOf(false) }
-    val bookmarkRecorder = remember { mutableStateOf<MediaRecorder?>(null) }
-    val bookmarkPlayer = remember { mutableStateOf<MediaPlayer?>(null) }
-    val bookmarkRecordTimeoutJob = remember { mutableStateOf<Job?>(null) }
+    var pendingBookmarkId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingBookmarkNote by rememberSaveable { mutableStateOf("") }
+    var pendingBookmarkAudioPath by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // Release MediaRecorder and MediaPlayer when composable leaves composition (#40)
+    // Discard any unsaved pending voice note when the player leaves composition (#40).
+    // Recorder/player lifecycle lives in BookmarkNoteSheet.
     DisposableEffect(Unit) {
         onDispose {
-            bookmarkRecordTimeoutJob.value?.cancel()
-            bookmarkRecordTimeoutJob.value = null
-            bookmarkRecorder.value?.runCatching {
-                stop()
-                release()
-            }
-            bookmarkRecorder.value = null
-            bookmarkPlayer.value?.runCatching {
-                stop()
-                release()
-            }
-            bookmarkPlayer.value = null
+            discardBookmarkVoiceNote(context.filesDir, pendingBookmarkAudioPath)
         }
     }
 
-    SideEffect { onBookmarkNoteSheetVisibilityChanged(showBookmarkNoteSheet) }
+    LaunchedEffect(showBookmarkNoteSheet) { onBookmarkNoteSheetVisibilityChanged(showBookmarkNoteSheet) }
 
     var lastChapterBoundaryIndex by remember(state.book.id) { mutableIntStateOf(state.currentChapterIndex) }
     var skipTriggeredHaptic by remember { mutableStateOf(false) }
@@ -1282,6 +1743,14 @@ private fun PlayerContent(
     // Dynamic Theme Background with Glassmorphism Effect
     // Background is now handled by PremiumPlayerBackground wrapping this content
     val themeColors = state.themeColors
+    // ponytail: M3 1.4 fallback — motionScheme not in 1.4
+    val animatedPrimary by animateColorAsState(
+        targetValue = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+        animationSpec =
+            androidx.compose.animation.core
+                .tween(durationMillis = 300),
+        label = "playerPalettePrimary",
+    )
     val contrastBackground = themeColors?.surfaceColor ?: MaterialTheme.colorScheme.surface
     val adaptiveOnSurface =
         remember(contrastBackground) {
@@ -1292,1639 +1761,546 @@ private fun PlayerContent(
             adaptiveOnSurface.copy(alpha = 0.82f)
         }
 
+    // Orientation-aware layout: landscape = Row (cover left, controls right)
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
     // Main Content
     // We use a Box to contain the LazyColumn (and potential overlays like visualizer if moved, but visualizer is inside list)
     Box(modifier = modifier.fillMaxSize()) {
-        androidx.compose.foundation.lazy.LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding =
-                androidx.compose.foundation.layout
-                    .PaddingValues(
-                        start = contentPadding,
-                        end = contentPadding,
-                        top = if (isCompact) 0.dp else 8.dp,
-                        bottom = if (isCompact) 56.dp else 96.dp,
-                    ),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(itemSpacing),
-        ) {
-            // Author from metadata (above cover) - hidden on compact to save space
-            if (displayAuthor != null && !isCompact) {
+        if (isLandscape) {
+            PlayerLandscapeLayout(
+                state = state,
+                isCompact = isCompact,
+                showingLyrics = effectiveShowingLyrics,
+                showLyrics = { wantsShow -> if (wantsShow != effectiveShowingLyrics) onToggleLyrics() },
+                isVinylMode = isVinylMode,
+                displayAuthor = displayAuthor,
+                adaptiveOnSurface = adaptiveOnSurface,
+                adaptiveOnSurfaceVariant = adaptiveOnSurfaceVariant,
+                themeColors = themeColors,
+                hasLyrics = effectiveHasLyrics,
+                abRepeatState = abRepeatState,
+                onABRepeatClick = onABRepeatClick,
+                onPlayPause = onPlayPause,
+                onSkipNext = onSkipNext,
+                onSkipPrevious = onSkipPrevious,
+                hasNextChapter = hasNextChapter,
+                hasPreviousChapter = hasPreviousChapter,
+                onSeek = onSeek,
+                onScrubbingMode = onScrubbingMode,
+                onSeekForward = onSeekForward,
+                onSeekBackward = onSeekBackward,
+                onSelectChapter = onSelectChapter,
+                onChapterClick = onChapterClick,
+                onSpeedClick = onSpeedClick,
+                onHoldToBoostStart = onHoldToBoostStart,
+                onHoldToBoostEnd = onHoldToBoostEnd,
+                onAudioSettingsClick = onAudioSettingsClick,
+                onSleepTimerClick = onSleepTimerClick,
+                onChapterRepeatClick = onChapterRepeatClick,
+                onStatsClick = onStatsClick,
+                onBookmarksClick = onBookmarksClick,
+                onAddBookmarkAtPosition = onAddBookmarkAtPosition,
+                onUpdateBookmark = onUpdateBookmark,
+                onDeleteBookmark = onDeleteBookmark,
+                hasRecordAudioPermission = hasRecordAudioPermission,
+                onRequestRecordAudioPermission = onRequestRecordAudioPermission,
+                onInitializeVisualizer = onInitializeVisualizer,
+                onSetVisualizerEnabled = onSetVisualizerEnabled,
+                visualizerMode = visualizerMode,
+                onVisualizerModeCycle = onVisualizerModeCycle,
+                onBookmarkNoteSheetVisibilityChanged = onBookmarkNoteSheetVisibilityChanged,
+                snackbarHostState = snackbarHostState,
+                currentPositionMs = currentPositionMs,
+                seekbarWaveformData = seekbarWaveformData,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+        } else {
+            // Existing portrait layout
+            androidx.compose.foundation.lazy.LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding =
+                    androidx.compose.foundation.layout
+                        .PaddingValues(
+                            start = contentPadding,
+                            end = contentPadding,
+                            top = if (isCompact) 0.dp else 8.dp,
+                            bottom = if (isCompact) 56.dp else 96.dp,
+                        ),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(itemSpacing),
+            ) {
+                // Author from metadata (above cover) - hidden on compact to save space
+                if (!isCompact) {
+                    item {
+                        Text(
+                            text = displayAuthor,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = adaptiveOnSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = smallItemSpacing),
+                        )
+                    }
+                }
+
+                // Spacer before cover
                 item {
-                    Text(
-                        text = displayAuthor,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = adaptiveOnSurfaceVariant,
-                        textAlign = TextAlign.Center,
+                    Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
+                }
+
+                // Book cover
+                item {
+                    val imageModifier =
+                        if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                            with(sharedTransitionScope) {
+                                Modifier.sharedElement(
+                                    sharedContentState = rememberSharedContentState(key = "cover_${state.book.id}"),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                )
+                            }
+                        } else {
+                            Modifier
+                        }
+
+                    PlayerCoverSection(
+                        state = state,
+                        imageModifier = imageModifier,
+                        coverWidth = coverWidth,
+                        showingLyrics = effectiveShowingLyrics,
+                        showLyrics = { wantsShow -> if (wantsShow != effectiveShowingLyrics) onToggleLyrics() },
+                        isVinylMode = isVinylMode,
+                        reduceMotion = reduceMotion,
+                        hasLyrics = effectiveHasLyrics,
+                        onStatsClick = onStatsClick,
+                        onSeek = onSeek,
+                        currentPositionMs = currentPositionMs,
+                    )
+                }
+
+                // Spacer after cover
+                item {
+                    Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
+                }
+
+                // Book info — title maxLines 2 with ellipsis; full text exposed via semantics for TalkBack.
+                // ponytail: TooltipBox on truncated detection via TextLayoutResult.hasVisualOverflow/isLineEllipsized — add when overflow heuristic needed; contentDescription already covers a11y.
+                item {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = smallItemSpacing),
-                    )
-                }
-            }
-
-            // Spacer before cover
-            item {
-                Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
-            }
-
-            // Book cover
-            item {
-                val imageModifier =
-                    if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                        with(sharedTransitionScope) {
-                            Modifier.sharedElement(
-                                sharedContentState = rememberSharedContentState(key = "cover_${state.book.id}"),
-                                animatedVisibilityScope = animatedVisibilityScope,
-                            )
-                        }
-                    } else {
-                        Modifier
-                    }
-
-                val context = LocalContext.current
-                val imageRequest =
-                    CoverUtils
-                        .createCoverImageRequest(
-                            book = state.book,
-                            context = context,
-                            placeholderColor = MaterialTheme.colorScheme.surfaceVariant,
-                            errorColor = MaterialTheme.colorScheme.error,
-                            fallbackColor = MaterialTheme.colorScheme.surfaceVariant,
-                            cornerRadius = 16f, // 16dp rounded corners for player
-                        ).build()
-                val canToggleLyrics = hasLyrics
-                val toggleLyricsLabel = stringResource(R.string.toggleLyricsView)
-                val toggleLyricsStateDescription =
-                    if (showingLyrics) {
-                        stringResource(R.string.lyricsVisibleState)
-                    } else {
-                        stringResource(R.string.lyricsHiddenState)
-                    }
-
-                // Animated "breathing" effect for the cover
-                val infiniteTransition =
-                    androidx.compose.animation.core
-                        .rememberInfiniteTransition(label = "coverScale")
-                val scale by infiniteTransition.animateFloat(
-                    initialValue = 1f,
-                    targetValue = 1.03f,
-                    animationSpec =
-                        androidx.compose.animation.core.infiniteRepeatable(
-                            animation =
-                                androidx.compose.animation.core
-                                    .tween(4000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
-                            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse,
-                        ),
-                    label = "scale",
-                )
-
-                if (showingLyrics) {
-                    Box(
-                        modifier =
-                            imageModifier
-                                .fillMaxWidth(coverWidth)
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(24.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
+                                .padding(horizontal = if (isCompact) 8.dp else 0.dp),
                     ) {
-                        LyricsView(
-                            lyrics = state.lyrics.orEmpty(),
-                            currentPosition = state.currentPosition,
-                            onSeek = onSeek,
+                        // ponytail: TooltipBox on truncated title (writing/page.md)
+                        PlayerTruncatedTitle(
+                            text = state.book.title,
+                            style = if (isCompact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
+                            color = adaptiveOnSurface,
+                            textAlign = TextAlign.Center,
                         )
+                        if (displayAuthor != state.book.title && !isCompact) {
+                            Text(
+                                text = displayAuthor,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center,
+                                color = adaptiveOnSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.semantics { contentDescription = displayAuthor },
+                            )
+                        }
                     }
-                } else if (isVinylMode) {
-                    VinylCover(
-                        imageRequest = imageRequest,
-                        isPlaying = state.isPlaying,
-                        modifier =
-                            imageModifier
-                                .fillMaxWidth(coverWidth)
-                                .semantics {
-                                    if (canToggleLyrics) {
-                                        role = androidx.compose.ui.semantics.Role.Button
-                                        contentDescription = toggleLyricsLabel
-                                        stateDescription = toggleLyricsStateDescription
-                                    }
-                                }.clickable(
-                                    enabled = canToggleLyrics,
-                                    onClickLabel = toggleLyricsLabel,
-                                ) {
-                                    if (canToggleLyrics) {
-                                        showLyrics = !showLyrics
-                                    }
-                                },
-                    )
-                } else {
-                    AsyncImage(
-                        model = imageRequest,
-                        contentDescription =
-                            stringResource(
-                                R.string.playerCoverAccessibilityDescription,
-                                state.book.title,
-                                state.book.author,
-                            ),
-                        modifier =
-                            imageModifier
-                                .fillMaxWidth(coverWidth)
-                                .aspectRatio(1f)
-                                .graphicsLayer {
-                                    scaleX = if (state.isPlaying) scale else 1f
-                                    scaleY = if (state.isPlaying) scale else 1f
-                                }.clip(RoundedCornerShape(24.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
-                                .semantics {
-                                    if (canToggleLyrics) {
-                                        role = androidx.compose.ui.semantics.Role.Button
-                                        stateDescription = toggleLyricsStateDescription
-                                    }
-                                }.clickable(
-                                    enabled = canToggleLyrics,
-                                    onClickLabel = toggleLyricsLabel,
-                                ) {
-                                    if (canToggleLyrics) {
-                                        showLyrics = !showLyrics
-                                    }
-                                },
-                        contentScale = ContentScale.Crop,
-                    )
                 }
-            }
 
-            // Spacer after cover
-            item {
-                Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
-            }
-
-            // Book info
-            item {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = if (isCompact) 8.dp else 0.dp),
-                ) {
-                    Text(
-                        text = state.book.title,
-                        style = if (isCompact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineSmall,
-                        textAlign = TextAlign.Center,
-                        color = adaptiveOnSurface,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-
-            // Spacer after book title
-            item {
-                Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
-            }
-
-            // Progress section
-            item {
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = if (isCompact) 4.dp else 0.dp),
-                ) {
-                    val chapterTimeline by remember(state.chapters, state.currentChapterIndex, state.currentPosition) {
-                        derivedStateOf {
-                            ChapterSeekbarPolicy.buildTimeline(
-                                chapters = state.chapters,
-                                currentChapterIndex = state.currentChapterIndex,
-                                currentChapterPositionMs = state.currentPosition.coerceAtLeast(0L),
+                // Chapter chip (clickable, opens chapter sheet)
+                item {
+                    androidx.compose.material3.AssistChip(
+                        onClick = onChapterClick,
+                        label = {
+                            Text(
+                                text =
+                                    stringResource(
+                                        R.string.chapterOf,
+                                        state.currentChapterIndex + 1,
+                                        state.chapters.size,
+                                    ),
                             )
-                        }
-                    }
-                    val playerProgress by remember(chapterTimeline) {
-                        derivedStateOf {
-                            chapterTimeline.progress
-                        }
-                    }
-
-                    // Slider state-machine v2:
-                    // - livePosition = playerProgress (single source from player timeline)
-                    // - dragPosition = transient local drag value
-                    // - pendingSeekPosition = last user seek target until player converges
-                    var dragPosition by remember { mutableStateOf<Float?>(null) }
-                    var pendingSeekPosition by remember { mutableStateOf<Float?>(null) }
-                    var coalescedPlayerProgress by remember { mutableStateOf(playerProgress) }
-                    var lastSliderHapticProgress by remember { mutableStateOf<Float?>(null) }
-                    val isDragging by remember(dragPosition) { derivedStateOf { dragPosition != null } }
-                    val displayedProgress by remember(coalescedPlayerProgress, dragPosition, pendingSeekPosition) {
-                        derivedStateOf {
-                            PlayerSliderStateMachinePolicy.displayedProgress(
-                                liveProgress = coalescedPlayerProgress,
-                                dragProgress = dragPosition,
-                                pendingSeekProgress = pendingSeekPosition,
-                            )
-                        }
-                    }
-                    val previewSeekTarget by remember(state.chapters, displayedProgress) {
-                        derivedStateOf {
-                            ChapterSeekbarPolicy.resolveSeekTarget(
-                                chapters = state.chapters,
-                                progress = displayedProgress,
-                            )
-                        }
-                    }
-                    val currentGlobalPositionMs by remember(
-                        isDragging,
-                        displayedProgress,
-                        chapterTimeline.totalDurationMs,
-                        chapterTimeline.globalPositionMs,
-                    ) {
-                        derivedStateOf {
-                            if (isDragging && chapterTimeline.totalDurationMs > 0) {
-                                (
-                                    displayedProgress.coerceIn(
-                                        0f,
-                                        1f,
-                                    ) * chapterTimeline.totalDurationMs.toFloat()
-                                ).toLong()
-                            } else {
-                                chapterTimeline.globalPositionMs
-                            }
-                        }
-                    }
-
-                    // Coalesce rapid progress deltas to reduce jitter/recomposition pressure on slider.
-                    LaunchedEffect(playerProgress, chapterTimeline.totalDurationMs) {
-                        coalescedPlayerProgress =
-                            PlayerSliderStateMachinePolicy.coalesceLiveProgress(
-                                previousProgress = coalescedPlayerProgress,
-                                incomingProgress = playerProgress,
-                                totalDurationMs = chapterTimeline.totalDurationMs,
-                            )
-                    }
-
-                    // Keep pending seek state until player progress converges near user target
-                    // to avoid post-seek jump-back jitter.
-                    LaunchedEffect(playerProgress, pendingSeekPosition, isDragging) {
-                        if (!isDragging && pendingSeekPosition != null) {
-                            val result =
-                                SliderSeekSyncPolicy.resolveFromPlayerProgress(
-                                    playerProgress = playerProgress,
-                                    currentSliderPosition = pendingSeekPosition ?: playerProgress,
-                                    isDragging = false,
-                                    awaitingSeekSync = true,
-                                )
-                            if (!result.awaitingSeekSync) {
-                                pendingSeekPosition = null
-                            }
-                        }
-                    }
-
-                    // Reset stale drag-seek state on chapter/duration changes to avoid jump-back race
-                    // when player timeline is rebuilt after chapter switch.
-                    LaunchedEffect(chapterTimeline.totalDurationMs, state.currentChapterIndex) {
-                        if (!isDragging) {
-                            coalescedPlayerProgress = playerProgress
-                            pendingSeekPosition = null
-                        }
-                    }
-
-                    // Guard against stale pending seek flag if player progress update is delayed.
-                    LaunchedEffect(pendingSeekPosition) {
-                        if (pendingSeekPosition != null) {
-                            delay(1500L)
-                            pendingSeekPosition = null
-                        }
-                    }
-
-                    val playbackPositionLabel = stringResource(R.string.playbackPositionLabel)
-                    val sliderHaptic = LocalHapticFeedback.current
-                    val sliderValueFormatter =
-                        remember(chapterTimeline.totalDurationMs) {
-                            ValueFormatter { progressValue: Float ->
-                                val clamped = progressValue.coerceIn(0f, 1f)
-                                formatDuration((chapterTimeline.totalDurationMs * clamped).toLong())
-                            }
-                        }
-                    val seekBackwardActionLabel =
-                        stringResource(R.string.seekBackwardDescription, state.rewindInterval)
-                    val seekForwardActionLabel =
-                        stringResource(R.string.seekForwardDescription, state.forwardInterval)
-
-                    SquigglySlider(
-                        value = displayedProgress,
-                        onValueChange = { newProgress ->
-                            pendingSeekPosition = null
-                            val constrainedProgress = newProgress.coerceIn(0f, 1f)
-                            val shouldTriggerHaptic =
-                                lastSliderHapticProgress == null ||
-                                    kotlin.math.abs(constrainedProgress - (lastSliderHapticProgress ?: constrainedProgress)) >=
-                                    0.05f
-                            if (shouldTriggerHaptic) {
-                                HapticManager.performTap(sliderHaptic)
-                                lastSliderHapticProgress = constrainedProgress
-                            }
-                            dragPosition = constrainedProgress
                         },
-                        onValueChangeFinished = {
-                            // Seek only when user finishes dragging
-                            val targetProgress = dragPosition ?: displayedProgress
-                            if (chapterTimeline.totalDurationMs > 0 && targetProgress.isFinite()) {
+                        modifier = Modifier,
+                    )
+                }
+
+                // Spacer after book title
+                item {
+                    Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
+                }
+
+                // Progress section
+                item {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = if (isCompact) 4.dp else 0.dp),
+                    ) {
+                        val seekState =
+                            rememberPlayerSeekState(state = state, abRepeatState = abRepeatState, currentPositionMs = currentPositionMs)
+                        val playbackPositionLabel = stringResource(R.string.playbackPositionLabel)
+                        val seekBackwardActionLabel =
+                            stringResource(R.string.seekBackwardDescription, state.rewindInterval)
+                        val seekForwardActionLabel =
+                            stringResource(R.string.seekForwardDescription, state.forwardInterval)
+
+                        SquigglySlider(
+                            value = seekState.displayedProgress.value,
+                            onValueChange = { newProgress ->
+                                onScrubbingMode(true)
+                                seekState.onSliderValueChange(newProgress, hapticFeedback)
+                            },
+                            onValueChangeFinished = {
+                                HapticManager.performTap(hapticFeedback)
+                                onScrubbingMode(false)
+                                seekState.onSliderValueChangeFinished(onSeek, onSelectChapter)
+                            },
+                            onLongPress = { pressedProgress ->
+                                if (seekState.timeline.totalDurationMs <= 0) return@SquigglySlider
                                 val target =
                                     ChapterSeekbarPolicy.resolveSeekTarget(
                                         chapters = state.chapters,
-                                        progress = targetProgress,
+                                        progress = pressedProgress.coerceIn(0f, 1f),
                                     )
-                                pendingSeekPosition = targetProgress
-                                if (target.chapterIndex != state.currentChapterIndex) {
-                                    onSelectChapter(target.chapterIndex)
-                                    seekScope.launch {
-                                        delay(80L)
-                                        onSeek(target.chapterPositionMs)
-                                    }
-                                } else {
-                                    onSeek(target.chapterPositionMs)
-                                }
-                            }
-                            dragPosition = null
-                            lastSliderHapticProgress = null
-                        },
-                        onLongPress = { pressedProgress ->
-                            if (chapterTimeline.totalDurationMs <= 0) return@SquigglySlider
-                            val target =
-                                ChapterSeekbarPolicy.resolveSeekTarget(
-                                    chapters = state.chapters,
-                                    progress = pressedProgress.coerceIn(0f, 1f),
-                                )
-                            HapticManager.performLongPress(hapticFeedback)
-                            onAddBookmarkAtPosition(target.chapterIndex, target.chapterPositionMs) { createdBookmark ->
-                                if (createdBookmark != null) {
-                                    showBookmarkMomentStamp = true
-                                    seekScope.launch {
-                                        delay(700L)
-                                        showBookmarkMomentStamp = false
-                                    }
-                                    seekScope.launch {
-                                        val result =
-                                            snackbarHostState.showSnackbar(
-                                                message = context.getString(R.string.bookmarkAddedMessage),
-                                                actionLabel = context.getString(R.string.undoAction),
-                                                duration = androidx.compose.material3.SnackbarDuration.Short,
-                                            )
-                                        if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
-                                            onDeleteBookmark(createdBookmark.id)
-                                            pendingBookmarkId = null
-                                            pendingBookmarkNote = ""
-                                            pendingBookmarkAudioPath = null
-                                            showBookmarkNoteSheet = false
+                                HapticManager.performTap(hapticFeedback)
+                                onAddBookmarkAtPosition(target.chapterIndex, target.chapterPositionMs) { createdBookmark ->
+                                    if (createdBookmark != null) {
+                                        showBookmarkMomentStamp = true
+                                        seekScope.launch {
+                                            delay(700L)
+                                            showBookmarkMomentStamp = false
                                         }
+                                        seekScope.launch {
+                                            val result =
+                                                snackbarHostState.showSnackbar(
+                                                    message = context.getString(R.string.bookmarkAddedMessage),
+                                                    actionLabel = context.getString(R.string.undoAction),
+                                                    duration = androidx.compose.material3.SnackbarDuration.Indefinite,
+                                                )
+                                            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                                onDeleteBookmark(createdBookmark.id)
+                                                pendingBookmarkId = null
+                                                pendingBookmarkNote = ""
+                                                pendingBookmarkAudioPath = null
+                                                showBookmarkNoteSheet = false
+                                            }
+                                        }
+                                        pendingBookmarkId = createdBookmark.id
+                                        pendingBookmarkNote = createdBookmark.noteText.orEmpty()
+                                        pendingBookmarkAudioPath = createdBookmark.noteAudioPath
+                                        showBookmarkNoteSheet = true
                                     }
-                                    pendingBookmarkId = createdBookmark.id
-                                    pendingBookmarkNote = createdBookmark.noteText.orEmpty()
-                                    pendingBookmarkAudioPath = createdBookmark.noteAudioPath
-                                    showBookmarkNoteSheet = true
                                 }
-                            }
-                        },
-                        isPlaying = state.isPlaying,
-                        chapterMarkersFractions = chapterTimeline.chapterMarkersFractions,
-                        waveformData = seekbarWaveformData,
-                        activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                        inactiveTrackColor =
-                            (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(
-                                alpha = 0.24f,
-                            ),
-                        valueFormatter = sliderValueFormatter,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .semantics {
-                                    contentDescription = playbackPositionLabel
-                                    val current = formatDuration(currentGlobalPositionMs)
-                                    val total = formatDuration(chapterTimeline.totalDurationMs)
-                                    stateDescription = "$current of $total"
-                                    progressBarRangeInfo = ProgressBarRangeInfo(displayedProgress, 0f..1f)
-                                    setProgress { targetProgress ->
-                                        if (chapterTimeline.totalDurationMs <= 0) return@setProgress false
-                                        val target =
-                                            ChapterSeekbarPolicy.resolveSeekTarget(
-                                                chapters = state.chapters,
-                                                progress = targetProgress.coerceIn(0f, 1f),
-                                            )
-                                        if (target.chapterIndex != state.currentChapterIndex) {
-                                            onSelectChapter(target.chapterIndex)
-                                            seekScope.launch {
-                                                delay(80L)
+                            },
+                            isPlaying = state.isPlaying,
+                            chapterMarkersFractions = seekState.timeline.chapterMarkersFractions,
+                            bookmarkMarkersFractions = seekState.bookmarkMarkersFractions.value,
+                            abRepeatRange = seekState.abRepeatFractions.value,
+                            waveformData = seekbarWaveformData,
+                            activeTrackColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor =
+                                (themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary).copy(
+                                    alpha = 0.24f,
+                                ),
+                            valueFormatter = seekState.valueFormatter,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .semantics {
+                                        contentDescription = playbackPositionLabel
+                                        // ponytail: hide live time from TalkBack — announcement only on drag via progressBarRangeInfo
+                                        progressBarRangeInfo = ProgressBarRangeInfo(seekState.displayedProgress.value, 0f..1f)
+                                        setProgress { targetProgress ->
+                                            if (seekState.timeline.totalDurationMs <= 0) return@setProgress false
+                                            val target =
+                                                ChapterSeekbarPolicy.resolveSeekTarget(
+                                                    chapters = state.chapters,
+                                                    progress = targetProgress.coerceIn(0f, 1f),
+                                                )
+                                            if (target.chapterIndex != state.currentChapterIndex) {
+                                                onSelectChapter(target.chapterIndex, target.chapterPositionMs)
+                                            } else {
                                                 onSeek(target.chapterPositionMs)
                                             }
-                                        } else {
-                                            onSeek(target.chapterPositionMs)
+                                            true
                                         }
-                                        true
-                                    }
-                                    customActions =
-                                        listOf(
-                                            CustomAccessibilityAction(
-                                                label = seekBackwardActionLabel,
-                                            ) {
-                                                onSeekBackward()
-                                                true
-                                            },
-                                            CustomAccessibilityAction(
-                                                label = seekForwardActionLabel,
-                                            ) {
-                                                onSeekForward()
-                                                true
-                                            },
-                                        )
-                                },
-                    )
-
-                    androidx.compose.animation.AnimatedVisibility(
-                        visible = showBookmarkMomentStamp,
-                        enter = fadeIn() + scaleIn(initialScale = 0.6f),
-                        exit = fadeOut() + scaleOut(targetScale = 1.3f),
-                        modifier =
-                            Modifier
-                                .align(Alignment.CenterHorizontally)
-                                .padding(top = 4.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Bookmark,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                                        customActions =
+                                            listOf(
+                                                CustomAccessibilityAction(
+                                                    label = seekBackwardActionLabel,
+                                                ) {
+                                                    onSeekBackward()
+                                                    true
+                                                },
+                                                CustomAccessibilityAction(
+                                                    label = seekForwardActionLabel,
+                                                ) {
+                                                    onSeekForward()
+                                                    true
+                                                },
+                                            )
+                                    },
                         )
-                    }
 
-                    if (isDragging) {
-                        val previewTitle =
-                            state.chapters
-                                .getOrNull(previewSeekTarget.chapterIndex)
-                                ?.title
-                                .orEmpty()
-                        Text(
-                            text = "${previewSeekTarget.chapterIndex + 1}. $previewTitle",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = adaptiveOnSurfaceVariant,
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = showBookmarkMomentStamp,
+                            enter = fadeIn() + scaleIn(initialScale = 0.6f),
+                            exit = fadeOut() + scaleOut(targetScale = 1.3f),
                             modifier =
                                 Modifier
                                     .align(Alignment.CenterHorizontally)
-                                    .padding(bottom = 4.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+                                    .padding(top = 4.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Bookmark,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
 
-                    // Time labels
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            text = formatDuration(currentGlobalPositionMs),
-                            style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
-                            color = adaptiveOnSurfaceVariant,
-                        )
+                        if (seekState.isDragging) {
+                            val previewTitle =
+                                state.chapters
+                                    .getOrNull(seekState.previewSeekTarget.value.chapterIndex)
+                                    ?.title
+                                    .orEmpty()
+                            Text(
+                                text = "${seekState.previewSeekTarget.value.chapterIndex + 1}. $previewTitle",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = adaptiveOnSurfaceVariant,
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.CenterHorizontally)
+                                        .padding(bottom = 4.dp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
 
-                        Text(
-                            text = formatDuration(chapterTimeline.totalDurationMs),
-                            style = if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
-                            color = adaptiveOnSurfaceVariant,
-                        )
-                    }
+                        // Time labels (tabular figures so digits don't jump)
+                        val elapsedFormatted = formatDuration(seekState.currentGlobalPositionMs)
+                        val totalFormatted = formatDuration(seekState.timeline.totalDurationMs)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().semantics { invisibleToUser() },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = elapsedFormatted,
+                                style =
+                                    (if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall)
+                                        .copy(fontFeatureSettings = "tnum"),
+                                color = adaptiveOnSurfaceVariant,
+                            )
 
-                    // Smart Info (Chapter index & Finish time)
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.Center,
-                    ) {
+                            Text(
+                                text = totalFormatted,
+                                style =
+                                    (if (isCompact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall)
+                                        .copy(fontFeatureSettings = "tnum"),
+                                color = adaptiveOnSurfaceVariant,
+                            )
+                        }
+
+// Smart Info (Chapter index & Time remaining)
                         val chapterText =
                             stringResource(
                                 R.string.chapterOf,
-                                (if (isDragging) previewSeekTarget.chapterIndex else state.currentChapterIndex) + 1,
+                                state.currentChapterIndex + 1,
                                 state.chapters.size,
                             )
-
-                        val formattedFinishTime by remember(
-                            chapterTimeline.totalDurationMs,
-                            currentGlobalPositionMs,
-                            state.playbackSpeed,
-                        ) {
-                            derivedStateOf {
-                                val remainingMs = (chapterTimeline.totalDurationMs - currentGlobalPositionMs).coerceAtLeast(0L)
-                                val speed = state.playbackSpeed
-                                val realRemainingMs = if (speed > 0f) (remainingMs / speed).toLong() else remainingMs
-                                val finishTime =
-                                    java.util.Calendar.getInstance().apply {
-                                        add(java.util.Calendar.MILLISECOND, realRemainingMs.toInt())
-                                    }
-                                java.text
-                                    .SimpleDateFormat(
-                                        "HH:mm",
-                                        java.util.Locale.getDefault(),
-                                    ).format(finishTime.time)
-                            }
-                        }
-                        val finishText = stringResource(R.string.finishAt, formattedFinishTime)
-
-                        Text(
-                            text = "$chapterText • $finishText",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = adaptiveOnSurfaceVariant.copy(alpha = 0.86f),
-                        )
-                    }
-                }
-            }
-
-            // Audio Visualizer - hidden on compact screens to save space
-            if (!isCompact) {
-                item {
-                    LaunchedEffect(hasRecordAudioPermission) {
-                        if (!hasRecordAudioPermission) {
-                            onSetVisualizerEnabled(false)
-                        }
-                    }
-
-                    if (hasRecordAudioPermission) {
-                        // Initialize visualizer only after explicit permission grant
-                        LaunchedEffect(state.isPlaying, hasRecordAudioPermission) {
-                            if (state.isPlaying) {
-                                onInitializeVisualizer()
-                                onSetVisualizerEnabled(true)
-                            } else {
-                                onSetVisualizerEnabled(false)
-                            }
-                        }
-
-                        AudioVisualizer(
-                            waveformData = visualizerWaveformData,
-                            isPlaying = state.isPlaying,
-                            style = VisualizerStyle.CIRCULAR,
-                            height = 48.dp,
-                            primaryColor = state.themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                            secondaryColor =
-                                state.themeColors?.primaryColor?.copy(alpha = 0.5f)
-                                    ?: MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    } else {
-                        FilledTonalButton(
-                            onClick = onRequestRecordAudioPermission,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Tune,
-                                contentDescription = null,
-                                modifier = Modifier.padding(end = 8.dp),
-                            )
-                            Text(text = stringResource(R.string.enableVisualizer))
-                        }
-                    }
-                }
-            }
-
-            // Spacer before chapter button
-            item {
-                Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
-            }
-
-            // Current Chapter Button
-            item {
-                state.currentChapter?.let { chapter ->
-                    FilledTonalButton(
-                        onClick = onChapterClick,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth(if (isCompact) 0.98f else 0.95f)
-                                .wrapContentWidth(Alignment.CenterHorizontally)
-                                .height(if (isCompact) 44.dp else 52.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-                        colors =
-                            ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                contentColor = MaterialTheme.colorScheme.onSurface,
-                            ),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.SkipNext,
-                            contentDescription = null,
+                        Row(
                             modifier =
                                 Modifier
-                                    .size(if (isCompact) 18.dp else 20.dp)
-                                    .padding(end = if (isCompact) 6.dp else 8.dp),
-                        )
-                        Text(
-                            text =
-                                com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
-                                    chapter,
-                                    state.currentChapterIndex,
-                                    stringResource(R.string.chapter_prefix),
-                                    normalizeEnabled,
-                                ),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            fontSize = if (isCompact) 13.sp else 14.sp,
-                        )
-                    }
-                }
-            }
-
-            // Spacer before playback controls
-            item {
-                Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
-            }
-
-            // Playback controls
-            item {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = if (isCompact) smallItemSpacing else 0.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    // Skip previous
-                    IconButton(
-                        onClick = onSkipPrevious,
-                        modifier = Modifier.size(skipButtonSize),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.SkipPrevious,
-                            contentDescription = stringResource(R.string.previousChapter),
-                            modifier = Modifier.size(skipIconSize),
-                        )
-                    }
-
-                    // Seek backward (10s)
-                    IconButton(
-                        onClick = onSeekBackward,
-                        modifier = Modifier.size(seekButtonSize),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Replay,
-                            contentDescription = stringResource(R.string.seekBackwardDescription, state.rewindInterval),
-                            modifier = Modifier.size(seekIconSize),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-                    val playbackStateDescription =
-                        if (state.isPlaying) {
-                            stringResource(R.string.playbackStatePlaying)
-                        } else {
-                            stringResource(R.string.playbackStatePaused)
-                        }
-
-                    // Play/Pause - Larger and more prominent
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier =
-                            Modifier
-                                .size(playPauseButtonSize * 1.2f)
-                                .graphicsLayer {
-                                    scaleX = playPauseButtonScale
-                                    scaleY = playPauseButtonScale
-                                },
-                    ) {
-                        FilledIconButton(
-                            onClick = onPlayPause,
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .semantics {
-                                        stateDescription = playbackStateDescription
-                                    },
-                            shape = androidx.compose.foundation.shape.CircleShape,
-                            colors =
-                                IconButtonDefaults.filledIconButtonColors(
-                                    containerColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
-                                    contentColor = themeColors?.onPrimaryColor ?: MaterialTheme.colorScheme.onPrimary,
-                                ),
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.Center,
                         ) {
-                            Icon(
-                                imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                contentDescription =
-                                    if (state.isPlaying) {
-                                        stringResource(R.string.pauseButton)
-                                    } else {
-                                        stringResource(R.string.playButton)
-                                    },
-                                modifier =
-                                    Modifier
-                                        .size(playPauseIconSize * 1.2f)
-                                        .graphicsLayer {
-                                            scaleX = playPauseIconScale
-                                            scaleY = playPauseIconScale
-                                        },
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    // Seek forward (30s)
-                    IconButton(
-                        onClick = onSeekForward,
-                        modifier = Modifier.size(seekButtonSize),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.FastForward,
-                            contentDescription = stringResource(R.string.seekForwardDescription, state.forwardInterval),
-                            modifier = Modifier.size(seekIconSize),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                        )
-                    }
-
-                    // Skip next
-                    IconButton(
-                        onClick = onSkipNext,
-                        modifier = Modifier.size(skipButtonSize),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.SkipNext,
-                            contentDescription = stringResource(R.string.nextChapter),
-                            modifier = Modifier.size(skipIconSize),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                        )
-                    }
-                }
-            }
-
-            // Spacer before control buttons
-            item {
-                Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
-            }
-
-            // Control Buttons - Split into 2 rows for compact screens
-            item {
-                if (isCompact) {
-                    // Compact: Two rows for better ergonomics
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        // First row: Speed, EQ & Repeat
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement =
-                                Arrangement.spacedBy(
-                                    controlButtonSpacing,
-                                    Alignment.CenterHorizontally,
-                                ),
-                        ) {
-                            // Playback Speed Button
-                            FilledTonalButton(
-                                onClick = {
-                                    if (suppressNextSpeedClick) {
-                                        suppressNextSpeedClick = false
-                                    } else {
-                                        onSpeedClick()
-                                    }
-                                },
-                                interactionSource = speedButtonInteractionSource,
-                                modifier = Modifier.weight(1f).height(controlButtonHeight),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Speed,
-                                    contentDescription = stringResource(R.string.playbackSpeedTitle),
-                                    modifier = Modifier.size(controlButtonIconSize).padding(end = 4.dp),
-                                )
-                                Text(
-                                    text = playbackSpeedLabel,
-                                    fontSize = controlButtonTextSize,
-                                )
-                            }
-
-                            // Audio Settings (EQ) Button
-                            FilledTonalButton(
-                                onClick = onAudioSettingsClick,
-                                modifier = Modifier.weight(1f).height(controlButtonHeight),
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Tune, // Or Equalizer if available
-                                    contentDescription = stringResource(R.string.audioSettingsTitle),
-                                    modifier = Modifier.size(controlButtonIconSize),
-                                )
-                            }
-
-                            // Chapter Repeat Button
-                            FilledTonalButton(
-                                onClick = onChapterRepeatClick,
-                                modifier = Modifier.weight(1f).height(controlButtonHeight),
-                                colors =
-                                    ButtonDefaults.filledTonalButtonColors(
-                                        containerColor =
-                                            when (chapterRepeatMode) {
-                                                ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.surfaceVariant
-                                                ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.primaryContainer
-                                                ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.primaryContainer
-                                            },
-                                    ),
-                            ) {
-                                when (chapterRepeatMode) {
-                                    ChapterRepeatMode.INFINITE ->
-                                        Text(
-                                            "∞",
-                                            fontSize = controlButtonTextSize,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        )
-                                    ChapterRepeatMode.OFF ->
-                                        Icon(
-                                            Icons.Outlined.Repeat,
-                                            stringResource(R.string.noRepeat),
-                                            Modifier.size(controlButtonIconSize),
-                                            MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    ChapterRepeatMode.ONCE ->
-                                        Icon(
-                                            Icons.Filled.RepeatOne,
-                                            stringResource(R.string.repeatTrack),
-                                            Modifier.size(controlButtonIconSize),
-                                            MaterialTheme.colorScheme.onPrimaryContainer,
-                                        )
-                                }
-                            }
-                        }
-
-                        // Second row: Timer & Lyrics (if available)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement =
-                                Arrangement.spacedBy(
-                                    controlButtonSpacing,
-                                    Alignment.CenterHorizontally,
-                                ),
-                        ) {
-                            // Sleep Timer Button
-                            FilledTonalButton(
-                                onClick = onSleepTimerClick,
-                                modifier =
-                                    Modifier
-                                        .weight(1f)
-                                        .height(controlButtonHeight)
-                                        .semantics {
-                                            contentDescription = sleepTimerAccessibilityDescription
-                                        },
-                            ) {
-                                Icon(
-                                    if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle) {
-                                        Icons.Outlined.Timer
-                                    } else {
-                                        Icons.Filled.Timer
-                                    },
-                                    stringResource(R.string.sleepTimer),
-                                    Modifier.size(controlButtonIconSize),
-                                )
-                                if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
-                                    val activeState = sleepTimerState
-                                    Text(
-                                        formatSleepTimerRemaining(activeState.remainingSeconds),
-                                        fontSize = controlButtonTextSize,
-                                    )
-                                }
-                            }
-
-                            // Lyrics Toggle Button
-                            if (hasLyrics) {
-                                FilledTonalButton(
-                                    onClick = {
-                                        HapticManager.performTap(hapticFeedback)
-                                        showLyrics = !showLyrics
-                                    },
-                                    modifier = Modifier.weight(1f).height(controlButtonHeight),
-                                    colors =
-                                        ButtonDefaults.filledTonalButtonColors(
-                                            containerColor =
-                                                if (showingLyrics) {
-                                                    MaterialTheme.colorScheme.primaryContainer
-                                                } else {
-                                                    MaterialTheme.colorScheme.surfaceVariant
-                                                },
-                                            contentColor =
-                                                if (showingLyrics) {
-                                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                                } else {
-                                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                                },
-                                        ),
-                                ) {
-                                    Icon(
-                                        if (showingLyrics) {
-                                            Icons.Filled.Description
-                                        } else {
-                                            Icons.Outlined.Description
-                                        },
-                                        stringResource(R.string.lyrics),
-                                        Modifier.size(controlButtonIconSize),
-                                    )
-                                }
-                            } else {
-                                // Empty spacer to balance the row when no lyrics
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-                } else {
-                    // Larger screens: Single row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement =
-                            Arrangement.spacedBy(
-                                controlButtonSpacing,
-                                Alignment.CenterHorizontally,
-                            ),
-                    ) {
-                        // Playback Speed Button
-                        FilledTonalButton(
-                            onClick = {
-                                if (suppressNextSpeedClick) {
-                                    suppressNextSpeedClick = false
+                            val remainingMs = (seekState.timeline.totalDurationMs - seekState.currentGlobalPositionMs).coerceAtLeast(0L)
+                            val speed = state.playbackSpeed
+                            val realRemainingMs = if (speed > 0f) (remainingMs / speed).toLong() else remainingMs
+                            val remainingText =
+                                if (realRemainingMs > 0L) {
+                                    "-${UiFormatters.formatDurationCompact(realRemainingMs)}"
                                 } else {
-                                    onSpeedClick()
+                                    ""
                                 }
-                            },
-                            interactionSource = speedButtonInteractionSource,
-                            modifier = Modifier.weight(1f).height(controlButtonHeight),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Speed,
-                                contentDescription = stringResource(R.string.playbackSpeedTitle),
-                                modifier = Modifier.size(controlButtonIconSize).padding(end = 8.dp),
-                            )
+
                             Text(
-                                text = playbackSpeedLabel,
-                                fontSize = controlButtonTextSize,
+                                text = if (remainingText.isNotEmpty()) "$chapterText • $remainingText" else chapterText,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = adaptiveOnSurfaceVariant.copy(alpha = 0.86f),
+                                modifier = Modifier.semantics { invisibleToUser() },
                             )
                         }
+                    }
+                }
 
-                        // Audio Settings (EQ) Button
-                        FilledTonalButton(
-                            onClick = onAudioSettingsClick,
-                            modifier = Modifier.weight(1f).height(controlButtonHeight),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Tune,
-                                contentDescription = stringResource(R.string.audioSettingsTitle),
-                                modifier = Modifier.size(controlButtonIconSize),
-                            )
-                        }
+                // Audio Visualizer - hidden on compact screens to save space
+                if (!isCompact) {
+                    item {
+                        PlayerVisualizerSection(
+                            hasRecordAudioPermission = hasRecordAudioPermission,
+                            isPlaying = state.isPlaying,
+                            visualizerMode = visualizerMode,
+                            waveformData = visualizerWaveformData,
+                            themeColors = state.themeColors,
+                            onRequestRecordAudioPermission = onRequestRecordAudioPermission,
+                            onInitializeVisualizer = onInitializeVisualizer,
+                            onSetVisualizerEnabled = onSetVisualizerEnabled,
+                        )
+                    }
+                }
 
-                        // Chapter Repeat Button
+                // Spacer before chapter button
+                item {
+                    Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
+                }
+
+                // Current Chapter Button
+                item {
+                    state.currentChapter?.let { chapter ->
                         FilledTonalButton(
-                            onClick = onChapterRepeatClick,
-                            modifier = Modifier.weight(1f).height(controlButtonHeight),
+                            onClick = onChapterClick,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth(if (isCompact) 0.98f else 0.95f)
+                                    .wrapContentWidth(Alignment.CenterHorizontally)
+                                    .height(if (isCompact) 44.dp else 52.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
                             colors =
                                 ButtonDefaults.filledTonalButtonColors(
-                                    containerColor =
-                                        when (chapterRepeatMode) {
-                                            ChapterRepeatMode.OFF -> MaterialTheme.colorScheme.surfaceVariant
-                                            ChapterRepeatMode.ONCE -> MaterialTheme.colorScheme.primaryContainer
-                                            ChapterRepeatMode.INFINITE -> MaterialTheme.colorScheme.primaryContainer
-                                        },
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f),
+                                    contentColor = MaterialTheme.colorScheme.onSurface,
                                 ),
                         ) {
-                            when (chapterRepeatMode) {
-                                ChapterRepeatMode.INFINITE ->
-                                    Text(
-                                        "∞",
-                                        fontSize = controlButtonTextSize,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    )
-                                ChapterRepeatMode.OFF ->
-                                    Icon(
-                                        Icons.Outlined.Repeat,
-                                        stringResource(R.string.noRepeat),
-                                        Modifier.size(controlButtonIconSize),
-                                        MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                ChapterRepeatMode.ONCE ->
-                                    Icon(
-                                        Icons.Filled.RepeatOne,
-                                        stringResource(R.string.repeatTrack),
-                                        Modifier.size(controlButtonIconSize),
-                                        MaterialTheme.colorScheme.onPrimaryContainer,
-                                    )
-                            }
-                        }
-
-                        // Sleep Timer Button
-                        FilledTonalButton(
-                            onClick = onSleepTimerClick,
-                            modifier =
-                                Modifier
-                                    .weight(1f)
-                                    .height(controlButtonHeight)
-                                    .semantics {
-                                        contentDescription = sleepTimerAccessibilityDescription
-                                    },
-                        ) {
                             Icon(
-                                if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Idle) {
-                                    Icons.Outlined.Timer
-                                } else {
-                                    Icons.Filled.Timer
-                                },
-                                stringResource(R.string.sleepTimer),
-                                Modifier.size(controlButtonIconSize),
+                                imageVector = Icons.Filled.SkipNext,
+                                contentDescription = null,
+                                modifier =
+                                    Modifier
+                                        .size(if (isCompact) 18.dp else 20.dp)
+                                        .padding(end = if (isCompact) 6.dp else 8.dp),
                             )
-                            if (sleepTimerState is com.jabook.app.jabook.compose.domain.model.SleepTimerState.Active) {
-                                val activeState = sleepTimerState
-                                Text(
-                                    formatSleepTimerRemaining(activeState.remainingSeconds),
-                                    fontSize = controlButtonTextSize,
-                                )
-                            }
-                        }
-
-                        // Lyrics Toggle Button
-                        if (hasLyrics) {
-                            FilledTonalButton(
-                                onClick = {
-                                    HapticManager.performTap(hapticFeedback)
-                                    showLyrics = !showLyrics
-                                },
-                                modifier = Modifier.weight(1f).height(controlButtonHeight),
-                                colors =
-                                    ButtonDefaults.filledTonalButtonColors(
-                                        containerColor =
-                                            if (showingLyrics) {
-                                                MaterialTheme.colorScheme.primaryContainer
-                                            } else {
-                                                MaterialTheme.colorScheme.surfaceVariant
-                                            },
-                                        contentColor =
-                                            if (showingLyrics) {
-                                                MaterialTheme.colorScheme.onPrimaryContainer
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            },
+                            Text(
+                                text =
+                                    com.jabook.app.jabook.compose.core.util.ChapterUtils.formatChapterName(
+                                        chapter,
+                                        state.currentChapterIndex,
+                                        stringResource(R.string.chapter_prefix),
+                                        normalizeEnabled,
                                     ),
-                            ) {
-                                Icon(
-                                    if (showingLyrics) {
-                                        Icons.Filled.Description
-                                    } else {
-                                        Icons.Outlined.Description
-                                    },
-                                    stringResource(R.string.lyrics),
-                                    Modifier.size(controlButtonIconSize),
-                                )
-                            }
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                fontSize = if (isCompact) 13.sp else 14.sp,
+                            )
                         }
                     }
+                }
+
+                // Spacer before playback controls
+                item {
+                    Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
+                }
+
+                // Playback controls
+                item {
+                    PlayerPlaybackButtons(
+                        isPlaying = state.isPlaying,
+                        rewindInterval = state.rewindInterval,
+                        forwardInterval = state.forwardInterval,
+                        onPlayPause = onPlayPause,
+                        onSkipNext = onSkipNext,
+                        onSkipPrevious = onSkipPrevious,
+                        hasNextChapter = hasNextChapter,
+                        hasPreviousChapter = hasPreviousChapter,
+                        onSeekForward = onSeekForward,
+                        onSeekBackward = onSeekBackward,
+                        isCompact = isCompact,
+                        playPauseButtonScale = playPauseButtonScale,
+                        playPauseIconScale = playPauseIconScale,
+                        primaryColor = themeColors?.primaryColor ?: MaterialTheme.colorScheme.primary,
+                        onPrimaryColor = themeColors?.onPrimaryColor ?: MaterialTheme.colorScheme.onPrimary,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = if (isCompact) smallItemSpacing else 0.dp),
+                    )
+                }
+
+                // Spacer before control buttons
+                item {
+                    Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
+                }
+
+                // Control Buttons — Level 2: Speed | Sleep Timer | Chapters | Bookmarks
+                item {
+                    PlayerControlRow(
+                        isCompact = isCompact,
+                        playbackSpeedLabel = playbackSpeedLabel,
+                        sleepTimerState = sleepTimerState,
+                        bookmarkCount = state.bookmarks.size,
+                        speedButtonInteractionSource = speedButtonInteractionSource,
+                        onSpeedButtonClick = {
+                            if (suppressNextSpeedClick) {
+                                suppressNextSpeedClick = false
+                            } else {
+                                onSpeedClick()
+                            }
+                        },
+                        onSleepTimerClick = onSleepTimerClick,
+                        onChaptersClick = onChapterClick,
+                        onBookmarksClick = onBookmarksClick,
+                    )
                 }
             }
         }
     }
 
     if (showBookmarkNoteSheet && pendingBookmarkId != null) {
-        JabookModalBottomSheet(
-            onDismissRequest = {
-                bookmarkRecordTimeoutJob.value?.cancel()
-                bookmarkRecordTimeoutJob.value = null
-                bookmarkRecorder.value?.runCatching {
-                    stop()
-                    reset()
-                    release()
-                }
-                bookmarkRecorder.value = null
-                bookmarkPlayer.value?.runCatching {
-                    stop()
-                    reset()
-                    release()
-                }
-                bookmarkPlayer.value = null
-                isRecordingBookmark = false
-                isPlayingBookmarkAudio = false
-                showBookmarkNoteSheet = false
-                pendingBookmarkId = null
-                pendingBookmarkNote = ""
-                pendingBookmarkAudioPath = null
-            },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.bookmarkNoteSheetTitle),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                OutlinedTextField(
-                    value = pendingBookmarkNote,
-                    onValueChange = { pendingBookmarkNote = it },
-                    label = { Text(stringResource(R.string.bookmarkNoteSheetLabel)) },
-                    placeholder = { Text(stringResource(R.string.bookmarkNoteSheetPlaceholder)) },
-                    singleLine = false,
-                    maxLines = 4,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                ) {
-                    FilledTonalButton(
-                        onClick = {
-                            if (!hasRecordAudioPermission) {
-                                onRequestRecordAudioPermission()
-                                return@FilledTonalButton
-                            }
-                            if (isRecordingBookmark) {
-                                bookmarkRecordTimeoutJob.value?.cancel()
-                                bookmarkRecordTimeoutJob.value = null
-                                bookmarkRecorder.value?.runCatching {
-                                    stop()
-                                    reset()
-                                    release()
-                                }
-                                bookmarkRecorder.value = null
-                                isRecordingBookmark = false
-                                return@FilledTonalButton
-                            }
-
-                            val bookmarkId = pendingBookmarkId ?: return@FilledTonalButton
-                            val outputDir = File(context.cacheDir, "bookmark_notes")
-                            outputDir.mkdirs()
-                            val outputFile = File(outputDir, "bookmark_$bookmarkId.m4a")
-                            val recorder =
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                    MediaRecorder(context)
-                                } else {
-                                    @Suppress("DEPRECATION")
-                                    MediaRecorder()
-                                }
-                            recorder.setAudioSource(MediaRecorder.AudioSource.MIC)
-                            recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                            recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                            recorder.setAudioEncodingBitRate(96_000)
-                            recorder.setAudioSamplingRate(44_100)
-                            recorder.setOutputFile(outputFile.absolutePath)
-                            recorder.prepare()
-                            recorder.start()
-                            bookmarkRecorder.value = recorder
-                            pendingBookmarkAudioPath = outputFile.absolutePath
-                            isRecordingBookmark = true
-                            bookmarkRecordTimeoutJob.value?.cancel()
-                            bookmarkRecordTimeoutJob.value =
-                                seekScope.launch {
-                                    delay(30_000L)
-                                    if (isRecordingBookmark) {
-                                        bookmarkRecorder.value?.runCatching {
-                                            stop()
-                                            reset()
-                                            release()
-                                        }
-                                        bookmarkRecorder.value = null
-                                        isRecordingBookmark = false
-                                    }
-                                }
-                        },
-                    ) {
-                        Icon(
-                            imageVector = if (isRecordingBookmark) Icons.Filled.Stop else Icons.Filled.Mic,
-                            contentDescription = null,
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text =
-                                if (isRecordingBookmark) {
-                                    stringResource(R.string.stopRecording)
-                                } else {
-                                    stringResource(R.string.recordVoiceNote)
-                                },
-                        )
-                    }
-
-                    FilledTonalButton(
-                        enabled = !pendingBookmarkAudioPath.isNullOrBlank(),
-                        onClick = {
-                            val path = pendingBookmarkAudioPath ?: return@FilledTonalButton
-                            if (bookmarkPlayer.value != null) {
-                                bookmarkPlayer.value?.runCatching {
-                                    stop()
-                                    reset()
-                                    release()
-                                }
-                                bookmarkPlayer.value = null
-                                isPlayingBookmarkAudio = false
-                                return@FilledTonalButton
-                            }
-                            val player = MediaPlayer()
-                            bookmarkPlayer.value = player
-                            try {
-                                player.setDataSource(path)
-                                player.setOnCompletionListener {
-                                    bookmarkPlayer.value?.runCatching {
-                                        reset()
-                                        release()
-                                    }
-                                    bookmarkPlayer.value = null
-                                    isPlayingBookmarkAudio = false
-                                }
-                                player.setOnPreparedListener {
-                                    if (bookmarkPlayer.value !== it) return@setOnPreparedListener
-                                    it.start()
-                                    isPlayingBookmarkAudio = true
-                                }
-                                player.setOnErrorListener { _, what, extra ->
-                                    playerScreenLogger.e {
-                                        "Bookmark voice-note playback failed in MediaPlayer listener: what=$what extra=$extra"
-                                    }
-                                    bookmarkPlayer.value = null
-                                    isPlayingBookmarkAudio = false
-                                    seekScope.launch {
-                                        snackbarHostState.showSnackbar(
-                                            context.getString(R.string.errorPlayingVoiceNote),
-                                        )
-                                    }
-                                    player.runCatching {
-                                        reset()
-                                        release()
-                                    }
-                                    true
-                                }
-                                player.prepareAsync()
-                            } catch (e: java.io.IOException) {
-                                playerScreenLogger.e(e) { "Failed to prepare bookmark voice-note (I/O)" }
-                                seekScope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        context.getString(R.string.errorPlayingVoiceNote),
-                                    )
-                                }
-                                player.runCatching {
-                                    reset()
-                                    release()
-                                }
-                                bookmarkPlayer.value = null
-                                isPlayingBookmarkAudio = false
-                            } catch (e: IllegalStateException) {
-                                playerScreenLogger.e(e) { "Failed to prepare bookmark voice-note (illegal state)" }
-                                seekScope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        context.getString(R.string.errorPlayingVoiceNote),
-                                    )
-                                }
-                                player.runCatching {
-                                    reset()
-                                    release()
-                                }
-                                bookmarkPlayer.value = null
-                                isPlayingBookmarkAudio = false
-                            } catch (e: SecurityException) {
-                                playerScreenLogger.e(e) { "Failed to prepare bookmark voice-note (security)" }
-                                seekScope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        context.getString(R.string.errorPlayingVoiceNote),
-                                    )
-                                }
-                                player.runCatching {
-                                    reset()
-                                    release()
-                                }
-                                bookmarkPlayer.value = null
-                                isPlayingBookmarkAudio = false
-                            }
-                        },
-                    ) {
-                        Icon(
-                            imageVector = if (isPlayingBookmarkAudio) Icons.Filled.Stop else Icons.Filled.PlayArrow,
-                            contentDescription =
-                                if (isPlayingBookmarkAudio) {
-                                    stringResource(R.string.stopPlayback)
-                                } else {
-                                    stringResource(R.string.playVoiceNote)
-                                },
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text =
-                                if (isPlayingBookmarkAudio) {
-                                    stringResource(R.string.stopPlayback)
-                                } else {
-                                    stringResource(R.string.playVoiceNote)
-                                },
-                        )
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                ) {
-                    FilledTonalButton(
-                        onClick = {
-                            bookmarkRecordTimeoutJob.value?.cancel()
-                            bookmarkRecordTimeoutJob.value = null
-                            bookmarkRecorder.value?.runCatching {
-                                stop()
-                                reset()
-                                release()
-                            }
-                            bookmarkRecorder.value = null
-                            bookmarkPlayer.value?.runCatching {
-                                stop()
-                                reset()
-                                release()
-                            }
-                            bookmarkPlayer.value = null
-                            isRecordingBookmark = false
-                            isPlayingBookmarkAudio = false
-                            showBookmarkNoteSheet = false
-                            pendingBookmarkId = null
-                            pendingBookmarkNote = ""
-                            pendingBookmarkAudioPath = null
-                        },
-                    ) {
-                        Text(text = stringResource(R.string.skip))
-                    }
-                    FilledTonalButton(
-                        onClick = {
-                            val bookmarkId = pendingBookmarkId ?: return@FilledTonalButton
-                            bookmarkRecordTimeoutJob.value?.cancel()
-                            bookmarkRecordTimeoutJob.value = null
-                            bookmarkRecorder.value?.runCatching {
-                                stop()
-                                reset()
-                                release()
-                            }
-                            bookmarkRecorder.value = null
-                            bookmarkPlayer.value?.runCatching {
-                                stop()
-                                reset()
-                                release()
-                            }
-                            bookmarkPlayer.value = null
-                            isRecordingBookmark = false
-                            isPlayingBookmarkAudio = false
-                            onUpdateBookmark(bookmarkId, pendingBookmarkNote, pendingBookmarkAudioPath)
-                            showBookmarkNoteSheet = false
-                            pendingBookmarkId = null
-                            pendingBookmarkNote = ""
-                            pendingBookmarkAudioPath = null
-                        },
-                    ) {
-                        Text(text = stringResource(R.string.save))
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * Settings sheet for player screen.
- *
- * Allows users to configure:
- * - Playback speed
- * - Sleep timer
- * - Vinyl mode
- *
- * @param book The book being played
- * @param onUpdateSettings Callback when settings are updated (speed, sleep timer)
- * @param onResetSettings Callback to reset settings to defaults
- * @param onDismiss Callback when sheet is dismissed
- * @param isVinylMode Current vinyl mode state
- * @param onVinylModeChange Callback when vinyl mode is toggled
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-public fun PlayerSettingsSheet(
-    book: com.jabook.app.jabook.compose.domain.model.Book,
-    onUpdateSettings: (Int?, Int?) -> Unit,
-    onResetSettings: () -> Unit,
-    onDismiss: () -> Unit,
-    isVinylMode: Boolean,
-    onVinylModeChange: (Boolean) -> Unit,
-) {
-    JabookModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.overrideBookSettings),
-                style = MaterialTheme.typography.headlineSmall,
+        pendingBookmarkId?.let { bookmarkId ->
+            BookmarkNoteSheet(
+                bookmarkId = bookmarkId,
+                note = pendingBookmarkNote,
+                onNoteChange = { pendingBookmarkNote = it },
+                audioPath = pendingBookmarkAudioPath,
+                onAudioPathChange = { pendingBookmarkAudioPath = it },
+                hasRecordAudioPermission = hasRecordAudioPermission,
+                onRequestRecordAudioPermission = onRequestRecordAudioPermission,
+                onSave = { noteText, noteAudioPath ->
+                    onUpdateBookmark(bookmarkId, noteText, noteAudioPath)
+                    showBookmarkNoteSheet = false
+                    pendingBookmarkId = null
+                    pendingBookmarkNote = ""
+                    pendingBookmarkAudioPath = null
+                },
+                onDismiss = {
+                    showBookmarkNoteSheet = false
+                    pendingBookmarkId = null
+                    pendingBookmarkNote = ""
+                    discardBookmarkVoiceNote(context.filesDir, pendingBookmarkAudioPath)
+                    pendingBookmarkAudioPath = null
+                },
+                onError = { message ->
+                    seekScope.launch { snackbarHostState.showSnackbar(message) }
+                },
             )
-
-            // Switch: Use Global / Custom
-            var useGlobal by remember {
-                mutableStateOf(book.rewindDuration == null && book.forwardDuration == null)
-            }
-
-            // Local state for sliders (init from book or default 10/30 if null)
-            var rewindSeconds by remember { mutableStateOf((book.rewindDuration ?: 10).toFloat()) }
-            var forwardSeconds by remember { mutableStateOf((book.forwardDuration ?: 30).toFloat()) }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.useGlobalSettings),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                androidx.compose.material3.Switch(
-                    checked = useGlobal,
-                    onCheckedChange = {
-                        useGlobal = it
-                        if (it) {
-                            onResetSettings()
-                        } else {
-                            // When switching to custom, save current slider values
-                            onUpdateSettings(rewindSeconds.toInt(), forwardSeconds.toInt())
-                        }
-                    },
-                )
-            }
-
-            if (!useGlobal) {
-                HorizontalDivider()
-
-                Text(
-                    text = stringResource(R.string.customSettings),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-
-                // Rewind Slider
-                Text(
-                    text = stringResource(R.string.rewindDurationTitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Slider(
-                        value = rewindSeconds,
-                        onValueChange = {
-                            rewindSeconds = it
-                            onUpdateSettings(rewindSeconds.toInt(), forwardSeconds.toInt())
-                        },
-                        valueRange = 5f..60f,
-                        steps = 10,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text =
-                            pluralStringResource(
-                                R.plurals.durationSecondsFull,
-                                rewindSeconds.toInt(),
-                                rewindSeconds.toInt(),
-                            ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.width(48.dp),
-                        textAlign = TextAlign.End,
-                    )
-                }
-
-                // Forward Slider
-                Text(
-                    text = stringResource(R.string.forwardDurationTitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Slider(
-                        value = forwardSeconds,
-                        onValueChange = {
-                            forwardSeconds = it
-                            onUpdateSettings(rewindSeconds.toInt(), forwardSeconds.toInt())
-                        },
-                        valueRange = 5f..60f,
-                        steps = 10,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text =
-                            pluralStringResource(
-                                R.plurals.durationSecondsFull,
-                                forwardSeconds.toInt(),
-                                forwardSeconds.toInt(),
-                            ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.width(48.dp),
-                        textAlign = TextAlign.End,
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            HorizontalDivider()
-
-            // Vinyl Mode Toggle
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.vinylMode),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                Switch(
-                    checked = isVinylMode,
-                    onCheckedChange = onVinylModeChange,
-                )
-            }
-        }
-
-        if (BuildConfig.DEBUG) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.TopEnd,
-            ) {
-                DebugRecompositionCounter(
-                    modifier = Modifier.padding(top = 8.dp, end = 8.dp),
-                )
-            }
         }
     }
-}
-
-// P-91: Time formatting delegated to PlayerTimeFormatter
-internal fun formatDuration(durationMs: Long): String = PlayerTimeFormatter.formatDuration(durationMs)
-
-internal fun formatPlaybackSpeedLabel(playbackSpeed: Float): String = PlayerTimeFormatter.formatPlaybackSpeedLabel(playbackSpeed)
-
-private const val HOLD_TO_BOOST_ACTIVATION_DELAY_MS: Long = 300L
-
-internal fun playerStateContentKey(state: PlayerState): String =
-    when (state) {
-        is PlayerState.Loading -> "loading"
-        is PlayerState.Active -> "active"
-        is PlayerState.Error -> "error"
-    }
-
-internal data class ChapterBoundaryHapticDecision(
-    val shouldPerformHaptic: Boolean,
-    val nextSkipTriggeredHaptic: Boolean,
-    val nextLastChapterBoundaryIndex: Int,
-)
-
-internal fun resolveChapterBoundaryHapticDecision(
-    previousChapterIndex: Int,
-    newChapterIndex: Int,
-    skipTriggeredHaptic: Boolean,
-): ChapterBoundaryHapticDecision? {
-    if (newChapterIndex == previousChapterIndex) return null
-    return if (skipTriggeredHaptic) {
-        ChapterBoundaryHapticDecision(
-            shouldPerformHaptic = false,
-            nextSkipTriggeredHaptic = false,
-            nextLastChapterBoundaryIndex = newChapterIndex,
-        )
-    } else {
-        ChapterBoundaryHapticDecision(
-            shouldPerformHaptic = true,
-            nextSkipTriggeredHaptic = false,
-            nextLastChapterBoundaryIndex = newChapterIndex,
-        )
-    }
-}
-
-internal fun mapKeyEventToPlayerIntent(keyEvent: androidx.compose.ui.input.key.KeyEvent): PlayerIntent? =
-    when (keyEvent.key) {
-        Key.Spacebar -> PlayerIntent.TogglePlayPause
-        Key.DirectionLeft ->
-            if (keyEvent.isShiftPressed) {
-                PlayerIntent.SkipPrevious
-            } else {
-                PlayerIntent.SeekBackward
-            }
-        Key.DirectionRight ->
-            if (keyEvent.isShiftPressed) {
-                PlayerIntent.SkipNext
-            } else {
-                PlayerIntent.SeekForward
-            }
-        else -> null
-    }
-
-@Composable
-private fun DebugRecompositionCounter(modifier: Modifier = Modifier) {
-    var count by remember { mutableIntStateOf(0) }
-    SideEffect { count += 1 }
-    Text(
-        text = count.toString(),
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurface,
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.65f))
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-    )
 }
 
 @Composable
@@ -3048,5 +2424,32 @@ private fun PlayerLoadingSkeleton(modifier: Modifier = Modifier) {
                         .background(shimmerBrush),
             )
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlayerTruncatedTitle(
+    text: String,
+    style: androidx.compose.ui.text.TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier,
+    textAlign: androidx.compose.ui.text.style.TextAlign? = null,
+) {
+    var truncated by remember(text) { mutableStateOf(false) }
+    val state = rememberTooltipState()
+    TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = {
+        PlainTooltip { Text(text) }
+    }, state = state) {
+        Text(
+            text = text,
+            style = style,
+            color = color,
+            textAlign = textAlign,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            onTextLayout = { truncated = it.hasVisualOverflow },
+            modifier = modifier.semantics { contentDescription = text },
+        )
     }
 }

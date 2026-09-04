@@ -17,6 +17,9 @@ package com.jabook.app.jabook.compose.data.torrent
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
@@ -24,14 +27,20 @@ import com.jabook.app.jabook.compose.data.network.NetworkType
 import com.jabook.app.jabook.compose.data.network.TorrentDownloadNetworkPolicy
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
+import com.jabook.app.jabook.compose.data.worker.WorkConstraintsPolicy
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -56,15 +65,22 @@ public class TorrentManager
         public val downloadsFlow: StateFlow<Map<String, TorrentDownload>>
             get() = session.downloadsFlow
 
+        @Volatile
         private var isInitialized = false
-        private val scope =
+        private var scope =
             CoroutineScope(
                 SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("ComposeTorrentManager"),
             )
 
+        // Observation jobs are restarted on every initialize() after a shutdown(),
+        // so they must be cancelled first or each service lifecycle would add duplicate collectors.
+        private var dbSyncJob: Job? = null
+        private var networkConstraintJob: Job? = null
+
         /**
          * Initialize torrent system
          */
+        @Synchronized
         public fun initialize() {
             if (isInitialized) {
                 logger.w { "Already initialized" }
@@ -73,14 +89,17 @@ public class TorrentManager
 
             try {
                 session.initSession()
+                session.restoreActiveDownloads()
                 isInitialized = true
                 logger.i { "TorrentManager initialized" }
 
                 // Start observing downloads for DB sync
-                observeAndSyncToDatabase()
+                dbSyncJob?.cancel()
+                dbSyncJob = observeAndSyncToDatabase()
 
                 // Start observing network constraints
-                observeNetworkConstraints()
+                networkConstraintJob?.cancel()
+                networkConstraintJob = observeNetworkConstraints()
             } catch (e: NoSuchMethodError) {
                 logger.e({ "libtorrent4j version mismatch - native library incompatible" }, e)
                 // Don't throw - allow app to continue without torrent functionality
@@ -123,7 +142,7 @@ public class TorrentManager
          * @param sequential Enable sequential download for streaming
          * @return Info hash of the added torrent
          */
-        public suspend fun addMagnetLink(
+        public fun addMagnetLink(
             magnetUri: String,
             savePath: String,
             sequential: Boolean = true,
@@ -138,57 +157,6 @@ public class TorrentManager
             } else {
                 throw result.exceptionOrNull() ?: IllegalStateException("Failed to add magnet link")
             }
-        }
-
-        /**
-         * Pause download (compatibility alias for pauseTorrent).
-         */
-        public suspend fun pauseDownload(hash: String) {
-            pauseTorrent(hash)
-        }
-
-        /**
-         * Resume download (compatibility alias for resumeTorrent).
-         */
-        public suspend fun resumeDownload(hash: String) {
-            resumeTorrent(hash)
-        }
-
-        /**
-         * Remove download (compatibility alias for removeTorrent).
-         */
-        public suspend fun removeDownload(
-            hash: String,
-            deleteFiles: Boolean = false,
-        ) {
-            removeTorrent(hash, deleteFiles)
-        }
-
-        /**
-         * Get downloads state flow (compatibility property).
-         */
-        public val downloads: StateFlow<Map<String, TorrentDownload>>
-            get() = downloadsFlow
-
-        /**
-         * Add torrent and start download service (original implementation).
-         */
-        public fun addTorrentOriginal(
-            magnetUri: String,
-            savePath: String,
-            selectedFileIndices: List<Int>? = null,
-            topicId: String? = null,
-        ): Result<String> {
-            ensureInitialized()
-
-            val result = session.addTorrent(magnetUri, savePath, selectedFileIndices, topicId)
-
-            if (result.isSuccess) {
-                // Start foreground service
-                startDownloadService()
-            }
-
-            return result
         }
 
         /**
@@ -218,6 +186,7 @@ public class TorrentManager
          */
         public fun resumeTorrent(hash: String) {
             session.resumeTorrent(hash)
+            startDownloadService()
         }
 
         /**
@@ -238,37 +207,17 @@ public class TorrentManager
         }
 
         /**
-         * Move torrent to new path
-         */
-        public fun moveTorrent(
-            hash: String,
-            newPath: String,
-        ) {
-            session.moveTorrentStorage(hash, newPath)
-        }
-
-        /**
          * Resume all torrents
          */
         public fun resumeAll() {
             session.resumeAll()
+            startDownloadService()
         }
 
         /**
          * Get specific download
          */
         public fun getDownload(hash: String): TorrentDownload? = session.getDownload(hash)
-
-        /**
-         * Get download progress as Flow for a specific torrent.
-         * This is a convenience method for compatibility with legacy code.
-         */
-        public fun getDownloadProgress(hash: String): kotlinx.coroutines.flow.Flow<TorrentDownload> =
-            kotlinx.coroutines.flow.flow {
-                downloadsFlow.collect { downloads ->
-                    downloads[hash]?.let { emit(it) }
-                }
-            }
 
         /**
          * Enable streaming mode for torrent
@@ -326,11 +275,26 @@ public class TorrentManager
         }
 
         /**
-         * Shutdown torrent system
+         * Shutdown torrent system: persists resume data via [TorrentSession.stopSession]
+         * and releases the native session. Safe to call repeatedly; a later
+         * [initialize] restarts the session and its observers.
          */
+        @Synchronized
         public fun shutdown() {
             try {
+                // Persist final states synchronously — sampling may still hold
+                // the last emission (e.g. COMPLETED/PAUSED) unsaved.
+                runBlocking { repository.saveAll(downloadsFlow.value.values.toList()) }
                 session.stopSession()
+                dbSyncJob?.cancel()
+                dbSyncJob = null
+                networkConstraintJob?.cancel()
+                networkConstraintJob = null
+                scope.cancel()
+                scope =
+                    CoroutineScope(
+                        SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("ComposeTorrentManager"),
+                    )
                 stopDownloadService()
                 isInitialized = false
                 logger.i { "TorrentManager shut down" }
@@ -362,28 +326,42 @@ public class TorrentManager
                     Intent(context, TorrentDownloadService::class.java).apply {
                         action = TorrentDownloadService.ACTION_START
                     }
-                // Use ContextCompat for better compatibility
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    androidx.core.content.ContextCompat
-                        .startForegroundService(context, intent)
-                } else {
-                    context.startService(intent)
+                androidx.core.content.ContextCompat
+                    .startForegroundService(context, intent)
+            } catch (e: android.app.ForegroundServiceStartNotAllowedException) {
+                // Android 12+ blocks FGS start from background — reschedule via WorkManager
+                logger.w {
+                    "Cannot start FGS from background (Android 12+ restriction), " +
+                        "falling back to WorkManager: ${e.message}"
                 }
+                scheduleServiceStartViaWorkManager()
             } catch (e: IllegalStateException) {
-                // Service might already be running or context is invalid
                 logger.w { "Cannot start foreground service (may already be running): ${e.message}" }
             } catch (e: Exception) {
                 logger.e({ "Failed to start download service" }, e)
             }
         }
 
+        private fun scheduleServiceStartViaWorkManager() {
+            try {
+                val request =
+                    OneTimeWorkRequestBuilder<TorrentStartWorker>()
+                        .setConstraints(WorkConstraintsPolicy.userInitiatedDownload())
+                        .build()
+                WorkManager.getInstance(context).enqueueUniqueWork(
+                    TorrentStartWorker.WORK_NAME,
+                    ExistingWorkPolicy.REPLACE,
+                    request,
+                )
+                logger.i { "Scheduled TorrentStartWorker (${TorrentStartWorker.WORK_NAME}) as FGS fallback" }
+            } catch (e: Exception) {
+                logger.e({ "Failed to schedule TorrentStartWorker fallback" }, e)
+            }
+        }
+
         private fun stopDownloadService() {
             try {
-                val intent =
-                    Intent(context, TorrentDownloadService::class.java).apply {
-                        action = TorrentDownloadService.ACTION_STOP
-                    }
-                context.startService(intent)
+                context.stopService(Intent(context, TorrentDownloadService::class.java))
             } catch (e: Exception) {
                 logger.e({ "Failed to stop download service" }, e)
             }
@@ -392,20 +370,27 @@ public class TorrentManager
         /**
          * Start observing downloads and sync to database
          */
-        private fun observeAndSyncToDatabase() {
+        @OptIn(FlowPreview::class)
+        private fun observeAndSyncToDatabase(): Job =
             scope.launch {
-                downloadsFlow.collect { downloads ->
-                    if (downloads.isNotEmpty()) {
+                // libtorrent alerts can emit many times/sec during an active
+                // transfer; persisting every emission rewrites all active rows
+                // each time (write amplification). Sample to ~1 batch/sec —
+                // unlike a drop-based throttle, the trailing emission (final
+                // COMPLETED/PAUSED state) is always delivered.
+                // Resume data is persisted separately via SAVE_RESUME_DATA.
+                downloadsFlow
+                    .sample(DB_SYNC_THROTTLE_MS)
+                    .collect { downloads ->
+                        if (downloads.isEmpty()) return@collect
                         repository.saveAll(downloads.values.toList())
                     }
-                }
             }
-        }
 
         private val networkPausedTorrents = mutableSetOf<String>()
         private var pausedByNetwork = false
 
-        private fun observeNetworkConstraints() {
+        private fun observeNetworkConstraints(): Job =
             scope.launch {
                 combine(
                     settingsRepository.userPreferences,
@@ -416,7 +401,6 @@ public class TorrentManager
                     handleNetworkChange(wifiOnly, net)
                 }
             }
-        }
 
         private fun handleNetworkChange(
             wifiOnly: Boolean,
@@ -445,17 +429,13 @@ public class TorrentManager
                         networkPausedTorrents.clear()
                         networkPausedTorrents.addAll(active)
 
-                        logger.i { "Pausing ${active.size} torrents due to WiFi-only restriction" }
+                        logger.i { "Pausing ${active.size} torrents (network restricted)" }
                         active.forEach { pauseTorrent(it) }
                         pausedByNetwork = true
 
-                        // Show notification about paused downloads
-                        Toast
-                            .makeText(
-                                context,
-                                context.getString(R.string.downloadsPausedWifiRequired),
-                                Toast.LENGTH_SHORT,
-                            ).show()
+                        // Debounce toasts: on flappy networks the pause/resume toggles
+                        // repeatedly — don't spam the user with one toast per transition.
+                        showNetworkToast(context, R.string.downloadsPausedWifiRequired)
                     }
                 }
             } else {
@@ -466,14 +446,37 @@ public class TorrentManager
                     networkPausedTorrents.clear()
                     pausedByNetwork = false
 
-                    // Show notification about resumed downloads
-                    Toast
-                        .makeText(
-                            context,
-                            context.getString(R.string.downloadsResumed),
-                            Toast.LENGTH_SHORT,
-                        ).show()
+                    // Debounce toasts: one per transition burst, not per network flap.
+                    showNetworkToast(context, R.string.downloadsResumed)
                 }
             }
+        }
+
+        // Debounce helper: at most one network-restriction toast every 10s.
+        private var lastNetworkToastMs = 0L
+
+        private fun showNetworkToast(
+            context: android.content.Context,
+            resId: Int,
+        ) {
+            val now = System.currentTimeMillis()
+            if (now - lastNetworkToastMs < NETWORK_TOAST_DEBOUNCE_MS) return
+            lastNetworkToastMs = now
+            // Toast requires a Looper thread; this is called from the
+            // Dispatchers.IO collector — post to the main looper.
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                try {
+                    Toast
+                        .makeText(context, context.getString(resId), Toast.LENGTH_SHORT)
+                        .show()
+                } catch (e: Exception) {
+                    logger.w({ "Failed to show network toast" }, e)
+                }
+            }
+        }
+
+        public companion object {
+            private const val NETWORK_TOAST_DEBOUNCE_MS = 10_000L
+            private const val DB_SYNC_THROTTLE_MS = 1_000L
         }
     }

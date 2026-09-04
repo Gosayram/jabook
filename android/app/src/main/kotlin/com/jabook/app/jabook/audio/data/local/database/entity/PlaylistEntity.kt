@@ -14,12 +14,14 @@
 
 package com.jabook.app.jabook.audio.data.local.database.entity
 
+import androidx.annotation.Keep
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 /**
  * Entity representing a saved playlist for a book.
  */
+@Keep
 @Entity(tableName = "playlists")
 public data class PlaylistEntity(
     @PrimaryKey

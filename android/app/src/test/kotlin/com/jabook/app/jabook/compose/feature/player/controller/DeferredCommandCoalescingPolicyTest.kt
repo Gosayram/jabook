@@ -62,6 +62,22 @@ class DeferredCommandCoalescingPolicyTest {
     }
 
     @Test
+    fun `repeat mode replaces only repeat mode`() {
+        assertTrue(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.REPEAT_MODE,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+        assertFalse(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.SPEED,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+    }
+
+    @Test
     fun `visualizer initialize does not remove existing commands`() {
         assertFalse(
             DeferredCommandCoalescingPolicy.shouldRemoveExisting(
@@ -75,5 +91,82 @@ class DeferredCommandCoalescingPolicyTest {
                 incoming = DeferredCommandType.VISUALIZER_INITIALIZE,
             ),
         )
+    }
+
+    @Test
+    fun `repeat mode removes existing repeat mode`() {
+        assertTrue(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.REPEAT_MODE,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+    }
+
+    @Test
+    fun `repeat mode does not remove playback toggle`() {
+        assertFalse(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.PLAYBACK_TOGGLE,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+    }
+
+    @Test
+    fun `repeat mode does not remove seek`() {
+        assertFalse(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.SEEK,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+    }
+
+    @Test
+    fun `repeat mode does not remove skip`() {
+        assertFalse(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.SKIP,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+    }
+
+    @Test
+    fun `repeat mode does not remove speed`() {
+        assertFalse(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.SPEED,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+    }
+
+    @Test
+    fun `repeat mode does not remove visualizer commands`() {
+        assertFalse(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.VISUALIZER_ENABLED,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+        assertFalse(
+            DeferredCommandCoalescingPolicy.shouldRemoveExisting(
+                existing = DeferredCommandType.VISUALIZER_INITIALIZE,
+                incoming = DeferredCommandType.REPEAT_MODE,
+            ),
+        )
+    }
+
+    @Test
+    fun `only seek and skip are book scoped`() {
+        assertTrue(DeferredCommandCoalescingPolicy.isBookScoped(DeferredCommandType.SEEK))
+        assertTrue(DeferredCommandCoalescingPolicy.isBookScoped(DeferredCommandType.SKIP))
+        assertFalse(DeferredCommandCoalescingPolicy.isBookScoped(DeferredCommandType.PLAYBACK_TOGGLE))
+        assertFalse(DeferredCommandCoalescingPolicy.isBookScoped(DeferredCommandType.SPEED))
+        assertFalse(DeferredCommandCoalescingPolicy.isBookScoped(DeferredCommandType.REPEAT_MODE))
+        assertFalse(DeferredCommandCoalescingPolicy.isBookScoped(DeferredCommandType.VISUALIZER_ENABLED))
+        assertFalse(DeferredCommandCoalescingPolicy.isBookScoped(DeferredCommandType.VISUALIZER_INITIALIZE))
     }
 }

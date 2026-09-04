@@ -16,11 +16,25 @@ package com.jabook.app.jabook.compose.feature.indexing
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Pending
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -30,9 +44,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.UiFormatters
+import com.jabook.app.jabook.compose.data.indexing.ForumState
+import com.jabook.app.jabook.compose.data.indexing.ForumStatus
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 
 /**
@@ -50,13 +70,15 @@ public fun IndexingProgressDialog(
     onDismiss: () -> Unit,
     onHide: (() -> Unit)? = null,
     indexSize: Int = 0,
+    forumStatuses: List<ForumStatus> = emptyList(),
     modifier: Modifier = Modifier,
 ) {
     AlertDialog(
         onDismissRequest = {
-            // Don't allow dismiss during indexing
-            if (progress is IndexingProgress.Completed || progress is IndexingProgress.Error) {
-                onDismiss()
+            when (progress) {
+                is IndexingProgress.Completed, is IndexingProgress.Error -> onDismiss()
+                // Outside tap during indexing hides the dialog; indexing continues in background
+                is IndexingProgress.Idle, is IndexingProgress.InProgress -> onHide?.invoke()
             }
         },
         title = {
@@ -71,7 +93,10 @@ public fun IndexingProgressDialog(
         },
         text = {
             Column(
-                modifier = modifier.fillMaxWidth(),
+                modifier =
+                    modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
@@ -87,7 +112,7 @@ public fun IndexingProgressDialog(
                     is IndexingProgress.InProgress -> {
                         // Progress bar
                         LinearProgressIndicator(
-                            progress = { progress.progress },
+                            progress = { progress.detail.percentComplete },
                             modifier = Modifier.fillMaxWidth(),
                         )
 
@@ -95,29 +120,42 @@ public fun IndexingProgressDialog(
                         val forumProgressText =
                             stringResource(
                                 R.string.indexingStatusForumProgress,
-                                progress.currentForumIndex + 1,
-                                progress.totalForums,
+                                progress.detail.totalForumsCompleted + 1,
+                                progress.detail.totalForums,
                             )
-                        val pageText = stringResource(R.string.indexingStatusPage, progress.currentPage + 1)
                         val topicsIndexedText =
                             pluralStringResource(
                                 R.plurals.indexTopicsIndexed,
-                                progress.topicsIndexed,
-                                progress.topicsIndexed,
+                                progress.detail.topicsFound,
+                                progress.detail.topicsFound,
                             )
                         Text(
                             text =
-                                stringResource(R.string.indexingStatusForum, progress.currentForum) + "\n" +
-                                    forumProgressText + "\n" +
-                                    pageText + "\n" +
+                                forumProgressText + "\n" +
                                     topicsIndexedText,
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.bodyMedium,
                         )
 
+                        // Per-forum status list
+                        if (forumStatuses.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LazyColumn(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 200.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                items(forumStatuses, key = { it.forumId }, contentType = { "forum_status" }) { status ->
+                                    ForumStatusRow(status)
+                                }
+                            }
+                        }
+
                         // Progress percentage
                         Text(
-                            text = "${(progress.progress * 100).toInt()}%",
+                            text = UiFormatters.formatPercent(progress.detail.percentComplete),
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.primary,
                         )
@@ -183,4 +221,82 @@ public fun IndexingProgressDialog(
             }
         },
     )
+}
+
+@Composable
+private fun ForumStatusRow(status: ForumStatus) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        when (status.state) {
+            ForumState.INDEXED -> {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = stringResource(R.string.indexingStatusIndexed),
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+            ForumState.IN_PROGRESS -> {
+                val inProgressLabel = stringResource(R.string.indexingStatusInProgress)
+                CircularProgressIndicator(
+                    modifier =
+                        Modifier
+                            .size(16.dp)
+                            .semantics { contentDescription = inProgressLabel },
+                    strokeWidth = 2.dp,
+                )
+            }
+            ForumState.FAILED -> {
+                Icon(
+                    imageVector = Icons.Filled.Error,
+                    contentDescription = stringResource(R.string.indexingStatusFailed),
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
+            ForumState.PENDING -> {
+                Icon(
+                    imageVector = Icons.Filled.Pending,
+                    contentDescription = stringResource(R.string.indexingStatusPending),
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = status.forumName,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (status.state == ForumState.INDEXED && status.topicsCount > 0) {
+                Text(
+                    text =
+                        pluralStringResource(
+                            R.plurals.indexTopicsCount,
+                            status.topicsCount,
+                            status.topicsCount,
+                        ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (status.state == ForumState.FAILED && status.errorMessage != null) {
+                Text(
+                    text = status.errorMessage,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
 }

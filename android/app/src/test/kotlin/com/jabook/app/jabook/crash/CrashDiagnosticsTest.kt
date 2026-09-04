@@ -19,7 +19,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class CrashDiagnosticsTest {
     private lateinit var fakeSink: FakeCrashDiagnosticsSink
 
@@ -59,16 +62,30 @@ class CrashDiagnosticsTest {
             throwable = error,
             attributes =
                 mapOf(
-                    "mirror_domain" to "rutracker.org",
+                    "mirror_domain" to "mirror.example",
                     "attempt" to 2,
                 ),
         )
 
         assertEquals("mirror_health_check_failed", fakeSink.keys["non_fatal_tag"])
-        assertEquals("rutracker.org", fakeSink.keys["nf_mirror_domain"])
+        assertEquals("mirror.example", fakeSink.keys["nf_mirror_domain"])
         assertEquals("2", fakeSink.keys["nf_attempt"])
         assertTrue(fakeSink.logs.any { it.contains("non_fatal:mirror_health_check_failed") })
         assertEquals(error, fakeSink.recorded.single())
+    }
+
+    @Test
+    fun `reportNonFatal suppresses non-actionable network exceptions`() {
+        CrashDiagnostics.reportNonFatal(
+            tag = "network_call_failed",
+            throwable = java.net.SocketTimeoutException("timeout"),
+        )
+        CrashDiagnostics.reportNonFatal(
+            tag = "network_call_failed",
+            throwable = RuntimeException("wrapped", java.net.UnknownHostException("no dns")),
+        )
+
+        assertTrue(fakeSink.recorded.isEmpty())
     }
 
     @Test

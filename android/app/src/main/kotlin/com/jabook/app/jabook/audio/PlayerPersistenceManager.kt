@@ -15,6 +15,8 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Context
+import com.jabook.app.jabook.compose.core.util.PersistentJson
+import com.jabook.app.jabook.compose.core.util.rethrowCancellation
 import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -22,8 +24,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -43,14 +49,18 @@ public class PlayerPersistenceManager
             private const val KEY_RESUMPTION_ARTIST = "playback_resumption_artist"
             private const val KEY_RESUMPTION_GROUP_PATH = "playback_resumption_group_path"
             private const val KEY_LAST_PLAYED_BOOK_ID = "last_played_book_id" // NEW for mini player
-            private const val LEGACY_KEY_PLAYER_STATE = "flutter.player_state"
             private const val PLAYBACK_SNAPSHOT_VERSION_V1 = 1
             private const val KEY_PLAYBACK_SNAPSHOT_VERSION = "playback_snapshot_version"
             private const val KEY_PLAYBACK_SNAPSHOT_GROUP_PATH = "playback_snapshot_group_path"
             private const val KEY_PLAYBACK_SNAPSHOT_FILE_PATHS = "playback_snapshot_file_paths"
+            private const val KEY_PLAYBACK_SNAPSHOT_PLAYLIST_ITEMS = "playback_snapshot_playlist_items"
             private const val KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX = "playback_snapshot_current_index"
             private const val KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION = "playback_snapshot_current_position"
             private const val KEY_PLAYBACK_SNAPSHOT_METADATA = "playback_snapshot_metadata"
+            private const val KEY_PLAYBACK_SNAPSHOT_SPEED = "playback_snapshot_speed"
+
+            /** Default restored when the snapshot has no speed entry (pre-speed writers). */
+            public const val DEFAULT_PLAYBACK_SPEED: Float = 1.0f
             private const val KEY_PLAYBACK_SNAPSHOT_CORRUPTION_COUNT = "playback_snapshot_corruption_count"
             private const val KEY_PLAYBACK_SNAPSHOT_LAST_CORRUPTION_REASON = "playback_snapshot_last_corruption_reason"
             private const val KEY_PLAYBACK_SNAPSHOT_LAST_CORRUPTION_AT = "playback_snapshot_last_corruption_at"
@@ -69,9 +79,12 @@ public class PlayerPersistenceManager
         public data class PersistedPlayerState(
             val groupPath: String,
             val filePaths: List<String>,
+            val playlistItems: List<PlaylistItem> = filePaths.map(::PlaylistItem),
             val currentIndex: Int,
             val currentPosition: Long,
             val metadata: Map<String, String>?,
+            // Default keeps writers that predate the speed field backward compatible (1.0x).
+            val speed: Float = DEFAULT_PLAYBACK_SPEED,
         )
 
         public suspend fun saveCurrentMediaItem(
@@ -101,6 +114,7 @@ public class PlayerPersistenceManager
                         "Stored current media item for resumption: position=${positionMs}ms",
                     )
                 } catch (e: Exception) {
+                    e.rethrowCancellation()
                     LogUtils.w("PlayerPersistence", "Failed to store current media item for resumption", e)
                 }
             }
@@ -127,6 +141,7 @@ public class PlayerPersistenceManager
                         "groupPath" to groupPath,
                     )
                 } catch (e: Exception) {
+                    e.rethrowCancellation()
                     LogUtils.w("PlayerPersistence", "Failed to retrieve last stored media item", e)
                     null
                 }
@@ -136,23 +151,7 @@ public class PlayerPersistenceManager
             withContext(Dispatchers.IO) {
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-                readVersionedSnapshot(prefs)?.let { return@withContext it }
-
-                val legacyJson = prefs.getString(LEGACY_KEY_PLAYER_STATE, null) ?: return@withContext null
-                val legacyState =
-                    runCatching { parseLegacySnapshot(legacyJson) }
-                        .getOrElse { error ->
-                            recordCorruption(
-                                prefs = prefs,
-                                reason = "legacy_snapshot_parse_failed",
-                                error = error,
-                            )
-                            prefs.edit().remove(LEGACY_KEY_PLAYER_STATE).apply()
-                            return@withContext null
-                        }
-
-                saveVersionedSnapshot(prefs = prefs, state = legacyState)
-                legacyState
+                readVersionedSnapshot(prefs)
             }
 
         public suspend fun savePersistedPlayerState(state: PersistedPlayerState): Unit =
@@ -161,6 +160,7 @@ public class PlayerPersistenceManager
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                     saveVersionedSnapshot(prefs = prefs, state = state)
                 } catch (e: Exception) {
+                    e.rethrowCancellation()
                     LogUtils.w("PlayerPersistence", "Failed to save persisted player snapshot", e)
                 }
             }
@@ -172,6 +172,7 @@ public class PlayerPersistenceManager
                 prefs.edit().putString("current_group_path", sanitizedPath).apply()
                 LogUtils.d("PlayerPersistence", "Saved groupPath to SharedPreferences")
             } catch (e: Exception) {
+                e.rethrowCancellation()
                 LogUtils.w("PlayerPersistence", "Failed to save groupPath to SharedPreferences", e)
             }
         }
@@ -181,41 +182,40 @@ public class PlayerPersistenceManager
             withContext(Dispatchers.IO) {
                 try {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    val json =
-                        JSONObject().apply {
-                            put("bookId", state.bookId)
-                            put("positionMs", state.positionMs)
-                            put("durationMs", state.durationMs)
-                            put("lastPlayedTimestamp", state.lastPlayedTimestamp)
-                            put("completedTimestamp", state.completedTimestamp)
-                            put("playCount", state.playCount)
-                            // We don't necessarily need filePaths in this light state
-                        }
-                    prefs.edit().putString("book_state_${state.bookId}", json.toString()).apply()
+                    prefs.edit().putString("book_state_${state.bookId}", PersistentJson.encodeToString(state)).apply()
                 } catch (e: Exception) {
+                    e.rethrowCancellation()
                     LogUtils.e("PlayerPersistence", "Failed to save player state", e)
                 }
             }
 
-        public suspend fun getPlayerState(bookId: String): PlayerState? =
+        public suspend fun getPlayerState(bookId: String): PlayerState? = getPlayerStates(listOf(bookId))[bookId]
+
+        /**
+         * Bulk variant of [getPlayerState]: one SharedPreferences snapshot instead of N reads.
+         * Books with no stored state (or undecodable state) are absent from the result.
+         */
+        public suspend fun getPlayerStates(bookIds: Collection<String>): Map<String, PlayerState> =
             withContext(Dispatchers.IO) {
                 try {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    val jsonString = prefs.getString("book_state_$bookId", null) ?: return@withContext null
-                    val json = JSONObject(jsonString)
-
-                    PlayerState(
-                        bookId = json.getString("bookId"),
-                        positionMs = json.optLong("positionMs", 0),
-                        durationMs = json.optLong("durationMs", 0),
-                        filePaths = emptyList(), // Not stored here
-                        lastPlayedTimestamp = json.optLong("lastPlayedTimestamp", 0),
-                        completedTimestamp = json.optLong("completedTimestamp", 0),
-                        playCount = json.optLong("playCount", 0),
-                    )
+                    val wanted = bookIds.toSet()
+                    buildMap {
+                        for (bookId in wanted) {
+                            try {
+                                val jsonString = prefs.getString("book_state_$bookId", null) ?: continue
+                                put(bookId, PersistentJson.decodeFromString<PlayerState>(jsonString))
+                            } catch (e: Exception) {
+                                e.rethrowCancellation()
+                                // Matches getPlayerState: undecodable entry behaves as "no state"
+                                LogUtils.e("PlayerPersistence", "Failed to get player state for bookId=$bookId", e)
+                            }
+                        }
+                    }
                 } catch (e: Exception) {
-                    LogUtils.e("PlayerPersistence", "Failed to get player state", e)
-                    null
+                    e.rethrowCancellation()
+                    LogUtils.e("PlayerPersistence", "Failed to get player states", e)
+                    emptyMap()
                 }
             }
 
@@ -318,26 +318,35 @@ public class PlayerPersistenceManager
                     error("filePaths is missing")
                 }
 
-                val filePathsArray = JSONArray(filePathsJson)
-                val filePaths =
-                    buildList {
-                        for (i in 0 until filePathsArray.length()) {
-                            add(filePathsArray.getString(i))
-                        }
-                    }
+                val filePaths = PersistentJson.decodeFromString<List<String>>(filePathsJson)
                 if (filePaths.isEmpty()) {
                     error("filePaths is empty")
                 }
 
                 val metadataJson = prefs.getString(KEY_PLAYBACK_SNAPSHOT_METADATA, null)
                 val metadata = parseMetadataJson(metadataJson)
+                val playlistItems =
+                    prefs
+                        .getString(KEY_PLAYBACK_SNAPSHOT_PLAYLIST_ITEMS, null)
+                        ?.let { PersistentJson.decodeFromString<List<PlaylistItem>>(it) }
+                        ?: filePaths.map(::PlaylistItem)
+                if (playlistItems.map(PlaylistItem::path) != filePaths) {
+                    error("playlistItems do not match filePaths")
+                }
 
                 PersistedPlayerState(
                     groupPath = groupPath,
                     filePaths = filePaths,
+                    playlistItems = playlistItems,
                     currentIndex = prefs.getInt(KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX, 0),
                     currentPosition = prefs.getLong(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION, 0L),
                     metadata = metadata,
+                    // Guard against corrupted/garbage values written by other app versions.
+                    speed =
+                        prefs
+                            .getFloat(KEY_PLAYBACK_SNAPSHOT_SPEED, DEFAULT_PLAYBACK_SPEED)
+                            .takeIf { it.isFinite() && it > 0f }
+                            ?: DEFAULT_PLAYBACK_SPEED,
                 )
             }.getOrElse { error ->
                 recordCorruption(
@@ -357,15 +366,17 @@ public class PlayerPersistenceManager
             val metadataJson =
                 state.metadata
                     ?.takeIf { it.isNotEmpty() }
-                    ?.let { JSONObject(it).toString() }
+                    ?.let { PersistentJson.encodeToString(it) }
             prefs
                 .edit()
                 .putInt(KEY_PLAYBACK_SNAPSHOT_VERSION, PLAYBACK_SNAPSHOT_VERSION_V1)
                 .putString(KEY_PLAYBACK_SNAPSHOT_GROUP_PATH, state.groupPath)
-                .putString(KEY_PLAYBACK_SNAPSHOT_FILE_PATHS, JSONArray(state.filePaths).toString())
+                .putString(KEY_PLAYBACK_SNAPSHOT_FILE_PATHS, PersistentJson.encodeToString(state.filePaths))
+                .putString(KEY_PLAYBACK_SNAPSHOT_PLAYLIST_ITEMS, PersistentJson.encodeToString(state.playlistItems))
                 .putInt(KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX, state.currentIndex)
                 .putLong(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION, state.currentPosition)
                 .putString(KEY_PLAYBACK_SNAPSHOT_METADATA, metadataJson)
+                .putFloat(KEY_PLAYBACK_SNAPSHOT_SPEED, state.speed)
                 .apply()
         }
 
@@ -375,49 +386,19 @@ public class PlayerPersistenceManager
                 .remove(KEY_PLAYBACK_SNAPSHOT_VERSION)
                 .remove(KEY_PLAYBACK_SNAPSHOT_GROUP_PATH)
                 .remove(KEY_PLAYBACK_SNAPSHOT_FILE_PATHS)
+                .remove(KEY_PLAYBACK_SNAPSHOT_PLAYLIST_ITEMS)
                 .remove(KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX)
                 .remove(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION)
                 .remove(KEY_PLAYBACK_SNAPSHOT_METADATA)
+                .remove(KEY_PLAYBACK_SNAPSHOT_SPEED)
                 .apply()
         }
 
-        private fun parseLegacySnapshot(legacyJson: String): PersistedPlayerState {
-            val json = JSONObject(legacyJson)
-            val groupPath = json.getString("groupPath")
-            val currentIndex = json.optInt("currentIndex", 0)
-            val currentPosition = json.optLong("currentPosition", 0L)
-            val filePathsJson = json.getJSONArray("filePaths")
-            val filePaths =
-                buildList {
-                    for (i in 0 until filePathsJson.length()) {
-                        add(filePathsJson.getString(i))
-                    }
-                }
-            if (filePaths.isEmpty()) {
-                error("legacy snapshot contains empty filePaths")
-            }
-
-            return PersistedPlayerState(
-                groupPath = groupPath,
-                filePaths = filePaths,
-                currentIndex = currentIndex,
-                currentPosition = currentPosition,
-                metadata = parseMetadataJson(json.optJSONObject("metadata")?.toString()),
-            )
-        }
-
         private fun parseMetadataJson(metadataJson: String?): Map<String, String>? {
-            if (metadataJson.isNullOrBlank()) {
-                return null
-            }
-            val metadataObject = JSONObject(metadataJson)
-            val metadata = mutableMapOf<String, String>()
-            val keys = metadataObject.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                metadata[key] = metadataObject.getString(key)
-            }
-            return metadata.ifEmpty { null }
+            if (metadataJson.isNullOrBlank()) return null
+            return runCatching {
+                PersistentJson.parseToJsonElement(metadataJson).jsonObject.mapValues { it.value.jsonPrimitive.content }
+            }.getOrNull()
         }
 
         private fun recordCorruption(
@@ -439,12 +420,13 @@ public class PlayerPersistenceManager
 /**
  * Lightweight state for backup and sorting
  */
+@Serializable
 public data class PlayerState(
-    val bookId: String,
-    val positionMs: Long,
-    val durationMs: Long,
-    val filePaths: List<String>,
-    val lastPlayedTimestamp: Long = 0L,
-    val completedTimestamp: Long = 0L,
-    val playCount: Long = 0L,
+    @SerialName("bookId") val bookId: String,
+    @SerialName("positionMs") val positionMs: Long,
+    @SerialName("durationMs") val durationMs: Long,
+    val filePaths: List<String> = emptyList(),
+    @SerialName("lastPlayedTimestamp") val lastPlayedTimestamp: Long = 0L,
+    @SerialName("completedTimestamp") val completedTimestamp: Long = 0L,
+    @SerialName("playCount") val playCount: Long = 0L,
 )

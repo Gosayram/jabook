@@ -17,6 +17,8 @@ package com.jabook.app.jabook.compose.data.backup
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
 import com.jabook.app.jabook.audio.PlayerPersistenceManager
 import com.jabook.app.jabook.compose.core.logger.NoOpLoggerFactory
 import com.jabook.app.jabook.compose.data.debug.DebugRuntimeOverrides
@@ -24,12 +26,16 @@ import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -37,6 +43,7 @@ import java.io.ByteArrayInputStream
 import java.lang.reflect.InvocationTargetException
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class BackupServiceTest {
     private val json = Json { prettyPrint = true }
 
@@ -108,16 +115,108 @@ class BackupServiceTest {
         assertEquals(payload, decoded)
     }
 
+    @Test
+    fun `importFromFile propagates cancellation instead of continuing a partial restore`() {
+        val context: Context = mock()
+        val contentResolver: ContentResolver = mock()
+        whenever(context.contentResolver).thenReturn(contentResolver)
+        whenever(contentResolver.openInputStream(Uri.parse("content://jabook/backup")))
+            .thenReturn(ByteArrayInputStream(json.encodeToString(testBackupData()).toByteArray()))
+        val cancellation = CancellationException("Import cancelled")
+        val userPreferencesRepository: UserPreferencesRepository = mock()
+        kotlinx.coroutines.runBlocking {
+            doThrow(cancellation)
+                .whenever(userPreferencesRepository)
+                .setTheme(org.mockito.kotlin.any())
+        }
+
+        val service =
+            createService(
+                context = context,
+                backupRuntimeSecurity = mock(),
+                userPreferencesRepository = userPreferencesRepository,
+            )
+
+        assertThrows(CancellationException::class.java) {
+            kotlinx.coroutines.runBlocking {
+                service.importFromFile(Uri.parse("content://jabook/backup"))
+            }
+        }
+    }
+
+    @Test
+    fun `importFromFile rolls back book writes when restoring player state is cancelled`() {
+        val context: Context = mock()
+        val contentResolver: ContentResolver = mock()
+        whenever(context.contentResolver).thenReturn(contentResolver)
+        val backup =
+            testBackupData().copy(
+                bookMetadata =
+                    listOf(
+                        BookBackup(
+                            id = "book-id",
+                            title = "Book",
+                            author = "Author",
+                        ),
+                    ),
+            )
+        whenever(contentResolver.openInputStream(Uri.parse("content://jabook/backup")))
+            .thenReturn(ByteArrayInputStream(json.encodeToString(backup).toByteArray()))
+        val database =
+            Room
+                .inMemoryDatabaseBuilder(
+                    ApplicationProvider.getApplicationContext(),
+                    JabookDatabase::class.java,
+                ).build()
+        val playerPersistenceManager: PlayerPersistenceManager = mock()
+        kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+            doThrow(CancellationException("Import cancelled"))
+                .whenever(playerPersistenceManager)
+                .savePlayerState(org.mockito.kotlin.any())
+        }
+
+        try {
+            val service =
+                createService(
+                    context = context,
+                    backupRuntimeSecurity = mock(),
+                    database = database,
+                    playerPersistenceManager = playerPersistenceManager,
+                )
+
+            assertThrows(CancellationException::class.java) {
+                kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                    service.importFromFile(Uri.parse("content://jabook/backup"))
+                }
+            }
+
+            assertTrue(
+                kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                    database
+                        .booksDao()
+                        .getAllBooksFlow()
+                        .first()
+                        .isEmpty()
+                },
+            )
+        } finally {
+            database.close()
+        }
+    }
+
     private fun createService(
         context: Context,
         backupRuntimeSecurity: BackupRuntimeSecurity,
+        userPreferencesRepository: UserPreferencesRepository = mock(),
+        database: JabookDatabase = mock(),
+        playerPersistenceManager: PlayerPersistenceManager = mock(),
     ): BackupService =
         BackupService(
             context = context,
-            database = mock<JabookDatabase>(),
-            userPreferencesRepository = mock<UserPreferencesRepository>(),
+            database = database,
+            userPreferencesRepository = userPreferencesRepository,
             protoSettingsRepository = mock<ProtoSettingsRepository>(),
-            playerPersistenceManager = mock<PlayerPersistenceManager>(),
+            playerPersistenceManager = playerPersistenceManager,
             mirrorManager = mock<MirrorManager>(),
             backupRuntimeSecurity = backupRuntimeSecurity,
             debugRuntimeOverrides = mock<DebugRuntimeOverrides>(),
@@ -151,7 +250,7 @@ class BackupServiceTest {
                     playbackSpeed = 1.0f,
                     wifiOnlyDownload = false,
                     downloadPath = "/storage/emulated/0/Books",
-                    currentMirror = "rutracker.org",
+                    currentMirror = "mirror.example",
                     autoSwitchMirror = true,
                 ),
             bookMetadata = emptyList(),

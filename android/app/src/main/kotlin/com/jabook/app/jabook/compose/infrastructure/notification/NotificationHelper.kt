@@ -18,7 +18,6 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.os.Build
 import androidx.core.app.NotificationCompat
 
 /**
@@ -42,36 +41,36 @@ public object NotificationHelper {
      * @param context Application context
      */
     public fun createNotificationChannels(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-            // Downloads channel
-            val downloadsChannel =
-                NotificationChannel(
-                    CHANNEL_DOWNLOADS,
-                    "Downloads",
-                    NotificationManager.IMPORTANCE_LOW,
-                ).apply {
-                    description = "Book download progress and completion"
-                    setShowBadge(false)
-                }
+        // Downloads channel
+        // Android 8+ freezes importance after first creation; changing it later requires
+        // a NEW channel id (migration), not editing IMPORTANCE_LOW here.
+        val downloadsChannel =
+            NotificationChannel(
+                CHANNEL_DOWNLOADS,
+                context.getString(com.jabook.app.jabook.R.string.notification_channel_downloads),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = context.getString(com.jabook.app.jabook.R.string.notification_channel_downloads_desc)
+                setShowBadge(false)
+            }
 
-            // Player channel (for media playback notifications)
-            val playerChannel =
-                NotificationChannel(
-                    CHANNEL_PLAYER,
-                    "Audio Player",
-                    NotificationManager.IMPORTANCE_LOW,
-                ).apply {
-                    description = "Audio playback controls and status"
-                    setShowBadge(false)
-                }
+        // Player channel (for media playback notifications)
+        val playerChannel =
+            NotificationChannel(
+                CHANNEL_PLAYER,
+                context.getString(com.jabook.app.jabook.R.string.notification_channel_player),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = context.getString(com.jabook.app.jabook.R.string.notification_channel_player_desc)
+                setShowBadge(false)
+            }
 
-            notificationManager.createNotificationChannels(
-                listOf(downloadsChannel, playerChannel),
-            )
-        }
+        notificationManager.createNotificationChannels(
+            listOf(downloadsChannel, playerChannel),
+        )
     }
 
     /**
@@ -89,8 +88,8 @@ public object NotificationHelper {
     ): Notification =
         NotificationCompat
             .Builder(context, CHANNEL_DOWNLOADS)
-            .setContentTitle("Downloading: $bookTitle")
-            .setContentText("$progress% complete")
+            .setContentTitle(context.getString(com.jabook.app.jabook.R.string.downloading_book, bookTitle))
+            .setContentText(context.getString(com.jabook.app.jabook.R.string.download_progress_percent, progress))
             .setProgress(100, progress, false)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setOngoing(true)
@@ -110,7 +109,7 @@ public object NotificationHelper {
     ): Notification =
         NotificationCompat
             .Builder(context, CHANNEL_DOWNLOADS)
-            .setContentTitle("Download complete")
+            .setContentTitle(context.getString(com.jabook.app.jabook.R.string.downloadComplete))
             .setContentText(bookTitle)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -132,7 +131,7 @@ public object NotificationHelper {
     ): Notification =
         NotificationCompat
             .Builder(context, CHANNEL_DOWNLOADS)
-            .setContentTitle("Download failed: $bookTitle")
+            .setContentTitle(context.getString(com.jabook.app.jabook.R.string.downloadFailed, bookTitle))
             .setContentText(error)
             .setSmallIcon(android.R.drawable.stat_notify_error)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)

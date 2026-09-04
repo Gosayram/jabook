@@ -18,6 +18,7 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
+import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -82,8 +83,14 @@ public class OnboardingViewModel
 
         public fun finishOnboarding() {
             viewModelScope.launch {
-                userPreferencesRepository.setOnboardingCompleted(true)
-                _uiState.value = _uiState.value.copy(isFinished = true)
+                val persisted = userPreferencesRepository.setOnboardingCompleted(true)
+                if (persisted) {
+                    _uiState.value = _uiState.value.copy(isFinished = true)
+                } else {
+                    // Keep onboarding visible so the user can retry; otherwise the
+                    // flag would silently reset and onboarding reappears next launch.
+                    LogUtils.w("OnboardingViewModel", "Failed to persist onboarding completion")
+                }
             }
         }
     }

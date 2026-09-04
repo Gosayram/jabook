@@ -25,6 +25,7 @@ import com.jabook.app.jabook.compose.domain.model.CaptchaData
 import com.jabook.app.jabook.compose.domain.model.UserCredentials
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.repository.CaptchaRequiredException
+import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +34,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -56,12 +58,15 @@ public class AuthRepositoryImpl
 
         private val scope =
             kotlinx.coroutines.CoroutineScope(
-                kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO,
+                kotlinx.coroutines.SupervisorJob() +
+                    kotlinx.coroutines.Dispatchers.IO +
+                    kotlinx.coroutines.CoroutineExceptionHandler { _, e ->
+                        LogUtils.e("AuthRepository", "Coroutine exception", e)
+                    },
             )
 
         /**
          * Mutex to prevent concurrent login attempts.
-         * Based on Flutter's _isLoggingIn pattern.
          */
         private val loginMutex = Mutex()
 
@@ -98,17 +103,9 @@ public class AuthRepositoryImpl
 
                 if (isValid) {
                     val stored = secureStorage.getCredentials()
-                    // CRITICAL: Only show authenticated if we have stored credentials with username
-                    // If no credentials stored, user is not actually authenticated
-                    if (stored != null && stored.username.isNotBlank()) {
-                        _authStatus.value = AuthStatus.Authenticated(stored.username)
-                        syncCookiesToWebView()
-                    } else {
-                        // Session cookie exists but no stored credentials - invalid state
-                        logger.w { "Session cookie exists but no stored credentials - clearing session" }
-                        cookieJar.clear()
-                        _authStatus.value = AuthStatus.Unauthenticated
-                    }
+                    // WebView login deliberately never exposes or stores the entered password.
+                    // A server-validated session is sufficient to be authenticated.
+                    _authStatus.value = AuthStatus.Authenticated(stored?.username?.takeIf { it.isNotBlank() } ?: "User")
                 } else {
                     // Cookies present but invalid (expired or guest mode)
                     logger.d { "Session expired or invalid, attempting re-login if credentials exist" }
@@ -150,13 +147,14 @@ public class AuthRepositoryImpl
         }
 
         override suspend fun login(credentials: UserCredentials): Result<Boolean> {
+            useTrustedAuthenticationMirror()
             // Check if login is already in progress
-            if (loginMutex.isLocked) {
+            if (!loginMutex.tryLock()) {
                 logger.w { "Login already in progress, ignoring duplicate request" }
                 return Result.failure(IllegalStateException("Login already in progress"))
             }
 
-            return loginMutex.withLock {
+            return try {
                 try {
                     val operationId: String = "login_${System.currentTimeMillis()}"
                     logger.d { "[$operationId] Login attempt started" }
@@ -173,7 +171,7 @@ public class AuthRepositoryImpl
                                         AuthStatus.Error(
                                             "Таймаут при проверке авторизации. Возможно, провайдер блокирует соединение.",
                                         )
-                                    return@withLock Result.failure(Exception("Authentication validation timeout"))
+                                    return Result.failure(Exception("Authentication validation timeout"))
                                 } catch (e: CancellationException) {
                                     throw e
                                 } catch (e: Exception) {
@@ -222,6 +220,8 @@ public class AuthRepositoryImpl
                     _authStatus.value = AuthStatus.Error(e.message ?: "Unknown error")
                     Result.failure(e)
                 }
+            } finally {
+                loginMutex.unlock()
             }
         }
 
@@ -230,13 +230,14 @@ public class AuthRepositoryImpl
             captchaCode: String,
             captchaData: CaptchaData,
         ): Result<Boolean> {
+            useTrustedAuthenticationMirror()
             // Check if login is already in progress
-            if (loginMutex.isLocked) {
+            if (!loginMutex.tryLock()) {
                 logger.w { "Captcha login already in progress, ignoring duplicate request" }
                 return Result.failure(IllegalStateException("Login already in progress"))
             }
 
-            return loginMutex.withLock {
+            return try {
                 try {
                     val operationId: String = "login_captcha_${System.currentTimeMillis()}"
                     logger.d { "[$operationId] Captcha login attempt started" }
@@ -283,17 +284,27 @@ public class AuthRepositoryImpl
                     logger.e({ "Captcha login exception" }, e)
                     Result.failure(e)
                 }
+            } finally {
+                loginMutex.unlock()
             }
         }
 
         override suspend fun logout() {
-            cookieJar.clear()
-            secureStorage.clearCredentials()
-            _authStatus.value = AuthStatus.Unauthenticated
+            loginMutex.withLock {
+                cookieJar.clear()
+                secureStorage.clearCredentials()
+                cookiePersistence.clearWebViewSession(rutrackerUrl.toString())
+                _authStatus.value = AuthStatus.Unauthenticated
+            }
+        }
+
+        private suspend fun useTrustedAuthenticationMirror() {
+            if (mirrorManager.currentMirror.value !in MirrorManager.DEFAULT_MIRRORS) {
+                mirrorManager.setMirror(MirrorManager.DEFAULT_MIRRORS.first())
+            }
         }
 
         override suspend fun isLoggedIn(): Boolean {
-            // Also refresh status
             checkAuthStatus()
             return _authStatus.value is AuthStatus.Authenticated
         }
@@ -308,14 +319,42 @@ public class AuthRepositoryImpl
 
         override suspend fun getStoredCredentials(): UserCredentials? = secureStorage.getCredentials()
 
-        override suspend fun syncCookiesFromWebView() {
-            val url = rutrackerUrl.toString()
+        override suspend fun syncCookiesFromWebView(url: String?) {
+            // Use actual WebView URL if provided, fallback to base mirror URL
+            val primaryUrl = url ?: rutrackerUrl.toString()
+            val baseMirrorUrl = rutrackerUrl.toString()
 
-            // Use CookiePersistenceManager to sync from WebView to all layers
-            cookiePersistence.syncCookiesFromWebView(url)
+            // Try with actual WebView URL first
+            cookiePersistence.syncCookiesFromWebView(primaryUrl)
 
-            // Refresh auth status immediately
-            checkAuthStatus()
+            // Also try base mirror URL as fallback (cookies may have been set before redirect)
+            if (primaryUrl != baseMirrorUrl) {
+                cookiePersistence.syncCookiesFromWebView(baseMirrorUrl)
+            }
+
+            // Check bb_session presence directly — no HTTP validation (Cloudflare blocks it)
+            val cookies = cookieJar.loadForRequest(rutrackerUrl)
+            val hasSession = cookies.any { it.name == "bb_session" }
+            if (hasSession) {
+                val stored = secureStorage.getCredentials()
+                var username = stored?.username?.takeIf { it.isNotBlank() } ?: "User"
+
+                // Fetch real username from forum page (best-effort)
+                val fetched =
+                    try {
+                        authService.fetchUsername()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        logger.d { "Username fetch failed during cookie sync: ${e.message}" }
+                        null
+                    }
+                if (fetched != null) {
+                    username = fetched
+                }
+
+                _authStatus.value = AuthStatus.Authenticated(username)
+            }
         }
 
         override suspend fun syncCookiesToWebView() {
@@ -345,32 +384,28 @@ public class AuthRepositoryImpl
             cookieManager.flush()
         }
 
-        private fun parseCookieString(
-            url: String,
-            cookieHeader: String,
-        ): List<okhttp3.Cookie> {
-            val cookies = mutableListOf<okhttp3.Cookie>()
-            val httpUrl = url.toHttpUrl()
-            cookieHeader.split(";").forEach { pair ->
-                // Format: name=value
-                // WebView cookies don't have detailed attributes in getCookie() result (only name=value)
-                // We assume domain is the url host and path is /
-                val parts = pair.trim().split("=", limit = 2)
-                if (parts.size == 2) {
-                    val name = parts[0]
-                    val value = parts[1]
-                    val cookie =
-                        okhttp3.Cookie
-                            .Builder()
-                            .name(name)
-                            .value(value)
-                            .domain(httpUrl.host)
-                            .path("/")
-                            .build()
-                    cookies.add(cookie)
-                }
+        override suspend fun syncCookiesToWebView(url: String) {
+            val httpUrl = url.toHttpUrlOrNull() ?: return
+            val cookies = cookieJar.loadForRequest(httpUrl)
+            if (cookies.isEmpty()) return
+
+            val cookieManager = android.webkit.CookieManager.getInstance()
+            cookieManager.setAcceptCookie(true)
+
+            val domain = if (httpUrl.host.startsWith(".")) httpUrl.host else ".${httpUrl.host}"
+
+            cookies.forEach { cookie ->
+                val cookieString =
+                    buildString {
+                        append("${cookie.name}=${cookie.value}")
+                        append("; Domain=$domain")
+                        append("; Path=/")
+                        if (cookie.secure) append("; Secure")
+                        if (cookie.httpOnly) append("; HttpOnly")
+                    }
+                cookieManager.setCookie(url, cookieString)
             }
-            return cookies
+            cookieManager.flush()
         }
 
         override suspend fun clearStoredCredentials() {

@@ -19,6 +19,7 @@ import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 /**
@@ -32,7 +33,7 @@ import javax.inject.Inject
  * - [AudioPlayerService.onTaskRemoved]
  * - Before process death signals
  *
- * For normal periodic saving, use [PositionSaver] or [AutoSaveManager] instead.
+ * For normal periodic saving, use [PeriodicPositionSaver] instead.
  *
  * @param positionRepository Room-backed repository for playback positions
  */
@@ -72,24 +73,35 @@ internal class CrashSafePositionWriter
             }
 
             return try {
+                // Bounded blocking write: crash-safety needs synchronous completion in
+                // onDestroy/onTaskRemoved, but an unbounded main-thread block is an ANR
+                // under DB contention. Timeout loses the position; ANR kills the process.
+                // withTimeoutOrNull distinguishes timeout (null) from a real DB error.
                 val result =
                     runBlocking(Dispatchers.IO) {
-                        positionRepository.savePosition(
-                            bookId = bookId,
-                            trackIndex = trackIndex,
-                            position = positionMs,
-                        )
+                        withTimeoutOrNull(2_000) {
+                            positionRepository.savePosition(
+                                bookId = bookId,
+                                trackIndex = trackIndex,
+                                position = positionMs,
+                            )
+                        }
                     }
-                when (result) {
-                    is Result.Success -> {
+                when {
+                    result == null -> {
+                        // Timeout — position is stale but process stays alive; no misleading ERROR log.
+                        LogUtils.w(TAG, "Crash-safe position write TIMED OUT for book=$bookId")
+                        false
+                    }
+                    result is Result.Success -> {
                         LogUtils.d(TAG, "Crash-safe position written: book=$bookId, track=$trackIndex, pos=${positionMs}ms")
                         true
                     }
-                    is Result.Error -> {
+                    result is Result.Error -> {
                         LogUtils.e(TAG, "Crash-safe position write FAILED for book=$bookId", result.exception)
                         false
                     }
-                    is Result.Loading -> {
+                    else -> {
                         // Should not happen for a synchronous operation
                         LogUtils.w(TAG, "Crash-safe position write returned Loading state")
                         false

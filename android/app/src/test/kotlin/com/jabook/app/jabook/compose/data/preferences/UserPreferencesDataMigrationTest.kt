@@ -23,6 +23,20 @@ class UserPreferencesDataMigrationTest {
     private val migration = UserPreferencesDataMigration()
 
     @Test
+    fun `serializer default is a fully initialized latest schema`() {
+        val defaults = UserPreferencesSerializer.defaultValue
+
+        assertEquals(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION, defaults.schemaVersion)
+        assertEquals(1.0f, defaults.playbackSpeed)
+        assertEquals(15, defaults.rewindDurationSeconds)
+        assertEquals(30, defaults.forwardDurationSeconds)
+        assertEquals(ResumeRewindMode.SMART, defaults.resumeRewindMode)
+        assertEquals(2.5f, defaults.holdToBoostSpeed)
+        assertTrue(defaults.autoLoadCoversOnCellular)
+        assertTrue(defaults.hapticsEnabled)
+    }
+
+    @Test
     fun `shouldMigrate returns true for legacy schema`() =
         runTest {
             val legacy =
@@ -98,5 +112,84 @@ class UserPreferencesDataMigrationTest {
 
             assertEquals(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION, migrated.schemaVersion)
             assertEquals(2.5f, migrated.holdToBoostSpeed)
+        }
+
+    @Test
+    fun `migrate applies audio visualizer default to schema five payload`() =
+        runTest {
+            val schemaFive =
+                UserPreferences
+                    .newBuilder()
+                    .setSchemaVersion(5)
+                    .build()
+
+            val migrated = migration.migrate(schemaFive)
+
+            assertEquals(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION, migrated.schemaVersion)
+            assertEquals(0, migrated.audioVisualizerMode)
+        }
+
+    @Test
+    fun `migrate enables haptics for schema six data that predates its explicit default`() =
+        runTest {
+            val schemaSix =
+                UserPreferences
+                    .newBuilder()
+                    .setSchemaVersion(6)
+                    .setHapticsEnabled(false)
+                    .build()
+
+            val migrated = migration.migrate(schemaSix)
+
+            assertEquals(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION, migrated.schemaVersion)
+            assertTrue(migrated.hapticsEnabled)
+        }
+
+    @Test
+    fun `migrate seeds legacy true defaults for schema seven data`() =
+        runTest {
+            val schemaSeven =
+                UserPreferences
+                    .newBuilder()
+                    .setSchemaVersion(7)
+                    .build()
+
+            val migrated = migration.migrate(schemaSeven)
+
+            assertEquals(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION, migrated.schemaVersion)
+            assertTrue(migrated.autoPlayNext)
+            assertTrue(migrated.pitchCorrectionEnabled)
+        }
+
+    @Test
+    fun `migrate enables shake to extend for schema eight data that predates the field`() =
+        runTest {
+            val schemaEight =
+                UserPreferences
+                    .newBuilder()
+                    .setSchemaVersion(8)
+                    .build()
+
+            val migrated = migration.migrate(schemaEight)
+
+            assertEquals(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION, migrated.schemaVersion)
+            assertTrue(migrated.hasSleepTimerShakeExtendEnabled())
+            assertTrue(migrated.sleepTimerShakeExtendEnabled)
+        }
+
+    @Test
+    fun `migrate preserves explicit shake to extend false`() =
+        runTest {
+            val optedOut =
+                UserPreferences
+                    .newBuilder()
+                    .setSchemaVersion(8)
+                    .setSleepTimerShakeExtendEnabled(false)
+                    .build()
+
+            val migrated = migration.migrate(optedOut)
+
+            assertTrue(migrated.hasSleepTimerShakeExtendEnabled())
+            assertEquals(false, migrated.sleepTimerShakeExtendEnabled)
         }
 }

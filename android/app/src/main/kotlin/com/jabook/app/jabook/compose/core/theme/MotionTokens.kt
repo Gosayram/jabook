@@ -22,19 +22,31 @@ import androidx.compose.animation.core.Easing
  *
  * Keep all canonical durations/easings here to avoid hardcoded animation values
  * spread across screens.
+ * ponytail: fallback for non-scheme cases (shimmer/rotation infinite) — scheme springs via MaterialTheme.motionScheme elsewhere
  */
 public object MotionTokens {
     public const val SHORT1: Int = 50
     public const val SHORT2: Int = 100
-    public const val MEDIUM1: Int = 200
+    public const val SHORT3: Int = 150
+    public const val SHORT4: Int = 200
+    public const val MEDIUM1: Int = 250
     public const val MEDIUM2: Int = 300
-    public const val LONG1: Int = 400
+    public const val MEDIUM3: Int = 350
+    public const val MEDIUM4: Int = 400
+    public const val LONG1: Int = 450
     public const val LONG2: Int = 500
+    public const val LONG3: Int = 550
+    public const val LONG4: Int = 600
+    public const val EXTRA_LONG1: Int = 700
+    public const val EXTRA_LONG2: Int = 800
+    public const val EXTRA_LONG3: Int = 900
+    public const val EXTRA_LONG4: Int = 1000
 
     /** M3 Standard easing — used for short and medium transitions (chips, toggles, FAB). */
     public val Standard: Easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
-    /** M3 Emphasized easing — primary easing for medium/long transitions. */
+    // ponytail: true M3 Emphasized is multi-point PathInterpolator(0.05,0,0.1333,0.06,0.1666,0.4,0.2083,0.82,0.25,1) with no CSS equivalent — Web/Compose fallback is Standard curve
+    /** M3 Emphasized easing — primary easing for medium/long transitions (fallback to Standard on Compose/Web). */
     public val Emphasized: CubicBezierEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
     /** M3 Emphasized Decelerate — for incoming elements (hero, shared element). */

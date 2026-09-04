@@ -19,8 +19,15 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
+import org.robolectric.RobolectricTestRunner
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
+@RunWith(RobolectricTestRunner::class)
 class ForegroundNotificationCoordinatorTest {
     @Test
     fun `primary start succeeds without fallback`() {
@@ -217,5 +224,49 @@ class ForegroundNotificationCoordinatorTest {
         assertEquals(ForegroundStartResult.FAILED, first)
         assertEquals(ForegroundStartResult.PRIMARY_STARTED, retry)
         assertEquals(2, startCallCount)
+    }
+
+    @Test
+    fun `concurrent promote requests for same notification only start once`() {
+        val primary: Notification = mock()
+        val firstPromotionEntered = CountDownLatch(1)
+        val allowFirstPromotionToFinish = CountDownLatch(1)
+        val promotionCalls = AtomicInteger(0)
+        val executor = Executors.newFixedThreadPool(2)
+
+        try {
+            val coordinator =
+                ForegroundNotificationCoordinator(
+                    startForegroundCall = { _, _ ->
+                        if (promotionCalls.incrementAndGet() == 1) {
+                            firstPromotionEntered.countDown()
+                            check(allowFirstPromotionToFinish.await(1, TimeUnit.SECONDS))
+                        }
+                    },
+                    repromotePolicy =
+                        ForegroundRepromotePolicy(
+                            nowMsProvider = { 1_000L },
+                            minIntervalMs = 5_000L,
+                        ),
+                )
+
+            val first =
+                executor.submit<ForegroundStartResult> {
+                    coordinator.startWithFallback(7, primary, { mock() }, "first")
+                }
+            assertTrue(firstPromotionEntered.await(1, TimeUnit.SECONDS))
+            val second =
+                executor.submit<ForegroundStartResult> {
+                    coordinator.startWithFallback(7, primary, { mock() }, "second")
+                }
+
+            allowFirstPromotionToFinish.countDown()
+
+            assertEquals(ForegroundStartResult.PRIMARY_STARTED, first.get(1, TimeUnit.SECONDS))
+            assertEquals(ForegroundStartResult.SKIPPED, second.get(1, TimeUnit.SECONDS))
+            assertEquals(1, promotionCalls.get())
+        } finally {
+            executor.shutdownNow()
+        }
     }
 }

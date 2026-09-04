@@ -18,7 +18,6 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import android.os.Handler
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.jabook.app.jabook.util.LogUtils
@@ -27,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * Manages network fallback to lower quality streams when network conditions degrade.
@@ -98,7 +98,7 @@ public class NetworkFallbackManager(
 
     private fun handleNetworkLost() {
         LogUtils.w(TAG, "Network lost, pausing playback")
-        Handler(player.applicationLooper).post { player.playWhenReady = false }
+        scope.launch { player.playWhenReady = false }
     }
 
     private fun switchToFallbackQuality() {

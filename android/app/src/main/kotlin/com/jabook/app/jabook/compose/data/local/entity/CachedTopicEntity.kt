@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -23,17 +24,19 @@ import com.jabook.app.jabook.compose.data.remote.model.SearchResult
  * Normalized entity for storing topic (audiobook) information.
  * Acts as the single source of truth for topic details.
  *
- * Optimization: magnetUrl, torrentUrl, and coverUrl are NOT stored during indexing
- * to reduce index size and improve indexing speed. These fields are retrieved
- * in real-time when opening a topic via getTopicDetails().
+ * torrentUrl and coverUrl are NOT stored during indexing to reduce index size.
+ * magnetUrl IS stored — it's short and enables offline "found → download" without site visit.
+ * These fields are retrieved in real-time when opening a topic via getTopicDetails().
  *
  * Fields stored in index (for search):
  * - topicId, title, author, category (required for search)
  * - size, seeders, leechers (for filtering and sorting)
+ * - magnetUrl (short hash+trackers string, enables offline flow)
  *
  * Fields NOT stored (retrieved on-demand):
- * - magnetUrl, torrentUrl, coverUrl (retrieved via getTopicDetails())
+ * - torrentUrl, coverUrl (retrieved via getTopicDetails())
  */
+@Keep
 @Entity(
     tableName = "cached_topics",
     indices = [
@@ -41,6 +44,7 @@ import com.jabook.app.jabook.compose.data.remote.model.SearchResult
         androidx.room.Index(value = ["author"]), // For fast author search
         androidx.room.Index(value = ["timestamp"]), // For sorting by date
         androidx.room.Index(value = ["seeders"]), // For sorting by popularity
+        androidx.room.Index(value = ["last_updated"]), // For getTopicsNeedingUpdate()
     ],
 )
 public data class CachedTopicEntity(
@@ -76,12 +80,14 @@ public data class CachedTopicEntity(
 )
 
 /**
- * Maps domain SearchResult to CachedTopicEntity.
+ * Maps SearchResult to CachedTopicEntity for index persistence.
  *
- * Optimization: magnetUrl, torrentUrl, and coverUrl are NOT saved during indexing
- * to reduce index size. These will be retrieved on-demand via getTopicDetails().
+ * Note: torrentUrl and coverUrl are NOT saved during indexing
+ * to minimize DB size. Retrieve these on-demand via getTopicDetails().
+ * magnetUrl IS saved — it's short (hash + trackers) and enables
+ * fully offline "found → started download" without visiting the site.
  *
- * @param indexVersion Version of index when this was indexed (default: 1)
+ * @param indexVersion Schema version of this indexed record
  */
 public fun SearchResult.toCachedTopicEntity(indexVersion: Int = 1): CachedTopicEntity {
     val now = System.currentTimeMillis()
@@ -93,8 +99,7 @@ public fun SearchResult.toCachedTopicEntity(indexVersion: Int = 1): CachedTopicE
         size = size,
         seeders = seeders,
         leechers = leechers,
-        // Do NOT save these fields during indexing - retrieve on-demand
-        magnetUrl = null,
+        magnetUrl = magnetUrl,
         torrentUrl = null,
         coverUrl = null,
         timestamp = now,
@@ -106,7 +111,7 @@ public fun SearchResult.toCachedTopicEntity(indexVersion: Int = 1): CachedTopicE
 /**
  * Maps CachedTopicEntity back to domain SearchResult.
  *
- * Note: magnetUrl, torrentUrl, and coverUrl will be null from index.
+ * Note: magnetUrl is available from index. torrentUrl and coverUrl will be null.
  * These should be retrieved on-demand via getTopicDetails() when needed.
  */
 public fun CachedTopicEntity.toSearchResult(): SearchResult =

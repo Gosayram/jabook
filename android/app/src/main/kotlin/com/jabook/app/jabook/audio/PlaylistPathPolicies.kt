@@ -17,13 +17,6 @@ package com.jabook.app.jabook.audio
 import android.net.Uri
 import java.io.File
 
-internal enum class MediaDataSourceRoute {
-    NETWORK_CACHED,
-    LOCAL_FILE,
-    LOCAL_CONTENT,
-    DEFAULT,
-}
-
 internal fun buildPlaybackUri(path: String): Uri {
     val isUrl = path.startsWith("http://") || path.startsWith("https://")
     if (isUrl || path.startsWith("content://") || path.startsWith("file://")) {
@@ -33,48 +26,40 @@ internal fun buildPlaybackUri(path: String): Uri {
     return Uri.fromFile(File(path))
 }
 
-internal fun resolveMediaDataSourceRoute(uri: Uri): MediaDataSourceRoute =
-    when (uri.scheme) {
-        "http",
-        "https",
-        -> MediaDataSourceRoute.NETWORK_CACHED
-
-        "file",
-        null,
-        -> MediaDataSourceRoute.LOCAL_FILE
-
-        "content",
-        -> MediaDataSourceRoute.LOCAL_CONTENT
-
-        else -> MediaDataSourceRoute.DEFAULT
-    }
-
 /**
- * Sorts file paths based on numeric prefix in file name.
- * Example: "01.mp3" < "2.mp3" < "10.mp3".
+ * Sorts file paths using natural sort order (numeric-aware).
+ * Example: "Глава 2.mp3" < "Глава 10.mp3" < "Глава 100.mp3".
+ * Falls back to lexicographic comparison when segments are non-numeric.
  */
-internal fun sortFilesByNumericPrefix(filePaths: List<String>): List<String> {
-    val numericPrefixRegex = Regex("^(\\d+)")
+internal fun sortFilesByNumericPrefix(filePaths: List<String>): List<String> = filePaths.sortedWith(NaturalOrderComparator)
 
-    return filePaths.sortedWith(
-        Comparator { path1, path2 ->
-            val name1 = path1.substringAfterLast('/')
-            val name2 = path2.substringAfterLast('/')
+private val segmentRegex = Regex("\\d+|\\D+")
 
-            val match1 = numericPrefixRegex.find(name1)
-            val match2 = numericPrefixRegex.find(name2)
+private object NaturalOrderComparator : Comparator<String> {
+    override fun compare(
+        a: String,
+        b: String,
+    ): Int {
+        val nameA = a.substringAfterLast('/')
+        val nameB = b.substringAfterLast('/')
 
-            if (match1 != null && match2 != null) {
-                val num1 = match1.groupValues[1].toLongOrNull() ?: 0L
-                val num2 = match2.groupValues[1].toLongOrNull() ?: 0L
+        val segsA = segmentRegex.findAll(nameA).map { it.value }.toList()
+        val segsB = segmentRegex.findAll(nameB).map { it.value }.toList()
 
-                val numberComparison = num1.compareTo(num2)
-                if (numberComparison != 0) {
-                    return@Comparator numberComparison
+        for (i in 0 until maxOf(segsA.size, segsB.size)) {
+            val sa = segsA.getOrNull(i) ?: return -1
+            val sb = segsB.getOrNull(i) ?: return 1
+
+            val na = sa.toLongOrNull()
+            val nb = sb.toLongOrNull()
+
+            val cmp =
+                when {
+                    na != null && nb != null -> na.compareTo(nb)
+                    else -> sa.compareTo(sb, ignoreCase = true)
                 }
-            }
-
-            name1.compareTo(name2, ignoreCase = true)
-        },
-    )
+            if (cmp != 0) return cmp
+        }
+        return 0
+    }
 }

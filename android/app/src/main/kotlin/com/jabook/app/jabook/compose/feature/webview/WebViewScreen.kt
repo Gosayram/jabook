@@ -15,16 +15,22 @@
 package com.jabook.app.jabook.compose.feature.webview
 
 import android.graphics.Bitmap
+import android.net.http.SslError
+import android.webkit.SslErrorHandler
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -35,27 +41,32 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.dropUnlessResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.navigation.WebViewRoute
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
  * WebView screen for displaying web content.
@@ -81,24 +92,43 @@ public fun WebViewScreen(
     modifier: Modifier = Modifier,
     viewModel: WebViewViewModel = hiltViewModel(),
 ) {
-    // Decode URL from navigation argument
-    val url =
-        remember(route.url) {
-            URLDecoder.decode(route.url, StandardCharsets.UTF_8.toString())
-        }
+    val context = LocalContext.current
+    // Navigation already decoded the argument; only reject malformed URLs.
+    val url = remember(route.url) { sanitizeWebViewUrl(route.url) }
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
+
+    LaunchedEffect(url) {
+        if (url == null) safeNavigateBack()
+    }
 
     var webView by remember { mutableStateOf<WebView?>(null) }
     var pageTitle by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var loadingProgress by remember { mutableFloatStateOf(0f) }
     var canGoBack by remember { mutableStateOf(false) }
+    var isCapturingSession by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var currentWebViewUrl by remember { mutableStateOf("") }
 
     // Handle back button - navigate in WebView if possible
     BackHandler(enabled = canGoBack) {
         webView?.goBack()
+    }
+
+    // First load: reject untrusted deep-link URLs, then seed cookies before loading.
+    LaunchedEffect(webView, url) {
+        val view = webView
+        if (url == null || view == null) return@LaunchedEffect
+        if (url.isNotEmpty() && !viewModel.isTrustedAuthenticationUrl(url)) {
+            // Untrusted initial URL: never load arbitrary content with JS enabled.
+            safeNavigateBack()
+        } else {
+            val target = url.ifEmpty { viewModel.getLoginUrl() }
+            viewModel.syncCookiesToWebView(target)
+            view.loadUrl(target)
+        }
     }
 
     Scaffold(
@@ -127,6 +157,35 @@ public fun WebViewScreen(
                         }
                     },
                     actions = {
+                        if (route.isAuthentication) {
+                            TextButton(
+                                enabled = !isCapturingSession,
+                                onClick = {
+                                    isCapturingSession = true
+                                    viewModel.completeLogin(currentWebViewUrl) { isLoggedIn ->
+                                        isCapturingSession = false
+                                        if (isLoggedIn) {
+                                            Toast
+                                                .makeText(
+                                                    context,
+                                                    R.string.loginSuccessMessage,
+                                                    Toast.LENGTH_SHORT,
+                                                ).show()
+                                            safeNavigateBack()
+                                        } else {
+                                            Toast
+                                                .makeText(
+                                                    context,
+                                                    R.string.webViewLoginFailed,
+                                                    Toast.LENGTH_SHORT,
+                                                ).show()
+                                        }
+                                    }
+                                },
+                            ) {
+                                Text(stringResource(R.string.done))
+                            }
+                        }
                         IconButton(onClick = safeNavigateBack) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
@@ -157,7 +216,14 @@ public fun WebViewScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(padding),
+                    .padding(padding)
+                    .then(
+                        run {
+                            val wsc = LocalWindowSizeClass.current
+                            val maxW = wsc?.let { AdaptiveUtils.getMaxContentWidth(it) }
+                            if (maxW != null) Modifier.widthIn(max = maxW) else Modifier
+                        },
+                    ),
         ) {
             AndroidView(
                 factory = { context ->
@@ -171,11 +237,17 @@ public fun WebViewScreen(
                                 ) {
                                     isLoading = true
                                     canGoBack = view?.canGoBack() ?: false
+                                    errorMessage = null
 
                                     // Check for magnet links
                                     if (url?.startsWith("magnet:") == true) {
                                         onMagnetLinkDetected?.invoke(url)
                                         // Prevent WebView from loading magnet link
+                                        view?.stopLoading()
+                                    } else if (
+                                        route.isAuthentication &&
+                                        !viewModel.isAllowedDuringAuth(url.orEmpty())
+                                    ) {
                                         view?.stopLoading()
                                     }
                                 }
@@ -188,9 +260,7 @@ public fun WebViewScreen(
                                     loadingProgress = 1f
                                     pageTitle = view?.title ?: ""
                                     canGoBack = view?.canGoBack() ?: false
-
-                                    // Sync cookies if on relevant domain
-                                    url?.let { viewModel.onPageFinished(it) }
+                                    if (url != null) currentWebViewUrl = url
                                 }
 
                                 override fun shouldOverrideUrlLoading(
@@ -205,7 +275,34 @@ public fun WebViewScreen(
                                         return true // Don't load in WebView
                                     }
 
+                                    if (route.isAuthentication && !viewModel.isAllowedDuringAuth(requestUrl.orEmpty())) {
+                                        return true
+                                    }
+
                                     return false // Let WebView handle other URLs
+                                }
+
+                                override fun onReceivedError(
+                                    view: WebView?,
+                                    request: WebResourceRequest?,
+                                    error: WebResourceError?,
+                                ) {
+                                    // Only report main frame errors
+                                    if (request?.isForMainFrame == true) {
+                                        isLoading = false
+                                        errorMessage = error?.description?.toString()
+                                            ?: context.getString(R.string.webViewLoadFailed)
+                                    }
+                                }
+
+                                override fun onReceivedSslError(
+                                    view: WebView?,
+                                    handler: SslErrorHandler?,
+                                    error: SslError?,
+                                ) {
+                                    handler?.cancel()
+                                    isLoading = false
+                                    errorMessage = "SSL error: ${error?.toString() ?: "unknown"}"
                                 }
                             }
 
@@ -228,33 +325,29 @@ public fun WebViewScreen(
 
                         // WebView settings
                         settings.apply {
-                            javaScriptEnabled = true
-                            domStorageEnabled = true
+                            // JS only for the auth flow (URL-allowlisted); deep-linked arbitrary
+                            // URLs run without JS to close the script-injection vector.
+                            javaScriptEnabled = route.isAuthentication
+                            domStorageEnabled = route.isAuthentication
+                            allowFileAccess = false
+                            allowContentAccess = false
+                            mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                            safeBrowsingEnabled = true
                             // databaseEnabled is deprecated
                             setSupportZoom(true)
                             builtInZoomControls = true
                             displayZoomControls = false
                             useWideViewPort = true
                             loadWithOverviewMode = true
-                            // User-Agent similar to Flutter implementation (clean Chrome to avoid WebView blocking)
-                            // "Mozilla/5.0 (Linux; Android {version}; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{version} Mobile Safari/537.36"
-                            val androidVersion = android.os.Build.VERSION.RELEASE
-                            userAgentString =
-                                "Mozilla/5.0 (Linux; Android $androidVersion; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.106 Mobile Safari/537.36"
+                            // Use system default UA to match OkHttp's WebSettings.getDefaultUserAgent
+                            // so Cloudflare cookies are bound to the same fingerprint
+                            userAgentString = WebSettings.getDefaultUserAgent(context)
                         }
 
-                        // Accept third-party cookies for better compatibility
+                        // Authentication stays first-party; third-party cookies are not needed.
                         android.webkit.CookieManager
                             .getInstance()
-                            .setAcceptThirdPartyCookies(this, true)
-
-                        // Load the URL
-                        if (url.isNotEmpty()) {
-                            loadUrl(url)
-                        } else {
-                            // Fallback to login page using current mirror
-                            loadUrl(viewModel.getLoginUrl())
-                        }
+                            .setAcceptThirdPartyCookies(this, false)
 
                         webView = this
                     }
@@ -263,8 +356,45 @@ public fun WebViewScreen(
                     // Update WebView if needed
                     webView = view
                 },
+                onRelease = { view ->
+                    view.stopLoading()
+                    view.removeAllViews()
+                    view.destroy()
+                    if (webView === view) webView = null
+                },
                 modifier = Modifier.fillMaxSize(),
             )
+
+            // Error overlay
+            val currentError = errorMessage
+            if (currentError != null) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = androidx.compose.ui.Alignment.Center,
+                ) {
+                    Column(
+                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(32.dp),
+                    ) {
+                        Text(
+                            text = currentError,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        TextButton(
+                            onClick = {
+                                errorMessage = null
+                                webView?.reload()
+                            },
+                        ) {
+                            Text(stringResource(R.string.retry))
+                        }
+                    }
+                }
+            }
         }
     }
 }
+
+/** Malformed-input guard only — the route argument arrives already decoded. */
+internal fun sanitizeWebViewUrl(value: String): String? = if (value.isEmpty() || value.toHttpUrlOrNull() != null) value else null

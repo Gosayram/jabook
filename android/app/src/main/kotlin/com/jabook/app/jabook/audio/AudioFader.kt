@@ -14,8 +14,12 @@
 
 package com.jabook.app.jabook.audio
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
-import androidx.core.animation.doOnEnd
+import android.os.Handler
+import android.os.Looper
+import android.view.animation.PathInterpolator
 import androidx.media3.common.Player
 import com.jabook.app.jabook.util.LogUtils
 import javax.inject.Inject
@@ -44,7 +48,9 @@ import javax.inject.Singleton
 @Singleton
 public class AudioFader
     @Inject
-    public constructor() {
+    public constructor(
+        private val volumeWriteCoordinator: VolumeWriteCoordinator,
+    ) {
         public companion object {
             private const val TAG = "AudioFader"
 
@@ -59,6 +65,10 @@ public class AudioFader
         }
 
         private var currentAnimator: ValueAnimator? = null
+
+        // ValueAnimator.start() requires a Looper thread; callers may be off-main
+        // (e.g. sleep timer expiry on Dispatchers.Default).
+        private val mainHandler = Handler(Looper.getMainLooper())
 
         /** Current fade duration in milliseconds. Can be configured via settings. */
         public var fadeDurationMs: Long = DEFAULT_FADE_DURATION_MS
@@ -89,20 +99,24 @@ public class AudioFader
 
             player.volume = 0f
 
-            currentAnimator =
+            val animator =
                 ValueAnimator.ofFloat(0f, 1f).apply {
                     duration = fadeDurationMs
+                    interpolator = PathInterpolator(0.4f, 0f, 0.2f, 1f)
                     addUpdateListener { animation ->
                         val volume = animation.animatedValue as Float
                         player.volume = volume
                     }
-                    doOnEnd {
-                        currentAnimator = null
-                        onComplete?.invoke()
-                        LogUtils.d(TAG, "Fade-in completed")
-                    }
-                    start()
+                    addListener(
+                        endListener(player) {
+                            onComplete?.invoke()
+                            LogUtils.d(TAG, "Fade-in completed")
+                        },
+                    )
                 }
+            currentAnimator = animator
+            volumeWriteCoordinator.tryAcquire(player, VolumeOwner.SLEEP_FADE) { cancelCurrentAnimation() }
+            startOnMain(animator)
 
             LogUtils.d(TAG, "Fade-in started (duration=${fadeDurationMs}ms)")
         }
@@ -132,24 +146,59 @@ public class AudioFader
 
             val startVolume = player.volume
 
-            currentAnimator =
+            val animator =
                 ValueAnimator.ofFloat(startVolume, 0f).apply {
                     duration = fadeDurationMs
+                    interpolator = PathInterpolator(0.4f, 0f, 0.2f, 1f)
                     addUpdateListener { animation ->
                         val volume = animation.animatedValue as Float
                         player.volume = volume
                     }
-                    doOnEnd {
-                        currentAnimator = null
-                        onComplete?.invoke()
-                        player.volume = 1f // Reset volume for next play
-                        LogUtils.d(TAG, "Fade-out completed")
-                    }
-                    start()
+                    addListener(
+                        endListener(player) {
+                            onComplete?.invoke()
+                            player.volume = 1f // Reset volume for next play
+                            LogUtils.d(TAG, "Fade-out completed")
+                        },
+                    )
                 }
+            currentAnimator = animator
+            volumeWriteCoordinator.tryAcquire(player, VolumeOwner.SLEEP_FADE) { cancelCurrentAnimation() }
+            startOnMain(animator)
 
             LogUtils.d(TAG, "Fade-out started from volume=$startVolume (duration=${fadeDurationMs}ms)")
         }
+
+        /** Starts the animator on the main thread if the current thread has no Looper. */
+        private fun startOnMain(animator: ValueAnimator) {
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                animator.start()
+            } else {
+                mainHandler.post { animator.start() }
+            }
+        }
+
+        /**
+         * End listener that releases the volume claim on every end (cancel fires
+         * onAnimationEnd too) but skips [onEnded] when the animation was cancelled.
+         */
+        private fun endListener(
+            player: Player,
+            onEnded: () -> Unit,
+        ): AnimatorListenerAdapter =
+            object : AnimatorListenerAdapter() {
+                private var canceled: Boolean = false
+
+                override fun onAnimationCancel(animation: Animator) {
+                    canceled = true
+                }
+
+                override fun onAnimationEnd(animation: Animator) {
+                    currentAnimator = null
+                    volumeWriteCoordinator.release(player, VolumeOwner.SLEEP_FADE)
+                    if (!canceled) onEnded()
+                }
+            }
 
         /**
          * Cancels any running fade animation immediately.

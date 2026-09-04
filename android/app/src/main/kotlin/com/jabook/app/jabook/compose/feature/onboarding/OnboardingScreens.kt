@@ -42,7 +42,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -74,21 +76,41 @@ public fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val currentOnFinish by rememberUpdatedState(onFinish)
 
     LaunchedEffect(uiState.isFinished) {
         if (uiState.isFinished) {
-            onFinish()
+            currentOnFinish()
         }
     }
+
+    // Respect reduced-motion settings
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val reducedMotion =
+        remember {
+            val resolver = context.contentResolver
+            val scale =
+                android.provider.Settings.Global.getFloat(
+                    resolver,
+                    android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+                    1.0f,
+                )
+            scale == 0f
+        }
 
     androidx.compose.animation.Crossfade(
         targetState = uiState.currentStep,
         label = "OnboardingStepTransition",
         animationSpec =
-            tween(
-                durationMillis = MotionTokens.LONG2,
-                easing = MotionTokens.EmphasizedDecelerate,
-            ),
+            if (reducedMotion) {
+                androidx.compose.animation.core
+                    .snap()
+            } else {
+                tween(
+                    durationMillis = MotionTokens.LONG2,
+                    easing = MotionTokens.EmphasizedDecelerate,
+                )
+            },
     ) { step ->
         Surface(
             color = MaterialTheme.colorScheme.background,
@@ -99,12 +121,14 @@ public fun OnboardingScreen(
                     WelcomeStep(
                         isBeta = isBeta,
                         onNext = { viewModel.nextStep() },
+                        onSkip = { viewModel.finishOnboarding() },
                     )
                 OnboardingStep.FEATURES ->
                     FeaturesStep(
                         isBeta = isBeta,
                         onNext = { viewModel.nextStep() },
                         onBack = { viewModel.previousStep() },
+                        onSkip = { viewModel.finishOnboarding() },
                     )
                 OnboardingStep.PERMISSIONS ->
                     OnboardingPermissionStep(
@@ -120,6 +144,7 @@ public fun OnboardingScreen(
 private fun WelcomeStep(
     isBeta: Boolean,
     onNext: () -> Unit,
+    onSkip: () -> Unit = onNext,
 ) {
     val imageRes = if (isBeta) R.drawable.onboarding_welcome_beta else R.drawable.onboarding_welcome_prod
 
@@ -159,6 +184,19 @@ private fun WelcomeStep(
                     .navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // Skip button (top-right)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(
+                    onClick = onSkip,
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White.copy(alpha = 0.7f)),
+                ) {
+                    Text(stringResource(R.string.onboardingSkip))
+                }
+            }
+
             Spacer(modifier = Modifier.weight(1f))
 
             Text(
@@ -229,6 +267,7 @@ private fun FeaturesStep(
     isBeta: Boolean,
     onNext: () -> Unit,
     onBack: () -> Unit,
+    onSkip: () -> Unit = onNext,
 ) {
     val pagerState = rememberPagerState(pageCount = { 3 })
 
@@ -240,6 +279,27 @@ private fun FeaturesStep(
             // Calculate absolute offset for this page
             val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
             FeaturePage(page, isBeta, pageOffset)
+        }
+
+        // Skip button (top-right)
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+                    .navigationBarsPadding(),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(
+                    onClick = onSkip,
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color.White.copy(alpha = 0.7f)),
+                ) {
+                    Text(stringResource(R.string.onboardingSkip))
+                }
+            }
         }
 
         // Navigation and Indicators overlay

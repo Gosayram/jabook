@@ -28,7 +28,7 @@ message UserPreferences {
   bool player_notifications = 14;
   
   // Network settings
-  string selected_mirror = 15;  // Selected mirror domain: "rutracker.org", "rutracker.net", "rutracker.me", or custom
+  string selected_mirror = 15;  // Selected mirror domain (configured via .env at build time) or custom
   repeated string custom_mirrors = 16;  // User-added custom mirrors
   bool auto_switch_mirror = 17;  // Auto-switch to working mirror on failure
   
@@ -66,7 +66,9 @@ message UserPreferences {
   int32 resume_rewind_seconds = 34;
 
   // Enable "shake to extend sleep timer" behavior for fixed-duration sleep timer mode.
-  bool sleep_timer_shake_extend_enabled = 35;
+  // optional: explicit presence lets the v9 migration distinguish "never set" (default true)
+  // from the user's explicit `false`.
+  optional bool sleep_timer_shake_extend_enabled = 35;
 
   // Equalizer preset: "FLAT", "VOICE_CLARITY", "NIGHT"
   string equalizer_preset = 36;
@@ -96,6 +98,65 @@ message UserPreferences {
 
   // Sleep Timer state (migrated from SharedPreferences)
   SleepTimerState sleep_timer_state = 48;
+
+  // Fallback accent swatch index when dynamic color is disabled (0=violet..7=terracotta).
+  int32 accent_swatch_index = 49;
+
+  // Player cover mode: 0 = card, 1 = vinyl.
+  int32 player_cover_mode = 50;
+
+  // Spotlight coachmarks completed (true = all coachmarks done or skipped).
+  bool spotlight_completed = 51;
+
+  // Haptics enabled for seek and gesture vibration.
+  bool haptics_enabled = 52;
+
+  // Bass boost strength (0-100, 0 = disabled).
+  int32 bass_boost_strength = 53;
+
+  // Speech compressor level: "Off", "Gentle", "Moderate", "Aggressive"
+  string speech_compressor_level = 54;
+
+  // Noise gate level: "Off", "Light", "Medium", "Strong"
+  string noise_gate_level = 55;
+
+  // Media button mapping (TASK-PLAYER-18)
+  // Which action: PLAY_PAUSE = 0, NEXT_CHAPTER = 1, PREV_CHAPTER = 2, FORWARD_30S = 3, REWIND_10S = 4, BOOKMARK = 5
+  optional int32 single_click_action = 56;
+  optional int32 double_click_action = 57;
+  optional int32 triple_click_action = 58;
+  optional int32 long_press_action = 59;
+
+  // Notification custom action slots (TASK-PLAYER-19)
+  // Which actions to show in notification slots (max 5 on Android 13+).
+  // Values: REWIND_30 = 0, FORWARD_30 = 1, BOOKMARK = 2, SLEEP_TIMER = 3, SPEED = 4, CHAPTER_PREV = 5, CHAPTER_NEXT = 6
+  // Empty list = show all available custom buttons (current behavior).
+  repeated int32 notification_action_slots = 60;
+
+  // Visualizer display mode (TASK-PLAYER-29)
+  // 0=WAVEFORM, 1=BAR_CHART, 2=CIRCULAR, 3=MINIMAL
+  int32 audio_visualizer_mode = 61;
+
+  // Crossfade duration between different books (TASK-PLAYER-41)
+  // 0 = instant switch, 500 = smooth, 2000 = long
+  optional int64 crossfade_between_books_ms = 62;
+
+  // Custom EQ bands in millibels (TASK-EQ-12)
+  // 10 values, range -1200 to +1200, step 50
+  repeated int32 custom_eq_bands = 63;
+
+  // Auto-resume playback when a wired headset is plugged in (default: off).
+  bool headset_autoplay_enabled = 64;
+
+  // Migrated from legacy Preferences DataStore ("jabook_preferences").
+  string view_mode = 65; // "LIST_COMPACT", "GRID_COMPACT", "GRID_COMFORTABLE"
+  bool auto_play_next = 66;
+  bool pitch_correction_enabled = 67;
+  string font = 68; // AppFont enum name
+  bool storage_fallback_enabled = 69;
+
+  // Hide media notification content (book title/artwork) on the lock screen (default: public).
+  bool notification_lockscreen_private = 70;
 }
 
 message SleepTimerState {

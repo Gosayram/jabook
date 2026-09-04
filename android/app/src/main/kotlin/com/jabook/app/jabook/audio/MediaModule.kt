@@ -19,6 +19,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.TrackSelectionParameters
+import androidx.media3.common.util.ExperimentalApi
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.cache.Cache
@@ -27,9 +28,18 @@ import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.extractor.DefaultExtractorsFactory
+import androidx.media3.extractor.mp3.Mp3Extractor
 import androidx.room.RoomDatabase
 import com.jabook.app.jabook.audio.data.local.database.migration.AudioDatabaseMigrations
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
+import com.jabook.app.jabook.audio.processors.AudioProcessorFactory
+import com.jabook.app.jabook.audio.processors.DRCLevel
+import com.jabook.app.jabook.audio.processors.FloatPcmOutputProcessor
+import com.jabook.app.jabook.audio.processors.NoiseGateLevel
+import com.jabook.app.jabook.audio.processors.SpeechCompressorLevel
+import com.jabook.app.jabook.audio.processors.VolumeBoostLevel
+import com.jabook.app.jabook.crash.GlobalExceptionHandler
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.PerformanceClass
 import com.jabook.app.jabook.utils.PerformanceUtils
@@ -39,7 +49,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.io.File
-import javax.inject.Named
 import javax.inject.Singleton
 
 /**
@@ -123,22 +132,7 @@ public object MediaModule {
         return cache
     }
 
-    @Provides
-    @Singleton
-    @Named("okhttp")
-    public fun provideOkHttpCache(
-        @ApplicationContext context: Context,
-    ): okhttp3.Cache {
-        val cacheDir = File(context.cacheDir, "okhttp_cache")
-        val cacheSize = 50L * 1024 * 1024 // 50 MB
-        LogUtils.d(
-            "MediaModule",
-            "Providing OkHttp Cache: ${cacheDir.absolutePath}, size: ${cacheSize / (1024 * 1024)} MB",
-        )
-        return okhttp3.Cache(cacheDir, cacheSize)
-    }
-
-    @OptIn(UnstableApi::class)
+    @OptIn(UnstableApi::class, ExperimentalApi::class)
     @Provides
     @Singleton
     public fun provideExoPlayer(
@@ -154,23 +148,61 @@ public object MediaModule {
         // Create optimized LoadControl
         val loadControl = createOptimizedLoadControl(context)
 
+        val extractorsFactory =
+            DefaultExtractorsFactory()
+                .setMp3ExtractorFlags(
+                    Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING or
+                        Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING,
+                )
+
+        val mediaSourceFactory =
+            androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
+                context,
+                extractorsFactory,
+            )
+
         val player =
             try {
                 ExoPlayer
                     .Builder(context)
+                    .experimentalSetDynamicSchedulingEnabled(true)
                     .setLoadControl(loadControl)
+                    .setMediaSourceFactory(mediaSourceFactory)
                     .setHandleAudioBecomingNoisy(true)
-                    .setWakeMode(C.WAKE_MODE_LOCAL) // CRITICAL: Keep CPU awake during playback
+                    .setWakeMode(C.WAKE_MODE_LOCAL)
+                    // Seek increments for player.seekBack()/seekForward() — used by Wear/Auto
+                    // skip buttons and KEYCODE_MEDIA_FAST_FORWARD/REWIND. Must match the app
+                    // defaults (10s rewind / 30s forward, see MediaSessionManager).
+                    .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
+                    .setSeekForwardIncrementMs(SEEK_FORWARD_INCREMENT_MS)
+                    // We run our own SkipSilenceAudioProcessor in the processor chain —
+                    // Media3's built-in silence skipper must stay off to avoid double-skipping.
+                    .setSkipSilenceEnabled(false)
                     .setAudioAttributes(
                         AudioAttributes
                             .Builder()
                             .setUsage(C.USAGE_MEDIA)
-                            .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH) // Match lissen-android exactly
+                            .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
                             .build(),
-                        true, // handleAudioFocus=true - ExoPlayer manages AudioFocus automatically
+                        true,
                     ).build()
-                    .apply {
-                        setTrackSelectionParameters(createAudioOffloadTrackSelectionParameters())
+                    .also {
+                        // #10: Delegate playlist preloading to Media3 so LoadControl throttles
+                        // preload contention with active playback (vs custom LRU re-fetch).
+                        // AdaptivePlaylistMemoryOptimizer is kept for window sizing (±1..10
+                        // based on availMem); this call enables the official preload path.
+                        // ponytail: 30s target covers gapless chapter transition without
+                        // bloating RAM; bump if chapters routinely exceed buffer.
+                        it.setPreloadConfiguration(
+                            ExoPlayer.PreloadConfiguration(30 * C.MICROS_PER_SECOND),
+                        )
+                    }.also {
+                        // Disable audio offload in safe mode (crash-loop detected)
+                        if (!GlobalExceptionHandler.isSafeMode(context)) {
+                            it.trackSelectionParameters = createAudioOffloadTrackSelectionParameters()
+                        } else {
+                            LogUtils.w("MediaModule", "Safe mode: skipping audio offload")
+                        }
                     }
             } catch (e: Exception) {
                 LogUtils.e("MediaModule", "Error creating ExoPlayer: ${e.message}", e)
@@ -194,20 +226,29 @@ public object MediaModule {
      * @param settings Audio processing settings
      * @return Configured ExoPlayer instance
      */
-    @OptIn(UnstableApi::class)
+    @OptIn(UnstableApi::class, ExperimentalApi::class)
     public fun createExoPlayerWithProcessors(
         context: Context,
         settings: AudioProcessingSettings,
+        handleAudioFocus: Boolean = true,
+        processorChain: AudioProcessorFactory.ProcessorChainResult =
+            AudioProcessorFactory.createProcessorChain(
+                settings,
+                AudioOutputBufferInfo.outputFramesPerBuffer(context),
+            ),
     ): ExoPlayer {
         val initStart = System.currentTimeMillis()
 
         LogUtils.d("MediaModule", "Creating ExoPlayer with AudioProcessors...")
 
-        // Create processor chain
-        val chainResult =
-            com.jabook.app.jabook.audio.processors.AudioProcessorFactory
-                .createProcessorChain(settings)
-        val processors = chainResult.processors
+        val processors = processorChain.processors
+
+        val extractorsFactory =
+            DefaultExtractorsFactory()
+                .setMp3ExtractorFlags(
+                    Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING or
+                        Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING,
+                )
 
         val player =
             try {
@@ -217,29 +258,62 @@ public object MediaModule {
                         override fun buildAudioSink(
                             context: Context,
                             enableFloatOutput: Boolean,
-                            enableAudioOffload: Boolean,
-                        ): androidx.media3.exoplayer.audio.AudioSink =
-                            androidx.media3.exoplayer.audio.DefaultAudioSink
+                            enableAudioOutputPlaybackParams: Boolean,
+                        ): androidx.media3.exoplayer.audio.AudioSink {
+                            // Media3 1.11.0: DefaultAudioSink.configure drops the whole
+                            // AudioProcessorChain from the pipeline whenever
+                            // setEnableFloatOutput(true) AND the input is hi-res/float PCM,
+                            // so sink-level float output would silently bypass EQ/normalizer.
+                            // Instead the chain negotiates float itself: FloatPcmOutputProcessor
+                            // (appended last, after the int16-only DSP processors) returns
+                            // ENCODING_PCM_FLOAT from onConfigure and DefaultAudioSink builds
+                            // the AudioTrack with the pipeline's output encoding. Sink-level
+                            // float stays off so the chain always runs — including hi-res input.
+                            val chainProcessors =
+                                if (processors.isEmpty()) {
+                                    processors
+                                } else {
+                                    processors + FloatPcmOutputProcessor()
+                                }
+                            return androidx.media3.exoplayer.audio.DefaultAudioSink
                                 .Builder(context)
-                                .setAudioProcessors(processors.toTypedArray())
-                                .setEnableFloatOutput(enableFloatOutput)
+                                // TrackedAudioProcessorChain feeds our custom skip-silence's
+                                // skipped frames back to Media3's position tracking.
+                                .setAudioProcessorChain(
+                                    TrackedAudioProcessorChain(chainProcessors.toTypedArray()),
+                                ).setEnableFloatOutput(processors.isEmpty() && enableFloatOutput)
+                                .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
                                 .build()
+                        }
                     }
+
+                val mediaSourceFactory =
+                    androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
+                        context,
+                        extractorsFactory,
+                    )
 
                 val builder =
                     ExoPlayer
                         .Builder(context)
+                        .experimentalSetDynamicSchedulingEnabled(true)
                         .setRenderersFactory(renderersFactory)
+                        .setMediaSourceFactory(mediaSourceFactory)
                         .setLoadControl(createOptimizedLoadControl(context))
                         .setHandleAudioBecomingNoisy(true)
-                        .setWakeMode(C.WAKE_MODE_LOCAL) // CRITICAL: Keep CPU awake during playback
+                        .setWakeMode(C.WAKE_MODE_LOCAL)
+                        .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
+                        .setSeekForwardIncrementMs(SEEK_FORWARD_INCREMENT_MS)
+                        // Our chain already includes a custom SkipSilenceAudioProcessor
+                        // when enabled; keep Media3's built-in silence skipper off.
+                        .setSkipSilenceEnabled(false)
                         .setAudioAttributes(
                             AudioAttributes
                                 .Builder()
                                 .setUsage(C.USAGE_MEDIA)
                                 .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
                                 .build(),
-                            true, // handleAudioFocus=true
+                            handleAudioFocus,
                         )
 
                 if (processors.isNotEmpty()) {
@@ -251,8 +325,25 @@ public object MediaModule {
 
                 builder
                     .build()
-                    .apply {
-                        setTrackSelectionParameters(createAudioOffloadTrackSelectionParameters())
+                    .also {
+                        // #10: same delegation as singleton player — enable Media3 preload
+                        // so LoadControl throttles contention vs active playback.
+                        it.setPreloadConfiguration(
+                            ExoPlayer.PreloadConfiguration(30 * C.MICROS_PER_SECOND),
+                        )
+                    }.also {
+                        // Disable audio offload in safe mode (crash-loop detected)
+                        if (!com.jabook.app.jabook.crash.GlobalExceptionHandler
+                                .isSafeMode(context)
+                        ) {
+                            it.trackSelectionParameters =
+                                createTrackSelectionParameters(
+                                    settings = settings,
+                                    hasProcessors = processors.isNotEmpty(),
+                                )
+                        } else {
+                            LogUtils.w("MediaModule", "Safe mode: skipping audio offload for processor player")
+                        }
                     }
             } catch (e: Exception) {
                 LogUtils.e("MediaModule", "Error creating ExoPlayer with processors: ${e.message}", e)
@@ -302,50 +393,65 @@ public object MediaModule {
     private fun createAudioOffloadTrackSelectionParameters(): TrackSelectionParameters =
         TrackSelectionParameters
             .Builder()
+            .setMaxAudioBitrate(128_000)
+            .setPreferredAudioLanguage("ru")
             .setAudioOffloadPreferences(
                 TrackSelectionParameters
                     .AudioOffloadPreferences
                     .Builder()
                     .setAudioOffloadMode(
                         TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED,
-                    ).setIsGaplessSupportRequired(false) // Disabled with offload for battery efficiency
-                    .setIsSpeedChangeSupportRequired(true) // Required for pitch correction
+                    ).setIsGaplessSupportRequired(true) // Required for seamless book chapter transitions
+                    .setIsSpeedChangeSupportRequired(true) // Required for pitch-corrected speed
                     .build(),
             ).build()
 
     /**
      * Creates TrackSelectionParameters based on audio processing settings.
      * Gapless is enabled only when offload is disabled AND crossfade is disabled.
+     * Offload uses a 6-flag AND gate (Rhythm pattern): only heavy DSP disables offload.
+     * ponytail: skipSilence excluded from gate — offload stays enabled for skipSilence-only,
+     * saving ~20-30% battery; if silence artifacts appear with offload, add skipSilence to gate.
      */
     @OptIn(UnstableApi::class)
-    public fun createTrackSelectionParameters(settings: AudioProcessingSettings): TrackSelectionParameters {
-        val hasProcessors =
-            com.jabook.app.jabook.audio.processors.AudioProcessorFactory
-                .createProcessorChain(settings)
-                .processors
-                .isNotEmpty()
+    public fun createTrackSelectionParameters(
+        settings: AudioProcessingSettings,
+        hasProcessors: Boolean = AudioProcessingSettings.hasAnyProcessorEnabled(settings),
+    ): TrackSelectionParameters {
         val isCrossfadeEnabled = settings.isCrossfadeEnabled
+        // 6-flag DSP gate: heavy DSP that requires CPU — skipSilence intentionally excluded
+        val hasDspForOffload =
+            settings.normalizeVolume ||
+                settings.speechCompressorLevel != SpeechCompressorLevel.Off ||
+                settings.volumeBoostLevel != VolumeBoostLevel.Off ||
+                settings.drcLevel != DRCLevel.Off ||
+                settings.speechEnhancer ||
+                settings.autoVolumeLeveling ||
+                settings.noiseGateLevel != NoiseGateLevel.Off
+        val isOffloadEnabled = !hasDspForOffload && !isCrossfadeEnabled
 
-        // Gapless requires: offload disabled OR no custom processors, AND no crossfade
-        val gaplessSupported = !hasProcessors && !isCrossfadeEnabled
+        // Gapless requires offload path without DSP and no crossfade
+        val gaplessSupported = isOffloadEnabled
 
         LogUtils.d(
             "MediaModule",
             "Creating TrackSelectionParameters: gapless=$gaplessSupported " +
-                "(processors=$hasProcessors, crossfade=$isCrossfadeEnabled)",
+                "(dsp=$hasDspForOffload, processors=$hasProcessors, crossfade=$isCrossfadeEnabled, offload=$isOffloadEnabled)",
         )
 
         return TrackSelectionParameters
             .Builder()
+            .setMaxAudioBitrate(128_000)
+            .setPreferredAudioLanguage(settings.preferredLanguageCode)
             .setAudioOffloadPreferences(
                 TrackSelectionParameters
                     .AudioOffloadPreferences
                     .Builder()
                     .setAudioOffloadMode(
-                        if (hasProcessors) {
-                            TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_DISABLED
-                        } else {
+                        if (isOffloadEnabled) {
                             TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED
+                        } else {
+                            TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_DISABLED
                         },
                     ).setIsGaplessSupportRequired(gaplessSupported)
                     .setIsSpeedChangeSupportRequired(true) // Required for pitch correction
@@ -353,30 +459,16 @@ public object MediaModule {
             ).build()
     }
 
-    /**
-     * Calculates optimal cache size limit based on available storage.
-     *
-     * @param ctx Application context
-     * @return Cache size limit in bytes
-     */
-    private fun buildPlaybackCacheLimit(ctx: Context): Long {
-        val baseFolder =
-            ctx
-                .externalCacheDir
-                ?.takeIf { it.exists() && it.canWrite() }
-                ?: ctx.cacheDir
-
-        val stat = android.os.StatFs(baseFolder.path)
-        val available = stat.availableBytes
-        val dynamicCap = (available - KEEP_FREE_BYTES).coerceAtLeast(MIN_CACHE_BYTES)
-
-        return minOf(MAX_CACHE_BYTES, dynamicCap)
-    }
-
-    private const val MAX_CACHE_BYTES = 512L * 1024 * 1024 // 512 MB
     private const val DEFAULT_CACHE_BYTES = 200L * 1024 * 1024 // 200 MB (fallback if StatFs fails)
-    private const val KEEP_FREE_BYTES = 20L * 1024 * 1024 // 20 MB
-    private const val MIN_CACHE_BYTES = 10L * 1024 * 1024 // 10 MB
+
+    /** Chapter/paragraph seek step for audiobook navigation (rewind). */
+    private const val SEEK_INCREMENT_MS = 10_000L
+
+    // Forward seek step matching the app default. NOTE: MediaModule has no access to the
+    // runtime skip-duration settings (those live in MediaSessionManager, updated at runtime
+    // by the service); user-changed values are still honored via onMediaButtonEvent and the
+    // rewind/forward custom commands. Wear/Auto seekBack()/seekForward() use these literals.
+    private const val SEEK_FORWARD_INCREMENT_MS = 30_000L
 }
 
 /**
@@ -448,17 +540,12 @@ public object AudioDataModule {
 
         builder.addMigrations(AudioDatabaseMigrations.MIGRATION_2_3)
         builder.addMigrations(AudioDatabaseMigrations.MIGRATION_3_4)
+        builder.addMigrations(AudioDatabaseMigrations.MIGRATION_4_5)
+        builder.addMigrations(AudioDatabaseMigrations.MIGRATION_5_6)
+        builder.addMigrations(AudioDatabaseMigrations.MIGRATION_6_7)
 
         return builder.build()
     }
-
-    @Provides
-    @Singleton
-    public fun provideAudioPreferences(
-        @ApplicationContext context: Context,
-    ): com.jabook.app.jabook.audio.data.local.datastore.AudioPreferences =
-        com.jabook.app.jabook.audio.data.local.datastore
-            .AudioPreferences(context)
 }
 
 /**
@@ -481,17 +568,7 @@ public object AudioRepositoryModule {
 
     @Provides
     @Singleton
-    public fun provideLufsCacheDao(
+    public fun provideSavedPlayerStateDao(
         database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
-    ): com.jabook.app.jabook.audio.data.local.dao.LufsCacheDao = database.lufsCacheDao()
-
-    @Provides
-    @Singleton
-    public fun provideSavedPlayerStateRepository(
-        database: com.jabook.app.jabook.audio.data.local.database.AudioDatabase,
-    ): com.jabook.app.jabook.audio.data.repository.SavedPlayerStateRepository {
-        val dao = database.savedPlayerStateDao()
-        return com.jabook.app.jabook.audio.data.repository
-            .SavedPlayerStateRepository(dao)
-    }
+    ): com.jabook.app.jabook.audio.data.local.dao.SavedPlayerStateDao = database.savedPlayerStateDao()
 }

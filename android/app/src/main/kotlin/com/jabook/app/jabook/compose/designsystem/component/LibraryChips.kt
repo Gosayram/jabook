@@ -1,0 +1,101 @@
+// Copyright 2026 Jabook Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package com.jabook.app.jabook.compose.designsystem.component
+
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
+
+/**
+ * Standardized chips component with selected/unselected states.
+ * Supports optional leading icons and horizontal scrolling behavior.
+ *
+ * Uses Material 3 FilterChip under the hood for consistent styling.
+ */
+@Composable
+public fun LibraryFilterChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    leadingIcon: ImageVector? = null,
+    enabled: Boolean = true,
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = {
+            // ponytail: selected FilterChip labelLargeEmphasized — wire EmphasizedTypography.labelLarge when selected (body/label split proven)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+            )
+        },
+        modifier = modifier,
+        enabled = enabled,
+        leadingIcon =
+            leadingIcon?.let { icon ->
+                @Composable {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            },
+    )
+}
+
+/**
+ * Horizontal scrollable chip row.
+ * Wraps children in a Row with horizontalArrangement that supports scrolling.
+ * ponytail: horizontalScroll is spec-allowed for chip overflow (keeps single filter variant); reflow/overflow menu only if count grows large.
+ *
+ * @param contentPadding Horizontal padding applied inside the scroll so chips
+ *   don't touch screen edges (matches standard 16.dp screen content padding).
+ */
+@Composable
+public fun ChipRow(
+    modifier: Modifier = Modifier,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(8.dp),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp),
+    content: @Composable () -> Unit,
+) {
+    Row(
+        modifier =
+            modifier
+                .horizontalScroll(rememberScrollState())
+                .selectableGroup()
+                .padding(contentPadding),
+        horizontalArrangement = horizontalArrangement,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        content()
+    }
+}

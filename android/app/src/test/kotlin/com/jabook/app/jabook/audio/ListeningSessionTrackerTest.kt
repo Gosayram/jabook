@@ -16,12 +16,13 @@ package com.jabook.app.jabook.audio
 
 import com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
-import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -29,10 +30,8 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import org.robolectric.RobolectricTestRunner
 
 @OptIn(ExperimentalCoroutinesApi::class)
-@RunWith(RobolectricTestRunner::class)
 class ListeningSessionTrackerTest {
     private val repository: ListeningSessionRepository = mock()
     private val dispatcher = StandardTestDispatcher()
@@ -114,6 +113,82 @@ class ListeningSessionTrackerTest {
         }
 
     @Test
+    fun `onPlaybackStopped closes a session that is still starting`() =
+        runTest(dispatcher) {
+            whenever(
+                repository.startSession(
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                ),
+            ).thenReturn("session-1")
+
+            val tracker =
+                ListeningSessionTracker(
+                    repository = repository,
+                    scope = scope,
+                    ioDispatcher = dispatcher,
+                    getCurrentBookId = { "book-1" },
+                    getCurrentPositionMs = { 45_000L },
+                    getCurrentSpeed = { 1.5f },
+                    getCurrentChapterIndex = { 4 },
+                )
+
+            tracker.onPlaybackStarted()
+            tracker.onPlaybackStopped("pause")
+            scope.advanceUntilIdle()
+
+            verify(repository).finishSession(
+                sessionId = eq("session-1"),
+                positionEndMs = eq(45_000L),
+                speedFactor = eq(1.5f),
+                chapterIndex = eq(4),
+                endedAt = any(),
+            )
+        }
+
+    @Test
+    fun `session close survives service scope cancellation`() =
+        runTest(dispatcher) {
+            whenever(
+                repository.startSession(
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                ),
+            ).thenReturn("session-1")
+            val serviceScope = kotlinx.coroutines.CoroutineScope(SupervisorJob() + dispatcher)
+            val tracker =
+                ListeningSessionTracker(
+                    repository = repository,
+                    scope = serviceScope,
+                    ioDispatcher = dispatcher,
+                    getCurrentBookId = { "book-1" },
+                    getCurrentPositionMs = { 45_000L },
+                    getCurrentSpeed = { 1.5f },
+                    getCurrentChapterIndex = { 4 },
+                )
+
+            tracker.onPlaybackStarted()
+            advanceUntilIdle()
+            tracker.onPlaybackStopped("on_destroy")
+            serviceScope.cancel()
+            advanceUntilIdle()
+
+            verify(repository).finishSession(
+                sessionId = eq("session-1"),
+                positionEndMs = eq(45_000L),
+                speedFactor = eq(1.5f),
+                chapterIndex = eq(4),
+                endedAt = any(),
+            )
+        }
+
+    @Test
     fun `onPlaybackStarted ignores blank book id`() =
         runTest(dispatcher) {
             val tracker =
@@ -136,6 +211,44 @@ class ListeningSessionTrackerTest {
                 any(),
                 any(),
                 any(),
+            )
+        }
+
+    @Test
+    fun `late session creation for replaced book is closed`() =
+        runTest(dispatcher) {
+            whenever(
+                repository.startSession(
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                ),
+            ).thenAnswer { invocation -> "session-${invocation.getArgument<String>(0)}" }
+            var bookId = "book-a"
+            val tracker =
+                ListeningSessionTracker(
+                    repository = repository,
+                    scope = scope,
+                    ioDispatcher = dispatcher,
+                    getCurrentBookId = { bookId },
+                    getCurrentPositionMs = { 10_000L },
+                    getCurrentSpeed = { 1f },
+                    getCurrentChapterIndex = { 0 },
+                )
+
+            tracker.onPlaybackStarted()
+            bookId = "book-b"
+            tracker.onPlaybackStarted()
+            scope.advanceUntilIdle()
+
+            verify(repository).finishSession(
+                sessionId = eq("session-book-a"),
+                positionEndMs = eq(10_000L),
+                speedFactor = eq(1f),
+                chapterIndex = eq(0),
+                endedAt = any(),
             )
         }
 }

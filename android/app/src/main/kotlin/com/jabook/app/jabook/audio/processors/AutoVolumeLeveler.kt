@@ -15,10 +15,12 @@
 package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.AudioProcessor.StreamMetadata
 import androidx.media3.common.util.UnstableApi
 import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.log10
 import kotlin.math.pow
 
 /**
@@ -40,10 +42,19 @@ public class AutoVolumeLeveler : AudioProcessor {
     // Target LUFS: audiobook-optimized target (-16 LUFS, vs -14 for music)
     private val targetLufs = AUDIOBOOK_TARGET_LUFS
 
-    // LUFS measurement window: 400ms
+    // LUFS measurement window: 400ms of audio time
     private val windowSizeMs = 400
     private var windowSizeSamples = 0
-    private val lufsBuffer = mutableListOf<Double>()
+
+    // Frame-weighted RMS sliding window: 400ms of audio regardless of buffer size.
+    private data class RmsWindowEntry(
+        val rms: Float,
+        val frames: Int,
+    )
+
+    private val rmsBuffer = ArrayDeque<RmsWindowEntry>()
+    private var rmsWeightedSum = 0.0f
+    private var rmsWindowFrames = 0
 
     // Gain adjustment (in linear scale)
     private var currentGain = 1.0f
@@ -51,7 +62,6 @@ public class AutoVolumeLeveler : AudioProcessor {
 
     // Slew rate: 0.5 dB/s for smooth changes
     private val slewRateDbPerSecond = 0.5f
-    private var slewRatePerSample = 0.0f
 
     override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         this.inputAudioFormat = inputAudioFormat
@@ -59,13 +69,12 @@ public class AutoVolumeLeveler : AudioProcessor {
 
         // Calculate window size in samples
         val sampleRate = inputAudioFormat.sampleRate
-        windowSizeSamples = sampleRate * windowSizeMs / 1000
+        windowSizeSamples = (sampleRate * windowSizeMs / 1000).coerceAtLeast(1)
 
-        // Calculate slew rate per sample
-        slewRatePerSample = 10.0.pow((slewRateDbPerSecond / sampleRate.toFloat() / 20.0f).toDouble()).toFloat()
-
-        // Initialize LUFS buffer
-        lufsBuffer.clear()
+        // Initialize RMS sliding window
+        rmsBuffer.clear()
+        rmsWeightedSum = 0.0f
+        rmsWindowFrames = 0
 
         // Reset gain
         currentGain = 1.0f
@@ -86,13 +95,11 @@ public class AutoVolumeLeveler : AudioProcessor {
     override fun isActive(): Boolean = isActive
 
     // Input/output buffers
-    private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var queuedInputBuffer: ByteBuffer? = null
+    private var queuedInputCapacity: Int = 0
+    private var queuedInputBytes = 0
     private var outputBuffer: ByteBuffer? = null
     private var inputEnded = false
-
-    // RMS measurement for level detection (simplified LUFS)
-    // Use ArrayDeque for O(1) add/remove operations
-    private val rmsBuffer = ArrayDeque<Float>()
 
     override fun queueInput(inputBuffer: ByteBuffer) {
         if (!isActive) {
@@ -100,12 +107,24 @@ public class AutoVolumeLeveler : AudioProcessor {
         }
 
         if (inputBuffer.hasRemaining()) {
-            val buffer = ByteBuffer.allocateDirect(inputBuffer.remaining())
-            buffer.order(ByteOrder.nativeOrder())
-            buffer.put(inputBuffer)
-            buffer.flip()
-            inputBuffers.add(buffer)
+            val remaining = inputBuffer.remaining()
+            ensureQueuedInputCapacity(remaining)
+            queuedInputBytes += remaining
+            queuedInputBuffer!!.put(inputBuffer)
         }
+    }
+
+    private fun ensureQueuedInputCapacity(additionalBytes: Int) {
+        val required = queuedInputBytes + additionalBytes
+        if (required <= queuedInputCapacity) return
+        val newCapacity = maxOf(required, queuedInputCapacity * 2, 4096)
+        val newBuffer = ByteBuffer.allocateDirect(newCapacity).order(ByteOrder.nativeOrder())
+        queuedInputBuffer?.let { old ->
+            old.flip()
+            newBuffer.put(old)
+        }
+        queuedInputBuffer = newBuffer
+        queuedInputCapacity = newCapacity
     }
 
     override fun queueEndOfStream() {
@@ -113,26 +132,33 @@ public class AutoVolumeLeveler : AudioProcessor {
     }
 
     override fun getOutput(): ByteBuffer {
-        if (!isActive || inputBuffers.isEmpty()) {
+        if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
+        if (!isActive || queuedInputBytes == 0) {
             return EMPTY_BUFFER
         }
 
-        val totalSize = inputBuffers.sumOf { it.remaining() }
-        if (totalSize == 0) {
-            return EMPTY_BUFFER
+        val totalSize = queuedInputBytes
+
+        val preparedOutputBuffer =
+            if (outputBuffer == null || outputBuffer!!.capacity() < totalSize) {
+                ByteBuffer.allocateDirect(totalSize).order(ByteOrder.nativeOrder()).also {
+                    outputBuffer = it
+                }
+            } else {
+                outputBuffer!!.clear()
+                outputBuffer
+            } ?: return EMPTY_BUFFER
+
+        queuedInputBuffer?.let { buf ->
+            buf.flip()
+            processBuffer(buf, preparedOutputBuffer)
         }
 
-        outputBuffer = ByteBuffer.allocateDirect(totalSize)
-        outputBuffer!!.order(ByteOrder.nativeOrder())
+        queuedInputBuffer?.clear()
+        queuedInputBytes = 0
+        preparedOutputBuffer.flip()
 
-        for (inputBuffer in inputBuffers) {
-            processBuffer(inputBuffer, outputBuffer!!)
-        }
-
-        inputBuffers.clear()
-        outputBuffer!!.flip()
-
-        return outputBuffer!!
+        return preparedOutputBuffer
     }
 
     /**
@@ -177,22 +203,30 @@ public class AutoVolumeLeveler : AudioProcessor {
             }
         }
 
-        val rms = kotlin.math.sqrt(sumSquares / (samples * channels)).toFloat()
+        val rms =
+            if (samples > 0) {
+                kotlin.math.sqrt(sumSquares / (samples * channels)).toFloat()
+            } else {
+                0.0f
+            }
 
-        // Update RMS buffer (sliding window) - O(1) operations with ArrayDeque
-        rmsBuffer.addLast(rms)
-        if (rmsBuffer.size > windowSizeSamples) {
-            rmsBuffer.removeFirst()
+        // Update RMS sliding window using frame-weighted running average.
+        // This keeps the intended 400ms horizon independent of input buffer size.
+        val entryFrames = samples.coerceAtLeast(1)
+        rmsBuffer.addLast(RmsWindowEntry(rms = rms, frames = entryFrames))
+        rmsWeightedSum += rms * entryFrames
+        rmsWindowFrames += entryFrames
+
+        while (rmsWindowFrames > windowSizeSamples && rmsBuffer.isNotEmpty()) {
+            val oldest = rmsBuffer.removeFirst()
+            rmsWeightedSum -= oldest.rms * oldest.frames
+            rmsWindowFrames -= oldest.frames
         }
 
-        // Calculate average RMS over window (optimized: avoid creating intermediate list)
+        // Average RMS over the window in O(1)
         val avgRms =
-            if (rmsBuffer.isNotEmpty()) {
-                var sum = 0.0f
-                for (value in rmsBuffer) {
-                    sum += value
-                }
-                sum / rmsBuffer.size
+            if (rmsWindowFrames > 0) {
+                rmsWeightedSum / rmsWindowFrames
             } else {
                 rms
             }
@@ -224,13 +258,15 @@ public class AutoVolumeLeveler : AudioProcessor {
             targetGain = targetGain.coerceIn(0.3f, 3.0f)
         }
 
-        // Smooth gain changes (slew rate limiting)
+        // Smooth gain changes (slew rate limiting in dB domain, scaled by buffer duration)
         val gainDiff = targetGain - currentGain
         if (kotlin.math.abs(gainDiff) > 0.001f) {
-            // Apply slew rate: limit change per sample
-            val maxChange = slewRatePerSample
-            val actualChange = gainDiff.coerceIn(-maxChange, maxChange)
-            currentGain += actualChange
+            val sampleRate = inputAudioFormat!!.sampleRate.toFloat()
+            val maxStepDb = slewRateDbPerSecond * (samples / sampleRate)
+            val currentDb = 20f * log10(currentGain)
+            val targetDb = 20f * log10(targetGain)
+            val newDb = currentDb + (targetDb - currentDb).coerceIn(-maxStepDb, maxStepDb)
+            currentGain = 10f.pow(newDb / 20f)
         } else {
             currentGain = targetGain
         }
@@ -263,13 +299,14 @@ public class AutoVolumeLeveler : AudioProcessor {
         }
     }
 
-    override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
+    override fun isEnded(): Boolean = inputEnded && queuedInputBytes == 0
 
-    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
-    override fun flush() {
-        lufsBuffer.clear()
+    override fun flush(streamMetadata: StreamMetadata) {
         rmsBuffer.clear()
-        inputBuffers.clear()
+        rmsWeightedSum = 0.0f
+        rmsWindowFrames = 0
+        queuedInputBuffer?.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
         currentGain = 1.0f

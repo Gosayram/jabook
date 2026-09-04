@@ -92,13 +92,17 @@
     <!-- Button label for reset action -->
     <string name="reset">Reset</string>
     <string name="statsForNerds">Stats for Nerds</string>
+    <string name="audioTuning">Audio Tuning</string>
     <string name="audioFormat">Audio Format</string>
     <string name="bitrate">Bitrate</string>
+    <string name="sampleRate">Sample Rate</string>
+    <string name="channelLayout">Channels</string>
     <string name="bufferHealth">Buffer Health</string>
     <string name="audioSessionId">Audio Session ID</string>
     <string name="decoder">Decoder</string>
     <string name="droppedFrames">Dropped Frames</string>
     <string name="enableVisualizer">Enable visualizer</string>
+    <string name="audioOffload">Audio Offload</string>
 
     <string name="sleepTimerExtended">Sleep timer extended by 5 minutes</string>
     <string name="shakeToExtendEnabled">Shake to extend enabled</string>
@@ -259,20 +263,40 @@
     <string name="failedToLoadAudio">Failed to load audio</string>
     <!-- Label for chapters -->
     <string name="chaptersLabel">Chapters</string>
+    <string name="allChaptersCount">All %d chapters</string>
+    <plurals name="chapterCount">
+        <item quantity="one">%d chapter</item>
+        <item quantity="other">%d chapters</item>
+    </plurals>
     <!-- Hint for chapters search field -->
     <string name="searchChaptersHint">Search by number or title...</string>
+    <!-- Top bar title -->
+    <string name="nowListening">Now listening</string>
+    <!-- Back action -->
+    <string name="backAction">Back</string>
+    <!-- Statistics overlay -->
+    <string name="statsOverlay">Statistics</string>
     <!-- Filter for showing all chapters -->
     <string name="allFilter">All</string>
+    <!-- Filter for new/unplayed books -->
+    <string name="newFilter">New</string>
     <!-- Filter for showing current chapter -->
     <string name="currentFilter">Current</string>
     <!-- Message when no chapters found in search/filter -->
     <string name="noChaptersFoundInSearch">No chapters found</string>
+    <!-- Message when books not found for filter -->
+    <string name="noBooksMatchFilter">No books match the filter</string>
     <!-- Message for upcoming download feature -->
     <string name="downloadFunctionalityComingSoon">Download functionality coming soon</string>
     <!-- Message for request timeout -->
     <string name="requestTimedOut">Request timed out</string>
     <!-- Message for network error -->
     <string name="networkError">Network error</string>
+    <!-- Plurals for book count display -->
+    <plurals name="booksCount">
+        <item quantity="one">%1$d book</item>
+        <item quantity="other">%1$d books</item>
+    </plurals>
     <!-- Status for disabled mirror -->
     <string name="mirrorStatusDisabled">Disabled</string>
     <!-- Label for mirror response time -->
@@ -296,9 +320,9 @@
     <string name="themeAmoled">AMOLED / Pure Black</string>
     <string name="themePreviewTitle">Live preview</string>
     <string name="themePreviewBookTitle">Mini player preview</string>
-    <string name="vinylMode">Vinyl Mode</string>
     <string name="lyrics">Lyrics</string>
     <string name="toggleLyricsView">Toggle lyrics view</string>
+    <string name="lyricsSeekToLine">Play from this line</string>
     <string name="lyricsVisibleState">Lyrics visible</string>
     <string name="lyricsHiddenState">Lyrics hidden</string>
     <!-- Label for high contrast -->
@@ -325,6 +349,10 @@
     <string name="hold_to_boost_speed_desc">Temporary speed while holding the speed button in player</string>
     <string name="auto_pip_title">Auto Picture-in-Picture</string>
     <string name="auto_pip_desc">Automatically enter Picture-in-Picture when leaving the player</string>
+    <string name="headset_autoplay_title">Play On Headset Connect</string>
+    <string name="headset_autoplay_desc">Automatically resume playback when a wired headset is plugged in</string>
+    <string name="notification_lockscreen_title">Notification on lock screen</string>
+    <string name="notification_lockscreen_desc">Show book title and artwork on the lock screen</string>
     <string name="playback_speed_format">%1$.1fx</string>
     <string name="sleep_timer_shake_extend_title">Shake To Extend Sleep Timer</string>
     <string name="sleep_timer_shake_extend_desc">Shake device to add 5 minutes to active sleep timer (fixed mode)</string>
@@ -348,14 +376,41 @@
     <string name="audioEnhancementTitle">Audio Enhancement</string>
     <!-- Description for audio enhancement settings -->
     <string name="audioEnhancementDescription">Improve audio quality and volume consistency</string>
+    <!-- Equalizer section title -->
+    <string name="equalizerTitle">Equalizer</string>
+    <!-- Equalizer preset: Standard -->
+    <string name="eqPresetStandard">Standard</string>
+    <!-- Equalizer preset: Voice -->
+    <string name="eqPresetVoice">Voice</string>
+    <!-- Equalizer preset: Bass -->
+    <string name="eqPresetBass">Bass</string>
+    <!-- Equalizer preset: Concert -->
+    <string name="eqPresetConcert">Concert</string>
+    <!-- Equalizer preset: Custom -->
+    <string name="eqPresetCustom">Custom</string>
     <string name="equalizer_section_title">Equalizer</string>
     <string name="equalizer_preset_title">Preset</string>
     <string name="equalizer_preset_desc">Adjust speech timbre for your listening environment</string>
     <string name="equalizer_preset_flat">Flat</string>
+    <string name="equalizer_preset_flat_raw">Flat (Raw)</string>
+    <string name="eq_recommendation_message">Recommend preset: %1$s</string>
+    <string name="eq_recommendation_apply">Apply</string>
     <string name="equalizer_preset_voice_clarity">Voice clarity</string>
     <string name="equalizer_preset_night">Night</string>
     <string name="equalizer_preset_headphones">Headphones</string>
     <string name="equalizer_preset_car">Car</string>
+    <string name="equalizer_preset_male_narrator">Male Narrator</string>
+    <string name="equalizer_preset_female_narrator">Female Narrator</string>
+    <string name="equalizer_preset_car_mode">Car Mode</string>
+    <string name="equalizer_preset_night_listening">Night Listening</string>
+    <string name="equalizer_preset_headphones_budget">Budget Headphones</string>
+    <string name="equalizer_preset_speaker_phone">Speaker Phone</string>
+    <string name="equalizer_preset_custom">Custom</string>
+    <string name="equalizer_custom_bands_title">Custom EQ Bands</string>
+    <string name="equalizer_save_preset">Save as Preset</string>
+    <string name="equalizer_save_preset_dialog_title">Save EQ Preset</string>
+    <string name="equalizer_save_preset_dialog_hint">Preset name</string>
+    <string name="equalizer_save_preset_saved">Preset saved</string>
     <string name="equalizer_five_band_title">5-band preview</string>
     <string name="equalizer_gain_db">%1$d dB</string>
     <string name="equalizer_point_tooltip">%1$s • %2$s</string>
@@ -377,6 +432,7 @@
     <string name="autoVolumeLevelingDescription">Automatically adjust volume to maintain consistent level</string>
     <!-- Label for playback speed -->
     <string name="playbackSpeed">Playback speed</string>
+    <string name="fineTuneSpeed">Fine-tune speed</string>
     <string name="recentSpeedsTitle">Recent speeds</string>
     <!-- Label for skip duration -->
     <string name="skipDuration">Skip duration</string>
@@ -532,6 +588,7 @@
     <string name="configureMirrorsSubtitle">Configure and test RuTracker mirrors</string>
     <!-- Title for playback speed setting -->
     <string name="playbackSpeedTitle">Playback Speed</string>
+    <string name="playbackSpeedSlider">Playback speed slider</string>
     <!-- Title for skip duration setting -->
     <string name="skipDurationTitle">Skip Duration</string>
     <!-- Title for download location setting -->
@@ -557,7 +614,7 @@
     <!-- Label for mirror URL field -->
     <string name="mirrorUrlLabelText">Mirror URL</string>
     <!-- Hint for mirror URL field -->
-    <string name="mirrorUrlHintText">https://rutracker.example.com</string>
+    <string name="mirrorUrlHintText">https://mirror.example.com</string>
     <!-- Label for priority field -->
     <string name="priorityLabelText">Priority (1-10)</string>
     <!-- Hint for priority field -->
@@ -842,7 +899,7 @@
     <!-- Generic error message -->
     <string name="genericError">Error: %1$s</string>
     <!-- Message for retrying connection -->
-    <string name="retryConnectionMessage">Retrying connection (%2$s/%1$s)...</string>
+    <string name="retryConnectionMessage">Retrying connection (%1$s/%2$s)...</string>
     <!-- Error message for load failure -->
     <string name="loadError">Load error: %1$s</string>
     <!-- Error message for page load failure -->
@@ -1442,6 +1499,8 @@
     <!-- Button to skip -->
     <string name="skip">Skip</string>
     <string name="save">Save</string>
+    <string name="done">Done</string>
+    <string name="webViewLoginFailed">RuTracker did not confirm the login. Complete the sign-in and try again.</string>
     <string name="bookmarkNoteSheetTitle">Bookmark note</string>
     <string name="bookmarkNoteSheetLabel">Note</string>
     <string name="bookmarkNoteSheetPlaceholder">Add a quick note for this bookmark</string>
@@ -1451,6 +1510,7 @@
     <string name="playVoiceNote">Play voice note</string>
     <string name="stopPlayback">Stop playback</string>
     <string name="errorPlayingVoiceNote">Failed to play voice note</string>
+    <string name="errorRecordingVoiceNote">Failed to record voice note</string>
     <!-- Button to acknowledge -->
     <string name="gotIt">Got It</string>
     <!-- Title for background compatibility banner -->
@@ -2257,16 +2317,23 @@
     <string name="priorityDownloadinfopriorityname">Priority: ${downloadInfo.priority.name}</string>
     <!-- Priority menu -->
     <string name="priorityMenu">Priority menu</string>
-    <!-- rutracker.nl -->
-    <string name="rutrackernl">rutracker.nl</string>
+    <!-- example mirror domain -->
+    <string name="rutrackernl">mirror.example.com</string>
     <!-- Search books... -->
-    <string name="searchBooks">Search books...</string>
+    <string name="searchBooks">Search books, authors, narrators…</string>
     <!-- $seeders -->
     <!-- Seeders -->
     <!-- Share logs -->
     <string name="shareLogs">Share logs</string>
     <!-- Sleep Timer -->
     <string name="sleepTimer">Sleep Timer</string>
+    <!-- Bookmarks -->
+    <string name="bookmarks">Bookmarks</string>
+    <string name="bookmarkCount">%1$d bookmarks</string>
+    <string name="noBookmarks">No bookmarks yet</string>
+    <string name="noBookmarksDescription">Long press on the seekbar to add a bookmark</string>
+    <string name="jumpToBookmark">Jump to bookmark</string>
+    <string name="deleteBookmark">Delete bookmark</string>
     <!-- Smallest First -->
     <string name="smallestFirst">Smallest First</string>
     <!-- Tap to open app and resume playback -->
@@ -2278,6 +2345,7 @@
     <!-- Unavailable -->
     <string name="unavailable">Unavailable</string>
     <string name="bookDetails">Book details</string>
+    <string name="aboutBook">About book</string>
     <string name="add">Add</string>
     <string name="addMirror">Add mirror</string>
     <string name="domain">Domain</string>
@@ -2308,6 +2376,8 @@
     <string name="chooseAppTheme">Choose app theme</string>
     <string name="dynamicColorsTitle">Dynamic colors (Material You)</string>
     <string name="dynamicColorsDescription">Adapt app colors to your wallpaper on Android 12+</string>
+    <string name="accentColorTitle">Accent color</string>
+    <string name="accentColorDescription">Choose a fallback accent color when dynamic colors are disabled</string>
     <!-- Font settings title -->
     <string name="fontTitle">Font</string>
     <!-- Choose font family -->
@@ -2326,6 +2396,14 @@
     <string name="concurrentDownloads">Concurrent Downloads</string>
     <!-- Continue Listening -->
     <string name="continueListening">Continue Listening</string>
+    <!-- Continue Listening action button -->
+    <string name="continueListeningAction">Continue</string>
+    <!-- Time remaining: %s is formatted duration -->
+    <string name="timeRemaining">%s left</string>
+    <!-- TalkBack description for elapsed playback time -->
+    <string name="elapsedTimeDescription">Listened: %s</string>
+    <!-- TalkBack description for total duration -->
+    <string name="totalDurationDescription">Total duration: %s</string>
     <!-- Dark -->
     <string name="dark">Dark</string>
     <!-- Dark Theme -->
@@ -2450,7 +2528,7 @@
     <string name="torrentDetailsTitle">Torrent Details</string>
     <string name="backButton">Back</string>
     <string name="settings">Settings</string>
-    <string name="invalidUrlFormatError">Invalid URL. Use format: rutracker.example</string>
+    <string name="invalidUrlFormatError">Invalid URL. Use format: mirror.example</string>
     <string name="unknownStat">Unknown</string>
     <string name="noAudiobooksFound">No audiobooks</string>
     <string name="aboutApp">About app</string>
@@ -2482,6 +2560,8 @@
     <string name="sleepTimerRepeatYesterday">Same as yesterday (%1$d min)</string>
     <string name="sleepTimerStopsAt">Stops at %1$s (in %2$s)</string>
     <string name="sleepTimerResumeHint">Sleep timer paused playback. Continue from the same spot.</string>
+    <string name="phoneCallBookmarkSnackbar">Added a bookmark — continue from where you left off?</string>
+    <string name="playChapter">Play chapter</string>
     <string name="stopAtSpecificTime">Stop at specific time</string>
     <string name="stopAtSpecificTimeDesc">Choose clock time (for example, 23:30)</string>
     <string name="currentMirror">Current Mirror</string>
@@ -2538,18 +2618,11 @@
     <string name="dataSizeLabel">Data: %1$s</string>
     <string name="totalSizeLabel">Total: %1$s</string>
     <string name="cacheClearErrorMessage">Error clearing cache: %1$s</string>
-    <!-- Override book settings title -->
-    <string name="overrideBookSettings">Override book settings</string>
-    <!-- Use global settings option -->
-    <string name="useGlobalSettings">Use global settings</string>
-    <!-- Custom settings option -->
-    <string name="customSettings">Custom settings</string>
     <!-- Add Folder -->
     <string name="addFolder">Add Folder</string>
     <!-- Manage folders to scan for audiobooks -->
     <string name="manageFoldersToScanForAudiobooks">Manage folders to scan for audiobooks</string>
     <!-- \n -->
-    <string name="n">\n</string>
     <!-- No custom folders added -->
     <string name="noCustomFoldersAdded">No custom folders added</string>
     <!-- Scanning default folders: Audiobooks, Podcasts -->
@@ -2560,6 +2633,9 @@
     <!-- Widget strings -->
     <string name="no_book_playing">No book playing</string>
     <string name="widget_description">Quick access to audio player controls</string>
+    <!-- Quick Settings Tile strings -->
+    <string name="quick_tile_playing">Playing</string>
+    <string name="quick_tile_paused">Paused</string>
     <string name="notification_channel_description">Audio playback controls</string>
     
     <!-- Media3 Default Channel Overrides -->
@@ -2635,12 +2711,23 @@
     <string name="totalDuration">Total Duration</string>
     <string name="downloadStatus">Download Status</string>
     <string name="downloaded">Downloaded</string>
+    <string name="listened">Listened</string>
+    <string name="listenedStatus">Listen Status</string>
+    <!-- Quality badge strings -->
+    <string name="qualityHigh">High</string>
+    <string name="qualityStandard">Standard</string>
+    <string name="qualityLow">Low</string>
+    <string name="qualityBadgeContentDescription">%1$s quality: %2$s</string>
+    <string name="lowQualityWarning">Low quality archival release</string>
+    <string name="narratorCardTitle">Narrated by</string>
+    <string name="narratorMetaProfessional">Professional narrator</string>
     <!-- Player chapter pane strings -->
     <string name="currentlyPlaying">Currently playing</string>
     <string name="jumpToChapterNumber">Jump to chapter #...</string>
     <string name="playerChapterNavigationSnackbar">Moved to chapter %1$d</string>
     <string name="undoAction">Undo</string>
     <string name="bookmarkAddedMessage">Bookmark added</string>
+    <string name="bookmarkDeleted">Bookmark deleted</string>
     <string name="dragToReorder">Drag to reorder</string>
     <string name="continueSeriesLabel">Continue series</string>
     <string name="playNowAction">Play now</string>
@@ -2658,9 +2745,6 @@
     <string name="yearRecapDaysLabel">Active days</string>
     <string name="yearRecapSessionsLabel">Sessions</string>
     <string name="yearRecapTopAuthorLabel">Most listened author</string>
-    <string name="rateCompletedBookTitle">How would you rate this book?</string>
-    <string name="rateCompletedBookThanks">Thanks! You rated this book %1$d/5.</string>
-    <string name="rateCompletedBookStar">%1$d stars</string>
     <string name="laterAction">Later</string>
     <string name="minutesLabel">minutes</string>
     <string name="booksLabel">books</string>
@@ -2726,6 +2810,7 @@
     <string name="checking_state">Checking</string>
     <string name="metadata_state">Getting info</string>
     <string name="queued_state">Queued</string>
+    <string name="cancelled_state">Cancelled</string>
     <string name="stopped_state">Stopped</string>
     <string name="seeding_paused_state">Seeding (Paused)</string>
     
@@ -2737,6 +2822,7 @@
     <string name="duration_hm">%1$dh %2$dm</string>
     <string name="duration_m">%1$dm</string>
     <string name="duration_less_minute">&lt;1m</string>
+    <string name="eta_approx_min">≈ %1$d мин</string>
     
     <string name="peers_seeds">Peers: %1$d (%2$d seeds)</string>
     <string name="no_downloads">No downloads yet</string>
@@ -2810,6 +2896,10 @@
     <string name="indexingCompletedHeadline">Indexing completed!</string>
     <string name="indexingDurationSeconds">Time: %1$d sec</string>
     <string name="indexingForumLabel">Forum: %1$s</string>
+    <string name="indexingStatusIndexed">Indexed</string>
+    <string name="indexingStatusInProgress">Indexing</string>
+    <string name="indexingStatusFailed">Failed</string>
+    <string name="indexingStatusPending">Pending</string>
     <string name="hideAction">Hide</string>
     <string name="cannotShareLogsActivityRequired">Cannot share logs: activity context required</string>
     <string name="torrentBufferingTitle">Buffering...</string>
@@ -2842,8 +2932,7 @@
     <string name="off">Off</string>
     <string name="volumeBoostPercent">+%1$d%%</string>
     <string name="smartEffectsTitle">Smart Effects</string>
-    <string name="smartResumeRecapSuggestion">Long pause detected (%1$d h). Replay last 2 minutes?</string>
-    <string name="smartResumeRecapAction">Replay</string>
+
     <string name="notificationPermissionPlaybackHint">Notifications help control playback from the notification bar</string>
     <string name="audioVisualizerPermissionHint">Audio visualizer needs microphone permission</string>
 
@@ -2859,4 +2948,182 @@
         <item quantity="one">%d selected</item>
         <item quantity="other">%d selected</item>
     </plurals>
+    <!-- Player overflow menu strings -->
+    <string name="playerShare">Share</string>
+    <string name="playerStatistics">Statistics</string>
+    <string name="playerOverflowMenu">More options</string>
+    <string name="desktopSelectBookHint">Select a book to view details</string>
+
+    <!-- Downloads tabs -->
+    <string name="downloadsActiveTab">Active</string>
+    <string name="downloadsHistoryTab">History</string>
+    <string name="streamingBufferLabel">Streaming (%1$s)</string>
+    <string name="downloadsActiveSummary">Active downloads</string>
+    <string name="downloadsActiveStats">%1$d downloading • %2$s/s • %3$d queued</string>
+    <string name="downloadsPausedNoSpeed">%1$d downloading • Paused • %2$d queued</string>
+    <string name="no_active_downloads">No active downloads</string>
+    <string name="storageUsedLabel">%1$s used • %2$s free</string>
+    <string name="storageLegendAudiobooks">Audiobooks</string>
+    <string name="storageLegendDownloading">Downloading</string>
+    <string name="downloadNarratedBy">Reads: %1$s</string>
+    <string name="downloadChaptersProgress">%1$d/%2$d chapters</string>
+    <string name="downloadsHistorySection">History (%1$d)</string>
+    <string name="historyStatusCompleted">Completed</string>
+    <string name="historyStatusFailed">Failed</string>
+    <string name="historyStatusCancelled">Cancelled</string>
+    <string name="historyRetry">Retry</string>
+    <string name="settingsProfileGuest">Guest</string>
+    <string name="settingsProfileStats">%1$d books · %2$d h listened · %3$d favorites</string>
+    <string name="settingsSignIn">Sign in</string>
+    <string name="settingsGeneral">General</string>
+    <string name="settingsLanguage">Interface language</string>
+    <string name="settingsHaptics">Haptics</string>
+    <string name="settingsHapticsDesc">Vibration on seek and gestures</string>
+    <string name="settingsPhone">Phone</string>
+    <string name="settingsTablet">Tablet</string>
+    <string name="settingsDesktopMode">Desktop</string>
+    <string name="settingsDesktopModeDesc">Large screen · list-detail</string>
+
+    <!-- Device and Layout -->
+    <string name="deviceAndLayout">Device and Layout</string>
+    <string name="playerCoverModeTitle">Player Cover</string>
+    <string name="playerCoverModeDescription">Choose how the cover art is displayed</string>
+    <string name="coverModeCard">Card</string>
+    <string name="coverModeVinyl">Vinyl</string>
+
+    <!-- Search Discovery V4 -->
+    <string name="searchModeLocal">Library</string>
+    <string name="searchModeRemote">RuTracker</string>
+    <string name="searchPlaceholderLocal">Search local library…</string>
+    <string name="searchPlaceholderRemote">Search RuTracker…</string>
+    <string name="genreClassics">Classics</string>
+    <string name="genreSciFi">Sci-fi</string>
+    <string name="genreDetective">Detective</string>
+    <string name="genreHistory">History</string>
+    <string name="genreBiographies">Biographies</string>
+    <string name="genreChildren">Children\'s</string>
+    <string name="genreBusiness">Business</string>
+    <string name="genreSelfDevelopment">Self-development</string>
+    <string name="genreMisc">Misc</string>
+    <string name="qualityAny">Any</string>
+    <string name="qualityAtLeastHigh">≥ 256 kbit</string>
+    <string name="qualityAtLeastStandard">≥ 128 kbit</string>
+    <string name="searchSortSeeds">By seeds</string>
+    <string name="searchSortSize">By size</string>
+    <string name="searchSortRelevance">Relevance</string>
+    <string name="localResultsCount">Found %1$d book</string>
+    <string name="localResultsCountPlural">Found %1$d books</string>
+    <string name="searchDiscoveryTitle">Discover</string>
+    <string name="searchGenreChipsTitle">Genres</string>
+    <string name="searchQualityChipsTitle">Quality</string>
+
+    <!-- MiniPlayer swipe-to-dismiss (TASK-PLAYER-44) -->
+    <string name="mini_player_dismissed_undo">Playback stopped</string>
+    <string name="mini_player_dismissed_resume">Resume</string>
+
+    <!-- Resume after long pause (TASK-PLAYER-38) -->
+    <string name="resumeLongPauseTitle">Haven\'t listened in a while</string>
+    <string name="resumeLongPauseDescription">%1$s • %2$s — %3$d d. ago</string>
+    <string name="resumeLongPauseContinue">Continue</string>
+    <string name="resumeLongPauseRestartChapter">Restart chapter</string>
+    <string name="resumeLongPauseSelectChapter">Select chapter</string>
+
+    <!-- Overflow menu content description -->
+    <string name="overflowMenu">More</string>
+    <string name="statistics">Statistics</string>
+    <string name="showStatistics">Show statistics</string>
+    <string name="hideStatistics">Hide statistics</string>
+    <string name="approximateSpeedDistribution">Approximate speed distribution</string>
+    <string name="discovery">Подборка</string>
+
+    <!-- Library accessibility & localization -->
+    <string name="scrollToTop">Scroll to top</string>
+    <string name="discoveryTrending">Trending</string>
+    <string name="discoveryForYou">For You</string>
+    <string name="discoveryGenres">Genres</string>
+    <string name="greetingMorning">Good morning</string>
+    <string name="greetingAfternoon">Good afternoon</string>
+    <string name="greetingEvening">Good evening</string>
+    <string name="greetingNight">Good night</string>
+    <string name="heatmapAccessibilityDescription">Listened %1$d minutes over the last %2$d weeks</string>
+    <string name="speedChartAccessibilityDescription">Speed distribution: most books listened at %1$.1fx</string>
+    <string name="speedLegendFormat">%1$.1fx — %2$d min</string>
+    <!-- Listening mood labels -->
+    <string name="moodWalking">Walking</string>
+    <string name="moodDriving">Driving</string>
+    <string name="moodSleeping">Before sleep</string>
+    <string name="moodWorkout">Workout</string>
+    <string name="moodRelaxing">Relaxing</string>
+    <string name="moodWorking">Working</string>
+    <!-- Cloudflare protection status -->
+    <string name="cfProtected">CF Protected</string>
+    <!-- Fallback chapter name for bookmarks -->
+    <string name="chapterFallback">Chapter %1$d</string>
+    <!-- Achievement overlay -->
+    <string name="achievementUnlocked">Achievement unlocked</string>
+    <string name="achievementDismiss">Great</string>
+    <!-- Indexing worker notification -->
+    <string name="indexingNotificationTitle">Indexing audiobooks</string>
+    <string name="indexingNotificationBody">Preparing offline search</string>
+    <string name="indexingNotificationCompleted">Indexing complete</string>
+    <string name="indexingNotificationError">Indexing error: %1$s</string>
+    <!-- Notification strings -->
+    <string name="downloading_book">Downloading: %1$s</string>
+    <string name="download_progress_percent">%1$d%% complete</string>
+    <string name="downloadComplete">Download complete</string>
+    <string name="downloadFailed">Download failed: %1$s</string>
+    <string name="resume">Resume</string>
+    <string name="pauseAll">Pause All</string>
+    <string name="resumeAll">Resume All</string>
+    <!-- Notification channel names -->
+    <string name="notification_channel_downloads">Downloads</string>
+    <string name="notification_channel_downloads_desc">Book download progress and completion</string>
+    <string name="notification_channel_player">Audio Player</string>
+    <string name="notification_channel_player_desc">Audio playback controls and status</string>
+    <!-- Chapter progress notification subtitle: current chapter, total chapters (plural count), time left in chapter -->
+    <plurals name="chapter_progress_subtitle">
+        <item quantity="one">Chapter %1$d of %2$d • %3$s left in chapter</item>
+        <item quantity="other">Chapter %1$d of %2$d • %3$s left in chapter</item>
+    </plurals>
+    <!-- Player error messages -->
+    <string name="player_not_ready">Player is not ready yet</string>
+    <string name="book_not_found">Book not found</string>
+    <string name="noBookSelected">No book selected</string>
+    <string name="noBookSelectedSubtitle">Choose a book from your library to start listening</string>
+    <string name="browseLibrary">Browse library</string>
+    <string name="failed_to_delete_bookmark">Failed to delete bookmark</string>
+    <string name="failed_to_update_seek_settings">Failed to update seek settings</string>
+    <string name="failed_to_reset_seek_settings">Failed to reset seek settings</string>
+    <string name="failed_to_update_audio_settings">Failed to update audio settings</string>
+    <string name="failed_to_add_bookmark">Failed to add bookmark</string>
+    <string name="failed_to_update_bookmark">Failed to update bookmark</string>
+    <string name="failed_to_update_playback_speed">Failed to update playback speed</string>
+    <string name="failed_to_save_playback_speed">Failed to save playback speed</string>
+    <string name="unknown_error">Unknown error</string>
+    <string name="status_completed">Completed</string>
+    <string name="minutes_remaining">%1$d min left</string>
+    <string name="total_duration_minutes">%1$d min</string>
+    <!-- Accessibility labels -->
+    <string name="open_book_details">Open book details</string>
+    <string name="browse_genre">Browse genre</string>
+    <string name="open_book">Open book</string>
+    <!-- Indexing -->
+    <string name="auth_required_for_indexing">Authorization required for forum indexing. Please sign in to your account.</string>
+    <string name="indexing_not_completed">Indexing did not complete successfully</string>
+    <string name="failed_to_add_torrent">Failed to add torrent: %1$s</string>
+    <string name="download_queued_waiting_wifi">Download queued: Waiting for WiFi connection</string>
+    <string name="export_failed">Export failed</string>
+    <string name="import_failed">Import failed</string>
+    <string name="failed_to_load_cache_stats">Failed to load cache stats</string>
+    <string name="failed_to_clear_cache">Failed to clear cache</string>
+    <string name="torrent_stream_author">Torrent Stream</string>
+    <string name="streaming_from_torrent">Streaming from torrent: %1$s</string>
+    <string name="notificationPermissionDeniedToast">Notification permission denied. Indexing progress will not be visible.</string>
+    <string name="mirrorExamplesHint">Examples: mirror1.example, mirror2.example</string>
+    <string name="cdSwitchAccount">Switch Account</string>
+    <string name="webViewLoadFailed">Failed to load page</string>
+    <string name="playbackErrorFallback">Playback error</string>
+    <string name="statsBufferStreaming">%1$s (streaming)</string>
+    <string name="statsBufferLocal">%1$s (local)</string>
+    <string name="playerShareByFormat">%1$s by %2$s</string>
 </resources>

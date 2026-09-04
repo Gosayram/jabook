@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.AudioProcessor.StreamMetadata
 import androidx.media3.common.util.UnstableApi
 import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
@@ -48,11 +49,6 @@ public class VolumeBoostProcessor(
     private val limiterThresholdDb = -0.3f
     private val limiterThresholdLinear = 10.0.pow((limiterThresholdDb / 20.0f).toDouble()).toFloat()
 
-    // Look-ahead buffer size: 10ms
-    private val lookAheadMs = 10
-    private var lookAheadSamples = 0
-    private val lookAheadBuffer = mutableListOf<Float>()
-
     init {
         // Calculate gain multiplier based on boost level
         gainMultiplier =
@@ -75,13 +71,6 @@ public class VolumeBoostProcessor(
         this.inputAudioFormat = inputAudioFormat
         this.outputAudioFormat = inputAudioFormat
 
-        // Calculate look-ahead buffer size
-        val sampleRate = inputAudioFormat.sampleRate
-        lookAheadSamples = sampleRate * lookAheadMs / 1000
-
-        // Initialize look-ahead buffer
-        lookAheadBuffer.clear()
-
         // Only activate if boost is enabled
         isActive = boostLevel != VolumeBoostLevel.Off && gainMultiplier > 1.0f
 
@@ -99,7 +88,9 @@ public class VolumeBoostProcessor(
     override fun isActive(): Boolean = isActive
 
     // Input/output buffers
-    private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var queuedInputBuffer: ByteBuffer? = null
+    private var queuedInputCapacity: Int = 0
+    private var queuedInputBytes = 0
     private var outputBuffer: ByteBuffer? = null
     private var inputEnded = false
 
@@ -109,12 +100,24 @@ public class VolumeBoostProcessor(
         }
 
         if (inputBuffer.hasRemaining()) {
-            val buffer = ByteBuffer.allocateDirect(inputBuffer.remaining())
-            buffer.order(ByteOrder.nativeOrder())
-            buffer.put(inputBuffer)
-            buffer.flip()
-            inputBuffers.add(buffer)
+            val remaining = inputBuffer.remaining()
+            ensureQueuedInputCapacity(remaining)
+            queuedInputBytes += remaining
+            queuedInputBuffer!!.put(inputBuffer)
         }
+    }
+
+    private fun ensureQueuedInputCapacity(additionalBytes: Int) {
+        val required = queuedInputBytes + additionalBytes
+        if (required <= queuedInputCapacity) return
+        val newCapacity = maxOf(required, queuedInputCapacity * 2, 4096)
+        val newBuffer = ByteBuffer.allocateDirect(newCapacity).order(ByteOrder.nativeOrder())
+        queuedInputBuffer?.let { old ->
+            old.flip()
+            newBuffer.put(old)
+        }
+        queuedInputBuffer = newBuffer
+        queuedInputCapacity = newCapacity
     }
 
     override fun queueEndOfStream() {
@@ -122,26 +125,33 @@ public class VolumeBoostProcessor(
     }
 
     override fun getOutput(): ByteBuffer {
-        if (!isActive || inputBuffers.isEmpty()) {
+        if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
+        if (!isActive || queuedInputBytes == 0) {
             return EMPTY_BUFFER
         }
 
-        val totalSize = inputBuffers.sumOf { it.remaining() }
-        if (totalSize == 0) {
-            return EMPTY_BUFFER
+        val totalSize = queuedInputBytes
+
+        val preparedOutputBuffer =
+            if (outputBuffer == null || outputBuffer!!.capacity() < totalSize) {
+                ByteBuffer.allocateDirect(totalSize).order(ByteOrder.nativeOrder()).also {
+                    outputBuffer = it
+                }
+            } else {
+                outputBuffer!!.clear()
+                outputBuffer
+            } ?: return EMPTY_BUFFER
+
+        queuedInputBuffer?.let { buf ->
+            buf.flip()
+            processBuffer(buf, preparedOutputBuffer)
         }
 
-        outputBuffer = ByteBuffer.allocateDirect(totalSize)
-        outputBuffer!!.order(ByteOrder.nativeOrder())
+        queuedInputBuffer?.clear()
+        queuedInputBytes = 0
+        preparedOutputBuffer.flip()
 
-        for (inputBuffer in inputBuffers) {
-            processBuffer(inputBuffer, outputBuffer!!)
-        }
-
-        inputBuffers.clear()
-        outputBuffer!!.flip()
-
-        return outputBuffer!!
+        return preparedOutputBuffer
     }
 
     /**
@@ -155,7 +165,6 @@ public class VolumeBoostProcessor(
 
         if (format.encoding != android.media.AudioFormat.ENCODING_PCM_16BIT) {
             // For other formats, pass through
-            val remaining = input.remaining()
             output.put(input)
             return
         }
@@ -166,8 +175,20 @@ public class VolumeBoostProcessor(
         applyBoostWithLimiter(input, output, samples, channels)
     }
 
+    // ponytail: asymptotic soft-knee limiter threshold 0.8, maxOver 0.2 — matches Rhythm reference
+    private fun softLimit(sample: Float): Float {
+        if (sample == 0f) return 0f
+        val absValue = kotlin.math.abs(sample)
+        val threshold = 0.8f
+        if (absValue <= threshold) return sample
+        val over = absValue - threshold
+        val maxOver = 0.2f
+        val limited = threshold + over / (1f + over / maxOver)
+        return kotlin.math.sign(sample) * limited
+    }
+
     /**
-     * Applies volume boost with soft-knee limiter protection.
+     * Applies volume boost with asymptotic soft limiter.
      * Optimized: pre-compute constants.
      */
     private fun applyBoostWithLimiter(
@@ -176,28 +197,19 @@ public class VolumeBoostProcessor(
         samples: Int,
         channels: Int,
     ) {
-        // Pre-compute constants
         val invMaxValue = 1.0f / Short.MAX_VALUE
         val maxValue = Short.MAX_VALUE.toFloat()
-        val softRatio = 0.5f // Soft compression ratio
 
         for (i in 0 until samples) {
             for (ch in 0 until channels) {
                 val sample = input.short
-                val normalized = sample * invMaxValue // Faster than division
+                val normalized = sample * invMaxValue
 
                 // Apply gain boost
                 var amplified = normalized * gainMultiplier
 
-                // Apply soft-knee limiter
-                if (amplified > limiterThresholdLinear) {
-                    // Soft knee: gradual limiting above threshold
-                    val excess = amplified - limiterThresholdLinear
-                    amplified = limiterThresholdLinear + excess * softRatio
-                } else if (amplified < -limiterThresholdLinear) {
-                    val excess = amplified + limiterThresholdLinear
-                    amplified = -limiterThresholdLinear + excess * softRatio
-                }
+                // Asymptotic soft-limit (threshold 0.8 → asymptote 1.0)
+                amplified = softLimit(amplified)
 
                 // Clamp to prevent clipping
                 amplified = amplified.coerceIn(-1.0f, 1.0f)
@@ -208,12 +220,11 @@ public class VolumeBoostProcessor(
         }
     }
 
-    override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
+    override fun isEnded(): Boolean = inputEnded && queuedInputBytes == 0
 
-    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
-    override fun flush() {
-        lookAheadBuffer.clear()
-        inputBuffers.clear()
+    override fun flush(streamMetadata: StreamMetadata) {
+        queuedInputBuffer?.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
     }

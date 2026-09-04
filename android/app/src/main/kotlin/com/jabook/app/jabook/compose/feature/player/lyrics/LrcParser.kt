@@ -15,6 +15,9 @@
 package com.jabook.app.jabook.compose.feature.player.lyrics
 
 import androidx.compose.runtime.Immutable
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Represents a single line of synchronized lyrics.
@@ -57,7 +60,8 @@ public object LrcParser {
                         msStr.toLongOrNull() ?: 0L
                     }
 
-                val totalTimeMs = (minutes * 60 * 1000) + (seconds * 1000) + milliseconds
+                val totalTimeMs =
+                    (minutes.minutes + seconds.seconds + milliseconds.milliseconds).inWholeMilliseconds
                 parsedLines.add(LyricLine(totalTimeMs, text))
             }
         }

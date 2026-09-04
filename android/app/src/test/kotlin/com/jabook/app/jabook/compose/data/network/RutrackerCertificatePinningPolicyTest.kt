@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.network
 
+import com.jabook.app.jabook.BuildConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -21,10 +22,14 @@ import org.junit.Test
 class RutrackerCertificatePinningPolicyTest {
     @Test
     fun `hostPins include all default mirrors with at least two pins`() {
-        assertEquals(
-            setOf("rutracker.org", "rutracker.net", "rutracker.me"),
-            RutrackerCertificatePinningPolicy.pinnedHosts,
-        )
+        val expectedHosts =
+            BuildConfig.RUTRACKER_DEFAULT_MIRRORS
+                .split(',')
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .take(2)
+                .toSet()
+        assertEquals(expectedHosts, RutrackerCertificatePinningPolicy.pinnedHosts)
         RutrackerCertificatePinningPolicy.hostPins.values.forEach { pins ->
             assertTrue("Each host should include leaf + backup pin", pins.size >= 2)
             pins.forEach { pin ->

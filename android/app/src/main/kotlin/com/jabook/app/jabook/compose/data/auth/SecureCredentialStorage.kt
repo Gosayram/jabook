@@ -125,6 +125,9 @@ public class SecureCredentialStorage
 
             private val KEY_USERNAME = stringPreferencesKey("encrypted_username")
             private val KEY_PASSWORD = stringPreferencesKey("encrypted_password")
+
+            /** AAD binding ciphertexts to their purpose; legacy rows were written with null AAD. */
+            private val CREDENTIALS_AAD = "credentials:v1".toByteArray()
         }
 
         private val dataStore: DataStore<Preferences> by lazy { SecureCredentialStorageFactories.dataStore(context) }
@@ -199,7 +202,10 @@ public class SecureCredentialStorage
                 if (username.isNotBlank() && password.isNotBlank()) {
                     UserCredentials(username, password)
                 } else {
-                    clearCredentialsSafely()
+                    clearCredentialsSafely(
+                        expectedEncryptedUsername = encryptedUsername,
+                        expectedEncryptedPassword = encryptedPassword,
+                    )
                     null
                 }
             } catch (e: Exception) {
@@ -207,7 +213,10 @@ public class SecureCredentialStorage
                     stage = "decrypt_failed",
                     throwable = e,
                 )
-                clearCredentialsSafely()
+                clearCredentialsSafely(
+                    expectedEncryptedUsername = encryptedUsername,
+                    expectedEncryptedPassword = encryptedPassword,
+                )
                 null
             }
         }
@@ -236,9 +245,21 @@ public class SecureCredentialStorage
             return prefs[KEY_USERNAME] != null || prefs[KEY_PASSWORD] != null
         }
 
-        private suspend fun clearCredentialsSafely() {
+        private suspend fun clearCredentialsSafely(
+            expectedEncryptedUsername: String? = null,
+            expectedEncryptedPassword: String? = null,
+        ) {
             runCatching {
                 dataStore.edit { prefs ->
+                    if (
+                        expectedEncryptedUsername != null &&
+                        (
+                            prefs[KEY_USERNAME] != expectedEncryptedUsername ||
+                                prefs[KEY_PASSWORD] != expectedEncryptedPassword
+                        )
+                    ) {
+                        return@edit
+                    }
                     prefs.remove(KEY_USERNAME)
                     prefs.remove(KEY_PASSWORD)
                 }
@@ -280,7 +301,7 @@ public class SecureCredentialStorage
         private fun encrypt(plaintextBytes: ByteArray): String? {
             val localAead = aeadOrNull ?: return null
             return runCatching {
-                val encrypted = localAead.encrypt(plaintextBytes, null)
+                val encrypted = localAead.encrypt(plaintextBytes, CREDENTIALS_AAD)
                 android.util.Base64.encodeToString(encrypted, android.util.Base64.NO_WRAP)
             }.onFailure {
                 reportSecureStorageNonFatal(
@@ -292,11 +313,18 @@ public class SecureCredentialStorage
 
         /**
          * Decrypt string using Tink AEAD.
+         * Falls back to legacy null-AAD decryption for rows written before AAD binding.
          */
         private fun decrypt(ciphertext: String): String {
             val localAead = aeadOrNull ?: throw IllegalStateException("AEAD is not initialized")
             val encrypted = android.util.Base64.decode(ciphertext, android.util.Base64.NO_WRAP)
-            val decrypted = localAead.decrypt(encrypted, null)
+            val decrypted =
+                try {
+                    localAead.decrypt(encrypted, CREDENTIALS_AAD)
+                } catch (_: Exception) {
+                    // Legacy migration path; next saveCredentials re-encrypts with AAD.
+                    localAead.decrypt(encrypted, null)
+                }
             return String(decrypted)
         }
     }

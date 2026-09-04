@@ -46,6 +46,7 @@ import org.robolectric.RobolectricTestRunner
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class GaplessPlaybackTest {
     private lateinit var context: Context
     private lateinit var exoPlayer: ExoPlayer
@@ -106,22 +107,21 @@ class GaplessPlaybackTest {
             // Given a list of files (small playlist <50, will use synchronous loading)
             val files = listOf("/storage/book/1.mp3", "/storage/book/2.mp3", "/storage/book/3.mp3")
 
-            // Mock player behavior for synchronous loading
-            // For small playlists, setMediaItems is used instead of addMediaSource
-            whenever(exoPlayer.mediaItemCount).thenReturn(0) // Start with 0, will be set by setMediaItems
+            // Small playlists use MediaSources so network playback retains its cache route.
+            whenever(exoPlayer.mediaItemCount).thenReturn(0)
 
             // When playlist is prepared
-            playlistManager.preparePlaybackOptimized(files, null)
+            playlistManager.preparePlaybackOptimized(filePaths = files, metadata = null)
 
             // Advance all coroutines to ensure completion
             advanceUntilIdle()
 
             // Then items are added to the player
-            // For small playlists (<50), synchronous loading uses setMediaItems
+            // For small playlists (<50), synchronous loading uses setMediaSources.
             // 1. Clear items called first
             verify(exoPlayer).clearMediaItems()
-            // 2. setMediaItems is called with all items at once (synchronous loading)
-            verify(exoPlayer).setMediaItems(any(), any(), any())
+            // 2. setMediaSources is called with all sources at once (synchronous loading)
+            verify(exoPlayer).setMediaSources(any(), any(), any())
             // 3. prepare is called
             verify(exoPlayer).prepare()
         }

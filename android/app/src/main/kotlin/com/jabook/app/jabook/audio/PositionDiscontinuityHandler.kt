@@ -38,6 +38,7 @@ internal class PositionDiscontinuityHandler(
     private val saveCurrentPosition: () -> Unit,
     private val bookCompletionTracker: BookCompletionTracker,
     private val playerErrorHandler: PlayerErrorHandler,
+    private val getRepeatMode: () -> Int = { Player.REPEAT_MODE_OFF },
 ) {
     /**
      * Handles position discontinuity events (track changes, seeks, auto-transitions).
@@ -65,8 +66,7 @@ internal class PositionDiscontinuityHandler(
         val isManualSeek =
             reason == Player.DISCONTINUITY_REASON_SEEK ||
                 reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
-        val isAutoTransition =
-            reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION || reason == 4
+        val isAutoTransition = reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION
 
         // Handle book completion state during discontinuities
         if (getIsBookCompleted()) {
@@ -91,7 +91,9 @@ internal class PositionDiscontinuityHandler(
         )
 
         // Detect end-of-book: last track wraps to index 0 via auto-transition
-        if (isEndOfBookWraparound(previousIndex, currentIndex, totalTracks, reason)) {
+        if (getRepeatMode() == Player.REPEAT_MODE_OFF &&
+            isEndOfBookWraparound(previousIndex, currentIndex, totalTracks, reason)
+        ) {
             handleEndOfBookWraparound(player, previousIndex, oldPosition.positionMs, totalTracks)
             return true
         }
@@ -148,7 +150,7 @@ internal class PositionDiscontinuityHandler(
         previousIndex >= 0 &&
             previousIndex >= totalTracks - 1 &&
             (currentIndex == 0 || currentIndex < 0 || currentIndex >= totalTracks) &&
-            (reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION || reason == 4)
+            reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION
 
     private fun handleEndOfBookWraparound(
         player: ExoPlayer,

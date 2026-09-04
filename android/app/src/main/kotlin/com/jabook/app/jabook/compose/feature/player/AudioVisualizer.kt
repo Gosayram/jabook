@@ -24,13 +24,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.compose.core.theme.MotionTokens
@@ -48,6 +51,9 @@ public enum class VisualizerStyle {
 
     /** Circular visualization */
     CIRCULAR,
+
+    /** Thin line under seekbar (YouTube Music style) */
+    MINIMAL,
 }
 
 /**
@@ -57,6 +63,7 @@ public enum class VisualizerStyle {
  * @param isPlaying Whether audio is currently playing
  * @param style Visualization style
  * @param height Component height
+ * @param lowCostMode Reduces bar count for performance on low-end devices
  * @param modifier Modifier
  */
 @Composable
@@ -65,6 +72,7 @@ public fun AudioVisualizer(
     isPlaying: Boolean,
     style: VisualizerStyle = VisualizerStyle.BARS,
     height: Dp = 48.dp,
+    lowCostMode: Boolean = false,
     primaryColor: Color = MaterialTheme.colorScheme.primary,
     secondaryColor: Color = MaterialTheme.colorScheme.secondary,
     modifier: Modifier = Modifier,
@@ -91,6 +99,7 @@ public fun AudioVisualizer(
                 waveformData = waveformData,
                 primaryColor = primaryColor.copy(alpha = alpha),
                 secondaryColor = secondaryColor.copy(alpha = alpha * 0.5f),
+                lowCostMode = lowCostMode,
                 modifier =
                     modifier
                         .fillMaxWidth()
@@ -100,10 +109,20 @@ public fun AudioVisualizer(
             CircularVisualizer(
                 waveformData = waveformData,
                 color = primaryColor.copy(alpha = alpha),
+                lowCostMode = lowCostMode,
                 modifier =
                     modifier
                         .fillMaxWidth()
                         .height(height),
+            )
+        VisualizerStyle.MINIMAL ->
+            MinimalVisualizer(
+                waveformData = waveformData,
+                color = primaryColor.copy(alpha = alpha),
+                modifier =
+                    modifier
+                        .fillMaxWidth()
+                        .height(4.dp),
             )
     }
 }
@@ -127,7 +146,8 @@ private fun WaveformVisualizer(
         val path =
             Path().apply {
                 val sampleWidth = width / waveformData.size
-                moveTo(0f, centerY)
+                var previousX = 0f
+                var previousY = centerY
 
                 waveformData.forEachIndexed { index, amplitude ->
                     val x = index * sampleWidth
@@ -135,8 +155,12 @@ private fun WaveformVisualizer(
                     if (index == 0) {
                         moveTo(x, y)
                     } else {
-                        lineTo(x, y)
+                        val cp1x = (x + previousX) / 2f
+                        val cp2x = (x + previousX) / 2f
+                        cubicTo(cp1x, previousY, cp2x, y, x, y)
                     }
+                    previousX = x
+                    previousY = y
                 }
             }
 
@@ -156,10 +180,12 @@ private fun BarsVisualizer(
     waveformData: FloatArray,
     primaryColor: Color,
     secondaryColor: Color,
+    lowCostMode: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     // Reduce data to fewer bars for cleaner look
-    val barCount = 32
+    // Low-cost mode uses 16 bars instead of 32 for better performance on low-end devices
+    val barCount = if (lowCostMode) 16 else 32
     val reducedData =
         remember(waveformData) {
             if (waveformData.isEmpty()) {
@@ -178,9 +204,13 @@ private fun BarsVisualizer(
             }
         }
 
+    // Reuse bar gradients keyed by (quantized) bar height instead of allocating per bar per frame
+    val barBrushes = remember(primaryColor, secondaryColor) { HashMap<Int, Brush>() }
+
     Canvas(modifier = modifier) {
         val width = size.width
         val height = size.height
+        if (width <= 0f || height <= 0f) return@Canvas
         val barWidth = (width / barCount) * 0.7f
         val spacing = (width / barCount) * 0.3f
 
@@ -190,21 +220,22 @@ private fun BarsVisualizer(
             val y = (height - barHeight) / 2
 
             // Gradient from bottom to top
-            drawRoundRect(
-                brush =
+            val brush =
+                barBrushes.getOrPut(barHeight.toInt()) {
                     Brush.verticalGradient(
                         colors = listOf(secondaryColor, primaryColor),
-                        startY = y + barHeight,
-                        endY = y,
-                    ),
-                topLeft = Offset(x, y),
-                size =
-                    androidx.compose.ui.geometry
-                        .Size(barWidth, barHeight),
-                cornerRadius =
-                    androidx.compose.ui.geometry
-                        .CornerRadius(barWidth / 2),
-            )
+                        startY = barHeight,
+                        endY = 0f,
+                    )
+                }
+            translate(left = x, top = y) {
+                drawRoundRect(
+                    brush = brush,
+                    topLeft = Offset.Zero,
+                    size = Size(barWidth, barHeight),
+                    cornerRadius = CornerRadius(barWidth / 2),
+                )
+            }
         }
     }
 }
@@ -216,10 +247,12 @@ private fun BarsVisualizer(
 private fun CircularVisualizer(
     waveformData: FloatArray,
     color: Color,
+    lowCostMode: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     // Reduce data points for cleaner radial bars
-    val barCount = 40 // Amount of bars around the circle
+    // Low-cost mode uses 20 bars instead of 40 for better performance on low-end devices
+    val barCount = if (lowCostMode) 20 else 40
     val reducedData =
         remember(waveformData) {
             if (waveformData.isEmpty()) {
@@ -271,15 +304,52 @@ private fun CircularVisualizer(
                         androidx.compose.ui.geometry
                             .CornerRadius(barWidth / 2),
                 )
-
-                // Reflection (inner bar or opacity variation)
-               /* drawRoundRect(
-                    color = color.copy(alpha = 0.3f),
-                    topLeft = Offset(centerX - barWidth / 2, centerY - innerRadius + 2f),
-                    size = androidx.compose.ui.geometry.Size(barWidth, barHeight * 0.3f), // Small reflection inside
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(barWidth / 2)
-                ) */
             }
         }
+    }
+}
+
+/**
+ * Minimal thin line visualization (YouTube Music style).
+ */
+@Composable
+private fun MinimalVisualizer(
+    waveformData: FloatArray,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Canvas(modifier = modifier) {
+        if (waveformData.isEmpty()) return@Canvas
+
+        val width = size.width
+        val height = size.height
+        val centerY = height / 2
+        val stepX = width / waveformData.size
+
+        val path =
+            Path().apply {
+                var previousX = 0f
+                var previousY = centerY
+
+                waveformData.forEachIndexed { index, amplitude ->
+                    val x = index * stepX
+                    val y = centerY - (amplitude * centerY * 0.6f)
+                    if (index == 0) {
+                        moveTo(x, y)
+                    } else {
+                        val cp1x = (x + previousX) / 2f
+                        val cp2x = (x + previousX) / 2f
+                        cubicTo(cp1x, previousY, cp2x, y, x, y)
+                    }
+                    previousX = x
+                    previousY = y
+                }
+            }
+
+        drawPath(
+            path = path,
+            color = color,
+            style = Stroke(width = 1.5.dp.toPx(), cap = StrokeCap.Round),
+        )
     }
 }

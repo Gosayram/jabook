@@ -23,18 +23,17 @@ import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.BufferedReader
+import okio.buffer
+import okio.source
 import java.io.File
-import java.io.InputStreamReader
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * Service for collecting and exporting application logs.
- * Based on Flutter's StructuredLogger implementation.
  */
 @Singleton
 public class DebugLogService
@@ -128,114 +127,116 @@ public class DebugLogService
                     logcatArgs.add("*:F") // Fatal errors from any source
 
                     val process = Runtime.getRuntime().exec(logcatArgs.toTypedArray())
+                    try {
+                        val source = process.inputStream.source().buffer()
+                        try {
+                            val logs = StringBuilder()
 
-                    val bufferedReader = BufferedReader(InputStreamReader(process.inputStream))
-                    val logs = StringBuilder()
+                            // Add header with comprehensive device info
+                            logs.append("╔════════════════════════════════════════════╗\n")
+                            logs.append("║       JABOOK DEBUG LOGS & DIAGNOSTICS      ║\n")
+                            logs.append("╚════════════════════════════════════════════╝\n\n")
 
-                    // Add header with comprehensive device info
-                    logs.append("╔════════════════════════════════════════════╗\n")
-                    logs.append("║       JABOOK DEBUG LOGS & DIAGNOSTICS      ║\n")
-                    logs.append("╚════════════════════════════════════════════╝\n\n")
+                            val currentDate = Instant.now().atZone(ZoneId.systemDefault())
+                            val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                            logs.append("Captured: ${currentDate.format(dateFormatter)}\n")
+                            logs.append("Package: ${context.packageName}\n")
+                            logs.append("Version: ${getAppVersion()}\n\n")
 
-                    val currentDate = Date()
-                    val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                    logs.append("📅 Captured: ${dateFormatter.format(currentDate)}\n")
-                    logs.append("📦 Package: ${context.packageName}\n")
-                    logs.append("🔖 Version: ${getAppVersion()}\n\n")
+                            logs.append("DEVICE INFORMATION\n")
+                            logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+                            logs.append("Manufacturer: ${android.os.Build.MANUFACTURER}\n")
+                            logs.append("Model: ${android.os.Build.MODEL}\n")
+                            logs.append("Brand: ${android.os.Build.BRAND}\n")
+                            logs.append("Product: ${android.os.Build.PRODUCT}\n")
+                            logs.append("Board: ${android.os.Build.BOARD}\n")
+                            logs.append("Hardware: ${android.os.Build.HARDWARE}\n")
+                            logs.append("Build: ${android.os.Build.FINGERPRINT}\n")
+                            logs.append(
+                                "Android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})\n\n",
+                            )
 
-                    logs.append("📱 DEVICE INFORMATION\n")
-                    logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-                    logs.append("Manufacturer: ${android.os.Build.MANUFACTURER}\n")
-                    logs.append("Model: ${android.os.Build.MODEL}\n")
-                    logs.append("Brand: ${android.os.Build.BRAND}\n")
-                    logs.append("Product: ${android.os.Build.PRODUCT}\n")
-                    logs.append("Board: ${android.os.Build.BOARD}\n")
-                    logs.append("Hardware: ${android.os.Build.HARDWARE}\n")
-                    logs.append("Build: ${android.os.Build.FINGERPRINT}\n")
-                    logs.append(
-                        "Android: ${android.os.Build.VERSION.RELEASE} (SDK ${android.os.Build.VERSION.SDK_INT})\n\n",
-                    )
+                            logs.append("DISPLAY & SCREEN\n")
+                            logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+                            val displayMetrics = context.resources.displayMetrics
+                            logs.append("Resolution: ${displayMetrics.widthPixels}×${displayMetrics.heightPixels}px\n")
+                            logs.append("Density: ${displayMetrics.densityDpi}dpi (${displayMetrics.density}x)\n\n")
 
-                    logs.append("🖥️ DISPLAY & SCREEN\n")
-                    logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-                    val displayMetrics = context.resources.displayMetrics
-                    logs.append("Resolution: ${displayMetrics.widthPixels}×${displayMetrics.heightPixels}px\n")
-                    logs.append("Density: ${displayMetrics.densityDpi}dpi (${displayMetrics.density}x)\n\n")
+                            logs.append("MEMORY\n")
+                            logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+                            val activityManager =
+                                context.getSystemService(
+                                    Context.ACTIVITY_SERVICE,
+                                ) as android.app.ActivityManager
+                            val memInfo = android.app.ActivityManager.MemoryInfo()
+                            activityManager.getMemoryInfo(memInfo)
+                            logs.append("Total RAM: ${memInfo.totalMem / (1024 * 1024)}MB\n")
+                            logs.append("Available: ${memInfo.availMem / (1024 * 1024)}MB\n\n")
 
-                    logs.append("💾 MEMORY\n")
-                    logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-                    val activityManager =
-                        context.getSystemService(
-                            Context.ACTIVITY_SERVICE,
-                        ) as android.app.ActivityManager
-                    val memInfo = android.app.ActivityManager.MemoryInfo()
-                    activityManager.getMemoryInfo(memInfo)
-                    logs.append("Total RAM: ${memInfo.totalMem / (1024 * 1024)}MB\n")
-                    logs.append("Available: ${memInfo.availMem / (1024 * 1024)}MB\n\n")
+                            logs.append("CPU ARCHITECTURE\n")
+                            logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+                            logs.append("ABIs: ${android.os.Build.SUPPORTED_ABIS.joinToString(", ")}\n\n")
 
-                    logs.append("⚙️ CPU ARCHITECTURE\n")
-                    logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-                    logs.append("ABIs: ${android.os.Build.SUPPORTED_ABIS.joinToString(", ")}\n\n")
+                            logs.append("SYSTEM LOGS (logcat)\n")
+                            logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+                            logs.append("Note: Dates below use system format MM-DD HH:mm:ss\n")
+                            logs.append("    (MM-DD = Month-Day, not Day-Month)\n\n")
 
-                    logs.append("📋 SYSTEM LOGS (logcat)\n")
-                    logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-                    logs.append("⚠️  Note: Dates below use system format MM-DD HH:mm:ss\n")
-                    logs.append("    (MM-DD = Month-Day, not Day-Month)\n\n")
+                            // Collect and filter logs
+                            // Add safety limit to prevent infinite loops if process hangs
+                            var totalLines: Int = 0
+                            var filteredLines: Int = 0
+                            val maxLinesToRead = MAX_LOG_LINES * 2 // Safety limit (twice the requested lines)
 
-                    // Collect and filter logs
-                    // Add safety limit to prevent infinite loops if process hangs
-                    var totalLines: Int = 0
-                    var filteredLines: Int = 0
-                    val maxLinesToRead = MAX_LOG_LINES * 2 // Safety limit (twice the requested lines)
+                            while (totalLines < maxLinesToRead) {
+                                val line = source.readUtf8Line() ?: break
+                                totalLines++
 
-                    while (totalLines < maxLinesToRead) {
-                        val line = bufferedReader.readLine() ?: break
-                        totalLines++
+                                // Skip empty lines
+                                if (line.trim().isEmpty()) continue
 
-                        // Skip empty lines
-                        if (line.trim().isEmpty()) continue
+                                // Skip system noise patterns
+                                val shouldSkip =
+                                    SYSTEM_LOG_PATTERNS.any { pattern ->
+                                        line.contains(pattern, ignoreCase = true)
+                                    }
 
-                        // Skip system noise patterns
-                        val shouldSkip =
-                            SYSTEM_LOG_PATTERNS.any { pattern ->
-                                line.contains(pattern, ignoreCase = true)
+                                if (shouldSkip) {
+                                    filteredLines++
+                                    continue
+                                }
+
+                                // Skip frame rate logs
+                                if (line.contains("setRequestedFrameRate")) continue
+
+                                // Include the line
+                                logs.append(line).append("\n")
                             }
 
-                        if (shouldSkip) {
-                            filteredLines++
-                            continue
+                            if (totalLines >= maxLinesToRead) {
+                                logger.w { "Reached safety limit of $maxLinesToRead lines, stopping log collection" }
+                            }
+
+                            // Add summary
+                            logs.append("\n")
+                            logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+                            logs.append("LOG SUMMARY\n")
+                            logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+                            logs.append("Total lines processed: $totalLines\n")
+                            logs.append("System logs filtered: $filteredLines\n")
+                            logs.append("App logs included: ${totalLines - filteredLines}\n")
+
+                            logs.toString()
+                        } finally {
+                            source.close()
                         }
-
-                        // Skip frame rate logs
-                        if (line.contains("setRequestedFrameRate")) continue
-
-                        // Include the line
-                        logs.append(line).append("\n")
-                    }
-
-                    if (totalLines >= maxLinesToRead) {
-                        logger.w { "Reached safety limit of $maxLinesToRead lines, stopping log collection" }
-                    }
-
-                    // Add summary
-                    logs.append("\n")
-                    logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-                    logs.append("📊 LOG SUMMARY\n")
-                    logs.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
-                    logs.append("Total lines processed: $totalLines\n")
-                    logs.append("System logs filtered: $filteredLines\n")
-                    logs.append("App logs included: ${totalLines - filteredLines}\n")
-
-                    bufferedReader.close()
-
-                    // Wait for process with timeout to prevent hanging
-                    val processExited = process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)
-                    if (!processExited) {
-                        logger.w { "Logcat process did not exit within timeout, destroying" }
+                    } finally {
+                        val processExited = process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)
+                        if (!processExited) {
+                            logger.w { "Logcat process did not exit within timeout, destroying" }
+                        }
                         process.destroyForcibly()
                     }
-
-                    logs.toString()
                 } catch (e: Exception) {
                     logger.e({ "Failed to collect logs" }, e)
                     "Error collecting logs: ${e.message}"
@@ -248,7 +249,11 @@ public class DebugLogService
         public suspend fun exportLogsToFile(): Uri =
             withContext(Dispatchers.IO) {
                 val logs = collectLogs()
-                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val timestamp =
+                    Instant
+                        .now()
+                        .atZone(ZoneId.systemDefault())
+                        .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
                 val fileName: String = "${LOG_FILE_PREFIX}_$timestamp.txt"
                 // Save to cache directory (will be cleared on uninstall)
                 val logFile = File(context.cacheDir, fileName)

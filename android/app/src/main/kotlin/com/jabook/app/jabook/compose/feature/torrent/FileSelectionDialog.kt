@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -84,10 +85,10 @@ public fun FileSelectionDialog(
     val trailingSelectionState = remember { mutableStateMapOf<String, Boolean>() } // For restoring selection when unchecked
     val expansionState = remember { mutableStateMapOf<String, Boolean>() }
 
-    // Initialize selection (select all by default)
+    // Initialize selection from live priorities (isSelected is derived from them)
     remember(files) {
         files.forEach { file ->
-            selectionState[file.path] = true
+            selectionState[file.path] = file.isSelected
         }
         true
     }
@@ -119,6 +120,7 @@ public fun FileSelectionDialog(
                     items(
                         items = rootNodes,
                         key = { node -> node.path },
+                        contentType = { "file_node" },
                     ) { node ->
                         FileNodeItem(
                             node = node,
@@ -194,6 +196,7 @@ private fun FileNodeItem(
         modifier =
             Modifier
                 .fillMaxWidth()
+                .heightIn(min = 48.dp)
                 .clickable {
                     if (node.isDirectory) {
                         onToggleExpansion(node.path)
@@ -402,15 +405,8 @@ private fun buildFileTree(files: List<TorrentFile>): List<FileNode> {
 }
 
 @Composable
-private fun formatSize(bytes: Long): String {
-    val kb = bytes / 1024.0
-    val mb = kb / 1024.0
-    val gb = mb / 1024.0
-
-    return when {
-        gb >= 1.0 -> stringResource(R.string.size_gb, gb)
-        mb >= 1.0 -> stringResource(R.string.size_mb, mb)
-        kb >= 1.0 -> stringResource(R.string.size_kb, kb)
-        else -> stringResource(R.string.size_bytes, bytes)
-    }
-}
+private fun formatSize(bytes: Long): String =
+    com.jabook.app.jabook.compose.core.util.UiFormatters.formatFileSize(
+        bytes,
+        androidx.compose.ui.platform.LocalContext.current.resources,
+    )

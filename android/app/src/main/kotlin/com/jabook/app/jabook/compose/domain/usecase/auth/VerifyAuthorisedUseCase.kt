@@ -44,7 +44,7 @@ public class VerifyAuthorisedUseCase
          * @param html HTML content to check
          * @return true if authenticated, false otherwise
          */
-        public suspend operator fun invoke(html: String): Boolean {
+        public operator fun invoke(html: String): Boolean {
             val lowerHtml = html.lowercase()
 
             // Check for redirect to login page
@@ -61,14 +61,26 @@ public class VerifyAuthorisedUseCase
             // Check for profile elements
             val hasProfile =
                 lowerHtml.contains("личный кабинет") ||
-                    lowerHtml.contains("profile") ||
                     lowerHtml.contains("личные данные") ||
-                    lowerHtml.contains("username")
+                    hasLoggedInUsernameElement(lowerHtml)
 
             // Check for absence of login form
             val hasLoginForm = lowerHtml.contains("name=\"login_username\"")
 
             return (hasLogout || hasProfile) && !hasLoginForm
+        }
+
+        /**
+         * Detect the `#logged-in-username` element — the same signal
+         * [com.jabook.app.jabook.compose.data.auth.RutrackerAuthService] uses via Jsoup.
+         * Requires an HTML attribute context, not arbitrary page text.
+         */
+        private fun hasLoggedInUsernameElement(lowerHtml: String): Boolean = HTML_ID_ELEMENT_REGEX.containsMatchIn(lowerHtml)
+
+        private companion object {
+            // Matches id='logged-in-username' / id="logged-in-username" inside a tag,
+            // tolerating quotes being dropped by naive lowercasing/escaping.
+            private val HTML_ID_ELEMENT_REGEX = Regex("<[^>]*\\sid=[\"']?logged-in-username")
         }
 
         /**

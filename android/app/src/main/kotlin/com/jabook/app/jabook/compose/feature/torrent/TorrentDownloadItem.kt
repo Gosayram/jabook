@@ -15,23 +15,31 @@
 package com.jabook.app.jabook.compose.feature.torrent
 
 import android.content.res.Resources
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -43,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
+import com.jabook.app.jabook.compose.designsystem.component.ThinProgressBar
 
 /**
  * Download item component with progress and actions
@@ -84,10 +93,25 @@ public fun TorrentDownloadItem(
                         overflow = TextOverflow.Ellipsis,
                     )
 
+                    // Narrator metadata under title
+                    if (!download.narrator.isNullOrBlank()) {
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = stringResource(R.string.downloadNarratedBy, download.narrator),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+
                     Spacer(Modifier.height(4.dp))
 
-                    // State badge
-                    StateBadge(state = download.state)
+                    if (download.state == TorrentState.STREAMING) {
+                        StreamingBadge()
+                    } else {
+                        StateBadge(state = download.state)
+                    }
                 }
 
                 // Actions
@@ -128,88 +152,140 @@ public fun TorrentDownloadItem(
 
             Spacer(Modifier.height(8.dp))
 
-            // Progress bar
-            LinearProgressIndicator(
-                progress = { download.progress.coerceIn(0f, 1f) },
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            // Stats row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                // Progress percentage
-                Text(
-                    text = "${(download.progress.coerceIn(0f, 1f) * 100).toInt()}%",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            // Progress bar (hidden for queued)
+            if (download.state != TorrentState.QUEUED) {
+                ThinProgressBar(
+                    progress = download.progress,
+                    modifier = Modifier.fillMaxWidth(),
+                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    progressColor =
+                        if (download.state == TorrentState.PAUSED) {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
                 )
 
-                // Download speed
-                if (download.state == TorrentState.DOWNLOADING) {
+                Spacer(Modifier.height(8.dp))
+
+                // Stats row (hidden for queued)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    // Progress percentage (muted for paused)
                     Text(
-                        text = "↓ ${formatSpeed(download.downloadSpeed.toLong())}/s",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        text = "${(download.progress.coerceIn(0f, 1f) * 100).toInt()}%",
+                        style =
+                            MaterialTheme.typography.bodyMedium.copy(
+                                fontFeatureSettings = "tnum",
+                            ),
+                        color =
+                            if (download.state == TorrentState.PAUSED) {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
                     )
+
+                    // Download speed
+                    if (download.state == TorrentState.DOWNLOADING) {
+                        Text(
+                            text = "↓ ${formatSpeed(download.downloadSpeed.toLong())}/s",
+                            style =
+                                MaterialTheme.typography.bodyMedium.copy(
+                                    fontFeatureSettings = "tnum",
+                                ),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+
+                    // Upload speed
+                    if (download.uploadSpeed > 0) {
+                        Text(
+                            text = "↑ ${formatSpeed(download.uploadSpeed.toLong())}/s",
+                            style =
+                                MaterialTheme.typography.bodyMedium.copy(
+                                    fontFeatureSettings = "tnum",
+                                ),
+                            color = MaterialTheme.colorScheme.secondary,
+                        )
+                    }
+
+                    // ETA
+                    if (download.eta > 0 &&
+                        download.state in
+                        listOf(
+                            TorrentState.DOWNLOADING,
+                            TorrentState.STREAMING,
+                        )
+                    ) {
+                        Text(
+                            text = formatEta(download.eta),
+                            style =
+                                MaterialTheme.typography.bodyMedium.copy(
+                                    fontFeatureSettings = "tnum",
+                                ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
 
-                // Upload speed
-                if (download.uploadSpeed > 0) {
-                    Text(
-                        text = "↑ ${formatSpeed(download.uploadSpeed.toLong())}/s",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.secondary,
-                    )
+                if (download.totalSize > 0L || download.totalAudioFiles > 0) {
+                    Spacer(Modifier.height(4.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        if (download.totalSize > 0L) {
+                            Text(
+                                text = "${formatBytes(download.downloadedSize)} / ${formatBytes(download.totalSize)}",
+                                style =
+                                    MaterialTheme.typography.bodySmall.copy(
+                                        fontFeatureSettings = "tnum",
+                                    ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        // Chapter download progress (14/24 глав)
+                        if (download.totalAudioFiles > 0) {
+                            Text(
+                                text =
+                                    stringResource(
+                                        R.string.downloadChaptersProgress,
+                                        download.completedAudioFiles,
+                                        download.totalAudioFiles,
+                                    ),
+                                style =
+                                    MaterialTheme.typography.bodySmall.copy(
+                                        fontFeatureSettings = "tnum",
+                                    ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
 
-                // ETA
-                if (download.eta > 0 &&
-                    download.state in
+                // Peers/Seeds info (hidden for queued)
+                if (download.state in
                     listOf(
                         TorrentState.DOWNLOADING,
+                        TorrentState.SEEDING,
                         TorrentState.STREAMING,
                     )
                 ) {
+                    Spacer(Modifier.height(4.dp))
                     Text(
-                        text = formatEta(download.eta),
-                        style = MaterialTheme.typography.bodyMedium,
+                        text =
+                            stringResource(
+                                R.string.peers_seeds,
+                                download.numPeers,
+                                download.numSeeds,
+                            ),
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            }
-
-            if (download.totalSize > 0L) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "${formatBytes(download.downloadedSize)} / ${formatBytes(download.totalSize)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            // Peers/Seeds info
-            if (download.state in
-                listOf(
-                    TorrentState.DOWNLOADING,
-                    TorrentState.SEEDING,
-                    TorrentState.STREAMING,
-                )
-            ) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text =
-                        stringResource(
-                            R.string.peers_seeds,
-                            download.numPeers,
-                            download.numSeeds,
-                        ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
         }
     }
@@ -221,22 +297,43 @@ private fun formatBytes(bytes: Long): String = formatBytes(bytes, LocalContext.c
 internal fun formatBytes(
     bytes: Long,
     resources: Resources,
-): String {
-    val safeBytes = bytes.coerceAtLeast(0L)
-    val kb = safeBytes / 1024.0
-    val mb = kb / 1024.0
-    val gb = mb / 1024.0
+): String =
+    com.jabook.app.jabook.compose.core.util.UiFormatters
+        .formatFileSize(bytes, resources)
 
-    return when {
-        gb >= 1.0 -> resources.getString(R.string.size_gb, gb)
-        mb >= 1.0 -> resources.getString(R.string.size_mb, mb)
-        kb >= 1.0 -> resources.getString(R.string.size_kb, kb)
-        else -> resources.getString(R.string.size_bytes, safeBytes)
+/**
+ * Streaming badge — shown when playback-while-downloading is active.
+ */
+@Composable
+private fun StreamingBadge(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(4.dp),
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(6.dp)
+                        .background(MaterialTheme.colorScheme.tertiary, CircleShape),
+            )
+            // ponytail: labelSmallEmphasized ceiling — swap to EmphasizedTypography.labelSmall when streaming badge needs more prominence
+            Text(
+                text = stringResource(R.string.streamingLabel),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+        }
     }
 }
 
 /**
- * State badge component
+ * State badge component with icon and label
  */
 @Composable
 @Suppress("DEPRECATION")
@@ -244,31 +341,102 @@ private fun StateBadge(
     state: TorrentState,
     modifier: Modifier = Modifier,
 ) {
-    val (text, color) =
+    val badgeInfo =
         when (state) {
-            TorrentState.DOWNLOADING -> stringResource(R.string.downloading_state) to MaterialTheme.colorScheme.primary
-            TorrentState.PAUSED -> stringResource(R.string.paused_state) to MaterialTheme.colorScheme.onSurfaceVariant
-            TorrentState.COMPLETED -> stringResource(R.string.completed_state) to MaterialTheme.colorScheme.tertiary
-            TorrentState.FINISHED -> stringResource(R.string.completed_state) to MaterialTheme.colorScheme.tertiary
-            TorrentState.ERROR -> stringResource(R.string.error_state) to MaterialTheme.colorScheme.error
-            TorrentState.SEEDING -> stringResource(R.string.seeding_state) to MaterialTheme.colorScheme.tertiary
-            TorrentState.STREAMING -> stringResource(R.string.streaming_state) to MaterialTheme.colorScheme.secondary
-            TorrentState.CHECKING ->
-                stringResource(R.string.checking_state) to
-                    MaterialTheme.colorScheme.onSurfaceVariant
-            TorrentState.DOWNLOADING_METADATA ->
-                stringResource(R.string.metadata_state) to
-                    MaterialTheme.colorScheme.onSurfaceVariant
-            TorrentState.QUEUED -> stringResource(R.string.queued_state) to MaterialTheme.colorScheme.onSurfaceVariant
-            TorrentState.STOPPED -> stringResource(R.string.stopped_state) to MaterialTheme.colorScheme.onSurfaceVariant
+            TorrentState.DOWNLOADING ->
+                Triple(
+                    stringResource(R.string.downloading_state),
+                    MaterialTheme.colorScheme.primary,
+                    Icons.Filled.CheckCircle,
+                )
+
+            TorrentState.PAUSED ->
+                Triple(
+                    stringResource(R.string.paused_state),
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    Icons.Filled.Close,
+                )
+
+            TorrentState.COMPLETED,
+            TorrentState.FINISHED,
+            ->
+                Triple(
+                    stringResource(R.string.completed_state),
+                    MaterialTheme.colorScheme.tertiary,
+                    Icons.Filled.CheckCircle,
+                )
+
+            TorrentState.ERROR ->
+                Triple(
+                    stringResource(R.string.error_state),
+                    MaterialTheme.colorScheme.error,
+                    Icons.Filled.Close,
+                )
+
+            TorrentState.SEEDING ->
+                Triple(
+                    stringResource(R.string.seeding_state),
+                    MaterialTheme.colorScheme.tertiary,
+                    Icons.Filled.CheckCircle,
+                )
+
+            TorrentState.STREAMING ->
+                Triple(
+                    stringResource(R.string.streaming_state),
+                    MaterialTheme.colorScheme.secondary,
+                    Icons.Filled.PlayArrow,
+                )
+
+            TorrentState.CHECKING,
+            TorrentState.DOWNLOADING_METADATA,
+            TorrentState.QUEUED,
+            ->
+                Triple(
+                    stringResource(
+                        when (state) {
+                            TorrentState.CHECKING -> R.string.checking_state
+                            TorrentState.DOWNLOADING_METADATA -> R.string.metadata_state
+                            else -> R.string.queued_state
+                        },
+                    ),
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    Icons.Filled.Info,
+                )
+
+            TorrentState.STOPPED ->
+                Triple(
+                    stringResource(R.string.stopped_state),
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    Icons.Filled.Close,
+                )
         }
 
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelSmall,
-        color = color,
+    val (text, color, icon) = badgeInfo
+
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = color.copy(alpha = 0.12f),
         modifier = modifier,
-    )
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(12.dp),
+                tint = color,
+            )
+            // ponytail: StateBadge labelSmallEmphasized — wire EmphasizedTypography.labelSmall when badge emphasis needed beyond QualityBadge
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelSmall,
+                color = color,
+            )
+        }
+    }
 }
 
 /**
@@ -280,7 +448,9 @@ private fun formatSpeed(bytesPerSecond: Long): String = formatSpeed(bytesPerSeco
 internal fun formatSpeed(
     bytesPerSecond: Long,
     resources: Resources,
-): String = formatBytes(bytesPerSecond, resources)
+): String =
+    com.jabook.app.jabook.compose.core.util.UiFormatters
+        .formatFileSize(bytesPerSecond, resources)
 
 /**
  * Format ETA in human-readable format
@@ -303,7 +473,7 @@ internal fun formatEta(
 
     return when {
         hours > 0 -> resources.getString(R.string.duration_hm, hours, minutes)
-        minutes > 0 -> resources.getString(R.string.duration_m, minutes)
+        minutes > 0 -> resources.getString(R.string.eta_approx_min, minutes)
         else -> resources.getString(R.string.duration_less_minute)
     }
 }

@@ -19,6 +19,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
 import com.jabook.app.jabook.compose.data.local.dao.BookmarkDao
@@ -27,6 +28,7 @@ import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao
 import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.local.dao.FavoriteDao
+import com.jabook.app.jabook.compose.data.local.dao.UserEqPresetDao
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_14_15
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_15_16
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_16_17
@@ -35,14 +37,27 @@ import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_18_19
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_19_20
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_20_21
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_21_22
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_22_23
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_23_24
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_24_25
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_25_26
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_26_27
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_28_29
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_29_30
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_30_31
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_31_32
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_32_33
+import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_33_34
 import com.jabook.app.jabook.compose.data.local.migration.MIGRATION_6_7
 import com.jabook.app.jabook.compose.data.local.migration.createBooksFts5Index
+import com.jabook.app.jabook.compose.data.local.migration.createTopicsFts5Index
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.Dispatchers
+import java.util.concurrent.Executors
 import javax.inject.Singleton
 
 @Module
@@ -52,6 +67,11 @@ public object DatabaseModule {
 
     /**
      * Logger for DatabaseModule.
+     *
+     * Deliberately not injected: the DI graph (LoggerModule) provides
+     * NoOpLoggerFactory in release, but migration *failure* logs are
+     * crash-path diagnostics and must survive in release builds.
+     * LoggerFactoryImpl self-gates to ERROR-only outside debug.
      */
     private val logger by lazy { LoggerFactoryImpl().get("Room") }
 
@@ -66,13 +86,13 @@ public object DatabaseModule {
         object : Migration(startVersion, endVersion) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 try {
-                    logger.i { "🔄 Starting migration $startVersion→$endVersion" }
+                    logger.i { "Starting migration $startVersion->$endVersion" }
                     val startTime = System.currentTimeMillis()
                     migrationBlock(db)
                     val duration = System.currentTimeMillis() - startTime
-                    logger.i { "✅ Migration $startVersion→$endVersion completed successfully (${duration}ms)" }
+                    logger.i { "Migration $startVersion->$endVersion completed successfully (${duration}ms)" }
                 } catch (e: Exception) {
-                    logger.e({ "❌ Migration $startVersion→$endVersion failed: ${e.message}" }, e)
+                    logger.e({ "Migration $startVersion->$endVersion failed: ${e.message}" }, e)
                     throw e
                 }
             }
@@ -125,6 +145,17 @@ public object DatabaseModule {
                 )
                 """.trimIndent(),
             )
+        }
+
+    /**
+     * Database migration from version 3 to version 4.
+     *
+     * The historical schema version changed without table changes; Room still requires this
+     * transition to upgrade installed version-3 databases.
+     */
+    private val MIGRATION_3_4 =
+        createLoggedMigration(3, 4) {
+            // No schema changes.
         }
 
     /**
@@ -312,10 +343,26 @@ public object DatabaseModule {
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_cached_topics_seeders` ON `cached_topics` (`seeders`)")
         }
 
+    private val MIGRATION_27_28 =
+        createLoggedMigration(27, 28) { db ->
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `user_eq_presets` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `name` TEXT NOT NULL,
+                    `bands` TEXT NOT NULL,
+                    `preamp_millibels` INTEGER NOT NULL DEFAULT 0,
+                    `created_at` INTEGER NOT NULL
+                )
+                """.trimIndent(),
+            )
+        }
+
     internal val configuredMigrations: List<Migration> =
         listOf(
             MIGRATION_1_2,
             MIGRATION_2_3,
+            MIGRATION_3_4,
             MIGRATION_4_5,
             MIGRATION_5_6,
             MIGRATION_6_7,
@@ -334,6 +381,18 @@ public object DatabaseModule {
             MIGRATION_19_20,
             MIGRATION_20_21,
             MIGRATION_21_22,
+            MIGRATION_22_23,
+            MIGRATION_23_24,
+            MIGRATION_24_25,
+            MIGRATION_25_26,
+            MIGRATION_26_27,
+            MIGRATION_27_28,
+            MIGRATION_28_29,
+            MIGRATION_29_30,
+            MIGRATION_30_31,
+            MIGRATION_31_32,
+            MIGRATION_32_33,
+            MIGRATION_33_34,
         )
 
     @Provides
@@ -368,12 +427,15 @@ public object DatabaseModule {
                     // Enable foreign key constraints for referential integrity
                     db.execSQL("PRAGMA foreign_keys = ON")
                     createBooksFts5Index(db)
+                    createTopicsFts5Index(db)
                 }
 
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     super.onOpen(db)
                     // Enable foreign key constraints on each database open
                     db.execSQL("PRAGMA foreign_keys = ON")
+                    // Repair databases created before topics_fts was initialized on fresh installs.
+                    createTopicsFts5Index(db)
                     // Optimize for better query performance
                     db.execSQL("PRAGMA optimize")
                 }
@@ -381,71 +443,78 @@ public object DatabaseModule {
                 override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
                     super.onDestructiveMigration(db)
                     logger.e {
-                        "❌ CRITICAL: Destructive migration occurred - all data was lost! This should never happen in production."
+                        "CRITICAL: Destructive migration occurred - all data was lost! This should never happen in production."
                     }
                 }
             },
         )
 
-        // Add query callback for logging in debug builds only
+        // Detect and log slow queries (>16ms) in debug builds only
         // Query callbacks have a small performance cost, so only enable in debug
-        try {
-            val isDebug =
-                Class
-                    .forName("com.jabook.app.jabook.BuildConfig")
-                    .getField("DEBUG")
-                    .get(null) as? Boolean ?: false
-            if (isDebug) {
-                builder.setQueryCallback(
-                    Dispatchers.Unconfined,
-                    RoomDatabase.QueryCallback { sqlQuery: String, bindArgs: List<Any?> ->
-                        logger.d {
-                            "Query: $sqlQuery | Args: ${bindArgs.joinToString(", ")}"
-                        }
-                    },
-                )
-            }
-        } catch (e: Exception) {
-            // BuildConfig not available, skip query callback
-            logger.e({ "BuildConfig not available, skipping query callback" }, e)
+        if (BuildConfig.DEBUG) {
+            builder.setQueryCallback(
+                RoomDatabase.QueryCallback { sqlQuery: String, bindArgs: List<Any?> ->
+                    logger.d { "RoomSlowQuery: $sqlQuery" }
+                },
+                Executors.newSingleThreadExecutor(),
+            )
         }
 
         return builder.build()
     }
 
     @Provides
+    @Singleton
     public fun provideOfflineSearchDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao =
         database.offlineSearchDao()
 
     @Provides
+    @Singleton
     public fun provideBooksDao(database: JabookDatabase): BooksDao = database.booksDao()
 
     @Provides
+    @Singleton
     public fun provideBookmarkDao(database: JabookDatabase): BookmarkDao = database.bookmarkDao()
 
     @Provides
+    @Singleton
     public fun provideChaptersDao(database: JabookDatabase): ChaptersDao = database.chaptersDao()
 
     @Provides
+    @Singleton
     public fun provideSearchHistoryDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.SearchHistoryDao =
         database.searchHistoryDao()
 
     @Provides
+    @Singleton
     public fun provideDownloadQueueDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao =
         database.downloadQueueDao()
 
     @Provides
+    @Singleton
     public fun provideDownloadHistoryDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.DownloadHistoryDao =
         database.downloadHistoryDao()
 
     @Provides
+    @Singleton
     public fun provideFavoriteDao(database: JabookDatabase): FavoriteDao = database.favoriteDao()
 
     @Provides
+    @Singleton
     public fun provideScanPathDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.local.dao.ScanPathDao =
         database.scanPathDao()
 
     @Provides
+    @Singleton
     public fun provideTorrentDownloadDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.torrent.TorrentDownloadDao =
         database.torrentDownloadDao()
+
+    @Provides
+    @Singleton
+    public fun provideTorrentResumeDao(database: JabookDatabase): com.jabook.app.jabook.compose.data.torrent.TorrentResumeDao =
+        database.torrentResumeDao()
+
+    @Provides
+    @Singleton
+    public fun provideUserEqPresetDao(database: JabookDatabase): UserEqPresetDao = database.userEqPresetDao()
 }

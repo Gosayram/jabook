@@ -19,13 +19,13 @@ import androidx.media3.common.Player
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class PlayerWidgetPoliciesTest {
     @Test
     fun `cover policy accepts known schemes for coil`() {
@@ -131,21 +131,21 @@ class PlayerWidgetPoliciesTest {
     }
 
     @Test
-    fun `deep link includes widget id and book id when provided`() {
+    fun `deep link supplies required player path book id`() {
         val uri = WidgetDeepLinkPolicy.buildPlayerDeepLink(currentBookId = "book-123", appWidgetId = 10)
 
         assertEquals("jabook", uri.scheme)
         assertEquals("player", uri.host)
+        assertEquals(listOf("book-123"), uri.pathSegments)
         assertEquals("10", uri.getQueryParameter(WidgetDeepLinkPolicy.QUERY_WIDGET_ID))
-        assertEquals("book-123", uri.getQueryParameter(WidgetDeepLinkPolicy.QUERY_BOOK_ID))
     }
 
     @Test
-    fun `deep link omits book id when blank`() {
+    fun `deep link falls back to library when book id is blank`() {
         val uri = WidgetDeepLinkPolicy.buildPlayerDeepLink(currentBookId = "   ", appWidgetId = 12)
 
+        assertEquals("library", uri.host)
         assertEquals("12", uri.getQueryParameter(WidgetDeepLinkPolicy.QUERY_WIDGET_ID))
-        assertNull(uri.getQueryParameter(WidgetDeepLinkPolicy.QUERY_BOOK_ID))
     }
 
     @Test

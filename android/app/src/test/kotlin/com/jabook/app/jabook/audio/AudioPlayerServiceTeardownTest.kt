@@ -15,12 +15,17 @@
 package com.jabook.app.jabook.audio
 
 import android.content.Intent
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class AudioPlayerServiceTeardownTest {
     @Test
     fun `onDestroy does not crash when visualizer bridge is not initialized`() {
@@ -34,5 +39,31 @@ class AudioPlayerServiceTeardownTest {
         val service = Robolectric.buildService(AudioPlayerService::class.java).get()
 
         service.onTaskRemoved(Intent("test"))
+    }
+
+    @Test
+    fun `onTaskRemoved delegates to initialized lifecycle manager`() {
+        val service = Robolectric.buildService(AudioPlayerService::class.java).get()
+        val lifecycleManager: ServiceLifecycleManager = mock()
+        service.lifecycleManager = lifecycleManager
+
+        service.onTaskRemoved(Intent("test"))
+
+        verify(lifecycleManager).onTaskRemoved()
+    }
+
+    @Test
+    fun `release removes audio output listener`() {
+        val service = Robolectric.buildService(AudioPlayerService::class.java).get()
+        val player: ExoPlayer = mock()
+        val listener: Player.Listener = mock()
+        service.exoPlayer = player
+        service.audioOutputManager = mock()
+        service.audioOutputPlayerListener = listener
+        service.audioOutputPlayerTarget = player
+
+        AudioServiceReleaseHandler { service }.releaseRuntimeComponents(cancelServiceScopeChildren = false)
+
+        verify(player).removeListener(listener)
     }
 }

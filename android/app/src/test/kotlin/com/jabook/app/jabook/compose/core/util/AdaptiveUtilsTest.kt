@@ -28,6 +28,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class AdaptiveUtilsTest {
     @Test
     fun `resolveWindowSizeClass returns null when input is null`() {

@@ -123,6 +123,57 @@ val googleServicesCandidates =
 
 val hasGoogleServicesJson = googleServicesCandidates.any { relativePath -> file(relativePath).exists() }
 
+// Load runtime configuration from the gitignored .env at the repo root.
+// Keys override defaults and must never be committed. RuTracker mirror URLs are
+// exposed to the app as BuildConfig fields so no connection URLs are hardcoded
+// in source. Config-cache friendly: read via providers.fileContents.
+val envText: String =
+    try {
+        providers
+            .fileContents(rootProject.layout.projectDirectory.file("../.env"))
+            .asText
+            .get()
+    } catch (_: Exception) {
+        ""
+    }
+
+val envConfig: Map<String, String> =
+    envText
+        .lines()
+        .mapNotNull { rawLine ->
+            val line = rawLine.trim()
+            if (line.isBlank() || line.startsWith("#")) return@mapNotNull null
+            val eq = line.indexOf('=')
+            if (eq <= 0) return@mapNotNull null
+            val key = line.substring(0, eq).trim()
+            var value = line.substring(eq + 1).trim()
+            if (value.length >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+                value = value.substring(1, value.length - 1)
+            }
+            key to value
+        }.toMap()
+
+// RuTracker mirrors and base URL MUST be supplied via ../.env — real connection
+// URLs are never hardcoded in source (including comments and fallbacks).
+//   RUTRACKER_DEFAULT_MIRRORS=comma,separated,mirror,domains
+//   RUTRACKER_BASE_URL=https://<mirror>/forum/
+//   RUTRACKER_COVER_CDN=https://static.<cdn-host>/   (cover image CDN)
+val rutrackerDefaultMirrors: String =
+    envConfig["RUTRACKER_DEFAULT_MIRRORS"]?.takeIf { it.isNotBlank() }
+        ?: throw GradleException(
+            "Missing required RuTracker config in ../.env — set RUTRACKER_DEFAULT_MIRRORS (see .env-example).",
+        )
+val rutrackerBaseUrl: String =
+    envConfig["RUTRACKER_BASE_URL"]?.takeIf { it.isNotBlank() }
+        ?: throw GradleException(
+            "Missing required RuTracker config in ../.env — set RUTRACKER_BASE_URL (see .env-example).",
+        )
+val rutrackerCoverCdn: String =
+    envConfig["RUTRACKER_COVER_CDN"]?.takeIf { it.isNotBlank() }
+        ?: throw GradleException(
+            "Missing required RuTracker config in ../.env — set RUTRACKER_COVER_CDN (see .env-example).",
+        )
+
 if (hasGoogleServicesJson) {
     apply(plugin = "com.google.gms.google-services")
     apply(plugin = "com.google.firebase.crashlytics")
@@ -154,7 +205,7 @@ fun detectProtocClassifier(
 val protocClassifier = detectProtocClassifier(osName, osArch)
 val protoSourceDir = layout.projectDirectory.dir("src/main/proto")
 val generatedProtoDir = layout.buildDirectory.dir("generated/source/proto/main/java")
-val roomSchemaDir = layout.buildDirectory.dir("generated/room-schemas")
+val roomSchemaDir = layout.projectDirectory.dir("schemas")
 val protoInputFiles =
     fileTree(protoSourceDir) {
         include("**/*.proto")
@@ -252,25 +303,19 @@ android {
         }
     }
 
-    // R8 configuration for code optimization
     buildTypes {
         release {
-            // Sign with the release keys
             signingConfig = signingConfigs.getByName("release")
-
-            // Enable code shrinking, obfuscation, and optimization for release builds
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
         }
         debug {
-            // Disable some optimizations for debug build speed
             isMinifyEnabled = false
             isShrinkResources = false
-            // Enable JaCoCo instrumentation so coverage data (.exec) is generated
             enableAndroidTestCoverage = true
             enableUnitTestCoverage = true
         }
@@ -292,11 +337,15 @@ android {
         targetSdk = 36 // Android 16
 
         // Read version from .release-version file (format: version+build, e.g. "1.2.7+127")
-        val versionFile = rootProject.file("../.release-version")
-        val fullVersion =
-            if (versionFile.exists()) {
-                versionFile.readText().trim()
-            } else {
+        // ponytail: providers.fileContents is a proper config-cache input (tracks file content)
+        val fullVersion: String =
+            try {
+                providers
+                    .fileContents(rootProject.layout.projectDirectory.file("../.release-version"))
+                    .asText
+                    .get()
+                    .trim()
+            } catch (_: Exception) {
                 "0.0.1+1"
             }
 
@@ -318,6 +367,15 @@ android {
         // Enable explicit intent handling for Android 14+
         manifestPlaceholders["enableExplicitIntentHandling"] = "true"
         buildConfigField("boolean", "HAS_GOOGLE_SERVICES", hasGoogleServicesJson.toString())
+        buildConfigField("String", "RUTRACKER_DEFAULT_MIRRORS", "\"$rutrackerDefaultMirrors\"")
+        buildConfigField("String", "RUTRACKER_BASE_URL", "\"$rutrackerBaseUrl\"")
+        buildConfigField("String", "RUTRACKER_COVER_CDN", "\"$rutrackerCoverCdn\"")
+    }
+
+    // Ponytail: strip unused locale resources for smaller APK.
+    // resourceConfigurations draws deprecated warning; localeFilters is the AGP 9+ replacement.
+    androidResources {
+        localeFilters += setOf("en", "ru")
     }
 
     lint {
@@ -364,7 +422,9 @@ android {
         abi {
             isEnable = true
             reset()
-            include("armeabi-v7a", "arm64-v8a", "x86_64")
+            // x86: libtorrent4j ships a native x86 lib (old emulators, some Chromebooks);
+            // without this entry that .so is packaged but never delivered per-ABI.
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
             isUniversalApk = true // Also build a universal APK
         }
     }
@@ -372,6 +432,10 @@ android {
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
+            // ponytail: deliberate — many unit tests construct Android framework objects
+            // (ActivityManager.MemoryInfo, Media3 EventTime, SystemClock) without Robolectric.
+            // Removing this silently breaks ~10 test classes; migrate them to
+            // @RunWith(RobolectricTestRunner::class) first, then drop this flag.
             isReturnDefaultValues = true
         }
     }
@@ -388,9 +452,19 @@ java {
 
 // REMOVED: afterEvaluate block for fixIntegrationTestPlugin - task no longer needed
 
+// Only enable R8 minification for prod and beta release builds
+androidComponents {
+    beforeVariants { variant ->
+        val flavor = variant.productFlavors.firstOrNull()?.second
+        if ((flavor == "prod" || flavor == "beta") && variant.buildType == "release") {
+            variant.isMinifyEnabled = true
+        }
+    }
+}
+
 // Configure KSP for Room and Hilt
 ksp {
-    arg("room.schemaLocation", roomSchemaDir.get().asFile.absolutePath)
+    arg("room.schemaLocation", roomSchemaDir.asFile.absolutePath)
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
@@ -402,15 +476,59 @@ tasks.withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
 }
 
 tasks.withType<Test>().configureEach {
-    // Hard stop for hung test task in local and CI runs.
-    timeout.set(Duration.ofMinutes(12))
-    failFast = true
-    maxParallelForks = maxOf(1, Runtime.getRuntime().availableProcessors() / 2)
+    // Hard stop for hung test task in local and CI runs. 20 min: one hung test
+    // previously killed the whole CI run at 12 min with 105+ test files.
+    timeout.set(Duration.ofMinutes(20))
+    // ponytail: failFast via gradle property — fast local feedback, full CI report.
+    // CI: -Ptest.failFast=false ; local default: true (fail on first error).
+    failFast =
+        providers
+            .gradleProperty("test.failFast")
+            .map { it.toBoolean() }
+            .orElse(true)
+            .get()
+    // Robolectric's native runtime mounts a shared ZIP filesystem; parallel forks
+    // can race there. maxParallelForks=2 verified stable (2026-08-30 experiment);
+    // revert to 1 if flaky non-reproducible failures reappear.
+    maxParallelForks = 2
     forkEvery = 120
+    // ponytail: Robolectric loads many classes; keep the single test JVM well provisioned.
+    minHeapSize = "512m"
+    maxHeapSize = "2048m"
+    jvmArgs(
+        "-XX:+UseParallelGC",
+        "-XX:MaxMetaspaceSize=512m",
+        // Robolectric/JNA use JNI. Declare it explicitly on JDK 25 instead of
+        // relying on the deprecated permissive native-access mode.
+        "--enable-native-access=ALL-UNNAMED",
+        // Robolectric appends to the bootstrap classpath, where CDS cannot be used.
+        "-Xshare:off",
+    )
+    val logStartedTests =
+        providers
+            .gradleProperty("test.logStarted")
+            .map(String::toBoolean)
+            .orElse(false)
+            .get()
     testLogging {
         events("failed", "skipped")
+        if (logStartedTests) events("started")
     }
     systemProperty("kotlinx.coroutines.test.default_timeout", "30s")
+
+    // ponytail: test.fast=true excludes @Category(SlowTest) classes (Robolectric).
+    // `make test-fast` → ~1min (pure JVM); `make test` → ~5min (all).
+    val fastOnly =
+        providers
+            .gradleProperty("test.fast")
+            .orElse("false")
+            .get()
+            .toBoolean()
+    if (fastOnly) {
+        useJUnit {
+            excludeCategories("com.jabook.app.jabook.test.SlowTest")
+        }
+    }
 
     // Emit thread diagnostics when a test likely failed due to timeout/hang.
     // Note: tests run in forked JVMs (forkEvery=120, maxParallelForks>0), so this
@@ -495,11 +613,11 @@ dependencies {
     implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.hilt.compiler)
 
-    // Media3 - Native audio player (stable 1.10.0)
+    // Media3 - Native audio player (stable 1.11.0; version catalog is the source of truth)
     implementation(libs.bundles.media3)
-
-    // Audio metadata parsing using KTagLib (TagLib Kotlin bindings)
-    implementation(libs.ktaglib)
+    implementation(libs.media3.ui.compose)
+    implementation(libs.media3.cast)
+    implementation(libs.play.services.cast.framework)
 
     // Android 14+ specific dependencies
     // Add support for Android 14+ foreground service types
@@ -508,6 +626,7 @@ dependencies {
     // Add coroutines support for proper async handling
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.guava)
+    debugImplementation(libs.kotlinx.coroutines.debug)
     implementation(libs.kotlinx.collections.immutable)
 
     // Kotlinx serialization (required by Room 2.8.4+)
@@ -527,18 +646,11 @@ dependencies {
 
     // Security & Encryption - Modern approach with Tink (replaces deprecated EncryptedSharedPreferences)
     implementation(libs.tink.android)
-    // Media3 is pinned via version catalog (stable 1.10.0)
-
-    // Media library for MediaStyle notification (required for MediaStyle class)
-    // MediaStyle is part of androidx.media, not androidx.core
-    implementation(libs.androidx.media)
 
     // Network libraries
     implementation(libs.bundles.network)
     // Jsoup for HTML parsing (Rutracker scraping)
     implementation(libs.jsoup)
-    // Jsoup optional regex backend required for R8 minify (Re2jRegex)
-    implementation(libs.re2j)
 
     // libtorrent4j for torrent downloads
     implementation(libs.bundles.libtorrent4j)
@@ -553,6 +665,8 @@ dependencies {
 
     // Palette for extracting colors from images (Dynamic Theme)
     implementation(libs.androidx.palette)
+    // Material Color Utilities — real HCT/CAM16/TonalPalette/Score (replaces HSL stubs)
+    implementation(libs.material.color.utilities)
 
     // Material 3 Adaptive - Official adaptive UI components
     implementation(libs.androidx.compose.material3.adaptive)
@@ -576,9 +690,6 @@ dependencies {
     // Premium UI Dependencies
     // Haze for Glassmorphism (blur effects)
     implementation(libs.haze)
-    // HypnoticCanvas for Procedural Animated Backgrounds (Shaders)
-    implementation(libs.hypnoticcanvas)
-    implementation(libs.hypnoticcanvas.shaders)
     // Leanback for Android TV support
     implementation(libs.leanback)
 
@@ -596,9 +707,6 @@ dependencies {
     // LeakCanary - Memory leak detection for debug builds (BP-6.4)
     debugImplementation(libs.leakcanary.android)
 
-    // Detekt API for custom rules (compileOnly - only needed for compilation)
-    compileOnly(libs.detekt.api)
-
     // Testing dependencies
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.bundles.test)
@@ -606,13 +714,6 @@ dependencies {
     testImplementation(libs.androidx.work.testing)
     testImplementation(libs.jimfs)
     testImplementation(libs.kotest.property)
-
-    // Android Instrumentation tests
-    androidTestUtil(libs.androidx.test.services)
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(libs.androidx.test.ext.junit)
-    androidTestImplementation(libs.media3.test.utils)
 
     // Firebase - Import the Firebase BoM to manage library versions
     implementation(platform(libs.firebase.bom))
@@ -663,6 +764,7 @@ detekt {
     source.setFrom(
         files(
             "src/main/kotlin",
+            "src/test/kotlin",
         ),
     )
 }
@@ -697,8 +799,22 @@ tasks.register<org.gradle.testing.jacoco.tasks.JacocoReport>("jacocoTestReport")
     sourceDirectories.setFrom(files("src/main/kotlin"))
 
     // Include class files (excluding generated and test classes)
+    // Kotlin classes live in tmp/kotlin-classes; generated Java (Hilt, etc.) in intermediates/javac
     classDirectories.setFrom(
         files(
+            fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/betaDebug")) {
+                exclude(
+                    "**/R.class",
+                    "**/R\$*.class",
+                    "**/BuildConfig.*",
+                    "**/Manifest*.*",
+                    "**/*Test*.*",
+                    "**/*_Factory.*",
+                    "**/*_HiltModules.*",
+                    "**/Hilt_*.*",
+                    "android/**/*.*",
+                )
+            },
             fileTree(layout.buildDirectory.dir("intermediates/javac/betaDebug/classes")) {
                 exclude(
                     "**/R.class",
@@ -741,6 +857,19 @@ tasks.register<org.gradle.testing.jacoco.tasks.JacocoCoverageVerification>("jaco
 
     classDirectories.setFrom(
         files(
+            fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/betaDebug")) {
+                exclude(
+                    "**/R.class",
+                    "**/R\$*.class",
+                    "**/BuildConfig.*",
+                    "**/Manifest*.*",
+                    "**/*Test*.*",
+                    "**/*_Factory.*",
+                    "**/*_HiltModules.*",
+                    "**/Hilt_*.*",
+                    "android/**/*.*",
+                )
+            },
             fileTree(layout.buildDirectory.dir("intermediates/javac/betaDebug/classes")) {
                 exclude(
                     "**/R.class",

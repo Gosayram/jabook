@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.entity
 
+import androidx.annotation.Keep
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
@@ -24,6 +25,7 @@ import com.jabook.app.jabook.compose.domain.model.SearchHistoryItem
  *
  * Stores recent search queries for quick access and autocomplete.
  */
+@Keep
 @Entity(tableName = "search_history")
 public data class SearchHistoryEntity(
     @PrimaryKey(autoGenerate = true)

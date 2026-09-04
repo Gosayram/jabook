@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.network
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
@@ -66,7 +67,7 @@ public class DynamicBaseUrlInterceptor
                     .build()
 
             val requestStartTime = System.currentTimeMillis()
-            logger.d { "🔄 Redirecting ${originalUrl.host} → $currentMirror (${originalUrl.encodedPath})" }
+            logger.d { "Redirecting ${originalUrl.host} -> $currentMirror (${originalUrl.encodedPath})" }
 
             return try {
                 val response = chain.proceed(newRequest)
@@ -75,34 +76,45 @@ public class DynamicBaseUrlInterceptor
                 // Log successful requests (only for important endpoints)
                 if (response.isSuccessful && originalUrl.encodedPath.contains("search.php")) {
                     logger.d {
-                        "✅ Request succeeded: ${response.code} (${requestDuration}ms) - ${originalUrl.encodedPath}"
+                        "Request succeeded: ${response.code} (${requestDuration}ms) - ${originalUrl.encodedPath}"
                     }
                 }
 
                 // If auto-switch is enabled and request failed, try switching mirror
                 if (!response.isSuccessful && shouldTriggerAutoSwitch(response.code)) {
                     logger.w {
-                        "❌ Request failed: HTTP ${response.code} ${response.message} (${requestDuration}ms) - ${originalUrl.encodedPath}, checking auto-switch"
+                        "Request failed: HTTP ${response.code} ${response.message} (${requestDuration}ms) - ${originalUrl.encodedPath}, checking auto-switch"
                     }
 
-                    // Check if auto-switch is enabled (blocking call, should be fast from cache)
-                    val autoSwitchEnabled =
-                        runBlocking {
-                            mirrorManager.isAutoSwitchEnabled()
-                        }
+                    // Check if auto-switch is enabled (sync read from in-memory cache)
+                    val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabledSync()
 
                     if (autoSwitchEnabled) {
-                        logger.i { "🔄 Auto-switch enabled, attempting to find working mirror" }
-                        response.close() // Close failed response
+                        // Grace/backoff check before blocking: a switch attempt
+                        // during these windows is guaranteed to fail anyway.
+                        if (!mirrorManager.canSwitchNowSync()) {
+                            logger.d { "Mirror switch in grace/backoff window, skipping switch attempt" }
+                            return response
+                        }
+
+                        logger.i { "Auto-switch enabled, attempting to find working mirror" }
 
                         val switchStartTime = System.currentTimeMillis()
+                        // ponytail: runBlocking is unavoidable in OkHttp interceptors
+                        // (synchronous API). 15s timeout prevents dispatcher starvation.
                         val switched =
                             runBlocking {
-                                mirrorManager.switchToNextMirror()
-                            }
+                                withTimeoutOrNull(15_000L) {
+                                    mirrorManager.switchToNextMirror()
+                                }
+                            } == true
                         val switchDuration = System.currentTimeMillis() - switchStartTime
 
                         if (switched) {
+                            // Close the failed response ONLY now — if the switch
+                            // fails we must return it open to the caller.
+                            response.close()
+
                             val newMirror = mirrorManager.currentMirror.value
                             // Retry with new mirror
                             val retryUrl =
@@ -118,19 +130,19 @@ public class DynamicBaseUrlInterceptor
                                     .build()
 
                             logger.i {
-                                "✅ Switched to mirror: $newMirror (took ${switchDuration}ms), retrying request: ${originalUrl.encodedPath}"
+                                "Switched to mirror: $newMirror (took ${switchDuration}ms), retrying request: ${originalUrl.encodedPath}"
                             }
                             val retryStartTime = System.currentTimeMillis()
                             val retryResponse = chain.proceed(retryRequest)
                             val retryDuration = System.currentTimeMillis() - retryStartTime
                             if (retryResponse.isSuccessful) {
                                 logger.i {
-                                    "✅ Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror"
+                                    "Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror"
                                 }
                             }
                             return retryResponse
                         } else {
-                            logger.w { "⚠️ Failed to switch to working mirror (took ${switchDuration}ms)" }
+                            logger.w { "Failed to switch to working mirror (took ${switchDuration}ms)" }
                         }
                     }
                 }
@@ -146,7 +158,7 @@ public class DynamicBaseUrlInterceptor
                 if (isCertificatePinningFailure) {
                     logger.e(
                         {
-                            "🚨 Certificate pinning validation failed for host ${newUrl.host}. " +
+                            "Certificate pinning validation failed for host ${newUrl.host}. " +
                                 "Blocking request to prevent MITM risk. User must review mirror trust."
                         },
                         e,
@@ -168,30 +180,35 @@ public class DynamicBaseUrlInterceptor
                         (e.message?.contains("No address associated with hostname", ignoreCase = true) == true)
 
                 logger.e({
-                    "❌ Request failed with exception: ${e.javaClass.simpleName} - ${e.message} (${requestDuration}ms) - ${originalUrl.encodedPath}"
+                    "Request failed with exception: ${e.javaClass.simpleName} - ${e.message} (${requestDuration}ms) - ${originalUrl.encodedPath}"
                 }, e)
 
-                // Check if auto-switch is enabled before attempting mirror switch
-                val autoSwitchEnabled =
-                    runBlocking {
-                        mirrorManager.isAutoSwitchEnabled()
+                // Check if auto-switch is enabled (sync read from in-memory cache)
+                val autoSwitchEnabled = mirrorManager.isAutoSwitchEnabledSync()
+
+                // Only transport failures (DNS/connect/timeout/TLS) justify a mirror
+                // switch — mirror failover cannot fix an application-level error.
+                if (autoSwitchEnabled && isNetworkError) {
+                    // Grace/backoff check before blocking: a switch attempt
+                    // during these windows is guaranteed to fail anyway.
+                    if (!mirrorManager.canSwitchNowSync()) {
+                        logger.d { "Mirror switch in grace/backoff window, skipping switch attempt" }
+                        throw e
                     }
 
-                if (autoSwitchEnabled) {
-                    // Auto-switch is enabled - attempt to switch mirror for any error
-                    if (isNetworkError) {
-                        logger.i {
-                            "🔄 Network/DNS error detected (${e.javaClass.simpleName}), auto-switch enabled, attempting mirror switch"
-                        }
-                    } else {
-                        logger.i { "🔄 Auto-switch enabled, attempting mirror switch for ${e.javaClass.simpleName}" }
+                    logger.i {
+                        "Network/DNS error detected (${e.javaClass.simpleName}), auto-switch enabled, attempting mirror switch"
                     }
 
                     val switchStartTime = System.currentTimeMillis()
+                    // ponytail: runBlocking is unavoidable in OkHttp interceptors
+                    // (synchronous API). 15s timeout prevents dispatcher starvation.
                     val switched =
                         runBlocking {
-                            mirrorManager.switchToNextMirror()
-                        }
+                            withTimeoutOrNull(15_000L) {
+                                mirrorManager.switchToNextMirror()
+                            }
+                        } == true
                     val switchDuration = System.currentTimeMillis() - switchStartTime
 
                     if (switched) {
@@ -209,37 +226,42 @@ public class DynamicBaseUrlInterceptor
                                 .build()
 
                         logger.i {
-                            "✅ Switched to mirror: $newMirror (took ${switchDuration}ms), retrying after ${e.javaClass.simpleName}: ${originalUrl.encodedPath}"
+                            "Switched to mirror: $newMirror (took ${switchDuration}ms), retrying after ${e.javaClass.simpleName}: ${originalUrl.encodedPath}"
                         }
+                        val retryStartTime = System.currentTimeMillis()
                         try {
-                            val retryStartTime = System.currentTimeMillis()
                             val retryResponse = chain.proceed(retryRequest)
                             val retryDuration = System.currentTimeMillis() - retryStartTime
                             if (retryResponse.isSuccessful) {
                                 logger.i {
-                                    "✅ Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror"
+                                    "Retry succeeded: ${retryResponse.code} (${retryDuration}ms) with mirror $newMirror"
                                 }
                             }
                             return retryResponse
                         } catch (retryException: Exception) {
+                            val retryDuration = System.currentTimeMillis() - retryStartTime
                             logger.e {
-                                "❌ Retry also failed with ${retryException.javaClass.simpleName}: ${retryException.message}"
+                                "Retry also failed with ${retryException.javaClass.simpleName}: ${retryException.message} (${retryDuration}ms) with mirror $newMirror"
                             }
                             throw retryException
                         }
                     } else {
-                        logger.w { "⚠️ Failed to switch to working mirror (took ${switchDuration}ms)" }
+                        logger.w { "Failed to switch to working mirror (took ${switchDuration}ms)" }
                     }
-                } else {
+                } else if (!autoSwitchEnabled) {
                     // Auto-switch is disabled - log but don't switch
                     if (isNetworkError) {
                         logger.w {
-                            "⚠️ Network/DNS error detected (${e.javaClass.simpleName}), but auto-switch is disabled. User must switch mirror manually."
+                            "Network/DNS error detected (${e.javaClass.simpleName}), but auto-switch is disabled. User must switch mirror manually."
                         }
                     } else {
                         logger.d {
-                            "Auto-switch is disabled, not attempting mirror switch for ${e.javaClass.simpleName}"
+                            "Non-transport error ${e.javaClass.simpleName}, mirror switch not applicable"
                         }
+                    }
+                } else {
+                    logger.d {
+                        "Non-transport error ${e.javaClass.simpleName}, mirror switch not applicable"
                     }
                 }
 
@@ -250,16 +272,15 @@ public class DynamicBaseUrlInterceptor
         /**
          * Determine if the response code should trigger auto-switch.
          *
-         * Triggers on:
-         * - 5xx server errors
-         * - 403 Forbidden (might be blocking)
-         * - 404 Not Found (mirror might be outdated)
+         * Follows OkHttp's retry semantics: only transport/server-side failures
+         * (5xx) indicate a possibly-dead mirror. 4xx is deliberately excluded:
+         * - 403 on RuTracker means expired session / user block — every mirror
+         *   shares the same backend, switching just ping-pongs.
+         * - 404 means the page/topic doesn't exist — the mirror is alive.
          */
         private fun shouldTriggerAutoSwitch(code: Int): Boolean =
             when (code) {
-                in 500..599 -> true // Server errors
-                403 -> true // Forbidden (blocking?)
-                404 -> true // Not found (mirror structure changed?)
+                in 500..599 -> true // Server errors — mirror may be down
                 else -> false
             }
     }

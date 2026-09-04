@@ -22,16 +22,20 @@ import coil3.disk.DiskCache
 import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
+import com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
+import com.jabook.app.jabook.compose.core.util.EmbeddedArtworkFetcher
+import com.jabook.app.jabook.compose.data.local.JABOOK_DB_VERSION
 import com.jabook.app.jabook.compose.data.sync.SyncManager
+import com.jabook.app.jabook.compose.data.torrent.TorrentMemoryPressureGuard
 import com.jabook.app.jabook.compose.infrastructure.notification.NotificationHelper
+import com.jabook.app.jabook.crash.AnrWatchdog
 import com.jabook.app.jabook.crash.CrashDiagnostics
-import com.jabook.app.jabook.diagnostics.AnrWatchdog
 import com.jabook.app.jabook.util.LogUtils
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
-import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toPath
 import javax.inject.Inject
@@ -43,16 +47,6 @@ import javax.inject.Inject
  * and creates notification channels.
  */
 
-/**
- * EntryPoint to access OkHttpClient from Hilt in Application.onCreate().
- * This is needed because Hilt injection is not available in Application.onCreate().
- */
-@EntryPoint
-@InstallIn(SingletonComponent::class)
-public interface OkHttpClientEntryPoint {
-    public fun okHttpClient(): OkHttpClient
-}
-
 @HiltAndroidApp
 public class JabookApplication :
     Application(),
@@ -63,8 +57,26 @@ public class JabookApplication :
     @Inject
     public lateinit var syncManager: SyncManager
 
+    /** Cookie-free client for cover downloads — Coil must not send session cookies to cover hosts. */
+    @Inject
+    @javax.inject.Named("coverDownload")
+    public lateinit var coverDownloadClient: OkHttpClient
+
+    /** Lazily guards the native torrent session only when Android reports memory pressure. */
+    @Inject
+    public lateinit var torrentMemoryPressureGuard: TorrentMemoryPressureGuard
+
+    /** Recovers stale listening sessions left open by a previous process death. */
+    @Inject
+    public lateinit var listeningSessionRepository: ListeningSessionRepository
+
     /** ANR watchdog — active only in debug/beta builds via LogUtils gating. */
     private val anrWatchdog: AnrWatchdog = AnrWatchdog()
+
+    private val criticalMemoryTrimHandler =
+        CriticalMemoryTrimHandler {
+            SingletonImageLoader.get(this).memoryCache?.clear()
+        }
 
     public override val workManagerConfiguration: androidx.work.Configuration
         get() =
@@ -75,6 +87,10 @@ public class JabookApplication :
 
     public override fun onCreate() {
         super.onCreate()
+
+        // :crash process must not build the Hilt graph / OkHttp / DataStore (a second
+        // DataStore here would lock the cookies file against the main process).
+        if (android.app.Application.getProcessName() == ":crash") return
 
         if (BuildConfig.DEBUG) {
             StrictMode.setThreadPolicy(
@@ -99,15 +115,41 @@ public class JabookApplication :
 
         configureDiagnostics()
 
-        // Start ANR watchdog for debug/beta builds (BP-6.3)
-        anrWatchdog.start()
+        // Start ANR watchdog for debug/beta builds only (BP-6.3)
+        if (BuildConfig.DEBUG || BuildConfig.FLAVOR != "prod") {
+            try {
+                // Watchdog failure must never break app startup — it's diagnostics only.
+                anrWatchdog.start()
+            } catch (e: Exception) {
+                LogUtils.e("JabookApplication", "Failed to start ANR watchdog", e)
+            }
+        }
 
-        // Initialize Global Exception Handler
+        // Initialize Global Exception Handler (writes crash report to disk)
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler(
             com.jabook.app.jabook.crash
                 .GlobalExceptionHandler(this, defaultHandler),
         )
+
+        // Check for crash report from previous session and show CrashActivity if found
+        checkAndShowCrashReport()
+
+        // Check if previous session crashed (no clean shutdown)
+        if (!com.jabook.app.jabook.crash.GlobalExceptionHandler
+                .wasCleanShutdown(this)
+        ) {
+            LogUtils.w("JabookApplication", "Previous session did not shut down cleanly")
+            maybeEnterSafeMode()
+        }
+
+        recoverOpenListeningSessions()
+
+        // Audio offload remains disabled after a crash loop until app data is reset.
+        val safeModePrefs = getSharedPreferences("jabook_crash_handler", MODE_PRIVATE)
+        if (safeModePrefs.getBoolean("safe_mode", false)) {
+            LogUtils.i("JabookApplication", "Running in safe mode — audio offload disabled")
+        }
 
         // Create notification channels for downloads and player
         NotificationHelper.createNotificationChannels(this)
@@ -115,47 +157,30 @@ public class JabookApplication :
         // Schedule periodic sync
         syncManager.schedulePeriodicSync()
 
-        // CRITICAL: Start AudioPlayerService for warmup
-        // This ensures instant playback readiness without delay on first play
-        // Service will initialize MediaSession, ExoPlayer, and notification provider
-        try {
-            LogUtils.i("JabookApplication", "Starting AudioPlayerService warmup...")
-            CrashDiagnostics.log("audio_service_warmup_started")
-            val serviceIntent = android.content.Intent(this, com.jabook.app.jabook.audio.AudioPlayerService::class.java)
-            startService(serviceIntent)
-            LogUtils.i("JabookApplication", "AudioPlayerService warmup initiated")
-            CrashDiagnostics.log("audio_service_warmup_initiated")
-        } catch (e: Exception) {
-            LogUtils.e("JabookApplication", "Failed to start AudioPlayerService warmup", e)
-            CrashDiagnostics.reportNonFatal(
-                tag = "audio_service_warmup_failed",
-                throwable = e,
-                attributes = mapOf("phase" to "application_on_create"),
-            )
-        }
+        // Schedule periodic indexing via WorkManager (daily incremental, Wi-Fi only)
+        schedulePeriodicIndexing()
+
+        // Service starts lazily on first Play via MediaController connection.
+        // Eager warmup removed: Android 15+ bans media-FGS from auto-start,
+        // and race condition with MediaController required up to 15s retry.
 
         // Configure Coil ImageLoader with OkHttpClient from Hilt
         // Use setSafe to ensure it won't overwrite an existing ImageLoader
-        // Note: setSafe uses lazy initialization, so Hilt will be ready when ImageLoader is first used
         SingletonImageLoader.setSafe { context ->
-            // Get OkHttpClient from Hilt using EntryPoint (lazy - Hilt will be ready when first used)
-            val okHttpClient =
-                EntryPointAccessors
-                    .fromApplication(
-                        context,
-                        OkHttpClientEntryPoint::class.java,
-                    ).okHttpClient()
-
             ImageLoader
                 .Builder(context)
                 .components {
-                    // Use the same OkHttpClient that's used for API calls
-                    // This ensures images benefit from cookie persistence, auth, Brotli, etc.
+                    // Use the cookie-free coverDownload client (DoH, browser headers, Brotli):
+                    // covers go to arbitrary hosts, so session cookies/AuthInterceptor must not apply.
+                    // Coil has its own 50MB disk cache below — no HTTP cache duplication.
                     add(
                         OkHttpNetworkFetcherFactory(
-                            callFactory = { okHttpClient },
+                            callFactory = { coverDownloadClient },
+                            concurrentRequestStrategy = { coil3.network.DeDupeConcurrentRequestStrategy() },
                         ),
                     )
+                    // Decodes artwork embedded in local audio files (audio-artwork://<abs-path>).
+                    add(EmbeddedArtworkFetcher.Factory)
                 }.memoryCache {
                     MemoryCache
                         .Builder()
@@ -175,10 +200,78 @@ public class JabookApplication :
                 }
                 // Show a short crossfade when loading images asynchronously
                 .crossfade(true)
-                .build()
+                .apply {
+                    if (BuildConfig.DEBUG) {
+                        logger(coil3.util.DebugLogger())
+                    }
+                }.build()
         }
 
         LogUtils.d("JabookApplication", "Application created with Hilt support")
+    }
+
+    public override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+
+        try {
+            criticalMemoryTrimHandler.onTrimMemory(level)
+        } catch (e: Exception) {
+            LogUtils.e("JabookApplication", "Failed to clear heap caches during memory trim", e)
+        }
+
+        try {
+            torrentMemoryPressureGuard.onTrimMemory(level)
+        } catch (e: Exception) {
+            // Memory trimming must never turn a native-library failure into a process crash.
+            LogUtils.e("JabookApplication", "Failed to guard torrent session during memory trim", e)
+        }
+    }
+
+    private fun recoverOpenListeningSessions() {
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            runCatching {
+                listeningSessionRepository.recoverOpenSessions()
+            }.onSuccess { closedSessions ->
+                if (closedSessions > 0) {
+                    LogUtils.w("JabookApplication", "Closed $closedSessions stale listening sessions")
+                }
+            }.onFailure { error ->
+                LogUtils.e("JabookApplication", "Failed to recover stale listening sessions", error)
+            }
+        }
+    }
+
+    private fun checkAndShowCrashReport() {
+        // Disk read (crash report file) must stay off the main thread
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                val prefs = getSharedPreferences("jabook_crash_handler", MODE_PRIVATE)
+                if (!prefs.getBoolean("has_crash_report", false)) return@launch
+
+                val file = java.io.File(filesDir, "last_crash_report.txt")
+                if (!file.exists()) {
+                    prefs.edit().remove("has_crash_report").apply()
+                    return@launch
+                }
+
+                val report =
+                    try {
+                        file.readText()
+                    } catch (_: Exception) {
+                        return@launch
+                    }
+
+                LogUtils.w("JabookApplication", "Found crash report from previous session, launching CrashActivity")
+                val intent =
+                    android.content.Intent(this@JabookApplication, com.jabook.app.jabook.crash.CrashActivity::class.java).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        putExtra(com.jabook.app.jabook.crash.CrashActivity.EXTRA_STACK_TRACE, report)
+                    }
+                startActivity(intent)
+            } catch (e: Exception) {
+                LogUtils.e("JabookApplication", "Failed to check crash report", e)
+            }
+        }
     }
 
     private fun configureDiagnostics() {
@@ -188,5 +281,53 @@ public class JabookApplication :
             versionName = BuildConfig.VERSION_NAME,
             versionCode = BuildConfig.VERSION_CODE.toLong(),
         )
+        CrashDiagnostics.setCustomKey("db_schema_version", JABOOK_DB_VERSION.toString())
+    }
+
+    /**
+     * Enter safe mode if crash-loop detected (≥3 crashes in 60s).
+     * In safe mode: disable audio offload.
+     */
+    private fun maybeEnterSafeMode() {
+        val prefs = getSharedPreferences("jabook_crash_handler", MODE_PRIVATE)
+        val crashCount = prefs.getInt("crash_count", 0)
+        if (crashCount >= 3) {
+            LogUtils.w("JabookApplication", "Crash-loop detected ($crashCount crashes), entering safe mode")
+            prefs.edit().putBoolean("safe_mode", true).apply()
+        }
+    }
+
+    /**
+     * Schedule periodic forum indexing via WorkManager.
+     * Runs daily on Wi-Fi, respects charging/idle constraints.
+     */
+    private fun schedulePeriodicIndexing() {
+        try {
+            val constraints =
+                androidx.work.Constraints
+                    .Builder()
+                    .setRequiredNetworkType(androidx.work.NetworkType.UNMETERED)
+                    .setRequiresBatteryNotLow(true)
+                    .build()
+
+            val workRequest =
+                androidx.work
+                    .PeriodicWorkRequestBuilder<
+                        com.jabook.app.jabook.compose.data.worker.IndexingWorker,
+                    >(24, java.util.concurrent.TimeUnit.HOURS)
+                    .setConstraints(constraints)
+                    .setInitialDelay(6, java.util.concurrent.TimeUnit.HOURS)
+                    .addTag("periodic_indexing")
+                    .build()
+
+            androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                com.jabook.app.jabook.compose.data.worker.IndexingWorker.WORK_NAME_PERIODIC,
+                androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+                workRequest,
+            )
+            LogUtils.d("JabookApplication", "Periodic indexing scheduled (daily, Wi-Fi only)")
+        } catch (e: Exception) {
+            LogUtils.e("JabookApplication", "Failed to schedule periodic indexing", e)
+        }
     }
 }

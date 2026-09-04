@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import com.jabook.app.jabook.R
 
@@ -51,8 +52,9 @@ public fun JabookDrawerContent(
     currentDestination: NavDestination?,
     onNavigateToDestination: (TopLevelDestination) -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToAuth: () -> Unit,
     onNavigateToAbout: () -> Unit,
-    accountProfile: AccountProfile = AccountProfile("Guest User", "guest@jabook.app"), // TODO: Real user data
+    accountProfile: AccountProfile = AccountProfile(stringResource(R.string.settingsProfileGuest), ""),
     modifier: Modifier = Modifier,
 ) {
     ModalDrawerSheet(
@@ -62,7 +64,7 @@ public fun JabookDrawerContent(
         // Sticky Header
         AccountHeader(
             selectedAccount = accountProfile,
-            onAccountClick = { /* TODO: Account switching */ },
+            onAccountClick = onNavigateToAuth,
         )
 
         // Scrollable Content
@@ -76,10 +78,14 @@ public fun JabookDrawerContent(
             // Main Destinations
             destinations.forEach { destination ->
                 val selected =
-                    currentDestination?.hierarchy?.any {
-                        it.route?.contains(destination.name, ignoreCase = true) == true
+                    currentDestination?.hierarchy?.any { navDestination ->
+                        when (destination) {
+                            TopLevelDestination.LIBRARY -> navDestination.hasRoute<LibraryRoute>()
+                            TopLevelDestination.SETTINGS -> navDestination.hasRoute<SettingsRoute>()
+                        }
                     } == true
 
+                // ponytail: drawer selected labelLargeEmphasized — swap to EmphasizedTypography.labelLarge when selected (selected chip/chapter pattern proven)
                 NavigationDrawerItem(
                     label = { Text(stringResource(destination.titleTextId)) },
                     icon = {

@@ -19,13 +19,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -35,33 +32,28 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
+import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.theme.SpacingTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.core.util.rememberCoverPreloader
 import com.jabook.app.jabook.compose.core.util.rememberCoverPreloaderForGrid
 import com.jabook.app.jabook.compose.designsystem.component.UnifiedBookCard
@@ -69,11 +61,6 @@ import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
 import kotlinx.coroutines.launch
-
-/**
- * Logger for UnifiedBooksView Composable functions.
- */
-private val unifiedBooksViewLogger by lazy { LoggerFactoryImpl().get("UnifiedBooksView") }
 
 /**
  * Unified books view that displays books in either grid or list layout.
@@ -102,52 +89,13 @@ public fun UnifiedBooksView(
     selectedIds: Set<String> = emptySet(),
     onToggleSelection: ((String) -> Unit)? = null,
 ) {
-    // Log books for debugging
-    androidx.compose.runtime.LaunchedEffect(books.size) {
-        unifiedBooksViewLogger.d {
-            "📚 Rendering ${books.size} books in $displayMode mode"
-        }
-        if (books.isNotEmpty()) {
-            val invalidBooks = books.filter { it.title.isBlank() || it.author.isBlank() || it.id.isBlank() }
-            if (invalidBooks.isNotEmpty()) {
-                unifiedBooksViewLogger.w {
-                    "⚠️ Found ${invalidBooks.size} books with empty/invalid data out of ${books.size} total"
-                }
-                invalidBooks.take(3).forEachIndexed { index, book ->
-                    unifiedBooksViewLogger.w {
-                        "  Invalid[$index]: id='${book.id.take(20)}', " +
-                            "title='${book.title.take(30)}', " +
-                            "author='${book.author.take(20)}', " +
-                            "coverUrl=${if (book.coverUrl.isNullOrBlank()) "null/empty" else "present"}"
-                    }
-                }
-            }
-            // Log sample of valid books
-            val validBooks = books.filter { it.title.isNotBlank() && it.author.isNotBlank() && it.id.isNotBlank() }
-            if (validBooks.isNotEmpty()) {
-                val sample = validBooks.take(2)
-                sample.forEachIndexed { index, book ->
-                    unifiedBooksViewLogger.d {
-                        "  Valid[$index]: id='${book.id.take(20)}', " +
-                            "title='${book.title.take(40)}', " +
-                            "author='${book.author.take(30)}'"
-                    }
-                }
-            }
-        } else {
-            unifiedBooksViewLogger.w { "⚠️ Empty books list provided" }
-        }
-    }
-
     // Get WindowSizeClass from parameter or calculate from LocalContext
     val context = LocalContext.current
     val effectiveWindowSizeClass =
         windowSizeClass
-            ?: calculateWindowSizeClass(
-                context as? android.app.Activity
-                    ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-                    ?: throw IllegalStateException("Cannot get Activity from context"),
-            )
+            ?: LocalWindowSizeClass.current?.let {
+                AdaptiveUtils.resolveWindowSizeClassOrNull(it, context)
+            }
 
     when {
         displayMode.isGrid() ->
@@ -155,7 +103,11 @@ public fun UnifiedBooksView(
                 books = books,
                 displayMode = displayMode,
                 actionsProvider = actionsProvider,
-                windowSizeClass = effectiveWindowSizeClass,
+                windowSizeClass =
+                    effectiveWindowSizeClass
+                        ?: WindowSizeClass.calculateFromSize(
+                            DpSize(360.dp, 800.dp),
+                        ),
                 isSelectionMode = isSelectionMode,
                 selectedIds = selectedIds,
                 onToggleSelection = onToggleSelection,
@@ -166,7 +118,11 @@ public fun UnifiedBooksView(
                 books = books,
                 displayMode = displayMode,
                 actionsProvider = actionsProvider,
-                windowSizeClass = effectiveWindowSizeClass,
+                windowSizeClass =
+                    effectiveWindowSizeClass
+                        ?: WindowSizeClass.calculateFromSize(
+                            DpSize(360.dp, 800.dp),
+                        ),
                 isSelectionMode = isSelectionMode,
                 selectedIds = selectedIds,
                 onToggleSelection = onToggleSelection,
@@ -191,16 +147,17 @@ private fun BooksGridLayout(
 ) {
     val configuration = LocalConfiguration.current
     val isVeryNarrow = configuration.screenWidthDp < 360
+    val isWide = configuration.screenWidthDp >= 840
+    // ponytail: Ruler API (HorizontalRuler/VerticalRuler) available in Compose UI 1.7+ but skipped —
+    // grid already 8dp-aligned via SpacingTokens; wire ruler when header/grid ruler misaligns.
     val gridCells =
         remember(displayMode, windowSizeClass, configuration.screenWidthDp) {
             if (isVeryNarrow) {
                 GridCells.Fixed(1)
+            } else if (isWide) {
+                GridCells.Adaptive(minSize = SpacingTokens.GridMinCellExpanded)
             } else {
-                when {
-                    configuration.screenWidthDp >= 840 -> GridCells.Fixed(4)
-                    configuration.screenWidthDp >= 600 -> GridCells.Fixed(3)
-                    else -> GridCells.Fixed(2)
-                }
+                GridCells.Adaptive(minSize = SpacingTokens.GridMinCellCompact)
             }
         }
     val contentPadding = remember(windowSizeClass) { AdaptiveUtils.getContentPadding(windowSizeClass) }
@@ -243,6 +200,7 @@ private fun BooksGridLayout(
                     isSelectionMode = isSelectionMode,
                     isSelected = selectedIds.contains(book.id),
                     onToggleSelection = { onToggleSelection?.invoke(book.id) },
+                    windowSizeClass = windowSizeClass,
                 )
             }
         }
@@ -260,7 +218,7 @@ private fun BooksGridLayout(
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowUp,
-                    contentDescription = "Scroll to top",
+                    contentDescription = stringResource(R.string.scrollToTop),
                 )
             }
         }
@@ -301,25 +259,58 @@ private fun BooksListLayout(
     )
 
     Box(modifier = modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = contentPadding, vertical = contentPadding * 0.75f),
-            verticalArrangement = Arrangement.spacedBy(itemSpacing * 0.75f),
-        ) {
-            items(
-                items = books,
-                key = { it.id },
-                contentType = { "book_list_${displayMode.name}" },
-            ) { book ->
-                SwipeableBookCard(
-                    book = book,
-                    displayMode = displayMode,
-                    actionsProvider = actionsProvider,
-                    isSelectionMode = isSelectionMode,
-                    isSelected = selectedIds.contains(book.id),
-                    onToggleSelection = { onToggleSelection?.invoke(book.id) },
-                )
+        // Use two-column grid for compact list on expanded layouts
+        val isExpandedWidth = AdaptiveUtils.isLargeScreen(windowSizeClass)
+        if (isExpandedWidth && displayMode == BookDisplayMode.LIST_COMPACT) {
+            val gridState = rememberLazyGridState()
+            LazyVerticalGrid(
+                columns =
+                    GridCells
+                        .Fixed(2),
+                state = gridState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = contentPadding, vertical = contentPadding * 0.75f),
+                verticalArrangement = Arrangement.spacedBy(itemSpacing * 0.75f),
+                horizontalArrangement = Arrangement.spacedBy(itemSpacing * 0.75f),
+            ) {
+                items(
+                    items = books,
+                    key = { it.id },
+                    contentType = { "book_list_${displayMode.name}" },
+                ) { book ->
+                    SwipeableBookCard(
+                        book = book,
+                        displayMode = displayMode,
+                        actionsProvider = actionsProvider,
+                        isSelectionMode = isSelectionMode,
+                        isSelected = selectedIds.contains(book.id),
+                        onToggleSelection = { onToggleSelection?.invoke(book.id) },
+                        windowSizeClass = windowSizeClass,
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = contentPadding, vertical = contentPadding * 0.75f),
+                verticalArrangement = Arrangement.spacedBy(itemSpacing * 0.75f),
+            ) {
+                items(
+                    items = books,
+                    key = { it.id },
+                    contentType = { "book_list_${displayMode.name}" },
+                ) { book ->
+                    SwipeableBookCard(
+                        book = book,
+                        displayMode = displayMode,
+                        actionsProvider = actionsProvider,
+                        isSelectionMode = isSelectionMode,
+                        isSelected = selectedIds.contains(book.id),
+                        onToggleSelection = { onToggleSelection?.invoke(book.id) },
+                        windowSizeClass = windowSizeClass,
+                    )
+                }
             }
         }
 
@@ -336,14 +327,13 @@ private fun BooksListLayout(
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowUp,
-                    contentDescription = "Scroll to top",
+                    contentDescription = stringResource(R.string.scrollToTop),
                 )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SwipeableBookCard(
     book: Book,
@@ -352,97 +342,17 @@ private fun SwipeableBookCard(
     isSelectionMode: Boolean,
     isSelected: Boolean,
     onToggleSelection: (() -> Unit)?,
+    windowSizeClass: WindowSizeClass? = null,
 ) {
-    if (isSelectionMode || actionsProvider.onDeleteBook == null) {
-        UnifiedBookCard(
-            book = book,
-            displayMode = displayMode,
-            actionsProvider = actionsProvider,
-            isSelectionMode = isSelectionMode,
-            isSelected = isSelected,
-            onToggleSelection = onToggleSelection,
-        )
-        return
-    }
-
-    val onDeleteBook = requireNotNull(actionsProvider.onDeleteBook)
-    val dismissState = rememberSwipeToDismissBoxState()
-
-    LaunchedEffect(dismissState.currentValue, book.id) {
-        when (dismissState.currentValue) {
-            SwipeToDismissBoxValue.StartToEnd -> {
-                actionsProvider.onToggleFavorite(book.id, !actionsProvider.isFavorite(book.id))
-                dismissState.reset()
-            }
-
-            SwipeToDismissBoxValue.EndToStart -> {
-                onDeleteBook(book.id)
-                dismissState.reset()
-            }
-
-            SwipeToDismissBoxValue.Settled -> Unit
-        }
-    }
-
-    SwipeToDismissBox(
-        state = dismissState,
-        backgroundContent = {
-            val direction = dismissState.dismissDirection
-            val isStartToEnd = direction == SwipeToDismissBoxValue.StartToEnd
-            val isEndToStart = direction == SwipeToDismissBoxValue.EndToStart
-            val backgroundColor =
-                when {
-                    isStartToEnd -> MaterialTheme.colorScheme.primaryContainer
-                    isEndToStart -> MaterialTheme.colorScheme.errorContainer
-                    else -> Color.Transparent
-                }
-            val contentColor =
-                when {
-                    isStartToEnd -> MaterialTheme.colorScheme.onPrimaryContainer
-                    isEndToStart -> MaterialTheme.colorScheme.onErrorContainer
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
-
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight()
-                        .background(backgroundColor),
-            ) {
-                if (isStartToEnd) {
-                    Icon(
-                        imageVector = Icons.Filled.Favorite,
-                        contentDescription = null,
-                        tint = contentColor,
-                        modifier =
-                            Modifier
-                                .align(Alignment.CenterStart)
-                                .padding(start = 20.dp),
-                    )
-                } else if (isEndToStart) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = null,
-                        tint = contentColor,
-                        modifier =
-                            Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 20.dp),
-                    )
-                }
-            }
-        },
-    ) {
-        UnifiedBookCard(
-            book = book,
-            displayMode = displayMode,
-            actionsProvider = actionsProvider,
-            isSelectionMode = isSelectionMode,
-            isSelected = isSelected,
-            onToggleSelection = onToggleSelection,
-        )
-    }
+    UnifiedBookCard(
+        book = book,
+        displayMode = displayMode,
+        actionsProvider = actionsProvider,
+        isSelectionMode = isSelectionMode,
+        isSelected = isSelected,
+        onToggleSelection = onToggleSelection,
+        windowSizeClass = windowSizeClass,
+    )
 }
 
 // Removed isTabletDevice() - now using WindowSizeClass for better adaptive behavior

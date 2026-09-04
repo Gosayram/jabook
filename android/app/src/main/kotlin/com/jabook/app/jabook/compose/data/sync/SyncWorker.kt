@@ -18,12 +18,18 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.network.CoverDownloadNetworkPolicy
 import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import com.jabook.app.jabook.crash.CrashDiagnostics
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 /**
  * Worker for periodic data synchronization.
@@ -46,9 +52,10 @@ public class SyncWorker
         private val offlineSearchDao: com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao,
         private val torrentDownloadRepository: com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository,
         private val booksDao: com.jabook.app.jabook.compose.data.local.dao.BooksDao,
-        private val rutrackerRepository: com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository,
+        private val rutrackerRepository: com.jabook.app.jabook.compose.data.repository.RutrackerRepository,
         private val settingsRepository: SettingsRepository,
         private val networkMonitor: NetworkMonitor,
+        @param:javax.inject.Named("coverDownload") private val coverDownloadClient: OkHttpClient,
         private val loggerFactory: LoggerFactory,
     ) : CoroutineWorker(appContext, params) {
         private val logger = loggerFactory.get("SyncWorker")
@@ -56,6 +63,7 @@ public class SyncWorker
         public companion object {
             public const val WORK_NAME: String = "sync_work"
             private const val CACHE_TTL_DAYS = 7L
+            private const val MAX_COVER_BYTES = 5L * 1024 * 1024
         }
 
         override suspend fun doWork(): Result {
@@ -75,6 +83,9 @@ public class SyncWorker
 
                 logger.i { "Sync completed successfully attempt=$attempt" }
                 Result.success()
+            } catch (e: CancellationException) {
+                logger.i { "Sync cancelled attempt=$attempt" }
+                throw e
             } catch (e: Exception) {
                 logger.e({ "Sync failed" }, e)
                 if (runAttemptCount < 3) {
@@ -113,7 +124,11 @@ public class SyncWorker
 
             // Get downloads with topicId
             val downloads = torrentDownloadRepository.getAll().filter { !it.topicId.isNullOrEmpty() }
+            val books = if (downloads.isEmpty()) emptyList() else booksDao.getAllBooks()
             logger.d { "Found ${downloads.size} downloads to sync" }
+
+            // Batch field-level updates into one Room transaction at the end.
+            val pendingUpdates = mutableListOf<BooksDao.BookMetadataUpdate>()
 
             for (download in downloads) {
                 val topicId = download.topicId ?: continue
@@ -122,45 +137,32 @@ public class SyncWorker
                     // Fetch details from RuTracker
                     val result = rutrackerRepository.getTopicDetails(topicId)
 
-                    if (result.isSuccess) {
-                        val details = result.getOrNull() ?: continue
+                    if (result is com.jabook.app.jabook.compose.domain.model.Result.Success) {
+                        val details = result.data
 
                         // Find matching book by path
                         // Ideally we would have a better link, but path is what we have for now
-                        // We check if the book path contains the download path or vice versa
-                        val books = booksDao.getAllBooks()
+                        // Prefix matches need a path-separator boundary: /Books must not match /Books2
                         val matchedBook =
                             books.find { book ->
                                 book.localPath?.let { localPath ->
                                     localPath == download.savePath ||
-                                        localPath.startsWith(download.savePath) ||
-                                        download.savePath.startsWith(localPath)
+                                        localPath.startsWith(download.savePath + java.io.File.separator) ||
+                                        download.savePath.startsWith(localPath + java.io.File.separator)
                                 } == true
                             }
 
                         if (matchedBook != null) {
                             logger.d { "Updating metadata for book: ${matchedBook.title}" }
 
-                            // Update metadata if needed
-                            // For now, we mainly care about missing covers or empty metadata
-
-                            var needsUpdate: Boolean = false
-                            val updatedBook = matchedBook.copy() // Create copy to modify
-
-                            // Update title if generic
-                            if (matchedBook.title.isEmpty() || matchedBook.title == "Unknown Title") {
-                                // We can't easily change Val in copy if not exposed, creating new object or modifying var
-                                // BookEntity properties are vals. copy() is the way.
-                                // However, Kotlin copy() is on data class.
-                                // Let's check BookEntity structure if needed, but standard copy works.
-                                // Wait, simple variables:
-                                // updatedBook.title = details.title // Error if val
-                                // We need to use copy parameters
-                            }
+                            var update: BooksDao.BookMetadataUpdate? = null
 
                             // Update cover URL if missing
                             if (matchedBook.coverUrl.isNullOrEmpty() && !details.coverUrl.isNullOrEmpty()) {
-                                booksDao.updateCoverUrl(matchedBook.id, details.coverUrl)
+                                update =
+                                    (update ?: BooksDao.BookMetadataUpdate(matchedBook.id)).copy(
+                                        coverUrl = details.coverUrl,
+                                    )
                                 logger.i { "Updated cover URL for ${matchedBook.title}" }
                             }
 
@@ -168,20 +170,35 @@ public class SyncWorker
                             if ((matchedBook.author.isEmpty() || matchedBook.author == "Unknown Author") &&
                                 !details.author.isNullOrEmpty()
                             ) {
-                                booksDao.updateAuthor(matchedBook.id, details.author)
+                                update =
+                                    (update ?: BooksDao.BookMetadataUpdate(matchedBook.id)).copy(
+                                        author = details.author,
+                                    )
                                 logger.i { "Updated author for ${matchedBook.title}: ${details.author}" }
                             }
 
                             // Update description if missing
                             if (matchedBook.description.isNullOrEmpty() && !details.description.isNullOrEmpty()) {
-                                booksDao.updateDescription(matchedBook.id, details.description)
+                                update =
+                                    (update ?: BooksDao.BookMetadataUpdate(matchedBook.id)).copy(
+                                        description = details.description,
+                                    )
                                 logger.i { "Updated description for ${matchedBook.title}" }
                             }
+
+                            update?.let { pendingUpdates.add(it) }
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e({ "Failed to sync metadata for topic $topicId" }, e)
                 }
+            }
+
+            if (pendingUpdates.isNotEmpty()) {
+                booksDao.applyMetadataSync(pendingUpdates)
+                logger.i { "Applied ${pendingUpdates.size} batched metadata updates" }
             }
         }
 
@@ -211,6 +228,8 @@ public class SyncWorker
 
             logger.d { "Found ${booksNeedCover.size} books needing cover download" }
 
+            val coverPathUpdates = mutableListOf<BooksDao.BookMetadataUpdate>()
+
             for (book in booksNeedCover) {
                 try {
                     val coverUrl = book.coverUrl ?: continue
@@ -226,21 +245,64 @@ public class SyncWorker
                     val coverFile = java.io.File(coverDir, fileName)
 
                     if (!coverFile.exists()) {
-                        // Download file
-                        val url = java.net.URL(coverUrl)
-                        url.openStream().use { input ->
-                            AtomicFileWriter.writeWithLock(coverFile) { output ->
-                                input.copyTo(output)
+                        val uriScheme =
+                            android.net.Uri
+                                .parse(coverUrl)
+                                .scheme
+                                ?.lowercase()
+                        if (uriScheme != "http" && uriScheme != "https") {
+                            logger.w { "Skipping cover for ${book.title}: unsupported scheme '$uriScheme' in $coverUrl" }
+                            continue
+                        }
+                        val request = Request.Builder().url(coverUrl).build()
+                        withContext(Dispatchers.IO) {
+                            coverDownloadClient.newCall(request).execute().use { response ->
+                                check(response.isSuccessful) { "Cover request failed: HTTP ${response.code}" }
+                                // ponytail: 5MB cap — coverUrl is parser-supplied; a hostile
+                                // URL must not fill storage. Oversize covers are useless anyway.
+                                val declaredLength = response.body.contentLength()
+                                check(declaredLength <= MAX_COVER_BYTES) {
+                                    "Cover too large: $declaredLength bytes (limit $MAX_COVER_BYTES)"
+                                }
+                                response.body.byteStream().use { input ->
+                                    AtomicFileWriter.writeWithLock(coverFile) { output ->
+                                        val buffer = ByteArray(8192)
+                                        var copied = 0L
+                                        while (true) {
+                                            val read = input.read(buffer)
+                                            if (read == -1) break
+                                            copied += read
+                                            check(copied <= MAX_COVER_BYTES) {
+                                                "Cover exceeded $MAX_COVER_BYTES bytes while streaming"
+                                            }
+                                            output.write(buffer, 0, read)
+                                        }
+                                        copied
+                                    }
+                                }
                             }
                         }
 
-                        // Update DB
-                        booksDao.updateCoverPath(book.id, coverFile.absolutePath)
-                        logger.i { "Downloaded cover for ${book.title}" }
+                        // Update DB only after the complete file has been written.
+                        if (coverFile.exists()) {
+                            coverPathUpdates.add(
+                                BooksDao.BookMetadataUpdate(bookId = book.id, coverPath = coverFile.absolutePath),
+                            )
+                            logger.i { "Downloaded cover for ${book.title}" }
+                        } else {
+                            error("Cover file was not created")
+                        }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     logger.e({ "Failed to download cover for ${book.title}" }, e)
                 }
+            }
+
+            if (coverPathUpdates.isNotEmpty()) {
+                booksDao.applyMetadataSync(coverPathUpdates)
+                logger.i { "Applied ${coverPathUpdates.size} batched cover-path updates" }
             }
         }
 

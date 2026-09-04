@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.AudioProcessor.StreamMetadata
 import androidx.media3.common.util.UnstableApi
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -40,6 +41,7 @@ public class SkipSilenceAudioProcessor(
     minSilenceDurationMs: Int,
     private val mode: SkipSilenceMode = SkipSilenceMode.SKIP,
     retainWindowMs: Int = DEFAULT_RETAIN_WINDOW_MS,
+    private val outputFramesPerBuffer: Int? = null,
 ) : AudioProcessor {
     private val thresholdNormalized = silenceThresholdNormalized.coerceIn(0.0001f, 0.1f)
     private val minimumSilenceMs = minSilenceDurationMs.coerceIn(1, 2000)
@@ -53,7 +55,8 @@ public class SkipSilenceAudioProcessor(
     private var minSilenceFrames = 0
 
     // ---- Buffer management ----
-    private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var queuedInputBuffer: ByteBuffer? = null
+    private var queuedInputCapacity: Int = 0
     private var queuedInputBytes = 0
     private var outputBuffer: ByteBuffer? = null
     private var inputEnded = false
@@ -73,16 +76,23 @@ public class SkipSilenceAudioProcessor(
     private var tempFrameBuf = ByteArray(0)
 
     // ---- Skipped-time metric (cumulative, reset via [resetSkippedMetric]) ----
+    // Written on the audio thread, read from position-compensation queries — @Volatile
+    // prevents Long tearing on 32-bit ARM.
+    @Volatile
     private var totalSkippedFrames = 0L
 
     override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         this.inputAudioFormat = inputAudioFormat
         outputAudioFormat = inputAudioFormat
         bytesPerFrame = (inputAudioFormat.channelCount * PCM_16_BIT_BYTES).coerceAtLeast(PCM_16_BIT_BYTES)
-        minSilenceFrames = (inputAudioFormat.sampleRate * minimumSilenceMs / 1000).coerceAtLeast(1)
+        minSilenceFrames =
+            SkipSilenceBufferPolicy.alignMinimumSilenceFrames(
+                configuredFrames = inputAudioFormat.sampleRate * minimumSilenceMs / 1000,
+                outputFramesPerBuffer = outputFramesPerBuffer,
+            )
         consecutiveSilentFrames = 0
         wasDroppingSilence = false
-        inputBuffers.clear()
+        queuedInputBuffer?.clear()
         queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
@@ -112,16 +122,23 @@ public class SkipSilenceAudioProcessor(
         if (!inputBuffer.hasRemaining()) {
             return
         }
-        val copy =
-            ByteBuffer
-                .allocateDirect(inputBuffer.remaining())
-                .order(ByteOrder.nativeOrder())
-                .apply {
-                    put(inputBuffer)
-                    flip()
-                }
-        inputBuffers.add(copy)
-        queuedInputBytes += copy.remaining()
+        val remaining = inputBuffer.remaining()
+        ensureQueuedInputCapacity(remaining)
+        queuedInputBytes += remaining
+        queuedInputBuffer!!.put(inputBuffer)
+    }
+
+    private fun ensureQueuedInputCapacity(additionalBytes: Int) {
+        val required = queuedInputBytes + additionalBytes
+        if (required <= queuedInputCapacity) return
+        val newCapacity = maxOf(required, queuedInputCapacity * 2, 4096)
+        val newBuffer = ByteBuffer.allocateDirect(newCapacity).order(ByteOrder.nativeOrder())
+        queuedInputBuffer?.let { old ->
+            old.flip()
+            newBuffer.put(old)
+        }
+        queuedInputBuffer = newBuffer
+        queuedInputCapacity = newCapacity
     }
 
     override fun queueEndOfStream() {
@@ -129,20 +146,9 @@ public class SkipSilenceAudioProcessor(
     }
 
     override fun getOutput(): ByteBuffer {
-        if (inputBuffers.isEmpty()) {
+        if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
+        if (queuedInputBytes == 0) {
             return EMPTY_BUFFER
-        }
-
-        if (!isActive || queuedInputBytes == 0) {
-            val passthrough =
-                ByteBuffer.allocateDirect(queuedInputBytes).order(ByteOrder.nativeOrder())
-            for (input in inputBuffers) {
-                passthrough.put(input)
-            }
-            inputBuffers.clear()
-            queuedInputBytes = 0
-            passthrough.flip()
-            return passthrough
         }
 
         val out =
@@ -155,17 +161,21 @@ public class SkipSilenceAudioProcessor(
                 outputBuffer
             } ?: return EMPTY_BUFFER
 
-        for (input in inputBuffers) {
-            processBuffer(input, out)
+        queuedInputBuffer?.let { buf ->
+            buf.flip()
+            processBuffer(buf, out)
         }
 
-        // Flush any remaining retain window (e.g. silence at end of buffer before next speech)
-        if (wasDroppingSilence) {
+        // Flush any remaining retain window (e.g. silence at end of buffer before next speech).
+        // SPEED_UP mode must NOT flush here: retained frames are restored in-order by the
+        // speech-detection branch in processBuffer; flushing at end-of-buffer would restore
+        // time-reordered audio and cancel the speed-up entirely.
+        if (wasDroppingSilence && mode != SkipSilenceMode.SPEED_UP) {
             flushRetainRing(out)
             wasDroppingSilence = false
         }
 
-        inputBuffers.clear()
+        queuedInputBuffer?.clear()
         queuedInputBytes = 0
         out.flip()
         return out
@@ -205,7 +215,11 @@ public class SkipSilenceAudioProcessor(
                     // Within initial tolerance — keep the frame
                     copyFrameZeroAlloc(input, output, frameStart, frameEnd)
                 } else if (mode == SkipSilenceMode.SPEED_UP && shouldKeepFrameInSpeedUpMode()) {
-                    // Speed-up mode: keep every Nth frame for time-compression effect
+                    // Speed-up mode: keep every Nth frame for time-compression effect.
+                    // Design guarantee: this branch is only reachable for frames already
+                    // classified silent (all samples ≤ threshold, ≤ ~-20 dBFS at the 0.1
+                    // ceiling), so the frame-thinning artifacts are confined to near-silence
+                    // and inaudible — no pitch/chipmunk artifacts on speech content.
                     copyFrameZeroAlloc(input, output, frameStart, frameEnd)
                 } else {
                     // Frame is being dropped — buffer into retain ring for smooth transition
@@ -333,17 +347,23 @@ public class SkipSilenceAudioProcessor(
     }
 
     /**
+     * Net number of output frames skipped since the last flush — fed back to the
+     * sink's [androidx.media3.common.audio.AudioProcessorChain.getSkippedOutputFrameCount]
+     * so Media3 can compensate the media position (prevents seek/bookmark drift).
+     */
+    public fun getSkippedFrames(): Long = totalSkippedFrames
+
+    /**
      * Resets the cumulative skipped-duration counter.
      */
     public fun resetSkippedMetric() {
         totalSkippedFrames = 0L
     }
 
-    override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
+    override fun isEnded(): Boolean = inputEnded && queuedInputBytes == 0
 
-    @Suppress("OVERRIDE_DEPRECATION")
-    override fun flush() {
-        inputBuffers.clear()
+    override fun flush(streamMetadata: StreamMetadata) {
+        queuedInputBuffer?.clear()
         queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false

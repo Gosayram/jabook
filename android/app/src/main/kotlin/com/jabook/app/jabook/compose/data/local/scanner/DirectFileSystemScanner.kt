@@ -18,18 +18,11 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.domain.model.Result
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.supervisorScope
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.concurrent.ConcurrentLinkedQueue
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -52,7 +45,6 @@ public class DirectFileSystemScanner
         private val encodingDetector: com.jabook.app.jabook.compose.data.local.parser.EncodingDetector,
         private val metadataCache: com.jabook.app.jabook.compose.data.local.parser.MetadataCache,
         private val loggerFactory: LoggerFactory,
-        private val incrementalScanPolicy: IncrementalScanPolicy,
     ) : LocalBookScanner {
         private val logger = loggerFactory.get("DirectFileSystemScanner")
 
@@ -71,6 +63,13 @@ public class DirectFileSystemScanner
         private val _scanProgress = kotlinx.coroutines.flow.MutableStateFlow<ScanProgress>(ScanProgress.Idle)
         override val scanProgress: kotlinx.coroutines.flow.StateFlow<ScanProgress> = _scanProgress.asStateFlow()
 
+        /**
+         * Directories whose book parse failed during the most recent scan. Their files are
+         * treated as always-changed so a transient failure isn't hidden forever by the
+         * bumped last_scan_timestamp.
+         */
+        private var lastScanFailedDirs: Set<String> = emptySet()
+
         override suspend fun scanAudiobooks(): Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError> =
             withContext(Dispatchers.IO) {
                 try {
@@ -82,8 +81,11 @@ public class DirectFileSystemScanner
 
                     _scanProgress.value = ScanProgress.Discovery(0)
 
+                    // Capture BEFORE discovery so files modified mid-scan are not skipped next run
+                    val scanStartTime = System.currentTimeMillis()
+
                     // PHASE 1: FAST SCAN - No metadata parsing
-                    logger.i { "⚡ Phase 1: Fast scan (no metadata)" }
+                    logger.i { "Phase 1: Fast scan (no metadata)" }
                     val fastFiles = mutableListOf<FastFileInfo>()
                     for (path in customPaths) {
                         ensureActive() // Check for cancellation
@@ -94,7 +96,10 @@ public class DirectFileSystemScanner
                         }
                     }
 
-                    val totalFiles = fastFiles.size
+                    // Dedupe files discovered via overlapping scan paths (parent + subdir both registered)
+                    val distinctFiles = fastFiles.distinctBy { it.filePath }
+
+                    val totalFiles = distinctFiles.size
                     logger.i { "Found $totalFiles audio files (fast scan)" }
 
                     // PHASE 1.5: INCREMENTAL SCAN FILTER
@@ -106,7 +111,7 @@ public class DirectFileSystemScanner
                     val filteredFiles = mutableListOf<FastFileInfo>()
                     for (path in customPaths) {
                         val lastTimestamp = pathTimestampMap[path]
-                        val filesForPath = fastFiles.filter { it.filePath.startsWith(path) }
+                        val filesForPath = distinctFiles.filter { it.filePath.startsWith(path) }
                         val scanInfos =
                             filesForPath.map {
                                 IncrementalScanPolicy.FileScanInfo(
@@ -117,36 +122,40 @@ public class DirectFileSystemScanner
                                     lastModified = it.lastModified,
                                 )
                             }
-                        val filterResult = incrementalScanPolicy.filterChangedFiles(scanInfos, lastTimestamp)
+                        val filterResult = IncrementalScanPolicy.filterChangedFiles(scanInfos, lastTimestamp)
                         if (filterResult.isFullScan) {
                             filteredFiles.addAll(filesForPath)
                         } else {
-                            // Add only changed files (map back to FastFileInfo)
-                            val changedPaths = filterResult.filesToScan.map { it.filePath }.toSet()
-                            filteredFiles.addAll(filesForPath.filter { it.filePath in changedPaths })
+                            // Books live per-directory: rebuild each book from ALL its files when
+                            // ANY file changed, otherwise upsert would wipe chapters of unchanged files.
+                            val changedDirs = filterResult.filesToScan.mapTo(mutableSetOf()) { it.directory }
+                            changedDirs.addAll(lastScanFailedDirs)
+                            filteredFiles.addAll(filesForPath.filter { it.directory in changedDirs })
                         }
                         if (filterResult.skippedCount > 0) {
                             logger.i {
-                                "⚡ Incremental: skipped ${filterResult.skippedCount} unchanged files in $path"
+                                "Incremental: skipped ${filterResult.skippedCount} unchanged files in $path"
                             }
                         }
                     }
 
-                    val effectiveFiles = filteredFiles
+                    // Overlapping scan paths can add the same file twice — dedupe before grouping
+                    val effectiveFiles = filteredFiles.distinctBy { it.filePath }
                     logger.i {
-                        "⚡ Incremental scan: ${effectiveFiles.size}/$totalFiles files need processing"
+                        "Incremental scan: ${effectiveFiles.size}/$totalFiles files need processing"
                     }
 
                     // PHASE 2: GROUP by directory
                     val groupedByDir = effectiveFiles.groupBy { it.directory }
                     logger.i {
-                        "📚 Grouped into ${groupedByDir.size} books (by directory)"
+                        "Grouped into ${groupedByDir.size} books (by directory)"
                     }
 
                     // PHASE 3: Parse metadata for ALL files (Fix for missing duration)
-                    logger.i { "⚡ Phase 3: Parsing metadata (Full Scan)" }
+                    logger.i { "Phase 3: Parsing metadata (Full Scan)" }
 
                     val scannedBooks = mutableListOf<ScannedBook>()
+                    val failedDirs = mutableSetOf<String>()
                     var processedFilesCount = 0
 
                     groupedByDir.entries.forEachIndexed { index, (dir, files) ->
@@ -154,130 +163,133 @@ public class DirectFileSystemScanner
 
                         val bookName = File(dir).name
 
-                        val unsortedFiles = files
+                        // One malformed book must not abort the whole scan
+                        try {
+                            val unsortedFiles = files
 
-                        // Detect Book Metadata from FIRST file (as fallback if others fail, or for Album name)
-                        // We still use the first file for Book-level metadata (Author/Cover) usually
-                        val firstFile = unsortedFiles.first()
-                        val firstFileMetadata = metadataCache.getOrParse(File(firstFile.filePath), metadataParser)
-                        val structureType =
-                            BookStructureHeuristics.classify(
-                                fileNames = unsortedFiles.map { it.displayName },
-                                hasNestedDirectories =
-                                    File(dir).listFiles()?.any { it.isDirectory } == true,
-                                singleFileDurationMs = firstFileMetadata?.duration,
+                            // Detect Book Metadata from FIRST file (as fallback if others fail, or for Album name)
+                            // We still use the first file for Book-level metadata (Author/Cover) usually
+                            val firstFile = unsortedFiles.first()
+                            val firstFileMetadata = metadataCache.getOrParse(File(firstFile.filePath), metadataParser)
+                            val structureType =
+                                BookStructureHeuristics.classify(
+                                    fileNames = unsortedFiles.map { it.displayName },
+                                    hasNestedDirectories =
+                                        File(dir).listFiles()?.any { it.isDirectory } == true,
+                                    singleFileDurationMs = firstFileMetadata?.duration,
+                                )
+                            logger.d { "Book structure detected for '$bookName': $structureType" }
+
+                            val bookTitle = firstFileMetadata?.album ?: File(dir).name
+                            val bookAuthor = firstFileMetadata?.albumArtist ?: firstFileMetadata?.artist ?: "Unknown"
+
+                            data class ParsedChapter(
+                                val filePath: String,
+                                val displayName: String,
+                                val title: String,
+                                val duration: Long,
+                                val trackNumber: Int?,
                             )
-                        logger.d { "Book structure detected for '$bookName': $structureType" }
+                            val parsedChapters = mutableListOf<ParsedChapter>()
 
-                        val bookTitle = firstFileMetadata?.album ?: File(dir).name
-                        val bookAuthor = firstFileMetadata?.albumArtist ?: firstFileMetadata?.artist ?: "Unknown"
+                            // Parse EVERY file to get duration
+                            for (fileInfo in unsortedFiles) {
+                                ensureActive() // Granular cancellation check
 
-                        data class ParsedChapter(
-                            val filePath: String,
-                            val displayName: String,
-                            val title: String,
-                            val duration: Long,
-                            val trackNumber: Int?,
-                        )
-                        val parsedChapters = mutableListOf<ParsedChapter>()
+                                // Update progress per FILE
+                                processedFilesCount++
+                                _scanProgress.value = ScanProgress.Parsing(bookTitle, processedFilesCount, totalFiles)
 
-                        // Parse EVERY file to get duration
-                        for (fileInfo in unsortedFiles) {
-                            ensureActive() // Granular cancellation check
+                                val file = File(fileInfo.filePath)
+                                // Parse metadata -> needed for Duration
+                                val metadata = metadataCache.getOrParse(file, metadataParser)
 
-                            // Update progress per FILE
-                            processedFilesCount++
-                            _scanProgress.value = ScanProgress.Parsing(bookTitle, processedFilesCount, totalFiles)
+                                // Determine Chapter Title
+                                val rawTitle = file.nameWithoutExtension
+                                // Mojibake detection
+                                val hasCyrillic = rawTitle.any { it in '\u0400'..'\u04FF' }
+                                val hasCJK = rawTitle.any { it in '\u4E00'..'\u9FFF' }
+                                val hasGreek = rawTitle.any { it in '\u0370'..'\u03FF' }
+                                val hasMojibake = hasCyrillic && (hasCJK || hasGreek)
 
-                            val file = File(fileInfo.filePath)
-                            // Parse metadata -> needed for Duration
-                            val metadata = metadataCache.getOrParse(file, metadataParser)
+                                val fixedTitle =
+                                    if (hasMojibake) {
+                                        val (fixed, _) = encodingDetector.fixGarbledText(rawTitle)
+                                        fixed
+                                    } else {
+                                        metadata?.title ?: rawTitle
+                                    }
 
-                            // Determine Chapter Title
-                            val rawTitle = file.nameWithoutExtension
-                            // Mojibake detection
-                            val hasCyrillic = rawTitle.any { it in '\u0400'..'\u04FF' }
-                            val hasCJK = rawTitle.any { it in '\u4E00'..'\u9FFF' }
-                            val hasGreek = rawTitle.any { it in '\u0370'..'\u03FF' }
-                            val hasMojibake = hasCyrillic && (hasCJK || hasGreek)
+                                val finalTitle = if (hasMojibake) fixedTitle else rawTitle
 
-                            val fixedTitle =
-                                if (hasMojibake) {
-                                    val (fixed, _) = encodingDetector.fixGarbledText(rawTitle)
-                                    fixed
-                                } else {
-                                    metadata?.title ?: rawTitle
-                                }
+                                parsedChapters.add(
+                                    ParsedChapter(
+                                        filePath = fileInfo.filePath,
+                                        displayName = fileInfo.displayName,
+                                        title = finalTitle,
+                                        duration = metadata?.duration ?: 0L,
+                                        trackNumber = metadata?.trackNumber,
+                                    ),
+                                )
+                            }
 
-                            // If title tag is prevalent but same as book title, prefer filename or number?
-                            // Current logic uses filename-based cleanup mostly.
-                            // Let's stick to existing logic: filename based name usually, but here we can use metadata title if available?
-                            // The original createScannedBookLazy used filename.
-                            // The createScannedBook used "metadata?.title" but fallback to filename?
-                            // Actually createScannedBookLazy used "rawTitle" (filename).
-                            // Let's use metadata title if available, as we are parsing it now!
-                            // But wait, ID3 tags often have garbage. Filename is safer for chapters?
-                            // User asked to "Parse metadata... for duration".
-                            // Let's use filename for title consistency (as per existing Lazy logic) but ADD duration.
+                            val chapterOrderComparator = ChapterOrderPolicy.comparator()
+                            val chapters =
+                                parsedChapters
+                                    .sortedWith { left, right ->
+                                        chapterOrderComparator.compare(
+                                            ChapterOrderCandidate(
+                                                displayName = left.displayName,
+                                                trackNumber = left.trackNumber,
+                                            ),
+                                            ChapterOrderCandidate(
+                                                displayName = right.displayName,
+                                                trackNumber = right.trackNumber,
+                                            ),
+                                        )
+                                    }.mapIndexed { chapterIndex, chapter ->
+                                        ScannedChapter(
+                                            filePath = chapter.filePath,
+                                            title = chapter.title,
+                                            index = chapterIndex,
+                                            duration = chapter.duration,
+                                        )
+                                    }
 
-                            val finalTitle = if (hasMojibake) fixedTitle else rawTitle
+                            val finalChapters =
+                                expandEmbeddedChapters(chapters, firstFileMetadata?.duration) ?: chapters
 
-                            parsedChapters.add(
-                                ParsedChapter(
-                                    filePath = fileInfo.filePath,
-                                    displayName = fileInfo.displayName,
-                                    title = finalTitle,
-                                    duration = metadata?.duration ?: 0L,
-                                    trackNumber = metadata?.trackNumber,
-                                ),
-                            )
+                            // Create Book
+                            val book =
+                                ScannedBook(
+                                    directory = dir,
+                                    title = bookTitle,
+                                    author = bookAuthor,
+                                    chapters = finalChapters,
+                                    totalDuration = finalChapters.sumOf { it.duration },
+                                    coverArt = firstFileMetadata?.coverArt,
+                                )
+
+                            scannedBooks.add(book)
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            failedDirs.add(dir)
+                            logger.e({ "Failed to process book '$bookName', skipping" }, e)
                         }
-
-                        val chapterOrderComparator = ChapterOrderPolicy.comparator()
-                        val chapters =
-                            parsedChapters
-                                .sortedWith { left, right ->
-                                    chapterOrderComparator.compare(
-                                        ChapterOrderCandidate(
-                                            displayName = left.displayName,
-                                            trackNumber = left.trackNumber,
-                                        ),
-                                        ChapterOrderCandidate(
-                                            displayName = right.displayName,
-                                            trackNumber = right.trackNumber,
-                                        ),
-                                    )
-                                }.mapIndexed { chapterIndex, chapter ->
-                                    ScannedChapter(
-                                        filePath = chapter.filePath,
-                                        title = chapter.title,
-                                        index = chapterIndex,
-                                        duration = chapter.duration,
-                                    )
-                                }
-
-                        // Create Book
-                        val book =
-                            ScannedBook(
-                                directory = dir,
-                                title = bookTitle,
-                                author = bookAuthor,
-                                chapters = chapters,
-                                totalDuration = chapters.sumOf { it.duration },
-                                coverArt = firstFileMetadata?.coverArt,
-                            )
-
-                        scannedBooks.add(book)
                     }
+
+                    // Refresh for the next incremental scan; dirs that now succeed drop out.
+                    lastScanFailedDirs = failedDirs
 
                     logger.i { "Scan complete: ${scannedBooks.size} books successfully created" }
 
                     _scanProgress.value = ScanProgress.Saving
 
-                    // Update last_scan_timestamp for all scan paths after successful scan
-                    val now = System.currentTimeMillis()
+                    // Update last_scan_timestamp for all scan paths after successful scan.
+                    // Use the pre-scan start time so files modified mid-scan are not skipped next run.
                     for (path in customPaths) {
-                        scanPathDao.updateLastScanTimestamp(path, now)
+                        scanPathDao.updateLastScanTimestamp(path, scanStartTime)
                     }
                     logger.i { "Updated scan timestamps for ${customPaths.size} paths" }
 
@@ -301,16 +313,32 @@ public class DirectFileSystemScanner
         /**
          * Fast directory scan WITHOUT metadata parsing.
          * Only checks file extensions - ~0.1ms per file (vs 100ms with metadata)
+         *
+         * Depth-capped with a visited set of canonical paths to survive FUSE/symlink
+         * loops without stack overflow. Skips hidden directories (".Trash" etc).
          */
         private fun scanDirectoryFast(
             directory: File,
             result: MutableList<FastFileInfo>,
+            depth: Int = 0,
+            visited: MutableSet<String> = mutableSetOf(),
         ) {
+            if (depth > MAX_SCAN_DEPTH) return
+            val canonicalPath =
+                try {
+                    directory.canonicalPath
+                } catch (e: Exception) {
+                    directory.absolutePath
+                }
+            if (!visited.add(canonicalPath)) return
+
             try {
                 directory.listFiles()?.forEach { file ->
                     when {
                         file.isDirectory -> {
-                            scanDirectoryFast(file, result)
+                            if (!file.name.startsWith(".")) {
+                                scanDirectoryFast(file, result, depth + 1, visited)
+                            }
                         }
                         file.isFile && file.isAudioFile() -> {
                             result.add(
@@ -331,84 +359,6 @@ public class DirectFileSystemScanner
         }
 
         /**
-         * Recursively scan directory for audio files with PARALLEL processing.
-         * IGNORES .nomedia files - this is intentional for user's use case!
-         *
-         * OPTIMIZED: 4× faster with parallel file processing
-         * Thread-safe: Uses ConcurrentLinkedQueue
-         * Rate limiting: Semaphore(4) prevents resource exhaustion
-         * Error handling: Individual file errors don't stop scanning
-         */
-        private suspend fun scanDirectory(
-            directory: File,
-            result: MutableList<AudioFileInfo>,
-        ) {
-            // Convert to thread-safe collection for parallel processing
-            val concurrentResult = ConcurrentLinkedQueue<AudioFileInfo>()
-            val semaphore = Semaphore(4) // Limit to 4 concurrent file operations
-
-            scanDirectoryParallel(directory, concurrentResult, semaphore)
-
-            // Collect results back to original list
-            result.addAll(concurrentResult)
-        }
-
-        private suspend fun scanDirectoryParallel(
-            directory: File,
-            result: ConcurrentLinkedQueue<AudioFileInfo>,
-            semaphore: Semaphore,
-        ) {
-            try {
-                val files = directory.listFiles() ?: return
-                val subdirs = files.filter { it.isDirectory }
-                val audioFiles = files.filter { it.isFile && it.isAudioFile() }
-
-                logger.d {
-                    "📁 Scanning: ${directory.name} (${audioFiles.size} audio files, ${subdirs.size} subdirs)"
-                }
-
-                // Process audio files in PARALLEL with rate limiting
-                if (audioFiles.isNotEmpty()) {
-                    supervisorScope {
-                        audioFiles
-                            .map { file ->
-                                async(Dispatchers.IO) {
-                                    semaphore.withPermit {
-                                        // Rate limiting: max 4 concurrent
-                                        try {
-                                            ensureActive() // Check for cancellation
-
-                                            val audioInfo = createAudioFileInfo(file)
-                                            if (audioInfo != null) {
-                                                result.add(audioInfo) // Thread-safe add
-                                                logger.d {
-                                                    "✓ ${file.name} (album: ${audioInfo.album ?: "none"})"
-                                                }
-                                            }
-                                        } catch (e: CancellationException) {
-                                            throw e
-                                        } catch (e: Exception) {
-                                            logger.w {
-                                                "✗ Failed: ${file.name} - ${e.message}"
-                                            }
-                                            // Continue scanning other files
-                                        }
-                                    }
-                                }
-                            }.awaitAll() // Wait for all parallel tasks to complete
-                    }
-                }
-
-                // Recursively scan subdirectories (sequential for simplicity)
-                subdirs.forEach { subdir ->
-                    scanDirectoryParallel(subdir, result, semaphore)
-                }
-            } catch (e: SecurityException) {
-                logger.e({ "Cannot access directory: ${directory.path}" }, e)
-            }
-        }
-
-        /**
          * Check if file is an audio file based on extension.
          */
         private fun File.isAudioFile(): Boolean {
@@ -417,302 +367,40 @@ public class DirectFileSystemScanner
         }
 
         /**
-         * Create AudioFileInfo from File by parsing metadata.
-         */
-        private suspend fun createAudioFileInfo(file: File): AudioFileInfo? =
-            try {
-                val metadata = metadataParser.parseMetadata(file.absolutePath)
-
-                AudioFileInfo(
-                    filePath = file.absolutePath,
-                    displayName = file.name,
-                    duration = metadata?.duration ?: 0L,
-                    album = metadata?.album,
-                    artist = metadata?.artist ?: metadata?.albumArtist,
-                    title = metadata?.title,
-                )
-            } catch (e: Exception) {
-                logger.e({ "Failed to parse: ${file.name}" }, e)
-                null
-            }
-
-        /**
-         * Group audio files by album name, with directory fallback.
+         * For a single-file m4b/m4a, tries to parse embedded Nero chapter
+         * markers and expand into multiple [ScannedChapter] entries.
          *
-         * Uses composite key (album/directory + artist) to avoid duplicates.
+         * @return expanded chapters or null when parsing is not applicable
          */
-        private fun groupFilesByAlbum(files: List<AudioFileInfo>): Map<String, List<AudioFileInfo>> {
-            val totalFiles = files.size
-            logger.d { "Grouping $totalFiles files into books..." }
+        private fun expandEmbeddedChapters(
+            chapters: List<ScannedChapter>,
+            fileDurationMs: Long?,
+        ): List<ScannedChapter>? {
+            if (chapters.size != 1) return null
+            val only = chapters.first()
+            val ext = only.filePath.substringAfterLast('.').lowercase()
+            if (ext !in EMBEDDED_CHAPTER_EXTENSIONS) return null
 
-            // Group by composite key (album or directory + artist)
-            val grouped =
-                files.groupBy { fileInfo ->
-                    val directory = java.io.File(fileInfo.filePath).parent ?: ""
-                    bookIdentifier.generateGroupingKey(
-                        directory = directory,
-                        album = fileInfo.album,
-                        artist = fileInfo.artist,
-                    )
-                }
+            val embedded = M4bChapterParser.parseM4bChapters(only.filePath) ?: return null
+            if (embedded.size < 2) return null
+            val durationMs = fileDurationMs?.takeIf { it > embedded.last().startMs } ?: return null
 
-            // Log files without album metadata
-            val filesWithoutAlbum = files.count { it.album.isNullOrBlank() }
-            if (filesWithoutAlbum > 0) {
-                logger.w {
-                    "$filesWithoutAlbum files have no album metadata (will group by directory)"
-                }
-            }
-
-            logger.d {
-                "Grouped into ${grouped.size} books (before: $totalFiles files)"
-            }
-
-            return grouped
-        }
-
-        /**
-         * Create scanned book with LAZY metadata parsing.
-         * Only parses metadata for FIRST file (20× faster!)
-         * Other chapters use filename without metadata parsing
-         */
-        private suspend fun createScannedBookLazy(
-            directory: String,
-            fastFiles: List<FastFileInfo>,
-        ): ScannedBook? {
-            if (fastFiles.isEmpty()) return null
-
-            val firstFile = fastFiles.first()
-            val firstFileObj = File(firstFile.filePath)
-
-            // Parse metadata ONLY for first file (with cache!)
-            val metadata = metadataCache.getOrParse(firstFileObj, metadataParser)
-
-            logger.d {
-                "📖 Creating book from ${fastFiles.size} files, parsing only 1st: ${firstFile.displayName}"
-            }
-
-            // Generate unique book ID
-            val bookId =
-                bookIdentifier.generateBookId(
-                    directory = directory,
-                    album = metadata?.album,
-                    artist = metadata?.albumArtist ?: metadata?.artist,
-                )
-
-            // Create chapters - NO METADATA PARSING for other files!
-            val chapters =
-                fastFiles
-                    .sortedWith(
-                        compareBy(
-                            { file -> getFileCategory(file.displayName) },
-                            { file -> extractChapterInfo(file.displayName).toSortKey() },
-                            { file -> file.displayName.lowercase() },
-                        ),
-                    ).mapIndexed { index, file ->
-                        // Use filename without extension (NO metadata parsing!)
-                        val rawTitle = java.io.File(file.displayName).nameWithoutExtension
-
-                        // Mojibake detection
-                        val hasCyrillic = rawTitle.any { it in '\u0400'..'\u04FF' }
-                        val hasCJK = rawTitle.any { it in '\u4E00'..'\u9FFF' }
-                        val hasGreek = rawTitle.any { it in '\u0370'..'\u03FF' }
-                        val hasMojibake = hasCyrillic && (hasCJK || hasGreek)
-
-                        val fixedTitle =
-                            if (hasMojibake) {
-                                val (fixed, _) = encodingDetector.fixGarbledText(rawTitle)
-                                fixed
-                            } else {
-                                rawTitle
-                            }
-
-                        ScannedChapter(
-                            filePath = file.filePath,
-                            title = fixedTitle,
-                            index = index,
-                            duration = 0L, // No metadata parsing - duration unknown
-                        )
+            return embedded.mapIndexed { index, ch ->
+                val endMs =
+                    if (index < embedded.size - 1) {
+                        embedded[index + 1].startMs
+                    } else {
+                        durationMs
                     }
-
-            val book =
-                ScannedBook(
-                    directory = directory,
-                    title = metadata?.album ?: File(directory).name,
-                    author = metadata?.albumArtist ?: metadata?.artist ?: "Unknown",
-                    chapters = chapters,
-                    totalDuration = 0L, // Unknown without parsing all files
-                    coverArt = null, // Memory optimization: Worker extracts cover separately
+                ScannedChapter(
+                    filePath = only.filePath,
+                    title = ch.title,
+                    index = index,
+                    duration = (endMs - ch.startMs).coerceAtLeast(0),
+                    startMs = ch.startMs,
+                    endMs = endMs,
                 )
-
-            logger.d {
-                "'${book.title}' by ${book.author} (${chapters.size} chapters, ID: $bookId)"
             }
-
-            return book
-        }
-
-        /**
-         * Create ScannedBook from grouped files.
-         */
-        private suspend fun createScannedBook(
-            groupingKey: String,
-            files: List<AudioFileInfo>,
-        ): ScannedBook? {
-            val firstFile = files.firstOrNull() ?: return null
-            val metadata = metadataParser.parseMetadata(firstFile.filePath)
-
-            val directory = File(firstFile.filePath).parent ?: ""
-
-            // Generate unique book ID
-            val bookId =
-                bookIdentifier.generateBookId(
-                    directory = directory,
-                    album = metadata?.album,
-                    artist = metadata?.albumArtist ?: metadata?.artist,
-                )
-
-            val chapters =
-                files
-                    .sortedWith(createChapterComparator())
-                    .mapIndexed { index, file ->
-                        // FIX: Use FILENAME not ID3 title tag!
-                        // Problem: All files may have same title tag = "Book Name"
-                        // Solution: Use filename which has real chapter info
-                        val rawTitle = java.io.File(file.displayName).nameWithoutExtension
-
-                        // FIX: Only fix if MOJIBAKE detected (don't corrupt UTF-16!)
-                        val hasCyrillic = rawTitle.any { it in '\u0400'..'\u04FF' }
-                        val hasCJK = rawTitle.any { it in '\u4E00'..'\u9FFF' }
-                        val hasGreek = rawTitle.any { it in '\u0370'..'\u03FF' }
-                        val hasMojibake = hasCyrillic && (hasCJK || hasGreek)
-
-                        val fixedTitle =
-                            if (hasMojibake) {
-                                val (fixed, detectedEncoding) = encodingDetector.fixGarbledText(rawTitle)
-                                logger.w {
-                                    "MOJIBAKE FIXED: '$rawTitle' -> '$fixed' ($detectedEncoding)"
-                                }
-                                fixed
-                            } else {
-                                rawTitle // UTF-16 is already correct!
-                            }
-
-                        ScannedChapter(
-                            filePath = file.filePath,
-                            title = fixedTitle,
-                            index = index,
-                            duration = file.duration,
-                        )
-                    }
-
-            val book =
-                ScannedBook(
-                    directory = directory,
-                    title = metadata?.album ?: File(directory).name,
-                    author = metadata?.albumArtist ?: metadata?.artist ?: firstFile.artist ?: "Unknown",
-                    chapters = chapters,
-                    totalDuration = chapters.sumOf { it.duration },
-                    coverArt = null, // Memory optimization: Worker extracts cover separately
-                )
-
-            logger.d {
-                "Created book '${book.title}' by ${book.author} (${chapters.size} chapters, ID: $bookId)"
-            }
-
-            return book
-        }
-
-        private data class ChapterInfo(
-            val partNumber: Int = 0,
-            val chapterNumber: Int = 0,
-            val hasNumber: Boolean = false,
-        ) {
-            public fun toSortKey(): Int = partNumber * 1000 + chapterNumber
-        }
-
-        /**
-         * Create comparator for chapter sorting.
-         *
-         * Sort order:
-         * 0. Пролог/Prologue
-         * 1. Numbered chapters (Глава 1-N)
-         * 2. Unnumbered files (alphabetical)
-         * 3. Special content (Приложение/От автора/Послесловие)
-         * 4. Эпилог/Epilogue (always last)
-         */
-        private fun createChapterComparator(): Comparator<AudioFileInfo> =
-            compareBy<AudioFileInfo> { file ->
-                getFileCategory(file.displayName)
-            }.thenBy { file ->
-                val info = extractChapterInfo(file.displayName)
-                if (info.hasNumber) info.toSortKey() else 0
-            }.thenBy { file ->
-                file.displayName.lowercase() // Alphabetical for same category
-            }
-
-        private fun getFileCategory(filename: String): Int {
-            val lower = filename.lowercase()
-            return when {
-                // Prologue - always first
-                lower.contains("пролог") || lower.contains("prologue") -> 0
-
-                // Regular numbered chapters (but not appendices!)
-                extractChapterInfo(filename).hasNumber && !isSpecialContent(lower) -> 1
-
-                // Unnumbered files (alphabetical)
-                !extractChapterInfo(filename).hasNumber && !isSpecialContent(lower) -> 2
-
-                // Special content (appendices, afterwords, etc)
-                isSpecialContent(lower) -> 3
-
-                // Epilogue - always last
-                lower.contains("эпилог") || lower.contains("epilogue") -> 4
-
-                else -> 2 // Default: unnumbered
-            }
-        }
-
-        private fun isSpecialContent(filename: String): Boolean =
-            filename.contains("приложение") ||
-                filename.contains("appendix") ||
-                filename.contains("от автора") ||
-                filename.contains("from the author") ||
-                filename.contains("author") &&
-                filename.contains("note") ||
-                filename.contains("послесловие") ||
-                filename.contains("afterword") ||
-                filename.contains("предисловие") ||
-                filename.contains("foreword") ||
-                filename.contains("preface")
-
-        private fun extractChapterInfo(filename: String): ChapterInfo {
-            val clean = filename.lowercase()
-
-            val partMatch =
-                Regex("""част[\u044cяи]\s*(\d+)""").find(clean)
-                    ?: Regex("""part\s*(\d+)""").find(clean)
-            val partNum = partMatch?.groupValues?.get(1)?.toIntOrNull() ?: 0
-
-            val patterns =
-                listOf(
-                    Regex("""глава\s*(\d+)""", RegexOption.IGNORE_CASE),
-                    Regex("""chapter\s*(\d+)""", RegexOption.IGNORE_CASE),
-                    Regex("""(\d+)\s*[-._]"""),
-                    Regex("""^(\d+)"""),
-                )
-
-            var chapterNum = 0
-            var found = false
-            for (pattern in patterns) {
-                pattern.find(clean)?.let {
-                    chapterNum = it.groupValues[1].toIntOrNull() ?: 0
-                    found = true
-                    return@let
-                }
-            }
-
-            return ChapterInfo(partNum, chapterNum, found)
         }
 
         public companion object {
@@ -732,5 +420,11 @@ public class DirectFileSystemScanner
                     "wma",
                     "oga",
                 )
+
+            /** Extensions that may contain embedded Nero chapter atoms. */
+            private val EMBEDDED_CHAPTER_EXTENSIONS = setOf("m4b", "m4a")
+
+            /** Max recursion depth for the fast scan; guards against pathological trees. */
+            private const val MAX_SCAN_DEPTH = 20
         }
     }

@@ -15,16 +15,16 @@
 package com.jabook.app.jabook.audio.data.local.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningDayStatEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningSessionEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Dao
 public interface ListeningSessionDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     public suspend fun upsert(session: ListeningSessionEntity)
 
     @Query("SELECT * FROM listening_sessions WHERE id = :sessionId")
@@ -32,6 +32,18 @@ public interface ListeningSessionDao {
 
     @Query("SELECT * FROM listening_sessions WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1")
     public suspend fun getLatestActiveSession(): ListeningSessionEntity?
+
+    @Query(
+        """
+        UPDATE listening_sessions
+        SET ended_at = :crashedAt,
+            position_end_ms = position_start_ms,
+            updated_at = :crashedAt,
+            is_crashed = 1
+        WHERE ended_at IS NULL
+        """,
+    )
+    public suspend fun closeOpenSessionsAsCrashed(crashedAt: Long): Int
 
     @Query(
         """
@@ -53,6 +65,9 @@ public interface ListeningSessionDao {
         updatedAt: Long,
     ): Int
 
+    @Query("SELECT MAX(ended_at) FROM listening_sessions WHERE book_id = :bookId")
+    public suspend fun getLastListeningTimestamp(bookId: String): Long?
+
     @Query(
         """
         SELECT
@@ -65,13 +80,20 @@ public interface ListeningSessionDao {
             END), 0) AS contentTimeMs,
             COUNT(*) AS sessionsCount
         FROM listening_sessions
-        WHERE started_at >= :fromEpochMs AND started_at <= :toEpochMs
+        WHERE started_at >= :fromEpochMs
+            AND started_at <= :toEpochMs
+            AND is_crashed = 0
         GROUP BY day
         ORDER BY day ASC
         """,
     )
-    public fun observeDayStats(
+    public fun observeDayStatsInternal(
         fromEpochMs: Long,
         toEpochMs: Long,
     ): Flow<List<ListeningDayStatEntity>>
+
+    public fun observeDayStats(
+        fromEpochMs: Long,
+        toEpochMs: Long,
+    ): Flow<List<ListeningDayStatEntity>> = observeDayStatsInternal(fromEpochMs, toEpochMs).distinctUntilChanged()
 }

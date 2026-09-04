@@ -16,9 +16,9 @@ package com.jabook.app.jabook.compose.data.indexing
 
 import android.content.Context
 import coil3.SingletonImageLoader
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
-import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 import com.jabook.app.jabook.compose.data.local.dao.IndexMetadata
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.entity.CachedTopicEntity
@@ -28,6 +28,8 @@ import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
+import com.jabook.app.jabook.utils.parseRetryAfterMs
+import com.jabook.app.jabook.utils.retryWithBackoff
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +37,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -83,6 +90,66 @@ public class ForumIndexer
                 SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("ForumIndexer"),
             )
 
+        // Prevent concurrent indexForums() calls from ViewModel + WorkManager
+        private val indexingMutex = Mutex()
+
+        // How long a second indexing caller waits for the mutex before bailing
+        // with IndexingInProgressException (prevents stuck foreground workers).
+        private val mutexAcquireTimeoutMs = 15_000L
+
+        // Real-time progress state — collected by ViewModel
+        private val _indexProgress = MutableStateFlow(IndexProgress())
+        public val indexProgress: StateFlow<IndexProgress> = _indexProgress.asStateFlow()
+
+        // Per-forum status — collected by ViewModel/UI
+        private val _forumStatuses = MutableStateFlow<List<ForumStatus>>(emptyList())
+        public val forumStatuses: StateFlow<List<ForumStatus>> = _forumStatuses.asStateFlow()
+
+        // Forum ID → display name mapping (populated at start of indexForums)
+        private val forumNames = mutableMapOf<String, String>()
+
+        /**
+         * Resolve a human-readable forum name from ID.
+         * Falls back to "Forum {id}" if not mapped.
+         */
+        private fun resolveForumName(forumId: String): String = forumNames[forumId] ?: "Forum $forumId"
+
+        /**
+         * Build a descriptive error message for indexing failures.
+         */
+        private fun buildErrorMessage(
+            forumId: String,
+            page: Int,
+            cause: Exception,
+            attempt: Int = 1,
+            maxAttempts: Int = 3,
+        ): String {
+            val forumName = resolveForumName(forumId)
+            return when {
+                cause is java.net.UnknownHostException ||
+                    cause is java.net.ConnectException ||
+                    cause is java.net.SocketTimeoutException -> {
+                    "Network error on page $page of forum $forumName — " +
+                        "retrying (attempt $attempt/$maxAttempts)"
+                }
+                cause.message?.contains("captcha", ignoreCase = true) == true ||
+                    cause.message?.contains("login", ignoreCase = true) == true -> {
+                    "Authentication required — please log in to RuTracker"
+                }
+                cause.message?.contains("429", ignoreCase = true) == true ||
+                    cause.message?.contains("503", ignoreCase = true) == true -> {
+                    "Rate limited by RuTracker — waiting before retry"
+                }
+                cause.message?.contains("parse", ignoreCase = true) == true ||
+                    cause.message?.contains("HTML", ignoreCase = true) == true -> {
+                    "Failed to parse forum $forumName page $page — page structure may have changed"
+                }
+                else -> {
+                    "Error indexing forum $forumName page $page — ${cause.message ?: "unknown error"}"
+                }
+            }
+        }
+
         private data class ForumBatchResult(
             val forumId: String,
             val indexed: Int,
@@ -92,23 +159,51 @@ public class ForumIndexer
         )
 
         public companion object {
-            private const val TOPICS_PER_PAGE = 50 // Typical RuTracker forum page size
-            private const val DELAY_BETWEEN_REQUESTS_MS = 300L // Rate limiting (reduced for faster indexing)
-            private const val MAX_PAGES_PER_FORUM = 100_000 // Effectively unlimited (some forums have 350+ pages)
+            private const val TOPICS_PER_PAGE = 50
+            private const val BASE_DELAY_MS = 300L
+            private const val JITTER_RANGE_MS = 150L // ±150ms random jitter
+            private const val MAX_PAGES_PER_FORUM = 100_000
 
-            // Update strategy constants
-            private const val FULL_UPDATE_INTERVAL_DAYS = 7L // Full re-index every 7 days
-            private const val INCREMENTAL_UPDATE_INTERVAL_HOURS = 24L // Incremental update daily
+            private const val INCREMENTAL_UPDATE_INTERVAL_HOURS = 24L
             private const val MAX_AGE_FOR_UPDATE_MS = INCREMENTAL_UPDATE_INTERVAL_HOURS * 60 * 60 * 1000
 
-            // Cover preloading
-            private const val PRELOAD_COVERS_BATCH_SIZE = 10 // Preload covers in batches
-            private const val PRELOAD_COVERS_DELAY_MS = 100L // Delay between cover preloads
+            private const val PRELOAD_COVERS_BATCH_SIZE = 10
+            private const val PRELOAD_COVERS_DELAY_MS = 100L
 
-            // Performance optimization
-            private const val MAX_CONCURRENT_FORUMS = 3 // Increased from 2 to 3 for better performance
-            private const val BATCH_SIZE_FOR_DB = 100 // Increased from 50 to 100 for faster DB writes
-            private const val MAX_MEMORY_TOPICS = 200 // Max topics to keep in memory before DB flush
+            private const val MAX_CONCURRENT_FORUMS = 3
+            private const val BATCH_SIZE_FOR_DB = 100
+
+            private const val INITIAL_BACKOFF_MS = 1000L
+            private const val MAX_BACKOFF_MS = 30_000L
+            private const val BACKOFF_MULTIPLIER = 2.0
+
+            /**
+             * Polite delay with jitter (±150ms around base).
+             * Avoids fixed-interval requests that look like bot behavior.
+             */
+            private suspend fun politeDelay(baseMs: Long = BASE_DELAY_MS) {
+                val jitter = (Math.random() * 2 * JITTER_RANGE_MS - JITTER_RANGE_MS).toLong()
+                delay((baseMs + jitter).coerceAtLeast(50L))
+            }
+
+            /**
+             * Adaptive backoff for rate-limit responses (429/503).
+             * Respects Retry-After header if present.
+             */
+            private suspend fun adaptiveBackoff(
+                attempt: Int,
+                retryAfterMs: Long? = null,
+            ) {
+                val backoff =
+                    retryAfterMs
+                        ?: (INITIAL_BACKOFF_MS * Math.pow(BACKOFF_MULTIPLIER, attempt.toDouble()))
+                            .toLong()
+                            .coerceAtMost(MAX_BACKOFF_MS)
+                delay(backoff)
+            }
+
+            private const val MIN_VALID_TOPICS_ABSOLUTE = 10
+            private const val MIN_VALID_RATIO = 0.5
         }
 
         /**
@@ -122,148 +217,216 @@ public class ForumIndexer
         public suspend fun indexForums(
             forumIds: String,
             preloadCovers: Boolean = true,
-            onProgress: ((IndexingProgress) -> Unit)? = null,
-        ): Int =
-            withContext(Dispatchers.IO) {
-                val startTime = System.currentTimeMillis()
-                val currentIndexVersion = getCurrentIndexVersion() + 1
-                val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            onProgress: (suspend (IndexingProgress) -> Unit)? = null,
+        ): Int {
+            // Bounded wait: a second caller (periodic worker, one-time worker, or a
+            // direct UI run) must never block forever on the singleton mutex while
+            // another long index is running — that would leave its foreground
+            // notification stuck indefinitely.
+            if (withTimeoutOrNull(mutexAcquireTimeoutMs) { indexingMutex.lock() } == null) {
+                throw IndexingInProgressException()
+            }
+            return try {
+                withContext(Dispatchers.IO) {
+                    val startTime = System.currentTimeMillis()
+                    val currentIndexVersion = getCurrentIndexVersion() + 1
+                    val forumIdList = forumIds.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
-                var totalIndexed: Int = 0
-                val coversToPreload = mutableListOf<String>()
+                    // Initialize forum name mapping
+                    forumNames.clear()
+                    for (id in forumIdList) {
+                        forumNames[id] = "Forum $id"
+                    }
 
-                // Log current mirror at start of indexing
-                val initialMirror = mirrorManager.getCurrentMirrorDomain()
-                logger.i { "=== FORUM INDEXING START ===" }
-                logger.i { "Using mirror: $initialMirror" }
-                logger.i { "Indexing version: $currentIndexVersion" }
-                val oldCount = getIndexSize()
-                logger.i { "Existing indexed data: $oldCount topics" }
+                    var totalIndexed: Int = 0
+                    val coversToPreload = mutableListOf<String>()
 
-                onProgress?.invoke(
-                    IndexingProgress.InProgress(
-                        currentForum = forumIdList.firstOrNull() ?: "",
-                        currentForumIndex = 0,
-                        totalForums = forumIdList.size,
-                        currentPage = 0,
-                        topicsIndexed = 0,
-                    ),
-                )
+                    // Initialize per-forum statuses
+                    val initialStatuses =
+                        forumIdList.map { id ->
+                            ForumStatus(
+                                forumId = id,
+                                forumName = resolveForumName(id),
+                                state = ForumState.PENDING,
+                            )
+                        }
+                    _forumStatuses.value = initialStatuses
 
-                // Use AtomicInteger for thread-safe progress tracking
-                val topicsIndexedAtomic =
-                    java.util.concurrent.atomic
-                        .AtomicInteger(0)
-                val failedForums =
-                    java.util.concurrent.atomic
-                        .AtomicInteger(0)
-                val failedForumMessages = mutableListOf<String>()
+                    // Log current mirror at start of indexing
+                    val initialMirror = mirrorManager.getCurrentMirrorDomain()
+                    logger.i { "=== FORUM INDEXING START ===" }
+                    logger.i { "Using mirror: $initialMirror" }
+                    logger.i { "Indexing version: $currentIndexVersion" }
+                    val oldCount = getIndexSize()
+                    logger.i { "Existing indexed data: $oldCount topics" }
 
-                // Process forums in parallel batches
-                forumIdList.chunked(MAX_CONCURRENT_FORUMS).forEachIndexed { batchIndex, batch ->
-                    batch
-                        .mapIndexed { indexInBatch, forumId ->
-                            async(Dispatchers.IO) {
-                                try {
-                                    val forumIndex = batchIndex * MAX_CONCURRENT_FORUMS + indexInBatch
-                                    val (indexed, covers) =
-                                        indexForum(forumId, currentIndexVersion) { page, topicsInForum ->
-                                            if (page == 0 || page % 2 == 0 || topicsInForum < 50) {
-                                                val currentTotal = topicsIndexedAtomic.get()
-                                                onProgress?.invoke(
-                                                    IndexingProgress.InProgress(
-                                                        currentForum = forumId,
-                                                        currentForumIndex = forumIndex,
-                                                        totalForums = forumIdList.size,
-                                                        currentPage = page,
-                                                        topicsIndexed = currentTotal,
-                                                    ),
-                                                )
+                    onProgress?.invoke(
+                        IndexingProgress.InProgress(
+                            IndexProgress(
+                                currentForumName = forumIdList.firstOrNull() ?: "",
+                                totalForums = forumIdList.size,
+                            ),
+                        ),
+                    )
+
+                    // Use AtomicInteger for thread-safe progress tracking
+                    val topicsIndexedAtomic =
+                        java.util.concurrent.atomic
+                            .AtomicInteger(0)
+                    val failedForums =
+                        java.util.concurrent.atomic
+                            .AtomicInteger(0)
+                    val failedForumMessages = mutableListOf<String>()
+
+                    // Process forums in parallel batches
+                    forumIdList.chunked(MAX_CONCURRENT_FORUMS).forEach { batch ->
+                        batch
+                            .map { forumId ->
+                                async(Dispatchers.IO) {
+                                    // Mark forum as IN_PROGRESS
+                                    updateForumStatus(forumId, ForumState.IN_PROGRESS)
+
+                                    try {
+                                        val (indexed, covers) =
+                                            indexForum(forumId, currentIndexVersion) { page, topicsInForum ->
+                                                // Update per-forum page progress
+                                                updateForumStatusPage(forumId, page)
+
+                                                if (page == 0 || page % 2 == 0 || topicsInForum < 50) {
+                                                    val currentTotal = topicsIndexedAtomic.get()
+                                                    // Update the aggregate progress StateFlow
+                                                    val completedCount = countCompletedForums()
+                                                    _indexProgress.value =
+                                                        IndexProgress(
+                                                            currentForumName = resolveForumName(forumId),
+                                                            currentForumPage = page,
+                                                            totalForumsCompleted = completedCount,
+                                                            totalForums = forumIdList.size,
+                                                            topicsFound = currentTotal,
+                                                            errors = failedForumMessages.toList(),
+                                                            forumStatuses = _forumStatuses.value,
+                                                        )
+                                                    onProgress?.invoke(
+                                                        IndexingProgress.InProgress(_indexProgress.value),
+                                                    )
+                                                }
                                             }
+                                        ForumBatchResult(
+                                            forumId = forumId,
+                                            indexed = indexed,
+                                            covers = covers,
+                                            failed = false,
+                                        )
+                                    } catch (e: Exception) {
+                                        if (e is kotlinx.coroutines.CancellationException) throw e
+                                        val errorMsg = buildErrorMessage(forumId, 0, e)
+                                        logger.e({ "Failed to index forum $forumId" }, e)
+                                        ForumBatchResult(
+                                            forumId = forumId,
+                                            indexed = 0,
+                                            covers = emptyList(),
+                                            failed = true,
+                                            failureMessage = errorMsg,
+                                        )
+                                    }
+                                }
+                            }.awaitAll()
+                            .forEach { result ->
+                                if (result.failed) {
+                                    failedForums.incrementAndGet()
+                                    synchronized(failedForumMessages) {
+                                        failedForumMessages.add(result.failureMessage ?: "${result.forumId}: unknown error")
+                                    }
+                                    updateForumStatus(
+                                        result.forumId,
+                                        ForumState.FAILED,
+                                        errorMessage = result.failureMessage,
+                                    )
+                                } else {
+                                    topicsIndexedAtomic.addAndGet(result.indexed)
+                                    updateForumStatus(
+                                        result.forumId,
+                                        ForumState.INDEXED,
+                                        topicsCount = result.indexed,
+                                        lastUpdated = System.currentTimeMillis(),
+                                    )
+                                    if (result.covers.isNotEmpty()) {
+                                        synchronized(coversToPreload) {
+                                            coversToPreload.addAll(result.covers)
                                         }
-                                    ForumBatchResult(
-                                        forumId = forumId,
-                                        indexed = indexed,
-                                        covers = covers,
-                                        failed = false,
-                                    )
-                                } catch (e: Exception) {
-                                    if (e is kotlinx.coroutines.CancellationException) throw e
-                                    logger.e({ "Failed to index forum $forumId" }, e)
-                                    ForumBatchResult(
-                                        forumId = forumId,
-                                        indexed = 0,
-                                        covers = emptyList(),
-                                        failed = true,
-                                        failureMessage = e.message ?: "Unknown indexing failure",
-                                    )
-                                }
-                            }
-                        }.awaitAll()
-                        .forEach { result ->
-                            if (result.failed) {
-                                failedForums.incrementAndGet()
-                                synchronized(failedForumMessages) {
-                                    failedForumMessages.add("${result.forumId}: ${result.failureMessage}")
-                                }
-                            } else {
-                                topicsIndexedAtomic.addAndGet(result.indexed)
-                                if (result.covers.isNotEmpty()) {
-                                    synchronized(coversToPreload) {
-                                        coversToPreload.addAll(result.covers)
                                     }
                                 }
                             }
-                        }
-                }
-
-                totalIndexed = topicsIndexedAtomic.get()
-                val duration = System.currentTimeMillis() - startTime
-
-                if (failedForums.get() == forumIdList.size) {
-                    val message =
-                        "Indexing failed for all forums (${failedForums.get()}/${forumIdList.size}). " +
-                            failedForumMessages.take(3).joinToString("; ")
-                    logger.e { message }
-                    onProgress?.invoke(IndexingProgress.Error(message))
-                    throw IllegalStateException(message)
-                }
-
-                // If index run produced no data, keep existing index and surface explicit failure.
-                if (totalIndexed == 0) {
-                    val message =
-                        "Indexing returned zero topics. Old index preserved ($oldCount topics). " +
-                            "Likely auth/session or parser issue."
-                    logger.e { message }
-                    onProgress?.invoke(IndexingProgress.Error(message))
-                    throw IllegalStateException(message)
-                }
-
-                if (preloadCovers && coversToPreload.isNotEmpty()) {
-                    preloadCovers(coversToPreload)
-                }
-
-                // Verify actual count
-                val actualCountInDb = getIndexSize()
-
-                if (failedForums.get() > 0) {
-                    logger.w {
-                        "Indexing completed with partial forum failures: ${failedForums.get()}/" +
-                            "${forumIdList.size}. Sample: ${failedForumMessages.take(3)}"
                     }
+
+                    totalIndexed = topicsIndexedAtomic.get()
+                    val duration = System.currentTimeMillis() - startTime
+
+                    if (failedForums.get() == forumIdList.size) {
+                        val message =
+                            "Indexing failed for all forums (${failedForums.get()}/${forumIdList.size}). " +
+                                failedForumMessages.take(3).joinToString("; ")
+                        logger.e { message }
+                        _indexProgress.value =
+                            _indexProgress.value.copy(errors = failedForumMessages.toList())
+                        onProgress?.invoke(IndexingProgress.Error(message))
+                        throw IllegalStateException(message)
+                    }
+
+                    // If index run produced no data, keep existing index and surface explicit failure.
+                    if (totalIndexed == 0) {
+                        val failedDetail =
+                            if (failedForumMessages.isNotEmpty()) {
+                                " Failures: ${failedForumMessages.take(3).joinToString("; ")}"
+                            } else {
+                                ""
+                            }
+                        val message =
+                            "Indexing returned zero topics. Old index preserved ($oldCount topics)." +
+                                "$failedDetail Likely auth/session or parser issue."
+                        logger.e { message }
+                        onProgress?.invoke(IndexingProgress.Error(message))
+                        throw IllegalStateException(message)
+                    }
+
+                    if (oldCount > MIN_VALID_TOPICS_ABSOLUTE && totalIndexed < oldCount * MIN_VALID_RATIO) {
+                        val message =
+                            "Indexing produced too few topics ($totalIndexed) vs existing ($oldCount). " +
+                                "Old index preserved (threshold: ${(oldCount * MIN_VALID_RATIO).toInt()})."
+                        logger.w { message }
+                        onProgress?.invoke(IndexingProgress.Error(message))
+                        throw IllegalStateException(message)
+                    }
+
+                    if (preloadCovers && coversToPreload.isNotEmpty()) {
+                        preloadCovers(coversToPreload)
+                    }
+
+                    // Verify actual count
+                    val actualCountInDb = getIndexSize()
+
+                    if (failedForums.get() > 0) {
+                        logger.w {
+                            "Indexing completed with partial forum failures: ${failedForums.get()}/" +
+                                "${forumIdList.size}. Sample: ${failedForumMessages.take(3)}"
+                        }
+                    }
+
+                    logger.i { "Forum indexing completed. Indexed: $totalIndexed topics, duration: ${duration}ms" }
+
+                    onProgress?.invoke(
+                        IndexingProgress.Completed(
+                            totalTopics = actualCountInDb,
+                            durationMs = duration,
+                        ),
+                    )
+
+                    actualCountInDb
                 }
-
-                logger.i { "Forum indexing completed. Indexed: $totalIndexed topics, duration: ${duration}ms" }
-
-                onProgress?.invoke(
-                    IndexingProgress.Completed(
-                        totalTopics = actualCountInDb,
-                        durationMs = duration,
-                    ),
-                )
-
-                actualCountInDb
+            } finally {
+                indexingMutex.unlock()
             }
+        }
 
         /**
          * Incremental update: only update topics that are old or missing.
@@ -322,7 +485,7 @@ public class ForumIndexer
         private suspend fun indexForum(
             forumId: String,
             indexVersion: Int,
-            onProgress: ((page: Int, topicsInForum: Int) -> Unit)? = null,
+            onProgress: (suspend (page: Int, topicsInForum: Int) -> Unit)? = null,
         ): Pair<Int, List<String>> {
             var totalTopics: Int = 0
             var page: Int = 0
@@ -339,12 +502,19 @@ public class ForumIndexer
             while (hasMorePages && page < MAX_PAGES_PER_FORUM) {
                 try {
                     val pageStartTime = System.currentTimeMillis()
-                    val response = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
+                    val response = retryWithBackoff { api.getForumPage(forumId, start = page * TOPICS_PER_PAGE) }
                     val fetchTime = System.currentTimeMillis() - pageStartTime
 
                     if (!response.isSuccessful) {
                         logger.w {
                             "Failed to fetch forum $forumId page $page: HTTP ${response.code()} (took ${fetchTime}ms)"
+                        }
+                        // Adaptive backoff for rate-limit responses
+                        if (response.code() == 429 || response.code() == 503) {
+                            val retryAfter = parseRetryAfterMs(response.headers())
+                            logger.i { "Rate-limited (${response.code()}), backing off..." }
+                            adaptiveBackoff(attempt = page, retryAfterMs = retryAfter)
+                            continue // Retry same page
                         }
                         break
                     }
@@ -355,6 +525,14 @@ public class ForumIndexer
                     val pageResult = parser.parseForumPageWithPagination(body, forumId)
                     val topics = pageResult.topics
                     val parseTime = System.currentTimeMillis() - parseStartTime
+
+                    if (page == 0 && topics.isEmpty()) {
+                        val bodyStr = body.string()
+                        if (!isHealthyForumPage(bodyStr, 0)) {
+                            logger.w { "Forum $forumId page 0: unhealthy response (CAPTCHA/login-wall/block page), aborting forum" }
+                            break
+                        }
+                    }
 
                     hasMorePages = pageResult.hasMorePages
 
@@ -395,10 +573,6 @@ public class ForumIndexer
                         val newEntities = validTopics.map { it.toCachedTopicEntity(indexVersion) }
                         entitiesBuffer.addAll(newEntities)
                         totalTopics += validTopics.size
-                        coversToPreload.addAll(
-                            newEntities
-                                .mapNotNull { it.coverUrl?.takeIf(String::isNotBlank) },
-                        )
 
                         if (entitiesBuffer.size >= BATCH_SIZE_FOR_DB || !hasMorePages) {
                             val dbWriteStartTime = System.currentTimeMillis()
@@ -409,7 +583,7 @@ public class ForumIndexer
                         }
 
                         onProgress?.invoke(page, totalTopics)
-                        delay(DELAY_BETWEEN_REQUESTS_MS)
+                        politeDelay()
                         page++
                     }
                 } catch (e: Exception) {
@@ -419,13 +593,12 @@ public class ForumIndexer
                             e is java.net.ConnectException ||
                             e is java.net.SocketTimeoutException
                     if (isNetworkError) {
-                        logger.w { "Network error indexing forum $forumId page $page: ${e.message}" }
-                        // Retry logic simplified for restoration; original had complex mirror switching
-                        // Assume MirrorManager handles underlying connection logic or retry next time
-                        // For now, break on network error to avoid infinite loops if mirrors are down
+                        val errorMsg = buildErrorMessage(forumId, page, e)
+                        logger.w { errorMsg }
                         hasMorePages = false
                     } else {
-                        logger.e({ "Error indexing forum $forumId page $page" }, e)
+                        val errorMsg = buildErrorMessage(forumId, page, e)
+                        logger.e({ errorMsg }, e)
                         hasMorePages = false
                     }
                 }
@@ -476,11 +649,18 @@ public class ForumIndexer
             while (hasMorePages && page < MAX_PAGES_PER_FORUM) {
                 try {
                     val pageStartTime = System.currentTimeMillis()
-                    val response = api.getForumPage(forumId, start = page * TOPICS_PER_PAGE)
+                    val response = retryWithBackoff { api.getForumPage(forumId, start = page * TOPICS_PER_PAGE) }
                     val fetchTime = System.currentTimeMillis() - pageStartTime
 
                     if (!response.isSuccessful) {
                         logger.w { "Failed to fetch forum $forumId page $page: HTTP ${response.code()}" }
+                        // Adaptive backoff for rate-limit responses
+                        if (response.code() == 429 || response.code() == 503) {
+                            val retryAfter = parseRetryAfterMs(response.headers())
+                            logger.i { "Rate-limited (${response.code()}), backing off..." }
+                            adaptiveBackoff(attempt = page, retryAfterMs = retryAfter)
+                            continue // Retry same page
+                        }
                         break
                     }
 
@@ -499,12 +679,12 @@ public class ForumIndexer
                         val validTopics = topics.filter { it.toDomain().isValid() }
 
                         // Check which topics need update
+                        val now = System.currentTimeMillis()
+                        val existingIds = offlineSearchDao.getExistingTopicIds(validTopics.map { it.topicId }).toSet()
                         val topicsToUpdate =
                             validTopics.filter { topic ->
-                                // Logic to check age would generally be here, but since parser returns parsed topics,
-                                // we update all parsed topics that match our criteria or are new
-                                // Simplified: if we parsed it, we save it IF it's new or we want to overwrite
-                                true
+                                val isNew = !existingIds.contains(topic.topicId)
+                                isNew // Only persist topics not already in DB
                             }
 
                         // Deduplicate against processed
@@ -524,7 +704,7 @@ public class ForumIndexer
                         // This logic is complex. For now, we iterate until pagination ends or heuristics.
                         // Assuming standard behavior: crawl all pages.
 
-                        delay(DELAY_BETWEEN_REQUESTS_MS)
+                        politeDelay()
                         page++
                     }
                 } catch (e: Exception) {
@@ -565,6 +745,11 @@ public class ForumIndexer
                                         ImageRequest
                                             .Builder(context)
                                             .data(url)
+                                            // Disk-warm only: constrain decode to cover size and
+                                            // skip the memory cache — a 500-URL bulk preload must
+                                            // not evict the UI's cached images.
+                                            .size(300, 450)
+                                            .memoryCachePolicy(CachePolicy.DISABLED)
                                             .build()
                                     imageLoader.enqueue(request)
                                 } catch (e: Exception) {
@@ -607,9 +792,7 @@ public class ForumIndexer
          */
         private suspend fun getCurrentIndexVersion(): Int =
             withContext(Dispatchers.IO) {
-                val metadata = offlineSearchDao.getIndexMetadata()
-                // For now, return 1. In future, can track version separately
-                1
+                offlineSearchDao.getMaxIndexVersion()
             }
 
         /**
@@ -636,7 +819,83 @@ public class ForumIndexer
         public suspend fun clearIndex(): Unit =
             withContext(Dispatchers.IO) {
                 offlineSearchDao.deleteAllTopics()
-                offlineSearchDao.deleteAllMappings()
                 logger.i { "Index cleared" }
             }
+
+        /**
+         * Update a single forum's status in the shared list (thread-safe).
+         */
+        private fun updateForumStatus(
+            forumId: String,
+            state: ForumState,
+            topicsCount: Int = 0,
+            lastUpdated: Long = 0L,
+            errorMessage: String? = null,
+        ) {
+            val updated =
+                _forumStatuses.value.map { fs ->
+                    if (fs.forumId == forumId) {
+                        fs.copy(
+                            state = state,
+                            topicsCount = if (state == ForumState.INDEXED) topicsCount else fs.topicsCount,
+                            lastUpdated = if (state == ForumState.INDEXED && lastUpdated > 0) lastUpdated else fs.lastUpdated,
+                            // Record the final page reached as the forum's total page count
+                            totalPages = if (state == ForumState.INDEXED) fs.currentPage.coerceAtLeast(1) else fs.totalPages,
+                            errorMessage = errorMessage ?: if (state == ForumState.FAILED) fs.errorMessage else null,
+                        )
+                    } else {
+                        fs
+                    }
+                }
+            _forumStatuses.value = updated
+            // Also keep the IndexProgress forumStatuses in sync
+            val current = _indexProgress.value
+            _indexProgress.value = current.copy(forumStatuses = updated)
+        }
+
+        /**
+         * Update page progress for a forum (thread-safe).
+         */
+        private fun updateForumStatusPage(
+            forumId: String,
+            page: Int,
+        ) {
+            val updated =
+                _forumStatuses.value.map { fs ->
+                    if (fs.forumId == forumId) {
+                        fs.copy(currentPage = page)
+                    } else {
+                        fs
+                    }
+                }
+            _forumStatuses.value = updated
+        }
+
+        /**
+         * Count forums that are in INDEXED state.
+         */
+        private fun countCompletedForums(): Int = _forumStatuses.value.count { it.state == ForumState.INDEXED }
+
+        internal fun isHealthyForumPage(
+            html: String,
+            parsedRows: Int,
+        ): Boolean =
+            when {
+                parsedRows > 0 -> true
+                html.contains("captcha", ignoreCase = true) -> false
+                html.contains("login-form", ignoreCase = true) -> false
+                html.contains("введите код", ignoreCase = true) -> false
+                html.contains("заблокирован", ignoreCase = true) -> false
+                html.contains("доступ запрещён", ignoreCase = true) -> false
+                html.contains("доступ запрещен", ignoreCase = true) -> false
+                html.length < 500 -> false
+                else -> false
+            }
     }
+
+/**
+ * Thrown when [ForumIndexer.indexForums] cannot acquire the indexing mutex within
+ * [ForumIndexer.mutexAcquireTimeoutMs] because another indexing run is in progress.
+ * Callers should treat this as a benign "nothing to do" condition — never a stuck worker.
+ */
+public class IndexingInProgressException : Exception("Indexing already in progress; another index run owns the mutex")

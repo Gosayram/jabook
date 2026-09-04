@@ -16,19 +16,16 @@ package com.jabook.app.jabook.audio
 
 import android.os.Bundle
 import androidx.annotation.OptIn
-import androidx.core.content.ContextCompat
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.session.MediaController
+import androidx.media3.session.CacheBitmapLoader // verify: androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
-import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import com.jabook.app.jabook.util.LogUtils
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.util.concurrent.TimeUnit
-import java.util.concurrent.TimeoutException
 
 /**
  * Handles initialization logic for AudioPlayerService.
@@ -41,8 +38,16 @@ public class AudioPlayerServiceInitializer(
     // The coroutines run in playerServiceScope which is cancelled in onDestroy.
     private var settingsSync: MediaSessionSettingsSync? = null
 
+    // Cached user preferences: kept fresh by a collector in playerServiceScope.
+    // Playback getters read this synchronously instead of runBlocking on the main thread.
+    @Volatile
+    private var cachedUserPreferences: UserPreferences? = null
+
     @OptIn(UnstableApi::class)
     public fun initialize() {
+        service.lifecycleManager = ServiceLifecycleManager(service)
+        // Publish the active-player getter before any writer can resolve a player.
+        service.activePlayerRef.set { service.getActivePlayer() }
         initializeCrossFadePlayer()
         LogUtils.i("AudioPlayerService", "Initializing service components...")
 
@@ -69,6 +74,9 @@ public class AudioPlayerServiceInitializer(
                 setCurrentMetadata = { /* Read-only in Service, no-op here */ },
             )
 
+        // 2.5 User preferences cache (cold path; single blocking read acceptable at service init)
+        startUserPreferencesCache()
+
         // 3. PlaybackController
         service.playbackController =
             PlaybackController(
@@ -77,44 +85,19 @@ public class AudioPlayerServiceInitializer(
                 resetInactivityTimer = { service.inactivityTimer?.resetTimer() },
                 getResumeRewindSeconds = {
                     // Long-pause resume rewind setting (0/5/10/30 sec).
-                    try {
-                        kotlinx.coroutines.runBlocking {
-                            service.settingsRepository.userPreferences
-                                .first()
-                                .resumeRewindSeconds
-                        }
-                    } catch (e: Exception) {
-                        10
-                    }
+                    cachedUserPreferences?.resumeRewindSeconds ?: 10
                 },
                 getResumeRewindMode = {
-                    try {
-                        kotlinx.coroutines.runBlocking {
-                            when (
-                                service.settingsRepository.userPreferences
-                                    .first()
-                                    .resumeRewindMode
-                            ) {
-                                com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART ->
-                                    ResumeRewindMode.SMART
-
-                                else -> ResumeRewindMode.FIXED
-                            }
-                        }
-                    } catch (e: Exception) {
+                    if (cachedUserPreferences?.resumeRewindMode ==
+                        com.jabook.app.jabook.compose.data.preferences.ResumeRewindMode.SMART
+                    ) {
+                        ResumeRewindMode.SMART
+                    } else {
                         ResumeRewindMode.FIXED
                     }
                 },
                 getResumeRewindAggressiveness = {
-                    try {
-                        kotlinx.coroutines.runBlocking {
-                            service.settingsRepository.userPreferences
-                                .first()
-                                .resumeRewindAggressiveness
-                        }
-                    } catch (e: Exception) {
-                        1.0f
-                    }
+                    cachedUserPreferences?.resumeRewindAggressiveness ?: 1.0f
                 },
                 consumeSleepTimerStopFlag = { service.consumeStoppedBySleepTimerFlag() },
             )
@@ -135,17 +118,28 @@ public class AudioPlayerServiceInitializer(
                 audioFader = service.audioFader,
                 settingsRepository = service.settingsRepository,
                 saveSleepTimerStateToDataStore = { state ->
-                    try {
-                        kotlinx.coroutines.runBlocking {
+                    // Fire-and-forget: DataStore is the sole persistence sink for
+                    // this manager (no SharedPreferences fallback is wired).
+                    service.playerServiceScope.launch {
+                        try {
                             service.settingsRepository.updateSleepTimerState(state)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            LogUtils.w("AudioPlayerService", "Failed to save sleep timer state to DataStore", e)
                         }
-                    } catch (e: Exception) {
-                        LogUtils.w("AudioPlayerService", "Failed to save sleep timer state to DataStore", e)
                     }
+                    Unit
                 },
             )
-        kotlinx.coroutines.runBlocking {
-            service.sleepTimerManager?.restoreTimerState()
+        service.playerServiceScope.launch {
+            try {
+                service.sleepTimerManager?.restoreTimerState()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                LogUtils.w("AudioPlayerService", "Failed to restore sleep timer state", e)
+            }
         }
 
         // 4. PlaylistManager (Complex dependencies)
@@ -168,16 +162,11 @@ public class AudioPlayerServiceInitializer(
                     service.playbackController
                         ?: throw IllegalStateException("PlaybackController must be initialized before PlaylistManager"),
                 getCurrentTrackIndex = { service.actualTrackIndex },
+                okHttpClient = service.okHttpClient,
             )
 
         // 5. PositionManager
-        service.positionManager =
-            PositionManager(
-                context = service,
-                getActivePlayer = { service.getActivePlayer() },
-                packageName = service.packageName,
-                sendBroadcast = { service.sendBroadcast(it) },
-            )
+        service.positionManager = PositionManager()
 
         // 6. CrossfadeHandler
         // Initialize crossfade handler (requires playlistManager)
@@ -202,10 +191,14 @@ public class AudioPlayerServiceInitializer(
                     service.customExoPlayer?.release()
                     service.customExoPlayer = null
                 },
-                getMediaSession = { service.mediaSession },
+                getMediaSession = { service.mediaLibrarySession },
                 releaseMediaSession = {
-                    service.mediaSession?.release()
-                    service.mediaSession = null
+                    // Cancel the sessionExtras loop with the session — otherwise it keeps
+                    // looping after unload and a re-init would stack a second job.
+                    service.sessionExtrasJob?.cancel()
+                    service.sessionExtrasJob = null
+                    service.mediaLibrarySession?.release()
+                    service.mediaLibrarySession = null
                 },
                 getMediaSessionManager = { service.mediaSessionManager },
                 releaseMediaSessionManager = {
@@ -227,9 +220,9 @@ public class AudioPlayerServiceInitializer(
                 getEmbeddedArtworkPath = { service.embeddedArtworkPath },
                 setEmbeddedArtworkPath = { service.embeddedArtworkPath = it },
                 saveCurrentPosition = { service.saveCurrentPosition() },
-                stopForeground = { removeNotification ->
-                    @Suppress("DEPRECATION")
-                    service.stopForeground(removeNotification)
+                stopForeground = { flags ->
+                    androidx.core.app.ServiceCompat
+                        .stopForeground(service, flags)
                 },
                 stopSelf = { service.stopSelf() },
             )
@@ -246,6 +239,7 @@ public class AudioPlayerServiceInitializer(
                 getActualTrackIndex = { service.actualTrackIndex },
                 getCurrentFilePaths = { service.currentFilePaths },
                 coroutineScope = service.playerServiceScope,
+                appContext = service.applicationContext,
             )
 
         // Initialize Intent Handler
@@ -261,6 +255,12 @@ public class AudioPlayerServiceInitializer(
                 getActivePlayer = { service.getActivePlayer() },
                 wasPlayingBeforeCall = { service.wasPlayingBeforeCall },
                 setWasPlayingBeforeCall = { value -> service.wasPlayingBeforeCall = value },
+                getCurrentBookId = { service.currentGroupPath },
+                getCurrentChapterIndex = { service.getActivePlayer().currentMediaItemIndex },
+                getCurrentPositionMs = { service.getActivePlayer().currentPosition },
+                autoBookmarkTrigger = service.autoBookmarkTrigger,
+                onCallEndedWithBookmark = { AudioPlayerService.phoneCallBookmarkCreated = true },
+                isSleepTimerActive = { service.isSleepTimerActive() },
             )
 
         // Initialize MediaButtonHandler for multi-click headset support
@@ -271,14 +271,19 @@ public class AudioPlayerServiceInitializer(
             HeadsetAutoplayHandler(
                 context = service,
                 onHeadsetConnected = {
-                    // Wired headset: auto-resume playback
+                    // Wired headset: auto-resume playback only when the user opted in
+                    // via the headset autoplay setting (default: disabled).
                     // BT reconnect: HeadsetAutoplayHandler only triggers this when
                     // wasPlayingBeforeBtDisconnect is true — but per BP-13.2 spec,
                     // we don't auto-play. Instead, user manually resumes via UI.
-                    // For wired headset (lastDisconnectWasBluetooth=false), auto-play.
                     val handler = service.headsetAutoplayHandler
                     if (handler != null && !handler.lastDisconnectWasBluetooth) {
-                        if (!service.isPlaying) {
+                        // Never autoplay mid-call: plugging a wired headset during a call
+                        // must not blast audiobook audio over the conversation.
+                        if (!service.isPlaying &&
+                            cachedUserPreferences?.headsetAutoplayEnabled == true &&
+                            service.phoneCallListener?.isInCall() != true
+                        ) {
                             service.play()
                         }
                     }
@@ -299,9 +304,6 @@ public class AudioPlayerServiceInitializer(
             )
         service.headsetAutoplayHandler?.startListening()
 
-        // BP-13.3: Initialize audio output device routing monitor
-        service.audioOutputDeviceMonitor = AudioOutputDeviceMonitor(service).also { it.register() }
-
         // Ensure ExoPlayer is initialized
         // Note: Hilt initialization check removed to avoid backing field access error
         // We assume Hilt has initialized exoPlayer before onCreate calls initialize()
@@ -309,9 +311,6 @@ public class AudioPlayerServiceInitializer(
 
         // Initialize MediaSession (Media3)
         initializeMediaSession()
-
-        // Note: isFullyInitializedFlag will be set after MediaController is created
-        // This ensures service is truly ready before components try to use it
 
         // Start settings synchronization to MediaSession
         // This ensures system media controls always reflect current app settings
@@ -325,11 +324,7 @@ public class AudioPlayerServiceInitializer(
      * Handles: playback speed restore, notification provider, audio output, visualizer, enhancer.
      */
     public fun postInitialize() {
-        restorePlaybackSpeed()
-        setupNotificationProvider()
-        setupPlayerNotificationManagerFallback()
         setupAudioOutputManager()
-        service.playbackEnhancerService.initialize()
         initializeVisualizer()
     }
 
@@ -350,62 +345,43 @@ public class AudioPlayerServiceInitializer(
                             .build(),
                         handleAudioFocus,
                     ).build()
-            }, service.playerServiceScope)
+            }, service.playerServiceScope, service.volumeWriteCoordinator)
         service.crossFadePlayer?.onPlayerChanged = { newPlayer ->
             try {
-                service.mediaLibrarySession?.let { session ->
-                    session.player = newPlayer
-                    LogUtils.d(
-                        "AudioPlayerService",
-                        "MediaSession player updated after crossfade: ${newPlayer.javaClass.simpleName}",
-                    )
-                } ?: LogUtils.w(
-                    "AudioPlayerService",
-                    "MediaLibrarySession is null, cannot update player after crossfade",
-                )
+                // The incoming player already owns a complete crossfade queue. An older
+                // incremental loader must not append its sources after this swap.
+                service.playlistManager?.cancelAsyncLoadingForPlayerSwitch()
+                service.rebindActivePlayer(newPlayer)
             } catch (e: Exception) {
                 LogUtils.e("AudioPlayerService", "Error updating MediaSession player after crossfade", e)
             }
         }
     }
 
-    private fun restorePlaybackSpeed() {
+    /**
+     * Reads user preferences once (cold init path) and keeps the cache fresh
+     * via a collector in playerServiceScope.
+     */
+    private fun startUserPreferencesCache() {
+        // Apply defaults immediately; the collector below corrects the value shortly after.
+        cachedUserPreferences = null
         service.playerServiceScope.launch {
             try {
-                val savedSpeed = service.audioPreferences.playbackSpeed.first()
-                withContext(Dispatchers.Main) {
-                    LogUtils.d("AudioPlayerService", "Restoring playback speed: ${savedSpeed}x")
-                    service.exoPlayer.setPlaybackSpeed(savedSpeed)
-                }
+                service.settingsRepository.userPreferences.collect { cachedUserPreferences = it }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                LogUtils.e("AudioPlayerService", "Failed to restore playback speed", e)
+                LogUtils.e("AudioPlayerService", "User preferences cache collector failed", e)
             }
         }
     }
 
-    @OptIn(UnstableApi::class)
-    private fun setupNotificationProvider() {
-        if (service.mediaLibrarySession != null) {
-            service.setNotificationProvider(AudioPlayerNotificationProvider(service))
-            LogUtils.i("AudioPlayerService", "MediaNotificationProvider set for MediaLibrarySession")
-        } else {
-            LogUtils.w("AudioPlayerService", "MediaLibrarySession is null, cannot set MediaNotificationProvider")
-        }
-    }
-
-    private fun setupPlayerNotificationManagerFallback() {
-        if (service.mediaLibrarySession == null) {
-            LogUtils.w("AudioPlayerService", "MediaLibrarySession not available, using PlayerNotificationManager as fallback")
-            service.setupPlayerNotificationManager()
-        }
-    }
-
     private fun setupAudioOutputManager() {
-        if (service.exoPlayer.isPlaying) {
-            service.audioOutputManager.startMonitoring()
+        service.audioOutputPlayerListener?.let { listener ->
+            service.audioOutputPlayerTarget?.removeListener(listener)
         }
 
-        service.exoPlayer.addListener(
+        service.audioOutputPlayerListener =
             object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     if (isPlaying) {
@@ -414,8 +390,9 @@ public class AudioPlayerServiceInitializer(
                         service.audioOutputManager.stopMonitoring()
                     }
                 }
-            },
-        )
+            }
+        service.audioOutputPlayerTarget = null
+        service.rebindAudioOutputPlayer()
     }
 
     private fun initializeVisualizer() {
@@ -435,6 +412,9 @@ public class AudioPlayerServiceInitializer(
     private fun initializeMediaSession() {
         if (service.mediaLibrarySession != null) return
 
+        // Unique session ID: PID + instance hash (survives onCreate() called twice)
+        val sessionId = "jabook_${android.os.Process.myPid()}_${System.identityHashCode(service)}"
+
         try {
             // Create intent for clicking the notification
             val sessionActivity = service.getBackStackedActivity() ?: service.getSingleTopActivity()
@@ -448,23 +428,22 @@ public class AudioPlayerServiceInitializer(
                     service.mediaButtonHandler,
                     { filePath -> service.durationManager.getDurationForFile(filePath) },
                 )
+            val notificationProvider = AudioPlayerNotificationProvider(service)
 
-            // Build MediaLibrarySession - Media3 handles notifications automatically
-            // DO NOT set custom notification provider or media button preferences in Builder
-            // These must be handled in the Callback's onConnect method
+            // Build the session and notification around one artwork loader.
             // CRITICAL FIX: Add BOTH PID AND instance hash to session ID
             // Android can call onCreate() MULTIPLE TIMES with the SAME PID without calling onDestroy()
             // Evidence from logs: PID 8921 had onCreate() called twice (Instance 50442924, then 115225231)
-            val sessionId = "jabook_${android.os.Process.myPid()}_${System.identityHashCode(service)}"
             LogUtils.i("AudioPlayerService", "Creating MediaLibrarySession with ID: $sessionId")
 
             val sessionBuilder =
                 MediaLibrarySession
                     .Builder(
                         service,
-                        service.exoPlayer,
+                        service.getActivePlayer(),
                         callback,
                     ).setId(sessionId) // Truly unique session ID: PID + instance hash
+                    .setBitmapLoader(CacheBitmapLoader(notificationProvider.bitmapLoader))
 
             // Set session activity (PendingIntent)
             // This is CRITICAL for Android 12+ media controls to work properly
@@ -475,6 +454,7 @@ public class AudioPlayerServiceInitializer(
             }
 
             service.mediaLibrarySession = sessionBuilder.build()
+            service.setNotificationProvider(notificationProvider)
 
             // Reserve space for skip buttons in notification (prevents jumping when buttons change)
             // Following Media3 official pattern from DemoPlaybackService
@@ -484,41 +464,54 @@ public class AudioPlayerServiceInitializer(
                     putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_NEXT, true)
                 }
 
-            // Assign to legacy field for compatibility
-            service.mediaSession = service.mediaLibrarySession
+            // Periodically update sessionExtras with dynamic state so Auto / WearOS
+            // can read sleep timer remaining and playback speed without custom commands.
+            service.sessionExtrasJob =
+                service.playerServiceScope.launch {
+                    var lastRemaining = Int.MIN_VALUE
+                    var lastSpeed = Float.NaN
+                    var lastTimerActive = false
+                    while (isActive) {
+                        delay(5_000L)
+                        // 0 when inactive — never a negative sentinel (Auto/Wear consumers read this).
+                        val remaining = service.getSleepTimerRemainingSeconds() ?: 0
+                        val speed = service.getPlaybackSpeed()
+                        val isTimerActive = service.isSleepTimerActive()
+                        // Only rebuild sessionExtras when the published values actually changed.
+                        if (remaining == lastRemaining && speed == lastSpeed && isTimerActive == lastTimerActive) continue
+                        lastRemaining = remaining
+                        lastSpeed = speed
+                        lastTimerActive = isTimerActive
+                        service.mediaLibrarySession?.sessionExtras =
+                            Bundle().apply {
+                                putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_PREV, true)
+                                putBoolean(androidx.media3.session.MediaConstants.EXTRAS_KEY_SLOT_RESERVATION_SEEK_TO_NEXT, true)
+                                putLong(AudioPlayerService.EXTRA_SLEEP_TIMER_REMAINING_MS, remaining * 1000L)
+                                putFloat(AudioPlayerService.EXTRA_PLAYBACK_SPEED, speed)
+                                putBoolean(AudioPlayerService.EXTRA_IS_SLEEP_TIMER_ACTIVE, isTimerActive)
+                            }
+                    }
+                }
 
             LogUtils.i(
                 "AudioPlayerService",
                 "MediaLibrarySession created successfully: ${service.mediaLibrarySession?.token}",
             )
 
-            // Create MediaController inside Service (as in Rhythm pattern)
-            // This replaces getInstance() pattern and provides proper Media3 integration
-            createServiceMediaController()
-
             // Create MediaSessionManager (wraps MediaSequencer)
             service.mediaSessionManager =
                 MediaSessionManager(
                     service,
-                    service.exoPlayer,
+                    service.getActivePlayer(),
+                    playCallback = service::onMediaSessionPlaybackStarted,
+                    pauseCallback = service::onMediaSessionPlaybackPaused,
                 )
 
-            // Legacy NotificationManager is NO LONGER NEEDED for Media3 system notifications
-            // Migration Phase 1: DISABLED to prevent conflicts with MediaNotification.Provider
-            /*
-            service.notificationManager =
-                NotificationManager(
-                    context = service,
-                    player = service.exoPlayer,
-                    mediaSession = service.mediaLibrarySession, // Use available session
-                    metadata = service.currentMetadata,
-                    embeddedArtworkPath = service.embeddedArtworkPath,
-                    rewindSeconds = 15, // Default
-                    forwardSeconds = 30, // Default
-                )
-            // Inject scope for async bitmap loading
-            service.notificationManager?.setCoroutineScope(service.playerServiceScope)
-             */
+            // The session is ready as soon as it is built. Media3 applies button preferences
+            // directly to the session; connecting a controller to our own service adds no state.
+            service.setInitialMediaButtonPreferences()
+            service.isFullyInitializedFlag = true
+            service.markInitializationComplete()
 
             // Allow updating player reference if crossfade happens
             // service.crossFadePlayer?.onPlayerChanged will handle this via updatePlayer()
@@ -526,69 +519,19 @@ public class AudioPlayerServiceInitializer(
             // Note: setMediaNotificationProvider must be called from AudioPlayerService.onCreate()
             // as it's a protected method in MediaSessionService
         } catch (e: Exception) {
-            LogUtils.e("AudioPlayerService", "Failed to create MediaLibrarySession", e)
-        }
-    }
-
-    /**
-     * Creates MediaController inside Service for internal use (as in Rhythm pattern).
-     * This replaces getInstance() pattern and provides proper Media3 integration.
-     */
-    @OptIn(UnstableApi::class)
-    private fun createServiceMediaController() {
-        val session = service.mediaLibrarySession
-        if (session == null) {
-            LogUtils.w("AudioPlayerService", "Cannot create MediaController: MediaLibrarySession is null")
-            return
-        }
-
-        try {
-            // Build the controller asynchronously to avoid blocking the main thread
-            val controllerFuture: ListenableFuture<MediaController> =
-                MediaController
-                    .Builder(service, session.token)
-                    .setApplicationLooper(service.mainLooper)
-                    .buildAsync()
-
-            controllerFuture.addListener(
-                {
-                    try {
-                        // Wait for controller with reasonable timeout for service initialization
-                        val controller =
-                            controllerFuture.get(
-                                com.jabook.app.jabook.audio.MediaControllerConstants.SERVICE_INIT_TIMEOUT_SECONDS
-                                    .toLong(),
-                                java.util.concurrent.TimeUnit.SECONDS,
-                            )
-                        service.serviceMediaController = controller
-
-                        // CRITICAL: Set initialization flag only after MediaController is ready
-                        // This ensures components don't try to use service before it's fully ready
-                        service.isFullyInitializedFlag = true
-
-                        // Set initial CustomLayout after MediaController is ready (following Rhythm pattern)
-                        // This avoids MediaSessionLegacyStub conversion issues during onConnect
-                        service.setInitialCustomLayout()
-
-                        LogUtils.i(
-                            "AudioPlayerService",
-                            "Service MediaController initialized successfully, service is now fully ready",
-                        )
-                    } catch (e: java.util.concurrent.TimeoutException) {
-                        LogUtils.e("AudioPlayerService", "Service MediaController initialization timeout", e)
-                        // Set flag anyway - MediaSession is ready, external controllers can connect
-                        // Service can function without internal MediaController
-                        service.isFullyInitializedFlag = true
-                    } catch (e: Exception) {
-                        LogUtils.e("AudioPlayerService", "Error initializing Service MediaController", e)
-                        // Set flag anyway - MediaSession is ready, external controllers can connect
-                        service.isFullyInitializedFlag = true
-                    }
-                },
-                ContextCompat.getMainExecutor(service),
+            // CRITICAL: never swallow session-init failure. If the session cannot be
+            // built, mediaLibrarySession stays null and every MediaController connection
+            // is silently rejected in onGetSession() — the app looks like "player doesn't
+            // work" with no visible error. Fail loudly so onCreate() rethrows and the
+            // GlobalExceptionHandler surfaces the real cause.
+            LogUtils.e("AudioPlayerService", "FATAL: failed to create MediaLibrarySession", e)
+            com.jabook.app.jabook.crash.CrashDiagnostics.reportNonFatal(
+                tag = "media_session_init_failed",
+                throwable = e,
+                attributes = mapOf("session_id" to sessionId),
             )
-        } catch (e: Exception) {
-            LogUtils.e("AudioPlayerService", "Failed to create Service MediaController", e)
+            service.markInitializationFailed(e)
+            throw e
         }
     }
 

@@ -17,12 +17,11 @@ package com.jabook.app.jabook.compose.data.worker
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
 import androidx.work.ListenableWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.jabook.app.jabook.R
-import com.jabook.app.jabook.audio.ChapterDetectionEligibilityPolicy
-import com.jabook.app.jabook.audio.ChapterDetectionWorkScheduler
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.util.PerfTrace
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
@@ -41,6 +40,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.UUID
 import com.jabook.app.jabook.compose.domain.model.Result as DomainResult
 
 /**
@@ -55,7 +55,7 @@ public class LibraryScanWorker
         private val bookScanner: LocalBookScanner,
         private val booksDao: BooksDao,
         private val chaptersDao: ChaptersDao,
-        private val chapterDetectionWorkScheduler: ChapterDetectionWorkScheduler,
+        private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
         private val loggerFactory: LoggerFactory,
     ) : CoroutineWorker(appContext, params) {
         private val logger = loggerFactory.get("LibraryScanWorker")
@@ -63,6 +63,33 @@ public class LibraryScanWorker
         public companion object {
             public const val WORK_NAME: String = "library_scan_work"
             public const val WORK_TAG: String = "library_scan"
+            private const val NOTIFICATION_ID: Int = 3_105
+            private const val NOTIFICATION_CHANNEL_ID: String = "library_scan_work"
+            private const val MAX_SCAN_ATTEMPTS: Int = 3
+        }
+
+        override suspend fun getForegroundInfo(): ForegroundInfo {
+            val notificationManager =
+                applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            notificationManager.createNotificationChannel(
+                android.app.NotificationChannel(
+                    NOTIFICATION_CHANNEL_ID,
+                    applicationContext.getString(R.string.scanningLibrary),
+                    android.app.NotificationManager.IMPORTANCE_LOW,
+                ),
+            )
+            val notification =
+                androidx.core.app.NotificationCompat
+                    .Builder(applicationContext, NOTIFICATION_CHANNEL_ID)
+                    .setSmallIcon(R.drawable.ic_notification_logo)
+                    .setContentTitle(applicationContext.getString(R.string.scanningLibrary))
+                    .setOngoing(true)
+                    .build()
+            return ForegroundInfo(
+                NOTIFICATION_ID,
+                notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+            )
         }
 
         override suspend fun doWork(): ListenableWorker.Result =
@@ -71,6 +98,13 @@ public class LibraryScanWorker
                 val stopReasonAtStart = runCatching { stopReason }.getOrDefault(-1)
                 logger.i { "Library scan started attempt=$attempt stopReason=$stopReasonAtStart" }
                 try {
+                    try {
+                        setForeground(getForegroundInfo())
+                    } catch (e: Throwable) {
+                        // Android 12+ FGS start may be denied (or an OEM throws another
+                        // runtime/security variant); degrade to background rather than crash.
+                        logger.w { "FGS start not allowed for library scan: ${e.message}" }
+                    }
                     setProgress(workDataOf("status" to applicationContext.getString(R.string.scan_status_starting)))
 
                     // Watchdog: Cancel scan if no progress for 3 minutes
@@ -146,6 +180,13 @@ public class LibraryScanWorker
                                 PerfTrace.section(name = "LibraryScanWorker.loadExistingBookPaths") {
                                     booksDao.getAllBookPaths()
                                 }
+                            // Unmount guard: if every scan root covering a book is itself missing,
+                            // the volume is probably temporarily unmounted — skip deletion so a
+                            // SD hiccup doesn't permanently wipe the library and playback state.
+                            val scanRoots =
+                                PerfTrace.section(name = "LibraryScanWorker.loadScanRoots") {
+                                    scanPathDao.getAllPathsList().map { it.path }
+                                }
                             var deletedCount = 0
 
                             PerfTrace.section(name = "LibraryScanWorker.cleanupDeletedBooks") {
@@ -153,6 +194,16 @@ public class LibraryScanWorker
                                     if (book.localPath != null) {
                                         val bookDir = java.io.File(book.localPath)
                                         if (!bookDir.exists() || !bookDir.isDirectory) {
+                                            val coveringRoots = scanRoots.filter { book.localPath.startsWith(it) }
+                                            val rootMissing =
+                                                coveringRoots.isNotEmpty() &&
+                                                    coveringRoots.none { java.io.File(it).isDirectory }
+                                            if (rootMissing) {
+                                                logger.w {
+                                                    "Skipping deletion of ${book.localPath}: covering scan root missing (possibly unmounted)"
+                                                }
+                                                continue
+                                            }
                                             logger.i {
                                                 "Deleting book with non-existent path: ${book.localPath}"
                                             }
@@ -189,7 +240,6 @@ public class LibraryScanWorker
 
                                 val bookEntities = mutableListOf<BookEntity>()
                                 val chapterEntities = mutableListOf<ChapterEntity>()
-                                val chapterDetectionTargets = mutableListOf<ChapterDetectionTarget>()
 
                                 val coversDir = File(applicationContext.filesDir, "covers")
                                 if (!coversDir.exists()) coversDir.mkdirs()
@@ -247,7 +297,16 @@ public class LibraryScanWorker
                                                 id = bookId,
                                                 title = book.title,
                                                 author = book.author,
-                                                coverUrl = null, // UI loads from folder or app dir via CoverUtils
+                                                // Embedded-artwork fallback for books whose cover
+                                                // extraction was skipped (e.g. too small) or failed —
+                                                // Level 1 (extracted file) still wins in the waterfall.
+                                                coverUrl =
+                                                    if (book.chapters.isEmpty()) {
+                                                        null
+                                                    } else {
+                                                        com.jabook.app.jabook.compose.core.util.EmbeddedArtworkFetcher.SCHEME +
+                                                            book.chapters.first().filePath
+                                                    },
                                                 description = null,
                                                 totalDuration = book.totalDuration,
                                                 localPath = book.directory,
@@ -259,8 +318,17 @@ public class LibraryScanWorker
 
                                         chapterEntities.addAll(
                                             book.chapters.map { chapter ->
+                                                // Embedded M4B chapters share one file path; fold the
+                                                // in-file offset into the id so segments stay unique
+                                                // while whole-file chapters keep their legacy ids.
+                                                val idSeed =
+                                                    if (chapter.startMs != null) {
+                                                        chapter.filePath + "#" + chapter.startMs
+                                                    } else {
+                                                        chapter.filePath
+                                                    }
                                                 ChapterEntity(
-                                                    id = "$bookId-chapter-${chapter.index}",
+                                                    id = "$bookId-chapter-${UUID.nameUUIDFromBytes(idSeed.toByteArray())}",
                                                     bookId = bookId,
                                                     title = chapter.title,
                                                     chapterIndex = chapter.index,
@@ -268,26 +336,11 @@ public class LibraryScanWorker
                                                     duration = chapter.duration,
                                                     fileUrl = chapter.filePath,
                                                     isDownloaded = true,
+                                                    startPositionMs = chapter.startMs,
+                                                    endPositionMs = chapter.endMs,
                                                 )
                                             },
                                         )
-                                        val firstChapter = book.chapters.firstOrNull()
-                                        if (firstChapter != null &&
-                                            ChapterDetectionEligibilityPolicy.shouldEnqueueSingleFileDetection(
-                                                chapterCount = book.chapters.size,
-                                                filePath = firstChapter.filePath,
-                                                durationMs = book.totalDuration,
-                                            )
-                                        ) {
-                                            chapterDetectionTargets +=
-                                                ChapterDetectionTarget(
-                                                    bookId = bookId,
-                                                    filePath = firstChapter.filePath,
-                                                    fileIndex = firstChapter.index,
-                                                    durationMs = book.totalDuration,
-                                                    fileLastModifiedMs = File(firstChapter.filePath).lastModified(),
-                                                )
-                                        }
                                     } catch (e: Exception) {
                                         logger.e({ "Error processing book ${book.title}" }, e)
                                     }
@@ -296,20 +349,7 @@ public class LibraryScanWorker
                                 // 3. Batch Upsert (insert or update) - faster for re-scans
                                 if (bookEntities.isNotEmpty()) {
                                     PerfTrace.section(name = "LibraryScanWorker.upsertBatch") {
-                                        booksDao.upsertBooksWithChapters(bookEntities, chapterEntities)
-                                    }
-                                    chapterDetectionTargets.forEach { target ->
-                                        try {
-                                            chapterDetectionWorkScheduler.enqueue(
-                                                bookId = target.bookId,
-                                                filePath = target.filePath,
-                                                fileIndex = target.fileIndex,
-                                                durationMs = target.durationMs,
-                                                fileLastModifiedMs = target.fileLastModifiedMs,
-                                            )
-                                        } catch (e: Exception) {
-                                            logger.e({ "Failed to enqueue chapter detection for ${target.bookId}" }, e)
-                                        }
+                                        booksDao.upsertScannedBooksWithChapters(bookEntities, chapterEntities)
                                     }
                                     booksSaved += bookEntities.size
 
@@ -345,19 +385,19 @@ public class LibraryScanWorker
                         }
                         is DomainResult.Loading -> {
                             val currentStopReason = runCatching { stopReason }.getOrDefault(-1)
-                            logger.w {
-                                "Library scan returned loading, retrying attempt=$attempt stopReason=$currentStopReason"
+                            // Defensive: scanAudiobooks() never returns Loading today, but if it
+                            // ever does, cap the retries so the worker can't loop forever.
+                            if (attempt < MAX_SCAN_ATTEMPTS) {
+                                logger.w {
+                                    "Library scan returned loading, retrying attempt=$attempt stopReason=$currentStopReason"
+                                }
+                                ListenableWorker.Result.retry()
+                            } else {
+                                logger.e { "Library scan stuck in Loading after $attempt attempts" }
+                                ListenableWorker.Result.failure(
+                                    workDataOf("error" to "Library scan stuck in loading state"),
+                                )
                             }
-                            CrashDiagnostics.reportNonFatal(
-                                tag = "library_scan_retry",
-                                throwable = IllegalStateException("Library scan returned loading result"),
-                                attributes =
-                                    mapOf(
-                                        "attempt" to attempt,
-                                        "stop_reason" to currentStopReason,
-                                    ),
-                            )
-                            ListenableWorker.Result.retry()
                         }
                     }
                 } catch (e: Exception) {
@@ -391,12 +431,4 @@ public class LibraryScanWorker
             }
 
         // Cover art removed - UI loads from book folder (cover.jpg/cover.jpeg)
-
-        private data class ChapterDetectionTarget(
-            val bookId: String,
-            val filePath: String,
-            val fileIndex: Int,
-            val durationMs: Long,
-            val fileLastModifiedMs: Long,
-        )
     }

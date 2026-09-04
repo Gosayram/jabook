@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,7 +40,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FileDownload
@@ -56,7 +56,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -67,16 +66,16 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -92,8 +91,13 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.HtmlToAnnotatedString
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
+import com.jabook.app.jabook.ui.theme.LeecherOrange
+import com.jabook.app.jabook.ui.theme.SeederGreen
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 
 /**
  * Topic Screen - displays detailed information about a RuTracker topic.
@@ -115,7 +119,6 @@ public fun TopicScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val authStatus by viewModel.authStatus.collectAsStateWithLifecycle()
-    val message by viewModel.message.collectAsStateWithLifecycle()
     val isLoadingMoreComments by viewModel.isLoadingMoreComments.collectAsStateWithLifecycle()
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
@@ -124,16 +127,16 @@ public fun TopicScreen(
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
-    var commentsExpanded by remember { mutableStateOf(false) }
+    var commentsExpanded by rememberSaveable { mutableStateOf(false) }
 
     // Show messages
-    LaunchedEffect(message) {
-        message?.let {
-            snackbarHostState.showSnackbar(it)
-        }
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collect { snackbarHostState.showSnackbar(it) }
     }
 
     Scaffold(
+        // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {
@@ -253,11 +256,8 @@ private fun TopicDetailsContent(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val wsc = LocalWindowSizeClass.current
+    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val isCompact = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
     val isMediumOrExpanded = windowSizeClass?.widthSizeClass != WindowWidthSizeClass.Compact
 
@@ -380,7 +380,7 @@ private fun TopicDetailsContent(
                             Icon(
                                 Icons.Filled.ArrowUpward,
                                 contentDescription = stringResource(R.string.seeders),
-                                tint = Color(0xFF4CAF50), // Green
+                                tint = SeederGreen,
                             )
                         },
                     )
@@ -392,7 +392,7 @@ private fun TopicDetailsContent(
                             Icon(
                                 Icons.Filled.ArrowDownward,
                                 contentDescription = stringResource(R.string.leechers),
-                                tint = Color(0xFFFF9800), // Orange
+                                tint = LeecherOrange,
                             )
                         },
                     )
@@ -420,8 +420,10 @@ private fun TopicDetailsContent(
                         expanded = showDownloadMenu,
                         onDismissRequest = { showDownloadMenu = false },
                     ) {
-                        // 1. Download torrent release (content) - highest priority
-                        if (details.magnetUrl != null || details.torrentUrl.isNotBlank()) {
+                        // 1. Download torrent release (content) - requires a magnet URI;
+                        // with only an https .torrent URL this would always fail validation
+                        // (item #3 below covers that path).
+                        if (details.magnetUrl != null) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.downloadTorrentRelease)) },
                                 leadingIcon = {
@@ -512,6 +514,7 @@ private fun TopicDetailsContent(
                     onRefresh = onRefresh,
                     currentPage = details.currentPage,
                     totalPages = details.totalPages,
+                    hasMorePages = (viewModel.uiState.value as? TopicUiState.Success)?.hasMorePages == true,
                     isLoadingMore = isLoadingMoreComments,
                     onLoadMore = { viewModel.loadMoreComments() },
                     onNavigateToTopic = onNavigateToTopic,
@@ -629,41 +632,6 @@ private fun TopicDetailsContent(
 }
 
 /**
- * Seeders and Leechers chips.
- */
-@Composable
-private fun SeedersLeechersChip(
-    seeders: Int,
-    leechers: Int,
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        AssistChip(
-            onClick = {},
-            label = { Text(seeders.toString()) },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.ArrowUpward,
-                    contentDescription = stringResource(R.string.seeders),
-                    tint = Color(0xFF4CAF50), // Green
-                )
-            },
-        )
-
-        AssistChip(
-            onClick = {},
-            label = { Text(leechers.toString()) },
-            leadingIcon = {
-                Icon(
-                    Icons.Filled.ArrowDownward,
-                    contentDescription = stringResource(R.string.leechers),
-                    tint = Color(0xFFFF9800), // Orange
-                )
-            },
-        )
-    }
-}
-
-/**
  * Description and Comments section with adaptive layout.
  * Shows side by side on larger screens, stacked on smaller screens.
  */
@@ -677,6 +645,7 @@ private fun DescriptionAndCommentsSection(
     onRefresh: () -> Unit,
     currentPage: Int = 1,
     totalPages: Int = 1,
+    hasMorePages: Boolean = false,
     isLoadingMore: Boolean = false,
     onLoadMore: (() -> Unit)? = null,
     onNavigateToTopic: (String) -> Unit = {},
@@ -685,11 +654,8 @@ private fun DescriptionAndCommentsSection(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val wsc = LocalWindowSizeClass.current
+    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val isNarrow = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
 
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
@@ -711,6 +677,7 @@ private fun DescriptionAndCommentsSection(
                     onNavigateToTopic = onNavigateToTopic,
                     currentPage = currentPage,
                     totalPages = totalPages,
+                    hasMorePages = hasMorePages,
                     isLoadingMore = isLoadingMore,
                     onLoadMore = onLoadMore,
                     expanded = commentsExpanded,
@@ -744,6 +711,7 @@ private fun DescriptionAndCommentsSection(
                     onNavigateToTopic = onNavigateToTopic,
                     currentPage = currentPage,
                     totalPages = totalPages,
+                    hasMorePages = hasMorePages,
                     isLoadingMore = isLoadingMore,
                     onLoadMore = onLoadMore,
                     expanded = commentsExpanded,
@@ -765,18 +733,12 @@ private fun ExpandableDescription(
     onNavigateToTopic: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    var expanded by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
 
     // Get window size class for adaptive sizing
-    val rawWindowSizeClass =
-        activity?.let {
-            calculateWindowSizeClass(it)
-        }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val wsc = LocalWindowSizeClass.current
+    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val isCompact =
         windowSizeClass?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
 
@@ -813,16 +775,8 @@ private fun ExpandableDescription(
             val linkColor = MaterialTheme.colorScheme.primary
             val blocks =
                 remember(descriptionHtml, linkColor) {
-                    // Clean HTML description before parsing
-                    val cleanedHtml =
-                        descriptionHtml
-                            .replace(
-                                Regex("<span[^>]*class=\"post-br\"[^>]*>.*?</span>", RegexOption.DOT_MATCHES_ALL),
-                                "<br>",
-                            ).replace(Regex("<br\\s*/?>\\s*<br\\s*/?>+"), "<br><br>") // Normalize multiple <br> tags
-                            .trim()
                     com.jabook.app.jabook.compose.core.util.HtmlBlockParser
-                        .parse(cleanedHtml, linkColor)
+                        .parse(descriptionHtml, linkColor)
                 }
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -852,27 +806,6 @@ private fun ExpandableDescription(
 }
 
 /**
- * File list item showing file name and size.
- */
-@Composable
-private fun FileListItem(
-    file: String,
-    modifier: Modifier = Modifier,
-) {
-    ListItem(
-        headlineContent = { Text(file) },
-        leadingContent = {
-            Icon(
-                Icons.Filled.AudioFile,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
-        },
-        modifier = modifier,
-    )
-}
-
-/**
  * Expandable comments section with infinite scroll.
  */
 @Composable
@@ -883,15 +816,19 @@ private fun ExpandableComments(
     onNavigateToTopic: (String) -> Unit,
     currentPage: Int = 1,
     totalPages: Int = 1,
+    hasMorePages: Boolean = false,
     isLoadingMore: Boolean = false,
     onLoadMore: (() -> Unit)? = null,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Refresh when expanded
+    // Refresh only on the FIRST expand — re-running onRefresh resets loadedComments
+    // to page 1 and wipes accumulated reverse-pagination pages.
+    var hasTriggeredInitialRefresh by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(expanded) {
-        if (expanded) {
+        if (expanded && !hasTriggeredInitialRefresh) {
+            hasTriggeredInitialRefresh = true
             onRefresh()
         }
     }
@@ -900,14 +837,15 @@ private fun ExpandableComments(
     val listState = rememberLazyListState()
 
     // Auto-load more when scrolled near bottom
-    LaunchedEffect(listState.canScrollForward, listState.isScrollInProgress) {
-        if (!listState.canScrollForward &&
-            !listState.isScrollInProgress &&
-            !isLoadingMore &&
-            currentPage < totalPages
-        ) {
-            onLoadMore?.invoke()
-        }
+    LaunchedEffect(listState, isLoadingMore, currentPage, totalPages) {
+        snapshotFlow { listState.canScrollForward to listState.isScrollInProgress }
+            .distinctUntilChanged()
+            .filter { (canScrollForward, isScrolling) -> !canScrollForward && !isScrolling }
+            .collect {
+                if (!isLoadingMore && hasMorePages) {
+                    onLoadMore?.invoke()
+                }
+            }
     }
 
     Column(modifier = modifier) {
@@ -965,6 +903,7 @@ private fun ExpandableComments(
                 itemsIndexed(
                     items = comments,
                     key = { _, comment -> comment.id },
+                    contentType = { _, _ -> "comment" },
                 ) { _, comment ->
                     CommentItem(
                         comment = comment,
@@ -973,8 +912,8 @@ private fun ExpandableComments(
                 }
 
                 // Loading indicator at bottom
-                if (isLoadingMore || currentPage < totalPages) {
-                    item {
+                if (isLoadingMore || hasMorePages) {
+                    item(contentType = { "footer" }) {
                         Box(
                             modifier =
                                 Modifier

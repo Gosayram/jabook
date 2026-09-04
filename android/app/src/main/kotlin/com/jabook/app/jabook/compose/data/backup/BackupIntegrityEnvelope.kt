@@ -14,8 +14,10 @@
 
 package com.jabook.app.jabook.compose.data.backup
 
+import androidx.annotation.Keep
 import kotlinx.serialization.Serializable
 
+@Keep
 @Serializable
 public data class BackupIntegrityEnvelope(
     val envelopeVersion: String = "1.0.0",
@@ -23,6 +25,7 @@ public data class BackupIntegrityEnvelope(
     val integrity: BackupIntegrityMetadata? = null,
 )
 
+@Keep
 @Serializable
 public data class BackupIntegrityMetadata(
     val algorithm: String,

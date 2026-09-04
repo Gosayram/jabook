@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.audio.processors
 
 import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.AudioProcessor.StreamMetadata
 import androidx.media3.common.util.UnstableApi
 import com.jabook.app.jabook.util.LogUtils
 import java.nio.ByteBuffer
@@ -62,8 +63,13 @@ public class DynamicRangeCompressor(
     // Makeup gain to compensate for level reduction
     private var makeupGain = 1.0f
 
+    // Scratch frame buffer (sized in configure, reused per frame)
+    private var channelSamples = ShortArray(0)
+
     // Input/output buffers
-    private val inputBuffers = mutableListOf<ByteBuffer>()
+    private var queuedInputBuffer: ByteBuffer? = null
+    private var queuedInputCapacity: Int = 0
+    private var queuedInputBytes = 0
     private var outputBuffer: ByteBuffer? = null
     private var inputEnded = false
 
@@ -111,6 +117,8 @@ public class DynamicRangeCompressor(
         if (isActive) {
             val sampleRate = inputAudioFormat.sampleRate
 
+            channelSamples = ShortArray(inputAudioFormat.channelCount)
+
             // Convert threshold from dB to linear
             thresholdLinear = 10.0.pow((thresholdDb / 20.0f).toDouble()).toFloat()
 
@@ -128,7 +136,8 @@ public class DynamicRangeCompressor(
             gainReduction = 0.0f
         }
 
-        inputBuffers.clear()
+        queuedInputBuffer?.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
 
@@ -153,12 +162,24 @@ public class DynamicRangeCompressor(
         }
 
         if (inputBuffer.hasRemaining()) {
-            val buffer = ByteBuffer.allocateDirect(inputBuffer.remaining())
-            buffer.order(ByteOrder.nativeOrder())
-            buffer.put(inputBuffer)
-            buffer.flip()
-            inputBuffers.add(buffer)
+            val remaining = inputBuffer.remaining()
+            ensureQueuedInputCapacity(remaining)
+            queuedInputBytes += remaining
+            queuedInputBuffer!!.put(inputBuffer)
         }
+    }
+
+    private fun ensureQueuedInputCapacity(additionalBytes: Int) {
+        val required = queuedInputBytes + additionalBytes
+        if (required <= queuedInputCapacity) return
+        val newCapacity = maxOf(required, queuedInputCapacity * 2, 4096)
+        val newBuffer = ByteBuffer.allocateDirect(newCapacity).order(ByteOrder.nativeOrder())
+        queuedInputBuffer?.let { old ->
+            old.flip()
+            newBuffer.put(old)
+        }
+        queuedInputBuffer = newBuffer
+        queuedInputCapacity = newCapacity
     }
 
     override fun queueEndOfStream() {
@@ -166,26 +187,33 @@ public class DynamicRangeCompressor(
     }
 
     override fun getOutput(): ByteBuffer {
-        if (!isActive || inputBuffers.isEmpty()) {
+        if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
+        if (!isActive || queuedInputBytes == 0) {
             return EMPTY_BUFFER
         }
 
-        val totalSize = inputBuffers.sumOf { it.remaining() }
-        if (totalSize == 0) {
-            return EMPTY_BUFFER
+        val totalSize = queuedInputBytes
+
+        val preparedOutputBuffer =
+            if (outputBuffer == null || outputBuffer!!.capacity() < totalSize) {
+                ByteBuffer.allocateDirect(totalSize).order(ByteOrder.nativeOrder()).also {
+                    outputBuffer = it
+                }
+            } else {
+                outputBuffer!!.clear()
+                outputBuffer
+            } ?: return EMPTY_BUFFER
+
+        queuedInputBuffer?.let { buf ->
+            buf.flip()
+            processBuffer(buf, preparedOutputBuffer)
         }
 
-        outputBuffer = ByteBuffer.allocateDirect(totalSize)
-        outputBuffer!!.order(ByteOrder.nativeOrder())
+        queuedInputBuffer?.clear()
+        queuedInputBytes = 0
+        preparedOutputBuffer.flip()
 
-        for (inputBuffer in inputBuffers) {
-            processBuffer(inputBuffer, outputBuffer!!)
-        }
-
-        inputBuffers.clear()
-        outputBuffer!!.flip()
-
-        return outputBuffer!!
+        return preparedOutputBuffer
     }
 
     /**
@@ -228,7 +256,6 @@ public class DynamicRangeCompressor(
             // Calculate RMS across all channels for this sample (single pass)
             var sumSquares = 0.0f
             val sampleStartPos = input.position()
-            val channelSamples = ShortArray(channels)
 
             // Read all channel samples first
             for (ch in 0 until channels) {
@@ -259,8 +286,13 @@ public class DynamicRangeCompressor(
                 gainReduction = 1.0f // No compression below threshold
             }
 
-            // Apply compression with makeup gain (use pre-read samples)
-            val finalGain = gainReduction * makeupGain
+            // Apply compression with reduction-proportional makeup gain.
+            // ponytail: linear interpolation of makeupGain^reduction01 between unity and
+            // full makeup — avoids a per-sample pow on the audio thread; use real pow
+            // if curve fidelity ever matters.
+            val reduction01 = ((1f - gainReduction) * ratio / (ratio - 1f)).coerceIn(0f, 1f)
+            val scaledMakeup = 1f + reduction01 * (makeupGain - 1f)
+            val finalGain = gainReduction * scaledMakeup
             for (ch in 0 until channels) {
                 val normalized = channelSamples[ch] * invMaxValue
                 val compressed = normalized * finalGain
@@ -271,13 +303,13 @@ public class DynamicRangeCompressor(
         }
     }
 
-    override fun isEnded(): Boolean = inputEnded && inputBuffers.isEmpty()
+    override fun isEnded(): Boolean = inputEnded && queuedInputBytes == 0
 
-    @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
-    override fun flush() {
+    override fun flush(streamMetadata: StreamMetadata) {
         envelopeLevel = 0.0f
         gainReduction = 0.0f
-        inputBuffers.clear()
+        queuedInputBuffer?.clear()
+        queuedInputBytes = 0
         outputBuffer = null
         inputEnded = false
     }

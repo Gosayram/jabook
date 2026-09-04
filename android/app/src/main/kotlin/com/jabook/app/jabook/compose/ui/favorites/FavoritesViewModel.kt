@@ -23,12 +23,15 @@ import com.jabook.app.jabook.compose.domain.model.toFavoriteItem
 import com.jabook.app.jabook.compose.domain.usecase.library.GetFavoriteBooksUseCase
 import com.jabook.app.jabook.compose.domain.usecase.library.ToggleFavoriteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -120,8 +123,8 @@ public class FavoritesViewModel
         private val _isLoading = MutableStateFlow(false)
         public val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-        private val _errorMessage = MutableStateFlow<String?>(null)
-        public val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+        private val _errorMessages = Channel<String>(Channel.BUFFERED)
+        public val errorMessages: Flow<String> = _errorMessages.receiveAsFlow()
 
         /**
          * Add or remove an audiobook from favorites.
@@ -139,7 +142,7 @@ public class FavoritesViewModel
                     }
 
                 result.onFailure { error ->
-                    _errorMessage.value = error.message
+                    error.message?.let { _errorMessages.trySend(it) }
                 }
                 _isLoading.value = false
             }
@@ -154,7 +157,7 @@ public class FavoritesViewModel
                 // Remove from persisted favorites storage
                 favoritesRepository
                     .removeFromFavorites(topicId)
-                    .onFailure { _errorMessage.value = it.message }
+                    .onFailure { it.message?.let { m -> _errorMessages.trySend(m) } }
 
                 // Also remove from local library if it exists there
                 toggleFavoriteUseCase(topicId, false)
@@ -168,7 +171,7 @@ public class FavoritesViewModel
             viewModelScope.launch {
                 favoritesRepository
                     .removeMultipleFavorites(topicIds)
-                    .onFailure { _errorMessage.value = it.message }
+                    .onFailure { it.message?.let { m -> _errorMessages.trySend(m) } }
             }
         }
 
@@ -179,15 +182,8 @@ public class FavoritesViewModel
             viewModelScope.launch {
                 favoritesRepository
                     .clearAllFavorites()
-                    .onFailure { _errorMessage.value = it.message }
+                    .onFailure { it.message?.let { m -> _errorMessages.trySend(m) } }
             }
-        }
-
-        /**
-         * Clear the error message.
-         */
-        public fun clearErrorMessage() {
-            _errorMessage.value = null
         }
 
         /**

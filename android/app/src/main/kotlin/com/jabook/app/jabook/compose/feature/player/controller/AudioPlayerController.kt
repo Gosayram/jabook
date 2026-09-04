@@ -19,28 +19,42 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.MediaControllerConstants
 import com.jabook.app.jabook.audio.MediaControllerExtensions
+import com.jabook.app.jabook.audio.PlaylistItem
+import com.jabook.app.jabook.audio.processors.ChapterLoudnessTransitionPolicy
 import com.jabook.app.jabook.audio.processors.PitchCorrectionPolicy
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.guava.await
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import javax.inject.Inject
@@ -68,18 +82,33 @@ public class AudioPlayerController
         @param:ApplicationContext private val context: Context,
         private val exoPlayer: ExoPlayer, // Keep for backward compatibility during migration
         private val userPreferencesRepository: com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository,
+        private val booksRepository: BooksRepository,
         private val loggerFactory: LoggerFactory,
+        private val activePlayerRef: com.jabook.app.jabook.audio.ActivePlayerRef,
+        private val volumeWriteCoordinator: com.jabook.app.jabook.audio.VolumeWriteCoordinator,
     ) {
         private val logger = loggerFactory.get("AudioPlayerController")
-        private val scope = CoroutineScope(Dispatchers.Main)
+        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         private var mediaController: MediaController? = null
+        private val chapterLoudnessPolicy =
+            ChapterLoudnessTransitionPolicy(
+                getActivePlayer = { activePlayerRef.get() ?: exoPlayer },
+                getChapterLufs = { bookId, chapterIndex ->
+                    runCatching { booksRepository.getChapterLufsValue(bookId, chapterIndex) }.getOrNull()
+                },
+                scope = scope,
+                volumeWriteCoordinator = volumeWriteCoordinator,
+            )
         private var mediaControllerFuture: ListenableFuture<MediaController>? = null
+        private var mediaControllerConnectionGeneration: Long = 0L
         private var mediaControllerRetryJob: Job? = null
         private var serviceInitRetryJob: Job? = null
         private var loadBookRetryJob: Job? = null
+        private var positionUpdateJob: Job? = null
         private var exoFallbackListenerAttached = false
         private val pendingCommands = ArrayDeque<PendingControllerCommand>()
         private var pendingLoadRequest: PendingLoadRequest? = null
+        private var pendingChapterSeek: SkipToChapterCommand? = null
         private val maxPendingCommands = 64
         private var loadBookRetryAttempts: Int = 0
         private var nextLoadRequestId: Long = 0L
@@ -96,6 +125,12 @@ public class AudioPlayerController
 
         private val _currentChapterIndex = MutableStateFlow(0)
         public val currentChapterIndex: StateFlow<Int> = _currentChapterIndex.asStateFlow()
+
+        private val _hasNextChapter = MutableStateFlow(false)
+        public val hasNextChapter: StateFlow<Boolean> = _hasNextChapter.asStateFlow()
+
+        private val _hasPreviousChapter = MutableStateFlow(false)
+        public val hasPreviousChapter: StateFlow<Boolean> = _hasPreviousChapter.asStateFlow()
 
         // Pitch Correction State
         private val _pitchCorrectionEnabled = MutableStateFlow(true)
@@ -115,6 +150,12 @@ public class AudioPlayerController
         private val _currentBookId = MutableStateFlow<String?>(null)
         public val currentBookId: StateFlow<String?> = _currentBookId.asStateFlow()
 
+        // replay=1: a terminal error is the one event whose delivery matters — late
+        // subscribers (screen re-entered after crash) must still see it, and a burst
+        // of two errors must not drop the second.
+        private val _terminalPlaybackErrors = MutableSharedFlow<String>(replay = 1, extraBufferCapacity = 1)
+        public val terminalPlaybackErrors: SharedFlow<String> = _terminalPlaybackErrors.asSharedFlow()
+
         // Connection state for debugging - tracks MediaController connection status
         public enum class ConnectionState { DISCONNECTED, CONNECTING, CONNECTED, FAILED_USING_FALLBACK }
 
@@ -123,10 +164,16 @@ public class AudioPlayerController
 
         // Callback for chapter end handling (e.g., repeat logic)
         private var onChapterEndedCallback: (() -> Boolean)? = null
+        private var onChapterRepeatedCallback: (() -> Boolean)? = null
+        private var onChapterChangedCallback: (() -> Unit)? = null
+
+        // Audio offload state — updated by both listeners
+        private var isAudioOffloaded = false
 
         private data class PendingLoadRequest(
             val requestId: Long,
             val filePaths: List<String>,
+            val playlistItems: List<PlaylistItem>,
             val initialChapterIndex: Int,
             val initialPosition: Long,
             val autoPlay: Boolean,
@@ -172,10 +219,11 @@ public class AudioPlayerController
         }
 
         private data class SkipToChapterCommand(
-            private val chapterIndex: Int,
+            val chapterIndex: Int,
+            val positionMs: Long,
         ) : PendingControllerCommand {
             override fun execute(controller: MediaController) {
-                controller.seekTo(chapterIndex, 0L)
+                controller.seekTo(chapterIndex, positionMs)
             }
         }
 
@@ -189,6 +237,14 @@ public class AudioPlayerController
                         speed = speed,
                         isPitchCorrectionEnabled = pitchCorrectionEnabled,
                     )
+            }
+        }
+
+        private data class SetRepeatModeCommand(
+            private val repeatMode: Int,
+        ) : PendingControllerCommand {
+            override fun execute(controller: MediaController) {
+                controller.repeatMode = repeatMode
             }
         }
 
@@ -214,34 +270,38 @@ public class AudioPlayerController
             onChapterEndedCallback = callback
         }
 
+        /** Invoked after Media3 repeats the current item; returns whether to keep repeat-one on. */
+        public fun setOnChapterRepeatedCallback(callback: (() -> Boolean)?) {
+            onChapterRepeatedCallback = callback
+        }
+
+        /** Invoked when Media3 advances to a different chapter without repeating it. */
+        public fun setOnChapterChangedCallback(callback: (() -> Unit)?) {
+            onChapterChangedCallback = callback
+        }
+
         /**
          * MediaController listener for UI state management.
          * Note: This replaces direct ExoPlayer listener. MediaController provides proper
          * state synchronization through MediaSession. Service layer handles business logic.
          */
         private val mediaControllerListener =
-            object : Player.Listener {
+            object : Player.Listener, ExoPlayer.AudioOffloadListener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    // Update UI state from MediaController (single source of truth)
-                    _isPlaying.value = isPlaying
+                    updatePlaybackState(isPlaying)
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     val controller = mediaController ?: return
-                    // Update duration from MediaController (single source of truth)
                     _duration.value = controller.duration.coerceAtLeast(0)
                     if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
-                        // Initial position update from MediaController
                         publishCurrentPosition(controller.currentPosition, force = true)
 
-                        // Handle chapter end for repeat logic (UI-level concern)
                         if (playbackState == Player.STATE_ENDED) {
                             val shouldRepeat = onChapterEndedCallback?.invoke() ?: false
                             if (shouldRepeat) {
-                                // Repeat current chapter by seeking to start
                                 val currentIndex = controller.currentMediaItemIndex
                                 controller.seekTo(currentIndex, 0)
-                                // Resume playback if it was playing
                                 if (controller.playWhenReady) {
                                     controller.play()
                                 }
@@ -256,9 +316,9 @@ public class AudioPlayerController
                     reason: Int,
                 ) {
                     val controller = mediaController ?: return
-                    // Update position and chapter index from MediaController (single source of truth)
                     publishCurrentPosition(controller.currentPosition)
                     _currentChapterIndex.value = controller.currentMediaItemIndex
+                    updateChapterNavigation(controller)
                 }
 
                 override fun onMediaItemTransition(
@@ -266,10 +326,35 @@ public class AudioPlayerController
                     reason: Int,
                 ) {
                     val controller = mediaController ?: return
-                    // Update chapter index and duration from MediaController (single source of truth)
+                    when (reason) {
+                        Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> {
+                            if (onChapterRepeatedCallback?.invoke() != true) {
+                                controller.repeatMode = Player.REPEAT_MODE_OFF
+                            }
+                        }
+                        Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,
+                        Player.MEDIA_ITEM_TRANSITION_REASON_SEEK,
+                        -> onChapterChangedCallback?.invoke()
+                    }
                     _currentChapterIndex.value = controller.currentMediaItemIndex
+                    updateChapterNavigation(controller)
                     _duration.value = controller.duration.coerceAtLeast(0)
                     updateStats(controller)
+                    chapterLoudnessPolicy.onChapterTransition(controller.currentMediaItemIndex, reason)
+                }
+
+                override fun onTimelineChanged(
+                    timeline: Timeline,
+                    reason: Int,
+                ) {
+                    mediaController?.let { controller ->
+                        updateChapterNavigation(controller)
+                        applyPendingChapterSeekIfAvailable(controller)
+                    }
+                }
+
+                override fun onAvailableCommandsChanged(availableCommands: Player.Commands) {
+                    mediaController?.let(::updateChapterNavigation)
                 }
 
                 override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
@@ -280,6 +365,41 @@ public class AudioPlayerController
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
                     val controller = mediaController ?: return
                     updateStats(controller)
+                }
+
+                override fun onOffloadedPlayback(isOffloadedPlayback: Boolean) {
+                    this@AudioPlayerController.isAudioOffloaded = isOffloadedPlayback
+                    logger.d { "MediaController audio offload: $isOffloadedPlayback" }
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    // Actual playback failures (decode/codec/IO) surface here — onError is
+                    // session-level only and never fires for e.g. an undecodable file.
+                    logger.e({ "Playback error: ${error.errorCodeName} - ${error.message}" }, error)
+                    _terminalPlaybackErrors.tryEmit(error.message ?: context.getString(R.string.playbackErrorFallback))
+                }
+            }
+
+        private val mediaControllerCallback =
+            object : MediaController.Listener {
+                override fun onError(
+                    controller: MediaController,
+                    sessionError: SessionError,
+                ) {
+                    _terminalPlaybackErrors.tryEmit(sessionError.message)
+                }
+
+                override fun onDisconnected(controller: MediaController) {
+                    // Service died (swipe, system trim, crash). Reset the controller so the
+                    // UI can reconnect on the next command instead of going stale forever.
+                    logger.w { "MediaController disconnected — resetting for reconnect" }
+                    if (mediaController === controller) {
+                        mediaController = null
+                    }
+                    _connectionState.value = ConnectionState.DISCONNECTED
+                    controller.release()
+                    mediaControllerFuture?.let { MediaController.releaseFuture(it) }
+                    mediaControllerFuture = null
                 }
             }
 
@@ -294,9 +414,9 @@ public class AudioPlayerController
          * double-updating the same StateFlows from two different player sources.
          */
         private val exoPlayerFallbackListener =
-            object : Player.Listener {
+            object : Player.Listener, ExoPlayer.AudioOffloadListener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    _isPlaying.value = isPlaying
+                    updatePlaybackState(isPlaying)
                 }
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -313,23 +433,52 @@ public class AudioPlayerController
                 ) {
                     publishCurrentPosition(exoPlayer.currentPosition)
                     _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
+                    updateChapterNavigation(exoPlayer)
                 }
 
                 override fun onMediaItemTransition(
                     mediaItem: MediaItem?,
                     reason: Int,
                 ) {
+                    when (reason) {
+                        Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT -> {
+                            if (onChapterRepeatedCallback?.invoke() != true) {
+                                exoPlayer.repeatMode = Player.REPEAT_MODE_OFF
+                            }
+                        }
+                        Player.MEDIA_ITEM_TRANSITION_REASON_AUTO,
+                        Player.MEDIA_ITEM_TRANSITION_REASON_SEEK,
+                        -> onChapterChangedCallback?.invoke()
+                    }
                     _currentChapterIndex.value = exoPlayer.currentMediaItemIndex
+                    updateChapterNavigation(exoPlayer)
                     _duration.value = exoPlayer.duration.coerceAtLeast(0)
                     updateStats(exoPlayer)
+                    chapterLoudnessPolicy.onChapterTransition(exoPlayer.currentMediaItemIndex, reason)
                 }
 
                 override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                     updateStats(exoPlayer)
                 }
 
+                override fun onTimelineChanged(
+                    timeline: Timeline,
+                    reason: Int,
+                ) {
+                    updateChapterNavigation(exoPlayer)
+                }
+
+                override fun onAvailableCommandsChanged(availableCommands: Player.Commands) {
+                    updateChapterNavigation(exoPlayer)
+                }
+
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
                     updateStats(exoPlayer)
+                }
+
+                override fun onOffloadedPlayback(isOffloadedPlayback: Boolean) {
+                    this@AudioPlayerController.isAudioOffloaded = isOffloadedPlayback
+                    logger.d { "ExoPlayer fallback audio offload: $isOffloadedPlayback" }
                 }
             }
 
@@ -348,11 +497,19 @@ public class AudioPlayerController
         }
 
         private fun updateStats(controller: Player = mediaController ?: exoPlayer) {
-            // audioFormat and audioSessionId are only available in ExoPlayer, not in Player interface
-            // Use exoPlayer as fallback for stats when using MediaController
-            val exoPlayerForStats = if (controller is ExoPlayer) controller else exoPlayer
+            // The selected audio Format must come from getCurrentTracks(), which IS
+            // forwarded over the MediaController session proxy — unlike ExoPlayer-only
+            // getAudioFormat(), which reads null from the idle injected singleton and
+            // left the stats overlay permanently "Unknown".
+            val format: Format? =
+                controller.currentTracks.groups
+                    .firstOrNull { it.type == C.TRACK_TYPE_AUDIO && it.isSelected() }
+                    ?.let { group ->
+                        (0 until group.length)
+                            .firstOrNull { group.isTrackSelected(it) }
+                            ?.let(group::getTrackFormat)
+                    }
 
-            val format = exoPlayerForStats.audioFormat
             val audioFormat =
                 "${format?.sampleMimeType ?: "Unknown"} ${format?.bitrate?.let {
                     if (it > 0) "${it / 1000}kbps" else ""
@@ -360,21 +517,48 @@ public class AudioPlayerController
                     .trim()
             val bufferMs = controller.bufferedPosition - controller.currentPosition
 
+            val sampleRate =
+                format?.sampleRate?.let {
+                    if (it > 0) "${it / 1000} kHz" else "Unknown"
+                } ?: "Unknown"
+
+            val channelCount = format?.channelCount ?: -1
+            val channelLayout =
+                when (channelCount) {
+                    1 -> "Mono"
+                    2 -> "Stereo"
+                    6 -> "5.1"
+                    8 -> "7.1"
+                    -1 -> "Unknown"
+                    else -> "$channelCount ch"
+                }
+
+            val isStreaming =
+                currentBookId.value?.let { bookId ->
+                    // Check if book source is a remote URL vs local file
+                    bookId.startsWith("http")
+                } ?: false
+
             _playerStats.value =
                 com.jabook.app.jabook.compose.feature.player.PlayerStats(
                     audioFormat = audioFormat.ifEmpty { "Unknown" },
                     bitrate = format?.bitrate?.let { if (it > 0) "${it / 1000} kbps" else "Unknown" } ?: "Unknown",
+                    sampleRate = sampleRate,
+                    channelLayout = channelLayout,
                     bufferHealth = "${bufferMs / 1000}s",
                     audioSessionId =
-                        if (exoPlayerForStats.audioSessionId !=
+                        if (exoPlayer.audioSessionId !=
                             C.AUDIO_SESSION_ID_UNSET
                         ) {
-                            exoPlayerForStats.audioSessionId.toString()
+                            exoPlayer.audioSessionId.toString()
                         } else {
                             "None"
                         },
-                    decoderName = "ExoPlayer Audio Decoder",
-                    droppedFrames = 0, // Audio usually doesn't drop frames like video
+                    decoderName = format?.codecs?.takeIf { it.isNotBlank() } ?: "Unknown",
+                    droppedFrames = 0,
+                    isStreaming = isStreaming,
+                    isAudioOffloaded = isAudioOffloaded,
+                    audioQuality = format?.let(com.jabook.app.jabook.audio.AudioQualityInfo::fromFormat),
                 )
         }
 
@@ -420,8 +604,7 @@ public class AudioPlayerController
          * Uses retry logic to handle cases when service is not yet ready.
          */
         private fun initMediaController(retryCount: Int = 0) {
-            val maxRetries = 10
-            val retryDelayMs = 1500L
+            val maxRetries = MediaControllerRetryPolicy.MAX_RETRIES
 
             if (mediaController != null) {
                 _connectionState.value = ConnectionState.CONNECTED
@@ -443,6 +626,7 @@ public class AudioPlayerController
                     MediaController.releaseFuture(future)
                 }
                 mediaControllerFuture = null
+                val connectionGeneration = nextMediaControllerConnectionGeneration()
 
                 val sessionToken =
                     SessionToken(
@@ -451,23 +635,30 @@ public class AudioPlayerController
                     )
                 logger.d { "SessionToken created: ${sessionToken.packageName}/${sessionToken.serviceName}" }
 
-                mediaControllerFuture =
+                val controllerFuture =
                     MediaController
                         .Builder(context, sessionToken)
                         .setApplicationLooper(context.mainLooper)
+                        .setListener(mediaControllerCallback)
                         .buildAsync()
+                mediaControllerFuture = controllerFuture
 
                 logger.d { "MediaController.Builder.buildAsync() called, waiting for result..." }
 
-                mediaControllerFuture?.addListener(
+                controllerFuture.addListener(
                     {
                         try {
                             // Wait for controller with timeout
                             val controller =
-                                mediaControllerFuture?.get(
+                                controllerFuture.get(
                                     MediaControllerConstants.DEFAULT_TIMEOUT_SECONDS.toLong(),
                                     TimeUnit.SECONDS,
                                 )
+                            if (!isCurrentMediaControllerConnectionAttempt(connectionGeneration, controllerFuture)) {
+                                MediaController.releaseFuture(controllerFuture)
+                                logger.d { "Ignoring stale MediaController connection callback" }
+                                return@addListener
+                            }
                             mediaController?.let { existing ->
                                 if (existing !== controller) {
                                     existing.removeListener(mediaControllerListener)
@@ -481,10 +672,11 @@ public class AudioPlayerController
 
                             // Initialize state from MediaController
                             controller?.let { ctrl ->
-                                _isPlaying.value = ctrl.isPlaying
+                                updatePlaybackState(ctrl.isPlaying)
                                 publishCurrentPosition(ctrl.currentPosition, force = true)
                                 _duration.value = ctrl.duration.coerceAtLeast(0)
                                 _currentChapterIndex.value = ctrl.currentMediaItemIndex
+                                updateChapterNavigation(ctrl)
                                 updateStats(ctrl)
                                 _connectionState.value = ConnectionState.CONNECTED
                                 mediaControllerRetryJob?.cancel()
@@ -499,22 +691,26 @@ public class AudioPlayerController
                                 throw IllegalStateException("MediaController is null after get()")
                             }
                         } catch (e: java.util.concurrent.TimeoutException) {
+                            if (!isCurrentMediaControllerConnectionAttempt(connectionGeneration, controllerFuture)) {
+                                return@addListener
+                            }
                             logger.w {
                                 "MediaController initialization timeout, retrying... (attempt $retryCount/$maxRetries)"
                             }
                             scheduleMediaControllerRetry(
                                 nextRetryCount = retryCount + 1,
                                 maxRetries = maxRetries,
-                                retryDelayMs = retryDelayMs,
                                 reason = "timeout",
                             )
                         } catch (e: Exception) {
+                            if (!isCurrentMediaControllerConnectionAttempt(connectionGeneration, controllerFuture)) {
+                                return@addListener
+                            }
                             logger.e(e) { "Exception in MediaController init: ${e.message}" }
                             logger.e(e) { "Error initializing MediaController" }
                             scheduleMediaControllerRetry(
                                 nextRetryCount = retryCount + 1,
                                 maxRetries = maxRetries,
-                                retryDelayMs = retryDelayMs,
                                 reason = "exception",
                             )
                         }
@@ -527,16 +723,30 @@ public class AudioPlayerController
                 scheduleMediaControllerRetry(
                     nextRetryCount = retryCount + 1,
                     maxRetries = maxRetries,
-                    retryDelayMs = retryDelayMs,
                     reason = "token_creation",
                 )
             }
         }
 
+        private fun nextMediaControllerConnectionGeneration(): Long {
+            mediaControllerConnectionGeneration =
+                MediaControllerConnectionAttemptPolicy.nextGeneration(mediaControllerConnectionGeneration)
+            return mediaControllerConnectionGeneration
+        }
+
+        private fun isCurrentMediaControllerConnectionAttempt(
+            connectionGeneration: Long,
+            controllerFuture: ListenableFuture<MediaController>,
+        ): Boolean =
+            MediaControllerConnectionAttemptPolicy.isCurrentAttempt(
+                activeGeneration = mediaControllerConnectionGeneration,
+                callbackGeneration = connectionGeneration,
+            ) &&
+                mediaControllerFuture === controllerFuture
+
         private fun scheduleMediaControllerRetry(
             nextRetryCount: Int,
             maxRetries: Int,
-            retryDelayMs: Long,
             reason: String,
         ) {
             if (mediaController != null) {
@@ -553,7 +763,7 @@ public class AudioPlayerController
                 mediaControllerRetryJob?.cancel()
                 mediaControllerRetryJob =
                     scope.launch {
-                        delay(retryDelayMs)
+                        delay(MediaControllerRetryPolicy.delayMs(maxRetries))
                         if (mediaController == null) {
                             initMediaController(retryCount = 0)
                         }
@@ -563,7 +773,7 @@ public class AudioPlayerController
             mediaControllerRetryJob?.cancel()
             mediaControllerRetryJob =
                 scope.launch {
-                    delay(retryDelayMs)
+                    delay(MediaControllerRetryPolicy.delayMs(nextRetryCount))
                     initMediaController(nextRetryCount)
                 }
         }
@@ -616,6 +826,8 @@ public class AudioPlayerController
 
                 is SetPlaybackSpeedCommand -> DeferredCommandType.SPEED
 
+                is SetRepeatModeCommand -> DeferredCommandType.REPEAT_MODE
+
                 is SetVisualizerEnabledCommand -> DeferredCommandType.VISUALIZER_ENABLED
 
                 InitializeVisualizerCommand -> DeferredCommandType.VISUALIZER_INITIALIZE
@@ -631,11 +843,35 @@ public class AudioPlayerController
             while (pendingCommands.isNotEmpty()) {
                 val command = pendingCommands.removeFirst()
                 try {
-                    command.execute(controller)
+                    if (command is SkipToChapterCommand) {
+                        seekToChapterWhenAvailable(controller, command)
+                    } else {
+                        command.execute(controller)
+                    }
                 } catch (e: Exception) {
                     logger.e(e) { "Failed to execute queued MediaController command" }
                 }
             }
+        }
+
+        private fun seekToChapterWhenAvailable(
+            controller: MediaController,
+            command: SkipToChapterCommand,
+        ) {
+            if (ChapterSeekAvailabilityPolicy.isAvailable(command.chapterIndex, controller.mediaItemCount)) {
+                pendingChapterSeek = null
+                command.execute(controller)
+            } else {
+                pendingChapterSeek = command
+                logger.d {
+                    "Deferring chapter ${command.chapterIndex} seek until playlist contains it " +
+                        "(items=${controller.mediaItemCount})"
+                }
+            }
+        }
+
+        private fun applyPendingChapterSeekIfAvailable(controller: MediaController) {
+            pendingChapterSeek?.let { seekToChapterWhenAvailable(controller, it) }
         }
 
         private fun executeOrQueue(
@@ -688,16 +924,25 @@ public class AudioPlayerController
          */
         public fun loadBook(
             filePaths: List<String>,
+            playlistItems: List<PlaylistItem> = filePaths.map(::PlaylistItem),
             initialChapterIndex: Int = 0,
             initialPosition: Long = 0L,
             autoPlay: Boolean = false,
             metadata: Map<String, String>? = null,
             bookId: String? = null,
         ) {
+            pendingChapterSeek = null
+            // A new load invalidates queued seeks/skips still targeting the previous
+            // book's playlist; otherwise flushPendingOperations replays them into the
+            // new book once the MediaController connects.
+            pendingCommands.removeAll { command ->
+                DeferredCommandCoalescingPolicy.isBookScoped(mapToDeferredCommandType(command))
+            }
             val request =
                 PendingLoadRequest(
                     requestId = nextRequestId(),
                     filePaths = filePaths,
+                    playlistItems = playlistItems,
                     initialChapterIndex = initialChapterIndex,
                     initialPosition = initialPosition,
                     autoPlay = autoPlay,
@@ -712,6 +957,10 @@ public class AudioPlayerController
             request: PendingLoadRequest,
             resetRetryState: Boolean,
         ) {
+            if (!isCurrentLoadRequest(request)) {
+                logger.d { "Ignoring stale loadBook request ${request.requestId}" }
+                return
+            }
             if (resetRetryState) {
                 // New user-initiated load should invalidate any previously scheduled retry.
                 loadBookRetryJob?.cancel()
@@ -734,9 +983,6 @@ public class AudioPlayerController
                 _isPlaying.value = false
             }
 
-            // Update current book ID
-            _currentBookId.value = request.bookId
-
             // Use MediaController for all operations including setPlaylist
             val controller = mediaController
             if (controller == null) {
@@ -744,6 +990,7 @@ public class AudioPlayerController
                     PendingLoadRequest(
                         requestId = request.requestId,
                         filePaths = request.filePaths,
+                        playlistItems = request.playlistItems,
                         initialChapterIndex = request.initialChapterIndex,
                         initialPosition = request.initialPosition,
                         autoPlay = request.autoPlay,
@@ -770,13 +1017,14 @@ public class AudioPlayerController
                 try {
                     val currentGroupPath = MediaControllerExtensions.getCurrentGroupPath(controller)
                     val currentPaths = MediaControllerExtensions.getCurrentFilePaths(controller)
+                    if (!isCurrentLoadRequest(request)) return@launch
 
                     val isSameBook = request.bookId != null && request.bookId == currentGroupPath
                     // Compare playlists by content, not by reference, to handle sorted paths
                     val isSamePlaylist =
                         currentPaths != null &&
                             currentPaths.size == request.filePaths.size &&
-                            currentPaths.sorted() == request.filePaths.sorted()
+                            currentPaths.toSet() == request.filePaths.toSet()
 
                     if ((isSameBook || isSamePlaylist) && !isBookChanged) {
                         logger.i {
@@ -785,53 +1033,63 @@ public class AudioPlayerController
 
                         // Handle seeking if needed (e.g. user clicked a specific chapter)
                         // Only seek if significantly different to allow resume logic to work
-                        if (request.initialChapterIndex != controller.currentMediaItemIndex) {
-                            controller.seekTo(request.initialChapterIndex, 0L)
-                        }
-                        if (request.initialPosition > 0L &&
-                            Math.abs(controller.currentPosition - request.initialPosition) > 1000L
-                        ) {
-                            controller.seekTo(request.initialPosition)
+                        val chapterChanged = request.initialChapterIndex != controller.currentMediaItemIndex
+                        val positionChanged =
+                            request.initialPosition > 0L &&
+                                Math.abs(controller.currentPosition - request.initialPosition) > 1000L
+                        if (chapterChanged || positionChanged) {
+                            controller.seekTo(request.initialChapterIndex, request.initialPosition)
                         }
 
                         if (request.autoPlay && !controller.isPlaying) {
                             controller.play()
                         }
+                        publishLoadedBook(request.bookId)
                         pendingLoadRequest = null
                         loadBookRetryAttempts = 0
                         return@launch
                     }
 
                     // Use MediaController custom command for setPlaylist
+                    if (!isCurrentLoadRequest(request)) return@launch
                     val future =
                         MediaControllerExtensions.setPlaylist(
                             controller = controller,
                             filePaths = request.filePaths,
+                            playlistItems = request.playlistItems,
                             metadata = request.metadata,
                             initialTrackIndex = request.initialChapterIndex,
                             initialPosition = request.initialPosition,
                             groupPath = request.bookId,
                         )
 
-                    // Wait for result
-                    val result =
-                        withContext(Dispatchers.IO) {
-                            future.get(30, TimeUnit.SECONDS)
-                        }
-                    if (result.resultCode == SessionResult.RESULT_SUCCESS && request.autoPlay) {
-                        controller.play()
-                    } else if (result.resultCode != SessionResult.RESULT_SUCCESS) {
+                    // Wait for result without blocking thread (Guava await)
+                    val result = future.await()
+                    val loaded = result.resultCode == SessionResult.RESULT_SUCCESS
+                    if (!LoadBookRequestPolicy.shouldCommitBook(
+                            activeRequestId = nextLoadRequestId,
+                            requestId = request.requestId,
+                            loaded = loaded,
+                        )
+                    ) {
+                        if (!isCurrentLoadRequest(request)) return@launch
                         logger.e {
                             "setPlaylist failed with code: ${result.resultCode}"
                         }
                         scheduleLoadBookRetry(request, "result=${result.resultCode}")
                         return@launch
                     }
+                    publishLoadedBook(request.bookId)
+                    if (request.autoPlay) {
+                        controller.play()
+                    }
                     pendingLoadRequest = null
                     loadBookRetryAttempts = 0
                 } catch (e: Exception) {
                     logger.e({ "Error in loadBook" }, e)
-                    scheduleLoadBookRetry(request, "exception=${e::class.java.simpleName}")
+                    if (isCurrentLoadRequest(request)) {
+                        scheduleLoadBookRetry(request, "exception=${e::class.java.simpleName}")
+                    }
                 }
             }
         }
@@ -840,6 +1098,7 @@ public class AudioPlayerController
             request: PendingLoadRequest,
             reason: String,
         ) {
+            if (!isCurrentLoadRequest(request)) return
             val nextAttempt = request.retryAttempt + 1
             if (!LoadBookRetryPolicy.shouldRetry(nextAttempt)) {
                 logger.e {
@@ -881,6 +1140,17 @@ public class AudioPlayerController
             return nextLoadRequestId
         }
 
+        private fun isCurrentLoadRequest(request: PendingLoadRequest): Boolean =
+            LoadBookRequestPolicy.isCurrent(
+                activeRequestId = nextLoadRequestId,
+                requestId = request.requestId,
+            )
+
+        private fun publishLoadedBook(bookId: String?) {
+            _currentBookId.value = bookId
+            chapterLoudnessPolicy.onBookChanged(bookId)
+        }
+
         public fun play() {
             executeOrQueue(
                 commandName = "play",
@@ -908,6 +1178,16 @@ public class AudioPlayerController
             }
         }
 
+        /**
+         * Toggles ExoPlayer scrubbing mode (optimizes playback for many frequent seeks).
+         *
+         * Not routed through MediaController — the scrubbing API only exists on ExoPlayer,
+         * so it is applied to the service-side player directly.
+         */
+        public fun setScrubbingMode(enabled: Boolean) {
+            (activePlayerRef.get() ?: exoPlayer).setScrubbingModeEnabled(enabled)
+        }
+
         public fun skipToNext() {
             executeOrQueue(
                 commandName = "skipToNext",
@@ -926,12 +1206,16 @@ public class AudioPlayerController
             }
         }
 
-        public fun skipToChapter(index: Int) {
+        public fun skipToChapter(
+            index: Int,
+            positionMs: Long = 0L,
+        ) {
+            val command = SkipToChapterCommand(index, positionMs)
             executeOrQueue(
                 commandName = "skipToChapter",
-                pendingCommand = SkipToChapterCommand(index),
+                pendingCommand = command,
             ) { controller ->
-                controller.seekTo(index, 0L)
+                seekToChapterWhenAvailable(controller, command)
             }
         }
 
@@ -949,6 +1233,23 @@ public class AudioPlayerController
                     speed = speed,
                     pitchCorrectionEnabled = pitchCorrectionEnabled,
                 )
+            }
+        }
+
+        // ponytail: exposed for Compose rememberPlaybackSpeedState(player) — fallback null if not yet connected
+        public fun getPlayer(): Player? =
+            try {
+                mediaController ?: exoPlayer
+            } catch (_: Exception) {
+                null
+            }
+
+        public fun setRepeatMode(repeatMode: Int) {
+            executeOrQueue(
+                commandName = "setRepeatMode",
+                pendingCommand = SetRepeatModeCommand(repeatMode),
+            ) { controller ->
+                controller.repeatMode = repeatMode
             }
         }
 
@@ -970,12 +1271,6 @@ public class AudioPlayerController
             }
         }
 
-        public suspend fun consumeSmartResumeSuggestion(): MediaControllerExtensions.SmartResumeSuggestion? =
-            withContext(Dispatchers.IO) {
-                val controller = mediaController ?: return@withContext null
-                MediaControllerExtensions.consumeSmartResumeSuggestion(controller)
-            }
-
         private fun ensureControllerReady() {
             startService()
             if (mediaController == null && mediaControllerFuture == null) {
@@ -993,11 +1288,57 @@ public class AudioPlayerController
                     previousPositionMs = _currentPosition.value,
                     incomingPositionMs = sanitizedPositionMs,
                     force = force,
+                    isAudioOffloaded = isAudioOffloaded,
                 )
             ) {
                 return
             }
             _currentPosition.value = sanitizedPositionMs
+        }
+
+        private fun updatePlaybackState(isPlaying: Boolean) {
+            val wasPlaying = _isPlaying.value
+            _isPlaying.value = isPlaying
+            if (isPlaying) {
+                startPositionUpdates()
+            } else {
+                if (wasPlaying) {
+                    // Publish the final position so .value readers (snapshots, resume dialogs)
+                    // don't observe a stale value after the poll stops.
+                    val player = mediaController ?: exoPlayer
+                    publishCurrentPosition(player.currentPosition, force = true)
+                }
+                positionUpdateJob?.cancel()
+                positionUpdateJob = null
+            }
+        }
+
+        private fun updateChapterNavigation(player: Player) {
+            _hasNextChapter.value =
+                player.hasNextMediaItem() &&
+                player.isCommandAvailable(Player.COMMAND_SEEK_TO_NEXT)
+            _hasPreviousChapter.value =
+                player.hasPreviousMediaItem() &&
+                player.isCommandAvailable(Player.COMMAND_SEEK_TO_PREVIOUS)
+        }
+
+        private fun startPositionUpdates() {
+            if (positionUpdateJob?.isActive == true) return
+            positionUpdateJob =
+                scope.launch {
+                    while (isActive) {
+                        val player = mediaController ?: exoPlayer
+                        if (!player.isPlaying) {
+                            updatePlaybackState(false)
+                            // Keep bufferHealth/format stats live even when paused.
+                            updateStats(player)
+                            break
+                        }
+                        publishCurrentPosition(player.currentPosition)
+                        updateStats(player)
+                        delay(POSITION_UPDATE_INTERVAL_MS)
+                    }
+                }
         }
 
         private fun startService() {
@@ -1039,13 +1380,17 @@ public class AudioPlayerController
          * Should be called when controller is no longer needed.
          */
         public fun release() {
+            nextMediaControllerConnectionGeneration()
             mediaControllerRetryJob?.cancel()
             mediaControllerRetryJob = null
             serviceInitRetryJob?.cancel()
             serviceInitRetryJob = null
             loadBookRetryJob?.cancel()
             loadBookRetryJob = null
+            positionUpdateJob?.cancel()
+            positionUpdateJob = null
             pendingLoadRequest = null
+            pendingChapterSeek = null
             loadBookRetryAttempts = 0
             pendingCommands.clear()
 
@@ -1053,10 +1398,18 @@ public class AudioPlayerController
             mediaController?.removeListener(mediaControllerListener)
             mediaController?.release()
             mediaController = null
+            _hasNextChapter.value = false
+            _hasPreviousChapter.value = false
             mediaControllerFuture?.let {
                 MediaController.releaseFuture(it)
             }
             mediaControllerFuture = null
             _connectionState.value = ConnectionState.DISCONNECTED
+            chapterLoudnessPolicy.release()
+            scope.cancel()
+        }
+
+        private companion object {
+            const val POSITION_UPDATE_INTERVAL_MS: Long = 250L
         }
     }

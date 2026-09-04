@@ -15,8 +15,10 @@
 package com.jabook.app.jabook.tv
 
 import android.os.Bundle
+import android.view.View
 import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
+import androidx.leanback.app.ErrorSupportFragment
 import androidx.leanback.app.PlaybackSupportFragment
 import androidx.leanback.widget.Action
 import androidx.leanback.widget.ArrayObjectAdapter
@@ -27,7 +29,10 @@ import androidx.leanback.widget.PlaybackControlsRow.PlayPauseAction
 import androidx.leanback.widget.PlaybackControlsRow.SkipNextAction
 import androidx.leanback.widget.PlaybackControlsRow.SkipPreviousAction
 import androidx.leanback.widget.PlaybackControlsRowPresenter
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController
@@ -36,11 +41,19 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * TV Player Activity for playing audiobooks on Android TV.
  *
  * Provides a 10-foot UI for playback controls using Leanback.
+ *
+ * Drives the same [AudioPlayerService] session as the phone UI: it injects the shared
+ * `@Singleton` [AudioPlayerController], which connects via `MediaController`/`SessionToken`.
+ * All playback features (sleep timer, LUFS loudness normalization, crossfade, playback
+ * speed) are service/session-level and therefore shared with the phone stack — this
+ * activity only exposes a reduced command surface (play/pause, skip next/previous,
+ * loadBook) and adds no parallel playback logic.
  */
 @AndroidEntryPoint
 public class TvPlayerActivity : FragmentActivity() {
@@ -89,11 +102,26 @@ public class TvPlaybackFragment : PlaybackSupportFragment() {
         lifecycleScope.launch {
             try {
                 book = booksRepository.getBook(bookId).first()
-                book?.let { setupPlayback(it) }
+                val loaded = book
+                if (loaded == null) {
+                    showErrorState()
+                } else {
+                    setupPlayback(loaded)
+                }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 LogUtils.e("TvPlaybackFragment", "Error loading book", e)
+                showErrorState()
             }
         }
+    }
+
+    private fun showErrorState() {
+        if (!isAdded) return
+        parentFragmentManager
+            .beginTransaction()
+            .replace(android.R.id.content, TvErrorFragment())
+            .commitAllowingStateLoss()
     }
 
     private fun setupPlayback(book: Book) {
@@ -170,17 +198,19 @@ public class TvPlaybackFragment : PlaybackSupportFragment() {
 
     private fun observePlaybackState() {
         lifecycleScope.launch {
-            audioPlayerController.isPlaying.collect { isPlaying ->
-                playPauseAction.index =
-                    if (isPlaying) {
-                        PlayPauseAction.INDEX_PAUSE
-                    } else {
-                        PlayPauseAction.INDEX_PLAY
-                    }
-                primaryActionsAdapter.notifyArrayItemRangeChanged(
-                    primaryActionsAdapter.indexOf(playPauseAction),
-                    1,
-                )
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                audioPlayerController.isPlaying.collect { isPlaying ->
+                    playPauseAction.index =
+                        if (isPlaying) {
+                            PlayPauseAction.INDEX_PAUSE
+                        } else {
+                            PlayPauseAction.INDEX_PLAY
+                        }
+                    primaryActionsAdapter.notifyArrayItemRangeChanged(
+                        primaryActionsAdapter.indexOf(playPauseAction),
+                        1,
+                    )
+                }
             }
         }
     }
@@ -195,5 +225,19 @@ public class TvPlaybackFragment : PlaybackSupportFragment() {
                         putString(ARG_BOOK_ID, bookId)
                     }
             }
+    }
+}
+
+/**
+ * Error screen shown on TV when the requested book cannot be loaded.
+ * Provides a focusable Back button so the screen is never a dead end for d-pad users.
+ */
+public class TvErrorFragment : ErrorSupportFragment() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        title = getString(R.string.error)
+        message = getString(R.string.book_not_found)
+        buttonText = getString(R.string.backAction)
+        buttonClickListener = View.OnClickListener { requireActivity().finish() }
     }
 }

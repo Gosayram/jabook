@@ -21,7 +21,6 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
@@ -34,10 +33,12 @@ import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
@@ -54,12 +55,16 @@ public class TorrentDownloadService : Service() {
     @Inject
     public lateinit var loggerFactory: LoggerFactory
 
-    private val logger = loggerFactory.get("TorrentDownloadService")
+    private val logger by lazy { loggerFactory.get("TorrentDownloadService") }
     private val serviceScope =
         CoroutineScope(
             SupervisorJob() + Dispatchers.Main + loggingCoroutineExceptionHandler("TorrentDownloadService"),
         )
     private var wakeLock: PowerManager.WakeLock? = null
+    private var hasObservedActiveDownload: Boolean = false
+    private val postedNotificationIds = mutableSetOf<Int>()
+    private var shutdownScope: CoroutineScope? = null
+    private var shutdownJob: Job? = null
 
     private val foregroundStartPolicy =
         ForegroundServiceStartPolicy(
@@ -71,6 +76,13 @@ public class TorrentDownloadService : Service() {
     override fun onCreate() {
         super.onCreate()
         logger.i { "Service created" }
+        startForeground()
+
+        // If the service was destroyed and is immediately recreated, a still-pending
+        // async shutdown from the previous onDestroy would kill the fresh session
+        // initialized below — cancel it first.
+        shutdownJob?.cancel()
+        shutdownJob = null
 
         // Initialize torrent manager with error handling
         // Wrap in try-catch to prevent crashes from libtorrent4j initialization errors
@@ -83,11 +95,11 @@ public class TorrentDownloadService : Service() {
         } catch (e: NoClassDefFoundError) {
             logger.e({ "libtorrent4j classes not available - version mismatch" }, e)
             // Don't crash - allow service to continue
-        } catch (e: LinkageError) {
-            logger.e({ "libtorrent4j linkage error - version mismatch" }, e)
-            // Don't crash - allow service to continue
         } catch (e: UnsatisfiedLinkError) {
             logger.e({ "Failed to load libtorrent4j native library" }, e)
+            // Don't crash - allow service to continue
+        } catch (e: LinkageError) {
+            logger.e({ "libtorrent4j linkage error - version mismatch" }, e)
             // Don't crash - allow service to continue
         } catch (e: Exception) {
             logger.e({ "Failed to initialize TorrentManager" }, e)
@@ -96,9 +108,6 @@ public class TorrentDownloadService : Service() {
 
         // Observe downloads for notification updates
         observeDownloads()
-
-        // Start foreground
-        startForeground()
     }
 
     override fun onStartCommand(
@@ -113,7 +122,7 @@ public class TorrentDownloadService : Service() {
                 // Already started in onCreate
             }
             ACTION_STOP -> {
-                stopSelf()
+                stopSelf(startId)
             }
         }
 
@@ -129,8 +138,20 @@ public class TorrentDownloadService : Service() {
         serviceScope.cancel()
         releaseWakeLock()
 
-        // Don't stop session - it should persist
-        // torrentManager.shutdown()
+        // Run shutdown on a detached scope so it can complete even as the service
+        // tears down — torrentManager.shutdown() saves resume data. A re-entered
+        // onDestroy cancels the in-flight shutdown and starts a fresh one.
+        shutdownScope?.cancel()
+        shutdownScope =
+            CoroutineScope(Dispatchers.IO + loggingCoroutineExceptionHandler("TorrentServiceShutdown"))
+        shutdownJob =
+            shutdownScope?.launch {
+                try {
+                    torrentManager.shutdown()
+                } catch (e: Exception) {
+                    logger.e({ "Torrent shutdown failed" }, e)
+                }
+            }
     }
 
     private fun startForeground() {
@@ -155,25 +176,33 @@ public class TorrentDownloadService : Service() {
         if (outcome == ForegroundStartOutcome.SUCCESS) {
             acquireWakeLock()
         } else {
-            logger.e { "startForeground() failed with outcome=$outcome, service may be killed" }
+            logger.e { "startForeground() failed with outcome=$outcome; stopping service" }
+            stopSelf()
         }
     }
 
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel =
-                NotificationChannel(
-                    CHANNEL_ID_DOWNLOADS,
-                    getString(R.string.torrent_downloads),
-                    NotificationManager.IMPORTANCE_LOW,
-                ).apply {
-                    description = getString(R.string.torrent_downloads_channel_description)
-                    setShowBadge(false)
-                }
+    override fun onTimeout(
+        startId: Int,
+        fgsType: Int,
+    ) {
+        logger.w { "Foreground service timed out (type=$fgsType); stopping download service" }
+        // ponytail: plain stopSelf() — startId here may be stale if later deliveries bumped it
+        stopSelf()
+    }
 
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
-        }
+    private fun createNotificationChannel() {
+        val channel =
+            NotificationChannel(
+                CHANNEL_ID_DOWNLOADS,
+                getString(R.string.torrent_downloads),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = getString(R.string.torrent_downloads_channel_description)
+                setShowBadge(false)
+            }
+
+        val manager = getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
     }
 
     private fun createForegroundNotification(): Notification {
@@ -207,8 +236,15 @@ public class TorrentDownloadService : Service() {
             .onEach { downloads ->
                 updateNotifications(downloads)
 
-                // Auto-stop service if no downloads
-                if (downloads.isEmpty()) {
+                // Completed and paused entries stay in the manager for history.
+                val hasActiveDownloads = downloads.values.any(TorrentDownload::isActive)
+                hasObservedActiveDownload = hasObservedActiveDownload || hasActiveDownloads
+                if (hasActiveDownloads) {
+                    // Renew the 10-minute wake lock window while work remains
+                    // (Doze would otherwise stall long downloads mid-FGS).
+                    acquireWakeLock()
+                }
+                if (hasObservedActiveDownload && !hasActiveDownloads) {
                     logger.i { "No active downloads, stopping service" }
                     stopSelf()
                 }
@@ -229,11 +265,21 @@ public class TorrentDownloadService : Service() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(NOTIFICATION_ID_SUMMARY, summaryNotification)
 
+        val currentIds = mutableSetOf(NOTIFICATION_ID_SUMMARY)
+
         // Update individual notifications
         downloads.forEach { (hash, download) ->
             val notification = notificationManager.createProgressNotification(download)
-            nm.notify(hash.hashCode(), notification)
+            val id = TorrentNotificationIds.forHash(hash)
+            nm.notify(id, notification)
+            currentIds.add(id)
         }
+
+        // Cancel notifications for removed/completed torrents
+        val staleIds = postedNotificationIds - currentIds
+        staleIds.forEach { nm.cancel(it) }
+        postedNotificationIds.clear()
+        postedNotificationIds.addAll(currentIds)
     }
 
     private fun updateForegroundServiceTypeIfNeeded(downloads: Map<String, TorrentDownload>) {
@@ -251,7 +297,8 @@ public class TorrentDownloadService : Service() {
                 "torrent-updateForegroundType",
             )
         if (outcome != ForegroundStartOutcome.SUCCESS) {
-            logger.e { "Failed to update foreground service type outcome=$outcome type=$serviceType" }
+            logger.e { "Failed to update foreground service type outcome=$outcome type=$serviceType; stopping service" }
+            stopSelf()
         } else {
             logger.i { "Updated foreground service type to $serviceType (streaming=$hasStreamingWork)" }
         }

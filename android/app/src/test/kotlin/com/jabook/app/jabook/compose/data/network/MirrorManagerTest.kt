@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.network
 
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.preferences.PlayerStateSnapshotPreference
@@ -37,9 +38,24 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
 class MirrorManagerTest {
+    // Mirror names come from build config (.env), never hardcoded as literals.
+    private val mirrorOrg: String =
+        BuildConfig.RUTRACKER_DEFAULT_MIRRORS
+            .split(',')
+            .first()
+            .trim()
+    private val mirrorNet: String =
+        BuildConfig.RUTRACKER_DEFAULT_MIRRORS
+            .split(',')
+            .getOrNull(1)
+            ?.trim() ?: "mirror-b.example"
+
     @Test
     fun `switchToNextMirror switches to next healthy mirror and persists selection`() =
         runTest {
@@ -48,7 +64,7 @@ class MirrorManagerTest {
                     initial =
                         UserPreferences
                             .newBuilder()
-                            .setSelectedMirror("rutracker.org")
+                            .setSelectedMirror(mirrorOrg)
                             .build(),
                 )
             val mirrorManager =
@@ -58,9 +74,8 @@ class MirrorManagerTest {
                         createHealthCheckClient(
                             statusByHost =
                                 mapOf(
-                                    "rutracker.org" to 503,
-                                    "rutracker.net" to 200,
-                                    "rutracker.me" to 503,
+                                    mirrorOrg to 503,
+                                    mirrorNet to 200,
                                 ),
                         ),
                     loggerFactory = noOpLoggerFactory(),
@@ -69,8 +84,8 @@ class MirrorManagerTest {
             val switched = mirrorManager.switchToNextMirror()
 
             assertTrue(switched)
-            assertEquals("rutracker.net", mirrorManager.getCurrentMirrorDomain())
-            assertEquals("rutracker.net", settingsRepository.latestSelectedMirror)
+            assertEquals(mirrorNet, mirrorManager.getCurrentMirrorDomain())
+            assertEquals(mirrorNet, settingsRepository.latestSelectedMirror)
         }
 
     @Test
@@ -81,7 +96,7 @@ class MirrorManagerTest {
                     initial =
                         UserPreferences
                             .newBuilder()
-                            .setSelectedMirror("rutracker.org")
+                            .setSelectedMirror(mirrorOrg)
                             .build(),
                 )
             val mirrorManager =
@@ -91,9 +106,8 @@ class MirrorManagerTest {
                         createHealthCheckClient(
                             statusByHost =
                                 mapOf(
-                                    "rutracker.org" to 503,
-                                    "rutracker.net" to 503,
-                                    "rutracker.me" to 503,
+                                    mirrorOrg to 503,
+                                    mirrorNet to 503,
                                 ),
                         ),
                     loggerFactory = noOpLoggerFactory(),
@@ -102,8 +116,115 @@ class MirrorManagerTest {
             val switched = mirrorManager.switchToNextMirror()
 
             assertFalse(switched)
-            assertEquals("rutracker.org", mirrorManager.getCurrentMirrorDomain())
-            assertEquals("rutracker.org", settingsRepository.latestSelectedMirror)
+            assertEquals(mirrorOrg, mirrorManager.getCurrentMirrorDomain())
+            assertEquals(mirrorOrg, settingsRepository.latestSelectedMirror)
+        }
+
+    @Test
+    fun `switchToNextMirror does not flap right after a successful switch`() =
+        runTest {
+            val settingsRepository =
+                FakeSettingsRepository(
+                    initial =
+                        UserPreferences
+                            .newBuilder()
+                            .setSelectedMirror(mirrorOrg)
+                            .build(),
+                )
+            val mirrorManager =
+                MirrorManager(
+                    settingsRepository = settingsRepository,
+                    okHttpClient =
+                        createHealthCheckClient(
+                            statusByHost =
+                                mapOf(
+                                    mirrorOrg to 200,
+                                    mirrorNet to 200,
+                                ),
+                        ),
+                    loggerFactory = noOpLoggerFactory(),
+                )
+
+            assertTrue(mirrorManager.switchToNextMirror())
+            assertEquals(mirrorNet, mirrorManager.getCurrentMirrorDomain())
+
+            // Grace period: without it, this would flap back to mirrorOrg.
+            assertFalse(mirrorManager.switchToNextMirror())
+            assertEquals(mirrorNet, mirrorManager.getCurrentMirrorDomain())
+        }
+
+    @Test
+    fun `switchToNextMirror backs off after a failed attempt and does not re-probe`() =
+        runTest {
+            var probeCount = 0
+            val settingsRepository =
+                FakeSettingsRepository(
+                    initial =
+                        UserPreferences
+                            .newBuilder()
+                            .setSelectedMirror(mirrorOrg)
+                            .build(),
+                )
+            val client =
+                OkHttpClient
+                    .Builder()
+                    .addInterceptor(
+                        Interceptor { chain ->
+                            probeCount++
+                            Response
+                                .Builder()
+                                .request(chain.request())
+                                .protocol(Protocol.HTTP_1_1)
+                                .code(503)
+                                .message("stub")
+                                .body("{}".toResponseBody())
+                                .build()
+                        },
+                    ).build()
+            val mirrorManager =
+                MirrorManager(
+                    settingsRepository = settingsRepository,
+                    okHttpClient = client,
+                    loggerFactory = noOpLoggerFactory(),
+                )
+
+            assertFalse(mirrorManager.switchToNextMirror())
+            assertEquals(1, probeCount) // net probed; org skipped as current mirror
+
+            // Backoff: the second attempt must NOT re-probe dead mirrors.
+            assertFalse(mirrorManager.switchToNextMirror())
+            assertEquals(1, probeCount)
+        }
+
+    @Test
+    fun `403 without Cloudflare markers is treated as Dead not CloudflareProtected`() =
+        runTest {
+            val settingsRepository =
+                FakeSettingsRepository(
+                    initial =
+                        UserPreferences
+                            .newBuilder()
+                            .setSelectedMirror(mirrorOrg)
+                            .build(),
+                )
+            val mirrorManager =
+                MirrorManager(
+                    settingsRepository = settingsRepository,
+                    okHttpClient =
+                        createHealthCheckClient(
+                            statusByHost =
+                                mapOf(
+                                    mirrorOrg to 403,
+                                    mirrorNet to 200,
+                                ),
+                        ),
+                    loggerFactory = noOpLoggerFactory(),
+                )
+
+            // Plain 403 (no cf-mitigated / challenge body) must NOT be considered
+            // switchable — that misclassification caused constant mirror flapping.
+            assertTrue(mirrorManager.switchToNextMirror())
+            assertEquals(mirrorNet, mirrorManager.getCurrentMirrorDomain())
         }
 
     private fun createHealthCheckClient(statusByHost: Map<String, Int>): OkHttpClient =
@@ -195,7 +316,7 @@ class MirrorManagerTest {
     }
 }
 
-private class FakeSettingsRepository(
+internal class FakeSettingsRepository(
     initial: UserPreferences,
 ) : SettingsRepository {
     private val state = MutableStateFlow(initial)
@@ -206,11 +327,21 @@ private class FakeSettingsRepository(
     override val userPreferences: Flow<UserPreferences> = state
     override val playerStateSnapshot: Flow<PlayerStateSnapshotPreference?> = MutableStateFlow(null)
 
+    override val bassBoostStrength: Flow<Int> = MutableStateFlow(0)
+
+    override val audioVisualizerMode: Flow<Int> = MutableStateFlow(0)
+
+    override val customEqBands: Flow<List<Int>> = MutableStateFlow(emptyList())
+
+    override suspend fun updateCustomEqBands(bands: List<Int>) = Unit
+
+    override suspend fun updateAudioVisualizerMode(mode: Int) = Unit
+
     override suspend fun updateThemeMode(themeMode: ThemeMode) = Unit
 
     override suspend fun updateDynamicColors(enabled: Boolean) = Unit
 
-    override suspend fun updatePlaybackSpeed(speed: Float) = Unit
+    override suspend fun updateBassBoostStrength(strength: Int) = Unit
 
     override suspend fun updateAudioSettings(
         rewindSeconds: Int?,
@@ -221,8 +352,10 @@ private class FakeSettingsRepository(
         sleepTimerShakeExtendEnabled: Boolean?,
         holdToBoostSpeed: Float?,
         autoPipEnabled: Boolean?,
+        headsetAutoplayEnabled: Boolean?,
         volumeBoost: String?,
         drcLevel: String?,
+        speechCompressorLevel: String?,
         speechEnhancer: Boolean?,
         autoVolumeLeveling: Boolean?,
         normalizeVolume: Boolean?,
@@ -232,9 +365,14 @@ private class FakeSettingsRepository(
         skipSilenceMode: SkipSilenceMode?,
         crossfadeEnabled: Boolean?,
         crossfadeDurationMs: Long?,
+        noiseGateLevel: String?,
+        singleClickAction: Int?,
+        doubleClickAction: Int?,
+        tripleClickAction: Int?,
+        longPressAction: Int?,
+        notificationActionSlots: List<Int>?,
+        notificationLockscreenPrivate: Boolean?,
     ) = Unit
-
-    override suspend fun updateLanguage(languageCode: String) = Unit
 
     override suspend fun updateNotificationSettings(
         notificationsEnabled: Boolean?,
@@ -242,10 +380,32 @@ private class FakeSettingsRepository(
         playerNotifications: Boolean?,
     ) = Unit
 
+    override suspend fun applyBackupSettings(
+        wifiOnly: Boolean,
+        autoLoadCoversOnCellular: Boolean,
+        downloadPath: String,
+        selectedMirror: String,
+        autoSwitchMirror: Boolean,
+        limitDownloadSpeed: Boolean,
+        maxDownloadSpeedKb: Int,
+        maxConcurrentDownloads: Int,
+        rewindSeconds: Int,
+        forwardSeconds: Int,
+        dynamicColors: Boolean,
+        notificationsEnabled: Boolean,
+        downloadNotifications: Boolean,
+        playerNotifications: Boolean,
+        customMirrors: List<String>,
+    ) = Unit
+
     override suspend fun updateSelectedMirror(domain: String) {
         latestSelectedMirror = domain
         state.update { prefs -> prefs.toBuilder().setSelectedMirror(domain).build() }
     }
+
+    override suspend fun updateAccentSwatchIndex(index: Int) = Unit
+
+    override suspend fun updatePlayerCoverMode(mode: Int) = Unit
 
     override suspend fun addCustomMirror(domain: String) {
         state.update { prefs ->
@@ -286,7 +446,7 @@ private class FakeSettingsRepository(
 
     override suspend fun updateLibrarySortOrder(sortOrder: String) = Unit
 
-    override suspend fun updateOnboardingCompleted(completed: Boolean) = Unit
+    override suspend fun updateSpotlightCompleted(completed: Boolean) = Unit
 
     override suspend fun updateEqualizerPreset(preset: String) = Unit
 

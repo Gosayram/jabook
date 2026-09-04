@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.favorites
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -51,6 +52,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -77,15 +80,21 @@ public fun FavoritesScreen(
 ) {
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle()
-    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
 
-    var isSelectionMode by remember { mutableStateOf(false) }
-    val selectedIds = remember { mutableSetOf<String>() }
+    var isSelectionMode by rememberSaveable { mutableStateOf(false) }
+    val selectedIds =
+        rememberSaveable(
+            saver =
+                listSaver<MutableSet<String>, String>(
+                    save = { it.toList() },
+                    restore = { it.toMutableSet() },
+                ),
+        ) { mutableSetOf<String>() }
     var showClearAllDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
@@ -93,14 +102,13 @@ public fun FavoritesScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Show error messages
-    LaunchedEffect(errorMessage) {
-        errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearErrorMessage()
-        }
+    LaunchedEffect(viewModel) {
+        viewModel.errorMessages.collect { snackbarHostState.showSnackbar(it) }
     }
 
     Scaffold(
+        // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = {
@@ -397,7 +405,10 @@ private fun FavoritesList(
                     downloadStatus = com.jabook.app.jabook.compose.data.model.DownloadStatus.NOT_DOWNLOADED,
                     downloadProgress = 0f,
                     localPath = null,
-                    addedDate = System.currentTimeMillis(),
+                    addedDate =
+                        com.jabook.app.jabook.compose.util.DateTimeFormatter
+                            .parseISO8601ToMillis(favorite.addedToFavorites)
+                            .takeIf { it > 0L } ?: System.currentTimeMillis(),
                     lastPlayedDate = null,
                     isFavorite = favoriteIds.contains(favorite.topicId),
                     sourceUrl = favorite.magnetUrl.takeIf { it.isNotEmpty() },

@@ -42,6 +42,7 @@ public sealed interface PlayerIntent {
 
     public data class SelectChapter(
         val chapterIndex: Int,
+        val positionMs: Long = 0L,
     ) : PlayerIntent
 
     public data object ToggleChapterRepeat : PlayerIntent
@@ -52,8 +53,11 @@ public sealed interface PlayerIntent {
         val enabled: Boolean,
     ) : PlayerIntent
 
+    public data object CycleVisualizerMode : PlayerIntent
+
     public data class SetPlaybackSpeed(
         val speed: Float,
+        val isTemporary: Boolean = false,
     ) : PlayerIntent
 
     public data class SetPitchCorrectionEnabled(
@@ -88,6 +92,15 @@ public sealed interface PlayerIntent {
         val autoVolumeLeveling: Boolean? = null,
     ) : PlayerIntent
 
+    public data object ToggleABRepeat : PlayerIntent
+
+    /**
+     * Set global equalizer preset.
+     */
+    public data class SetEqualizerPreset(
+        val presetName: String,
+    ) : PlayerIntent
+
     /**
      * Internal intent for deterministic error-state reduction and testing.
      */
@@ -95,3 +108,36 @@ public sealed interface PlayerIntent {
         val reason: String,
     ) : PlayerIntent
 }
+
+/** Returns whether this intent controls playback and must be rejected while the player loads. */
+internal fun PlayerIntent.isPlaybackControlIntent(): Boolean =
+    when (this) {
+        PlayerIntent.TogglePlayPause,
+        PlayerIntent.Play,
+        PlayerIntent.Pause,
+        PlayerIntent.SkipNext,
+        PlayerIntent.SkipPrevious,
+        is PlayerIntent.SeekTo,
+        PlayerIntent.SeekForward,
+        PlayerIntent.SeekBackward,
+        is PlayerIntent.SelectChapter,
+        PlayerIntent.ToggleChapterRepeat,
+        PlayerIntent.ToggleABRepeat,
+        PlayerIntent.InitializeVisualizer,
+        is PlayerIntent.SetVisualizerEnabled,
+        is PlayerIntent.SetPlaybackSpeed,
+        is PlayerIntent.SetPitchCorrectionEnabled,
+        is PlayerIntent.StartSleepTimer,
+        PlayerIntent.StartSleepTimerEndOfChapter,
+        PlayerIntent.StartSleepTimerEndOfTrack,
+        PlayerIntent.CancelSleepTimer,
+        is PlayerIntent.UpdateBookSeekSettings,
+        PlayerIntent.ResetBookSeekSettings,
+        is PlayerIntent.UpdateAudioSettings,
+        -> true
+        is PlayerIntent.SetEqualizerPreset,
+        PlayerIntent.InitializePlayer,
+        is PlayerIntent.ReportError,
+        PlayerIntent.CycleVisualizerMode,
+        -> false
+    }

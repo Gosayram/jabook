@@ -28,10 +28,13 @@ public object TorrentDownloadNetworkPolicy {
         wifiOnlyEnabled: Boolean,
         networkType: NetworkType,
     ): Boolean {
+        // Always pause on total connectivity loss regardless of wifi-only setting
+        if (networkType == NetworkType.NONE) return true
         if (!wifiOnlyEnabled) return false
         return when (networkType) {
             NetworkType.WIFI, NetworkType.ETHERNET -> false
-            NetworkType.CELLULAR, NetworkType.NONE, NetworkType.UNKNOWN -> true
+            NetworkType.CELLULAR, NetworkType.UNKNOWN -> true
+            NetworkType.NONE -> true // handled above, kept for exhaustive when
         }
     }
 }

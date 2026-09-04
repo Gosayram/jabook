@@ -14,16 +14,15 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
-import com.jabook.app.jabook.compose.data.local.entity.toCachedTopicEntity
 import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
 import com.jabook.app.jabook.compose.data.network.ConnectivityAwareRequestScheduler
 import com.jabook.app.jabook.compose.data.network.ParserVersionPolicy
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomain
 import com.jabook.app.jabook.compose.data.remote.mapper.toDomainFromIndex
-import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.parser.RutrackerParser
 import com.jabook.app.jabook.compose.domain.model.AppError
 import com.jabook.app.jabook.compose.domain.model.Result
@@ -32,10 +31,9 @@ import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
 import com.jabook.app.jabook.compose.domain.model.toAppError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -52,15 +50,15 @@ public interface RutrackerRepository {
      * @param query Search query
      * @return Flow of Result with list of search results
      */
-    public suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>, AppError>>
+    public fun search(query: String): Flow<Result<List<RutrackerSearchResult>, AppError>>
 
     /**
      * Fetch topic details and save cover URL to database.
      *
      * @param topicId Topic ID
-     * @return Result indicating success or failure
+     * @return Result with the resolved cover URL when found, otherwise null
      */
-    public suspend fun fetchAndSaveCover(topicId: String): Result<Unit, AppError>
+    public suspend fun fetchAndSaveCover(topicId: String): Result<String?, AppError>
 
     /**
      * Get topic details.
@@ -69,18 +67,6 @@ public interface RutrackerRepository {
      * @return Result with topic details
      */
     public suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails, AppError>
-
-    /**
-     * Login to Rutracker.
-     *
-     * @param username Username
-     * @param password Password
-     * @return Result indicating success or failure
-     */
-    public suspend fun login(
-        username: String,
-        password: String,
-    ): Result<Unit, AppError>
 
     /**
      * Get topic details at a specific page.
@@ -93,6 +79,18 @@ public interface RutrackerRepository {
         topicId: String,
         page: Int,
     ): Result<RutrackerTopicDetails, AppError>
+
+    /**
+     * Search for audiobooks using indexed topics with optional network refresh.
+     *
+     * @param query Search query
+     * @param forumIds Optional forum IDs filter
+     * @return Flow of search results
+     */
+    public fun searchAudiobooksFlow(
+        query: String,
+        forumIds: String? = null,
+    ): Flow<Result<List<RutrackerSearchResult>, AppError>>
 }
 
 /**
@@ -110,23 +108,15 @@ public class RutrackerRepositoryImpl
     ) : RutrackerRepository {
         private val logger = loggerFactory.get("RutrackerRepositoryImpl")
 
-        override suspend fun search(query: String): Flow<Result<List<RutrackerSearchResult>, AppError>> =
+        override fun search(query: String): Flow<Result<List<RutrackerSearchResult>, AppError>> =
             flow {
                 // Use ONLY indexed search (no network)
-                // LogUtils.d("RutrackerRepositoryImpl", "🔍 Search started: query='$query'")
                 try {
-                    val countStartTime = System.currentTimeMillis()
                     val indexSize = offlineSearchDao.getTopicCount()
-                    val countDuration = System.currentTimeMillis() - countStartTime
-                    // LogUtils.d(
-                    //    "RutrackerRepositoryImpl",
-                    //    "Index size check: $indexSize topics (${countDuration}ms)",
-                    // )
 
                     if (indexSize > 0) {
-                        // Check for debug command
-                        if (query.trim() == "!index" || query.trim() == ":debug") {
-                            // LogUtils.d("RutrackerRepositoryImpl", "🐞 Debug command detected, fetching sample topics")
+                        // Check for debug command (dev builds only)
+                        if (BuildConfig.DEBUG && (query.trim() == "!index" || query.trim() == ":debug")) {
                             val sampleTopics = offlineSearchDao.getSampleTopics(10)
                             val domainResults =
                                 sampleTopics
@@ -141,7 +131,13 @@ public class RutrackerRepositoryImpl
                         }
 
                         // Tokenize query for fuzzy search
-                        val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+                        // ponytail: cap at 8 tokens — adversarial input could build unbounded SQL
+                        val tokens =
+                            query
+                                .trim()
+                                .split(Regex("\\s+"))
+                                .filter { it.isNotEmpty() }
+                                .take(8)
 
                         if (tokens.isEmpty()) {
                             emit(Result.Success(emptyList()))
@@ -153,9 +149,10 @@ public class RutrackerRepositoryImpl
 
                             tokens.forEachIndexed { index, token ->
                                 if (index > 0) sqlBuilder.append(" AND ")
-                                sqlBuilder.append("(title LIKE ? OR author LIKE ?)")
+                                sqlBuilder.append("(title LIKE ? ESCAPE '\\' OR author LIKE ? ESCAPE '\\')")
 
-                                val likePattern: String = "%$token%"
+                                // ponytail: escape wildcards so "100%" doesn't match everything
+                                val likePattern: String = "%${escapeLike(token)}%"
                                 args.add(likePattern)
                                 args.add(likePattern)
                             }
@@ -170,51 +167,43 @@ public class RutrackerRepositoryImpl
                                 )
 
                             // Emit Flow from Room
-                            offlineSearchDao
-                                .searchIndexedTopicsRaw(simpleQuery)
-                                .map { entities ->
-                                    val dtoResults = entities.map { it.toSearchResult() }
-                                    val domainResults = dtoResults.toDomainFromIndex()
-                                    Result.Success(domainResults)
-                                }.collect {
-                                    emit(it)
-                                }
+                            emitAll(
+                                offlineSearchDao
+                                    .searchIndexedTopicsRaw(simpleQuery)
+                                    .map { entities ->
+                                        val dtoResults = entities.map { it.toSearchResult() }
+                                        val domainResults = dtoResults.toDomainFromIndex()
+                                        Result.Success(domainResults)
+                                    },
+                            )
                         }
                     } else {
-                        // LogUtils.w("RutrackerRepositoryImpl", "⚠️ Index is empty, returning empty results")
                         // Index is empty - return empty results
                         emit(Result.Success(emptyList()))
                     }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    // LogUtils.e("RutrackerRepositoryImpl", "❌ Search failed for query '$query'", e)
                     // Search failed - return error
                     emit(Result.Error(e.toAppError()))
                 }
             }
 
-        override suspend fun fetchAndSaveCover(topicId: String): Result<Unit, AppError> =
+        override suspend fun fetchAndSaveCover(topicId: String): Result<String?, AppError> =
             try {
-                // Re-use existing getTopicDetails which fetches HTML and parses it
-                // This extracts the cover URL inside RutrackerParser
                 val result = getTopicDetails(topicId)
 
                 when (result) {
                     is Result.Success -> {
                         val coverUrl = result.data.coverUrl
                         if (!coverUrl.isNullOrBlank()) {
-                            // LogUtils.d("RutrackerRepositoryImpl", "Updating cover for $topicId: $coverUrl")
                             offlineSearchDao.updateCoverUrl(topicId, coverUrl)
-                            Result.Success(Unit)
+                            Result.Success(coverUrl)
                         } else {
-                            // LogUtils.d("RutrackerRepositoryImpl", "No cover found for $topicId")
-                            Result.Success(Unit) // Success even if no cover, just nothing to save
+                            Result.Success(null)
                         }
                     }
-                    is Result.Error -> {
-                        Result.Error(result.error)
-                    }
+                    is Result.Error -> Result.Error(result.error)
                     is Result.Loading -> Result.Loading()
                 }
             } catch (e: CancellationException) {
@@ -222,19 +211,6 @@ public class RutrackerRepositoryImpl
             } catch (e: Exception) {
                 Result.Error(e.toAppError())
             }
-
-        private suspend fun saveResultsToDb(
-            query: String,
-            results: List<SearchResult>,
-        ) {
-            try {
-                offlineSearchDao.saveSearchResults(query, results.map { it.toCachedTopicEntity() })
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                // LogUtils.e("RutrackerRepo", "Failed to save results", e)
-            }
-        }
 
         override suspend fun getTopicDetails(topicId: String): Result<RutrackerTopicDetails, AppError> {
             return try {
@@ -285,39 +261,6 @@ public class RutrackerRepositoryImpl
                         AppError.ParsingError.Generic("Topic details failed validation"),
                     )
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Result.Error(e.toAppError())
-            }
-        }
-
-        override suspend fun login(
-            username: String,
-            password: String,
-        ): Result<Unit, AppError> {
-            return try {
-                if (!connectivityScheduler.awaitOnline("login")) {
-                    return Result.Error(AppError.NetworkError.NoConnection)
-                }
-                // Create form-url-encoded request body with CP1251 encoding
-                val formBody: String = "login_username=$username&login_password=$password&login=%C2%F5%EE%E4"
-                val requestBody =
-                    formBody
-                        .toByteArray(charset("windows-1251"))
-                        .toRequestBody("application/x-www-form-urlencoded; charset=windows-1251".toMediaType())
-
-                val response = api.login(requestBody)
-
-                if (!response.isSuccessful) {
-                    return Result.Error(
-                        AppError.NetworkError.Generic("Login failed: HTTP ${response.code()}"),
-                    )
-                }
-
-                // Check if login was successful by checking cookies or response content
-                // Rutracker sets session cookies on successful login
-                Result.Success(Unit)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -384,4 +327,60 @@ public class RutrackerRepositoryImpl
                 Result.Error(e.toAppError())
             }
         }
+
+        override fun searchAudiobooksFlow(
+            query: String,
+            forumIds: String?,
+        ): Flow<Result<List<RutrackerSearchResult>, AppError>> =
+            flow {
+                try {
+                    val indexSize = offlineSearchDao.getTopicCount()
+
+                    if (indexSize > 0) {
+                        val sqlBuilder = StringBuilder("SELECT * FROM cached_topics WHERE ")
+                        val args = ArrayList<Any>()
+                        val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+
+                        if (tokens.isEmpty()) {
+                            emit(Result.Success(emptyList()))
+                            return@flow
+                        }
+
+                        tokens.forEachIndexed { index, token ->
+                            if (index > 0) sqlBuilder.append(" AND ")
+                            sqlBuilder.append("(title LIKE ? ESCAPE '\\' OR author LIKE ? ESCAPE '\\')")
+                            val likePattern: String = "%${escapeLike(token)}%"
+                            args.add(likePattern)
+                            args.add(likePattern)
+                        }
+
+                        sqlBuilder.append(" ORDER BY seeders DESC, timestamp DESC LIMIT 200")
+
+                        val simpleQuery =
+                            androidx.sqlite.db.SimpleSQLiteQuery(
+                                sqlBuilder.toString(),
+                                args.toArray(),
+                            )
+
+                        emitAll(
+                            offlineSearchDao
+                                .searchIndexedTopicsRaw(simpleQuery)
+                                .map { entities ->
+                                    val dtoResults = entities.map { it.toSearchResult() }
+                                    val domainResults = dtoResults.toDomainFromIndex()
+                                    Result.Success(domainResults)
+                                },
+                        )
+                    } else {
+                        emit(Result.Success(emptyList()))
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    emit(Result.Error(e.toAppError()))
+                }
+            }
+
+        /** Escapes LIKE wildcards so a token like "100%" doesn't match everything. */
+        private fun escapeLike(token: String): String = token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     }

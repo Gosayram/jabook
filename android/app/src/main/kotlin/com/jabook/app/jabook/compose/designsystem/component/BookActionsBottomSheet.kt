@@ -15,14 +15,17 @@
 package com.jabook.app.jabook.compose.designsystem.component
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,9 +34,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -62,12 +71,16 @@ public fun BookActionsBottomSheet(
     sheetState: SheetState,
     onDismiss: () -> Unit,
 ) {
+    val onDeleteBook = actionsProvider.onDeleteBook
+    var showDeleteConfirmation by remember(book.id) { mutableStateOf(false) }
+    var deleteConfirmationConsumed by remember(book.id) { mutableStateOf(false) }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
         ) {
             // Sheet header with book title
             Text(
@@ -75,6 +88,7 @@ public fun BookActionsBottomSheet(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
 
             HorizontalDivider()
@@ -119,7 +133,7 @@ public fun BookActionsBottomSheet(
             }
 
             // Delete action (with different styling)
-            actionsProvider.onDeleteBook?.let { onDelete ->
+            onDeleteBook?.let {
                 HorizontalDivider()
                 ListItem(
                     headlineContent = {
@@ -137,25 +151,50 @@ public fun BookActionsBottomSheet(
                     },
                     modifier =
                         Modifier.clickableWithoutRipple {
-                            onDelete(book.id)
-                            onDismiss()
+                            showDeleteConfirmation = true
+                            deleteConfirmationConsumed = false
                         },
                 )
             }
         }
+    }
+
+    if (showDeleteConfirmation && onDeleteBook != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text(stringResource(R.string.deleteConfirmationTitle)) },
+            text = { Text(stringResource(R.string.deleteConfirmationMessage)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (deleteConfirmationConsumed) return@TextButton
+                        deleteConfirmationConsumed = true
+                        showDeleteConfirmation = false
+                        onDeleteBook(book.id)
+                        onDismiss()
+                    },
+                ) {
+                    Text(stringResource(R.string.deleteButton))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 }
 
 /**
  * Helper modifier for clickable items without ripple effect.
  */
-private fun Modifier.clickableWithoutRipple(onClick: () -> Unit): Modifier =
-    this.then(
-        clickable(
-            interactionSource =
-                androidx.compose.foundation.interaction
-                    .MutableInteractionSource(),
-            indication = null,
-            onClick = onClick,
-        ),
+@Composable
+private fun Modifier.clickableWithoutRipple(onClick: () -> Unit): Modifier {
+    val interactionSource = remember { MutableInteractionSource() }
+    return this.clickable(
+        interactionSource = interactionSource,
+        indication = null,
+        onClick = onClick,
     )
+}

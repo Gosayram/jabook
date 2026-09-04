@@ -20,47 +20,21 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.logger.NoOpLogger
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
 import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
+import com.jabook.app.jabook.compose.data.local.dao.DownloadQueueDao
 import com.jabook.app.jabook.compose.data.local.dao.ScanPathDao
 import com.jabook.app.jabook.compose.data.local.scanner.LocalBookScanner
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import org.junit.runner.RunWith
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.whenever
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class OfflineFirstBooksRepositoryTest {
-    @Test
-    fun `updateChapterOrder delegates to transactional DAO path`() =
-        runTest {
-            val booksDao = mock<BooksDao>()
-            val chaptersDao = mock<ChaptersDao>()
-            val scanPathDao = mock<ScanPathDao>()
-            val playerPersistenceManager = mock<PlayerPersistenceManager>()
-            val localBookScanner = mock<LocalBookScanner>()
-            val loggerFactory = mock<LoggerFactory>()
-            whenever(loggerFactory.get(eq("OfflineFirstBooksRepository"))).thenReturn(NoOpLogger)
-
-            val repository =
-                OfflineFirstBooksRepository(
-                    booksDao = booksDao,
-                    chaptersDao = chaptersDao,
-                    scanPathDao = scanPathDao,
-                    playerPersistenceManager = playerPersistenceManager,
-                    localBookScanner = localBookScanner,
-                    loggerFactory = loggerFactory,
-                )
-
-            val orderedIds = listOf("c2", "c1", "c3")
-            repository.updateChapterOrder(bookId = "book-1", newOrderedIds = orderedIds)
-
-            verify(chaptersDao).reorderChaptersByIds(
-                bookId = eq("book-1"),
-                newOrderedIds = eq(orderedIds),
-            )
-        }
-
     @Test
     fun `updatePreferredPlaybackSpeed rejects non-finite speeds without writing`() =
         runTest {
@@ -76,6 +50,7 @@ class OfflineFirstBooksRepositoryTest {
             val repository =
                 OfflineFirstBooksRepository(
                     booksDao = booksDao,
+                    downloadQueueDao = mock(),
                     chaptersDao = chaptersDao,
                     scanPathDao = scanPathDao,
                     playerPersistenceManager = playerPersistenceManager,
@@ -88,5 +63,61 @@ class OfflineFirstBooksRepositoryTest {
             }
 
             verifyNoInteractions(booksDao)
+        }
+
+    @Test
+    fun `setFavorite delegates to DAO updateFavoriteStatus`() =
+        runTest {
+            val booksDao = mock<BooksDao>()
+            val chaptersDao = mock<ChaptersDao>()
+            val scanPathDao = mock<ScanPathDao>()
+            val playerPersistenceManager = mock<PlayerPersistenceManager>()
+            val localBookScanner = mock<LocalBookScanner>()
+            val loggerFactory = mock<LoggerFactory>()
+            whenever(loggerFactory.get(eq("OfflineFirstBooksRepository"))).thenReturn(NoOpLogger)
+
+            val downloadQueueDao = mock<DownloadQueueDao>()
+            val repository =
+                OfflineFirstBooksRepository(
+                    booksDao = booksDao,
+                    downloadQueueDao = downloadQueueDao,
+                    chaptersDao = chaptersDao,
+                    scanPathDao = scanPathDao,
+                    playerPersistenceManager = playerPersistenceManager,
+                    localBookScanner = localBookScanner,
+                    loggerFactory = loggerFactory,
+                )
+
+            repository.setFavorite(bookId = "book-1", isFavorite = true)
+
+            verify(booksDao).updateFavoriteStatus(
+                bookId = eq("book-1"),
+                isFavorite = eq(true),
+            )
+        }
+
+    @Test
+    fun `deleteBook removes download queue entry along with the book`() =
+        runTest {
+            val booksDao = mock<BooksDao>()
+            val downloadQueueDao = mock<DownloadQueueDao>()
+            val loggerFactory = mock<LoggerFactory>()
+            whenever(loggerFactory.get(eq("OfflineFirstBooksRepository"))).thenReturn(NoOpLogger)
+
+            val repository =
+                OfflineFirstBooksRepository(
+                    booksDao = booksDao,
+                    downloadQueueDao = downloadQueueDao,
+                    chaptersDao = mock(),
+                    scanPathDao = mock(),
+                    playerPersistenceManager = mock(),
+                    localBookScanner = mock(),
+                    loggerFactory = loggerFactory,
+                )
+
+            repository.deleteBook("book-1")
+
+            verify(downloadQueueDao).deleteByBookId("book-1")
+            verify(booksDao).deleteById("book-1")
         }
 }

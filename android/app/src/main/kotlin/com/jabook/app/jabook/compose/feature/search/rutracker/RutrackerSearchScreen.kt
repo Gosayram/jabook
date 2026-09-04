@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -57,13 +59,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
-import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -82,6 +84,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverWaterfallPolicy
+import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -90,7 +93,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * RuTracker search screen.
  *
  * Demonstrates integration of all RuTracker components:
- * - RutrackerSimpleDecoder (simple encoding decoder matching Flutter)
+ * - RutrackerSimpleDecoder (simple encoding decoder)
  * - RutrackerParser with cascading selectors
  * - ParsingResult error handling
  * - MirrorManager, proper headers
@@ -106,15 +109,12 @@ public fun RutrackerSearchScreen(
 ) {
     // Get window size class for adaptive sizing
     val context = androidx.compose.ui.platform.LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val wsc = LocalWindowSizeClass.current
+    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     val searchState by viewModel.searchState.collectAsStateWithLifecycle()
     val filters by viewModel.filters.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
@@ -123,6 +123,7 @@ public fun RutrackerSearchScreen(
     val indexingProgress by indexingViewModel.indexingProgress.collectAsStateWithLifecycle()
     val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
     val indexSize by indexingViewModel.indexSize.collectAsStateWithLifecycle()
+    val forumStatuses by indexingViewModel.forumStatuses.collectAsStateWithLifecycle()
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
     var showIndexingDialog by remember { mutableStateOf(false) }
@@ -142,6 +143,7 @@ public fun RutrackerSearchScreen(
     if (showIndexingDialog && indexingProgress !is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Idle) {
         com.jabook.app.jabook.compose.feature.indexing.IndexingProgressDialog(
             progress = indexingProgress,
+            forumStatuses = forumStatuses,
             onDismiss = {
                 if (indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed ||
                     indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Error
@@ -503,6 +505,8 @@ private fun FilterBottomSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding()
                     .padding(16.dp),
         ) {
             Text(
@@ -594,18 +598,15 @@ private fun SearchResultCard(
     modifier: Modifier = Modifier,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val activity =
-        context as? android.app.Activity
-            ?: (context as? androidx.appcompat.view.ContextThemeWrapper)?.baseContext as? android.app.Activity
-    val rawWindowSizeClass = activity?.let { calculateWindowSizeClass(it) }
-    val windowSizeClass = AdaptiveUtils.resolveWindowSizeClassOrNull(rawWindowSizeClass, context)
+    val wsc = LocalWindowSizeClass.current
+    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val isCompact = windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
 
     Card(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick),
+                .clickable(onClickLabel = stringResource(R.string.open_book), onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
     ) {
         // Use adaptive padding and spacing

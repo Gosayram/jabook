@@ -18,6 +18,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.room.withTransaction
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.debug.DebugRuntimeOverrides
 import com.jabook.app.jabook.compose.data.local.JabookDatabase
@@ -26,12 +27,14 @@ import com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity
 import com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity
 import com.jabook.app.jabook.compose.data.local.entity.SearchHistoryEntity
 import com.jabook.app.jabook.compose.data.model.AppTheme
+import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.permissions.StorageHealthChecker
 import com.jabook.app.jabook.compose.data.preferences.ProtoSettingsRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import com.jabook.app.jabook.compose.data.storage.AtomicFileWriter
 import com.jabook.app.jabook.compose.util.DateTimeFormatter
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -63,7 +66,6 @@ public class BackupService
         private val logger = loggerFactory.get("BackupService")
 
         public companion object {
-            private const val CURRENT_VERSION = "1.0.0"
             private val DEFAULT_CONFLICT_POLICY: ConflictResolutionPolicy = ConflictResolutionPolicy.KEEP_NEWER
         }
 
@@ -71,6 +73,7 @@ public class BackupService
             Json {
                 prettyPrint = true
                 ignoreUnknownKeys = true
+                coerceInputValues = true
             }
 
         /**
@@ -109,10 +112,13 @@ public class BackupService
                         }
                     logger.d { "Serialized backup: ${jsonString.length} bytes" }
 
-                    // 3. Write to file
+                    // 3. Write to file — filesDir (NOT cacheDir: Clear-Cache/OS trim
+                    // would destroy a just-exported backup before it's shared)
                     val timestamp = DateTimeFormatter.formatCurrentForFilename()
                     val fileName: String = "jabook_backup_$timestamp.json"
-                    val file = File(context.cacheDir, fileName)
+                    val backupsDir = File(context.filesDir, "backups")
+                    backupsDir.mkdirs()
+                    val file = File(backupsDir, fileName)
                     val encoded = jsonString.toByteArray(Charsets.UTF_8)
                     AtomicFileWriter.writeWithLock(file) { output ->
                         output.write(encoded)
@@ -277,50 +283,9 @@ public class BackupService
         private fun collectAppInfo(): AppInfo {
             val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
             val versionName = packageInfo.versionName ?: "unknown"
-            val versionCode =
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                    packageInfo.longVersionCode.toInt()
-                } else {
-                    @Suppress("DEPRECATION")
-                    packageInfo.versionCode
-                }
+            val versionCode = packageInfo.longVersionCode.toInt()
 
-            val flavor =
-                try {
-                    // Try to get flavor from BuildConfig.APPLICATION_ID
-                    // Each flavor has a different applicationId suffix:
-                    // - dev: .dev
-                    // - stage: .stage
-                    // - beta: .beta
-                    // - prod: no suffix
-                    val buildConfigClass = Class.forName("com.jabook.app.jabook.BuildConfig")
-                    val applicationId = buildConfigClass.getField("APPLICATION_ID").get(null) as? String
-
-                    when {
-                        applicationId?.endsWith(".dev") == true -> "dev"
-                        applicationId?.endsWith(".stage") == true -> "stage"
-                        applicationId?.endsWith(".beta") == true -> "beta"
-                        applicationId == "com.jabook.app.jabook" -> "prod"
-                        else -> {
-                            // Fallback: try to get from versionName suffix
-                            when {
-                                versionName.endsWith("-dev") -> "dev"
-                                versionName.endsWith("-stage") -> "stage"
-                                versionName.endsWith("-beta") -> "beta"
-                                else -> "prod" // Default to prod if no suffix
-                            }
-                        }
-                    }
-                } catch (e: Exception) {
-                    logger.e({ "Could not get BuildConfig.APPLICATION_ID, using versionName fallback" }, e)
-                    // Fallback: determine from versionName suffix
-                    when {
-                        versionName.endsWith("-dev") -> "dev"
-                        versionName.endsWith("-stage") -> "stage"
-                        versionName.endsWith("-beta") -> "beta"
-                        else -> "prod" // Default to prod if no suffix
-                    }
-                }
+            val flavor = BuildConfig.FLAVOR.ifEmpty { "prod" }
 
             return AppInfo(
                 versionName = versionName,
@@ -367,12 +332,7 @@ public class BackupService
             val defaultDownloadPath: String =
                 "JabookAudio"
 
-            val defaultMirrors =
-                listOf(
-                    "https://rutracker.org",
-                    "https://rutracker.net",
-                    "https://rutracker.nl",
-                )
+            val defaultMirrors = MirrorManager.DEFAULT_MIRRORS.map { "https://$it" }
 
             // FIX: Get ACTUAL current mirror from MirrorManager instead of guessing
             val actualMirror = mirrorManager.currentMirror.value
@@ -397,7 +357,7 @@ public class BackupService
                 maxConcurrentDownloads = protoSettings.maxConcurrentDownloads,
                 rewindDurationSeconds = protoSettings.rewindDurationSeconds,
                 forwardDurationSeconds = protoSettings.forwardDurationSeconds,
-                languageCode = protoSettings.languageCode,
+                languageCode = userPrefs.languageCode,
                 useDynamicColors = protoSettings.useDynamicColors,
                 notificationsEnabled = protoSettings.notificationsEnabled,
                 downloadNotifications = protoSettings.downloadNotifications,
@@ -411,12 +371,37 @@ public class BackupService
          */
         private suspend fun collectBookMetadata(): List<BookBackup> {
             val books = database.booksDao().getAllBooksFlow().first()
+            // Best-effort torrent association: topicId match, else the path-prefix
+            // heuristic used by SyncWorker (books and downloads share no foreign key).
+            val torrentDownloads =
+                try {
+                    database.torrentDownloadDao().getAll()
+                } catch (e: Exception) {
+                    rethrowIfCancellation(e)
+                    logger.e({ "Failed to load torrent downloads for backup" }, e)
+                    emptyList()
+                }
             return books.map { entity ->
+                val torrent =
+                    torrentDownloads.firstOrNull { it.topicId == entity.id }
+                        ?: torrentDownloads.firstOrNull { download ->
+                            val localPath = entity.localPath
+                            val savePath = download.savePath
+                            !localPath.isNullOrBlank() &&
+                                savePath.isNotBlank() &&
+                                (
+                                    localPath == savePath ||
+                                        localPath.startsWith(savePath) ||
+                                        savePath.startsWith(localPath)
+                                )
+                        }
                 // Read timestamps from PlayerPersistence
                 val playerState =
                     try {
                         playerPersistenceManager.getPlayerState(entity.id)
                     } catch (e: Exception) {
+                        rethrowIfCancellation(e)
+                        logger.e({ "Failed to read player state for ${entity.id}" }, e)
                         null
                     }
 
@@ -424,23 +409,24 @@ public class BackupService
                     id = entity.id,
                     title = entity.title,
                     author = entity.author,
-                    lastPosition = entity.currentPosition.toInt(),
-                    duration = entity.totalDuration.toInt(),
+                    lastPosition = entity.currentPosition,
+                    duration = entity.totalDuration,
                     coverPath = entity.coverUrl,
                     totalProgress = entity.totalProgress,
                     isCompleted = entity.currentPosition >= entity.totalDuration * 0.98,
                     downloadStatus = entity.downloadStatus,
-                    addedDate = entity.addedDate.toInt(),
+                    addedDate = entity.addedDate,
                     rewindDuration = entity.rewindDuration,
                     forwardDuration = entity.forwardDuration,
                     // Save activity timestamps
-                    lastPlayedTimestamp = (playerState?.lastPlayedTimestamp ?: 0L).toInt(),
-                    completedTimestamp = (playerState?.completedTimestamp ?: 0L).toInt(),
-                    // NEW Phase 9B: Torrent metadata (not yet in entity, null for now)
-                    torrentPath = null, // TODO: Add to BookEntity when torrent download is implemented
-                    sourceUrl = null,
+                    lastPlayedTimestamp = playerState?.lastPlayedTimestamp ?: 0L,
+                    completedTimestamp = playerState?.completedTimestamp ?: 0L,
+                    // Torrent metadata from torrent_downloads (joined by topicId/path).
+                    // magnetUrl stays null: torrent_downloads stores the info-hash, not the magnet URI.
+                    torrentPath = torrent?.savePath,
+                    sourceUrl = entity.sourceUrl,
                     magnetUrl = null,
-                    topicId = null,
+                    topicId = torrent?.topicId,
                 )
             }
         }
@@ -476,8 +462,11 @@ public class BackupService
                     )
                 }
             } catch (e: Exception) {
-                logger.e({ "Failed to collect favorites" }, e)
-                return emptyList()
+                rethrowIfCancellation(e)
+                // A silent emptyList() here would export an "empty favorites" backup that
+                // later overwrites real favorites on restore (KEEP_REMOTE). Fail the export.
+                logger.e({ "Failed to collect favorites — failing export" }, e)
+                throw e
             }
         }
 
@@ -503,6 +492,7 @@ public class BackupService
                     val theme = AppTheme.valueOf(settings.theme)
                     userPreferencesRepository.setTheme(theme)
                 } catch (e: Exception) {
+                    rethrowIfCancellation(e)
                     // Ignore invalid theme enum
                 }
 
@@ -513,6 +503,7 @@ public class BackupService
                             .valueOf(settings.sortOrder)
                     userPreferencesRepository.setSortOrder(sortOrder)
                 } catch (e: Exception) {
+                    rethrowIfCancellation(e)
                     // Ignore invalid sort order enum, keep default
                 }
 
@@ -523,6 +514,7 @@ public class BackupService
                             .valueOf(settings.viewMode)
                     userPreferencesRepository.setViewMode(viewMode)
                 } catch (e: Exception) {
+                    rethrowIfCancellation(e)
                     // Ignore invalid view mode enum, keep default
                 }
 
@@ -536,38 +528,36 @@ public class BackupService
                             .valueOf(settings.font)
                     userPreferencesRepository.setFont(font)
                 } catch (e: Exception) {
+                    rethrowIfCancellation(e)
                     // Ignore invalid font enum, keep default
                 }
 
                 // Restore normalize chapter titles
                 userPreferencesRepository.setNormalizeChapterTitles(settings.normalizeChapterTitles)
 
-                // Restore ProtoSettings
-                protoSettingsRepository.updateWifiOnly(settings.wifiOnlyDownload)
-                protoSettingsRepository.updateAutoLoadCoversOnCellular(settings.autoLoadCoversOnCellular)
-                protoSettingsRepository.updateDownloadPath(settings.downloadPath)
-                protoSettingsRepository.updateSelectedMirror(settings.currentMirror)
-                protoSettingsRepository.updateAutoSwitchMirror(settings.autoSwitchMirror)
-                protoSettingsRepository.updateLimitDownloadSpeed(settings.limitDownloadSpeed)
-                protoSettingsRepository.updateMaxDownloadSpeed(settings.maxDownloadSpeedKb)
-                protoSettingsRepository.updateMaxConcurrentDownloads(settings.maxConcurrentDownloads)
-                protoSettingsRepository.updateAudioSettings(
+                // Restore ProtoSettings — single bulk rewrite (one fsync instead of N)
+                protoSettingsRepository.applyBackupSettings(
+                    wifiOnly = settings.wifiOnlyDownload,
+                    autoLoadCoversOnCellular = settings.autoLoadCoversOnCellular,
+                    downloadPath = settings.downloadPath,
+                    selectedMirror = settings.currentMirror,
+                    autoSwitchMirror = settings.autoSwitchMirror,
+                    limitDownloadSpeed = settings.limitDownloadSpeed,
+                    maxDownloadSpeedKb = settings.maxDownloadSpeedKb,
+                    maxConcurrentDownloads = settings.maxConcurrentDownloads,
                     rewindSeconds = settings.rewindDurationSeconds,
                     forwardSeconds = settings.forwardDurationSeconds,
-                )
-                protoSettingsRepository.updateLanguage(settings.languageCode)
-                protoSettingsRepository.updateDynamicColors(settings.useDynamicColors)
-                protoSettingsRepository.updateNotificationSettings(
+                    dynamicColors = settings.useDynamicColors,
                     notificationsEnabled = settings.notificationsEnabled,
                     downloadNotifications = settings.downloadNotifications,
                     playerNotifications = settings.playerNotifications,
+                    customMirrors = settings.customMirrors,
                 )
-                settings.customMirrors.forEach {
-                    protoSettingsRepository.addCustomMirror(it)
-                }
+                userPreferencesRepository.setLanguage(settings.languageCode)
 
                 logger.d { "All settings restored successfully" }
             } catch (e: Exception) {
+                rethrowIfCancellation(e)
                 logger.e({ "Failed to restore some settings" }, e)
                 // Don't throw, allow partial restore
             }
@@ -582,94 +572,101 @@ public class BackupService
         ) {
             val dao = database.booksDao()
 
-            books.forEach { backup ->
-                val existing = dao.getBookById(backup.id)
-                if (existing != null) {
-                    val localTimestamp = existing.lastPlayedDate ?: existing.addedDate
-                    val incomingTimestamp =
-                        backup.lastPlayedTimestamp
-                            .takeIf { it > 0 }
-                            ?.toLong()
-                            ?: backup.addedDate.toLong()
-                    val shouldApplyIncoming =
-                        ConflictResolutionResolver.shouldUseIncoming(
-                            policy = policy,
-                            localExists = true,
-                            localTimestamp = localTimestamp,
-                            incomingTimestamp = incomingTimestamp,
-                        )
-
-                    if (!shouldApplyIncoming) {
-                        return@forEach
-                    }
-
-                    // Update existing book
-                    dao.updatePlaybackProgress(
-                        bookId = backup.id,
-                        position = backup.lastPosition.toLong(),
-                        progress = backup.totalProgress,
-                        chapterIndex = 0,
-                        timestamp =
+            database.withTransaction {
+                books.forEach { backup ->
+                    val existing = dao.getBookById(backup.id)
+                    if (existing != null) {
+                        val localTimestamp = existing.lastPlayedDate ?: existing.addedDate
+                        val incomingTimestamp =
                             backup.lastPlayedTimestamp
-                                .takeIf {
-                                    it > 0
-                                }?.toLong() ?: System.currentTimeMillis(),
-                    )
-                    dao.updateBookSettings(
-                        bookId = backup.id,
-                        rewindDuration = backup.rewindDuration,
-                        forwardDuration = backup.forwardDuration,
-                    )
+                                .takeIf { it > 0 }
+                                ?.toLong()
+                                ?: backup.addedDate.toLong()
+                        val shouldApplyIncoming =
+                            ConflictResolutionResolver.shouldUseIncoming(
+                                policy = policy,
+                                localExists = true,
+                                localTimestamp = localTimestamp,
+                                incomingTimestamp = incomingTimestamp,
+                            )
 
-                    // Restore timestamps to PlayerPersistence
-                    try {
-                        playerPersistenceManager.savePlayerState(
-                            com.jabook.app.jabook.audio.PlayerState(
-                                bookId = backup.id,
-                                positionMs = backup.lastPosition.toLong(),
-                                durationMs = backup.duration.toLong(),
-                                filePaths = emptyList(),
-                                lastPlayedTimestamp = backup.lastPlayedTimestamp.toLong(),
-                                completedTimestamp = backup.completedTimestamp.toLong(),
-                            ),
+                        if (!shouldApplyIncoming) {
+                            return@forEach
+                        }
+
+                        // Update existing book
+                        dao.updatePlaybackProgress(
+                            bookId = backup.id,
+                            position = backup.lastPosition.toLong(),
+                            progress = backup.totalProgress,
+                            chapterIndex = 0,
+                            timestamp =
+                                backup.lastPlayedTimestamp
+                                    .takeIf {
+                                        it > 0
+                                    }?.toLong() ?: System.currentTimeMillis(),
                         )
-                    } catch (e: Exception) {
-                        logger.e({ "Failed to restore timestamps for ${backup.id}" }, e)
-                    }
-                } else {
-                    // Insert new book (stub for history)
-                    dao.insertBook(
-                        BookEntity(
-                            id = backup.id,
-                            title = backup.title,
-                            author = backup.author,
-                            coverUrl = backup.coverPath,
-                            description = null,
-                            totalDuration = backup.duration.toLong(),
-                            currentPosition = backup.lastPosition.toLong(),
-                            totalProgress = backup.totalProgress,
-                            downloadStatus = "NOT_DOWNLOADED",
-                            addedDate = backup.addedDate.toLong(),
+                        dao.updateBookSettings(
+                            bookId = backup.id,
                             rewindDuration = backup.rewindDuration,
                             forwardDuration = backup.forwardDuration,
-                            isFavorite = false,
-                        ),
-                    )
+                        )
 
-                    // Restore timestamps for new book too
-                    try {
-                        playerPersistenceManager.savePlayerState(
-                            com.jabook.app.jabook.audio.PlayerState(
-                                bookId = backup.id,
-                                positionMs = backup.lastPosition.toLong(),
-                                durationMs = backup.duration.toLong(),
-                                filePaths = emptyList(),
-                                lastPlayedTimestamp = backup.lastPlayedTimestamp.toLong(),
-                                completedTimestamp = backup.completedTimestamp.toLong(),
+                        // Restore timestamps to PlayerPersistence
+                        try {
+                            playerPersistenceManager.savePlayerState(
+                                com.jabook.app.jabook.audio.PlayerState(
+                                    bookId = backup.id,
+                                    positionMs = backup.lastPosition.toLong(),
+                                    durationMs = backup.duration.toLong(),
+                                    filePaths = emptyList(),
+                                    lastPlayedTimestamp = backup.lastPlayedTimestamp.toLong(),
+                                    completedTimestamp = backup.completedTimestamp.toLong(),
+                                ),
+                            )
+                        } catch (e: Exception) {
+                            rethrowIfCancellation(e)
+                            logger.e({ "Failed to restore timestamps for ${backup.id}" }, e)
+                        }
+                    } else {
+                        // Insert new book (stub for history)
+                        dao.insertBook(
+                            BookEntity(
+                                id = backup.id,
+                                title = backup.title,
+                                author = backup.author,
+                                coverUrl = backup.coverPath,
+                                description = null,
+                                totalDuration = backup.duration.toLong(),
+                                currentPosition = backup.lastPosition.toLong(),
+                                totalProgress = backup.totalProgress,
+                                downloadStatus = "NOT_DOWNLOADED",
+                                addedDate = backup.addedDate.toLong(),
+                                rewindDuration = backup.rewindDuration,
+                                forwardDuration = backup.forwardDuration,
+                                isFavorite = false,
+                                // Torrent files/resume data are not part of the backup,
+                                // so torrentPath/topicId are informational only.
+                                sourceUrl = backup.sourceUrl,
                             ),
                         )
-                    } catch (e: Exception) {
-                        logger.e({ "Failed to restore timestamps for new book ${backup.id}" }, e)
+
+                        // Restore timestamps for new book too
+                        try {
+                            playerPersistenceManager.savePlayerState(
+                                com.jabook.app.jabook.audio.PlayerState(
+                                    bookId = backup.id,
+                                    positionMs = backup.lastPosition.toLong(),
+                                    durationMs = backup.duration.toLong(),
+                                    filePaths = emptyList(),
+                                    lastPlayedTimestamp = backup.lastPlayedTimestamp.toLong(),
+                                    completedTimestamp = backup.completedTimestamp.toLong(),
+                                ),
+                            )
+                        } catch (e: Exception) {
+                            rethrowIfCancellation(e)
+                            logger.e({ "Failed to restore timestamps for new book ${backup.id}" }, e)
+                        }
                     }
                 }
             }
@@ -685,46 +682,48 @@ public class BackupService
             val bookDao = database.booksDao()
             val favoriteDao = database.favoriteDao()
 
-            favorites.forEach { fav ->
-                val existing = favoriteDao.getFavoriteById(fav.bookId)
-                val localTimestamp =
-                    existing?.addedToFavorites?.let { dateStr ->
-                        runCatching { DateTimeFormatter.parseISO8601ToMillis(dateStr) }.getOrNull()
-                    } ?: 0L
-                val shouldApplyIncoming =
-                    ConflictResolutionResolver.shouldUseIncoming(
-                        policy = policy,
-                        localExists = existing != null,
-                        localTimestamp = localTimestamp,
-                        incomingTimestamp = fav.addedDate,
+            database.withTransaction {
+                favorites.forEach { fav ->
+                    val existing = favoriteDao.getFavoriteById(fav.bookId)
+                    val localTimestamp =
+                        existing?.addedToFavorites?.let { dateStr ->
+                            runCatching { DateTimeFormatter.parseISO8601ToMillis(dateStr) }.getOrNull()
+                        } ?: 0L
+                    val shouldApplyIncoming =
+                        ConflictResolutionResolver.shouldUseIncoming(
+                            policy = policy,
+                            localExists = existing != null,
+                            localTimestamp = localTimestamp,
+                            incomingTimestamp = fav.addedDate,
+                        )
+                    if (!shouldApplyIncoming) {
+                        return@forEach
+                    }
+
+                    // 1. Mark as favorite in BooksDao (if exists as a book)
+                    bookDao.updateFavoriteStatus(fav.bookId, true)
+
+                    // 2. Insert into FavoriteDao (for remote/search results)
+                    val addedDateStr = DateTimeFormatter.formatISO8601(fav.addedDate)
+                    favoriteDao.insertFavorite(
+                        com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity(
+                            topicId = fav.bookId,
+                            title = fav.title,
+                            author = fav.author,
+                            category = fav.category,
+                            size = fav.size,
+                            magnetUrl = fav.magnetUrl,
+                            coverUrl = fav.coverUrl,
+                            performer = fav.performer,
+                            genres = fav.genres,
+                            addedDate = addedDateStr,
+                            addedToFavorites = addedDateStr, // Use addedDate as fallback
+                            duration = fav.duration,
+                            bitrate = fav.bitrate,
+                            audioCodec = fav.audioCodec,
+                        ),
                     )
-                if (!shouldApplyIncoming) {
-                    return@forEach
                 }
-
-                // 1. Mark as favorite in BooksDao (if exists as a book)
-                bookDao.updateFavoriteStatus(fav.bookId, true)
-
-                // 2. Insert into FavoriteDao (for remote/search results)
-                val addedDateStr = DateTimeFormatter.formatISO8601(fav.addedDate)
-                favoriteDao.insertFavorite(
-                    com.jabook.app.jabook.compose.data.local.entity.FavoriteEntity(
-                        topicId = fav.bookId,
-                        title = fav.title,
-                        author = fav.author,
-                        category = fav.category,
-                        size = fav.size,
-                        magnetUrl = fav.magnetUrl,
-                        coverUrl = fav.coverUrl,
-                        performer = fav.performer,
-                        genres = fav.genres,
-                        addedDate = addedDateStr,
-                        addedToFavorites = addedDateStr, // Use addedDate as fallback
-                        duration = fav.duration,
-                        bitrate = fav.bitrate,
-                        audioCodec = fav.audioCodec,
-                    ),
-                )
             }
         }
 
@@ -814,4 +813,8 @@ public class BackupService
          * Accepts v1.x.x (legacy) and v2.x.x (current) versions.
          */
         private fun isCompatibleVersion(version: String): Boolean = version.startsWith("1.") || version.startsWith("2.")
+
+        private fun rethrowIfCancellation(exception: Exception) {
+            if (exception is CancellationException) throw exception
+        }
     }

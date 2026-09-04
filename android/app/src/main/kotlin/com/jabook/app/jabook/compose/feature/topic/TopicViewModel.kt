@@ -39,10 +39,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -60,6 +63,8 @@ public sealed interface TopicUiState {
     @Immutable
     public data class Success(
         val details: RutrackerTopicDetails,
+        /** True when older comment pages remain (reverse pagination N-1 … 1). */
+        val hasMorePages: Boolean = false,
     ) : TopicUiState
 
     @Immutable
@@ -94,8 +99,12 @@ public class TopicViewModel
         private val _uiState = MutableStateFlow<TopicUiState>(TopicUiState.Loading)
         public val uiState: StateFlow<TopicUiState> = _uiState.asStateFlow()
 
-        private val _message = MutableStateFlow<String?>(null)
-        public val message: StateFlow<String?> = _message.asStateFlow()
+        private val _messages = Channel<String>(Channel.BUFFERED)
+        public val messages: Flow<String> = _messages.receiveAsFlow()
+
+        private fun emitMessage(message: String?) {
+            message?.let { _messages.trySend(it) }
+        }
 
         public val authStatus: StateFlow<AuthStatus> =
             authRepository.authStatus.stateIn(
@@ -154,6 +163,7 @@ public class TopicViewModel
                                                 comments = loadedComments.toList(),
                                                 currentPage = totalPages,
                                             ),
+                                            hasMorePages = nextPageToLoad != null,
                                         )
                                 }
                                 is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
@@ -181,6 +191,7 @@ public class TopicViewModel
                             _uiState.value =
                                 TopicUiState.Success(
                                     details.copy(comments = reversedComments),
+                                    hasMorePages = false,
                                 )
                         }
                     }
@@ -208,41 +219,52 @@ public class TopicViewModel
 
             viewModelScope.launch {
                 _isLoadingMoreComments.value = true
+                try {
+                    when (val result = rutrackerRepository.getTopicDetailsPage(topicId, pageToLoad)) {
+                        is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
+                            // Preload avatars for new comments
+                            avatarPreloader.preloadAvatars(context, result.data.comments)
 
-                val result = rutrackerRepository.getTopicDetailsPage(topicId, pageToLoad)
+                            // Add older comments to the end of the list, skipping any ids
+                            // already present (silent refresh may have replaced the visible
+                            // list — duplicate LazyColumn keys would crash recomposition).
+                            // Comments on each page are oldest-to-newest naturally, so we reverse them
+                            // to maintain newest-to-oldest order in the combined list
+                            val seenIds = loadedComments.mapTo(mutableSetOf()) { it.id }
+                            val reversedPageComments =
+                                result.data.comments
+                                    .reversed()
+                                    .filterNot { it.id in seenIds }
+                            loadedComments.addAll(reversedPageComments)
 
-                when (result) {
-                    is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
-                        // Preload avatars for new comments
-                        avatarPreloader.preloadAvatars(context, result.data.comments)
+                            // Update pagination state
+                            nextPageToLoad = if (pageToLoad > 1) pageToLoad - 1 else null
 
-                        // Add older comments to the end of the list
-                        // Comments on each page are oldest-to-newest naturally, so we reverse them
-                        // to maintain newest-to-oldest order in the combined list
-                        val reversedPageComments = result.data.comments.reversed()
-                        loadedComments.addAll(reversedPageComments)
-
-                        // Update pagination state
-                        nextPageToLoad = if (pageToLoad > 1) pageToLoad - 1 else null
-
-                        // Update UI state with all comments
-                        _uiState.value =
-                            TopicUiState.Success(
-                                details.copy(
-                                    comments = loadedComments.toList(),
-                                    currentPage = currentLoadedPage, // Keep original page (last page)
-                                ),
-                            )
+                            // Update UI state with all comments
+                            _uiState.value =
+                                TopicUiState.Success(
+                                    details.copy(
+                                        comments = loadedComments.toList(),
+                                        currentPage = currentLoadedPage, // Keep original page (last page)
+                                    ),
+                                    hasMorePages = nextPageToLoad != null,
+                                )
+                        }
+                        is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
+                            emitMessage(result.error.message)
+                        }
+                        is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
+                            // Ignore
+                        }
                     }
-                    is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
-                        _message.value = result.error.message
-                    }
-                    is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
-                        // Ignore
-                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logger.e({ "Failed to load more comments" }, e)
+                    emitMessage(e.message)
+                } finally {
+                    _isLoadingMoreComments.value = false
                 }
-
-                _isLoadingMoreComments.value = false
             }
         }
 
@@ -254,33 +276,46 @@ public class TopicViewModel
                     _isRefreshing.value = true
                 }
 
-                val result = rutrackerRepository.getTopicDetails(topicId)
+                try {
+                    when (val result = rutrackerRepository.getTopicDetails(topicId)) {
+                        is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
+                            // Preload avatars for comments (offline support)
+                            avatarPreloader.preloadAvatars(context, result.data.comments)
 
-                when (result) {
-                    is com.jabook.app.jabook.compose.domain.model.Result.Success -> {
-                        // Preload avatars for comments (offline support)
-                        avatarPreloader.preloadAvatars(context, result.data.comments)
+                            // Reset reverse-pagination tracking so loadMore stays consistent
+                            // with the freshly replaced page-1 list.
+                            loadedComments.clear()
+                            loadedComments.addAll(result.data.comments.reversed())
+                            currentLoadedPage = 1
+                            nextPageToLoad = result.data.totalPages.takeIf { it > 1 }
 
-                        _uiState.value =
-                            TopicUiState.Success(
-                                result.data.copy(
-                                    comments = result.data.comments.reversed(), // Sort comments newest first
-                                ),
-                            )
-                    }
-                    is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
-                        if (!silent) {
-                            _uiState.value = TopicUiState.Error(result.error.message)
-                        } else {
-                            _message.value = result.error.message
+                            _uiState.value =
+                                TopicUiState.Success(
+                                    result.data.copy(
+                                        comments = result.data.comments.reversed(), // Sort comments newest first
+                                    ),
+                                    hasMorePages = nextPageToLoad != null,
+                                )
+                        }
+                        is com.jabook.app.jabook.compose.domain.model.Result.Error -> {
+                            if (!silent) {
+                                _uiState.value = TopicUiState.Error(result.error.message)
+                            } else {
+                                emitMessage(result.error.message)
+                            }
+                        }
+                        is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
+                            // Ignore loading state during silent refresh
                         }
                     }
-                    is com.jabook.app.jabook.compose.domain.model.Result.Loading -> {
-                        // Ignore loading state during silent refresh
-                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logger.e({ "Failed to refresh topic details" }, e)
+                    if (silent) emitMessage(e.message) else _uiState.value = TopicUiState.Error(e.message ?: "Unknown error")
+                } finally {
+                    _isRefreshing.value = false
                 }
-
-                _isRefreshing.value = false
             }
         }
 
@@ -297,13 +332,13 @@ public class TopicViewModel
                     val downloadUrl = magnetUrl ?: torrentUrl
                     if (downloadUrl.isNullOrBlank()) {
                         logger.e { "No download URL available" }
-                        _message.value = context.getString(R.string.failedToStartDownload)
+                        emitMessage(context.getString(R.string.failedToStartDownload))
                         return@launch
                     }
 
                     if (!MagnetUriValidationPolicy.isValidMagnetUri(downloadUrl)) {
                         logger.e { "Invalid download URL format: $downloadUrl" }
-                        _message.value = context.getString(R.string.invalidDownloadUrl)
+                        emitMessage(context.getString(R.string.invalidDownloadUrl))
                         return@launch
                     }
 
@@ -314,7 +349,7 @@ public class TopicViewModel
                         )
                     if (downloadsDir == null || !downloadsDir.exists()) {
                         logger.e { "Downloads directory not available" }
-                        _message.value = context.getString(R.string.downloadsDirectoryNotAvailable)
+                        emitMessage(context.getString(R.string.downloadsDirectoryNotAvailable))
                         return@launch
                     }
 
@@ -324,7 +359,7 @@ public class TopicViewModel
                         val created = baseDir.mkdirs()
                         if (!created && !baseDir.exists()) {
                             logger.e { "Failed to create base directory: ${baseDir.absolutePath}" }
-                            _message.value = context.getString(R.string.failedToStartDownload)
+                            emitMessage(context.getString(R.string.failedToStartDownload))
                             return@launch
                         }
                     }
@@ -348,7 +383,7 @@ public class TopicViewModel
                         val created = bookFolder.mkdirs()
                         if (!created && !bookFolder.exists()) {
                             logger.e { "Failed to create book directory: ${bookFolder.absolutePath}" }
-                            _message.value = context.getString(R.string.failedToStartDownload)
+                            emitMessage(context.getString(R.string.failedToStartDownload))
                             return@launch
                         }
                     }
@@ -358,49 +393,55 @@ public class TopicViewModel
 
                     // Use WithAuthorisedCheckUseCase to ensure authentication before downloading
                     withAuthorisedCheckUseCase(operationId = "download_torrent_$topicId") {
-                        // Ensure TorrentManager is initialized
-                        try {
-                            torrentManager.initialize()
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            logger.e(e) { "TorrentManager already initialized or error: ${e.message}" }
-                        }
-
+                        // libtorrent session init + add are native calls that can take
+                        // tens of ms — keep them off the main thread.
                         val result =
-                            torrentManager.addTorrent(
-                                magnetUri = downloadUrl,
-                                savePath = savePath,
-                                topicId = topicId,
-                            )
+                            withContext(Dispatchers.IO) {
+                                // Ensure TorrentManager is initialized
+                                try {
+                                    torrentManager.initialize()
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    logger.e(e) { "TorrentManager already initialized or error: ${e.message}" }
+                                }
+
+                                torrentManager.addTorrent(
+                                    magnetUri = downloadUrl,
+                                    savePath = savePath,
+                                    topicId = topicId,
+                                )
+                            }
 
                         if (result.isSuccess) {
                             val hash = result.getOrNull()
                             logger.i { "Torrent download started: $hash" }
-                            _message.value = context.getString(R.string.downloadStarted)
+                            emitMessage(context.getString(R.string.downloadStarted))
                         } else {
                             val exception = result.exceptionOrNull()
                             val error = exception?.message ?: context.getString(R.string.unknownError)
                             logger.e(exception) { "Failed to start torrent download: $error" }
-                            _message.value = context.getString(R.string.failedToStartDownloadWithError, error)
+                            emitMessage(context.getString(R.string.failedToStartDownloadWithError, error))
                         }
                     }
                 } catch (e: RuTrackerError.Unauthorized) {
                     logger.w { "Download requires authentication" }
-                    _message.value = context.getString(R.string.authenticationRequired)
-                } catch (e: IllegalStateException) {
-                    logger.e(e) { "Illegal state during torrent download" }
-                    _message.value =
-                        context.getString(R.string.failedToStartDownloadWithError, e.message ?: "Illegal state")
+                    emitMessage(context.getString(R.string.authenticationRequired))
                 } catch (e: CancellationException) {
                     throw e
+                } catch (e: IllegalStateException) {
+                    logger.e(e) { "Illegal state during torrent download" }
+                    emitMessage(
+                        context.getString(R.string.failedToStartDownloadWithError, e.message ?: "Illegal state"),
+                    )
                 } catch (e: Exception) {
                     logger.e(e) { "Unexpected error starting torrent download" }
-                    _message.value =
+                    emitMessage(
                         context.getString(
                             R.string.failedToStartDownloadWithError,
                             e.message ?: context.getString(R.string.unknownError),
-                        )
+                        ),
+                    )
                 }
             }
         }
@@ -432,21 +473,22 @@ public class TopicViewModel
                                     }
 
                                     logger.i { "Torrent file saved: ${torrentFile.absolutePath}" }
-                                    _message.value = context.getString(R.string.torrentFileSaved)
+                                    emitMessage(context.getString(R.string.torrentFileSaved))
                                 }
                             } else {
                                 logger.e { "Response body is null" }
-                                _message.value = context.getString(R.string.failedToDownloadTorrentFile)
+                                emitMessage(context.getString(R.string.failedToDownloadTorrentFile))
                             }
                         } else {
                             logger.e { "Failed to download torrent file: ${response.code()}" }
-                            _message.value =
-                                context.getString(R.string.failedToDownloadTorrentFileWithCode, response.code())
+                            emitMessage(
+                                context.getString(R.string.failedToDownloadTorrentFileWithCode, response.code()),
+                            )
                         }
                     }
                 } catch (e: RuTrackerError.Unauthorized) {
                     logger.w { "Download torrent file requires authentication" }
-                    _message.value = context.getString(R.string.authenticationRequired)
+                    emitMessage(context.getString(R.string.authenticationRequired))
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -469,6 +511,7 @@ public class TopicViewModel
 
             if (magnetUrl.isNullOrBlank()) {
                 logger.e { "No magnet URL available" }
+                emitMessage(context.getString(R.string.noMagnetLinkAvailable))
                 return
             }
 
@@ -476,7 +519,7 @@ public class TopicViewModel
             val clip = ClipData.newPlainText(context.getString(R.string.magnetLinkLabel), magnetUrl)
             clipboard.setPrimaryClip(clip)
             logger.i { "Magnet link copied to clipboard" }
-            _message.value = context.getString(R.string.magnetLinkCopiedMessage)
+            emitMessage(context.getString(R.string.magnetLinkCopiedMessage))
         }
 
         /**
@@ -493,6 +536,7 @@ public class TopicViewModel
 
             if (magnetUrl.isNullOrBlank()) {
                 logger.e { "No magnet URL available" }
+                emitMessage(context.getString(R.string.noMagnetLinkAvailable))
                 return
             }
 

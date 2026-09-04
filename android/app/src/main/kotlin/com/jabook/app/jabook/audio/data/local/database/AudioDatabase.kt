@@ -16,15 +16,11 @@ package com.jabook.app.jabook.audio.data.local.database
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
-import com.jabook.app.jabook.audio.data.local.dao.ChapterMetadataDao
 import com.jabook.app.jabook.audio.data.local.dao.ListeningSessionDao
-import com.jabook.app.jabook.audio.data.local.dao.LufsCacheDao
 import com.jabook.app.jabook.audio.data.local.dao.PlaybackPositionDao
 import com.jabook.app.jabook.audio.data.local.dao.PlaylistDao
 import com.jabook.app.jabook.audio.data.local.dao.SavedPlayerStateDao
-import com.jabook.app.jabook.audio.data.local.database.entity.ChapterMetadataEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningSessionEntity
-import com.jabook.app.jabook.audio.data.local.database.entity.LufsCacheEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.PlaybackPositionEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.PlaylistEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEntity
@@ -32,18 +28,17 @@ import com.jabook.app.jabook.audio.data.local.database.entity.SavedPlayerStateEn
 /**
  * Room database for audio player data.
  *
- * Version 2 adds SavedPlayerStateEntity for full player state persistence.
+ * Version 7 drops the unused lufs_cache table (per-book LUFS lives in
+ * `books.lufs_value` in the main database).
  */
 @Database(
     entities = [
         PlaybackPositionEntity::class,
         PlaylistEntity::class,
-        ChapterMetadataEntity::class,
         SavedPlayerStateEntity::class,
         ListeningSessionEntity::class,
-        LufsCacheEntity::class,
     ],
-    version = 4,
+    version = 7,
     exportSchema = true,
 )
 public abstract class AudioDatabase : RoomDatabase() {
@@ -51,15 +46,11 @@ public abstract class AudioDatabase : RoomDatabase() {
 
     public abstract fun playlistDao(): PlaylistDao
 
-    public abstract fun chapterMetadataDao(): ChapterMetadataDao
-
     public abstract fun savedPlayerStateDao(): SavedPlayerStateDao
 
     public abstract fun listeningSessionDao(): ListeningSessionDao
 
-    public abstract fun lufsCacheDao(): LufsCacheDao
-
     public companion object {
-        public const val SCHEMA_VERSION: Int = 4
+        public const val SCHEMA_VERSION: Int = 7
     }
 }

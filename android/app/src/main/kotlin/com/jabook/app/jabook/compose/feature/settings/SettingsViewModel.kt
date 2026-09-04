@@ -14,40 +14,58 @@
 
 package com.jabook.app.jabook.compose.feature.settings
 
+import android.content.Context
 import android.net.Uri
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import com.jabook.app.jabook.R
+import com.jabook.app.jabook.audio.domain.usecase.ListeningStatsUseCase
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.backup.BackupService
 import com.jabook.app.jabook.compose.data.backup.ImportStats
 import com.jabook.app.jabook.compose.data.cache.CacheManager
 import com.jabook.app.jabook.compose.data.cache.CacheStatistics
 import com.jabook.app.jabook.compose.data.model.ScanProgress
+import com.jabook.app.jabook.compose.data.network.MirrorHealth
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferences
 import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.compose.data.repository.UserEqPresetRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentState
 import com.jabook.app.jabook.compose.data.worker.LibraryScanWorker
 import com.jabook.app.jabook.compose.data.worker.WorkConstraintsPolicy
+import com.jabook.app.jabook.compose.domain.usecase.library.GetLibraryUseCase
+import com.jabook.app.jabook.compose.feature.library.ProductivePeriod
+import com.jabook.app.jabook.compose.feature.library.WeeklyRecapState
+import com.jabook.app.jabook.compose.feature.library.YearRecapState
 import com.jabook.app.jabook.util.FileUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 /**
@@ -56,10 +74,12 @@ import javax.inject.Inject
  * Manages both old preferences (UserPreferencesRepository) and new Proto DataStore settings.
  * Gradually migrating to Proto DataStore.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 public class SettingsViewModel
     @Inject
     constructor(
+        @ApplicationContext private val context: Context,
         private val settingsRepository: SettingsRepository,
         private val userPreferencesRepository: UserPreferencesRepository, // Keep for migration
         private val authRepository: com.jabook.app.jabook.compose.domain.repository.AuthRepository,
@@ -70,8 +90,11 @@ public class SettingsViewModel
         private val updateBookSettingsUseCase: com.jabook.app.jabook.compose.domain.usecase.library.UpdateBookSettingsUseCase,
         private val workManager: WorkManager,
         private val scanPathDao: com.jabook.app.jabook.compose.data.local.dao.ScanPathDao,
+        private val userEqPresetRepository: UserEqPresetRepository,
         private val torrentManager: TorrentManager,
         private val loggerFactory: LoggerFactory,
+        private val getLibraryUseCase: GetLibraryUseCase,
+        private val listeningStatsUseCase: ListeningStatsUseCase,
     ) : ViewModel() {
         private val logger = loggerFactory.get("SettingsViewModel")
 
@@ -110,6 +133,100 @@ public class SettingsViewModel
                 started = SharingStarted.WhileSubscribed(5000),
                 initialValue = ScanProgress.Idle,
             )
+
+        public val weeklyRecapState: StateFlow<WeeklyRecapState?> =
+            // Boundaries computed per subscription so the window tracks "now"
+            getLibraryUseCase(com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY)
+                .flatMapLatest { books ->
+                    listeningStatsUseCase
+                        .observeSummary(
+                            fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
+                            toEpochMs = System.currentTimeMillis(),
+                        ).map { summary ->
+                            val weeklyCompletedBooks =
+                                books.count {
+                                    it.isCompleted &&
+                                        (it.lastPlayedDate ?: 0L) >= System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
+                                }
+                            WeeklyRecapState(
+                                minutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt(),
+                                booksCompleted = weeklyCompletedBooks,
+                                productivePeriod = resolveProductivePeriod(books),
+                                streakDays = summary.activeDays.coerceAtLeast(0),
+                            )
+                        }
+                }.catch {
+                    if (it is kotlinx.coroutines.CancellationException) throw it
+                    // Recap is optional — keep last known state on upstream failure
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = null,
+                )
+
+        public val yearRecapState: StateFlow<YearRecapState?> =
+            getLibraryUseCase(com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY)
+                .flatMapLatest { books ->
+                    listeningStatsUseCase
+                        .observeSummary(
+                            fromEpochMs = resolveYearStartEpochMs(),
+                            toEpochMs = System.currentTimeMillis(),
+                        ).map { summary ->
+                            val yearStartEpochMs = resolveYearStartEpochMs()
+                            val completedBooks =
+                                books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= yearStartEpochMs }
+                            val topAuthor =
+                                books
+                                    .groupingBy { it.author.ifBlank { context.getString(R.string.unknownAuthor) } }
+                                    .eachCount()
+                                    .maxByOrNull { it.value }
+                                    ?.key
+                                    ?: context.getString(R.string.unknownAuthor)
+
+                            YearRecapState(
+                                year =
+                                    java.time.LocalDate
+                                        .now()
+                                        .year,
+                                totalMinutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt().coerceAtLeast(0),
+                                booksCompleted = completedBooks.coerceAtLeast(0),
+                                activeDays = summary.activeDays.coerceAtLeast(0),
+                                sessions = summary.totalSessions.coerceAtLeast(0),
+                                topAuthor = topAuthor,
+                            )
+                        }
+                }.catch {
+                    if (it is kotlinx.coroutines.CancellationException) throw it
+                    // Recap is optional — keep last known state on upstream failure
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = null,
+                )
+
+        /** Real minutes listened per day (from listening_sessions), feeding the settings heatmap. */
+        public val dailyListeningMinutes: StateFlow<Map<java.time.LocalDate, Int>> =
+            listeningStatsUseCase
+                .observeDayStats(
+                    fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(26 * 7),
+                    toEpochMs = System.currentTimeMillis(),
+                ).map { dayStats ->
+                    dayStats.associate { stat ->
+                        java.time.LocalDate.parse(stat.day) to (stat.contentTimeMs / 60000L).toInt().coerceAtLeast(1)
+                    }
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptyMap(),
+                )
+
+        public val booksForStats: StateFlow<List<com.jabook.app.jabook.compose.domain.model.Book>> =
+            getLibraryUseCase(com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY)
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptyList(),
+                )
 
         public fun scanLibrary() {
             viewModelScope.launch {
@@ -175,6 +292,13 @@ public class SettingsViewModel
                         .UserPreferencesSerializer.defaultValue,
             )
 
+        public val customEqBands: StateFlow<List<Int>> =
+            settingsRepository.customEqBands.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = List(10) { 0 },
+            )
+
         // ===== Old preferences API (kept for compatibility) =====
 
         public fun updateTheme(theme: com.jabook.app.jabook.compose.data.model.AppTheme) {
@@ -207,11 +331,15 @@ public class SettingsViewModel
             }
         }
 
+        public fun updateHaptics(enabled: Boolean) {
+            viewModelScope.launch {
+                userPreferencesRepository.setHapticsEnabled(enabled)
+            }
+        }
+
         public fun updatePlaybackSpeed(speed: Float) {
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)
-                // Also update in Proto DataStore
-                settingsRepository.updatePlaybackSpeed(speed)
             }
         }
 
@@ -229,6 +357,18 @@ public class SettingsViewModel
             }
         }
 
+        public fun updateAccentSwatchIndex(index: Int) {
+            viewModelScope.launch {
+                settingsRepository.updateAccentSwatchIndex(index)
+            }
+        }
+
+        public fun updatePlayerCoverMode(mode: Int) {
+            viewModelScope.launch {
+                settingsRepository.updatePlayerCoverMode(mode)
+            }
+        }
+
         public fun updateAudioSettings(
             rewindSeconds: Int? = null,
             forwardSeconds: Int? = null,
@@ -238,6 +378,7 @@ public class SettingsViewModel
             sleepTimerShakeExtendEnabled: Boolean? = null,
             holdToBoostSpeed: Float? = null,
             autoPipEnabled: Boolean? = null,
+            headsetAutoplayEnabled: Boolean? = null,
             volumeBoost: String? = null,
             drcLevel: String? = null,
             speechEnhancer: Boolean? = null,
@@ -249,6 +390,12 @@ public class SettingsViewModel
             skipSilenceMode: com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode? = null,
             crossfadeEnabled: Boolean? = null,
             crossfadeDurationMs: Long? = null,
+            singleClickAction: Int? = null,
+            doubleClickAction: Int? = null,
+            tripleClickAction: Int? = null,
+            longPressAction: Int? = null,
+            notificationActionSlots: List<Int>? = null,
+            notificationLockscreenPrivate: Boolean? = null,
         ) {
             viewModelScope.launch {
                 settingsRepository.updateAudioSettings(
@@ -260,6 +407,7 @@ public class SettingsViewModel
                     sleepTimerShakeExtendEnabled = sleepTimerShakeExtendEnabled,
                     holdToBoostSpeed = holdToBoostSpeed,
                     autoPipEnabled = autoPipEnabled,
+                    headsetAutoplayEnabled = headsetAutoplayEnabled,
                     volumeBoost = volumeBoost,
                     drcLevel = drcLevel,
                     speechEnhancer = speechEnhancer,
@@ -271,19 +419,50 @@ public class SettingsViewModel
                     skipSilenceMode = skipSilenceMode,
                     crossfadeEnabled = crossfadeEnabled,
                     crossfadeDurationMs = crossfadeDurationMs,
+                    singleClickAction = singleClickAction,
+                    doubleClickAction = doubleClickAction,
+                    tripleClickAction = tripleClickAction,
+                    longPressAction = longPressAction,
+                    notificationActionSlots = notificationActionSlots,
+                    notificationLockscreenPrivate = notificationLockscreenPrivate,
                 )
             }
         }
 
         public fun updateLanguage(languageCode: String) {
             viewModelScope.launch {
-                settingsRepository.updateLanguage(languageCode)
+                userPreferencesRepository.setLanguage(languageCode)
+                withContext(Dispatchers.Main) {
+                    AppCompatDelegate.setApplicationLocales(
+                        LocaleListCompat.forLanguageTags(languageCode),
+                    )
+                }
             }
         }
 
         public fun updateEqualizerPreset(presetName: String) {
             viewModelScope.launch {
                 settingsRepository.updateEqualizerPreset(presetName)
+            }
+        }
+
+        public fun updateCustomEqBands(bands: List<Int>) {
+            viewModelScope.launch {
+                settingsRepository.updateCustomEqBands(bands)
+            }
+        }
+
+        public fun saveEqPreset(
+            name: String,
+            bands: List<Int>,
+            preampMillibels: Int,
+        ) {
+            viewModelScope.launch {
+                userEqPresetRepository.savePreset(
+                    name = name,
+                    bands = bands,
+                    preampMillibels = preampMillibels,
+                )
             }
         }
 
@@ -333,11 +512,11 @@ public class SettingsViewModel
          */
         public fun checkMirrorHealth(
             domain: String,
-            onResult: (Boolean) -> Unit,
+            onResult: (MirrorHealth) -> Unit,
         ) {
             viewModelScope.launch {
-                val isHealthy = mirrorManager.checkMirrorHealth(domain)
-                onResult(isHealthy)
+                val health = mirrorManager.checkMirrorHealth(domain)
+                onResult(health)
             }
         }
 
@@ -425,11 +604,17 @@ public class SettingsViewModel
         }
 
         public fun deleteAllTorrents(deleteFiles: Boolean) {
+            if (_cacheOperation.value == CacheOperationState.Clearing) return
             viewModelScope.launch {
-                torrentManager.deleteAllTorrents(deleteFiles)
-                // Refresh size after a short delay to allow file system ops
-                kotlinx.coroutines.delay(500L)
-                loadTorrentStorageSize()
+                _cacheOperation.value = CacheOperationState.Clearing
+                try {
+                    torrentManager.deleteAllTorrents(deleteFiles)
+                    // Refresh size after a short delay to allow file system ops
+                    kotlinx.coroutines.delay(500L)
+                    loadTorrentStorageSize()
+                } finally {
+                    _cacheOperation.value = CacheOperationState.Idle
+                }
             }
         }
 
@@ -442,6 +627,7 @@ public class SettingsViewModel
          * Export app data to JSON backup file.
          */
         public fun exportData() {
+            if (_backupState.value is BackupUiState.Exporting || _backupState.value is BackupUiState.Importing) return
             viewModelScope.launch {
                 try {
                     _backupState.value = BackupUiState.Exporting
@@ -450,7 +636,7 @@ public class SettingsViewModel
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    _backupState.value = BackupUiState.Error(e.message ?: "Export failed")
+                    _backupState.value = BackupUiState.Error(e.message ?: context.getString(R.string.export_failed))
                 }
             }
         }
@@ -459,6 +645,7 @@ public class SettingsViewModel
          * Import app data from JSON backup file.
          */
         public fun importData(uri: android.net.Uri) {
+            if (_backupState.value is BackupUiState.Exporting || _backupState.value is BackupUiState.Importing) return
             viewModelScope.launch {
                 try {
                     _backupState.value = BackupUiState.Importing
@@ -467,7 +654,7 @@ public class SettingsViewModel
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    _backupState.value = BackupUiState.Error(e.message ?: "Import failed: ${e.message}")
+                    _backupState.value = BackupUiState.Error(e.message ?: context.getString(R.string.import_failed))
                 }
             }
         }
@@ -500,7 +687,7 @@ public class SettingsViewModel
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    _cacheOperation.value = CacheOperationState.Error(e.message ?: "Failed to load cache stats")
+                    _cacheOperation.value = CacheOperationState.Error(e.message ?: context.getString(R.string.failed_to_load_cache_stats))
                 }
             }
         }
@@ -509,6 +696,7 @@ public class SettingsViewModel
          * Clear cache (all or specific type).
          */
         public fun clearCache(type: String? = null) {
+            if (_cacheOperation.value == CacheOperationState.Clearing) return
             viewModelScope.launch {
                 try {
                     _cacheOperation.value = CacheOperationState.Clearing
@@ -531,12 +719,12 @@ public class SettingsViewModel
                         loadCacheStatistics() // Reload stats
                         _cacheOperation.value = CacheOperationState.Success
                     } else {
-                        _cacheOperation.value = CacheOperationState.Error("Failed to clear cache")
+                        _cacheOperation.value = CacheOperationState.Error(context.getString(R.string.failed_to_clear_cache))
                     }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    _cacheOperation.value = CacheOperationState.Error(e.message ?: "Failed to clear cache")
+                    _cacheOperation.value = CacheOperationState.Error(e.message ?: context.getString(R.string.failed_to_clear_cache))
                 }
             }
         }
@@ -593,6 +781,34 @@ public class SettingsViewModel
             }
         }
     }
+
+private fun resolveProductivePeriod(books: List<com.jabook.app.jabook.compose.domain.model.Book>): ProductivePeriod {
+    val hour =
+        books
+            .mapNotNull { it.lastPlayedDate }
+            .maxOrNull()
+            ?.let {
+                java.time.Instant
+                    .ofEpochMilli(it)
+                    .atZone(java.time.ZoneId.systemDefault())
+                    .hour
+            }
+            ?: return ProductivePeriod.UNKNOWN
+    return when (hour) {
+        in 5..11 -> ProductivePeriod.MORNING
+        in 12..16 -> ProductivePeriod.DAY
+        in 17..22 -> ProductivePeriod.EVENING
+        else -> ProductivePeriod.NIGHT
+    }
+}
+
+private fun resolveYearStartEpochMs(): Long =
+    java.time.LocalDate
+        .now()
+        .withDayOfYear(1)
+        .atStartOfDay(java.time.ZoneId.systemDefault())
+        .toInstant()
+        .toEpochMilli()
 
 /**
  * UI state for backup/restore operations.

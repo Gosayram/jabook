@@ -18,7 +18,10 @@ import androidx.media3.common.PlaybackException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class PlaybackErrorPolicyTest {
     @Test
     fun `network failed with retries left resolves to retry`() {

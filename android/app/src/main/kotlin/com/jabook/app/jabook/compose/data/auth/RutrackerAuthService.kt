@@ -30,6 +30,7 @@ import com.jabook.app.jabook.compose.domain.model.UserCredentials
 import com.jabook.app.jabook.utils.RetryConfig
 import com.jabook.app.jabook.utils.RetryableHttpException
 import com.jabook.app.jabook.utils.retryWithBackoff
+import com.jabook.app.jabook.utils.throwIfRateLimited
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -70,7 +71,6 @@ public class RutrackerAuthService
 
         /**
          * Attempt login with detailed logging.
-         * Based on Flutter's robust authentication implementation.
          *
          * @return AuthResult with status and optional captcha data
          */
@@ -84,7 +84,7 @@ public class RutrackerAuthService
 
             return withContext(Dispatchers.IO) {
                 try {
-                    logger.log(operationId, "Authentication started for user: ${credentials.username}")
+                    logger.log(operationId, "Authentication started")
 
                     // Step 1: Encode credentials to CP1251
                     val encodeStart = System.currentTimeMillis()
@@ -121,16 +121,7 @@ public class RutrackerAuthService
                             // Apply timeout for the network call
                             withContext(Dispatchers.IO) {
                                 kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
-                                    val response = api.login(body)
-                                    if (response.code() == 429 || response.code() == 503) {
-                                        val retryAfterMs = parseRetryAfterToMs(response.headers()["Retry-After"])
-                                        throw RetryableHttpException(
-                                            statusCode = response.code(),
-                                            retryAfterMs = retryAfterMs,
-                                            message = "HTTP ${response.code()} from login endpoint",
-                                        )
-                                    }
-                                    response
+                                    api.login(body).throwIfRateLimited()
                                 }
                             }
                         }
@@ -149,7 +140,7 @@ public class RutrackerAuthService
                             "isRedirect=$isRedirect, responseSize=${rawBody.size} bytes (${requestDuration}ms)"
                     }
 
-                    // Step 4: Decode response body with simple decoder (matching Flutter implementation)
+                    // Step 4: Decode response body with simple decoder
                     val decodeStart = System.currentTimeMillis()
                     val contentType = response.headers()["Content-Type"]
                     val bodyString = decoder.decode(rawBody, contentType)
@@ -291,11 +282,6 @@ public class RutrackerAuthService
             return sb.toString()
         }
 
-        private fun parseRetryAfterToMs(retryAfterHeader: String?): Long? {
-            val seconds = retryAfterHeader?.trim()?.toLongOrNull() ?: return null
-            return if (seconds > 0L) seconds * 1000L else 0L
-        }
-
         public sealed interface AuthResult {
             public data object Success : AuthResult
 
@@ -309,8 +295,7 @@ public class RutrackerAuthService
         }
 
         /**
-         * Validate authentication using multi-tier approach.
-         * Based on Flutter's robust 3-tier validation strategy:
+         * Validate authentication using multi-tier approach:
          * 1. Profile page (most reliable)
          * 2. Search page (fallback)
          * 3. Index page (final fallback)
@@ -536,11 +521,41 @@ public class RutrackerAuthService
         }
 
         /**
+         * Fetch the real username from the forum page HTML.
+         * Parses the logged-in-username element from the index page.
+         *
+         * @return extracted username, or null if not found / request fails
+         */
+        public suspend fun fetchUsername(): String? {
+            return try {
+                val response =
+                    kotlinx.coroutines.withTimeout(5000L) {
+                        api.getIndex()
+                    }
+                if (!response.isSuccessful) return null
+
+                val rawBody = response.body()?.bytes() ?: return null
+                if (rawBody.isEmpty()) return null
+                val bodyString = String(rawBody, CP1251)
+
+                org.jsoup.Jsoup
+                    .parse(bodyString)
+                    .select("#logged-in-username")
+                    .firstOrNull()
+                    ?.text()
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        /**
          * Test 3: Validate via index page access.
          * Final fallback - checks if forum index is accessible.
          */
-        private suspend fun validateIndexPage(operationId: String): Boolean {
-            return try {
+        private suspend fun validateIndexPage(operationId: String): Boolean =
+            try {
                 // Test 3: Index page (final fallback) using api.getIndex()
                 val response =
                     kotlinx.coroutines.withTimeout(REQUEST_TIMEOUT_MS) {
@@ -548,23 +563,23 @@ public class RutrackerAuthService
                     }
                 if (response.isSuccessful) {
                     val bodyString = response.body()?.string()?.lowercase() ?: ""
-                    val isValidIndex = bodyString.contains("форум") || bodyString.contains("rutracker.org")
+                    // Index page title contains "Форум" on every mirror
+                    val isValidIndex = bodyString.contains("форум")
                     logger.log(
                         operationId,
                         "Index check: HTTP ${response.code()}, validContent=$isValidIndex",
                         LogLevel.DEBUG,
                     )
-                    return isValidIndex
+                    isValidIndex
                 } else {
                     logger.logWarning(operationId, "Index check failed: HTTP ${response.code()}")
-                    return false
+                    false
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 logger.logError(operationId, "Index check timeout", e)
-                return false
+                false
             } catch (e: Exception) {
                 logger.logError(operationId, "Index check exception", e)
-                return false
+                false
             }
-        }
     }

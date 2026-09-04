@@ -20,7 +20,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class AudioQualityInfoTest {
     private fun format(
         mime: String = "audio/mpeg",
@@ -86,33 +89,79 @@ class AudioQualityInfoTest {
         assertEquals("AAC", info.format)
     }
 
-    // --- toLabel ---
+    // --- Quality tier classification ---
 
     @Test
-    fun `toLabel for FLAC with bitrate`() {
-        val info =
-            AudioQualityInfo(
-                format = "FLAC",
-                bitrateKbps = 876,
-                sampleRateHz = 44100,
-                channels = 2,
-                isLossless = true,
-            )
-
-        assertEquals("FLAC · 876 кбит/с · Lossless", info.toLabel())
+    fun `lossless format always HIGH tier`() {
+        val info = AudioQualityInfo(format = "FLAC", bitrateKbps = 876, sampleRateHz = 44100, channels = 2, isLossless = true)
+        assertEquals(QualityTier.HIGH, info.tier)
     }
 
     @Test
-    fun `toLabel for MP3 without bitrate`() {
-        val info =
-            AudioQualityInfo(
-                format = "MP3",
-                bitrateKbps = null,
-                sampleRateHz = null,
-                channels = null,
-                isLossless = false,
-            )
+    fun `lossless format with null bitrate still HIGH tier`() {
+        val info = AudioQualityInfo(format = "FLAC", bitrateKbps = null, sampleRateHz = null, channels = null, isLossless = true)
+        assertEquals(QualityTier.HIGH, info.tier)
+    }
 
-        assertEquals("MP3", info.toLabel())
+    @Test
+    fun `high bitrate 320 kbps is HIGH tier`() {
+        val info = AudioQualityInfo(format = "MP3", bitrateKbps = 320, sampleRateHz = 44100, channels = 2, isLossless = false)
+        assertEquals(QualityTier.HIGH, info.tier)
+    }
+
+    @Test
+    fun `bitrate 256 kbps is HIGH tier`() {
+        val info = AudioQualityInfo(format = "MP3", bitrateKbps = 256, sampleRateHz = 44100, channels = 2, isLossless = false)
+        assertEquals(QualityTier.HIGH, info.tier)
+    }
+
+    @Test
+    fun `standard bitrate 128 kbps is STANDARD tier`() {
+        val info = AudioQualityInfo(format = "MP3", bitrateKbps = 128, sampleRateHz = 44100, channels = 2, isLossless = false)
+        assertEquals(QualityTier.STANDARD, info.tier)
+    }
+
+    @Test
+    fun `bitrate 192 kbps is STANDARD tier`() {
+        val info = AudioQualityInfo(format = "MP3", bitrateKbps = 192, sampleRateHz = 44100, channels = 2, isLossless = false)
+        assertEquals(QualityTier.STANDARD, info.tier)
+    }
+
+    @Test
+    fun `low bitrate 64 kbps is LOW tier`() {
+        val info = AudioQualityInfo(format = "MP3", bitrateKbps = 64, sampleRateHz = 22050, channels = 1, isLossless = false)
+        assertEquals(QualityTier.LOW, info.tier)
+    }
+
+    @Test
+    fun `null bitrate is LOW tier`() {
+        val info = AudioQualityInfo(format = "MP3", bitrateKbps = null, sampleRateHz = null, channels = null, isLossless = false)
+        assertEquals(QualityTier.LOW, info.tier)
+    }
+
+    @Test
+    fun `very low bitrate 32 kbps is LOW tier`() {
+        val info = AudioQualityInfo(format = "Opus", bitrateKbps = 32, sampleRateHz = 24000, channels = 1, isLossless = false)
+        assertEquals(QualityTier.LOW, info.tier)
+    }
+
+    // --- Short label ---
+
+    @Test
+    fun `short label with bitrate`() {
+        val info = AudioQualityInfo(format = "MP3", bitrateKbps = 320, sampleRateHz = 44100, channels = 2, isLossless = false)
+        assertEquals("MP3 320", info.toShortLabel())
+    }
+
+    @Test
+    fun `short label without bitrate`() {
+        val info = AudioQualityInfo(format = "FLAC", bitrateKbps = null, sampleRateHz = null, channels = null, isLossless = true)
+        assertEquals("FLAC", info.toShortLabel())
+    }
+
+    @Test
+    fun `short label for M4B`() {
+        val info = AudioQualityInfo(format = "M4B", bitrateKbps = 128, sampleRateHz = 44100, channels = 2, isLossless = false)
+        assertEquals("M4B 128", info.toShortLabel())
     }
 }

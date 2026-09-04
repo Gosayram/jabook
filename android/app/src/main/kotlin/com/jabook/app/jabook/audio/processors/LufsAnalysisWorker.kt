@@ -14,16 +14,23 @@
 
 package com.jabook.app.jabook.audio.processors
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.ServiceInfo
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import android.os.Build
+import androidx.core.app.NotificationCompat
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.compose.data.local.dao.ChaptersDao
 import com.jabook.app.jabook.crash.CrashDiagnostics
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -33,6 +40,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.nio.ByteOrder
+import kotlin.contracts.contract
 
 /**
  * WorkManager-based worker for background loudness analysis of audiobooks.
@@ -59,11 +67,16 @@ public class LufsAnalysisWorker
         @Assisted context: Context,
         @Assisted params: WorkerParameters,
         private val booksDao: BooksDao,
+        private val chaptersDao: ChaptersDao,
         private val loggerFactory: LoggerFactory,
     ) : CoroutineWorker(context, params) {
         private val logger = loggerFactory.get("LufsAnalysisWorker")
 
         public companion object {
+            /** Distinct from IndexingWorker (3104) and LibraryScanWorker (3105) so notifications never race. */
+            private const val NOTIFICATION_ID: Int = 3_106
+            private const val NOTIFICATION_CHANNEL_ID: String = "lufs_analysis_work"
+
             /** Input data key for the book ID to analyze. */
             public const val KEY_BOOK_ID: String = "book_id"
 
@@ -72,6 +85,23 @@ public class LufsAnalysisWorker
 
             /** Output data key for the analyzed file path. */
             public const val KEY_FILE_PATH: String = "file_path"
+
+            /**
+             * Sentinel persisted when analysis was attempted and failed permanently.
+             *
+             * Outside the real LUFS range (~[-70, 0]) and a normal double so SQLite
+             * can store it (NaN would silently become NULL). Readers must treat it
+             * like null — see [isValidLufs].
+             */
+            public const val LUFS_ANALYSIS_FAILED: Double = -999.0
+
+            /** True when [lufs] is a usable measurement; null or [LUFS_ANALYSIS_FAILED] mean "no data". */
+            @OptIn(kotlin.contracts.ExperimentalContracts::class)
+            @Suppress("NOTHING_TO_INLINE")
+            public inline fun isValidLufs(lufs: Double?): Boolean {
+                contract { returns(true) implies (lufs != null) }
+                return lufs != null && lufs != LUFS_ANALYSIS_FAILED
+            }
 
             /**
              * Maximum duration of audio to sample for LUFS estimation, in milliseconds.
@@ -93,6 +123,9 @@ public class LufsAnalysisWorker
             /** Maximum number of sample data buffers to read per chunk. */
             private const val MAX_BUFFERS_PER_CHUNK: Int = 50
 
+            /** Cap for transient-failure retries before giving up on a book. */
+            private const val MAX_ANALYSIS_ATTEMPTS: Int = 3
+
             /** Supported audio file extensions for LUFS analysis. */
             private val SUPPORTED_EXTENSIONS =
                 setOf(
@@ -108,15 +141,41 @@ public class LufsAnalysisWorker
                 )
         }
 
+        override suspend fun getForegroundInfo(): ForegroundInfo {
+            createNotificationChannel()
+            val notification =
+                NotificationCompat
+                    .Builder(applicationContext, NOTIFICATION_CHANNEL_ID)
+                    .setSmallIcon(com.jabook.app.jabook.R.drawable.ic_notification_logo)
+                    .setContentTitle(applicationContext.getString(com.jabook.app.jabook.R.string.indexingNotificationTitle))
+                    .setContentText(applicationContext.getString(com.jabook.app.jabook.R.string.indexingNotificationBody))
+                    .setOngoing(true)
+                    .build()
+            return ForegroundInfo(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+            )
+        }
+
         override suspend fun doWork(): Result {
             val bookId =
                 inputData.getString(KEY_BOOK_ID)
                     ?: return Result.failure()
 
             return try {
+                // Minutes-long MediaCodec work — promote to FGS like the other
+                // workers; degrade to background if the start is denied.
+                try {
+                    setForeground(getForegroundInfo())
+                } catch (e: Throwable) {
+                    logger.w { "FGS start not allowed for LUFS worker: ${e.message}" }
+                }
                 val lufsValue =
                     withContext(Dispatchers.IO) {
-                        analyzeBookLoudness(bookId)
+                        val bookLufs = analyzeBookLoudness(bookId)
+                        analyzePerChapterLoudness(bookId)
+                        bookLufs
                     }
 
                 if (lufsValue != null) {
@@ -130,6 +189,9 @@ public class LufsAnalysisWorker
                     )
                 } else {
                     logger.w { "LUFS analysis returned null for book=$bookId (likely unsupported format)" }
+                    // Mark permanently failed so the enqueue gate won't re-run this
+                    // minutes-long analysis on every play of the book.
+                    booksDao.updateLufsValue(bookId, LUFS_ANALYSIS_FAILED)
                     Result.failure(
                         workDataOf(
                             KEY_BOOK_ID to bookId,
@@ -141,6 +203,13 @@ public class LufsAnalysisWorker
                 logger.i { "LUFS analysis cancelled for book=$bookId" }
                 throw e
             } catch (e: Exception) {
+                // Transient failures (I/O hiccup, one-off decoder error) get a capped
+                // retry — a permanent failure here would block the book from ever
+                // getting loudness normalization.
+                if (runAttemptCount < MAX_ANALYSIS_ATTEMPTS) {
+                    logger.w({ "LUFS analysis attempt ${runAttemptCount + 1} failed for book=$bookId, retrying" }, e)
+                    return Result.retry()
+                }
                 logger.e({ "LUFS analysis failed for book=$bookId" }, e)
                 CrashDiagnostics.reportNonFatal(
                     tag = "lufs_analysis_failure",
@@ -148,6 +217,9 @@ public class LufsAnalysisWorker
                     attributes =
                         mapOf("book_id" to bookId),
                 )
+                // Terminal failure: persist the sentinel so the book is not
+                // re-analyzed from scratch on every play.
+                booksDao.updateLufsValue(bookId, LUFS_ANALYSIS_FAILED)
                 Result.failure(
                     workDataOf(
                         KEY_BOOK_ID to bookId,
@@ -173,18 +245,51 @@ public class LufsAnalysisWorker
         }
 
         /**
+         * Analyzes per-chapter loudness for all chapters of a book.
+         *
+         * For each chapter, locates its audio file (via [ChapterEntity.fileUrl]),
+         * estimates LUFS using [estimateLufsForFile], and persists the result
+         * via [ChaptersDao.updateLufsValue].
+         *
+         * Deduplicates by file path to avoid redundant analysis of the same file
+         * (e.g. when multiple auto-detected chapters share a single audio file).
+         * Chapters whose file cannot be located or analyzed keep a null LUFS value.
+         */
+        internal suspend fun analyzePerChapterLoudness(bookId: String) {
+            val chapters = chaptersDao.getChaptersByBookId(bookId)
+            if (chapters.isEmpty()) return
+
+            val analyzedPaths = mutableSetOf<String>()
+
+            for (chapter in chapters) {
+                val fileUrl = chapter.fileUrl ?: continue
+                if (fileUrl in analyzedPaths) continue
+                analyzedPaths.add(fileUrl)
+
+                val file = File(fileUrl)
+                if (!file.exists() || !isSupportedAudioFile(file)) continue
+
+                val lufs = estimateLufsForFile(file)
+                if (lufs != null) {
+                    chaptersDao.updateLufsValue(chapter.id, lufs)
+                    logger.i { "Chapter LUFS: chapter=${chapter.id}, lufs=$lufs" }
+                }
+            }
+        }
+
+        /**
          * Finds the first supported audio file in the given directory (or the file itself).
          */
         internal fun findFirstAudioFile(path: String): File? {
             val file = File(path)
             if (!file.exists()) return null
 
-            if (file.isFile && file.isSupportedAudioFile()) return file
+            if (file.isFile && isSupportedAudioFile(file)) return file
 
             if (file.isDirectory) {
                 return file
                     .listFiles()
-                    ?.filter { it.isSupportedAudioFile() }
+                    ?.filter { isSupportedAudioFile(it) }
                     ?.minByOrNull { it.name }
             }
             return null
@@ -358,6 +463,19 @@ public class LufsAnalysisWorker
             return if (pcmBuffer.isNotEmpty()) pcmBuffer.toShortArray() else null
         }
 
+        private fun createNotificationChannel() {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+            applicationContext
+                .getSystemService(NotificationManager::class.java)
+                .createNotificationChannel(
+                    NotificationChannel(
+                        NOTIFICATION_CHANNEL_ID,
+                        "Анализ громкости",
+                        NotificationManager.IMPORTANCE_LOW,
+                    ),
+                )
+        }
+
         /**
          * Finds the index of the first audio track in the media file.
          */
@@ -373,8 +491,8 @@ public class LufsAnalysisWorker
         /**
          * Checks if the file has a supported audio extension.
          */
-        private fun File.isSupportedAudioFile(): Boolean {
-            val ext = extension.lowercase()
+        internal fun isSupportedAudioFile(file: File): Boolean {
+            val ext = file.extension.lowercase()
             return ext in SUPPORTED_EXTENSIONS
         }
     }

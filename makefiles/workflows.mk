@@ -14,13 +14,13 @@ beta: fmt-kotlin compile-beta install-beta ## Format → compile → install bet
 lint: clean fmt-kotlin compile ## Clean → format → compile (full lint cycle)
 
 .PHONY: check-all
-check-all: lint-kotlin compile hilt-graph-check ## Full local quality gate (lint + compile + Hilt graph)
+check-all: lint-kotlin check-docs compile hilt-graph-check ## Full local quality gate (lint + docs sync + compile + Hilt graph)
 
 .PHONY: test-all
 test-all: test-ci ## Backward-compatible alias for CI-grade unit test suite
 
 .PHONY: check-all-with-tests
-check-all-with-tests: lint-kotlin compile hilt-graph-check test-ci ## Full gate incl. strict unit tests
+check-all-with-tests: lint-kotlin check-docs compile hilt-graph-check test-ci ## Full gate incl. docs sync + strict unit tests
 
 .PHONY: check
 check: check-all ## Backward-compatible alias for check-all

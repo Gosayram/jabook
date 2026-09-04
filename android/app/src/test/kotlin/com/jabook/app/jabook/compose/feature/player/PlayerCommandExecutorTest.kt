@@ -19,7 +19,10 @@ import com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode
 import com.jabook.app.jabook.compose.feature.player.testdoubles.FakePlayerCommandCallbacks
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class PlayerCommandExecutorTest {
     @Test
     fun `execute routes playback commands to expected callbacks`() {

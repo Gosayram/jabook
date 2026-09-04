@@ -122,6 +122,7 @@ public class PlaybackTimer(
     private fun broadcastRemaining(seconds: Long) {
         val intent =
             Intent(ACTION_TIMER_TICK).apply {
+                setPackage(context.packageName)
                 putExtra(EXTRA_REMAINING_SECONDS, seconds)
             }
         context.sendBroadcast(intent)
@@ -131,7 +132,7 @@ public class PlaybackTimer(
      * Broadcasts timer expiration.
      */
     private fun broadcastTimerExpired() {
-        val intent = Intent(ACTION_TIMER_EXPIRED)
+        val intent = Intent(ACTION_TIMER_EXPIRED).setPackage(context.packageName)
         context.sendBroadcast(intent)
 
         // Auto-pause playback when timer expires (inspired by lissen-android)

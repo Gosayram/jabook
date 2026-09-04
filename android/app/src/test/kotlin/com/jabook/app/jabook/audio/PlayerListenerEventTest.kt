@@ -14,9 +14,14 @@
 
 package com.jabook.app.jabook.audio
 
+import androidx.media3.common.FlagSet
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
@@ -164,6 +169,43 @@ class PlayerListenerEventTest {
     }
 
     @Test
+    fun `onMediaItemTransition expires sleep timer on repeated chapter`() {
+        val context: android.content.Context = mock()
+        val player: ExoPlayer = mock()
+        whenever(player.currentMediaItemIndex).thenReturn(2)
+        var savedPositionCalls = 0
+        var cancelSleepTimerCalls = 0
+        var timerExpiredCalls = 0
+
+        val listener =
+            PlayerListener(
+                context = context,
+                getActivePlayer = { player },
+                getIsBookCompleted = { false },
+                setIsBookCompleted = { },
+                getSleepTimerEndOfChapter = { true },
+                getSleepTimerEndOfTrack = { false },
+                cancelSleepTimer = { cancelSleepTimerCalls++ },
+                sendTimerExpiredEvent = { timerExpiredCalls++ },
+                saveCurrentPosition = { savedPositionCalls++ },
+                getEmbeddedArtworkPath = { null },
+                setEmbeddedArtworkPath = { },
+                getCurrentMetadata = { null },
+                getActualPlaylistSize = { 10 },
+            )
+
+        listener.onMediaItemTransition(
+            MediaItem.Builder().setMediaId("chapter-3").build(),
+            Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT,
+        )
+
+        assertEquals(1, savedPositionCalls)
+        assertEquals(1, cancelSleepTimerCalls)
+        assertEquals(1, timerExpiredCalls)
+        verify(player).playWhenReady = false
+    }
+
+    @Test
     fun `onMediaItemTransition does not save position for manual transition with sleep timer`() {
         val context: android.content.Context = mock()
         val player: ExoPlayer = mock()
@@ -202,5 +244,84 @@ class PlayerListenerEventTest {
         assertEquals(0, savedPositionCalls)
         assertEquals(0, markSleepTimerPauseCalls)
         verify(player, never()).playWhenReady = false
+    }
+
+    @Test
+    fun `idle event does not schedule a second retry after player error callback`() {
+        val context: android.content.Context = mock()
+        val player: ExoPlayer = mock()
+        val error =
+            ExoPlaybackException.createForSource(
+                java.io.IOException("Network failed"),
+                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+            )
+        val events = Player.Events(FlagSet.Builder().add(Player.EVENT_PLAYBACK_STATE_CHANGED).build())
+        whenever(player.playbackState).thenReturn(Player.STATE_IDLE)
+        whenever(player.playerError).thenReturn(error)
+        whenever(player.currentMediaItemIndex).thenReturn(0)
+        whenever(player.playWhenReady).thenReturn(true)
+        val testScope = TestScope(UnconfinedTestDispatcher())
+
+        val listener =
+            PlayerListener(
+                context = context,
+                coroutineScope = testScope,
+                getActivePlayer = { player },
+                getIsBookCompleted = { false },
+                setIsBookCompleted = { },
+                getSleepTimerEndOfChapter = { false },
+                getSleepTimerEndOfTrack = { false },
+                cancelSleepTimer = { },
+                sendTimerExpiredEvent = { },
+                saveCurrentPosition = { },
+                getEmbeddedArtworkPath = { null },
+                setEmbeddedArtworkPath = { },
+                getCurrentMetadata = { null },
+                getActualPlaylistSize = { 1 },
+            )
+
+        listener.onPlayerError(error)
+        listener.onEvents(player, events)
+        testScope.testScheduler.advanceUntilIdle()
+
+        verify(player).prepare()
+    }
+
+    @Test
+    fun `retry is cancelled when playback is paused before its delay`() {
+        val context: android.content.Context = mock()
+        val player: ExoPlayer = mock()
+        val error =
+            ExoPlaybackException.createForSource(
+                java.io.IOException("Network failed"),
+                PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+            )
+        whenever(player.currentMediaItemIndex).thenReturn(0)
+        whenever(player.playWhenReady).thenReturn(true)
+        val testScope = TestScope(UnconfinedTestDispatcher())
+
+        val listener =
+            PlayerListener(
+                context = context,
+                coroutineScope = testScope,
+                getActivePlayer = { player },
+                getIsBookCompleted = { false },
+                setIsBookCompleted = { },
+                getSleepTimerEndOfChapter = { false },
+                getSleepTimerEndOfTrack = { false },
+                cancelSleepTimer = { },
+                sendTimerExpiredEvent = { },
+                saveCurrentPosition = { },
+                getEmbeddedArtworkPath = { null },
+                setEmbeddedArtworkPath = { },
+                getCurrentMetadata = { null },
+                getActualPlaylistSize = { 1 },
+            )
+
+        listener.onPlayerError(error)
+        whenever(player.playWhenReady).thenReturn(false)
+        testScope.testScheduler.advanceUntilIdle()
+
+        verify(player, never()).prepare()
     }
 }

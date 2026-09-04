@@ -17,12 +17,33 @@ package com.jabook.app.jabook.compose.feature.player
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import com.jabook.app.jabook.compose.domain.model.SleepTimerState
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import com.jabook.app.jabook.audio.core.result.Result as AudioResult
 
+@RunWith(RobolectricTestRunner::class)
 class PlayerStateSnapshotPolicyTest {
+    @Test
+    fun `firstTerminalResult waits past loading for restored position`() =
+        runTest {
+            val restored =
+                flowOf(
+                    AudioResult.Loading,
+                    AudioResult.Success(PlaybackRestore(positionMs = 42_000L, chapterIndex = 3)),
+                ).firstTerminalResult()
+
+            assertEquals(
+                AudioResult.Success(PlaybackRestore(positionMs = 42_000L, chapterIndex = 3)),
+                restored,
+            )
+        }
+
     @Test
     fun `capture stores clamped active state values`() {
         val activeState =
@@ -32,7 +53,6 @@ class PlayerStateSnapshotPolicyTest {
                         .preview(),
                 chapters = persistentListOf(Chapter.preview()),
                 isPlaying = true,
-                currentPosition = -1L,
                 currentChapterIndex = -3,
                 currentChapter = Chapter.preview(),
                 rewindInterval = 10,
@@ -47,6 +67,7 @@ class PlayerStateSnapshotPolicyTest {
             PlayerStateSnapshotPolicy.capture(
                 bookId = "book-1",
                 state = activeState,
+                currentPositionMs = -1L,
                 sleepTimerState = SleepTimerState.EndOfChapter,
             )
 
@@ -112,4 +133,41 @@ class PlayerStateSnapshotPolicyTest {
         val differentChapter = base.copy(chapterIndex = 2)
         assertTrue(PlayerStateSnapshotPolicy.shouldPersistSnapshot(base, differentChapter))
     }
+
+    @Test
+    fun `firstTerminalResult returns Success when flow emits Loading then Success`() =
+        runTest {
+            val result =
+                flowOf(
+                    AudioResult.Loading,
+                    AudioResult.Success("data"),
+                ).firstTerminalResult()
+            assertTrue(result is AudioResult.Success)
+            assertEquals("data", (result as AudioResult.Success).data)
+        }
+
+    @Test
+    fun `firstTerminalResult returns Error when flow emits Loading then Error`() =
+        runTest {
+            val result =
+                flowOf(
+                    AudioResult.Loading,
+                    AudioResult.Error(Exception("fail")),
+                ).firstTerminalResult()
+            assertTrue(result is AudioResult.Error)
+        }
+
+    @Test
+    fun `firstTerminalResult returns immediately terminal value without Loading`() =
+        runTest {
+            val result =
+                flowOf(AudioResult.Success(42)).firstTerminalResult()
+            assertTrue(result is AudioResult.Success)
+            assertEquals(42, (result as AudioResult.Success).data)
+        }
 }
+
+private data class PlaybackRestore(
+    val positionMs: Long,
+    val chapterIndex: Int,
+)

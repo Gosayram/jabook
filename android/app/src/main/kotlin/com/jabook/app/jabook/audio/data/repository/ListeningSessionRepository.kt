@@ -67,7 +67,13 @@ public class ListeningSessionRepository
             )
         }
 
+        public suspend fun getLastListeningTimestamp(bookId: String): Long? = listeningSessionDao.getLastListeningTimestamp(bookId)
+
         public suspend fun getLatestActiveSession(): ListeningSessionEntity? = listeningSessionDao.getLatestActiveSession()
+
+        /** Closes sessions left open by an unclean process termination. */
+        public suspend fun recoverOpenSessions(crashedAt: Long = System.currentTimeMillis()): Int =
+            listeningSessionDao.closeOpenSessionsAsCrashed(crashedAt)
 
         public fun observeDayStats(
             fromEpochMs: Long,

@@ -28,18 +28,28 @@ import com.jabook.app.jabook.compose.data.network.NetworkMonitor
 import com.jabook.app.jabook.compose.data.network.NetworkType
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.preferences.UserPreferencesSerializer
-import com.jabook.app.jabook.compose.data.remote.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.data.repository.RutrackerRepository
+import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownloadRepository
+import com.jabook.app.jabook.compose.data.torrent.TorrentState
+import com.jabook.app.jabook.compose.domain.model.AppError
+import com.jabook.app.jabook.compose.domain.model.Result
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import okhttp3.OkHttpClient
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
+import kotlin.test.assertFailsWith
 
 @RunWith(RobolectricTestRunner::class)
+@org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class SyncWorkerTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val offlineSearchDao: OfflineSearchDao = mock()
@@ -48,6 +58,7 @@ class SyncWorkerTest {
     private val rutrackerRepository: RutrackerRepository = mock()
     private val settingsRepository: SettingsRepository = mock()
     private val networkMonitor: NetworkMonitor = mock()
+    private val okHttpClient: OkHttpClient = mock()
     private val loggerFactory: LoggerFactory =
         object : LoggerFactory {
             override fun get(tag: String): Logger = NoopLogger
@@ -89,6 +100,101 @@ class SyncWorkerTest {
             assertTrue(result is ListenableWorker.Result.Failure)
         }
 
+    @Test
+    fun `doWork propagates cancellation instead of scheduling a retry`() =
+        runTest {
+            whenever(settingsRepository.userPreferences).thenReturn(flowOf(UserPreferencesSerializer.defaultValue))
+            whenever(networkMonitor.networkType).thenReturn(flowOf(NetworkType.WIFI))
+            whenever(torrentDownloadRepository.getAll()).thenReturn(emptyList())
+            whenever(booksDao.getAllBooks()).thenReturn(emptyList())
+            whenever(offlineSearchDao.clearOldCache(org.mockito.kotlin.any())).thenThrow(CancellationException("cancelled"))
+
+            assertFailsWith<CancellationException> {
+                buildWorker(runAttemptCount = 0).doWork()
+            }
+        }
+
+    @Test
+    fun `doWork propagates cancellation from a per-download metadata request`() =
+        runTest {
+            whenever(torrentDownloadRepository.getAll()).thenReturn(
+                listOf(
+                    TorrentDownload(
+                        hash = "hash-1",
+                        name = "Book",
+                        state = TorrentState.DOWNLOADING,
+                        topicId = "topic-1",
+                    ),
+                ),
+            )
+            whenever(rutrackerRepository.getTopicDetails("topic-1")).thenThrow(
+                CancellationException("cancelled"),
+            )
+
+            assertFailsWith<CancellationException> {
+                buildWorker(runAttemptCount = 0).doWork()
+            }
+        }
+
+    @Test
+    fun `sync metadata reads books once regardless of download count`() =
+        runTest {
+            whenever(torrentDownloadRepository.getAll()).thenReturn(
+                listOf(
+                    TorrentDownload(hash = "hash-1", name = "Book 1", state = TorrentState.DOWNLOADING, topicId = "topic-1"),
+                    TorrentDownload(hash = "hash-2", name = "Book 2", state = TorrentState.DOWNLOADING, topicId = "topic-2"),
+                ),
+            )
+            whenever(booksDao.getAllBooks()).thenReturn(emptyList())
+            whenever(
+                rutrackerRepository.getTopicDetails(org.mockito.kotlin.any()),
+            ).thenReturn(Result.Error(AppError.NetworkError.Generic("offline")))
+            whenever(settingsRepository.userPreferences).thenReturn(flowOf(UserPreferencesSerializer.defaultValue))
+            whenever(networkMonitor.networkType).thenReturn(flowOf(NetworkType.WIFI))
+
+            buildWorker(runAttemptCount = 0).doWork()
+
+            verify(booksDao, times(2)).getAllBooks()
+        }
+
+    @Test
+    fun `syncCoverImages rejects ws scheme`() =
+        runTest {
+            whenever(torrentDownloadRepository.getAll()).thenReturn(emptyList())
+            whenever(settingsRepository.userPreferences).thenReturn(flowOf(UserPreferencesSerializer.defaultValue))
+            whenever(networkMonitor.networkType).thenReturn(flowOf(NetworkType.WIFI))
+            val bookWithWs =
+                mock<com.jabook.app.jabook.compose.data.local.entity.BookEntity> {
+                    whenever(it.id).thenReturn("b1")
+                    whenever(it.coverUrl).thenReturn("ws://example.com/cover.jpg")
+                    whenever(it.coverPath).thenReturn(null)
+                }
+            whenever(booksDao.getAllBooks()).thenReturn(listOf(bookWithWs))
+
+            buildWorker(runAttemptCount = 0).doWork()
+
+            verify(okHttpClient, org.mockito.kotlin.never()).newCall(org.mockito.kotlin.any())
+        }
+
+    @Test
+    fun `syncCoverImages rejects ftp scheme`() =
+        runTest {
+            whenever(torrentDownloadRepository.getAll()).thenReturn(emptyList())
+            whenever(settingsRepository.userPreferences).thenReturn(flowOf(UserPreferencesSerializer.defaultValue))
+            whenever(networkMonitor.networkType).thenReturn(flowOf(NetworkType.WIFI))
+            val bookWithFtp =
+                mock<com.jabook.app.jabook.compose.data.local.entity.BookEntity> {
+                    whenever(it.id).thenReturn("b2")
+                    whenever(it.coverUrl).thenReturn("ftp://example.com/cover.jpg")
+                    whenever(it.coverPath).thenReturn(null)
+                }
+            whenever(booksDao.getAllBooks()).thenReturn(listOf(bookWithFtp))
+
+            buildWorker(runAttemptCount = 0).doWork()
+
+            verify(okHttpClient, org.mockito.kotlin.never()).newCall(org.mockito.kotlin.any())
+        }
+
     private fun buildWorker(runAttemptCount: Int): SyncWorker {
         val workerFactory =
             object : WorkerFactory() {
@@ -107,6 +213,7 @@ class SyncWorkerTest {
                         rutrackerRepository = rutrackerRepository,
                         settingsRepository = settingsRepository,
                         networkMonitor = networkMonitor,
+                        coverDownloadClient = okHttpClient,
                         loggerFactory = loggerFactory,
                     )
                 }
