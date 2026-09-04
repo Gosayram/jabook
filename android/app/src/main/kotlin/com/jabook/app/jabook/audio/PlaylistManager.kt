@@ -379,6 +379,11 @@ internal class PlaylistManager(
                     currentIndex = sessionState.normalizedTrackIndex,
                     currentPosition = (initialPosition ?: 0L).coerceAtLeast(0L),
                     metadata = metadata,
+                    // Persist speed so onPlaybackResumption restores it after process death
+                    // (audiobook users typically run >1.0x).
+                    speed =
+                        runCatching { playbackController.getSpeed() }
+                            .getOrDefault(PlayerPersistenceManager.DEFAULT_PLAYBACK_SPEED),
                 ),
             )
 

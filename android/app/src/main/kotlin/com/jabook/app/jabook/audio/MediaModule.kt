@@ -170,8 +170,11 @@ public object MediaModule {
                     .setMediaSourceFactory(mediaSourceFactory)
                     .setHandleAudioBecomingNoisy(true)
                     .setWakeMode(C.WAKE_MODE_LOCAL)
+                    // Seek increments for player.seekBack()/seekForward() — used by Wear/Auto
+                    // skip buttons and KEYCODE_MEDIA_FAST_FORWARD/REWIND. Must match the app
+                    // defaults (10s rewind / 30s forward, see MediaSessionManager).
                     .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
-                    .setSeekForwardIncrementMs(SEEK_INCREMENT_MS)
+                    .setSeekForwardIncrementMs(SEEK_FORWARD_INCREMENT_MS)
                     // We run our own SkipSilenceAudioProcessor in the processor chain —
                     // Media3's built-in silence skipper must stay off to avoid double-skipping.
                     .setSkipSilenceEnabled(false)
@@ -300,7 +303,7 @@ public object MediaModule {
                         .setHandleAudioBecomingNoisy(true)
                         .setWakeMode(C.WAKE_MODE_LOCAL)
                         .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
-                        .setSeekForwardIncrementMs(SEEK_INCREMENT_MS)
+                        .setSeekForwardIncrementMs(SEEK_FORWARD_INCREMENT_MS)
                         // Our chain already includes a custom SkipSilenceAudioProcessor
                         // when enabled; keep Media3's built-in silence skipper off.
                         .setSkipSilenceEnabled(false)
@@ -458,8 +461,14 @@ public object MediaModule {
 
     private const val DEFAULT_CACHE_BYTES = 200L * 1024 * 1024 // 200 MB (fallback if StatFs fails)
 
-    /** Chapter/paragraph seek step for audiobook navigation. */
+    /** Chapter/paragraph seek step for audiobook navigation (rewind). */
     private const val SEEK_INCREMENT_MS = 10_000L
+
+    // Forward seek step matching the app default. NOTE: MediaModule has no access to the
+    // runtime skip-duration settings (those live in MediaSessionManager, updated at runtime
+    // by the service); user-changed values are still honored via onMediaButtonEvent and the
+    // rewind/forward custom commands. Wear/Auto seekBack()/seekForward() use these literals.
+    private const val SEEK_FORWARD_INCREMENT_MS = 30_000L
 }
 
 /**

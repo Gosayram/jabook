@@ -78,6 +78,35 @@ class CoverWaterfallPolicyTest {
     // ---- Level 2: Folder images ----
 
     @Test
+    fun `resolveCover passes audio-artwork scheme through as online url`() {
+        val coversDir = tempFolder.newFolder("covers")
+        val scheme = "audio-artwork:///storage/emulated/0/Books/01.mp3"
+
+        val result = CoverWaterfallPolicy.resolveCover("book-1", null, scheme, coversDir)
+
+        assertNotNull(result)
+        assertEquals(CoverWaterfallPolicy.CoverSource.ONLINE_URL, result!!.source)
+        assertEquals(scheme, result.data)
+    }
+
+    @Test
+    fun `resolveCover prefers extracted cover over audio-artwork scheme`() {
+        val coversDir = tempFolder.newFolder("covers")
+        File(coversDir, "book-42.jpg").writeBytes(ByteArray(1024))
+
+        val result =
+            CoverWaterfallPolicy.resolveCover(
+                "book-42",
+                null,
+                "audio-artwork:///storage/emulated/0/Books/01.mp3",
+                coversDir,
+            )
+
+        assertNotNull(result)
+        assertEquals(CoverWaterfallPolicy.CoverSource.EMBEDDED, result!!.source)
+    }
+
+    @Test
     fun `resolveFolderImage returns result for exact match cover jpg`() {
         val bookDir = tempFolder.newFolder("book")
         val coverFile = File(bookDir, "cover.jpg")

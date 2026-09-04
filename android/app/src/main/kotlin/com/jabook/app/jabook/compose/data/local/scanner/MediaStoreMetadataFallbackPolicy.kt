@@ -15,7 +15,11 @@
 package com.jabook.app.jabook.compose.data.local.scanner
 
 internal object MediaStoreMetadataFallbackPolicy {
-    private const val REPLACEMENT_CHAR: Char = '\uFFFD'
-
-    fun hasReplacementCharacter(value: String?): Boolean = value?.contains(REPLACEMENT_CHAR) == true
+    /**
+     * True when a MediaStore-supplied value is unusable and the caller should
+     * prefer parser metadata. Beyond U+FFFD this now also rejects mojibake,
+     * placeholders, URL garbage and control chars — MediaStore tags are
+     * first-wins today, so anything suspicious is worth a re-parse.
+     */
+    fun hasReplacementCharacter(value: String?): Boolean = value != null && MetadataQualityPolicy.isLikelyCorrupted(value)
 }

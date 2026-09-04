@@ -212,32 +212,24 @@ public class MediaStoreBookScanner
             files
                 .sortedWith(ChapterOrderPolicy.comparatorForAudioFiles { it.displayName })
                 .forEachIndexed { index, file ->
-                    // Use filename without extension if no title tag.
-                    var rawTitle =
-                        file.title?.takeIf { it.isNotBlank() }
-                            ?: java.io.File(file.displayName).nameWithoutExtension
+                    // Best-candidate selection: garbage MediaStore tags (U+FFFD, mojibake,
+                    // track-filenames) lose to parser metadata or the filename fallback
+                    // instead of winning by position.
+                    val bestTitle =
+                        MetadataQualityPolicy.selectBest(
+                            file.title,
+                            runCatching { metadataParser.parseMetadata(file.filePath)?.title }.getOrNull(),
+                            java.io
+                                .File(file.displayName)
+                                .nameWithoutExtension
+                                .takeIf { it.isNotBlank() },
+                        ) ?: "Chapter ${index + 1}"
 
-                    // MediaStore can return U+FFFD for broken encoding; read direct tags for this file.
-                    if (MediaStoreMetadataFallbackPolicy.hasReplacementCharacter(rawTitle)) {
-                        logger.w {
-                            "MediaStore chapter title contains replacement character for ${file.filePath}, " +
-                                "using parser metadata fallback"
-                        }
-                        val fallbackTitle =
-                            metadataParser
-                                .parseMetadata(file.filePath)
-                                ?.title
-                                ?.takeIf { it.isNotBlank() }
-                        if (fallbackTitle != null) {
-                            rawTitle = fallbackTitle
-                        }
-                    }
-
-                    val (fixedTitle, detectedEncoding) = encodingDetector.fixGarbledText(rawTitle)
+                    val (fixedTitle, detectedEncoding) = encodingDetector.fixGarbledText(bestTitle)
 
                     if (detectedEncoding != null) {
                         logger.d {
-                            "Chapter encoding fix: '$rawTitle' -> '$fixedTitle' ($detectedEncoding)"
+                            "Chapter encoding fix: '$bestTitle' -> '$fixedTitle' ($detectedEncoding)"
                         }
                     }
 

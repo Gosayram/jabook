@@ -28,8 +28,8 @@ import com.jabook.app.jabook.compose.data.local.JABOOK_DB_VERSION
 import com.jabook.app.jabook.compose.data.sync.SyncManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentMemoryPressureGuard
 import com.jabook.app.jabook.compose.infrastructure.notification.NotificationHelper
+import com.jabook.app.jabook.crash.AnrWatchdog
 import com.jabook.app.jabook.crash.CrashDiagnostics
-import com.jabook.app.jabook.diagnostics.AnrWatchdog
 import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -117,7 +117,12 @@ public class JabookApplication :
 
         // Start ANR watchdog for debug/beta builds only (BP-6.3)
         if (BuildConfig.DEBUG || BuildConfig.FLAVOR != "prod") {
-            anrWatchdog.start()
+            try {
+                // Watchdog failure must never break app startup — it's diagnostics only.
+                anrWatchdog.start()
+            } catch (e: Exception) {
+                LogUtils.e("JabookApplication", "Failed to start ANR watchdog", e)
+            }
         }
 
         // Initialize Global Exception Handler (writes crash report to disk)

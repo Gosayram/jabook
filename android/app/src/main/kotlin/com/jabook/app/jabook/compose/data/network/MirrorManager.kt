@@ -178,7 +178,12 @@ public class MirrorManager
             val previousMirror = _currentMirror.value
             _currentMirror.value = domain
             settingsRepository.updateSelectedMirror(domain)
-            val prefetch = DnsPrefetchPolicy.prefetch(domain)
+            // DNS lookup is blocking I/O — callers launch on Main (SettingsViewModel),
+            // so without IO the UI freezes for seconds on flaky networks.
+            val prefetch =
+                withContext(NetworkRuntimePolicy.ioDispatcher) {
+                    DnsPrefetchPolicy.prefetch(domain)
+                }
             if (prefetch.success) {
                 logger.d {
                     "DNS prefetch success for $domain: ${prefetch.addresses.size} addresses in ${prefetch.elapsedMs}ms"

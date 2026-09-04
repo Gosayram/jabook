@@ -102,11 +102,11 @@ public class EmbeddedArtworkFetcher(
         }
     }
 
-    private companion object {
-        private const val TAG = "EmbeddedArtworkFetcher"
-
+    public companion object {
         /** Marker scheme prefix; the remainder is the absolute audio file path. */
         public const val SCHEME: String = "audio-artwork://"
+
+        private const val TAG = "EmbeddedArtworkFetcher"
 
         private val JPEG_SIGNATURE = byteArrayOf(0xFF.toByte(), 0xD8.toByte())
         private val PNG_SIGNATURE = byteArrayOf(0x89.toByte(), 0x50.toByte(), 0x4E.toByte(), 0x47.toByte())

@@ -297,7 +297,16 @@ public class LibraryScanWorker
                                                 id = bookId,
                                                 title = book.title,
                                                 author = book.author,
-                                                coverUrl = null, // UI loads from folder or app dir via CoverUtils
+                                                // Embedded-artwork fallback for books whose cover
+                                                // extraction was skipped (e.g. too small) or failed —
+                                                // Level 1 (extracted file) still wins in the waterfall.
+                                                coverUrl =
+                                                    if (book.chapters.isEmpty()) {
+                                                        null
+                                                    } else {
+                                                        com.jabook.app.jabook.compose.core.util.EmbeddedArtworkFetcher.SCHEME +
+                                                            book.chapters.first().filePath
+                                                    },
                                                 description = null,
                                                 totalDuration = book.totalDuration,
                                                 localPath = book.directory,

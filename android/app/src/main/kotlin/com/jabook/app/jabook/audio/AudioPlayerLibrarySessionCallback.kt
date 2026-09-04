@@ -38,8 +38,10 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.guava.future
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import java.io.File
 
@@ -72,11 +74,17 @@ public class AudioPlayerLibrarySessionCallback(
         SUGGESTED,
     }
 
+    // Refreshes EXTRAS_KEY_COMPLETION_* on the current item's MediaMetadata. The 5s sessionExtras
+    // job lives in AudioPlayerServiceInitializer (untouchable here), so this runs its own loop.
+    private var completionExtrasRefreshJob: kotlinx.coroutines.Job? = null
+
     @OptIn(UnstableApi::class)
     override fun onConnectAsync(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,
     ): ListenableFuture<MediaSession.ConnectionResult> {
+        ensureCompletionExtrasRefreshJob()
+
         // Build the accepted result synchronously, but defer returning it until initialization
         // completes so controllers never observe a half-initialized service (nullable delegates gap).
         fun buildResult(): MediaSession.ConnectionResult {
@@ -176,9 +184,19 @@ public class AudioPlayerLibrarySessionCallback(
                 if (keyEvent.action != KeyEvent.ACTION_DOWN) {
                     return super.onMediaButtonEvent(session, controller, intent)
                 }
-                val forwardSeconds = service.mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
-                service.forward(forwardSeconds)
-                LogUtils.d("AudioPlayerService", "Media button: forward ${forwardSeconds}s")
+                if (service.currentFilePaths?.let { it.size > 1 } == true) {
+                    // Wear/Auto skip buttons expect playlist navigation, not a seek. service.next()
+                    // routes through PlaybackController -> player.seekToNextMediaItem() with
+                    // track-availability checks. Playlist size comes from currentFilePaths — the
+                    // same signal the initializer uses as the authoritative playlist size.
+                    service.next()
+                    LogUtils.d("AudioPlayerService", "Media button: next chapter")
+                } else {
+                    // Single-file book: no chapter to navigate to, keep the skip-forward behavior.
+                    val forwardSeconds = service.mediaSessionManager?.getForwardDuration()?.toInt() ?: 30
+                    service.forward(forwardSeconds)
+                    LogUtils.d("AudioPlayerService", "Media button: forward ${forwardSeconds}s")
+                }
                 return true
             }
             KEYCODE_MEDIA_PREVIOUS -> {
@@ -186,9 +204,16 @@ public class AudioPlayerLibrarySessionCallback(
                 if (keyEvent.action != KeyEvent.ACTION_DOWN) {
                     return super.onMediaButtonEvent(session, controller, intent)
                 }
-                val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 10
-                service.rewind(rewindSeconds)
-                LogUtils.d("AudioPlayerService", "Media button: rewind ${rewindSeconds}s")
+                if (service.currentFilePaths?.let { it.size > 1 } == true) {
+                    // Chapter navigation for external controllers (see NEXT branch above).
+                    service.previous()
+                    LogUtils.d("AudioPlayerService", "Media button: previous chapter")
+                } else {
+                    // Single-file book: keep the skip-back behavior.
+                    val rewindSeconds = service.mediaSessionManager?.getRewindDuration()?.toInt() ?: 10
+                    service.rewind(rewindSeconds)
+                    LogUtils.d("AudioPlayerService", "Media button: rewind ${rewindSeconds}s")
+                }
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_PLAY -> {
@@ -228,6 +253,85 @@ public class AudioPlayerLibrarySessionCallback(
                 return true
             }
             else -> return super.onMediaButtonEvent(session, controller, intent)
+        }
+    }
+
+    /**
+     * Periodically refreshes EXTRAS_KEY_COMPLETION_STATUS / EXTRAS_KEY_COMPLETION_PERCENTAGE on the
+     * current item's MediaMetadata. Without this the completion extras are frozen at whatever
+     * onPlaybackResumption built, so Wear/Auto progress indicators never advance during playback.
+     *
+     * Started on first controller connect; the loop runs in playerServiceScope (Main dispatcher,
+     * required for player getters) and is cancelled with the rest of the scope's children when the
+     * service is released (AudioServiceReleaseHandler cancels playerServiceScope children).
+     */
+    private fun ensureCompletionExtrasRefreshJob() {
+        if (completionExtrasRefreshJob != null) return
+        completionExtrasRefreshJob =
+            service.playerServiceScope.launch {
+                var lastPublishedMediaId: String? = null
+                var lastPublishedPercentage = -1.0
+                while (true) {
+                    delay(5_000L)
+                    try {
+                        val player = service.getActivePlayer()
+                        val currentItem = player.currentMediaItem ?: continue
+                        val durationMs = player.duration
+                        if (durationMs <= 0 || durationMs == C.TIME_UNSET) continue
+                        val positionMs = player.currentPosition
+                        val percentage =
+                            CompletionStatusHelper.calculateCompletionPercentage(positionMs, durationMs)
+                        // Track switch always refreshes; otherwise only on a >=1% move so we never
+                        // trigger a session broadcast for progress invisible to the second hand.
+                        if (currentItem.mediaId == lastPublishedMediaId &&
+                            kotlin.math.abs(percentage - lastPublishedPercentage) < 0.01
+                        ) {
+                            continue
+                        }
+                        if (refreshCurrentItemCompletionExtras(player, currentItem, positionMs, durationMs)) {
+                            lastPublishedMediaId = currentItem.mediaId
+                            lastPublishedPercentage = percentage
+                        }
+                    } catch (e: Exception) {
+                        LogUtils.w("AudioPlayerService", "Failed to refresh completion extras", e)
+                    }
+                }
+            }
+    }
+
+    /** Replaces the current item with one carrying fresh completion extras; false if skipped. */
+    private fun refreshCurrentItemCompletionExtras(
+        player: androidx.media3.common.Player,
+        item: MediaItem,
+        positionMs: Long,
+        durationMs: Long,
+    ): Boolean {
+        val currentIndex = player.currentMediaItemIndex
+        if (currentIndex < 0) return false
+        // Merge into existing extras — playlist items may carry grouping/download keys we must keep.
+        val completionExtras = CompletionStatusHelper.createCompletionExtras(positionMs, durationMs)
+        val newExtras = Bundle(item.mediaMetadata.extras ?: Bundle.EMPTY)
+        newExtras.putAll(completionExtras)
+        // createCompletionExtras omits the percentage when not partially played — drop a stale value.
+        if (!completionExtras.containsKey(MediaConstants.EXTRAS_KEY_COMPLETION_PERCENTAGE)) {
+            newExtras.remove(MediaConstants.EXTRAS_KEY_COMPLETION_PERCENTAGE)
+        }
+        val newItem =
+            item
+                .buildUpon()
+                .setMediaMetadata(
+                    item.mediaMetadata
+                        .buildUpon()
+                        .setExtras(newExtras)
+                        .build(),
+                ).build()
+        return try {
+            // Same replaceMediaItem pattern as PlayerMetadataHandler's lock-screen artwork update.
+            player.replaceMediaItem(currentIndex, newItem)
+            true
+        } catch (e: Exception) {
+            LogUtils.w("AudioPlayerService", "Failed to update completion extras on current item", e)
+            false
         }
     }
 
@@ -1186,6 +1290,18 @@ public class AudioPlayerLibrarySessionCallback(
                         )
                     }
 
+                    // Restore persisted playback speed: after reboot the player is rebuilt
+                    // with the Media3 default (1.0x), so reapply the user's last speed
+                    // before the system controller starts playback.
+                    val speed = persistedState.speed
+                    if (speed != PlayerPersistenceManager.DEFAULT_PLAYBACK_SPEED) {
+                        service.playbackController?.setSpeed(speed)
+                        LogUtils.d(
+                            "AudioPlayerService",
+                            "Restored playback speed ${speed}x on resumption",
+                        )
+                    }
+
                     return@future MediaSession.MediaItemsWithStartPosition(
                         playlist,
                         correctedIndex,
@@ -1304,6 +1420,110 @@ public class AudioPlayerLibrarySessionCallback(
                 positionMs,
             )
         }
+
+    /**
+     * Handles mediaId-only playback requests from system controllers (Assistant "play X",
+     * legacy playFromMediaId). The default implementation rejects items without a
+     * LocalConfiguration, which would break Assistant/Auto playback of browsed content.
+     *
+     * Resolution order mirrors [onGetItem]: real URI items pass through unchanged, an
+     * existing file path maps to that file, a book id (persisted group path or torrent
+     * hash) expands to its chapter items.
+     */
+    @OptIn(UnstableApi::class) // MediaItem.LocalConfiguration access
+    override fun onAddMediaItems(
+        mediaSession: MediaSession,
+        controller: MediaSession.ControllerInfo,
+        mediaItems: List<MediaItem>,
+    ): ListenableFuture<MutableList<MediaItem>> {
+        val resolutionFuture =
+            service.playerServiceScope.future(Dispatchers.IO) {
+                mediaItems.map { item ->
+                    // Defensive: one malformed request item must never crash the service.
+                    runCatching { resolveMediaItemsForAdd(item) }
+                        .onFailure {
+                            LogUtils.w(
+                                "LibrarySession",
+                                "Failed to resolve media item ${item.mediaId}",
+                                it,
+                            )
+                        }.getOrDefault(emptyList())
+                }
+            }
+        // Media3 contract: fail the whole request when any item cannot be resolved.
+        return Futures.transform(
+            resolutionFuture,
+            com.google.common.base
+                .Function<List<List<MediaItem>>, MutableList<MediaItem>> { perItem ->
+                    if (perItem.any(List<MediaItem>::isEmpty)) {
+                        throw UnsupportedOperationException(
+                            "Cannot resolve media items for playback request: " +
+                                mediaItems.joinToString { it.mediaId },
+                        )
+                    }
+                    perItem.flatten().toMutableList()
+                },
+            MoreExecutors.directExecutor(),
+        )
+    }
+
+    /** Resolves a single request item to playable items; empty list means unresolvable. */
+    private suspend fun resolveMediaItemsForAdd(item: MediaItem): List<MediaItem> {
+        // Item already carries a playable URI — nothing to resolve.
+        if (item.localConfiguration != null) return listOf(item)
+
+        val mediaId = item.mediaId
+        if (mediaId.isEmpty() || isRootId(mediaId)) return emptyList()
+
+        // 1. Absolute path of an existing file (chapter)
+        val file = File(mediaId)
+        if (file.isFile) {
+            return listOf(
+                item
+                    .buildUpon()
+                    .setUri(android.net.Uri.fromFile(file))
+                    .build(),
+            )
+        }
+
+        // 2. Book id from persisted "last played" state (same id onGetItem serves)
+        val persistedState = playerPersistenceManager.retrievePersistedPlayerState()
+        if (persistedState != null && mediaId == persistedState.groupPath) {
+            val chapters =
+                persistedState.playlistItems.mapNotNull { buildChapterMediaItem(it.path) }
+            if (chapters.isNotEmpty()) return chapters
+        }
+
+        // 3. Download hash (mirrors onGetChildren chapter expansion)
+        val download = torrentDownloadRepository.getByHash(mediaId)
+        if (download != null) {
+            val chapters =
+                download.files
+                    .sortedBy { it.path }
+                    .mapNotNull { buildChapterMediaItem(it.path) }
+            if (chapters.isNotEmpty()) return chapters
+        }
+
+        return emptyList()
+    }
+
+    private fun buildChapterMediaItem(path: String): MediaItem? {
+        val file = File(path)
+        if (!file.isFile) return null
+        return MediaItem
+            .Builder()
+            .setUri(android.net.Uri.fromFile(file))
+            .setMediaId(path)
+            .setMediaMetadata(
+                MediaMetadata
+                    .Builder()
+                    .setTitle(file.nameWithoutExtension)
+                    .setIsBrowsable(false)
+                    .setIsPlayable(true)
+                    .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                    .build(),
+            ).build()
+    }
 
     private fun resolveBrowseMode(
         parentId: String,

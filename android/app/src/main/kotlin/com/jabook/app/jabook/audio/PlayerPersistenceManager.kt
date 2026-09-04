@@ -57,6 +57,10 @@ public class PlayerPersistenceManager
             private const val KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX = "playback_snapshot_current_index"
             private const val KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION = "playback_snapshot_current_position"
             private const val KEY_PLAYBACK_SNAPSHOT_METADATA = "playback_snapshot_metadata"
+            private const val KEY_PLAYBACK_SNAPSHOT_SPEED = "playback_snapshot_speed"
+
+            /** Default restored when the snapshot has no speed entry (pre-speed writers). */
+            public const val DEFAULT_PLAYBACK_SPEED: Float = 1.0f
             private const val KEY_PLAYBACK_SNAPSHOT_CORRUPTION_COUNT = "playback_snapshot_corruption_count"
             private const val KEY_PLAYBACK_SNAPSHOT_LAST_CORRUPTION_REASON = "playback_snapshot_last_corruption_reason"
             private const val KEY_PLAYBACK_SNAPSHOT_LAST_CORRUPTION_AT = "playback_snapshot_last_corruption_at"
@@ -79,6 +83,8 @@ public class PlayerPersistenceManager
             val currentIndex: Int,
             val currentPosition: Long,
             val metadata: Map<String, String>?,
+            // Default keeps writers that predate the speed field backward compatible (1.0x).
+            val speed: Float = DEFAULT_PLAYBACK_SPEED,
         )
 
         public suspend fun saveCurrentMediaItem(
@@ -335,6 +341,12 @@ public class PlayerPersistenceManager
                     currentIndex = prefs.getInt(KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX, 0),
                     currentPosition = prefs.getLong(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION, 0L),
                     metadata = metadata,
+                    // Guard against corrupted/garbage values written by other app versions.
+                    speed =
+                        prefs
+                            .getFloat(KEY_PLAYBACK_SNAPSHOT_SPEED, DEFAULT_PLAYBACK_SPEED)
+                            .takeIf { it.isFinite() && it > 0f }
+                            ?: DEFAULT_PLAYBACK_SPEED,
                 )
             }.getOrElse { error ->
                 recordCorruption(
@@ -364,6 +376,7 @@ public class PlayerPersistenceManager
                 .putInt(KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX, state.currentIndex)
                 .putLong(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION, state.currentPosition)
                 .putString(KEY_PLAYBACK_SNAPSHOT_METADATA, metadataJson)
+                .putFloat(KEY_PLAYBACK_SNAPSHOT_SPEED, state.speed)
                 .apply()
         }
 
@@ -377,6 +390,7 @@ public class PlayerPersistenceManager
                 .remove(KEY_PLAYBACK_SNAPSHOT_CURRENT_INDEX)
                 .remove(KEY_PLAYBACK_SNAPSHOT_CURRENT_POSITION)
                 .remove(KEY_PLAYBACK_SNAPSHOT_METADATA)
+                .remove(KEY_PLAYBACK_SNAPSHOT_SPEED)
                 .apply()
         }
 

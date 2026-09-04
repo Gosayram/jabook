@@ -63,6 +63,7 @@ public class SyncWorker
         public companion object {
             public const val WORK_NAME: String = "sync_work"
             private const val CACHE_TTL_DAYS = 7L
+            private const val MAX_COVER_BYTES = 5L * 1024 * 1024
         }
 
         override suspend fun doWork(): Result {
@@ -141,13 +142,13 @@ public class SyncWorker
 
                         // Find matching book by path
                         // Ideally we would have a better link, but path is what we have for now
-                        // We check if the book path contains the download path or vice versa
+                        // Prefix matches need a path-separator boundary: /Books must not match /Books2
                         val matchedBook =
                             books.find { book ->
                                 book.localPath?.let { localPath ->
                                     localPath == download.savePath ||
-                                        localPath.startsWith(download.savePath) ||
-                                        download.savePath.startsWith(localPath)
+                                        localPath.startsWith(download.savePath + java.io.File.separator) ||
+                                        download.savePath.startsWith(localPath + java.io.File.separator)
                                 } == true
                             }
 
@@ -257,9 +258,26 @@ public class SyncWorker
                         withContext(Dispatchers.IO) {
                             coverDownloadClient.newCall(request).execute().use { response ->
                                 check(response.isSuccessful) { "Cover request failed: HTTP ${response.code}" }
+                                // ponytail: 5MB cap — coverUrl is parser-supplied; a hostile
+                                // URL must not fill storage. Oversize covers are useless anyway.
+                                val declaredLength = response.body.contentLength()
+                                check(declaredLength <= MAX_COVER_BYTES) {
+                                    "Cover too large: $declaredLength bytes (limit $MAX_COVER_BYTES)"
+                                }
                                 response.body.byteStream().use { input ->
                                     AtomicFileWriter.writeWithLock(coverFile) { output ->
-                                        input.copyTo(output)
+                                        val buffer = ByteArray(8192)
+                                        var copied = 0L
+                                        while (true) {
+                                            val read = input.read(buffer)
+                                            if (read == -1) break
+                                            copied += read
+                                            check(copied <= MAX_COVER_BYTES) {
+                                                "Cover exceeded $MAX_COVER_BYTES bytes while streaming"
+                                            }
+                                            output.write(buffer, 0, read)
+                                        }
+                                        copied
                                     }
                                 }
                             }

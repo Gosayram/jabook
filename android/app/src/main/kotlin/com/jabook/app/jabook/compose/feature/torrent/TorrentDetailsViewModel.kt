@@ -144,7 +144,9 @@ public class TorrentDetailsViewModel
                     id = bookId,
                     title = title,
                     author = context.getString(R.string.torrent_stream_author),
-                    coverUrl = null,
+                    // Embedded-artwork fallback: no extracted cover exists for torrent
+                    // streaming books, so Coil's EmbeddedArtworkFetcher decodes the tag art.
+                    coverUrl = com.jabook.app.jabook.compose.core.util.EmbeddedArtworkFetcher.SCHEME + absolutePath,
                     description = context.getString(R.string.streaming_from_torrent, currentDownload.name),
                     totalDuration = 0.seconds,
                     currentPosition = 0.seconds,

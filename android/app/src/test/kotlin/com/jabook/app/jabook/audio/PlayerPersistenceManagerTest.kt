@@ -67,5 +67,32 @@ class PlayerPersistenceManagerTest {
             assertEquals(1, restored?.currentIndex)
         }
 
+    @Test
+    fun `persisted snapshot round-trips playback speed and defaults to 1x for legacy snapshots`() =
+        runTest {
+            val items = listOf(PlaylistItem("/book.m4b", "chapter-1", 0L, null))
+            manager.savePersistedPlayerState(
+                PlayerPersistenceManager.PersistedPlayerState(
+                    groupPath = "book-1",
+                    filePaths = items.map(PlaylistItem::path),
+                    playlistItems = items,
+                    currentIndex = 0,
+                    currentPosition = 0L,
+                    metadata = null,
+                    speed = 1.75f,
+                ),
+            )
+
+            assertEquals(1.75f, manager.retrievePersistedPlayerState()?.speed)
+
+            // Legacy snapshot written before the speed field existed → default 1.0x
+            prefs().edit().remove("playback_snapshot_speed").apply()
+
+            assertEquals(
+                PlayerPersistenceManager.DEFAULT_PLAYBACK_SPEED,
+                manager.retrievePersistedPlayerState()?.speed,
+            )
+        }
+
     private fun prefs() = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
 }
