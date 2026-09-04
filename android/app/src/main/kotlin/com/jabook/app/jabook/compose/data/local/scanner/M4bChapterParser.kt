@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.scanner
 
+import java.io.File
 import java.io.RandomAccessFile
 
 /**
@@ -37,20 +38,29 @@ public object M4bChapterParser {
     private const val MAX_CHAPTERS = 4096
 
     /**
-     * Parses embedded Nero chapter markers from an MP4/M4B file.
+     * Parses embedded chapter markers from an MP4/M4B file.
+     *
+     * Prefers the Nero chpl atom; if absent/empty, falls back to the
+     * iTunes-style chapter text track (tref 'chap') via
+     * [Mp4ChapterTrackParser].
      *
      * @return List of [M4bChapter] sorted by start time, or null when
      *         the file has no chapters / is malformed / is not MP4.
      */
     public fun parseM4bChapters(filePath: String): List<M4bChapter>? {
-        return try {
-            RandomAccessFile(filePath, "r").use { raf ->
-                val chpl = findChplBox(raf) ?: return null
-                parseChplBox(raf, chpl)
+        val chplChapters =
+            try {
+                RandomAccessFile(filePath, "r").use { raf ->
+                    val chpl = findChplBox(raf) ?: return@use null
+                    parseChplBox(raf, chpl)
+                }
+            } catch (_: Exception) {
+                null
             }
-        } catch (_: Exception) {
-            null
-        }
+        if (!chplChapters.isNullOrEmpty()) return chplChapters
+        // Many iTunes-authored .m4b files store chapters as a hidden text
+        // track referenced by tref 'chap' instead of a chpl atom.
+        return Mp4ChapterTrackParser.parseChapters(File(filePath))
     }
 
     // ── box tree walking ───────────────────────────────────────────────

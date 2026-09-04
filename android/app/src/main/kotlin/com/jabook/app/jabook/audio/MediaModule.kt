@@ -35,6 +35,7 @@ import com.jabook.app.jabook.audio.data.local.database.migration.AudioDatabaseMi
 import com.jabook.app.jabook.audio.processors.AudioProcessingSettings
 import com.jabook.app.jabook.audio.processors.AudioProcessorFactory
 import com.jabook.app.jabook.audio.processors.DRCLevel
+import com.jabook.app.jabook.audio.processors.FloatPcmOutputProcessor
 import com.jabook.app.jabook.audio.processors.NoiseGateLevel
 import com.jabook.app.jabook.audio.processors.SpeechCompressorLevel
 import com.jabook.app.jabook.audio.processors.VolumeBoostLevel
@@ -256,24 +257,28 @@ public object MediaModule {
                             enableFloatOutput: Boolean,
                             enableAudioOutputPlaybackParams: Boolean,
                         ): androidx.media3.exoplayer.audio.AudioSink {
-                            // Media3 bypasses the user AudioProcessor chain entirely when
-                            // float output is active (high-resolution PCM) — EQ/loudness
-                            // would silently no-op. With any processor attached, float
-                            // output is hard-disabled.
-                            val effectiveFloatOutput = enableFloatOutput && processors.isEmpty()
-                            if (enableFloatOutput && processors.isNotEmpty()) {
-                                LogUtils.w(
-                                    "MediaModule",
-                                    "Float output disabled: ${processors.size} audio processors attached (float output bypasses the DSP chain)",
-                                )
-                            }
+                            // Media3 1.11.0: DefaultAudioSink.configure drops the whole
+                            // AudioProcessorChain from the pipeline whenever
+                            // setEnableFloatOutput(true) AND the input is hi-res/float PCM,
+                            // so sink-level float output would silently bypass EQ/normalizer.
+                            // Instead the chain negotiates float itself: FloatPcmOutputProcessor
+                            // (appended last, after the int16-only DSP processors) returns
+                            // ENCODING_PCM_FLOAT from onConfigure and DefaultAudioSink builds
+                            // the AudioTrack with the pipeline's output encoding. Sink-level
+                            // float stays off so the chain always runs — including hi-res input.
+                            val chainProcessors =
+                                if (processors.isEmpty()) {
+                                    processors
+                                } else {
+                                    processors + FloatPcmOutputProcessor()
+                                }
                             return androidx.media3.exoplayer.audio.DefaultAudioSink
                                 .Builder(context)
                                 // TrackedAudioProcessorChain feeds our custom skip-silence's
                                 // skipped frames back to Media3's position tracking.
                                 .setAudioProcessorChain(
-                                    TrackedAudioProcessorChain(processors.toTypedArray()),
-                                ).setEnableFloatOutput(effectiveFloatOutput)
+                                    TrackedAudioProcessorChain(chainProcessors.toTypedArray()),
+                                ).setEnableFloatOutput(processors.isEmpty() && enableFloatOutput)
                                 .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
                                 .build()
                         }

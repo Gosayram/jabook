@@ -38,10 +38,12 @@ import okio.Path.Companion.toOkioPath
 import org.libtorrent4j.AddTorrentParams
 import org.libtorrent4j.AlertListener
 import org.libtorrent4j.LibTorrent
+import org.libtorrent4j.Priority
 import org.libtorrent4j.SessionManager
 import org.libtorrent4j.SessionParams
 import org.libtorrent4j.SettingsPack
 import org.libtorrent4j.TorrentHandle
+import org.libtorrent4j.TorrentStatus
 import org.libtorrent4j.Vectors
 import org.libtorrent4j.alerts.AddTorrentAlert
 import org.libtorrent4j.alerts.Alert
@@ -99,6 +101,15 @@ public class TorrentSessionManager
         // Guards restoreActiveDownloads() (running concurrently after session init)
         // from re-adding a just-added torrent via a second code path.
         private val pendingAdds = ConcurrentHashMap.newKeySet<String>()
+
+        // File selections stashed by addTorrent() until metadata arrives — priorities
+        // cannot be applied earlier because a magnet has no file list. Cleared on
+        // removal and on application so failed magnets don't leak entries.
+        private val selectedFileIndicesByHash = ConcurrentHashMap<String, Set<Int>>()
+
+        // Ensures handleSaveResumeDataFailed retries at most once per failure burst:
+        // a repeated failure alert (from the retry itself) means the retry failed too.
+        private val resumeDataRetriesInFlight = ConcurrentHashMap.newKeySet<String>()
         private var lastLibrarySyncTriggerAtMs: Long = 0L
 
         private val _downloadsFlow = MutableStateFlow<Map<String, TorrentDownload>>(emptyMap())
@@ -124,6 +135,14 @@ public class TorrentSessionManager
             // magnet-less-metadata torrent sits in DOWNLOADING_METADATA forever and is
             // re-added as a zombie on every session restore.
             private const val METADATA_TIMEOUT_MS = 90_000L
+
+            // Event-driven resume saves (pause/finish/stop) lose everything since the
+            // last event on a crash — a periodic checkpoint bounds that loss to 5 min.
+            private const val RESUME_CHECKPOINT_INTERVAL_MS = 300_000L
+
+            // One retry for SaveResumeData failures; retrying longer masks a real
+            // disk problem instead of surfacing it.
+            private const val RESUME_DATA_RETRY_DELAY_MS = 5_000L
 
             // Fallback trackers used when magnet link has no tracker URLs
             private val FALLBACK_TRACKERS =
@@ -198,13 +217,7 @@ public class TorrentSessionManager
                             is DhtErrorAlert -> handleDhtError(alert)
                             is StateUpdateAlert -> handleStateUpdate(alert)
                             is SaveResumeDataAlert -> handleSaveResumeData(alert)
-                            is SaveResumeDataFailedAlert -> {
-                                logger.w {
-                                    "Save resume data failed for ${alert.handle().infoHash().toHex()}"
-                                }
-                                // Failed saves must also release the latch, or stopSession() waits the full timeout.
-                                pendingResumeDataLatch?.countDown()
-                            }
+                            is SaveResumeDataFailedAlert -> handleSaveResumeDataFailed(alert)
                             is TrackerReplyAlert -> {
                                 val hash = alert.handle().infoHash().toHex()
                                 logger.i { "TRACKER_REPLY for $hash: ${alert.numPeers()} peers from ${alert.trackerUrl()}" }
@@ -368,6 +381,13 @@ public class TorrentSessionManager
                 session = null // Ensure session is null on error
                 // Don't throw - allow app to continue
             }
+
+            // Only checkpoint when a session is actually live. The ticker lives on
+            // sessionScope, so stopSession()'s cancel() tears it down and the next
+            // initSession() starts a fresh one.
+            if (session != null) {
+                startResumeDataCheckpointTicker()
+            }
         }
 
         /**
@@ -423,6 +443,12 @@ public class TorrentSessionManager
                 // Store topicId if provided
                 if (topicId != null) {
                     topicIds[hash] = topicId
+                }
+
+                // Stash the selection for applySelectedFilePriorities() — file
+                // priorities need metadata, which a magnet only gets later.
+                if (!selectedFileIndices.isNullOrEmpty()) {
+                    selectedFileIndicesByHash[hash] = selectedFileIndices.toSet()
                 }
 
                 // Create save directory
@@ -582,6 +608,8 @@ public class TorrentSessionManager
                 torrents.remove(hash)
                 topicIds.remove(hash)
                 pendingAdds.remove(hash)
+                selectedFileIndicesByHash.remove(hash)
+                resumeDataRetriesInFlight.remove(hash)
 
                 // Persist the terminal state so restoreActiveDownloads() on the next
                 // start doesn't silently re-add this torrent:
@@ -958,6 +986,8 @@ public class TorrentSessionManager
                 val handle = alert.handle()
                 if (!handle.isValid) return
                 val hash = handle.infoHash().toHex()
+                // A successful save resets the retry guard so a later failure can retry again.
+                resumeDataRetriesInFlight.remove(hash)
                 val resumeBytes = AddTorrentParams.writeResumeDataBuf(alert.params())
                 // Write on statePersistenceScope: it is NEVER cancelled (not even by
                 // stopSession()), so the BLOB always lands — while the libtorrent alert
@@ -974,6 +1004,136 @@ public class TorrentSessionManager
                 logger.e({ "Error handling SaveResumeDataAlert" }, e)
             } finally {
                 pendingResumeDataLatch?.countDown()
+            }
+        }
+
+        /**
+         * Periodically checkpoints resume data for active torrents.
+         *
+         * Event-driven saves alone leave an unbounded crash window — a process death
+         * between events loses every piece since the last save. [TorrentHandle.ONLY_IF_MODIFIED]
+         * keeps the ticker cheap: libtorrent skips handles that have nothing new to save.
+         * Cancelled implicitly when stopSession() cancels sessionScope.
+         */
+        private fun startResumeDataCheckpointTicker() {
+            sessionScope.launch {
+                while (isActive) {
+                    delay(RESUME_CHECKPOINT_INTERVAL_MS)
+                    // Skip early: no torrents means no alert churn and no wake-ups.
+                    if (torrents.isEmpty()) continue
+                    for (handle in torrents.values) {
+                        try {
+                            val state = handle.status().state()
+                            if (
+                                state == TorrentStatus.State.DOWNLOADING ||
+                                state == TorrentStatus.State.SEEDING
+                            ) {
+                                handle.saveResumeData(
+                                    TorrentHandle.SAVE_INFO_DICT.or_(TorrentHandle.ONLY_IF_MODIFIED),
+                                )
+                            }
+                        } catch (e: Exception) {
+                            // One bad handle must not starve the others' checkpoints.
+                            logger.w({ "Periodic resume checkpoint failed" }, e)
+                        }
+                    }
+                }
+            }
+        }
+
+        /**
+         * Applies the file selection stashed by addTorrent() once metadata is available:
+         * unselected files get [Priority.IGNORE] so their data is never downloaded.
+         * A null/empty selection means "download everything" — the historical default.
+         */
+        private fun applySelectedFilePriorities(
+            hash: String,
+            handle: TorrentHandle,
+            numFiles: Int,
+        ) {
+            val selected = selectedFileIndicesByHash.remove(hash) ?: return
+            if (selected.isEmpty()) return
+            try {
+                val priorities =
+                    Array(numFiles) { index ->
+                        if (index in selected) Priority.DEFAULT else Priority.IGNORE
+                    }
+                handle.prioritizeFiles(priorities)
+                logger.i { "Applied file selection for $hash: ${selected.size}/$numFiles files" }
+            } catch (e: Exception) {
+                // Priority API failure must not abort the download — fall back to
+                // the default "download everything" behavior.
+                logger.w({ "Failed to apply file selection for $hash, downloading all files" }, e)
+            }
+        }
+
+        /**
+         * SaveResumeData failure path.
+         *
+         * Mirrors handleSaveResumeData's latch handling — a stuck latch makes
+         * stopSession() wait its full 5s timeout. One retry after 5s bounds transient
+         * failures (disk flush timing); if it fails too, the row is marked ERROR so
+         * the next restore re-checks files instead of trusting a stale resume BLOB.
+         */
+        private fun handleSaveResumeDataFailed(alert: SaveResumeDataFailedAlert) {
+            try {
+                val handle = alert.handle()
+                if (!handle.isValid) return
+                val hash = handle.infoHash().toHex()
+                // Release the stop-wait latch on every failure path: the retry below
+                // runs on statePersistenceScope, which survives stopSession().
+                pendingResumeDataLatch?.countDown()
+
+                val firstFailure = resumeDataRetriesInFlight.add(hash)
+                if (!firstFailure) {
+                    // This failure came from the retry itself — no more retries,
+                    // surface the problem instead of silently looping.
+                    logger.e { "Resume data retry failed for $hash — marking ERROR" }
+                    persistTorrentErrorState(hash)
+                    return
+                }
+
+                logger.w { "Save resume data failed for $hash — retrying once" }
+                statePersistenceScope.launch {
+                    delay(RESUME_DATA_RETRY_DELAY_MS)
+                    // Re-fetch the handle: the captured one may be stale after the delay.
+                    val retryHandle = torrents[hash]
+                    if (retryHandle == null) {
+                        // Torrent gone; its terminal state was already persisted elsewhere.
+                        resumeDataRetriesInFlight.remove(hash)
+                        return@launch
+                    }
+                    val requested =
+                        runCatching {
+                            retryHandle.saveResumeData(TorrentHandle.SAVE_INFO_DICT.or_(TorrentHandle.ONLY_IF_MODIFIED))
+                        }
+                    if (requested.isFailure) {
+                        // The retry request itself threw — no alert will follow, fail now.
+                        resumeDataRetriesInFlight.remove(hash)
+                        logger.e({ "Resume data retry request failed for $hash — marking ERROR" }, requested.exceptionOrNull())
+                        persistTorrentErrorState(hash)
+                    }
+                    // On a successful request the outcome arrives as an alert: success
+                    // clears the retry flag in handleSaveResumeData, failure re-enters
+                    // this handler and marks ERROR.
+                }
+            } catch (e: Exception) {
+                logger.e({ "Error handling SaveResumeDataFailedAlert" }, e)
+                pendingResumeDataLatch?.countDown()
+            }
+        }
+
+        /**
+         * Persists ERROR for a hash on the un-cancellable persistence scope, so
+         * restoreActiveDownloads() re-checks the torrent next session.
+         */
+        private fun persistTorrentErrorState(hash: String) {
+            statePersistenceScope.launch {
+                try {
+                    torrentDownloadDao.updateState(hash, TorrentState.ERROR)
+                } catch (e: Exception) {
+                    logger.w({ "Failed to persist ERROR state for $hash" }, e)
+                }
             }
         }
 
@@ -1015,6 +1175,8 @@ public class TorrentSessionManager
                                         runCatching { session?.remove(h) }
                                     }
                                 }
+                                // Metadata never arrived, so the stash will never apply — drop it.
+                                selectedFileIndicesByHash.remove(hash)
                                 statePersistenceScope.launch {
                                     try {
                                         torrentDownloadDao.updateState(hash, TorrentState.ERROR)
@@ -1223,6 +1385,9 @@ public class TorrentSessionManager
                         logger.i {
                             "Metadata received for $hash: name='${torrentInfo.name()}', files=${torrentInfo.numFiles()}, size=${torrentInfo.totalSize()} bytes"
                         }
+                        // Metadata is the first point where the file list exists, so
+                        // this is the earliest a stashed file selection can be applied.
+                        applySelectedFilePriorities(hash, handle, torrentInfo.numFiles())
                         // Persist metadata into the resume BLOB now: a BLOB written before
                         // metadata arrived (e.g. stopSession path) restores as metadata-less
                         // and re-enters DOWNLOADING_METADATA. saveResumeData is latch-safe;

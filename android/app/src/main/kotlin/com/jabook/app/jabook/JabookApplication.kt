@@ -23,6 +23,7 @@ import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
 import com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
+import com.jabook.app.jabook.compose.core.util.EmbeddedArtworkFetcher
 import com.jabook.app.jabook.compose.data.local.JABOOK_DB_VERSION
 import com.jabook.app.jabook.compose.data.sync.SyncManager
 import com.jabook.app.jabook.compose.data.torrent.TorrentMemoryPressureGuard
@@ -173,6 +174,8 @@ public class JabookApplication :
                             concurrentRequestStrategy = { coil3.network.DeDupeConcurrentRequestStrategy() },
                         ),
                     )
+                    // Decodes artwork embedded in local audio files (audio-artwork://<abs-path>).
+                    add(EmbeddedArtworkFetcher.Factory)
                 }.memoryCache {
                     MemoryCache
                         .Builder()
