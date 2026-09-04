@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.repository
 
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LogLevel
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.logger.endOperation
@@ -246,14 +247,20 @@ public class RutrackerRepository
                         }
 
                     if (indexSize > 0) {
-                        if (query.trim() == "!index" || query.trim() == ":debug") {
+                        if (BuildConfig.DEBUG && (query.trim() == "!index" || query.trim() == ":debug")) {
                             val sampleTopics = offlineSearchDao.getSampleTopics(10)
                             val domainResults = sampleTopics.map { it.toSearchResult() }.toDomainFromIndex()
                             emitIfChanged(domainResults)
                             return@flow
                         }
 
-                        val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+                        // ponytail: cap at 8 tokens — adversarial input could build unbounded SQL
+                        val tokens =
+                            query
+                                .trim()
+                                .split(Regex("\\s+"))
+                                .filter { it.isNotEmpty() }
+                                .take(8)
 
                         if (tokens.isEmpty()) {
                             emitIfChanged(emptyList())

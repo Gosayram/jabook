@@ -325,8 +325,10 @@ public fun WebViewScreen(
 
                         // WebView settings
                         settings.apply {
-                            javaScriptEnabled = true
-                            domStorageEnabled = true
+                            // JS only for the auth flow (URL-allowlisted); deep-linked arbitrary
+                            // URLs run without JS to close the script-injection vector.
+                            javaScriptEnabled = route.isAuthentication
+                            domStorageEnabled = route.isAuthentication
                             allowFileAccess = false
                             allowContentAccess = false
                             mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW

@@ -56,8 +56,10 @@ public class JabookApplication :
     @Inject
     public lateinit var syncManager: SyncManager
 
+    /** Cookie-free client for cover downloads — Coil must not send session cookies to cover hosts. */
     @Inject
-    public lateinit var okHttpClient: OkHttpClient
+    @javax.inject.Named("coverDownload")
+    public lateinit var coverDownloadClient: OkHttpClient
 
     /** Lazily guards the native torrent session only when Android reports memory pressure. */
     @Inject
@@ -162,12 +164,13 @@ public class JabookApplication :
             ImageLoader
                 .Builder(context)
                 .components {
-                    // Use the same OkHttpClient that's used for API calls (cookies, auth, Brotli),
-                    // but without its HTTP cache: Coil has its own 50MB disk cache below, and
-                    // sharing the rutracker_http cache would store every image twice.
+                    // Use the cookie-free coverDownload client (DoH, browser headers, Brotli):
+                    // covers go to arbitrary hosts, so session cookies/AuthInterceptor must not apply.
+                    // Coil has its own 50MB disk cache below — no HTTP cache duplication.
                     add(
                         OkHttpNetworkFetcherFactory(
-                            callFactory = { okHttpClient.newBuilder().cache(null).build() },
+                            callFactory = { coverDownloadClient },
+                            concurrentRequestStrategy = { coil3.network.DeDupeConcurrentRequestStrategy() },
                         ),
                     )
                 }.memoryCache {

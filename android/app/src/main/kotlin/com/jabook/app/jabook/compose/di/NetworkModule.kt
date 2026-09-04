@@ -215,11 +215,18 @@ public object NetworkModule {
     @Provides
     @Singleton
     @Named("coverDownload")
-    public fun provideCoverDownloadClient(dohDns: com.jabook.app.jabook.compose.data.network.DnsOverHttpsDns): OkHttpClient =
+    public fun provideCoverDownloadClient(
+        dohDns: com.jabook.app.jabook.compose.data.network.DnsOverHttpsDns,
+        rutrackerHeadersInterceptor: com.jabook.app.jabook.compose.data.network.RutrackerHeadersInterceptor,
+    ): OkHttpClient =
         OkHttpClient
             .Builder()
             // Cover URLs live on the same DNS-blocked mirrors as the API — resolve via DoH.
             .dns(dohDns)
+            // Browser-like headers + Brotli: some mirrors throttle non-browser clients.
+            // Deliberately NO cookies/auth/mirror rewriting (untrusted URLs).
+            .addInterceptor(BrotliInterceptor)
+            .addInterceptor(rutrackerHeadersInterceptor)
             .callTimeout(NetworkRuntimePolicy.API_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .connectTimeout(NetworkRuntimePolicy.API_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(NetworkRuntimePolicy.API_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)

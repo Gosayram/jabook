@@ -187,12 +187,13 @@ public class TorrentDownloadsViewModel
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
                     logger.e({ "Error processing downloads" }, e)
-                    TorrentDownloadsUiState.Error(e.message ?: context.getString(R.string.unknown_error))
+                    // ponytail: raw e.message can leak URLs/hosts — generic message to UI, details in log
+                    TorrentDownloadsUiState.Error(context.getString(R.string.unknownError))
                 }
             }.catch { e ->
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 logger.e({ "Downloads flow failed" }, e)
-                emit(TorrentDownloadsUiState.Error(e.message ?: context.getString(R.string.unknown_error)))
+                emit(TorrentDownloadsUiState.Error(context.getString(R.string.unknownError)))
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),

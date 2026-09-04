@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.repository
 
+import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.local.dao.OfflineSearchDao
 import com.jabook.app.jabook.compose.data.local.entity.toSearchResult
@@ -114,8 +115,8 @@ public class RutrackerRepositoryImpl
                     val indexSize = offlineSearchDao.getTopicCount()
 
                     if (indexSize > 0) {
-                        // Check for debug command
-                        if (query.trim() == "!index" || query.trim() == ":debug") {
+                        // Check for debug command (dev builds only)
+                        if (BuildConfig.DEBUG && (query.trim() == "!index" || query.trim() == ":debug")) {
                             val sampleTopics = offlineSearchDao.getSampleTopics(10)
                             val domainResults =
                                 sampleTopics
@@ -130,7 +131,13 @@ public class RutrackerRepositoryImpl
                         }
 
                         // Tokenize query for fuzzy search
-                        val tokens = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+                        // ponytail: cap at 8 tokens — adversarial input could build unbounded SQL
+                        val tokens =
+                            query
+                                .trim()
+                                .split(Regex("\\s+"))
+                                .filter { it.isNotEmpty() }
+                                .take(8)
 
                         if (tokens.isEmpty()) {
                             emit(Result.Success(emptyList()))

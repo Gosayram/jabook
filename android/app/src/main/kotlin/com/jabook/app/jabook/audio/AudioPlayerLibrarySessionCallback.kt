@@ -144,44 +144,8 @@ public class AudioPlayerLibrarySessionCallback(
         )
     }
 
-    // Fallback for older Media3 where onConnect is used instead of onConnectAsync.
-    // Delegates to the same accept logic but cannot defer; onConnectAsync is preferred on 1.11.0.
-    @OptIn(UnstableApi::class)
-    override fun onConnect(
-        session: MediaSession,
-        controller: MediaSession.ControllerInfo,
-    ): MediaSession.ConnectionResult {
-        // ponytail: immediate accept — async deferral is handled in onConnectAsync on 1.11.0.
-        // This fallback exists only for pre-async clients; return same commands as onConnectAsync would.
-        val isSystemController =
-            session.isMediaNotificationController(controller) ||
-                session.isAutomotiveController(controller) ||
-                session.isAutoCompanionController(controller)
-        val isAppController = isAppController(controller)
-        if (session.isAutomotiveController(controller)) {
-            service.sleepTimerManager?.isAutomotiveActive = true
-        }
-        val availableCommands =
-            if (isSystemController) {
-                val includeSleepTimerCommands =
-                    !session.isAutomotiveController(controller) && isAppController
-                buildAvailableSessionCommands(
-                    controller = controller,
-                    includeSleepTimerCommands = includeSleepTimerCommands,
-                    includePrivilegedCommands = isAppController,
-                )
-            } else {
-                buildAvailableSessionCommands(
-                    controller = controller,
-                    includeSleepTimerCommands = isAppController,
-                    includePrivilegedCommands = isAppController,
-                )
-            }
-        return MediaSession.ConnectionResult
-            .AcceptedResultBuilder(session, controller)
-            .setAvailableSessionCommands(availableCommands)
-            .build()
-    }
+    // NOTE: onConnect is intentionally NOT overridden. In Media3 1.11.0 an onConnect override
+    // takes precedence over onConnectAsync, which would defeat the async deferral above.
 
     /**
      * Handles media button events from physical buttons (e.g., headphones, Bluetooth devices).
@@ -1245,7 +1209,14 @@ public class AudioPlayerLibrarySessionCallback(
 
             val filePath =
                 storedData["filePath"] as? String
-                    ?: throw IllegalStateException("stored file path is null")
+                    ?: run {
+                        LogUtils.w("AudioPlayerService", "Stored file path is null, returning empty resumption")
+                        return@future MediaSession.MediaItemsWithStartPosition(
+                            emptyList(),
+                            0,
+                            0L,
+                        )
+                    }
             val positionMs = storedData["positionMs"] as? Long ?: 0L
             val durationMs = storedData["durationMs"] as? Long ?: 0L
             val artworkPath = storedData["artworkPath"] as? String ?: ""
@@ -1309,8 +1280,12 @@ public class AudioPlayerLibrarySessionCallback(
             // Create MediaItem from file path
             val file = File(filePath)
             if (!file.isFile) {
-                LogUtils.w("AudioPlayerService", "Stored file does not exist: $filePath")
-                throw IllegalStateException("stored file does not exist")
+                LogUtils.w("AudioPlayerService", "Stored file does not exist: $filePath, returning empty resumption")
+                return@future MediaSession.MediaItemsWithStartPosition(
+                    emptyList(),
+                    0,
+                    0L,
+                )
             }
 
             val uri = android.net.Uri.fromFile(file)
