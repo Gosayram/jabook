@@ -128,6 +128,16 @@ public class TorrentSessionManager
                     "udp://open.demonii.com:1337/announce",
                     "udp://exodus.desync.com:6969/announce",
                 )
+
+            /**
+             * Appends [FALLBACK_TRACKERS] to magnets without tracker URLs.
+             * Shared by the add path and the resume-data-less restore fallback.
+             */
+            private fun withFallbackTrackers(magnetUri: String): String {
+                if (magnetUri.contains("&tr=") || magnetUri.contains("&tr%3D")) return magnetUri
+                val suffix = FALLBACK_TRACKERS.joinToString("&") { "tr=${java.net.URLEncoder.encode(it, "UTF-8")}" }
+                return "$magnetUri&$suffix"
+            }
         }
 
         private val alertListener =
@@ -449,14 +459,7 @@ public class TorrentSessionManager
                 // Wrap in try-catch to handle any native exceptions
                 try {
                     // Append fallback trackers if magnet has no tracker URLs
-                    val effectiveMagnetUri =
-                        if (!magnetUri.contains("&tr=") && !magnetUri.contains("&tr%3D")) {
-                            val trackerSuffix =
-                                FALLBACK_TRACKERS.joinToString("&") { "tr=${java.net.URLEncoder.encode(it, "UTF-8")}" }
-                            "$magnetUri&$trackerSuffix"
-                        } else {
-                            magnetUri
-                        }
+                    val effectiveMagnetUri = withFallbackTrackers(magnetUri)
 
                     logger.d { "Calling session.download() for hash=$hash, savePath=$savePath" }
 
@@ -669,6 +672,10 @@ public class TorrentSessionManager
 
             try {
                 handle.pause()
+                // Request resume data: pause alone never persists progress, so a process
+                // death after pause (or FGS timeout) would lose all pieces since the last
+                // stop. need_save_resume is auto-set by libtorrent on state change.
+                runCatching { handle.saveResumeData(TorrentHandle.SAVE_INFO_DICT) }
                 updateDownloads()
                 logger.i { "Paused torrent: $hash" }
             } catch (e: Exception) {
@@ -723,7 +730,10 @@ public class TorrentSessionManager
          */
         @Synchronized
         public fun pauseAll() {
-            torrents.values.toList().forEach { it.pause() }
+            torrents.values.toList().forEach {
+                it.pause()
+                runCatching { it.saveResumeData(TorrentHandle.SAVE_INFO_DICT) }
+            }
             updateDownloads()
         }
 
@@ -909,7 +919,10 @@ public class TorrentSessionManager
                                 session?.swig()?.async_add_torrent(params.swig())
                                 logger.d { "Restored torrent with resume data: ${row.hash}" }
                             } else {
-                                val magnetUri = "magnet:?xt=urn:btih:" + row.hash
+                                // Restore path has no stored magnet URI (entity keeps hash only),
+                                // so reuse the same fallback trackers as the add path — a bare
+                                // hash restores DHT-only and stalls where DHT is blocked.
+                                val magnetUri = withFallbackTrackers("magnet:?xt=urn:btih:" + row.hash)
                                 val params = AddTorrentParams.parseMagnetUri(magnetUri)
                                 params.setSavePath(row.savePath)
                                 session?.swig()?.async_add_torrent(params.swig())
@@ -1124,6 +1137,32 @@ public class TorrentSessionManager
             }
         }
 
+        private fun handleMetadataFailed(alert: MetadataFailedAlert) {
+            try {
+                val handle = alert.handle()
+                if (!handle.isValid) {
+                    logger.e { "Metadata failed alert with invalid handle" }
+                    return
+                }
+                val hash = handle.infoHash().toHex()
+                val error = runCatching { alert.error.message }.getOrNull()
+                logger.e { "Metadata failed for $hash: error='$error'" }
+                // Persist ERROR so restoreActiveDownloads() doesn't re-add a magnet that
+                // can never fetch metadata (otherwise stuck in DOWNLOADING_METADATA forever
+                // with no UI feedback). Same scope pattern as STOPPED terminal state above.
+                statePersistenceScope.launch {
+                    try {
+                        torrentDownloadDao.updateState(hash, TorrentState.ERROR)
+                    } catch (e: Exception) {
+                        logger.w({ "Failed to persist ERROR state for $hash" }, e)
+                    }
+                }
+                updateDownloads()
+            } catch (e: Exception) {
+                logger.e({ "Error handling metadata failed alert" }, e)
+            }
+        }
+
         private fun handleMetadataReceived(alert: MetadataReceivedAlert) {
             try {
                 val handle = alert.handle()
@@ -1133,6 +1172,15 @@ public class TorrentSessionManager
                     if (torrentInfo != null) {
                         logger.i {
                             "Metadata received for $hash: name='${torrentInfo.name()}', files=${torrentInfo.numFiles()}, size=${torrentInfo.totalSize()} bytes"
+                        }
+                        // Persist metadata into the resume BLOB now: a BLOB written before
+                        // metadata arrived (e.g. stopSession path) restores as metadata-less
+                        // and re-enters DOWNLOADING_METADATA. saveResumeData is latch-safe;
+                        // handleSaveResumeData does the DB write.
+                        try {
+                            handle.saveResumeData(TorrentHandle.SAVE_INFO_DICT)
+                        } catch (e: Exception) {
+                            logger.w({ "Failed to request resume data on metadata for $hash" }, e)
                         }
                     } else {
                         logger.i { "Metadata received for $hash (torrent info not yet available)" }

@@ -277,14 +277,15 @@ public class DefensiveFieldExtractor
             val titleElement =
                 row.selectFirst("a.torTopic, a.torTopic.tt-text")
             if (titleElement != null) {
-                val title = titleElement.text()
+                // Cap: unbounded titles bloat UI/DB; 500 chars keeps full real titles.
+                val title = titleElement.text().take(500)
                 if (title.isNotBlank()) return title
             }
 
             // Strategy 2: Any link with viewtopic.php
             val topicLink = row.selectFirst("a[href*='viewtopic.php?t=']")
             if (topicLink != null) {
-                val title = topicLink.text()
+                val title = topicLink.text().take(500)
                 if (title.isNotBlank()) return title
             }
 
@@ -294,7 +295,7 @@ public class DefensiveFieldExtractor
             val anyLink = row.select("a").firstOrNull { it.text().isNotBlank() }
             if (anyLink != null) {
                 val title = anyLink.text()
-                if (title.length > 3) return title // Avoid single-char links
+                if (title.length > 3) return title.take(500) // Avoid single-char links
             }
 
             return null

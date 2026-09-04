@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.data.remote.encoding
 
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.local.parser.EncodingDetector
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import java.nio.charset.Charset
 import javax.inject.Inject
@@ -34,6 +35,7 @@ public class RutrackerSimpleDecoder
     @Inject
     constructor(
         private val loggerFactory: LoggerFactory,
+        private val encodingDetector: EncodingDetector = EncodingDetector(loggerFactory),
     ) {
         private val logger = loggerFactory.get("RutrackerSimpleDecoder")
 
@@ -81,8 +83,12 @@ public class RutrackerSimpleDecoder
                             String(bytes, detectedCharset)
                         }
                         else -> {
-                            // No encoding specified - use Windows-1251 (RuTracker default)
-                            String(bytes, CP1251)
+                            // No charset header: don't blindly assume cp1251 (UTF-8 pages
+                            // without a header decode as mojibake). EncodingDetector checks
+                            // BOM first, then probes UTF-8/1252/1251/KOI8-R, falling back
+                            // to UTF-8 — the maintained heuristic, not a guess.
+                            val probed = encodingDetector.detectEncoding(bytes)
+                            String(bytes, probed)
                         }
                     }
                 } catch (e: Exception) {

@@ -53,6 +53,24 @@ public class RutrackerParser
         private val logger = loggerFactory.get("RutrackerParser")
 
         public companion object {
+            /**
+             * Upper bound for a single HTML response. Jsoup.parse builds the full DOM in RAM,
+             * so an uncapped multi-MB body from a broken mirror is an OOM vector on 2GB devices.
+             */
+            internal const val MAX_HTML_BYTES = 8 * 1024 * 1024
+
+            /**
+             * Reads a response body with [MAX_HTML_BYTES] cap. Throws IllegalStateException
+             * over the cap — all call sites run inside withOperation/try-catch and surface
+             * it as a user-visible error, not a crash.
+             */
+            internal fun readCappedBody(body: okhttp3.ResponseBody?): ByteArray {
+                if (body == null) return ByteArray(0)
+                return body.use { it.bytes() }.also {
+                    check(it.size <= MAX_HTML_BYTES) { "Response too large: ${it.size} bytes" }
+                }
+            }
+
             // CSS Selectors for search results - UPDATED for 2025 based on robust Dart implementation
             // Primary and fallback selectors for rows
             // Note: Some forums may have td.vf-col-icon, so we need to handle parent tr
@@ -647,7 +665,7 @@ public class RutrackerParser
             forumId: String,
         ): ForumPageResult {
             // Convert ResponseBody to ByteArray for encoding-aware parsing
-            val rawBytes = body.bytes()
+            val rawBytes = readCappedBody(body)
             val contentType = body.contentType()?.toString()
             logger.d { "Parsing forum $forumId page: ${rawBytes.size} bytes, content-type: $contentType" }
             val result = parseForumPageWithEncoding(rawBytes, contentType)
@@ -2145,6 +2163,10 @@ public class RutrackerParser
                     link.attr("href", doc.baseUri() + href.removePrefix("/"))
                 }
             }
+            // Drop non-renderable elements: their inner text (JS/CSS) would otherwise
+            // leak into extracted comment text as visible garbage. Visible formatting
+            // (b/i/u/blockquote/a/img) is preserved — renderers whitelist downstream.
+            doc.select("script, style, iframe, object, embed, form, input, button, noscript").remove()
             return doc
         }
 

@@ -107,7 +107,8 @@ public fun JabookApp(
 
     // Permission State
     val permissionUiState by permissionViewModel.uiState.collectAsStateWithLifecycle()
-    var permissionSkipped by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    var permissionSkipped by androidx.compose.runtime.saveable
+        .rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
 
     // Check permissions on start and when returning to the app
     androidx.lifecycle.compose.LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {

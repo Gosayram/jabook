@@ -85,8 +85,18 @@ public class PlayerWidgetProvider : AppWidgetProvider() {
         appWidgetIds: IntArray,
     ) {
         schedulePeriodicUpdate(context)
-        for (appWidgetId in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId)
+        // goAsync keeps the process alive until the render completes: without it the
+        // process can be killed right after onUpdate returns (boot/widget add), dropping
+        // renders. Same pattern as the onReceive path below.
+        val pending = goAsync()
+        scope.launch(Dispatchers.IO) {
+            try {
+                for (appWidgetId in appWidgetIds) {
+                    updateAppWidget(context, appWidgetManager, appWidgetId)
+                }
+            } finally {
+                pending.finish()
+            }
         }
     }
 

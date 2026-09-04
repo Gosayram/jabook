@@ -19,6 +19,7 @@ import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.util.LogUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 
 /**
@@ -72,13 +73,18 @@ internal class CrashSafePositionWriter
             }
 
             return try {
+                // Bounded blocking write: crash-safety needs synchronous completion in
+                // onDestroy/onTaskRemoved, but an unbounded main-thread block is an ANR
+                // under DB contention. Timeout loses the position; ANR kills the process.
                 val result =
                     runBlocking(Dispatchers.IO) {
-                        positionRepository.savePosition(
-                            bookId = bookId,
-                            trackIndex = trackIndex,
-                            position = positionMs,
-                        )
+                        withTimeout(2_000) {
+                            positionRepository.savePosition(
+                                bookId = bookId,
+                                trackIndex = trackIndex,
+                                position = positionMs,
+                            )
+                        }
                     }
                 when (result) {
                     is Result.Success -> {
