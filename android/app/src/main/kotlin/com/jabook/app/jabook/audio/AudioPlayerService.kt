@@ -27,6 +27,7 @@ import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaNotification
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionError
+import androidx.work.BackoffPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -45,6 +46,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 /** Audio player service using Media3 ExoPlayer with Dagger Hilt DI. */
@@ -122,6 +125,10 @@ public class AudioPlayerService : MediaLibraryService() {
     // Publishes the active player getter for non-service owners (chapter loudness policy)
     @Inject
     public lateinit var activePlayerRef: ActivePlayerRef
+
+    // Shared app-wide HTTP client (DoH + Brotli + UA interceptors), reused for media streaming
+    @Inject
+    public lateinit var okHttpClient: OkHttpClient
 
     // Lazy: reads the injected coordinator, which Hilt assigns after construction.
     internal val bookLoudnessCompensator: BookLoudnessCompensator by lazy {
@@ -655,6 +662,7 @@ public class AudioPlayerService : MediaLibraryService() {
                 val request =
                     OneTimeWorkRequestBuilder<LufsAnalysisWorker>()
                         .setInputData(workDataOf(LufsAnalysisWorker.KEY_BOOK_ID to bookId))
+                        .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                         .build()
                 workManager.enqueueUniqueWork(
                     "lufs_analysis_$bookId",

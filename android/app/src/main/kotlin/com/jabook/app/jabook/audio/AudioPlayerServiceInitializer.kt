@@ -162,6 +162,7 @@ public class AudioPlayerServiceInitializer(
                     service.playbackController
                         ?: throw IllegalStateException("PlaybackController must be initialized before PlaylistManager"),
                 getCurrentTrackIndex = { service.actualTrackIndex },
+                okHttpClient = service.okHttpClient,
             )
 
         // 5. PositionManager

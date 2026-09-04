@@ -318,11 +318,18 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- Remove default WorkManager initializer (app uses on-demand init via Configuration.Provider) -->
+        <!-- On-demand WorkManager init (Configuration.Provider): remove only the default
+             WorkManager initializer, keep profileinstaller/emoji2/lifecycle startup initializers -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
-            tools:node="remove" />
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
 
         <!-- preloaded_fonts removed: Not needed for Compose with Google Fonts -->
         <!-- Google Fonts are loaded dynamically via FontUtils, no preloading required -->

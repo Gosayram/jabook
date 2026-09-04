@@ -77,6 +77,8 @@ internal class PlaylistManager(
     private val playerPersistenceManager: PlayerPersistenceManager,
     private val playbackController: PlaybackController,
     private val getCurrentTrackIndex: () -> Int = { 0 }, // fallback
+    // Shared Hilt client: brings DoH DNS + Brotli + browser-like UA/headers. Default keeps unit tests simple.
+    private val okHttpClient: OkHttpClient = OkHttpClient(),
 ) {
     private val preloadExecutor by lazy {
         PlaylistPreloadExecutor(mainDispatcher = dispatchers.main)
@@ -87,8 +89,10 @@ internal class PlaylistManager(
     private val playbackDataSourceFactory: DataSource.Factory by lazy {
         val networkFactory =
             OkHttpDataSource.Factory(
-                OkHttpClient
-                    .Builder()
+                // Derive from the shared client (keeps DoH+Brotli+UA interceptors and the
+                // connection pool/dispatcher) and only adjust the media timeouts.
+                okHttpClient
+                    .newBuilder()
                     .connectTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                     .readTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                     .writeTimeout(NetworkRuntimePolicy.AUDIO_MEDIA_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)

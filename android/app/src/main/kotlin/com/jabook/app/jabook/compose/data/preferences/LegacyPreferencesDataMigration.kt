@@ -21,10 +21,10 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStoreFile
+import com.jabook.app.jabook.core.datastore.DataStoreCorruptionPolicy
 import com.jabook.app.jabook.util.LogUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -84,8 +84,7 @@ public class LegacyPreferencesDataMigration
             val store =
                 PreferenceDataStoreFactory.create(
                     corruptionHandler =
-                        androidx.datastore.core.handlers
-                            .ReplaceFileCorruptionHandler { emptyPreferences() },
+                        DataStoreCorruptionPolicy.preferencesHandler(LEGACY_STORE_NAME),
                     scope = scope,
                     produceFile = { file },
                 )

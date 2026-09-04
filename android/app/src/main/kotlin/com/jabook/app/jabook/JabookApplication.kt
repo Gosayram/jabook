@@ -102,6 +102,10 @@ public class JabookApplication :
     public override fun onCreate() {
         super.onCreate()
 
+        // :crash process must not build the Hilt graph / OkHttp / DataStore (a second
+        // DataStore here would lock the cookies file against the main process).
+        if (android.app.Application.getProcessName() == ":crash") return
+
         if (BuildConfig.DEBUG) {
             StrictMode.setThreadPolicy(
                 StrictMode.ThreadPolicy

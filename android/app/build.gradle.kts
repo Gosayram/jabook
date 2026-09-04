@@ -615,10 +615,8 @@ dependencies {
 
     // Media3 - Native audio player (stable 1.11.0; version catalog is the source of truth)
     implementation(libs.bundles.media3)
-    implementation(libs.media3.ui)
     implementation(libs.media3.ui.compose)
     implementation(libs.media3.cast)
-    implementation(libs.androidx.mediarouter)
     implementation(libs.play.services.cast.framework)
 
     // Android 14+ specific dependencies
@@ -649,10 +647,6 @@ dependencies {
     // Security & Encryption - Modern approach with Tink (replaces deprecated EncryptedSharedPreferences)
     implementation(libs.tink.android)
 
-    // Media library for MediaStyle notification (required for MediaStyle class)
-    // MediaStyle is part of androidx.media, not androidx.core
-    implementation(libs.androidx.media)
-
     // Network libraries
     implementation(libs.bundles.network)
     // Jsoup for HTML parsing (Rutracker scraping)
@@ -667,8 +661,6 @@ dependencies {
     // Google Fonts support for Compose
     implementation(libs.androidx.compose.ui.text.google.fonts)
     implementation(libs.androidx.compose.material3.window.size)
-    // ponytail: graphics-shapes for M3 Expressive RoundedPolygon/Morph (overrides BOM via explicit version)
-    implementation(libs.androidx.graphics.shapes)
     debugImplementation(libs.bundles.compose.debug)
 
     // Palette for extracting colors from images (Dynamic Theme)
@@ -698,9 +690,6 @@ dependencies {
     // Premium UI Dependencies
     // Haze for Glassmorphism (blur effects)
     implementation(libs.haze)
-    // HypnoticCanvas for Procedural Animated Backgrounds (Shaders)
-    implementation(libs.hypnoticcanvas)
-    implementation(libs.hypnoticcanvas.shaders)
     // Leanback for Android TV support
     implementation(libs.leanback)
 
@@ -725,14 +714,6 @@ dependencies {
     testImplementation(libs.androidx.work.testing)
     testImplementation(libs.jimfs)
     testImplementation(libs.kotest.property)
-
-    // Android Instrumentation tests
-    androidTestUtil(libs.androidx.test.services)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(libs.androidx.test.ext.junit)
-    androidTestImplementation(libs.media3.test.utils)
 
     // Firebase - Import the Firebase BoM to manage library versions
     implementation(platform(libs.firebase.bom))

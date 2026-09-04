@@ -18,12 +18,14 @@
         <exclude domain="file" path="datastore/secure_credentials.preferences_pb" />
     <exclude domain="file" path="datastore/cookies.preferences_pb" />
     <exclude domain="sharedpref" path="cookies_keyset_prefs.xml" />
+        <!-- Exclude legacy preferences DataStore (prevents restore re-triggering migration) -->
+        <exclude domain="file" path="datastore/jabook_preferences.preferences_pb" />
         <!-- Exclude Tink keyset preference container -->
         <exclude domain="sharedpref" path="secure_credentials_prefs.xml" />
-        
+
         <!-- Exclude database files (user data can be re-synced) -->
         <!-- Database domain is excluded by default (not included above) -->
-        
+
         <!-- Exclude external storage (user's audiobook files) -->
         <!-- External domain is excluded by default (not included above) -->
     </cloud-backup>
@@ -40,12 +42,14 @@
         <exclude domain="file" path="datastore/secure_credentials.preferences_pb" />
     <exclude domain="file" path="datastore/cookies.preferences_pb" />
     <exclude domain="sharedpref" path="cookies_keyset_prefs.xml" />
+        <!-- Exclude legacy preferences DataStore (prevents restore re-triggering migration) -->
+        <exclude domain="file" path="datastore/jabook_preferences.preferences_pb" />
         <!-- Exclude Tink keyset preference container -->
         <exclude domain="sharedpref" path="secure_credentials_prefs.xml" />
-        
+
         <!-- Exclude database files (user data can be re-synced) -->
         <!-- Database domain is excluded by default (not included above) -->
-        
+
         <!-- Exclude external storage (user's audiobook files) -->
         <!-- External domain is excluded by default (not included above) -->
     </device-transfer>

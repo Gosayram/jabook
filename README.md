@@ -335,7 +335,7 @@ flowchart LR
 | Network | OkHttp 5.3.2, Retrofit 3.0.0, Jsoup 1.22.2 |
 | Torrent | libtorrent4j 2.1.0-39 |
 | Images | Coil 3.4.0 |
-| Effects | Haze 1.7.2 (glassmorphism), HypnoticCanvas 0.4.1 (shaders) |
+| Effects | Haze 1.7.2 (glassmorphism) |
 | Navigation | Compose Navigation 2.9.8, Material3 Adaptive Navigation |
 | TV | Leanback 1.2.0 |
 | Security | Tink 1.21.0 |
