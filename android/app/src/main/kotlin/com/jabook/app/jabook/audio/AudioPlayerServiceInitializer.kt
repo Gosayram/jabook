@@ -100,6 +100,13 @@ public class AudioPlayerServiceInitializer(
                     cachedUserPreferences?.resumeRewindAggressiveness ?: 1.0f
                 },
                 consumeSleepTimerStopFlag = { service.consumeStoppedBySleepTimerFlag() },
+                getAutoRewindSeconds = {
+                    if (cachedUserPreferences?.autoRewindOnPause == true) {
+                        cachedUserPreferences?.autoRewindSeconds ?: 2
+                    } else {
+                        0
+                    }
+                },
             )
 
         // 3.1 SleepTimerManager

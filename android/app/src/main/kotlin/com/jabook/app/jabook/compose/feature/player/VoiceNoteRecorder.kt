@@ -58,6 +58,9 @@ internal class VoiceNoteRecorder {
                 newRecorder.setOutputFile(outputFile.absolutePath)
                 newRecorder.prepare()
                 newRecorder.start()
+            }.onFailure {
+                com.jabook.app.jabook.util.LogUtils
+                    .e("VoiceNoteRecorder", "Failed to start recording", it)
             }.isSuccess
         if (started) {
             recorder = newRecorder
@@ -74,7 +77,12 @@ internal class VoiceNoteRecorder {
      */
     fun stop(): Boolean {
         val current = recorder ?: return true
-        val stopped = runCatching { current.stop() }
+        val stopped =
+            runCatching { current.stop() }
+                .onFailure {
+                    com.jabook.app.jabook.util.LogUtils
+                        .e("VoiceNoteRecorder", "Failed to stop recording", it)
+                }
         runCatching { current.reset() }
         runCatching { current.release() }
         recorder = null

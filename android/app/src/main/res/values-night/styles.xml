@@ -6,7 +6,7 @@
         <item name="android:windowBackground">@drawable/launch_background</item>
     </style>
     <!-- Theme applied after splash screen for dark mode windows. -->
-    <style name="AppWindowTheme" parent="@android:style/Theme.Black.NoTitleBar">
+    <style name="AppWindowTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
 </resources>

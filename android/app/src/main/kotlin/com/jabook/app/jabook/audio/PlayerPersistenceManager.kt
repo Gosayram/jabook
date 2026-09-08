@@ -162,6 +162,11 @@ public class PlayerPersistenceManager
                 } catch (e: Exception) {
                     e.rethrowCancellation()
                     LogUtils.w("PlayerPersistence", "Failed to save persisted player snapshot", e)
+                    com.jabook.app.jabook.crash.CrashDiagnostics.reportNonFatal(
+                        "PlayerPersistence",
+                        e,
+                        mapOf("operation" to "savePersistedPlayerState"),
+                    )
                 }
             }
 

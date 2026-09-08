@@ -39,6 +39,7 @@ internal class PlaybackController(
     private val getResumeRewindAggressiveness: () -> Float = { 1.0f },
     private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
     private val consumeSleepTimerStopFlag: () -> Boolean = { false },
+    private val getAutoRewindSeconds: () -> Int = { 0 },
 ) {
     /**
      * Starts or resumes playback.
@@ -47,6 +48,7 @@ internal class PlaybackController(
      */
     private var lastPauseTime: Long = 0L
     private var suppressNextResumeRewind: Boolean = false
+    private var suppressAutoRewind: Boolean = false
     private val pendingResumeGeneration = AtomicLong(0L)
 
     /**
@@ -58,6 +60,7 @@ internal class PlaybackController(
     public fun markSleepTimerPause() {
         lastPauseTime = nowMsProvider()
         suppressNextResumeRewind = true
+        suppressAutoRewind = true // don't auto-rewind when sleep timer pauses
     }
 
     /**
@@ -182,8 +185,22 @@ internal class PlaybackController(
                 suppressNextResumeRewind = false
 
                 player.playWhenReady = false
-                // Note: We don't abandon AudioFocus on pause - we keep it for quick resume
-                // AudioFocus will be abandoned when service is stopped
+
+                // Auto-rewind on pause (Voice/Audible pattern): seek back a
+                // configurable amount so the listener re-hears context when
+                // they resume. Disabled by sleep timer via suppressAutoRewind.
+                if (!suppressAutoRewind) {
+                    val seconds = getAutoRewindSeconds()
+                    if (seconds > 0 && player.currentPosition > 0) {
+                        val newPos =
+                            (player.currentPosition - seconds * 1000L).coerceAtLeast(0L)
+                        player.seekTo(newPos)
+                        // Don't double-rewind at resume: auto-rewind already
+                        // moved the position back, so suppress resume-rewind.
+                        suppressNextResumeRewind = true
+                    }
+                }
+                suppressAutoRewind = false
 
                 // Reset inactivity timer (user action - pause is also an interaction)
                 resetInactivityTimer()

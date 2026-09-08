@@ -201,7 +201,8 @@ internal class PlayerErrorHandler(
             LogUtils.w(TAG, "No more tracks, pausing")
             try {
                 player.playWhenReady = false
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                LogUtils.d(TAG, "Failed to pause (no tracks remaining)", e)
             }
         }
     }
@@ -268,7 +269,8 @@ internal class PlayerErrorHandler(
         LogUtils.w(TAG, "No available tracks found, pausing")
         try {
             player.playWhenReady = false
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            LogUtils.d(TAG, "Failed to pause (no available tracks)", e)
         }
     }
 
