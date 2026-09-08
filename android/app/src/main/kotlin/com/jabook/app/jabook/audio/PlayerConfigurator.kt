@@ -71,7 +71,7 @@ internal class PlayerConfigurator(
      */
     var loudnessNormalizer: LoudnessNormalizer? = null
 
-    private val loudnessNormalizers = mutableMapOf<ExoPlayer, LoudnessNormalizer?>()
+    private val loudnessNormalizers = java.util.concurrent.ConcurrentHashMap<ExoPlayer, LoudnessNormalizer?>()
 
     /**
      * Audio underrun monitor (BP-13.1).

@@ -234,15 +234,19 @@ public class PersistentCookieJar
             val storedCookies =
                 try {
                     runBlocking {
-                        val prefs = dataStore.data.first()
-                        val key = stringPreferencesKey(host)
-                        val encrypted: String = prefs[key] ?: return@runBlocking emptyList<Cookie>()
-                        val serialized = decrypt(encrypted, host) ?: return@runBlocking emptyList<Cookie>()
+                        // ponytail: timeout prevents OkHttp dispatcher starvation
+                        // when DataStore IO is slow on cold start.
+                        kotlinx.coroutines.withTimeoutOrNull(2000L) {
+                            val prefs = dataStore.data.first()
+                            val key = stringPreferencesKey(host)
+                            val encrypted: String = prefs[key] ?: return@withTimeoutOrNull emptyList<Cookie>()
+                            val serialized = decrypt(encrypted, host) ?: return@withTimeoutOrNull emptyList<Cookie>()
 
-                        serialized
-                            .split(COOKIE_SEPARATOR)
-                            .mapNotNull { cookieString -> deserializeCookie(cookieString) }
-                            .filter { cookie -> !cookie.hasExpiredAt(nowMillis) }
+                            serialized
+                                .split(COOKIE_SEPARATOR)
+                                .mapNotNull { cookieString -> deserializeCookie(cookieString) }
+                                .filter { cookie -> !cookie.hasExpiredAt(nowMillis) }
+                        } ?: emptyList()
                     }
                 } catch (e: java.io.IOException) {
                     com.jabook.app.jabook.util.LogUtils

@@ -58,6 +58,7 @@ public class ListeningHabitAnalyzer
         /**
          * Records a completed session for future analysis.
          */
+        @Synchronized
         public fun recordSession(record: SessionRecord) {
             sessions.add(record)
             if (sessions.size > MAX_SESSIONS) {
@@ -70,6 +71,7 @@ public class ListeningHabitAnalyzer
          *
          * @return Suggested speed, or null if not enough data (< 10 sessions)
          */
+        @Synchronized
         public fun suggestSpeed(context: ListeningContext): Float? {
             if (sessions.size < MIN_SESSIONS_FOR_SUGGESTION) return null
 
@@ -88,6 +90,7 @@ public class ListeningHabitAnalyzer
         /**
          * Returns the most common listening hour, or -1 if no data.
          */
+        @Synchronized
         public fun getMostCommonListeningHour(): Int {
             if (sessions.isEmpty()) return -1
             return sessions
@@ -99,11 +102,13 @@ public class ListeningHabitAnalyzer
         /**
          * Returns the number of recorded sessions.
          */
+        @Synchronized
         public fun getSessionCount(): Int = sessions.size
 
         /**
          * Clears all recorded sessions.
          */
+        @Synchronized
         public fun clear() {
             sessions.clear()
         }

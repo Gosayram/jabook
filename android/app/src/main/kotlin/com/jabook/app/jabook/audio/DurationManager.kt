@@ -22,12 +22,14 @@ package com.jabook.app.jabook.audio
  */
 public class DurationManager {
     // Cache for file durations (filePath -> duration in ms)
-    private val durationCache = mutableMapOf<String, Long>()
+    // ConcurrentHashMap: getDurationForFile() / saveDurationToCache() are called
+    // from player callbacks, IO dispatchers, and service lifecycle threads.
+    private val durationCache = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     /**
      * returns a read-only view of the duration cache.
      */
-    public fun getDurationCacheMap(): Map<String, Long> = durationCache
+    public fun getDurationCacheMap(): Map<String, Long> = durationCache.toMap()
 
     private var getDurationFromDbCallback: ((String) -> Long?)? = null
 

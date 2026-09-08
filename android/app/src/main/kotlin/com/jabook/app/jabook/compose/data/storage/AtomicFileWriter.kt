@@ -196,7 +196,9 @@ public object AtomicFileWriter {
                     StandardOpenOption.CREATE,
                     StandardOpenOption.WRITE,
                 ).use { (it as? FileChannel)?.tryLock() }
-        } catch (_: Exception) {
+        } catch (_: java.io.IOException) {
+            null
+        } catch (_: IllegalStateException) {
             null
         }
 

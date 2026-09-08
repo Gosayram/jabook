@@ -50,6 +50,7 @@ public object PlayerPerformanceLogger {
      *
      * @param name Session identifier (e.g., "cold_start", "warm_start")
      */
+    @Synchronized
     public fun start(name: String) {
         sessionName = name
         sessionStartTime = System.currentTimeMillis()
@@ -63,6 +64,7 @@ public object PlayerPerformanceLogger {
      * @param component Component name (e.g., "Service", "Player", "UI")
      * @param event Event description (e.g., "onCreate started")
      */
+    @Synchronized
     public fun log(
         component: String,
         event: String,
@@ -88,6 +90,7 @@ public object PlayerPerformanceLogger {
     /**
      * Log with automatic delta from previous event.
      */
+    @Synchronized
     public fun logDelta(
         component: String,
         event: String,
@@ -106,6 +109,7 @@ public object PlayerPerformanceLogger {
     /**
      * Print summary of all events with timing analysis.
      */
+    @Synchronized
     public fun summary() {
         if (events.isEmpty()) {
             LogUtils.w(TAG, "No events logged")
@@ -166,6 +170,7 @@ public object PlayerPerformanceLogger {
     /**
      * Clear session data.
      */
+    @Synchronized
     public fun reset() {
         events.clear()
         sessionStartTime = 0L
