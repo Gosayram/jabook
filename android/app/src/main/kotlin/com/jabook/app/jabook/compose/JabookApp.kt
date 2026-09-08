@@ -242,7 +242,7 @@ public fun JabookApp(
 
             ModalNavigationDrawer(
                 drawerState = drawerState,
-                gesturesEnabled = false,
+                gesturesEnabled = true,
                 drawerContent = {
                     com.jabook.app.jabook.compose.navigation.JabookDrawerContent(
                         destinations = appState.topLevelDestinations,
@@ -252,7 +252,7 @@ public fun JabookApp(
                             scope.launch { drawerState.close() }
                         },
                         onNavigateToSettings = {
-                            appState.navController.navigate(com.jabook.app.jabook.compose.navigation.SettingsRoute)
+                            appState.navigateToTopLevelDestination(TopLevelDestination.SETTINGS)
                             scope.launch { drawerState.close() }
                         },
                         onNavigateToAuth = {
@@ -260,7 +260,8 @@ public fun JabookApp(
                             scope.launch { drawerState.close() }
                         },
                         onNavigateToAbout = {
-                            appState.navController.navigate(com.jabook.app.jabook.compose.navigation.SettingsRoute)
+                            // ponytail: no AboutRoute exists — About is inside Settings
+                            appState.navigateToTopLevelDestination(TopLevelDestination.SETTINGS)
                             scope.launch { drawerState.close() }
                         },
                         accountProfile =

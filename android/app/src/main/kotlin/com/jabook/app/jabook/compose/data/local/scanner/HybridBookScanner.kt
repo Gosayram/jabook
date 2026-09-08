@@ -116,6 +116,8 @@ public class HybridBookScanner
                             PerfTrace.section(name = "HybridBookScanner.activeScan") {
                                 activeScanner.scanAudiobooks()
                             }
+                        val bookCount = (result as? Result.Success)?.data?.size ?: 0
+                        _scanProgress.value = ScanProgress.Completed(bookCount, 0L)
                         result
                     } finally {
                         progressJob.cancel()

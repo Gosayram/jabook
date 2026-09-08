@@ -339,18 +339,10 @@ public class AudioPlayerServiceInitializer(
     private fun initializeCrossFadePlayer() {
         service.crossFadePlayer =
             CrossFadePlayer(service, { context, handleAudioFocus ->
-                androidx.media3.exoplayer.ExoPlayer
-                    .Builder(context)
-                    .setRenderersFactory(androidx.media3.exoplayer.DefaultRenderersFactory(context))
-                    .setWakeMode(androidx.media3.common.C.WAKE_MODE_LOCAL)
-                    .setHandleAudioBecomingNoisy(true)
-                    .setAudioAttributes(
-                        androidx.media3.common.AudioAttributes
-                            .Builder()
-                            .setUsage(androidx.media3.common.C.USAGE_MEDIA)
-                            .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_SPEECH)
-                            .build(),
-                        handleAudioFocus,
+                MediaModule
+                    .configureExoPlayerBuilder(
+                        context,
+                        handleAudioFocus = handleAudioFocus,
                     ).build()
             }, service.playerServiceScope, service.volumeWriteCoordinator)
         service.crossFadePlayer?.onPlayerChanged = { newPlayer ->

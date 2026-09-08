@@ -220,13 +220,15 @@ internal class PlaybackController(
     public fun stop() {
         invalidatePendingResume()
         cancelActiveTransition?.invoke()
-        val player = getActivePlayer()
-        try {
-            LogUtils.d("AudioPlayerService", "stop() called, current playbackState: ${player.playbackState}")
-            player.stop()
-            // ExoPlayer manages AudioFocus automatically, no need to abandon manually
-        } catch (e: Exception) {
-            ErrorHandler.handleGeneralError("AudioPlayerService", e, "Stop method execution")
+        playerServiceScope.launch(Dispatchers.Main) {
+            try {
+                val player = getActivePlayer()
+                LogUtils.d("AudioPlayerService", "stop() called, current playbackState: ${player.playbackState}")
+                player.stop()
+                // ExoPlayer manages AudioFocus automatically, no need to abandon manually
+            } catch (e: Exception) {
+                ErrorHandler.handleGeneralError("AudioPlayerService", e, "Stop method execution")
+            }
         }
     }
 

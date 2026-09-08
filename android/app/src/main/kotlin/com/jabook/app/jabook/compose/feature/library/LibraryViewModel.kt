@@ -477,8 +477,8 @@ public class LibraryViewModel
                     currentScanWorkId = scanRequest.id
                     workManager.enqueueUniqueWork(
                         LibraryScanWorker.WORK_NAME,
-                        // KEEP: don't cancel an in-flight auto-scan when user pulls to refresh
-                        ExistingWorkPolicy.KEEP,
+                        // REPLACE: if a previous scan is stuck/watchdog-killed, replace it
+                        ExistingWorkPolicy.REPLACE,
                         scanRequest,
                     )
 

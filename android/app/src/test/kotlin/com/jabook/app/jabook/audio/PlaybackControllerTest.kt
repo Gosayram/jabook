@@ -283,13 +283,15 @@ class PlaybackControllerTest {
     // ============ Stop Tests ============
 
     @Test
-    fun `stop calls player stop`() {
-        // When
-        playbackController.stop()
+    fun `stop calls player stop`() =
+        runTest(testDispatcher) {
+            // When
+            playbackController.stop()
+            advanceUntilIdle()
 
-        // Then
-        verify(exoPlayer).stop()
-    }
+            // Then
+            verify(exoPlayer).stop()
+        }
 
     // ============ Seek Tests ============
 

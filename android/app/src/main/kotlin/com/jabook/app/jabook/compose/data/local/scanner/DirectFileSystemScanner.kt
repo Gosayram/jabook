@@ -287,6 +287,7 @@ public class DirectFileSystemScanner
                     _scanProgress.value = ScanProgress.Saving
 
                     // Update last_scan_timestamp for all scan paths after successful scan.
+                    // NOTE: Completed is emitted by HybridBookScanner after this returns.
                     // Use the pre-scan start time so files modified mid-scan are not skipped next run.
                     for (path in customPaths) {
                         scanPathDao.updateLastScanTimestamp(path, scanStartTime)

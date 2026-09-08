@@ -142,50 +142,10 @@ public object MediaModule {
 
         LogUtils.d("MediaModule", "Creating ExoPlayer singleton...")
 
-        // Match lissen-android configuration exactly
-        // Note: AudioProcessors are configured dynamically in AudioPlayerService
-        // based on user settings, not here in the singleton
-        // Create optimized LoadControl
-        val loadControl = createOptimizedLoadControl(context)
-
-        val extractorsFactory =
-            DefaultExtractorsFactory()
-                .setMp3ExtractorFlags(
-                    Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING or
-                        Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING,
-                )
-
-        val mediaSourceFactory =
-            androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
-                context,
-                extractorsFactory,
-            )
-
         val player =
             try {
-                ExoPlayer
-                    .Builder(context)
-                    .experimentalSetDynamicSchedulingEnabled(true)
-                    .setLoadControl(loadControl)
-                    .setMediaSourceFactory(mediaSourceFactory)
-                    .setHandleAudioBecomingNoisy(true)
-                    .setWakeMode(C.WAKE_MODE_LOCAL)
-                    // Seek increments for player.seekBack()/seekForward() — used by Wear/Auto
-                    // skip buttons and KEYCODE_MEDIA_FAST_FORWARD/REWIND. Must match the app
-                    // defaults (10s rewind / 30s forward, see MediaSessionManager).
-                    .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
-                    .setSeekForwardIncrementMs(SEEK_FORWARD_INCREMENT_MS)
-                    // We run our own SkipSilenceAudioProcessor in the processor chain —
-                    // Media3's built-in silence skipper must stay off to avoid double-skipping.
-                    .setSkipSilenceEnabled(false)
-                    .setAudioAttributes(
-                        AudioAttributes
-                            .Builder()
-                            .setUsage(C.USAGE_MEDIA)
-                            .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                            .build(),
-                        true,
-                    ).build()
+                configureExoPlayerBuilder(context)
+                    .build()
                     .also {
                         // #10: Delegate playlist preloading to Media3 so LoadControl throttles
                         // preload contention with active playback (vs custom LRU re-fetch).
@@ -243,13 +203,6 @@ public object MediaModule {
 
         val processors = processorChain.processors
 
-        val extractorsFactory =
-            DefaultExtractorsFactory()
-                .setMp3ExtractorFlags(
-                    Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING or
-                        Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING,
-                )
-
         val player =
             try {
                 // Create RenderersFactory with custom AudioSink that supports processors
@@ -260,15 +213,6 @@ public object MediaModule {
                             enableFloatOutput: Boolean,
                             enableAudioOutputPlaybackParams: Boolean,
                         ): androidx.media3.exoplayer.audio.AudioSink {
-                            // Media3 1.11.0: DefaultAudioSink.configure drops the whole
-                            // AudioProcessorChain from the pipeline whenever
-                            // setEnableFloatOutput(true) AND the input is hi-res/float PCM,
-                            // so sink-level float output would silently bypass EQ/normalizer.
-                            // Instead the chain negotiates float itself: FloatPcmOutputProcessor
-                            // (appended last, after the int16-only DSP processors) returns
-                            // ENCODING_PCM_FLOAT from onConfigure and DefaultAudioSink builds
-                            // the AudioTrack with the pipeline's output encoding. Sink-level
-                            // float stays off so the chain always runs — including hi-res input.
                             val chainProcessors =
                                 if (processors.isEmpty()) {
                                     processors
@@ -277,8 +221,6 @@ public object MediaModule {
                                 }
                             return androidx.media3.exoplayer.audio.DefaultAudioSink
                                 .Builder(context)
-                                // TrackedAudioProcessorChain feeds our custom skip-silence's
-                                // skipped frames back to Media3's position tracking.
                                 .setAudioProcessorChain(
                                     TrackedAudioProcessorChain(chainProcessors.toTypedArray()),
                                 ).setEnableFloatOutput(processors.isEmpty() && enableFloatOutput)
@@ -287,34 +229,11 @@ public object MediaModule {
                         }
                     }
 
-                val mediaSourceFactory =
-                    androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
-                        context,
-                        extractorsFactory,
-                    )
-
                 val builder =
-                    ExoPlayer
-                        .Builder(context)
-                        .experimentalSetDynamicSchedulingEnabled(true)
-                        .setRenderersFactory(renderersFactory)
-                        .setMediaSourceFactory(mediaSourceFactory)
-                        .setLoadControl(createOptimizedLoadControl(context))
-                        .setHandleAudioBecomingNoisy(true)
-                        .setWakeMode(C.WAKE_MODE_LOCAL)
-                        .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
-                        .setSeekForwardIncrementMs(SEEK_FORWARD_INCREMENT_MS)
-                        // Our chain already includes a custom SkipSilenceAudioProcessor
-                        // when enabled; keep Media3's built-in silence skipper off.
-                        .setSkipSilenceEnabled(false)
-                        .setAudioAttributes(
-                            AudioAttributes
-                                .Builder()
-                                .setUsage(C.USAGE_MEDIA)
-                                .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-                                .build(),
-                            handleAudioFocus,
-                        )
+                    configureExoPlayerBuilder(
+                        context,
+                        handleAudioFocus = handleAudioFocus,
+                    ).setRenderersFactory(renderersFactory)
 
                 if (processors.isNotEmpty()) {
                     LogUtils.d(
@@ -372,8 +291,8 @@ public object MediaModule {
                 .setBufferDurationsMs(
                     15000, // minBufferMs: 15 seconds
                     30000, // maxBufferMs: 30 seconds
-                    1500, // bufferForPlaybackMs: 1.5 seconds
-                    3000, // bufferForPlaybackAfterRebufferMs: 3 seconds
+                    3000, // bufferForPlaybackMs: 3 seconds
+                    5000, // bufferForPlaybackAfterRebufferMs: 5 seconds
                 ).setTargetBufferBytes(32 * 1024 * 1024)
         } else {
             // For normal/high-end devices, use Easybook-optimized settings
@@ -469,6 +388,50 @@ public object MediaModule {
     // by the service); user-changed values are still honored via onMediaButtonEvent and the
     // rewind/forward custom commands. Wear/Auto seekBack()/seekForward() use these literals.
     private const val SEEK_FORWARD_INCREMENT_MS = 30_000L
+
+    /**
+     * Shared ExoPlayer builder config used by both the singleton player and CrossFadePlayer.
+     * Ensures consistent buffering, scheduling, and preload behavior across all player instances.
+     */
+    @OptIn(UnstableApi::class, ExperimentalApi::class)
+    @JvmStatic
+    public fun configureExoPlayerBuilder(
+        context: Context,
+        loadControl: androidx.media3.exoplayer.LoadControl = createOptimizedLoadControl(context),
+        handleAudioFocus: Boolean = true,
+    ): ExoPlayer.Builder {
+        val extractorsFactory =
+            DefaultExtractorsFactory()
+                .setMp3ExtractorFlags(
+                    Mp3Extractor.FLAG_ENABLE_CONSTANT_BITRATE_SEEKING or
+                        Mp3Extractor.FLAG_ENABLE_INDEX_SEEKING,
+                )
+
+        val mediaSourceFactory =
+            androidx.media3.exoplayer.source.DefaultMediaSourceFactory(
+                context,
+                extractorsFactory,
+            )
+
+        return ExoPlayer
+            .Builder(context)
+            .experimentalSetDynamicSchedulingEnabled(true)
+            .setLoadControl(loadControl)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_LOCAL)
+            .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
+            .setSeekForwardIncrementMs(SEEK_FORWARD_INCREMENT_MS)
+            .setSkipSilenceEnabled(false)
+            .setAudioAttributes(
+                AudioAttributes
+                    .Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                    .build(),
+                handleAudioFocus,
+            )
+    }
 }
 
 /**

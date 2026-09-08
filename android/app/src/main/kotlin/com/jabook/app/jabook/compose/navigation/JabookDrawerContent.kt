@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -75,8 +74,8 @@ public fun JabookDrawerContent(
                     .verticalScroll(rememberScrollState())
                     .padding(vertical = 12.dp),
         ) {
-            // Main Destinations
-            destinations.forEach { destination ->
+            // Main Destinations (exclude SETTINGS — it's in the footer)
+            destinations.filter { it != TopLevelDestination.SETTINGS }.forEach { destination ->
                 val selected =
                     currentDestination?.hierarchy?.any { navDestination ->
                         when (destination) {
@@ -116,15 +115,6 @@ public fun JabookDrawerContent(
                 icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
                 selected = false,
                 onClick = onNavigateToSettings,
-                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-            )
-
-            // About
-            NavigationDrawerItem(
-                label = { Text(stringResource(R.string.aboutApp)) },
-                icon = { Icon(Icons.Filled.Info, contentDescription = null) },
-                selected = false,
-                onClick = onNavigateToAbout,
                 modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
             )
         }

@@ -167,7 +167,7 @@ public class LibraryScanWorker
                         }
 
                     val result = scannerJob.await()
-                    watchdogJob.cancel()
+                    watchdogJob.cancel() // ponytail: cancel immediately before DB-save phase
 
                     when (result) {
                         is DomainResult.Success -> {
@@ -366,6 +366,7 @@ public class LibraryScanWorker
                                 }
                             }
 
+                            setProgress(workDataOf("status" to "completed"))
                             logger.i { "Library scan success attempt=$attempt booksFound=${books.size}" }
                             ListenableWorker.Result.success(
                                 workDataOf("booksFound" to books.size),

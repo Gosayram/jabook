@@ -59,9 +59,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -129,6 +132,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -141,6 +145,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.getSystemService
@@ -719,9 +724,17 @@ public fun PlayerScreen(
         value = scaffoldNavigator.scaffoldValue,
         mainPane = {
             AnimatedPane(modifier = Modifier) {
+                val scaffoldDensity = LocalDensity.current
                 Scaffold(
-                    // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
-                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                    // TopAppBar applies statusBars insets itself; zero top to avoid double inset.
+                    // Only preserve navigation bar insets for bottom content offset.
+                    contentWindowInsets =
+                        WindowInsets(
+                            left = WindowInsets.systemBars.getLeft(scaffoldDensity, LayoutDirection.Ltr),
+                            top = 0,
+                            right = WindowInsets.systemBars.getRight(scaffoldDensity, LayoutDirection.Ltr),
+                            bottom = WindowInsets.systemBars.getBottom(scaffoldDensity),
+                        ),
                     modifier = Modifier.fillMaxSize(),
                     snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
                     topBar = {
@@ -1299,7 +1312,7 @@ private fun PlayerLandscapeLayout(
     val seekBackwardActionLabel = stringResource(R.string.seekBackwardDescription, state.rewindInterval)
     val seekForwardActionLabel = stringResource(R.string.seekForwardDescription, state.forwardInterval)
 
-    Row(modifier = Modifier.fillMaxSize()) {
+    Row(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
         Box(
             modifier = Modifier.weight(0.4f).fillMaxHeight(),
             contentAlignment = Alignment.Center,
@@ -1386,7 +1399,7 @@ private fun PlayerLandscapeLayout(
         }
 
         Column(
-            modifier = Modifier.weight(0.6f).fillMaxHeight().padding(end = 16.dp),
+            modifier = Modifier.weight(0.6f).fillMaxHeight().padding(start = 8.dp, end = 16.dp),
             verticalArrangement = Arrangement.Center,
         ) {
             // ponytail: TooltipBox shows full title on long-press when truncated
@@ -1819,6 +1832,9 @@ private fun PlayerContent(
             )
         } else {
             // Existing portrait layout
+            val density = LocalDensity.current
+            val navBarBottomDp = with(density) { WindowInsets.navigationBars.getBottom(density).toDp() }
+            val minBottomPadding = if (isCompact) 56.dp else 96.dp
             androidx.compose.foundation.lazy.LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding =
@@ -1827,7 +1843,7 @@ private fun PlayerContent(
                             start = contentPadding,
                             end = contentPadding,
                             top = if (isCompact) 0.dp else 8.dp,
-                            bottom = if (isCompact) 56.dp else 96.dp,
+                            bottom = maxOf(minBottomPadding, navBarBottomDp + 16.dp),
                         ),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(itemSpacing),

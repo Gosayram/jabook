@@ -73,6 +73,7 @@ public class MediaStoreBookScanner
                         }
 
                     _scanProgress.value = ScanProgress.Saving
+                    // NOTE: Completed is emitted by HybridBookScanner after this returns.
                     Result.Success(scannedBooks)
                 } catch (e: Exception) {
                     logger.e(e) { "Scan failed" }
