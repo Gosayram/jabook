@@ -40,6 +40,7 @@ internal class PlaybackController(
     private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
     private val consumeSleepTimerStopFlag: () -> Boolean = { false },
     private val getAutoRewindSeconds: () -> Int = { 0 },
+    private val onUserInteraction: () -> Unit = {},
 ) {
     /**
      * Starts or resumes playback.

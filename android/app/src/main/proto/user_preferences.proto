@@ -160,6 +160,10 @@ message UserPreferences {
 
   // Whether the context-aware EQ preset recommendation snackbar was accepted or dismissed.
   bool eq_recommendation_dismissed = 71;
+
+  // Auto-sleep timer: automatically pause playback after a set duration when playing.
+  bool auto_sleep_timer_enabled = 72;
+  int32 auto_sleep_timer_minutes = 73; // Duration in minutes (default: 30)
 }
 
 message SleepTimerState {

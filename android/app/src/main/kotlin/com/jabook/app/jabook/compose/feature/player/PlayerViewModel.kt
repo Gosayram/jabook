@@ -379,6 +379,16 @@ public class PlayerViewModel
 
         public val lastSleepTimerDurationMinutes: StateFlow<Int?> = sleepTimerRepository.lastFixedDurationMinutes
 
+        public val autoSleepTimerEnabled: StateFlow<Boolean> =
+            settingsRepository.userPreferences
+                .map { it.autoSleepTimerEnabled }
+                .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = false)
+
+        public val autoSleepTimerMinutes: StateFlow<Int> =
+            settingsRepository.userPreferences
+                .map { it.autoSleepTimerMinutes.coerceIn(5, 240) }
+                .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = 30)
+
         private val speedHandler =
             PlayerSpeedHandler(
                 bookId = bookId,
@@ -700,6 +710,18 @@ public class PlayerViewModel
                 speechEnhancer = speechEnhancer,
                 autoVolumeLeveling = autoVolumeLeveling,
             )
+        }
+
+        public fun updateAutoSleepTimer(
+            enabled: Boolean? = null,
+            minutes: Int? = null,
+        ) {
+            viewModelScope.launch {
+                settingsRepository.updateAudioSettings(
+                    autoSleepTimerEnabled = enabled,
+                    autoSleepTimerMinutes = minutes,
+                )
+            }
         }
 
         /**

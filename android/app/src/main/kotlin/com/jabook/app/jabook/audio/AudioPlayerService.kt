@@ -163,6 +163,7 @@ public class AudioPlayerService : MediaLibraryService() {
 
     // Sleep timer manager
     internal var sleepTimerManager: SleepTimerManager? = null
+    internal var autoSleepTimerManager: AutoSleepTimerManager? = null
 
     // Audio visualizer manager
     internal var audioVisualizerManager: AudioVisualizerManager? = null
@@ -1070,6 +1071,7 @@ public class AudioPlayerService : MediaLibraryService() {
         } else {
             stopChapterNotificationUpdates()
         }
+        autoSleepTimerManager?.onPlaybackStateChanged(isPlaying)
     }
 
     private fun formatDuration(ms: Long): String =

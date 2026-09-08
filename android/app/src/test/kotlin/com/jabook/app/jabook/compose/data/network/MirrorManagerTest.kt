@@ -372,7 +372,13 @@ internal class FakeSettingsRepository(
         longPressAction: Int?,
         notificationActionSlots: List<Int>?,
         notificationLockscreenPrivate: Boolean?,
+        autoSleepTimerEnabled: Boolean?,
+        autoSleepTimerMinutes: Int?,
     ) = Unit
+
+    override suspend fun updateAutoSleepTimerEnabled(enabled: Boolean) = Unit
+
+    override suspend fun updateAutoSleepTimerMinutes(minutes: Int) = Unit
 
     override suspend fun updateNotificationSettings(
         notificationsEnabled: Boolean?,

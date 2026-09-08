@@ -512,7 +512,7 @@ public fun JabookNavHost(
             )
         }
 
-        if (BuildConfig.DEBUG) {
+        if (BuildConfig.DEBUG || BuildConfig.FLAVOR != "prod") {
             // Debug tools are intentionally unavailable from production builds.
             composable<DebugRoute>(
                 deepLinks =

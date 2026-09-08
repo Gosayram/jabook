@@ -82,7 +82,10 @@ public class AudioPlayerServiceInitializer(
             PlaybackController(
                 getActivePlayer = { service.getActivePlayer() },
                 playerServiceScope = service.playerServiceScope,
-                resetInactivityTimer = { service.inactivityTimer?.resetTimer() },
+                resetInactivityTimer = {
+                    service.inactivityTimer?.resetTimer()
+                    service.autoSleepTimerManager?.onUserInteraction()
+                },
                 getResumeRewindSeconds = {
                     // Long-pause resume rewind setting (0/5/10/30 sec).
                     cachedUserPreferences?.resumeRewindSeconds ?: 10
@@ -146,6 +149,33 @@ public class AudioPlayerServiceInitializer(
                 throw e
             } catch (e: Exception) {
                 LogUtils.w("AudioPlayerService", "Failed to restore sleep timer state", e)
+            }
+        }
+
+        // 3.2 AutoSleepTimerManager
+        service.autoSleepTimerManager =
+            AutoSleepTimerManager(
+                playerServiceScope = service.playerServiceScope,
+                getSleepTimerManager = { service.sleepTimerManager },
+                isManualSleepTimerActive = { service.sleepTimerManager?.isSleepTimerActive() == true },
+            )
+        // Load initial settings
+        val autoSleepEnabled = cachedUserPreferences?.autoSleepTimerEnabled == true
+        val autoSleepMinutes = (cachedUserPreferences?.autoSleepTimerMinutes ?: 30).coerceIn(5, 240)
+        service.autoSleepTimerManager?.updateSettings(autoSleepEnabled, autoSleepMinutes)
+        // Observe preference changes
+        service.playerServiceScope.launch {
+            try {
+                service.settingsRepository.userPreferences.collect { prefs ->
+                    service.autoSleepTimerManager?.updateSettings(
+                        enabled = prefs.autoSleepTimerEnabled,
+                        minutes = prefs.autoSleepTimerMinutes.coerceIn(5, 240),
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                LogUtils.w("AudioPlayerService", "Failed to observe auto-sleep settings", e)
             }
         }
 

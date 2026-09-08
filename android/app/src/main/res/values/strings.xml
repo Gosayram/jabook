@@ -356,6 +356,9 @@
     <string name="playback_speed_format">%1$.1fx</string>
     <string name="sleep_timer_shake_extend_title">Shake To Extend Sleep Timer</string>
     <string name="sleep_timer_shake_extend_desc">Shake device to add 5 minutes to active sleep timer (fixed mode)</string>
+    <string name="auto_sleep_timer_title">Auto Sleep Timer</string>
+    <string name="auto_sleep_timer_desc">Automatically start sleep timer when playback begins</string>
+    <string name="auto_sleep_timer_duration">Auto-sleep duration</string>
     
     <string name="audio_quality_title">Audio Quality</string>
     <string name="crossfade_title">Crossfade</string>
@@ -2366,6 +2369,8 @@
     <string name="backupOfJabookSettingsAndData">Backup of Jabook settings and data</string>
     <!-- Cache: Error -->
     <string name="cacheError">Cache: Error</string>
+    <!-- Data Management -->
+    <string name="dataManagement">Data Management</string>
     <!-- Cache Management -->
     <string name="cacheManagement">Cache Management</string>
     <!-- Calculating... -->

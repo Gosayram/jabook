@@ -547,6 +547,8 @@ public fun PlayerScreen(
 
     // Sleep Timer Sheet
     if (showSleepTimerSheet) {
+        val autoSleepEnabled by viewModel.autoSleepTimerEnabled.collectAsStateWithLifecycle()
+        val autoSleepMinutes by viewModel.autoSleepTimerMinutes.collectAsStateWithLifecycle()
         SleepTimerSheet(
             currentState = sleepTimerState,
             lastUsedDurationMinutes = lastSleepTimerDurationMinutes,
@@ -561,6 +563,10 @@ public fun PlayerScreen(
             },
             onCancelTimer = { viewModel.dispatch(PlayerIntent.CancelSleepTimer) },
             onDismiss = { showSleepTimerSheet = false },
+            autoSleepEnabled = autoSleepEnabled,
+            autoSleepMinutes = autoSleepMinutes,
+            onAutoSleepToggle = { enabled -> viewModel.updateAutoSleepTimer(enabled = enabled) },
+            onAutoSleepMinutesChange = { minutes -> viewModel.updateAutoSleepTimer(minutes = minutes) },
         )
     }
 

@@ -402,6 +402,8 @@ public class SettingsViewModel
             longPressAction: Int? = null,
             notificationActionSlots: List<Int>? = null,
             notificationLockscreenPrivate: Boolean? = null,
+            autoSleepTimerEnabled: Boolean? = null,
+            autoSleepTimerMinutes: Int? = null,
         ) {
             viewModelScope.launch {
                 settingsRepository.updateAudioSettings(
@@ -431,6 +433,8 @@ public class SettingsViewModel
                     longPressAction = longPressAction,
                     notificationActionSlots = notificationActionSlots,
                     notificationLockscreenPrivate = notificationLockscreenPrivate,
+                    autoSleepTimerEnabled = autoSleepTimerEnabled,
+                    autoSleepTimerMinutes = autoSleepTimerMinutes,
                 )
             }
         }

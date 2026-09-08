@@ -66,6 +66,8 @@ public interface SettingsRepository {
         longPressAction: Int? = null,
         notificationActionSlots: List<Int>? = null,
         notificationLockscreenPrivate: Boolean? = null,
+        autoSleepTimerEnabled: Boolean? = null,
+        autoSleepTimerMinutes: Int? = null,
     )
 
     public suspend fun updateNotificationSettings(
@@ -123,6 +125,10 @@ public interface SettingsRepository {
     public suspend fun updateEqualizerPreset(preset: String)
 
     public suspend fun updateEqRecommendationDismissed(dismissed: Boolean)
+
+    public suspend fun updateAutoSleepTimerEnabled(enabled: Boolean)
+
+    public suspend fun updateAutoSleepTimerMinutes(minutes: Int)
 
     public val bassBoostStrength: Flow<Int>
 
@@ -248,6 +254,8 @@ public class ProtoSettingsRepository
             longPressAction: Int?,
             notificationActionSlots: List<Int>?,
             notificationLockscreenPrivate: Boolean?,
+            autoSleepTimerEnabled: Boolean?,
+            autoSleepTimerMinutes: Int?,
         ) {
             dataStore.updateData { preferences ->
                 val builder = preferences.toBuilder()
@@ -282,6 +290,8 @@ public class ProtoSettingsRepository
                     builder.addAllNotificationActionSlots(slots)
                 }
                 notificationLockscreenPrivate?.let { builder.setNotificationLockscreenPrivate(it) }
+                autoSleepTimerEnabled?.let { builder.setAutoSleepTimerEnabled(it) }
+                autoSleepTimerMinutes?.let { builder.setAutoSleepTimerMinutes(it.coerceIn(5, 240)) }
                 builder.build()
             }
         }
@@ -455,6 +465,19 @@ public class ProtoSettingsRepository
         override suspend fun updateEqRecommendationDismissed(dismissed: Boolean) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setEqRecommendationDismissed(dismissed).build()
+            }
+        }
+
+        override suspend fun updateAutoSleepTimerEnabled(enabled: Boolean) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setAutoSleepTimerEnabled(enabled).build()
+            }
+        }
+
+        override suspend fun updateAutoSleepTimerMinutes(minutes: Int) {
+            val safeMinutes = minutes.coerceIn(5, 240)
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setAutoSleepTimerMinutes(safeMinutes).build()
             }
         }
 

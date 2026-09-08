@@ -335,6 +335,10 @@
     <string name="sleep_timer_shake_extend_title">Встряхивание для продления таймера сна</string>
     <string name="sleep_timer_shake_extend_desc">Встряхните устройство, чтобы добавить 5 минут к активному таймеру сна (фиксированный режим)</string>
 
+    <string name="auto_sleep_timer_title">Автоматический таймер сна</string>
+    <string name="auto_sleep_timer_desc">Автоматически запускать таймер сна при начале воспроизведения</string>
+    <string name="auto_sleep_timer_duration">Длительность автосна</string>
+
     <string name="audio_quality_title">Качество аудио</string>
     <string name="crossfade_title">Плавный переход (Crossfade)</string>
     <string name="crossfade_desc">Плавное затухание текущего трека при начале следующего</string>
@@ -2325,6 +2329,8 @@
 
     <!-- Кэш: Ошибка -->
     <string name="cacheError">Кэш: Ошибка</string>
+    <!-- Управление данными -->
+    <string name="dataManagement">Управление данными</string>
     <!-- Управление кэшем -->
     <string name="cacheManagement">Управление кэшем</string>
     <!-- Расчет... -->
