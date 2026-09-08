@@ -59,6 +59,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -142,7 +143,12 @@ public class SettingsViewModel
                         .observeSummary(
                             fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
                             toEpochMs = System.currentTimeMillis(),
-                        ).map { summary ->
+                        ).combine(
+                            listeningStatsUseCase.observePeakListeningHour(
+                                fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
+                                toEpochMs = System.currentTimeMillis(),
+                            ),
+                        ) { summary, peakHour ->
                             val weeklyCompletedBooks =
                                 books.count {
                                     it.isCompleted &&
@@ -151,7 +157,7 @@ public class SettingsViewModel
                             WeeklyRecapState(
                                 minutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt(),
                                 booksCompleted = weeklyCompletedBooks,
-                                productivePeriod = resolveProductivePeriod(books),
+                                productivePeriod = resolveProductivePeriodFromHour(peakHour),
                                 streakDays = summary.activeDays.coerceAtLeast(0),
                             )
                         }
@@ -782,19 +788,9 @@ public class SettingsViewModel
         }
     }
 
-private fun resolveProductivePeriod(books: List<com.jabook.app.jabook.compose.domain.model.Book>): ProductivePeriod {
-    val hour =
-        books
-            .mapNotNull { it.lastPlayedDate }
-            .maxOrNull()
-            ?.let {
-                java.time.Instant
-                    .ofEpochMilli(it)
-                    .atZone(java.time.ZoneId.systemDefault())
-                    .hour
-            }
-            ?: return ProductivePeriod.UNKNOWN
-    return when (hour) {
+private fun resolveProductivePeriodFromHour(peakHour: Int): ProductivePeriod {
+    if (peakHour < 0) return ProductivePeriod.UNKNOWN
+    return when (peakHour) {
         in 5..11 -> ProductivePeriod.MORNING
         in 12..16 -> ProductivePeriod.DAY
         in 17..22 -> ProductivePeriod.EVENING

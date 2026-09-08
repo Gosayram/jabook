@@ -461,4 +461,6 @@ internal class FakeSettingsRepository(
     override suspend fun clearSleepTimerState() = Unit
 
     override suspend fun resetToDefaults() = Unit
+
+    override suspend fun updateEqRecommendationDismissed(dismissed: Boolean) = Unit
 }

@@ -188,19 +188,25 @@ public class LibraryViewModel
             // instead of freezing at ViewModel construction.
             uiState
                 .flatMapLatest { state ->
+                    val fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
+                    val toEpochMs = System.currentTimeMillis()
                     listeningStatsUseCase
                         .observeSummary(
-                            fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7),
-                            toEpochMs = System.currentTimeMillis(),
-                        ).map { summary ->
-                            val books = (state as? LibraryUiState.Success)?.books ?: return@map null
-                            val fromEpochMs = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)
+                            fromEpochMs = fromEpochMs,
+                            toEpochMs = toEpochMs,
+                        ).combine(
+                            listeningStatsUseCase.observePeakListeningHour(
+                                fromEpochMs = fromEpochMs,
+                                toEpochMs = toEpochMs,
+                            ),
+                        ) { summary, peakHour ->
+                            val books = (state as? LibraryUiState.Success)?.books ?: return@combine null
                             val weeklyCompletedBooks =
                                 books.count { it.isCompleted && (it.lastPlayedDate ?: 0L) >= fromEpochMs }
                             WeeklyRecapState(
                                 minutesListened = (summary.totalContentTimeMs / 1000L / 60L).toInt(),
                                 booksCompleted = weeklyCompletedBooks,
-                                productivePeriod = resolveProductivePeriod(books),
+                                productivePeriod = resolveProductivePeriodFromHour(peakHour),
                                 streakDays = summary.activeDays.coerceAtLeast(0),
                             )
                         }
@@ -599,19 +605,9 @@ public enum class ProductivePeriod {
     UNKNOWN,
 }
 
-private fun resolveProductivePeriod(books: ImmutableList<Book>): ProductivePeriod {
-    val hour =
-        books
-            .mapNotNull { it.lastPlayedDate }
-            .maxOrNull()
-            ?.let {
-                java.time.Instant
-                    .ofEpochMilli(it)
-                    .atZone(java.time.ZoneId.systemDefault())
-                    .hour
-            }
-            ?: return ProductivePeriod.UNKNOWN
-    return when (hour) {
+private fun resolveProductivePeriodFromHour(peakHour: Int): ProductivePeriod {
+    if (peakHour < 0) return ProductivePeriod.UNKNOWN
+    return when (peakHour) {
         in 5..11 -> ProductivePeriod.MORNING
         in 12..16 -> ProductivePeriod.DAY
         in 17..22 -> ProductivePeriod.EVENING

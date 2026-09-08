@@ -19,9 +19,11 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioPlayerService
 import com.jabook.app.jabook.audio.SleepTimerPersistence
 import com.jabook.app.jabook.audio.processors.EqContextRecommendationPolicy
+import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /**
@@ -40,6 +42,7 @@ internal class PlayerSessionHintsHandler(
     private val playerController: AudioPlayerController,
     private val viewModelScope: CoroutineScope,
     private val emitEffect: (PlayerEffect) -> Unit,
+    private val settingsRepository: SettingsRepository,
 ) {
     private var hasShownSleepTimerResumeHint: Boolean = false
     private var hasShownEqRecommendation: Boolean = false
@@ -82,6 +85,9 @@ internal class PlayerSessionHintsHandler(
                 val activeState = state as? PlayerState.Active ?: return@collect
                 if (hasShownEqRecommendation) return@collect
                 hasShownEqRecommendation = true
+
+                val dismissed = settingsRepository.userPreferences.first().eqRecommendationDismissed
+                if (dismissed) return@collect
 
                 val hourOfDay =
                     java.time.LocalTime

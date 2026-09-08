@@ -17,7 +17,9 @@ package com.jabook.app.jabook.compose.data.local.parser
 import android.media.MediaMetadataRetriever
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -40,7 +42,10 @@ public class Media3MetadataParser
                     val file = File(filePath)
                     if (!file.exists()) return@withContext null
 
-                    parseWithMediaMetadataRetriever(filePath)
+                    // ponytail: 30s timeout prevents hang on corrupted/truncated files
+                    withTimeoutOrNull(30_000L) {
+                        runInterruptible { parseWithMediaMetadataRetriever(filePath) }
+                    }
                 } catch (e: Exception) {
                     logger.e({ "Failed to parse: $filePath" }, e)
                     null

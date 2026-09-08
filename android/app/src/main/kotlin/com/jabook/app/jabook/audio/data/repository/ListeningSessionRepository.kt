@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.audio.data.repository
 
+import com.jabook.app.jabook.audio.data.local.dao.HourCountEntity
 import com.jabook.app.jabook.audio.data.local.dao.ListeningSessionDao
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningDayStatEntity
 import com.jabook.app.jabook.audio.data.local.database.entity.ListeningSessionEntity
@@ -79,4 +80,9 @@ public class ListeningSessionRepository
             fromEpochMs: Long,
             toEpochMs: Long,
         ): Flow<List<ListeningDayStatEntity>> = listeningSessionDao.observeDayStats(fromEpochMs, toEpochMs)
+
+        public fun observeHourDistribution(
+            fromEpochMs: Long,
+            toEpochMs: Long,
+        ): Flow<List<HourCountEntity>> = listeningSessionDao.observeHourDistribution(fromEpochMs, toEpochMs)
     }

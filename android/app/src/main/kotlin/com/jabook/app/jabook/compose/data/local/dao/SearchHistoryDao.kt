@@ -43,6 +43,22 @@ public interface SearchHistoryDao {
     public suspend fun insertSearch(search: SearchHistoryEntity)
 
     /**
+     * Find a search entry by its normalized query (for dedup).
+     */
+    @Query("SELECT * FROM search_history WHERE normalized_query = :normalizedQuery LIMIT 1")
+    public suspend fun findByNormalizedQuery(normalizedQuery: String): SearchHistoryEntity?
+
+    /**
+     * Update the timestamp of an existing search entry.
+     */
+    @Query("UPDATE search_history SET timestamp = :timestamp, result_count = :resultCount WHERE id = :id")
+    public suspend fun updateTimestamp(
+        id: Int,
+        timestamp: Long,
+        resultCount: Int,
+    )
+
+    /**
      * Delete a specific search from history.
      */
     @Query("DELETE FROM search_history WHERE id = :id")

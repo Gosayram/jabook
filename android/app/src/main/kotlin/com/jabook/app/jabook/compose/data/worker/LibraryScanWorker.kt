@@ -221,8 +221,8 @@ public class LibraryScanWorker
                             }
 
                             // Chunk processing to avoid UI hangs and memory spikes
-                            // Increased from 20 to 50 for better performance
-                            val batchSize = 50
+                            // ponytail: 15 keeps SQLite write lock short; was 50
+                            val batchSize = 15
                             val batches = books.chunked(batchSize)
 
                             var booksSaved = 0

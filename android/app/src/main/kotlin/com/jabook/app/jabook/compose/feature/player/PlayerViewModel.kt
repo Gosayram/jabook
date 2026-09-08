@@ -808,6 +808,7 @@ public class PlayerViewModel
                 playerController = playerController,
                 viewModelScope = viewModelScope,
                 emitEffect = ::emitEffect,
+                settingsRepository = settingsRepository,
             )
 
         private val stateRestoreHandler =

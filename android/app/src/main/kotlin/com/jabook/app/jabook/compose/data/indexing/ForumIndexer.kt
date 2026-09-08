@@ -520,23 +520,28 @@ public class ForumIndexer
                     }
 
                     val body = response.body() ?: break
-                    val bodySize = body.contentLength()
+                    // Read body bytes ONCE — parser needs them, health check needs them
+                    val rawBytes = RutrackerParser.readCappedBody(body)
+                    val contentType = body.contentType()?.toString()
                     val parseStartTime = System.currentTimeMillis()
-                    val pageResult = parser.parseForumPageWithPagination(body, forumId)
+                    val pageResult = parser.parseForumPageFromBytes(rawBytes, contentType, forumId)
                     val topics = pageResult.topics
                     val parseTime = System.currentTimeMillis() - parseStartTime
 
-                    if (page == 0 && topics.isEmpty()) {
-                        val bodyStr = body.string()
-                        if (!isHealthyForumPage(bodyStr, 0)) {
-                            logger.w { "Forum $forumId page 0: unhealthy response (CAPTCHA/login-wall/block page), aborting forum" }
-                            break
-                        }
-                    }
-
-                    hasMorePages = pageResult.hasMorePages
-
                     if (topics.isEmpty()) {
+                        if (page == 0) {
+                            val decodedHtml =
+                                try {
+                                    parser.decodeBytes(rawBytes, contentType)
+                                } catch (e: Exception) {
+                                    String(rawBytes, Charsets.UTF_8)
+                                }
+                            if (!isHealthyForumPage(decodedHtml, 0)) {
+                                val errorMsg = "Forum $forumId page 0: unhealthy response (CAPTCHA/login-wall/block page)"
+                                logger.w { errorMsg }
+                                throw IllegalStateException(errorMsg)
+                            }
+                        }
                         logger.d {
                             "Forum $forumId page $page: no topics found, ending (fetch: ${fetchTime}ms, parse: ${parseTime}ms)"
                         }
@@ -889,7 +894,9 @@ public class ForumIndexer
                 html.contains("доступ запрещён", ignoreCase = true) -> false
                 html.contains("доступ запрещен", ignoreCase = true) -> false
                 html.length < 500 -> false
-                else -> false
+                // If no unhealthy markers found, page is likely healthy
+                // (parser may just not find matching rows — selectors may need updating)
+                else -> true
             }
     }
 

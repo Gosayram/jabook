@@ -31,6 +31,7 @@ import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexingInProgressException
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
+import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
@@ -55,6 +56,7 @@ public class IndexingWorker
         @Assisted context: Context,
         @Assisted params: WorkerParameters,
         private val forumIndexer: ForumIndexer,
+        private val authRepository: AuthRepository,
         private val loggerFactory: LoggerFactory,
     ) : CoroutineWorker(context, params) {
         public companion object {
@@ -124,6 +126,14 @@ public class IndexingWorker
                     }
                     val forumIds = parseForumIds(inputData.getString(KEY_FORUM_IDS))
                     val preloadCovers = inputData.getBoolean(KEY_PRELOAD_COVERS, false)
+
+                    // Check auth before indexing — RuTracker requires login for forum pages
+                    if (!authRepository.isLoggedIn()) {
+                        logger.w { "Not authenticated, skipping indexing" }
+                        return@withContext Result.failure(
+                            workDataOf("error_message" to "Authentication required for indexing"),
+                        )
+                    }
 
                     forumIndexer.indexForums(
                         forumIds = forumIds,

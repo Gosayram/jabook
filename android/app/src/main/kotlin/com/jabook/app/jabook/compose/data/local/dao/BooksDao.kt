@@ -238,6 +238,8 @@ public interface BooksDao {
         chapters: List<ChapterEntity>,
     ) {
         insertScannedBooks(books)
+
+        // Bulk-update book metadata (title, author, duration, etc.)
         books.forEach { book ->
             updateScannedBook(
                 id = book.id,
@@ -250,11 +252,19 @@ public interface BooksDao {
             )
         }
 
+        val bookIds = books.map(BookEntity::id)
         val chaptersByBook = chapters.groupBy(ChapterEntity::bookId)
-        books.forEach { scannedBook ->
-            val existingChapters = getChaptersForScan(scannedBook.id)
-            // Embedded M4B chapters share one file path, so merge keys must include the
-            // in-file start offset; a whole-file row (null start) never matches a segment.
+
+        // Pre-load ALL existing chapters for the entire batch in one query
+        val allExistingChapters = getChaptersForScanBatch(bookIds)
+        val existingByBook = allExistingChapters.groupBy(ChapterEntity::bookId)
+
+        // Merge + collect bookmark/index operations in memory
+        val allMergedChapters = mutableListOf<ChapterEntity>()
+        val bookmarkOps = mutableListOf<BookmarkReindexOp>()
+
+        for (scannedBook in books) {
+            val existingChapters = existingByBook[scannedBook.id].orEmpty()
             val existingByKey =
                 existingChapters
                     .filter { !it.fileUrl.isNullOrBlank() }
@@ -288,24 +298,47 @@ public interface BooksDao {
                     } ?: scanned
                 }
 
-            deleteScannedChapters(scannedBook.id)
-            insertScannedChapters(mergedChapters)
+            allMergedChapters.addAll(mergedChapters)
 
-            if (obsoleteChapterIndexes.isNotEmpty()) {
-                deleteBookmarksForChapterIndexes(scannedBook.id, obsoleteChapterIndexes)
+            if (obsoleteChapterIndexes.isNotEmpty() || indexMapping.isNotEmpty()) {
+                bookmarkOps.add(
+                    BookmarkReindexOp(
+                        bookId = scannedBook.id,
+                        obsoleteChapterIndexes = obsoleteChapterIndexes,
+                        indexMapping = indexMapping,
+                    ),
+                )
+            }
+        }
+
+        // Bulk delete + insert chapters for ALL books in the batch
+        deleteScannedChaptersBatch(bookIds)
+        insertScannedChapters(allMergedChapters)
+
+        // Process bookmark reindex per-book (must be sequential per book)
+        for (op in bookmarkOps) {
+            if (op.obsoleteChapterIndexes.isNotEmpty()) {
+                deleteBookmarksForChapterIndexes(op.bookId, op.obsoleteChapterIndexes)
             }
 
-            val currentChapterIndex = getBookById(scannedBook.id)?.currentChapterIndex
-            indexMapping[currentChapterIndex]?.let { updateCurrentChapterIndex(scannedBook.id, it) }
-                ?: resetPlaybackProgress(scannedBook.id)
-            indexMapping.forEach { (oldIndex, _) ->
-                updateBookmarkChapterIndex(scannedBook.id, oldIndex, -oldIndex - 1)
+            val currentChapterIndex = getBookById(op.bookId)?.currentChapterIndex
+            op.indexMapping[currentChapterIndex]?.let { updateCurrentChapterIndex(op.bookId, it) }
+                ?: resetPlaybackProgress(op.bookId)
+            op.indexMapping.forEach { (oldIndex, _) ->
+                updateBookmarkChapterIndex(op.bookId, oldIndex, -oldIndex - 1)
             }
-            indexMapping.forEach { (oldIndex, newIndex) ->
-                updateBookmarkChapterIndex(scannedBook.id, -oldIndex - 1, newIndex)
+            op.indexMapping.forEach { (oldIndex, newIndex) ->
+                updateBookmarkChapterIndex(op.bookId, -oldIndex - 1, newIndex)
             }
         }
     }
+
+    /** Ponytail: holds per-book bookmark reindex data to batch chapter ops. */
+    private data class BookmarkReindexOp(
+        val bookId: String,
+        val obsoleteChapterIndexes: List<Int>,
+        val indexMapping: Map<Int, Int>,
+    )
 
     private fun chapterMergeKey(
         fileUrl: String?,
@@ -346,8 +379,16 @@ public interface BooksDao {
     )
     public suspend fun getChaptersForScan(bookId: String): List<ChapterEntity>
 
+    @Query(
+        "SELECT * FROM chapters WHERE book_id IN (:bookIds)",
+    )
+    public suspend fun getChaptersForScanBatch(bookIds: List<String>): List<ChapterEntity>
+
     @Query("DELETE FROM chapters WHERE book_id = :bookId")
     public suspend fun deleteScannedChapters(bookId: String)
+
+    @Query("DELETE FROM chapters WHERE book_id IN (:bookIds)")
+    public suspend fun deleteScannedChaptersBatch(bookIds: List<String>)
 
     @Query("UPDATE books SET current_chapter_index = :chapterIndex WHERE id = :bookId")
     public suspend fun updateCurrentChapterIndex(

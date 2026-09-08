@@ -30,6 +30,8 @@ public class HybridAudioMetadataParser
     ) : AudioMetadataParser {
         override suspend fun parseMetadata(filePath: String): AudioMetadata? {
             val primary = base.parseMetadata(filePath) ?: return ape.parseMetadata(filePath)
+            // ponytail: skip APE parsing when Media3 has title+artist (avoids double I/O on every file)
+            if (!primary.title.isNullOrBlank() && !primary.artist.isNullOrBlank()) return primary
             val fallback = ape.parseMetadata(filePath) ?: return primary
             return primary.copy(
                 title = primary.title.takeUnless { it.isNullOrBlank() } ?: fallback.title,

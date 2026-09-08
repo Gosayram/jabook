@@ -157,6 +157,9 @@ message UserPreferences {
 
   // Hide media notification content (book title/artwork) on the lock screen (default: public).
   bool notification_lockscreen_private = 70;
+
+  // Whether the context-aware EQ preset recommendation snackbar was accepted or dismissed.
+  bool eq_recommendation_dismissed = 71;
 }
 
 message SleepTimerState {

@@ -121,10 +121,12 @@ internal class PlayerIntentDispatcher(
             PlayerIntent.ToggleABRepeat -> abRepeatHandler.onToggleABRepeat()
             is PlayerIntent.SetEqualizerPreset -> {
                 viewModelScope.launch {
-                    runCatchingCancelable { settingsRepository.updateEqualizerPreset(intent.presetName) }
-                        .onFailure { error ->
-                            logger.w(error) { "Failed to update EQ preset" }
-                        }
+                    runCatchingCancelable {
+                        settingsRepository.updateEqualizerPreset(intent.presetName)
+                        settingsRepository.updateEqRecommendationDismissed(true)
+                    }.onFailure { error ->
+                        logger.w(error) { "Failed to update EQ preset" }
+                    }
                 }
             }
             is PlayerIntent.ReportError -> {

@@ -763,6 +763,11 @@ public class BackupService
                     dao.insertSearch(
                         SearchHistoryEntity(
                             query = item.query,
+                            normalizedQuery =
+                                item.query
+                                    .trim()
+                                    .replace(Regex("\\s+"), " ")
+                                    .lowercase(),
                             timestamp = item.timestamp,
                             resultCount = item.resultCount,
                         ),

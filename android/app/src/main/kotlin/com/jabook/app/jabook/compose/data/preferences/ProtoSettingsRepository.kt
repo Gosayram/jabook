@@ -122,6 +122,8 @@ public interface SettingsRepository {
 
     public suspend fun updateEqualizerPreset(preset: String)
 
+    public suspend fun updateEqRecommendationDismissed(dismissed: Boolean)
+
     public val bassBoostStrength: Flow<Int>
 
     public suspend fun updateBassBoostStrength(strength: Int)
@@ -447,6 +449,12 @@ public class ProtoSettingsRepository
         override suspend fun updateEqualizerPreset(preset: String) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setEqualizerPreset(preset).build()
+            }
+        }
+
+        override suspend fun updateEqRecommendationDismissed(dismissed: Boolean) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setEqRecommendationDismissed(dismissed).build()
             }
         }
 

@@ -96,4 +96,32 @@ public interface ListeningSessionDao {
         fromEpochMs: Long,
         toEpochMs: Long,
     ): Flow<List<ListeningDayStatEntity>> = observeDayStatsInternal(fromEpochMs, toEpochMs).distinctUntilChanged()
+
+    /**
+     * Get the distribution of listening sessions by hour of day (0-23).
+     * Used to determine the user's most productive listening period.
+     */
+    @Query(
+        """
+        SELECT
+            CAST(strftime('%H', started_at / 1000, 'unixepoch', 'localtime') AS INTEGER) AS hour,
+            COUNT(*) AS sessionCount
+        FROM listening_sessions
+        WHERE started_at >= :fromEpochMs
+            AND started_at <= :toEpochMs
+            AND is_crashed = 0
+            AND ended_at IS NOT NULL
+        GROUP BY hour
+        ORDER BY hour ASC
+        """,
+    )
+    public fun observeHourDistribution(
+        fromEpochMs: Long,
+        toEpochMs: Long,
+    ): Flow<List<HourCountEntity>>
 }
+
+public data class HourCountEntity(
+    val hour: Int,
+    val sessionCount: Int,
+)

@@ -151,6 +151,15 @@ public class RutrackerParser
         private fun getBaseUrl(): String = "${mirrorManager.getBaseUrl()}/forum/"
 
         /**
+         * Decode raw bytes to string using encoding detection.
+         * Exposed for ForumIndexer health checks on already-consumed bodies.
+         */
+        public fun decodeBytes(
+            rawBytes: ByteArray,
+            contentType: String?,
+        ): String = decoder.decode(rawBytes, contentType)
+
+        /**
          * Parse search results from raw bytes with encoding detection.
          *
          * This method uses RutrackerSimpleDecoder to properly decode
@@ -671,9 +680,20 @@ public class RutrackerParser
             body: okhttp3.ResponseBody,
             forumId: String,
         ): ForumPageResult {
-            // Convert ResponseBody to ByteArray for encoding-aware parsing
             val rawBytes = readCappedBody(body)
             val contentType = body.contentType()?.toString()
+            return parseForumPageFromBytes(rawBytes, contentType, forumId)
+        }
+
+        /**
+         * Parse forum page from pre-read bytes (avoids double body consumption).
+         * Used by ForumIndexer when it needs the raw bytes for health checks.
+         */
+        public fun parseForumPageFromBytes(
+            rawBytes: ByteArray,
+            contentType: String?,
+            forumId: String,
+        ): ForumPageResult {
             logger.d { "Parsing forum $forumId page: ${rawBytes.size} bytes, content-type: $contentType" }
             val result = parseForumPageWithEncoding(rawBytes, contentType)
 
