@@ -298,7 +298,7 @@ public class SpeechEnhancer : AudioProcessor {
     }
 
     override fun reset() {
-        flush()
+        flush(StreamMetadata.DEFAULT)
         highPassAlpha = 0.0f
         highPassPrev = FloatArray(0)
         inputAudioFormat = null

@@ -231,7 +231,7 @@ public class SpeechCompressorAudioProcessor(
     }
 
     override fun reset() {
-        flush()
+        flush(StreamMetadata.DEFAULT)
         lpStates = emptyArray()
         hpStates = emptyArray()
         envelopes = FloatArray(0)

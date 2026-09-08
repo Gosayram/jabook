@@ -211,16 +211,17 @@ val protoInputFiles =
         include("**/*.proto")
     }
 
-val protocBinary by configurations.creating
+val protocBinary = configurations.create("protocBinary")
 
-val generateProtoLite by tasks.registering(GenerateProtoLiteTask::class) {
-    windowsHost.set(isWindowsHost)
-    protoSourceDir.set(layout.projectDirectory.dir("src/main/proto"))
-    protoFiles.from(protoInputFiles)
-    protocBinaryFiles.from(protocBinary)
-    outputDir.set(generatedProtoDir)
-    protocOutputFile.set(layout.buildDirectory.file("tools/protoc/${if (isWindowsHost) "protoc.exe" else "protoc"}"))
-}
+val generateProtoLite =
+    tasks.register<GenerateProtoLiteTask>("generateProtoLite") {
+        windowsHost.set(isWindowsHost)
+        protoSourceDir.set(layout.projectDirectory.dir("src/main/proto"))
+        protoFiles.from(protoInputFiles)
+        protocBinaryFiles.from(protocBinary)
+        outputDir.set(generatedProtoDir)
+        protocOutputFile.set(layout.buildDirectory.file("tools/protoc/${if (isWindowsHost) "protoc.exe" else "protoc"}"))
+    }
 
 android {
     namespace = "com.jabook.app.jabook"

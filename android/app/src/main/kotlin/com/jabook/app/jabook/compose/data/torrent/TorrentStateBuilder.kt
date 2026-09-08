@@ -223,7 +223,6 @@ public class TorrentStateBuilder
                 TorrentStatus.State.SEEDING -> TorrentState.SEEDING
                 TorrentStatus.State.FINISHED -> TorrentState.COMPLETED
                 TorrentStatus.State.UNKNOWN -> TorrentState.QUEUED
-                else -> TorrentState.QUEUED
             }
 
         public fun calculateEta(status: TorrentStatus): Long {

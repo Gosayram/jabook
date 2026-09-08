@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+@file:Suppress("DEPRECATION")
+
 package com.jabook.app.jabook.compose.feature.player
 
 import android.content.BroadcastReceiver
@@ -69,6 +71,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
@@ -206,6 +209,7 @@ private val playerScreenLogger by lazy { LoggerFactoryImpl().get("PlayerScreen")
     ExperimentalMaterial3Api::class,
     ExperimentalMaterial3AdaptiveApi::class,
     ExperimentalMaterial3WindowSizeClassApi::class,
+    dev.chrisbanes.haze.ExperimentalHazeApi::class,
 )
 @Composable
 public fun PlayerScreen(
@@ -1556,7 +1560,7 @@ private fun PlayerLandscapeLayout(
                     onClick = onChapterClick,
                     modifier = Modifier.weight(1f).height(controlButtonHeight),
                 ) {
-                    Icon(Icons.Filled.List, stringResource(R.string.chaptersLabel), Modifier.size(controlButtonIconSize))
+                    Icon(Icons.AutoMirrored.Filled.List, stringResource(R.string.chaptersLabel), Modifier.size(controlButtonIconSize))
                 }
                 FilledTonalButton(
                     onClick = onBookmarksClick,
@@ -2460,7 +2464,7 @@ private fun PlayerTruncatedTitle(
 ) {
     var truncated by remember(text) { mutableStateOf(false) }
     val state = rememberTooltipState()
-    TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = {
+    TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(), tooltip = {
         PlainTooltip { Text(text) }
     }, state = state) {
         Text(

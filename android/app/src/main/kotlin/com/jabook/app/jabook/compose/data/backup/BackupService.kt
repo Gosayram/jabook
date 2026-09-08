@@ -580,8 +580,7 @@ public class BackupService
                         val incomingTimestamp =
                             backup.lastPlayedTimestamp
                                 .takeIf { it > 0 }
-                                ?.toLong()
-                                ?: backup.addedDate.toLong()
+                                ?: backup.addedDate
                         val shouldApplyIncoming =
                             ConflictResolutionResolver.shouldUseIncoming(
                                 policy = policy,
@@ -597,14 +596,14 @@ public class BackupService
                         // Update existing book
                         dao.updatePlaybackProgress(
                             bookId = backup.id,
-                            position = backup.lastPosition.toLong(),
+                            position = backup.lastPosition,
                             progress = backup.totalProgress,
                             chapterIndex = 0,
                             timestamp =
                                 backup.lastPlayedTimestamp
                                     .takeIf {
                                         it > 0
-                                    }?.toLong() ?: System.currentTimeMillis(),
+                                    } ?: System.currentTimeMillis(),
                         )
                         dao.updateBookSettings(
                             bookId = backup.id,
@@ -617,11 +616,11 @@ public class BackupService
                             playerPersistenceManager.savePlayerState(
                                 com.jabook.app.jabook.audio.PlayerState(
                                     bookId = backup.id,
-                                    positionMs = backup.lastPosition.toLong(),
-                                    durationMs = backup.duration.toLong(),
+                                    positionMs = backup.lastPosition,
+                                    durationMs = backup.duration,
                                     filePaths = emptyList(),
-                                    lastPlayedTimestamp = backup.lastPlayedTimestamp.toLong(),
-                                    completedTimestamp = backup.completedTimestamp.toLong(),
+                                    lastPlayedTimestamp = backup.lastPlayedTimestamp,
+                                    completedTimestamp = backup.completedTimestamp,
                                 ),
                             )
                         } catch (e: Exception) {
@@ -637,11 +636,11 @@ public class BackupService
                                 author = backup.author,
                                 coverUrl = backup.coverPath,
                                 description = null,
-                                totalDuration = backup.duration.toLong(),
-                                currentPosition = backup.lastPosition.toLong(),
+                                totalDuration = backup.duration,
+                                currentPosition = backup.lastPosition,
                                 totalProgress = backup.totalProgress,
                                 downloadStatus = "NOT_DOWNLOADED",
-                                addedDate = backup.addedDate.toLong(),
+                                addedDate = backup.addedDate,
                                 rewindDuration = backup.rewindDuration,
                                 forwardDuration = backup.forwardDuration,
                                 isFavorite = false,
@@ -656,11 +655,11 @@ public class BackupService
                             playerPersistenceManager.savePlayerState(
                                 com.jabook.app.jabook.audio.PlayerState(
                                     bookId = backup.id,
-                                    positionMs = backup.lastPosition.toLong(),
-                                    durationMs = backup.duration.toLong(),
+                                    positionMs = backup.lastPosition,
+                                    durationMs = backup.duration,
                                     filePaths = emptyList(),
-                                    lastPlayedTimestamp = backup.lastPlayedTimestamp.toLong(),
-                                    completedTimestamp = backup.completedTimestamp.toLong(),
+                                    lastPlayedTimestamp = backup.lastPlayedTimestamp,
+                                    completedTimestamp = backup.completedTimestamp,
                                 ),
                             )
                         } catch (e: Exception) {

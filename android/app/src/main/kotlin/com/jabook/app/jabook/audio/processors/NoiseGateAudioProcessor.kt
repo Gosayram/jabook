@@ -240,7 +240,7 @@ public class NoiseGateAudioProcessor(
     }
 
     override fun reset() {
-        flush()
+        flush(StreamMetadata.DEFAULT)
         inputAudioFormat = null
         isActive = false
     }

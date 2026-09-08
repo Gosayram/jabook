@@ -762,7 +762,7 @@ private fun DetailTruncatedText(
 ) {
     var truncated by remember(text) { mutableStateOf(false) }
     val state = rememberTooltipState()
-    TooltipBox(positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(), tooltip = {
+    TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(), tooltip = {
         PlainTooltip { Text(text) }
     }, state = state) {
         Text(text = text, style = style, maxLines = maxLines, overflow = TextOverflow.Ellipsis, onTextLayout = {

@@ -347,7 +347,7 @@ public class LoudnessNormalizer(
     }
 
     override fun reset() {
-        flush()
+        flush(StreamMetadata.DEFAULT)
         inputAudioFormat = null
         outputAudioFormat = null
         isActive = false

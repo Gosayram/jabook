@@ -139,7 +139,6 @@ public class AudioPlayerServiceInitializer(
                             LogUtils.w("AudioPlayerService", "Failed to save sleep timer state to DataStore", e)
                         }
                     }
-                    Unit
                 },
             )
         service.playerServiceScope.launch {

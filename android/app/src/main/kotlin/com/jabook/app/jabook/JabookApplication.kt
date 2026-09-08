@@ -85,6 +85,7 @@ public class JabookApplication :
                 .setWorkerFactory(workerFactory)
                 .build()
 
+    @OptIn(coil3.annotation.ExperimentalCoilApi::class)
     public override fun onCreate() {
         super.onCreate()
 

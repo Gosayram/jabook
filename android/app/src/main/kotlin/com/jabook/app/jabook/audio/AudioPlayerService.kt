@@ -273,7 +273,6 @@ public class AudioPlayerService : MediaLibraryService() {
             repository = playbackPositionRepository,
             updateCanonicalProgress = { bookId, position, chapterIndex ->
                 updatePlaybackProgressUseCase(bookId, position, chapterIndex)
-                Unit
             },
             getActivePlayer = { getActivePlayer() },
             getCurrentBookId = { currentGroupPath },

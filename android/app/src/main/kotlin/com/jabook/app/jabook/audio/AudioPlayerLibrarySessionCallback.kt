@@ -786,6 +786,7 @@ public class AudioPlayerLibrarySessionCallback(
             if (download != null) {
                 // Contract (MediaLibraryService.java:163-165): every returned item must
                 // specify BOTH isBrowsable and isPlayable.
+                @Suppress("DEPRECATION")
                 val metadataBuilder =
                     MediaMetadata
                         .Builder()
