@@ -14,9 +14,25 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
+import com.google.re2j.Matcher
+import com.google.re2j.Pattern
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.nodes.Element
 import org.jsoup.select.Elements
+
+/**
+ * re2j helpers: linear-time regex matching so attacker-controlled RuTracker
+ * HTML text never reaches java.util.regex backtracking (ReDoS guard).
+ */
+
+/** Find-first as a nullable Matcher (mirrors Kotlin `Regex.find`), or null. */
+internal fun Pattern.findFirst(input: String): Matcher? = matcher(input).takeIf { it.find() }
+
+/** Mirror of `String.replace(Regex, replacement)` for re2j patterns (replacement is literal here). */
+internal fun String.replace(
+    re2: Pattern,
+    replacement: String,
+): String = re2.matcher(this).replaceAll(replacement)
 
 /**
  * Safe parsing extensions for Jsoup Elements.

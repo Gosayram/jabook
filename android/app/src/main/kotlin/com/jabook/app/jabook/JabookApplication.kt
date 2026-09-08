@@ -142,6 +142,11 @@ public class JabookApplication :
             LogUtils.w("JabookApplication", "Previous session did not shut down cleanly")
             maybeEnterSafeMode()
         }
+        // From here on this session is clean; the crash handler flips the flag
+        // back if we actually crash. Without this, one historical crash would
+        // keep "did not shut down cleanly" true forever.
+        com.jabook.app.jabook.crash.GlobalExceptionHandler
+            .markCleanShutdown(this)
 
         recoverOpenListeningSessions()
 
@@ -290,8 +295,12 @@ public class JabookApplication :
      */
     private fun maybeEnterSafeMode() {
         val prefs = getSharedPreferences("jabook_crash_handler", MODE_PRIVATE)
+        // Time-window gate: an old crash_count from days ago must not flip safe
+        // mode on today's ordinary launch (matches the handler's 60s window).
+        val lastCrashTime = prefs.getLong("last_crash_time", 0L)
         val crashCount = prefs.getInt("crash_count", 0)
-        if (crashCount >= 3) {
+        val recent = System.currentTimeMillis() - lastCrashTime < 60_000L
+        if (recent && crashCount >= 3) {
             LogUtils.w("JabookApplication", "Crash-loop detected ($crashCount crashes), entering safe mode")
             prefs.edit().putBoolean("safe_mode", true).apply()
         }

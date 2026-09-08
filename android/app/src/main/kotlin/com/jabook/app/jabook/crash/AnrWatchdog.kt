@@ -119,6 +119,9 @@ public class AnrWatchdog(
                     continue
                 }
                 checkOnce()
+                // Failed posts short-circuit checkOnce without sleeping; keep a
+                // floor so a dead main Looper can't spin this thread at 100%.
+                Thread.sleep(GRACE_POLL_MS)
             } catch (_: InterruptedException) {
                 break // stop() interrupts us
             } catch (e: Exception) {

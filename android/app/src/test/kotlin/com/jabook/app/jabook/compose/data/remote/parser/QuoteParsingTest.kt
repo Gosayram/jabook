@@ -141,8 +141,9 @@ class QuoteParsingTest {
         val details = parser.parseTopicDetails(fullHtml, "123")
         val comment = details?.comments?.first()
 
-        // Assert signature is present
-        assertTrue("Signature should be present", comment?.html?.contains("sig-body") == true)
+        // Assert signature is present. Sanitized output drops class attributes (HtmlSanitizer
+        // whitelist), so assert the signature's anchor text instead of class="sig-body".
+        assertTrue("Signature should be present", comment?.html?.contains(">Link<") == true)
 
         // Assert link is absolute and correct
         // getBaseUrl returns https://mirror.example/forum/

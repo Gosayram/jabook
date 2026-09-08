@@ -661,6 +661,44 @@ class AudioPlayerLibrarySessionCallbackTest {
         }
 
     @Test
+    fun `onGetChildren last played item carries derived duration metadata`() =
+        runTest {
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val chapter = File(context.cacheDir, "browse_duration.mp3").apply { writeText("audio") }
+            whenever(persistenceManager.retrievePersistedPlayerState()).thenReturn(
+                PlayerPersistenceManager.PersistedPlayerState(
+                    groupPath = "book://browse-duration",
+                    filePaths = listOf(chapter.absolutePath),
+                    currentIndex = 0,
+                    currentPosition = 1_000L,
+                    metadata = null,
+                ),
+            )
+            val durationCallback =
+                AudioPlayerLibrarySessionCallback(
+                    service,
+                    persistenceManager,
+                    torrentRepository,
+                    mediaButtonHandler,
+                    { 60_000L },
+                )
+
+            val result =
+                durationCallback
+                    .onGetChildren(
+                        librarySession,
+                        controller,
+                        AudioPlayerLibrarySessionCallback.ROOT_ID,
+                        page = 0,
+                        pageSize = 10,
+                        params = null,
+                    ).get(1, TimeUnit.SECONDS)
+
+            val lastPlayed = result.value?.first { it.mediaId == "book://browse-duration" }
+            assertEquals(60_000L, lastPlayed?.mediaMetadata?.durationMs)
+        }
+
+    @Test
     fun `onMediaButtonEvent routes NEXT to forward`() {
         val player = mock<ExoPlayer>()
         whenever(player.currentMediaItemIndex).thenReturn(0)

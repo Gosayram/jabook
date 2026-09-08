@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
+import com.google.re2j.Pattern
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import org.jsoup.nodes.Element
 import javax.inject.Inject
@@ -34,10 +35,13 @@ public class DefensiveFieldExtractor
         private val logger = loggerFactory.get("DefensiveFieldExtractor")
 
         public companion object {
-            private val SEEDERS_REGEX = Regex("""[↑↑]\s*(\d+)|Сиды[:\s]*(\d+)""")
-            private val LEECHERS_REGEX = Regex("""[↓↓]\s*(\d+)|Личи[:\s]*(\d+)""")
-            private val SIZE_REGEX = Regex("""(\d+\.?\d*\s*[KMGT]B)""", RegexOption.IGNORE_CASE)
-            private val SIZE_PATTERN = Regex("""^\d+\.?\d*\s*[KMGT]B$""", RegexOption.IGNORE_CASE)
+            // re2j: row.text() is attacker-controlled HTML text; `\d+\.?\d*` in the size
+            // patterns backtracks super-linearly under java.util.regex. PREFIX_REGEX kept:
+            // anchored alternation + single class, worst case linear (no ReDoS shape).
+            private val SEEDERS_REGEX = Pattern.compile("[↑↑]\\s*(\\d+)|Сиды[:\\s]*(\\d+)")
+            private val LEECHERS_REGEX = Pattern.compile("[↓↓]\\s*(\\d+)|Личи[:\\s]*(\\d+)")
+            private val SIZE_REGEX = Pattern.compile("(\\d+\\.?\\d*\\s*[KMGT]B)", Pattern.CASE_INSENSITIVE)
+            private val SIZE_PATTERN = Pattern.compile("^\\d+\\.?\\d*\\s*[KMGT]B$", Pattern.CASE_INSENSITIVE)
             private val PREFIX_REGEX = Regex("""^(Сиды|Личи)[:\s]*""")
         }
 
@@ -124,11 +128,10 @@ public class DefensiveFieldExtractor
             }
 
             // Strategy 6: Regex fallback (last resort)
-            val regexMatch = SEEDERS_REGEX.find(row.text())
+            val regexMatch = SEEDERS_REGEX.findFirst(row.text())
             if (regexMatch != null) {
                 val value =
-                    regexMatch.groupValues
-                        .drop(1)
+                    listOfNotNull(regexMatch.group(1), regexMatch.group(2))
                         .firstNotNullOfOrNull { it.toIntOrNull() }
                 if (value != null) {
                     logger.d { "Seeders for $topicId: $value (strategy: regex)" }
@@ -201,11 +204,10 @@ public class DefensiveFieldExtractor
             if (colValue != null) return colValue
 
             // Strategy 6: Regex fallback
-            val regexMatch = LEECHERS_REGEX.find(row.text())
+            val regexMatch = LEECHERS_REGEX.findFirst(row.text())
             if (regexMatch != null) {
                 val value =
-                    regexMatch.groupValues
-                        .drop(1)
+                    listOfNotNull(regexMatch.group(1), regexMatch.group(2))
                         .firstNotNullOfOrNull { it.toIntOrNull() }
                 if (value != null) return value
             }
@@ -257,9 +259,9 @@ public class DefensiveFieldExtractor
             }
 
             // Strategy 5: Regex for typical size patterns
-            val regexMatch = SIZE_REGEX.find(row.text())
+            val regexMatch = SIZE_REGEX.findFirst(row.text())
             if (regexMatch != null) {
-                return regexMatch.value
+                return regexMatch.group()
             }
 
             logger.w { "Failed to extract size for topic $topicId" }

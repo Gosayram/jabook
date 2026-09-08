@@ -104,8 +104,11 @@ public class GlobalExceptionHandler(
                 attributes = mapOf("source" to "global_exception_handler"),
             )
 
-            // Clear clean-shutdown flag — we're crashing
-            prefs.edit().putBoolean(CLEAN_SHUTDOWN_KEY, false).apply()
+            // Clear clean-shutdown flag — we're crashing.
+            // commit(), not apply(): the process dies right after, and apply()'s
+            // async flush would be killed with it — losing the crash counter means
+            // the safe-mode threshold is never reached (crash loop forever).
+            prefs.edit().putBoolean(CLEAN_SHUTDOWN_KEY, false).commit()
 
             val now = System.currentTimeMillis()
             val lastCrashTime = prefs.getLong("last_crash_time", 0L)
@@ -122,7 +125,7 @@ public class GlobalExceptionHandler(
                     .remove("last_crash_time")
                     .remove("crash_count")
                     .putBoolean(SAFE_MODE_KEY, true)
-                    .apply()
+                    .commit()
                 deleteCrashReport()
                 defaultHandler?.uncaughtException(thread, throwable) ?: run {
                     Process.killProcess(Process.myPid())
@@ -136,7 +139,7 @@ public class GlobalExceptionHandler(
                 .edit()
                 .putLong("last_crash_time", now)
                 .putInt("crash_count", newCount)
-                .apply()
+                .commit()
 
             writeCrashReport(thread, throwable)
 
@@ -157,7 +160,8 @@ public class GlobalExceptionHandler(
             val report = buildCrashReport(thread, throwable)
             val file = File(application.filesDir, CRASH_REPORT_FILE)
             file.writeText(report)
-            prefs.edit().putBoolean(CRASH_REPORT_MARKER, true).apply()
+            // commit(): process is about to die; apply() would lose the marker
+            prefs.edit().putBoolean(CRASH_REPORT_MARKER, true).commit()
         } catch (e: Exception) {
             LogUtils.e("GlobalExceptionHandler", "Failed to write crash report", e)
         }

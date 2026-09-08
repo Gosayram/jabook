@@ -651,6 +651,8 @@ dependencies {
     implementation(libs.bundles.network)
     // Jsoup for HTML parsing (Rutracker scraping)
     implementation(libs.jsoup)
+    // re2j: linear-time regex engine for parsing attacker-controlled RuTracker HTML (ReDoS guard)
+    implementation(libs.re2j)
 
     // libtorrent4j for torrent downloads
     implementation(libs.bundles.libtorrent4j)

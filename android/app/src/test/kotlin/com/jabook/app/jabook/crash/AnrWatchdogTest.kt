@@ -40,18 +40,27 @@ public class AnrWatchdogTest {
 
     @Test
     fun `start stop lifecycle works without throwing`() {
+        val firstCycle = java.util.concurrent.CountDownLatch(1)
         val watchdog =
             AnrWatchdog(
                 timeoutMs = 10L,
                 gracePeriodMs = 0L,
-                poster = StubPoster(consume = true),
+                // Consume=false keeps the stall path (with its in-test sleep) out
+                // of the loop; we only care that the loop reaches a cycle alive.
+                poster = {
+                    firstCycle.countDown()
+                    false
+                },
                 mainThreadStackTrace = { "at stub" },
             )
         assertFalse(watchdog.isRunning())
         watchdog.start()
         assertTrue(watchdog.isRunning())
-        // Background loop must survive with a responsive main thread.
-        Thread.sleep(50L)
+        // Event-driven: fail fast if the background loop never posts a token.
+        assertTrue(
+            "watchdog loop never reached a cycle",
+            firstCycle.await(5, java.util.concurrent.TimeUnit.SECONDS),
+        )
         watchdog.stop()
         assertFalse(watchdog.isRunning())
         // Idempotent stop.

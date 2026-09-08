@@ -62,6 +62,8 @@ playServicesCastFramework = "22.3.1"
 okhttp = "5.5.0"
 retrofit = "3.0.0"
 jsoup = "1.23.2"
+# Linear-time regex (RE2) for matching attacker-controlled HTML — ReDoS guard.
+re2j = "1.8"
 
 # Image Loading
 coil3 = "3.6.0"
@@ -186,6 +188,7 @@ retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = 
 retrofit-converter-kotlinx-serialization = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version.ref = "retrofit" }
 retrofit-converter-scalars = { group = "com.squareup.retrofit2", name = "converter-scalars", version.ref = "retrofit" }
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
+re2j = { group = "com.google.re2j", name = "re2j", version.ref = "re2j" }
 
 # Kotlinx
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }

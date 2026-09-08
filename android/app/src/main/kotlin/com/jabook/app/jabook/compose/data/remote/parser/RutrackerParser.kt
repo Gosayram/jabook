@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.remote.parser
 
+import com.google.re2j.Pattern
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.core.util.PerfTrace
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
@@ -101,41 +102,47 @@ public class RutrackerParser
             private const val MAIN_TITLE_SELECTOR = "h1.maintitle a, h1.maintitle"
             private const val TOR_SIZE_SELECTOR = "#tor-size-humn"
 
-            // Regex constants (avoid recompilation in hot paths)
-            private val SEEDERS_FALLBACK_REGEX = "Сиды?:\\s*(\\d+)".toRegex(RegexOption.IGNORE_CASE)
-            private val LEECHERS_FALLBACK_REGEX = "Личи?:\\s*(\\d+)".toRegex(RegexOption.IGNORE_CASE)
-            private val AUTHOR_FALLBACK_REGEX = "Автор[:\\s]+(.+?)(?=\\n|Исполнитель|Год|$)".toRegex()
-            private val PERFORMER_FALLBACK_REGEX = "Исполнитель[:\\s]+(.+?)(?=\\n|Год|Жанр|$)".toRegex()
-            private val DURATION_FALLBACK_REGEX = "Время звучания[:\\s]+(.+?)(?=\\n|$)".toRegex()
-            private val BITRATE_FALLBACK_REGEX = "Битрейт[:\\s]+(.+?)(?=\\n|$)".toRegex()
-            private val GENRE_FALLBACK_REGEX = "Жанр[:\\s]+(.+?)(?=\\n|$)".toRegex()
+            // Regex constants (avoid recompilation in hot paths).
+            // re2j (Google RE2, linear time): these run on attacker-controlled RuTracker
+            // HTML/text — java.util.regex backtracking on such input is a ReDoS vector.
+            private val SEEDERS_FALLBACK_REGEX = Pattern.compile("Сиды?:\\s*(\\d+)", Pattern.CASE_INSENSITIVE)
+            private val LEECHERS_FALLBACK_REGEX = Pattern.compile("Личи?:\\s*(\\d+)", Pattern.CASE_INSENSITIVE)
+
+            // RE2 has no lookahead: `(.+?)(?=\n|X|$)` rewritten as `(.+?)(?:\n|X|$)`.
+            // Lazy capture stops at the same place; group(1) is identical (only group(0)
+            // additionally consumes the stop token — every call site reads group(1) only).
+            private val AUTHOR_FALLBACK_REGEX = Pattern.compile("Автор[:\\s]+(.+?)(?:\\n|Исполнитель|Год|$)")
+            private val PERFORMER_FALLBACK_REGEX = Pattern.compile("Исполнитель[:\\s]+(.+?)(?:\\n|Год|Жанр|$)")
+            private val DURATION_FALLBACK_REGEX = Pattern.compile("Время звучания[:\\s]+(.+?)(?:\\n|$)")
+            private val BITRATE_FALLBACK_REGEX = Pattern.compile("Битрейт[:\\s]+(.+?)(?:\\n|$)")
+            private val GENRE_FALLBACK_REGEX = Pattern.compile("Жанр[:\\s]+(.+?)(?:\\n|$)")
             private val SERIES_PATTERNS =
                 listOf(
-                    "Цикл/серия[:\\s]+(.+?)(?=\\n|Номер|Жанр|$)".toRegex(RegexOption.IGNORE_CASE),
-                    "Цикл[:\\s]+[\"']?(.+?)[\"']?(?=\\n|$)".toRegex(RegexOption.IGNORE_CASE),
-                    "Серия[:\\s]+(.+?)(?=\\n|$)".toRegex(RegexOption.IGNORE_CASE),
+                    Pattern.compile("Цикл/серия[:\\s]+(.+?)(?:\\n|Номер|Жанр|$)", Pattern.CASE_INSENSITIVE),
+                    Pattern.compile("Цикл[:\\s]+[\"']?(.+?)[\"']?(?:\\n|$)", Pattern.CASE_INSENSITIVE),
+                    Pattern.compile("Серия[:\\s]+(.+?)(?:\\n|$)", Pattern.CASE_INSENSITIVE),
                 )
-            private val SERIES_HTML_REGEX = ":\\s*(.+?)(?=\\n|<|$)".toRegex()
-            private val PAGINATION_TOTAL_REGEX = "Страница\\s+\\d+\\s+из\\s+(\\d+)".toRegex(RegexOption.IGNORE_CASE)
-            private val PAGINATION_CURRENT_REGEX = "Страница\\s+(\\d+)".toRegex(RegexOption.IGNORE_CASE)
-            private val TRAILING_BRACKET_REGEX = Regex("\\s*\\[([^\\]]+)\\]\\s*$")
-            private val SQUARE_BRACKETS_REGEX = Regex("\\[.*?\\]")
-            private val BR_REGEX = Regex("<br\\s*/?>", RegexOption.IGNORE_CASE)
-            private val POST_BR_REGEX = Regex("<span class=\"post-br\"><br\\s*/?></span>", RegexOption.IGNORE_CASE)
-            private val WHITESPACE_REGEX = Regex("\\s+")
+            private val SERIES_HTML_REGEX = Pattern.compile(":\\s*(.+?)(?:\\n|<|$)")
+            private val PAGINATION_TOTAL_REGEX = Pattern.compile("Страница\\s+\\d+\\s+из\\s+(\\d+)", Pattern.CASE_INSENSITIVE)
+            private val PAGINATION_CURRENT_REGEX = Pattern.compile("Страница\\s+(\\d+)", Pattern.CASE_INSENSITIVE)
+            private val TRAILING_BRACKET_REGEX = Pattern.compile("\\s*\\[([^\\]]+)\\]\\s*$")
+            private val SQUARE_BRACKETS_REGEX = Pattern.compile("\\[.*?\\]")
+            private val BR_REGEX = Pattern.compile("<br\\s*/?>", Pattern.CASE_INSENSITIVE)
+            private val POST_BR_REGEX = Pattern.compile("<span class=\"post-br\"><br\\s*/?></span>", Pattern.CASE_INSENSITIVE)
+            private val WHITESPACE_REGEX = Pattern.compile("\\s+")
 
             /** Title cleaning: precompiled so cleanTitle() does not rebuild 30+ patterns per topic. */
             private val QUALITY_INDICATOR_REGEX =
-                Regex(
+                Pattern.compile(
                     "\\b(WEB-DL|WEBRip|BDRip|DVDRip|HDTV|BluRay|Blu-Ray|BD-Rip|Web-DL|WebRip)\\b",
-                    RegexOption.IGNORE_CASE,
+                    Pattern.CASE_INSENSITIVE,
                 )
             private val FILE_FORMAT_REGEX =
-                Regex(
+                Pattern.compile(
                     "\\b(MKV|MP4|AVI|MOV|WMV|FLV|M4V|MP3|AAC|FLAC|OGG|WAV|M4A)\\b",
-                    RegexOption.IGNORE_CASE,
+                    Pattern.CASE_INSENSITIVE,
                 )
-            private val RESOLUTION_REGEX = Regex("\\b\\d{3,4}[pi]\\b", RegexOption.IGNORE_CASE)
+            private val RESOLUTION_REGEX = Pattern.compile("\\b\\d{3,4}[pi]\\b", Pattern.CASE_INSENSITIVE)
         }
 
         /**
@@ -761,17 +768,15 @@ public class RutrackerParser
                     } else {
                         // Method 2: Check pagination text "Страница X из Y"
                         val paginationText = document.select("#pagination, .nav").toStr()
-                        val pageMatch =
-                            PAGINATION_TOTAL_REGEX.find(paginationText)
+                        val pageMatch = PAGINATION_TOTAL_REGEX.findFirst(paginationText)
                         if (pageMatch != null) {
                             val currentPage =
                                 PAGINATION_CURRENT_REGEX
-                                    .find(paginationText)
-                                    ?.groupValues
-                                    ?.get(1)
+                                    .findFirst(paginationText)
+                                    ?.group(1)
                                     ?.toIntOrNull()
                                     ?: 1
-                            val totalPages = pageMatch.groupValues[1].toIntOrNull() ?: 1
+                            val totalPages = pageMatch.group(1)?.toIntOrNull() ?: 1
                             val hasMore = currentPage < totalPages
                             logger.d {
                                 "Forum $forumId: pagination shows page $currentPage of $totalPages, hasMore=$hasMore"
@@ -1254,9 +1259,9 @@ public class RutrackerParser
                     val descriptionHtml =
                         postBody?.html()?.let { html ->
                             // Clean HTML: using DOM manipulation
-                            val cleaned = cleanDescriptionHtml(html, metadata)
-                            // Ensure all links have absolute URLs (now handled in cleanDescriptionHtml)
-                            cleaned
+                            // Sanitize at the parser boundary: metadata stripping is not a
+                            // whitelist — on* attrs / javascript: hrefs would leak otherwise.
+                            HtmlSanitizer.sanitize(cleanDescriptionHtml(html, metadata))
                         }
 
                     // Extract description - clean text from cleaned HTML
@@ -1337,16 +1342,15 @@ public class RutrackerParser
             if (paginationText.isBlank()) return 1 to 1
 
             // Regex for "Страница X из Y" (Page X of Y)
-            val match = PAGINATION_TOTAL_REGEX.find(paginationText)
+            val match = PAGINATION_TOTAL_REGEX.findFirst(paginationText)
 
             return if (match != null) {
                 val current =
                     PAGINATION_CURRENT_REGEX
-                        .find(paginationText)
-                        ?.groupValues
-                        ?.get(1)
+                        .findFirst(paginationText)
+                        ?.group(1)
                         ?.toIntOrNull() ?: 1
-                val total = match.groupValues[1].toIntOrNull() ?: 1
+                val total = match.group(1)?.toIntOrNull() ?: 1
                 current to total
             } else {
                 1 to 1
@@ -1380,9 +1384,8 @@ public class RutrackerParser
             // Fallback: try to extract from text (toStr() strips HTML, so no <b> tags)
             val seedText = document.select("span.seed, .seed").toStr()
             SEEDERS_FALLBACK_REGEX
-                .find(seedText)
-                ?.groupValues
-                ?.get(1)
+                .findFirst(seedText)
+                ?.group(1)
                 ?.toIntOrNull()
                 ?.let { return it }
 
@@ -1416,9 +1419,8 @@ public class RutrackerParser
             // Fallback: try to extract from text (toStr() strips HTML, so no <b> tags)
             val leechText = document.selectFirst("span.leech, .leech")?.toStr() ?: ""
             LEECHERS_FALLBACK_REGEX
-                .find(leechText)
-                ?.groupValues
-                ?.get(1)
+                .findFirst(leechText)
+                ?.group(1)
                 ?.toIntOrNull()
                 ?.let { return it }
 
@@ -1570,19 +1572,19 @@ public class RutrackerParser
             if (metadata.isEmpty()) {
                 val text = postBody.wholeText()
                 // Author (fallback)
-                AUTHOR_FALLBACK_REGEX.find(text)?.groupValues?.get(1)?.trim()?.let {
+                AUTHOR_FALLBACK_REGEX.findFirst(text)?.group(1)?.trim()?.let {
                     metadata["author"] = it
                 }
                 // Performer
-                PERFORMER_FALLBACK_REGEX.find(text)?.groupValues?.get(1)?.trim()?.let {
+                PERFORMER_FALLBACK_REGEX.findFirst(text)?.group(1)?.trim()?.let {
                     metadata["performer"] = it
                 }
                 // Duration
-                DURATION_FALLBACK_REGEX.find(text)?.groupValues?.get(1)?.trim()?.let {
+                DURATION_FALLBACK_REGEX.findFirst(text)?.group(1)?.trim()?.let {
                     metadata["duration"] = it
                 }
                 // Bitrate
-                BITRATE_FALLBACK_REGEX.find(text)?.groupValues?.get(1)?.trim()?.let {
+                BITRATE_FALLBACK_REGEX.findFirst(text)?.group(1)?.trim()?.let {
                     metadata["bitrate"] = it
                 }
             }
@@ -1614,7 +1616,7 @@ public class RutrackerParser
             // Strategy 2: Regex fallback (using wholeText to preserve newlines)
             if (genreText == null) {
                 val text = postBody.wholeText()
-                genreText = GENRE_FALLBACK_REGEX.find(text)?.groupValues?.get(1)
+                genreText = GENRE_FALLBACK_REGEX.findFirst(text)?.group(1)
             }
 
             return genreText
@@ -1635,9 +1637,8 @@ public class RutrackerParser
             // Try multiple patterns
             for (pattern in SERIES_PATTERNS) {
                 pattern
-                    .find(text)
-                    ?.groupValues
-                    ?.get(1)
+                    .findFirst(text)
+                    ?.group(1)
                     ?.trim()
                     ?.let { return it }
             }
@@ -1647,10 +1648,9 @@ public class RutrackerParser
                 val label = span.toStr().trim()
                 if (label.contains("Цикл", ignoreCase = true) || label.contains("Серия", ignoreCase = true)) {
                     val nextText = span.nextSibling()?.toString() ?: ""
-                    val match = SERIES_HTML_REGEX.find(nextText)
+                    val match = SERIES_HTML_REGEX.findFirst(nextText)
                     match
-                        ?.groupValues
-                        ?.get(1)
+                        ?.group(1)
                         ?.trim()
                         ?.let { return it }
                 }
@@ -2001,7 +2001,7 @@ public class RutrackerParser
                             } ?: postBody.toStr().trim()
 
                         // Clean HTML: normalize <br> tags, quotes and preserve links
-                        val cleanedHtml = html?.let { processCommentHtml(it).body().html() }
+                        val cleanedHtml = html?.let { HtmlSanitizer.sanitize(processCommentHtml(it).body().html()) }
 
                         if (text.isNotEmpty() && text.length > 10) { // Filter out very short comments
                             comments.add(
@@ -2110,7 +2110,7 @@ public class RutrackerParser
                                 doc.body().append("<br><div class='signature'>${signatureDoc.body().html()}</div>")
                             }
 
-                            doc.body().html()
+                            doc.body().html().let { HtmlSanitizer.sanitize(it) }
                         }
 
                     if (text.isNotEmpty() && text.length > 10) { // Filter out very short comments
@@ -2239,10 +2239,15 @@ public class RutrackerParser
             // Trailing bracket WITH commas = metadata block: strip brackets, keep full text.
             // Trailing bracket WITHOUT commas = tag: remove entirely.
             var metadata: String? = null
-            val trailingMatch = TRAILING_BRACKET_REGEX.find(cleaned)
+            val trailingMatch = TRAILING_BRACKET_REGEX.findFirst(cleaned)
             if (trailingMatch != null) {
-                val inner = WHITESPACE_REGEX.replace(trailingMatch.groupValues[1], " ").trim()
-                cleaned = cleaned.substring(0, trailingMatch.range.first).trim()
+                val inner =
+                    trailingMatch
+                        .group(1)
+                        .orEmpty()
+                        .replace(WHITESPACE_REGEX, " ")
+                        .trim()
+                cleaned = cleaned.substring(0, trailingMatch.start()).trim()
                 if (inner.contains(",")) {
                     metadata = inner
                 }

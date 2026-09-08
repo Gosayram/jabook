@@ -183,7 +183,7 @@ public class MediaStoreBookScanner
                     .ifBlank { "Unknown Album" }
             }
 
-        private suspend fun createScannedBook(
+        internal suspend fun createScannedBook(
             album: String,
             files: List<AudioFileInfo>,
         ): ScannedBook? {
@@ -215,21 +215,35 @@ public class MediaStoreBookScanner
                     // Best-candidate selection: garbage MediaStore tags (U+FFFD, mojibake,
                     // track-filenames) lose to parser metadata or the filename fallback
                     // instead of winning by position.
-                    val bestTitle =
-                        MetadataQualityPolicy.selectBest(
-                            file.title,
-                            runCatching { metadataParser.parseMetadata(file.filePath)?.title }.getOrNull(),
-                            java.io
-                                .File(file.displayName)
-                                .nameWithoutExtension
-                                .takeIf { it.isNotBlank() },
-                        ) ?: "Chapter ${index + 1}"
+                    val parserTitle =
+                        if (file.filePath == firstFile.filePath) {
+                            // First file was already parsed for book-level metadata — reuse it.
+                            metadata?.title
+                        } else {
+                            runCatching { metadataParser.parseMetadata(file.filePath)?.title }.getOrNull()
+                        }
+                    val fileName =
+                        File(file.displayName)
+                            .nameWithoutExtension
+                            .takeIf { it.isNotBlank() }
+                    val bestTitle = MetadataQualityPolicy.selectBest(file.title, fileName, parserTitle)
 
-                    val (fixedTitle, detectedEncoding) = encodingDetector.fixGarbledText(bestTitle)
+                    if (bestTitle != null &&
+                        bestTitle == parserTitle &&
+                        file.title != null &&
+                        MediaStoreMetadataFallbackPolicy.hasReplacementCharacter(file.title)
+                    ) {
+                        logger.d {
+                            "MediaStore title corrupted for ${file.filePath}, preferring parser title '$bestTitle'"
+                        }
+                    }
+
+                    val chapterTitle = chapterTitleOrTrackFallback(bestTitle, file.displayName, index)
+                    val (fixedTitle, detectedEncoding) = encodingDetector.fixGarbledText(chapterTitle)
 
                     if (detectedEncoding != null) {
                         logger.d {
-                            "Chapter encoding fix: '$bestTitle' -> '$fixedTitle' ($detectedEncoding)"
+                            "Chapter encoding fix: '$chapterTitle' -> '$fixedTitle' ($detectedEncoding)"
                         }
                     }
 
@@ -245,14 +259,52 @@ public class MediaStoreBookScanner
 
             val finalChapters = expandEmbeddedChapters(chapters) ?: chapters
 
+            val dirName =
+                File(firstFile.filePath)
+                    .parent
+                    ?.substringAfterLast(File.separator)
+                    ?.takeIf { it.isNotBlank() }
+
             return ScannedBook(
                 directory = File(firstFile.filePath).parent ?: "",
-                title = metadata?.album ?: sanitizedAlbum ?: "Unknown Album",
-                author = metadata?.albumArtist ?: metadata?.artist ?: sanitizedAuthorFromMediaStore ?: "Unknown",
+                // Best-wins: qualityScore lets a clean MediaStore album beat a
+                // corrupted parser field and vice versa, instead of always trusting the parser.
+                title =
+                    MetadataQualityPolicy.selectBest(
+                        metadata?.album,
+                        sanitizedAlbum,
+                        dirName,
+                    ) ?: "Unknown Album",
+                author =
+                    MetadataQualityPolicy.selectBest(
+                        metadata?.albumArtist,
+                        metadata?.artist,
+                        sanitizedAuthorFromMediaStore,
+                    ) ?: "Unknown",
                 chapters = finalChapters,
                 totalDuration = finalChapters.sumOf { it.duration },
                 coverArt = metadata?.coverArt,
             )
+        }
+
+        /**
+         * Turns track-style names ("Track 01", "03") into "Chapter N" titles:
+         * the leading number of the file name when present, the position
+         * otherwise. Real titles (not null, not a bare track name) win as-is.
+         */
+        private fun chapterTitleOrTrackFallback(
+            best: String?,
+            displayName: String,
+            index: Int,
+        ): String {
+            if (best != null && !MetadataQualityPolicy.isLikelyTrackFileName(best)) return best
+            val leadingNumber =
+                LEADING_NUMBER
+                    .find(displayName)
+                    ?.groupValues
+                    ?.get(1)
+                    ?.toIntOrNull()
+            return "Chapter ${leadingNumber ?: index + 1}"
         }
 
         /**
@@ -292,5 +344,8 @@ public class MediaStoreBookScanner
         private companion object {
             /** Extensions that may contain embedded Nero chapter atoms. */
             private val EMBEDDED_CHAPTER_EXTENSIONS = setOf("m4b", "m4a")
+
+            /** Leading chapter number in a file name like "03 - The Call.mp3". */
+            private val LEADING_NUMBER = Regex("""^\s*(\d+)""")
         }
     }

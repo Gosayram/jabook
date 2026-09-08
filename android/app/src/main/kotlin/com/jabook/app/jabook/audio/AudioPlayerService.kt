@@ -1021,7 +1021,14 @@ public class AudioPlayerService : MediaLibraryService() {
             playerServiceScope.launch {
                 while (true) {
                     val player = getActivePlayer()
-                    if (!player.isPlaying) break
+                    if (!player.isPlaying) {
+                        // Keep polling instead of breaking: the play-state listener
+                        // can miss a resume (e.g. seekTo with playWhenReady already
+                        // latched), which would freeze the subtitle mid-playback.
+                        // Cheap when idle; pause cleanup is handled by the listener.
+                        delay(5000)
+                        continue
+                    }
 
                     val currentIndex = player.currentMediaItemIndex
                     val totalTracks = player.mediaItemCount

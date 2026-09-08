@@ -108,7 +108,7 @@ public abstract class DataModule {
     @Binds
     @Singleton
     public abstract fun bindAudioMetadataParser(
-        impl: com.jabook.app.jabook.compose.data.local.parser.Media3MetadataParser,
+        impl: com.jabook.app.jabook.compose.data.local.parser.HybridAudioMetadataParser,
     ): com.jabook.app.jabook.compose.data.local.parser.AudioMetadataParser
 
     public companion object {

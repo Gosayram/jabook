@@ -221,8 +221,20 @@ public class ComposeMainActivity : AppCompatActivity() {
         val magnetUrl = uri.toString()
         logger.d { "Handling magnet link: $magnetUrl" }
 
-        // Get default save path (app-specific storage)
-        val savePath = "${getExternalFilesDir(null)}/JabookAudio/downloads"
+        // getExternalFilesDir returns null when external storage is unavailable
+        // (unmounted/locked) — interpolating it would literally build "null/..."
+        val externalDir = getExternalFilesDir(null)
+        if (externalDir == null) {
+            logger.w { "External storage unavailable, cannot start torrent download" }
+            Toast
+                .makeText(
+                    this,
+                    getString(R.string.downloadFailed, getString(R.string.downloadFailedLabel)),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            return
+        }
+        val savePath = "$externalDir/JabookAudio/downloads"
 
         lifecycleScope.launch {
             runCatching {

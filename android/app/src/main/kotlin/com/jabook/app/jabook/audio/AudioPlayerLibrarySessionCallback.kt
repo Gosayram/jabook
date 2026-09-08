@@ -916,6 +916,9 @@ public class AudioPlayerLibrarySessionCallback(
                                 }
                             }
                     metadataBuilder.setExtras(metadataExtras)
+                    // ponytail: browse items carry no MediaItem duration; controllers render
+                    // "0:00" rows without it — use the persisted/cache-derived total.
+                    if (totalDuration > 0) metadataBuilder.setDurationMs(totalDuration)
 
                     items.add(
                         MediaItem
@@ -1120,6 +1123,8 @@ public class AudioPlayerLibrarySessionCallback(
                                 MediaMetadataExtrasHelper.run { addExplicitFlag(isExplicit) }
                             }
                     metadataBuilder.setExtras(metadataExtras)
+                    // ponytail: same as onGetChildren — search rows need a duration to render
+                    if (totalDuration > 0) metadataBuilder.setDurationMs(totalDuration)
 
                     items.add(
                         MediaItem
