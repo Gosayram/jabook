@@ -6,12 +6,12 @@
         <item name="android:windowBackground">@drawable/launch_background</item>
     </style>
     <!-- Theme applied after splash screen for light mode windows. -->
-    <style name="AppWindowTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="AppWindowTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
     
     <!-- Theme for DataManagementActivity (transparent background like lissen) -->
-    <style name="Theme.Transparent" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.Transparent" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>
     </style>
