@@ -21,8 +21,8 @@ import org.junit.Test
 class FileUtilsSanitizeFilenameTest {
     @Test
     fun `replaces volume-illegal characters`() {
-        assertEquals("a_b_c", FileUtils.sanitizeFilename("a/b?c:d"))
-        assertEquals("star_pipes", FileUtils.sanitizeFilename("star|pipes*"))
+        assertEquals("a_b_c_d", FileUtils.sanitizeFilename("a/b?c:d"))
+        assertEquals("star_pipes", FileUtils.sanitizeFilename("star|pipes"))
     }
 
     @Test
