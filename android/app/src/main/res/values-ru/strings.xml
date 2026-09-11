@@ -2954,6 +2954,13 @@
     <string name="deleteDownloadConfirmMessage">Вы уверены, что хотите удалить "%1$s"?</string>
     <string name="deleteDownloadWithFiles">Также удалить загруженные файлы</string>
     <string name="indexingForumsSectionTitle">Индексация форумов</string>
+    <string name="forumsToIndex">Форумы для индексации</string>
+    <string name="allForumsCount">Все форумы (%1$d)</string>
+    <string name="selectedForumsCount">Выбрано форумов: %1$d</string>
+    <string name="all">Все</string>
+    <string name="quickForumsCount">Быстро (%1$d)</string>
+    <string name="forumId">Форум %1$s</string>
+    <string name="affectsOfflineIndexingOnly">Влияет только на офлайн-индексацию</string>
     <string name="indexTapToCreate">Нажмите для создания индекса</string>
     <string name="indexTapToUpdate">Нажмите для обновления индекса</string>
     <string name="indexClearingTitle">Очистка индекса...</string>

@@ -287,6 +287,11 @@ public fun JabookNavHost(
                         launchSingleTop = true
                     }
                 },
+                onNavigateToScanSettings = {
+                    navController.navigate(ScanSettingsRoute) {
+                        launchSingleTop = true
+                    }
+                },
                 onNavigateToAuth = {
                     navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute) {
                         launchSingleTop = true

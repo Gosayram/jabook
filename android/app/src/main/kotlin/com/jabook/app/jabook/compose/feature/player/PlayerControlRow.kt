@@ -16,8 +16,9 @@ package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -48,11 +49,12 @@ import com.jabook.app.jabook.compose.domain.model.SleepTimerState
  * Secondary player control buttons — Level 2 single row per wireframe:
  * Speed | Sleep Timer | Chapters | Bookmarks. Level 3 (Lyrics, Tune/EQ, visualizer,
  * chapter repeat, A-B repeat, stats) lives in overflow.
- * Single row on all sizes; compact uses smaller heights.
+ * Compact widths use two rows so labels remain visible.
  *
- * ponytail: ButtonGroup (M3 1.5 alpha) downgraded to stable Row + connectedItemShape + weight(1f)
+ * ponytail: ButtonGroup (M3 1.5 alpha) downgraded to stable FlowRow + connectedItemShape + weight(1f)
  * spacedBy 2.dp faux — add ButtonGroup(expandedRatio=0.15f) when M3 1.5 stable.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun PlayerControlRow(
     isCompact: Boolean,
@@ -75,17 +77,19 @@ internal fun PlayerControlRow(
             is SleepTimerState.EndOfTrack -> stringResource(R.string.endOfTrackLabel)
             SleepTimerState.Idle -> stringResource(R.string.sleepTimer)
         }
-    // ponytail: 2dp faux connected spacing — ButtonGroup.ConnectedSpaceBetween when stable
-    Row(
+    // ponytail: two compact rows preserve labels and 48dp targets; use ButtonGroup when stable.
+    FlowRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
+        itemVerticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        maxItemsInEachRow = if (isCompact) 2 else 4,
     ) {
         Button(
             onClick = onSpeedButtonClick,
             interactionSource = speedButtonInteractionSource,
             shape = connectedItemShape(0, 4),
-            contentPadding = PaddingValues(horizontal = 12.dp),
+            contentPadding = PaddingValues(horizontal = if (isCompact) 8.dp else 12.dp),
             modifier = Modifier.weight(1f).height(controlButtonHeight),
         ) {
             Icon(
@@ -99,7 +103,7 @@ internal fun PlayerControlRow(
         Button(
             onClick = onSleepTimerClick,
             shape = connectedItemShape(1, 4),
-            contentPadding = PaddingValues(horizontal = 12.dp),
+            contentPadding = PaddingValues(horizontal = if (isCompact) 8.dp else 12.dp),
             modifier = Modifier.weight(1f).height(controlButtonHeight),
         ) {
             Icon(
@@ -113,7 +117,7 @@ internal fun PlayerControlRow(
         Button(
             onClick = onChaptersClick,
             shape = connectedItemShape(2, 4),
-            contentPadding = PaddingValues(horizontal = 12.dp),
+            contentPadding = PaddingValues(horizontal = if (isCompact) 8.dp else 12.dp),
             modifier = Modifier.weight(1f).height(controlButtonHeight),
         ) {
             Icon(
@@ -127,7 +131,7 @@ internal fun PlayerControlRow(
         Button(
             onClick = onBookmarksClick,
             shape = connectedItemShape(3, 4),
-            contentPadding = PaddingValues(horizontal = 12.dp),
+            contentPadding = PaddingValues(horizontal = if (isCompact) 8.dp else 12.dp),
             modifier = Modifier.weight(1f).height(controlButtonHeight),
         ) {
             Icon(

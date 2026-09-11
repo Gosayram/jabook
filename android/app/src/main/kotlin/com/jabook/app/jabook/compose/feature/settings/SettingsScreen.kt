@@ -95,9 +95,11 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -1344,12 +1346,12 @@ public fun SettingsScreen(
             val forumCount = effectiveForums.split(",").size
 
             SettingsItem(
-                title = "Forums to index",
+                title = stringResource(R.string.forumsToIndex),
                 subtitle =
                     if (selectedForums.isBlank()) {
-                        "All forums ($forumCount)"
+                        stringResource(R.string.allForumsCount, forumCount)
                     } else {
-                        "Selected: $forumCount forums"
+                        stringResource(R.string.selectedForumsCount, forumCount)
                     },
                 onClick = { forumSelectorExpanded = !forumSelectorExpanded },
             )
@@ -1364,7 +1366,7 @@ public fun SettingsScreen(
                                 selectedForums = ""
                                 viewModel.updateSelectedForumIds("")
                             },
-                            label = { Text("All") },
+                            label = { Text(stringResource(R.string.all)) },
                         )
                         FilterChip(
                             selected = selectedForums == quickPreset,
@@ -1372,7 +1374,7 @@ public fun SettingsScreen(
                                 selectedForums = quickPreset
                                 viewModel.updateSelectedForumIds(quickPreset)
                             },
-                            label = { Text("Quick (2)") },
+                            label = { Text(stringResource(R.string.quickForumsCount, 2)) },
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -1409,13 +1411,13 @@ public fun SettingsScreen(
                                     selectedForums = newIds
                                     viewModel.updateSelectedForumIds(newIds)
                                 },
-                                label = { Text("Forum $forumId") },
+                                label = { Text(stringResource(R.string.forumId, forumId)) },
                             )
                         }
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Affects offline indexing only",
+                        text = stringResource(R.string.affectsOfflineIndexingOnly),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -1449,6 +1451,10 @@ public fun SettingsScreen(
             )
 
             if (isIndexing || indexSize > 0 || clearingInProgress) {
+                val statusOnlyProgress =
+                    (indexingProgress as? com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress)
+                        ?.detail
+                        ?.takeUnless { it.hasDetailedProgress }
                 SettingsItemWithContent(
                     title =
                         if (clearingInProgress) {
@@ -1462,13 +1468,18 @@ public fun SettingsScreen(
                             indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress -> {
                                 val progress = indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
                                 val timeText = if (elapsedTimeStr.isNotEmpty()) " • $elapsedTimeStr" else ""
-                                stringResource(
-                                    R.string.indexingCompactStatus,
-                                    progress.detail.currentForumName,
-                                    progress.detail.totalForumsCompleted + 1,
-                                    progress.detail.totalForums,
-                                    timeText,
-                                )
+                                if (progress.detail.hasDetailedProgress) {
+                                    stringResource(
+                                        R.string.indexingCompactStatus,
+                                        progress.detail.currentForumName,
+                                        progress.detail.totalForumsCompleted + 1,
+                                        progress.detail.totalForums,
+                                        timeText,
+                                    )
+                                } else {
+                                    progress.detail.currentForumName
+                                        .ifBlank { stringResource(R.string.indexingPreparing) }
+                                }
                             }
                             indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.Completed -> {
                                 val completed =
@@ -1503,44 +1514,53 @@ public fun SettingsScreen(
                                 )
                             else -> stringResource(R.string.indexReadyToStart)
                         },
+                    subtitleModifier =
+                        if (statusOnlyProgress != null) {
+                            Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                        } else {
+                            Modifier
+                        },
                 ) {
                     if (isIndexing &&
                         indexingProgress is com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
                     ) {
                         val progress = indexingProgress as com.jabook.app.jabook.compose.data.indexing.IndexingProgress.InProgress
-                        val totalForums = progress.detail.totalForums
-                        val progressValue =
-                            if (totalForums > 0) {
-                                progress.detail.totalForumsCompleted.toFloat() / totalForums.toFloat()
-                            } else {
-                                0f
-                            }
 
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            androidx.compose.material3.LinearProgressIndicator(
-                                progress = { progressValue },
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 8.dp),
-                            )
-                            val indexedTopics =
-                                pluralStringResource(
-                                    R.plurals.indexTopicsCount,
-                                    progress.detail.topicsFound,
-                                    progress.detail.topicsFound,
+                            if (progress.detail.hasDetailedProgress) {
+                                val progressValue = progress.detail.percentComplete
+                                androidx.compose.material3.LinearProgressIndicator(
+                                    progress = { progressValue },
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp),
                                 )
-                            Text(
-                                text =
-                                    stringResource(
-                                        R.string.indexProgressWithTopics,
-                                        (progressValue * 100).toInt(),
-                                        indexedTopics,
-                                    ),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
+                                val indexedTopics =
+                                    pluralStringResource(
+                                        R.plurals.indexTopicsCount,
+                                        progress.detail.topicsFound,
+                                        progress.detail.topicsFound,
+                                    )
+                                Text(
+                                    text =
+                                        stringResource(
+                                            R.string.indexProgressWithTopics,
+                                            (progressValue * 100).toInt(),
+                                            indexedTopics,
+                                        ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                            } else {
+                                androidx.compose.material3.LinearProgressIndicator(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp),
+                                )
+                            }
                         }
                     } else if (clearingInProgress) {
                         androidx.compose.material3.LinearProgressIndicator(
@@ -1922,6 +1942,7 @@ internal fun SettingsItem(
 internal fun SettingsItemWithContent(
     title: String,
     subtitle: String? = null,
+    subtitleModifier: Modifier = Modifier,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
@@ -1940,7 +1961,7 @@ internal fun SettingsItemWithContent(
                         text = subtitle,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().then(subtitleModifier),
                     )
                 }
                 content()

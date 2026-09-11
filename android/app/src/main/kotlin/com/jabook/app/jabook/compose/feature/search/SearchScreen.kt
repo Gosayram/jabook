@@ -161,7 +161,6 @@ public fun SearchScreen(
     val context = LocalContext.current
     val isIndexing by indexingViewModel.isIndexing.collectAsStateWithLifecycle()
     val indexSize by indexingViewModel.indexSize.collectAsStateWithLifecycle()
-    val showIndexingMessage = isIndexing || indexSize == 0
 
     // Removed filter sheet - using adaptive pane instead
     val imagePickerLauncher =
@@ -335,7 +334,7 @@ public fun SearchScreen(
                                     ),
                         ) {
                             // Show indexing message if index is empty
-                            if (showIndexingMessage && indexSize == 0) {
+                            if (indexSize == 0 && !isIndexing) {
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
                                     colors =

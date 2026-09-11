@@ -44,7 +44,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -110,55 +112,61 @@ public fun IndexingProgressDialog(
                     }
 
                     is IndexingProgress.InProgress -> {
-                        // Progress bar
-                        LinearProgressIndicator(
-                            progress = { progress.detail.percentComplete },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-
-                        // Status text
-                        val forumProgressText =
-                            stringResource(
-                                R.string.indexingStatusForumProgress,
-                                progress.detail.totalForumsCompleted + 1,
-                                progress.detail.totalForums,
+                        if (progress.detail.hasDetailedProgress) {
+                            LinearProgressIndicator(
+                                progress = { progress.detail.percentComplete },
+                                modifier = Modifier.fillMaxWidth(),
                             )
-                        val topicsIndexedText =
-                            pluralStringResource(
-                                R.plurals.indexTopicsIndexed,
-                                progress.detail.topicsFound,
-                                progress.detail.topicsFound,
-                            )
-                        Text(
-                            text =
-                                forumProgressText + "\n" +
-                                    topicsIndexedText,
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
 
-                        // Per-forum status list
-                        if (forumStatuses.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            LazyColumn(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(max = 200.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                items(forumStatuses, key = { it.forumId }, contentType = { "forum_status" }) { status ->
-                                    ForumStatusRow(status)
+                            val forumProgressText =
+                                stringResource(
+                                    R.string.indexingStatusForumProgress,
+                                    progress.detail.totalForumsCompleted + 1,
+                                    progress.detail.totalForums,
+                                )
+                            val topicsIndexedText =
+                                pluralStringResource(
+                                    R.plurals.indexTopicsIndexed,
+                                    progress.detail.topicsFound,
+                                    progress.detail.topicsFound,
+                                )
+                            Text(
+                                text =
+                                    forumProgressText + "\n" +
+                                        topicsIndexedText,
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+
+                            if (forumStatuses.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                LazyColumn(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(max = 200.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    items(forumStatuses, key = { it.forumId }, contentType = { "forum_status" }) { status ->
+                                        ForumStatusRow(status)
+                                    }
                                 }
                             }
-                        }
 
-                        // Progress percentage
-                        Text(
-                            text = UiFormatters.formatPercent(progress.detail.percentComplete),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
+                            Text(
+                                text = UiFormatters.formatPercent(progress.detail.percentComplete),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        } else {
+                            CircularProgressIndicator()
+                            Text(
+                                text = progress.detail.currentForumName.ifBlank { stringResource(R.string.indexingPreparing) },
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                            )
+                        }
                     }
 
                     is IndexingProgress.Completed -> {

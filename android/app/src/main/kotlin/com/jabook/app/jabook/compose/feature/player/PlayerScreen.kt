@@ -96,9 +96,9 @@ import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
@@ -879,6 +879,7 @@ public fun PlayerScreen(
                             when (animatedState) {
                                 is PlayerState.Loading -> {
                                     PlayerLoadingSkeleton(
+                                        reduceMotion = reduceMotion,
                                         modifier = Modifier.fillMaxSize(),
                                     )
                                 }
@@ -2331,19 +2332,28 @@ private fun PlayerContent(
 }
 
 @Composable
-private fun PlayerLoadingSkeleton(modifier: Modifier = Modifier) {
+private fun PlayerLoadingSkeleton(
+    reduceMotion: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val loadingPlayerLabel = stringResource(R.string.loading_player)
-    val transition = rememberInfiniteTransition(label = "player_loading_skeleton")
-    val shimmerShift by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(durationMillis = 1100, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "player_loading_shimmer_shift",
-    )
+    val shimmerShift =
+        if (reduceMotion) {
+            0f
+        } else {
+            val transition = rememberInfiniteTransition(label = "player_loading_skeleton")
+            val shift by transition.animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec =
+                    infiniteRepeatable(
+                        animation = tween(durationMillis = 1100, easing = LinearEasing),
+                        repeatMode = RepeatMode.Restart,
+                    ),
+                label = "player_loading_shimmer_shift",
+            )
+            shift
+        }
     val shimmerBrush =
         Brush.linearGradient(
             colors =

@@ -50,6 +50,7 @@ import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.timeout
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
@@ -251,7 +252,8 @@ class TorrentDownloadsViewModelTest {
             advanceUntilIdle()
 
             assertEquals("Download queued: Waiting for WiFi connection", snackbarDeferred.await())
-            verify(torrentManager).addTorrent("magnet:?xt=urn:btih:test", "/tmp")
+            // addTorrent runs on Dispatchers.IO, outside the test scheduler — await instead of race
+            verify(torrentManager, timeout(2000)).addTorrent("magnet:?xt=urn:btih:test", "/tmp")
         }
 
     @Test

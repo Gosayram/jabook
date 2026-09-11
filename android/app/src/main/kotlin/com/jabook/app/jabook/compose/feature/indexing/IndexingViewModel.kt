@@ -332,15 +332,10 @@ public class IndexingViewModel
                 }
         }
 
-        private fun WorkInfo.toIndexingProgress(): IndexingProgress {
-            val percent = progress.getInt("progress_percent", 0).coerceIn(0, 100)
-            return IndexingProgress.InProgress(
+        private fun WorkInfo.toIndexingProgress(): IndexingProgress =
+            IndexingProgress.InProgress(
                 IndexProgress(
                     currentForumName = progress.getString("progress_message").orEmpty(),
-                    currentForumPage = percent,
-                    totalForums = 1,
-                    topicsFound = percent,
                 ),
             )
-        }
     }

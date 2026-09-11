@@ -109,6 +109,9 @@ public data class IndexProgress(
     val errors: List<String> = emptyList(),
     val forumStatuses: List<ForumStatus> = emptyList(),
 ) {
+    public val hasDetailedProgress: Boolean
+        get() = totalForums > 0
+
     /**
      * Overall progress percentage (0.0 to 1.0).
      * Each forum contributes 1/totalForums to progress, subdivided by page count.

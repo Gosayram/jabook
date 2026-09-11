@@ -14,6 +14,8 @@
 
 package com.jabook.app.jabook.compose.feature.indexing
 
+import androidx.work.WorkInfo
+import androidx.work.workDataOf
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
@@ -114,5 +116,26 @@ class IndexingViewModelTest {
 
             assertFalse(cleared)
             assertFalse(viewModel.clearingInProgress.value)
+        }
+
+    @Test
+    fun `work manager progress keeps only its reported status`() =
+        runTest(testDispatcher.scheduler) {
+            val workInfo: WorkInfo = mock()
+            whenever(workInfo.state).thenReturn(WorkInfo.State.RUNNING)
+            whenever(workInfo.progress).thenReturn(workDataOf("progress_message" to "Indexing fiction"))
+            whenever(indexingWorkScheduler.observe()).thenReturn(kotlinx.coroutines.flow.flowOf(listOf(workInfo)))
+
+            IndexingViewModel::class.java
+                .getDeclaredMethod("startIndexingWorkMonitor")
+                .apply { isAccessible = true }
+                .invoke(viewModel)
+            runCurrent()
+
+            val progress = viewModel.indexingProgress.value as IndexingProgress.InProgress
+            assertEquals("Indexing fiction", progress.detail.currentForumName)
+            assertFalse(progress.detail.hasDetailedProgress)
+            assertEquals(0, progress.detail.currentForumPage)
+            assertEquals(0, progress.detail.topicsFound)
         }
 }

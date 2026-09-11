@@ -2919,6 +2919,13 @@
     <string name="deleteDownloadConfirmMessage">Are you sure you want to delete "%1$s"?</string>
     <string name="deleteDownloadWithFiles">Also delete downloaded files</string>
     <string name="indexingForumsSectionTitle">Forum indexing</string>
+    <string name="forumsToIndex">Forums to index</string>
+    <string name="allForumsCount">All forums (%1$d)</string>
+    <string name="selectedForumsCount">Selected: %1$d forums</string>
+    <string name="all">All</string>
+    <string name="quickForumsCount">Quick (%1$d)</string>
+    <string name="forumId">Forum %1$s</string>
+    <string name="affectsOfflineIndexingOnly">Affects offline indexing only</string>
     <string name="indexTapToCreate">Tap to create index</string>
     <string name="indexTapToUpdate">Tap to update index</string>
     <string name="indexClearingTitle">Clearing index...</string>

@@ -170,6 +170,7 @@ public fun LibraryScreen(
     onNavigateToFavorites: () -> Unit = {},
     onNavigateToAudioSettings: () -> Unit = {},
     onNavigateToSettings: () -> Unit = {},
+    onNavigateToScanSettings: () -> Unit = {},
     onNavigateToAuth: () -> Unit = {},
     onFirstMeaningfulContentDrawn: () -> Unit = {},
     onMenuClick: () -> Unit = {},
@@ -192,6 +193,7 @@ public fun LibraryScreen(
     val safeNavigateToSearch = dropUnlessResumed { navigationClickGuard.run(onNavigateToSearch) }
     val safeNavigateToDownloads = dropUnlessResumed { navigationClickGuard.run(onNavigateToDownloads) }
     val safeNavigateToSettings = dropUnlessResumed { navigationClickGuard.run(onNavigateToSettings) }
+    val safeNavigateToScanSettings = dropUnlessResumed { navigationClickGuard.run(onNavigateToScanSettings) }
     val safeNavigateToAuth = dropUnlessResumed { navigationClickGuard.run(onNavigateToAuth) }
     var activeQuickFilter by rememberSaveable { mutableStateOf(LibraryQuickFilter.ALL) }
     var showSortBottomSheet by rememberSaveable { mutableStateOf(false) }
@@ -671,7 +673,17 @@ public fun LibraryScreen(
                                                     .fillMaxWidth()
                                                     .padding(horizontal = 16.dp)
                                                     .padding(top = 8.dp, bottom = 8.dp),
-                                        ) {}
+                                        ) {
+                                            if (filteredBooks.isEmpty()) {
+                                                EmptyState(message = stringResource(R.string.noBooksMatchFilter))
+                                            } else {
+                                                UnifiedBooksView(
+                                                    books = filteredBooks,
+                                                    displayMode = viewMode.toBookDisplayMode(),
+                                                    actionsProvider = actionsProvider,
+                                                )
+                                            }
+                                        }
                                         val bookCounts =
                                             remember(books) {
                                                 mapOf(
@@ -716,8 +728,8 @@ public fun LibraryScreen(
                                 EmptyState(
                                     message = stringResource(R.string.noBooksInLibrary),
                                     subtitle = stringResource(R.string.noFoldersConfiguredPleaseAddInSettings),
-                                    ctaText = stringResource(R.string.retry),
-                                    onCta = { viewModel.startLibraryScan() },
+                                    ctaText = stringResource(R.string.addFolder),
+                                    onCta = safeNavigateToScanSettings,
                                 )
                             }
 
@@ -1018,7 +1030,17 @@ public fun LibraryScreen(
                                                             .widthIn(min = 360.dp, max = 720.dp)
                                                             .padding(horizontal = 16.dp)
                                                             .padding(top = 8.dp, bottom = 8.dp),
-                                                ) {}
+                                                ) {
+                                                    if (filteredBooks.isEmpty()) {
+                                                        EmptyState(message = stringResource(R.string.noBooksMatchFilter))
+                                                    } else {
+                                                        UnifiedBooksView(
+                                                            books = filteredBooks,
+                                                            displayMode = viewMode.toBookDisplayMode(),
+                                                            actionsProvider = actionsProvider,
+                                                        )
+                                                    }
+                                                }
                                                 val bookCounts =
                                                     remember(books) {
                                                         mapOf(
@@ -1063,8 +1085,8 @@ public fun LibraryScreen(
                                         EmptyState(
                                             message = stringResource(R.string.noBooksInLibrary),
                                             subtitle = stringResource(R.string.noFoldersConfiguredPleaseAddInSettings),
-                                            ctaText = stringResource(R.string.retry),
-                                            onCta = { viewModel.startLibraryScan() },
+                                            ctaText = stringResource(R.string.addFolder),
+                                            onCta = safeNavigateToScanSettings,
                                         )
                                     }
 
