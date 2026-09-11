@@ -123,6 +123,7 @@ private val searchScreenLogger by lazy { LoggerFactoryImpl().get("SearchScreen")
  * @param onNavigateBack Callback to navigate back
  * @param onBookClick Callback when book is clicked (local Book)
  * @param onOnlineBookClick Callback when online search result is clicked
+ * @param onSearchOnline Callback to delegate the query to the dedicated RuTracker search screen
  * @param viewModel ViewModel provided by Hilt
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3AdaptiveApi::class)
@@ -131,6 +132,7 @@ public fun SearchScreen(
     onNavigateBack: () -> Unit,
     onBookClick: (String) -> Unit,
     onOnlineBookClick: (RutrackerSearchResult) -> Unit,
+    onSearchOnline: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
@@ -374,7 +376,7 @@ public fun SearchScreen(
                             if (searchQuery.isNotEmpty()) {
                                 if (indexSize > 0) {
                                     Button(
-                                        onClick = viewModel::searchOnline,
+                                        onClick = { onSearchOnline(searchQuery) },
                                         modifier = Modifier.fillMaxWidth(),
                                     ) {
                                         Icon(Icons.Filled.Search, contentDescription = null)

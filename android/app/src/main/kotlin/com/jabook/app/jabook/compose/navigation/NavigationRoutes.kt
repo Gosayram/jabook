@@ -106,9 +106,13 @@ public data class TopicRoute(
 
 /**
  * RuTracker Search screen route - search audiobooks on RuTracker.
+ *
+ * @param query Optional initial search query, pre-filled and executed on entry
  */
 @Serializable
-public object RutrackerSearchRoute
+public data class RutrackerSearchRoute(
+    val query: String? = null,
+)
 
 @Serializable
 public object ScanSettingsRoute

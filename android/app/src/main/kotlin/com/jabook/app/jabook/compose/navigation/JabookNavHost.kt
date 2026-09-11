@@ -330,7 +330,7 @@ public fun JabookNavHost(
         ) { backStackEntry ->
             PlayerScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.navigateUp()
                 },
                 onNavigateToBook = { bookId ->
                     navController.navigate(PlayerRoute(bookId = bookId)) {
@@ -363,7 +363,7 @@ public fun JabookNavHost(
             WebViewScreen(
                 route = route,
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.navigateUp()
                 },
                 onMagnetLinkDetected = { magnetUrl ->
                     navController.navigate(DownloadsRoute(magnetLink = magnetUrl)) {
@@ -431,7 +431,7 @@ public fun JabookNavHost(
         composable<com.jabook.app.jabook.compose.feature.auth.AuthRoute> {
             com.jabook.app.jabook.compose.feature.auth.AuthScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.navigateUp()
                 },
                 onNavigateToWebView = { url ->
                     navController.navigate(
@@ -461,6 +461,11 @@ public fun JabookNavHost(
                         launchSingleTop = true
                     }
                 },
+                onSearchOnline = { query ->
+                    navController.navigate(RutrackerSearchRoute(query = query)) {
+                        launchSingleTop = true
+                    }
+                },
             )
         }
 
@@ -470,11 +475,13 @@ public fun JabookNavHost(
                 listOf(
                     androidx.navigation.navDeepLink { uriPattern = "jabook://rutracker/search" },
                 ),
-        ) {
+        ) { backStackEntry ->
+            val route = backStackEntry.toRoute<RutrackerSearchRoute>()
             com.jabook.app.jabook.compose.feature.search.rutracker.RutrackerSearchScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.navigateUp()
                 },
+                initialQuery = route.query,
                 onTopicClick = { topicId ->
                     navigationLogger.d { "Navigating to Topic: topicId=$topicId" }
                     navController.navigate(TopicRoute(topicId = topicId)) {
@@ -493,7 +500,7 @@ public fun JabookNavHost(
         ) {
             com.jabook.app.jabook.compose.feature.torrent.TorrentDownloadsScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.navigateUp()
                 },
                 onNavigateToDetails = { hash ->
                     navController.navigate(TorrentDetailsRoute(hash)) {
@@ -507,7 +514,7 @@ public fun JabookNavHost(
         composable<TorrentDetailsRoute> {
             com.jabook.app.jabook.compose.feature.torrent.TorrentDetailsScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.navigateUp()
                 },
                 onPlayBook = { bookId ->
                     navController.navigate(PlayerRoute(bookId = bookId)) {

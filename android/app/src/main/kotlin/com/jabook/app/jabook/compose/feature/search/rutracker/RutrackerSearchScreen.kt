@@ -96,6 +96,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * - RutrackerParser with cascading selectors
  * - ParsingResult error handling
  * - MirrorManager, proper headers
+ *
+ * @param initialQuery Optional query pre-filled and searched once on first composition
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -103,6 +105,7 @@ public fun RutrackerSearchScreen(
     onNavigateBack: () -> Unit,
     onTopicClick: (String) -> Unit,
     modifier: Modifier = Modifier,
+    initialQuery: String? = null,
     viewModel: RutrackerSearchViewModel = hiltViewModel(),
     indexingViewModel: com.jabook.app.jabook.compose.feature.indexing.IndexingViewModel = hiltViewModel(),
 ) {
@@ -113,7 +116,7 @@ public fun RutrackerSearchScreen(
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 
-    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf(initialQuery.orEmpty()) }
     val searchState by viewModel.searchState.collectAsStateWithLifecycle()
     val recentTopics by viewModel.recentTopics.collectAsStateWithLifecycle()
     val filters by viewModel.filters.collectAsStateWithLifecycle()
@@ -137,6 +140,11 @@ public fun RutrackerSearchScreen(
     LaunchedEffect(Unit) {
         indexingViewModel.getIndexSize()
         indexCheckCompleted = true
+    }
+
+    // ponytail: one-shot init — re-fire after process recreation is harmless (cached results)
+    LaunchedEffect(Unit) {
+        initialQuery?.takeIf { it.isNotBlank() }?.let(viewModel::search)
     }
 
     LaunchedEffect(indexSize) {
