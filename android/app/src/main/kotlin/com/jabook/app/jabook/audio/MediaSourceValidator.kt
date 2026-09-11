@@ -51,6 +51,17 @@ public object MediaSourceValidator {
     private const val TAG = "MediaSourceValidator"
 
     /**
+     * Optional re-validator for remote (http/https) sources. When set, remote
+     * paths are HEAD-checked for aliveness on reuse instead of failing the
+     * local file checks (which cannot handle URLs). Dead URLs land in
+     * [ValidationResult.invalidPaths] so callers fall through to
+     * re-resolution/fallback; network-inconclusive results are accepted
+     * (fail-open — validator flakiness must never break playback).
+     */
+    @Volatile
+    public var remoteRevalidator: RemoteSourceRevalidator? = null
+
+    /**
      * Validates a list of file paths asynchronously on [Dispatchers.IO].
      *
      * @param filePaths Paths to validate.
@@ -63,6 +74,19 @@ public object MediaSourceValidator {
             val corrupted = mutableListOf<String>()
 
             for (path in filePaths) {
+                val revalidator = remoteRevalidator
+                if (isRemote(path) && revalidator != null) {
+                    when (revalidator.revalidate(android.net.Uri.parse(path))) {
+                        RemoteSourceStatus.DEAD -> {
+                            LogUtils.w(TAG, "Remote source dead: $path")
+                            invalid.add(path)
+                        }
+                        // ALIVE (server confirmed) or UNKNOWN (network inconclusive,
+                        // fail-open): accept the cached URL and keep playing.
+                        else -> valid.add(path)
+                    }
+                    continue
+                }
                 val file = File(path)
                 when {
                     !file.exists() || !file.isFile || !file.canRead() -> {
@@ -98,6 +122,12 @@ public object MediaSourceValidator {
         if (file.length() < MIN_FILE_SIZE_BYTES) return false
         return isValidAudioFile(file)
     }
+
+    /**
+     * Checks whether the path points at a remote (http/https) source.
+     * Mirrors [PlaylistPathPolicies] URL detection for string paths.
+     */
+    private fun isRemote(path: String): Boolean = path.startsWith("http://") || path.startsWith("https://")
 
     /**
      * Checks magic bytes of a file against known audio format signatures.

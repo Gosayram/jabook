@@ -67,6 +67,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -226,7 +230,9 @@ private fun GridBookCard(
             modifier
                 .fillMaxWidth()
                 .clip(cardShape)
-                .combinedClickable(
+                .onSecondaryClick(book.id, actionsProvider) {
+                    actionsProvider.onBookLongPress(book.id)
+                }.combinedClickable(
                     onClick = { actionsProvider.onBookClick(book.id) },
                     onLongClick = {
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -477,7 +483,9 @@ private fun ListBookCard(
                 Modifier
                     .fillMaxWidth()
                     .clip(CardDefaults.shape)
-                    .combinedClickable(
+                    .onSecondaryClick(book.id, actionsProvider) {
+                        actionsProvider.onBookLongPress(book.id)
+                    }.combinedClickable(
                         onClick = { actionsProvider.onBookClick(book.id) },
                         onLongClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -794,3 +802,42 @@ private fun TruncatedTooltipText(
     }
     // ponytail: isTruncated tracks overflow via hasVisualOverflow; wrapper always present (harmless when not truncated), expand to conditional when tooltip crowding matters
 }
+
+/**
+ * Intercepts mouse secondary (right) clicks and invokes [onSecondaryClick].
+ *
+ * Events are consumed at [PointerEventPass.Initial] so the sibling
+ * [androidx.compose.foundation.combinedClickable] never sees them —
+ * a right-click cannot trigger click, selection, or long-press.
+ *
+ * Keys mirror the captured state so recycled rows never fire with a stale book.
+ *
+ * @param key1 Key tied to the observed book (id)
+ * @param key2 Key tied to the observed actions provider
+ * @param onSecondaryClick Invoked when a mouse secondary press is detected
+ */
+private fun Modifier.onSecondaryClick(
+    key1: Any?,
+    key2: Any?,
+    onSecondaryClick: () -> Unit,
+): Modifier =
+    pointerInput(key1, key2) {
+        awaitPointerEventScope {
+            var tracking = false
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (event.type == PointerEventType.Press) {
+                    tracking = event.buttons.isSecondaryPressed
+                    if (tracking) {
+                        event.changes.forEach { it.consume() }
+                        onSecondaryClick()
+                    }
+                } else if (tracking) {
+                    event.changes.forEach { it.consume() }
+                    if (event.type == PointerEventType.Release || event.type == PointerEventType.Cancel) {
+                        tracking = false
+                    }
+                }
+            }
+        }
+    }

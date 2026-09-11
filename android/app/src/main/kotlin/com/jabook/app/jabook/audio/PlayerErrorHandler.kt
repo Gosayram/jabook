@@ -124,6 +124,19 @@ internal class PlayerErrorHandler(
                             ) {
                                 return@launch
                             }
+                            // spotube refreshStream: HEAD the cached remote URL before
+                            // replaying it — a dead URL would just fail prepare() again.
+                            val failedUri = failedPlayer.currentMediaItem?.localConfiguration?.uri
+                            if (failedUri != null &&
+                                MediaSourceValidator.remoteRevalidator?.revalidate(failedUri) == RemoteSourceStatus.DEAD
+                            ) {
+                                LogUtils.w(TAG, "Cached remote source dead, escalating past retry: $failedUri")
+                                if (!attemptSkipOnError()) {
+                                    onTerminalError("Playback error: Unable to recover automatically.")
+                                }
+                                scheduleNotificationUpdate()
+                                return@launch
+                            }
                             failedPlayer.prepare()
                             LogUtils.d(TAG, "Retry $retryCount after error (delay: ${backoffDelay}ms)")
                         }

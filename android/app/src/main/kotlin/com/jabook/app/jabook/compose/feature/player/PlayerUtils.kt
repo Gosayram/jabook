@@ -15,6 +15,9 @@
 package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import com.jabook.app.jabook.compose.feature.player.PlayerTimeFormatter
@@ -94,3 +97,28 @@ internal fun mapKeyEventToPlayerIntent(keyEvent: androidx.compose.ui.input.key.K
             }
         else -> null
     }
+
+// ponytail: 10s/30s mirror PlayerUiStateBuilder's hardcoded fallbacks; per-book/global configured
+// intervals live in PlayerViewModel state (SavedStateHandle-bound), unreachable at the app root.
+internal const val ROOT_SEEK_REWIND_SECONDS: Int = 10
+internal const val ROOT_SEEK_FORWARD_SECONDS: Int = 30
+
+/**
+ * Root-level global arrow-key seek (spotube SeekAction pattern): bare Left/Right arrow keys seek
+ * the active session from anywhere outside the PlayerScreen. Reuses [mapKeyEventToPlayerIntent]
+ * so arrow semantics stay defined in one place, but requires ALL modifiers released —
+ * shift+arrow (chapter skip), ctrl/alt/meta+arrow combos return null so the caller can return
+ * false and let normal focus traversal proceed.
+ *
+ * Returns the seek delta in milliseconds, or null when this event is not a bare arrow seek.
+ */
+internal fun mapBareArrowKeyUpToSeekDeltaMs(keyEvent: androidx.compose.ui.input.key.KeyEvent): Long? {
+    if (keyEvent.isShiftPressed || keyEvent.isCtrlPressed || keyEvent.isAltPressed || keyEvent.isMetaPressed) {
+        return null
+    }
+    return when (mapKeyEventToPlayerIntent(keyEvent)) {
+        PlayerIntent.SeekBackward -> -ROOT_SEEK_REWIND_SECONDS * 1000L
+        PlayerIntent.SeekForward -> ROOT_SEEK_FORWARD_SECONDS * 1000L
+        else -> null
+    }
+}

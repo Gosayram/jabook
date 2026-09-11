@@ -67,6 +67,7 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
+import com.jabook.app.jabook.compose.feature.player.mapBareArrowKeyUpToSeekDeltaMs
 import com.jabook.app.jabook.compose.navigation.JabookAppState
 import com.jabook.app.jabook.compose.navigation.JabookNavHost
 import com.jabook.app.jabook.compose.navigation.LibraryRoute
@@ -338,15 +339,33 @@ public fun JabookApp(
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            // ponytail: global Space play/pause — BUBBLING onKeyEvent, so a focused
-                            // TextField consumes Space first (returning true stops bubbling before
-                            // this root handler); we only ever see un-consumed events.
+                            // ponytail: global Space play/pause + bare Left/Right seek (spotube
+                            // SeekAction pattern) — BUBBLING onKeyEvent, so children that consume
+                            // these keys (TextField Space, focus-target arrows) never reach this
+                            // root handler; we only ever see un-consumed events. Returning false
+                            // for everything else lets focus traversal proceed untouched.
+                            // ponytail: single-step per KeyUp — PlayerScreen has no key-repeat
+                            // handler/policy (its repeats are incidental KeyDown auto-repeat),
+                            // which a KeyUp handler cannot mirror; add a repeat policy if needed.
                             .onKeyEvent { event ->
                                 val miniPlayerActive =
                                     currentBook != null && isMiniPlayerVisible && !isOnPlayerScreen
-                                if (event.type == KeyEventType.KeyUp && event.key == Key.Spacebar && miniPlayerActive) {
-                                    miniPlayerViewModel.togglePlayPause()
-                                    true
+                                if (event.type == KeyEventType.KeyUp && miniPlayerActive) {
+                                    when {
+                                        event.key == Key.Spacebar -> {
+                                            miniPlayerViewModel.togglePlayPause()
+                                            true
+                                        }
+                                        else -> {
+                                            val seekDeltaMs = mapBareArrowKeyUpToSeekDeltaMs(event)
+                                            if (seekDeltaMs != null) {
+                                                miniPlayerViewModel.seekBy(seekDeltaMs)
+                                                true
+                                            } else {
+                                                false
+                                            }
+                                        }
+                                    }
                                 } else {
                                     false
                                 }

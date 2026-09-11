@@ -21,10 +21,16 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Tracks active listening session boundaries and persists them to local DB.
+ *
+ * Stats credit gate: a finished session only counts (is persisted as finished)
+ * once it passes [MinListenCreditPolicy]; sessions below the floor are discarded
+ * so repeated short plays don't double-count. One credit per (book, chapter) item.
  */
 internal class ListeningSessionTracker(
     private val repository: ListeningSessionRepository,
@@ -34,6 +40,7 @@ internal class ListeningSessionTracker(
     private val getCurrentPositionMs: () -> Long,
     private val getCurrentSpeed: () -> Float,
     private val getCurrentChapterIndex: () -> Int,
+    private val getCurrentDurationMs: () -> Long = { 0L },
 ) {
     @Volatile
     private var activeSessionId: String? = null
@@ -46,7 +53,16 @@ internal class ListeningSessionTracker(
 
     @Volatile
     private var pendingStopReason: String? = null
+
+    @Volatile
+    private var activeSessionStartPositionMs: Long = 0L
+
+    @Volatile
+    private var activeSessionChapterIndex: Int = -1
     private val sessionGeneration: AtomicLong = AtomicLong(0L)
+
+    // ponytail: in-memory one-credit-per-chapter set, scoped to service lifetime
+    private val creditedChapterKeys: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
 
     public fun onPlaybackStarted() {
         val bookId = getCurrentBookId()?.takeIf { it.isNotBlank() } ?: return
@@ -77,12 +93,8 @@ internal class ListeningSessionTracker(
                     )
                 if (generation != sessionGeneration.get() || activeBookId != bookId) {
                     try {
-                        repository.finishSession(
-                            sessionId = sessionId,
-                            positionEndMs = positionStartMs,
-                            speedFactor = speedFactor,
-                            chapterIndex = chapterIndex,
-                        )
+                        // Stale session never became active: zero listened time, never credit.
+                        repository.discardSession(sessionId = sessionId)
                     } catch (error: Exception) {
                         if (error is CancellationException) throw error
                         LogUtils.e("ListeningSessionTracker", "Failed to discard stale session for book=$bookId", error)
@@ -90,6 +102,8 @@ internal class ListeningSessionTracker(
                 } else {
                     activeSessionId = sessionId
                     activeBookId = bookId
+                    activeSessionStartPositionMs = positionStartMs
+                    activeSessionChapterIndex = chapterIndex
                     isStartingSession = false
                     pendingStopReason?.let(::finishActiveSession)
                 }
@@ -116,25 +130,61 @@ internal class ListeningSessionTracker(
 
     public fun finishActiveSession(reason: String) {
         val sessionId = activeSessionId ?: return
+        val bookId = activeBookId
+        val startPositionMs = activeSessionStartPositionMs
+        val chapterIndex = activeSessionChapterIndex
         activeSessionId = null
         activeBookId = null
         isStartingSession = false
+        activeSessionStartPositionMs = 0L
+        activeSessionChapterIndex = -1
         pendingStopReason = null
 
         // Service teardown cancels its scope immediately after requesting the final
         // session update, so the close must outlive that cancellation.
         scope.launch(ioDispatcher + kotlinx.coroutines.NonCancellable) {
             try {
-                repository.finishSession(
-                    sessionId = sessionId,
-                    positionEndMs = getCurrentPositionMs(),
-                    speedFactor = getCurrentSpeed(),
-                    chapterIndex = getCurrentChapterIndex(),
-                )
+                val positionEndMs = getCurrentPositionMs()
+                if (shouldCreditSession(
+                        bookId = bookId,
+                        chapterIndex = chapterIndex,
+                        startPositionMs = startPositionMs,
+                        positionEndMs = positionEndMs,
+                    )
+                ) {
+                    repository.finishSession(
+                        sessionId = sessionId,
+                        positionEndMs = positionEndMs,
+                        speedFactor = getCurrentSpeed(),
+                        chapterIndex = chapterIndex,
+                    )
+                } else {
+                    // Below the min-listen floor (or already credited): drop the row
+                    // so it doesn't inflate session counts or play time.
+                    repository.discardSession(sessionId = sessionId)
+                }
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
                 LogUtils.e("ListeningSessionTracker", "Failed to finish listening session reason=$reason", error)
             }
         }
+    }
+
+    /** Applies [MinListenCreditPolicy] with one-time-per-(book, chapter) dedupe. */
+    private fun shouldCreditSession(
+        bookId: String?,
+        chapterIndex: Int,
+        startPositionMs: Long,
+        positionEndMs: Long,
+    ): Boolean {
+        val creditKey = "${bookId ?: "unknown"}#$chapterIndex"
+        val credited =
+            MinListenCreditPolicy.shouldCredit(
+                listenedMs = (positionEndMs - startPositionMs).coerceAtLeast(0L),
+                durationMs = getCurrentDurationMs(),
+                alreadyCredited = creditKey in creditedChapterKeys,
+            )
+        if (credited) creditedChapterKeys.add(creditKey)
+        return credited
     }
 }

@@ -31,6 +31,7 @@ import com.jabook.app.jabook.widget.PlayerWidgetProvider
  * - Is-playing changes (position saving, crossfade control)
  * - Media item transitions (preload, memory optimization)
  * - Playback parameter / repeat / shuffle changes
+ * - Time-based next-track preload at 80% of the current item ([PreloadTriggerPolicy])
  */
 internal class PlaybackEventProcessor(
     private val context: Context,
@@ -53,6 +54,9 @@ internal class PlaybackEventProcessor(
     private val bookCompletionTracker: BookCompletionTracker,
     private val onIsPlayingChanged: ((Boolean) -> Unit)? = null,
 ) {
+    // ponytail: per-item boolean flag; reset on media item transition, matches 1-preload-per-item
+    private var preloadTriggeredForCurrentItem: Boolean = false
+
     /**
      * Processes all ExoPlayer events in a consolidated callback.
      * This is more efficient than handling individual callbacks separately.
@@ -77,6 +81,10 @@ internal class PlaybackEventProcessor(
 
         if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
             handleMediaItemTransition(player)
+        }
+
+        if (events.contains(Player.EVENT_POSITION_INCREASED)) {
+            maybeTimeBasedPreload(player)
         }
 
         if (events.contains(Player.EVENT_PLAYBACK_PARAMETERS_CHANGED)) {
@@ -227,6 +235,7 @@ internal class PlaybackEventProcessor(
             "EVENT_MEDIA_ITEM_TRANSITION index=$currentIndex; sync handled by onMediaItemTransition()",
         )
 
+        preloadTriggeredForCurrentItem = false
         bookCompletionTracker.stopPositionCheck()
         val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
 
@@ -271,6 +280,28 @@ internal class PlaybackEventProcessor(
         // Restart position check if playing
         if (player.isPlaying && !getIsBookCompleted() && player.playbackState == Player.STATE_READY) {
             bookCompletionTracker.startPositionCheck()
+        }
+    }
+
+    /**
+     * Time-based preload: fires once per item once 80% of the current item has been
+     * played, so remote/cache-backed sources are ready before the natural transition.
+     * Last-item guard: nothing to preload after the final track.
+     */
+    private fun maybeTimeBasedPreload(player: Player) {
+        val currentIndex = player.currentMediaItemIndex
+        val totalTracks = getActualPlaylistSize?.invoke() ?: player.mediaItemCount
+        if (currentIndex < 0 || currentIndex >= totalTracks - 1) return
+
+        if (PreloadTriggerPolicy.shouldPreload(
+                currentPositionMs = player.currentPosition,
+                durationMs = player.duration,
+                alreadyTriggered = preloadTriggeredForCurrentItem,
+            )
+        ) {
+            preloadTriggeredForCurrentItem = true
+            LogUtils.d("AudioPlayerService", "Preloading next track ${currentIndex + 1} at >=80% of current item")
+            preloadNextTrack?.invoke(currentIndex + 1)
         }
     }
 

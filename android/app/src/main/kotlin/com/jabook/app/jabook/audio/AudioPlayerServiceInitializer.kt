@@ -205,6 +205,10 @@ public class AudioPlayerServiceInitializer(
                 okHttpClient = service.okHttpClient,
             )
 
+        // Remote-source HEAD revalidator (spotube refreshStream pattern): shared OkHttp client,
+        // consulted by MediaSourceValidator + PlayerErrorHandler before replaying cached URLs.
+        MediaSourceValidator.remoteRevalidator = RemoteSourceRevalidator(service.okHttpClient)
+
         // 5. PositionManager
         service.positionManager = PositionManager()
 

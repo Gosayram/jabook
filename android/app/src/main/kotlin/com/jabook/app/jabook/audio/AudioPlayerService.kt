@@ -264,6 +264,7 @@ public class AudioPlayerService : MediaLibraryService() {
             getCurrentPositionMs = { getActivePlayer().currentPosition },
             getCurrentSpeed = { getActivePlayer().playbackParameters.speed },
             getCurrentChapterIndex = { getActivePlayer().currentMediaItemIndex },
+            getCurrentDurationMs = { getActivePlayer().duration },
         )
     }
 

@@ -70,6 +70,11 @@ public class ListeningSessionRepository
 
         public suspend fun getLastListeningTimestamp(bookId: String): Long? = listeningSessionDao.getLastListeningTimestamp(bookId)
 
+        /** Removes a session that never met the minimum-listen credit floor. */
+        public suspend fun discardSession(sessionId: String) {
+            listeningSessionDao.discardSession(sessionId)
+        }
+
         public suspend fun getLatestActiveSession(): ListeningSessionEntity? = listeningSessionDao.getLatestActiveSession()
 
         /** Closes sessions left open by an unclean process termination. */

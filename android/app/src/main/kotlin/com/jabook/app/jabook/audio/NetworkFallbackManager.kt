@@ -39,6 +39,12 @@ public class NetworkFallbackManager(
     private val player: ExoPlayer,
     private val fallbackQualities: List<String> = listOf("hd", "sd", "ld"),
     private val maxRetries: Int = 3,
+    /**
+     * Failed-source memory: on a remote-source playback error the next
+     * remembered sibling URI is tried BEFORE full re-resolution; when
+     * exhausted, the existing fallback flow proceeds unchanged.
+     */
+    private val sourceAttemptCache: SourceAttemptCache = SourceAttemptCache(),
 ) {
     private val scopeJob = SupervisorJob()
     private val scope =
@@ -123,7 +129,36 @@ public class NetworkFallbackManager(
         }
     }
 
-/**
+    /**
+     * Records the ordered candidate URIs resolved for a remote chapter so a
+     * later playback error can try the next sibling without re-resolution.
+     */
+    public fun rememberCandidates(
+        mediaId: String,
+        uris: List<android.net.Uri>,
+    ) {
+        sourceAttemptCache.rememberCandidates(mediaId, uris)
+    }
+
+    /**
+     * Called when a remote source fails at playback: records the failed URI
+     * and returns the next untried candidate, or `null` when candidates are
+     * exhausted — the caller then proceeds with its existing re-resolution /
+     * fallback logic unchanged.
+     */
+    public fun onSourceFailed(
+        mediaId: String,
+        failedUri: android.net.Uri,
+    ): android.net.Uri? {
+        sourceAttemptCache.markFailed(mediaId, failedUri)
+        val next = sourceAttemptCache.nextCandidate(mediaId)
+        if (next != null) {
+            LogUtils.i(TAG, "Retrying next candidate for $mediaId after failed ${failedUri.scheme} source")
+        }
+        return next
+    }
+
+    /**
      * Releases the network fallback manager and unregisters callbacks.
      */
     public fun release() {

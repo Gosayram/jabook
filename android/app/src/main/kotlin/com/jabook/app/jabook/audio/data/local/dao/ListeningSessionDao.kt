@@ -30,6 +30,10 @@ public interface ListeningSessionDao {
     @Query("SELECT * FROM listening_sessions WHERE id = :sessionId")
     public suspend fun getById(sessionId: String): ListeningSessionEntity?
 
+    /** Removes a session that never met the minimum-listen credit floor. */
+    @Query("DELETE FROM listening_sessions WHERE id = :sessionId")
+    public suspend fun discardSession(sessionId: String)
+
     @Query("SELECT * FROM listening_sessions WHERE ended_at IS NULL ORDER BY started_at DESC LIMIT 1")
     public suspend fun getLatestActiveSession(): ListeningSessionEntity?
 

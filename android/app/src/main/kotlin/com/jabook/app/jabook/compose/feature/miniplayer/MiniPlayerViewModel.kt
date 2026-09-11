@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.miniplayer
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.domain.model.Book
+import com.jabook.app.jabook.compose.feature.player.PlayerIntentGuardPolicy
 import com.jabook.app.jabook.compose.feature.player.controller.AudioPlayerController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -125,5 +126,18 @@ public class MiniPlayerViewModel
          */
         public fun skipToPrevious() {
             audioPlayerController.skipToPrevious()
+        }
+
+        /**
+         * Seeks relative to the current position (global arrow-key seek from the app shell).
+         * Clamped with the same policy as PlayerScreen seeks.
+         */
+        public fun seekBy(deltaMs: Long) {
+            audioPlayerController.seekTo(
+                PlayerIntentGuardPolicy.clampSeekPosition(
+                    requestedPositionMs = currentPosition.value + deltaMs,
+                    chapterDurationMs = duration.value,
+                ),
+            )
         }
     }
