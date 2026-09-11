@@ -15,6 +15,7 @@
 package com.jabook.app.jabook.compose.designsystem.component
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -201,12 +202,14 @@ private fun AnimatedFavoriteIcon(
     unselectedTint: Color,
     modifier: Modifier = Modifier,
 ) {
-    val spec = tween<Float>(durationMillis = MotionTokens.PRESS_DURATION_MS)
+    val fadeSpec = tween<Float>(durationMillis = MotionTokens.PRESS_DURATION_MS)
+    // M3 motion: scale is SPATIAL — springs overshoot into place; fade is an effect — tween, no overshoot
+    val popSpec = spring<Float>(dampingRatio = Spring.DampingRatioMediumBouncy)
     AnimatedContent(
         targetState = isFavorite,
         transitionSpec = {
-            (scaleIn(initialScale = 0.5f, animationSpec = spec) + fadeIn(spec))
-                .togetherWith(scaleOut(targetScale = 0.5f, animationSpec = spec) + fadeOut(spec))
+            (scaleIn(initialScale = 0.5f, animationSpec = popSpec) + fadeIn(fadeSpec))
+                .togetherWith(scaleOut(targetScale = 0.5f, animationSpec = fadeSpec) + fadeOut(fadeSpec))
         },
         label = "favoriteToggle",
         modifier = modifier,

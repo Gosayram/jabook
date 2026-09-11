@@ -65,4 +65,24 @@ public object FileUtils {
         }
         return uriString
     }
+
+    /**
+     * Makes a user-visible title safe as a filename on Android volumes
+     * (FAT32/exFAT reject `:` `?` `|` `*` etc.; Windows reserves CON/LPT1…).
+     * Not for torrent payload paths — those are mapped by libtorrent and must
+     * keep their original names.
+     */
+    public fun sanitizeFilename(
+        name: String,
+        maxLength: Int = 255,
+    ): String {
+        val cleaned =
+            name
+                .replace(Regex("[/\\\\?%*:|\"<>]"), "_")
+                .replace(Regex("[\\x00-\\x1f]"), "")
+                .replace(Regex("^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\\..*)?$", RegexOption.IGNORE_CASE), "_")
+                .trimEnd('.', ' ')
+                .ifBlank { "untitled" }
+        return if (cleaned.length <= maxLength) cleaned else cleaned.take(maxLength).trimEnd('.', ' ')
+    }
 }

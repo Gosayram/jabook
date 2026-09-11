@@ -42,10 +42,10 @@ public object MotionTokens {
     public const val EXTRA_LONG3: Int = 900
     public const val EXTRA_LONG4: Int = 1000
 
-    /** M3 expressive default speed — state changes (300ms). Spatial transitions may overshoot. */
+    /** 300ms — M3 medium2 (legacy "standard" transitions / slow effects). NOT the expressive default (200ms effects / 500ms spatial); kept for non-scheme fallbacks. */
     public const val STATE_DURATION_MS: Int = MEDIUM2
 
-    /** M3 expressive fast speed — press/effects (150ms). Effects must not overshoot. */
+    /** 150ms — M3 fast effects (press/toggles). Effects use tween/linear, never overshoot; spatial motion belongs on springs. */
     public const val PRESS_DURATION_MS: Int = SHORT3
 
     /** M3 Standard easing — used for short and medium transitions (chips, toggles, FAB). */

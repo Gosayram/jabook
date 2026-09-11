@@ -107,7 +107,7 @@ public object AdaptiveUtils {
      *
      * - Compact: 16dp (phones)
      * - Medium: 24dp (tablets)
-     * - Expanded: 32dp (foldables/desktops)
+     * - Expanded: 24dp (foldables/desktops)
      */
     public fun getContentPadding(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
@@ -122,7 +122,7 @@ public object AdaptiveUtils {
      *
      * - Compact: 16dp
      * - Medium: 24dp
-     * - Expanded: 32dp
+     * - Expanded: 24dp
      */
     public fun getHorizontalPadding(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
@@ -137,7 +137,7 @@ public object AdaptiveUtils {
      *
      * - Compact: 16dp
      * - Medium: 24dp
-     * - Expanded: 32dp
+     * - Expanded: 24dp
      */
     public fun getVerticalPadding(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.heightSizeClass) {
@@ -222,7 +222,7 @@ public object AdaptiveUtils {
      *
      * - Compact: 24dp (standard)
      * - Medium: 28dp
-     * - Expanded: 32dp
+     * - Expanded: 24dp
      */
     public fun getIconSize(windowSizeClass: WindowSizeClass): Dp =
         when (windowSizeClass.widthSizeClass) {
@@ -372,7 +372,8 @@ public object AdaptiveUtils {
     }
 
     /**
-     * Override PaneScaffoldDirective to enforce 8dp scaffold spacing + canonical pane width.
+     * Override PaneScaffoldDirective to enforce the 24dp pane partition spacer
+     * (M3 breakpoints spec) + canonical pane width.
      * Use via `directive = remember(widthDp, baseDirective){ canonicalDirective(baseDirective, widthDp) }`
      */
     public fun canonicalDirective(
@@ -380,7 +381,7 @@ public object AdaptiveUtils {
         screenWidthDp: Int,
     ): androidx.compose.material3.adaptive.layout.PaneScaffoldDirective {
         val paneWidth = getSupportingPaneWidth(screenWidthDp)
-        return base.copy(defaultPanePreferredWidth = paneWidth, horizontalPartitionSpacerSize = 8.dp)
+        return base.copy(defaultPanePreferredWidth = paneWidth, horizontalPartitionSpacerSize = 24.dp)
     }
 
     // ponytail: Ruler API (Compose UI 1.7+) available but skipped — grid spacing already 8dp-aligned via SpacingTokens;

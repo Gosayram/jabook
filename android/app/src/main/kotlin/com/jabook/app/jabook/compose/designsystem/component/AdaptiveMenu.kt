@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
@@ -120,6 +121,8 @@ public fun AdaptiveMenu(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
+                                // M3: unavailable items stay visible but appear disabled (0.38 content alpha)
+                                .alpha(if (item.enabled) 1f else 0.38f)
                                 .clickable(enabled = item.enabled) { item.onClick() },
                     )
                 }

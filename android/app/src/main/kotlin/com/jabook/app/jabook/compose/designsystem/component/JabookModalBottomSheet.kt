@@ -56,8 +56,8 @@ public fun JabookModalBottomSheet(
             shape = resolvedShape,
             dragHandle = { BottomSheetDefaults.DragHandle() }, // 48dp hit target per M3
             sheetMaxWidth = maxSheetWidth,
-            // 28dp top inset — sheet never covers status area; scrim dismiss is default onDismissRequest
-            contentWindowInsets = { WindowInsets(top = 28.dp) },
+            // M3 spec: top margin 72dp, 56dp when window width > 640dp (28dp is the corner radius, not a margin)
+            contentWindowInsets = { WindowInsets(top = if (maxWidth > maxSheetWidth) 56.dp else 72.dp) },
             content = {
                 Column(modifier = sheetModifier.fillMaxWidth().navigationBarsPadding()) {
                     if (title != null) {
