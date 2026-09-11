@@ -164,6 +164,7 @@ internal class PlayerListener(
             playerErrorHandler = playerErrorHandler,
             bookCompletionTracker = bookCompletionTracker,
             onIsPlayingChanged = onIsPlayingChanged,
+            preloadScope = managedScope,
         )
 
     /** Backward-compatible accessor for LoudnessNormalizer injection from PlayerConfigurator. */

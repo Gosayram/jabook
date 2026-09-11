@@ -18,6 +18,14 @@ import android.content.Context
 import androidx.media3.common.Player
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.widget.PlayerWidgetProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+
+/** Ticker period for the 80% time-based preload check. */
+private const val PRELOAD_TICK_MS = 5_000L
 
 /**
  * Processes consolidated ExoPlayer events from `onEvents()` callback.
@@ -53,9 +61,12 @@ internal class PlaybackEventProcessor(
     private val playerErrorHandler: PlayerErrorHandler,
     private val bookCompletionTracker: BookCompletionTracker,
     private val onIsPlayingChanged: ((Boolean) -> Unit)? = null,
+    /** Scope for the 5s preload ticker; null disables time-based preload. */
+    private val preloadScope: CoroutineScope? = null,
 ) {
     // ponytail: per-item boolean flag; reset on media item transition, matches 1-preload-per-item
     private var preloadTriggeredForCurrentItem: Boolean = false
+    private var preloadTickerJob: Job? = null
 
     /**
      * Processes all ExoPlayer events in a consolidated callback.
@@ -77,14 +88,24 @@ internal class PlaybackEventProcessor(
 
         if (events.contains(Player.EVENT_IS_PLAYING_CHANGED)) {
             handleIsPlayingChanged(player)
+            // Media3 emits no periodic position events; tick the 80%-preload
+            // check while playing instead (spotube percentCompletedStream analog).
+            preloadTickerJob?.cancel()
+            preloadTickerJob =
+                if (player.isPlaying && preloadScope != null) {
+                    preloadScope.launch {
+                        while (isActive) {
+                            delay(PRELOAD_TICK_MS)
+                            maybeTimeBasedPreload(player)
+                        }
+                    }
+                } else {
+                    null
+                }
         }
 
         if (events.contains(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
             handleMediaItemTransition(player)
-        }
-
-        if (events.contains(Player.EVENT_POSITION_INCREASED)) {
-            maybeTimeBasedPreload(player)
         }
 
         if (events.contains(Player.EVENT_PLAYBACK_PARAMETERS_CHANGED)) {

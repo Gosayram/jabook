@@ -834,7 +834,9 @@ private fun Modifier.onSecondaryClick(
                     }
                 } else if (tracking) {
                     event.changes.forEach { it.consume() }
-                    if (event.type == PointerEventType.Release || event.type == PointerEventType.Cancel) {
+                    // No Cancel event type in Compose: a cleared button state covers
+                    // gesture cancellation (overflow menu, focus steal, etc.).
+                    if (event.type == PointerEventType.Release || !event.buttons.isSecondaryPressed) {
                         tracking = false
                     }
                 }
