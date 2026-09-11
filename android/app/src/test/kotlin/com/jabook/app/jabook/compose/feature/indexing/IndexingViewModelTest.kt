@@ -18,8 +18,8 @@ import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
-import com.jabook.app.jabook.compose.data.worker.IndexingWorkScheduler
 import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
+import com.jabook.app.jabook.compose.data.worker.IndexingWorkScheduler
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import com.jabook.app.jabook.compose.domain.usecase.auth.WithAuthorisedCheckUseCase
 import kotlinx.coroutines.Dispatchers

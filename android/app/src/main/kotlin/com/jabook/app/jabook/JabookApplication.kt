@@ -330,8 +330,7 @@ public class JabookApplication :
                         androidx.work.workDataOf(
                             com.jabook.app.jabook.compose.data.worker.IndexingWorker.KEY_USE_SELECTED_FORUM_IDS to true,
                         ),
-                    )
-                    .setInitialDelay(6, java.util.concurrent.TimeUnit.HOURS)
+                    ).setInitialDelay(6, java.util.concurrent.TimeUnit.HOURS)
                     .addTag("periodic_indexing")
                     .build()
 

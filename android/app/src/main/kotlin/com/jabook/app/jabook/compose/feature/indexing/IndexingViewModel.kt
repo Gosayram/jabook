@@ -278,6 +278,7 @@ public class IndexingViewModel
             }
 
         // ponytail: blank selection = all forums; null skips KEY_FORUM_IDS entirely
+        @Suppress("RedundantSuspendModifier") // Flow.first() is suspend; detekt misses generated Proto types.
         private suspend fun resolveSelectedForumIdsOrNull(): String? {
             val selected =
                 try {

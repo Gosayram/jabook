@@ -59,6 +59,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
@@ -762,7 +763,7 @@ private fun DetailTruncatedText(
 ) {
     var truncated by remember(text) { mutableStateOf(false) }
     val state = rememberTooltipState()
-    TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(), tooltip = {
+    TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above), tooltip = {
         PlainTooltip { Text(text) }
     }, state = state) {
         Text(text = text, style = style, maxLines = maxLines, overflow = TextOverflow.Ellipsis, onTextLayout = {
