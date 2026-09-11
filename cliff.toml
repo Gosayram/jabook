@@ -1,0 +1,56 @@
+# git-cliff configuration for JaBook
+# JaBook uses bracket-prefix commit style: "[FEATURE] - ...", "[FIX] - ...", "[UPD] - ..."
+# Preprocessors normalize them to conventional types so git-cliff parses them natively.
+# Fallback: hack/generate-changelog.sh (keep a Changelog, same output file).
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+"""
+body = """
+{%- if version %}
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}
+## [Unreleased]
+{% endif -%}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group }}
+{% for commit in commits %}
+- {{ commit.message | upper_first }} ([{{ commit.id | truncate(length=7, end="") }}]({{ remote.repository_url | default(value="https://github.com/Gosayram/jabook") }}/commit/{{ commit.id }}))
+{%- endfor %}
+{% endfor %}
+"""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = false
+split_commits = false
+require_conventional = false
+tag_pattern = ".*"
+sort_commits = "oldest"
+
+commit_preprocessors = [
+    # [FEATURE]/[FEAT]/[ADD]/[INIT] -> feat
+    { pattern = '^\[(FEATURE|FEAT|ADD|INIT)\][ \t]*[-:]?[ \t]*', replace = "feat: " },
+    # [FIX]/[BUGFIX]/[BUG] -> fix
+    { pattern = '^\[(FIX|BUGFIX|BUG)\][ \t]*[-:]?[ \t]*', replace = "fix: " },
+    # [UPD]/[UPDATE]/[ENHANCE]/[IMPROVE]/[PERF]/[REFACTOR]/[DOCS] -> upd
+    { pattern = '^\[(UPD|UPDATE|ENHANCE|IMPROVE|PERF|REFACTOR|DOCS)\][ \t]*[-:]?[ \t]*', replace = "upd: " },
+    # everything else tagged -> other
+    { pattern = '^\[[A-Z]+\][ \t]*[-:]?[ \t]*', replace = "chore: " },
+]
+
+commit_parsers = [
+    { message = "^feat", group = "Features" },
+    { message = "^fix", group = "Fixes" },
+    { message = "^upd", group = "Updates" },
+    # noise, same exclusions as the hack script
+    { message = "^(test|tests|ci|build|chore|lint)", skip = true },
+    { message = ".*", group = "Other" },
+]

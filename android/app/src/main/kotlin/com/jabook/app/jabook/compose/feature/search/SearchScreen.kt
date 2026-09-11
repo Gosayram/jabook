@@ -17,6 +17,11 @@ package com.jabook.app.jabook.compose.feature.search
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +35,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -78,6 +84,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -216,7 +227,22 @@ public fun SearchScreen(
                                     TextField(
                                         value = searchQuery,
                                         onValueChange = { viewModel.onSearchQueryChanged(it) },
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier =
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .onPreviewKeyEvent { event ->
+                                                    // Escape clears the query while the field holds focus (TV/keyboard)
+                                                    if (
+                                                        event.type == KeyEventType.KeyUp &&
+                                                        event.key == Key.Escape &&
+                                                        searchQuery.isNotEmpty()
+                                                    ) {
+                                                        viewModel.clearSearch()
+                                                        true
+                                                    } else {
+                                                        false
+                                                    }
+                                                },
                                         placeholder = { Text(stringResource(R.string.searchPlaceholder)) },
                                         singleLine = true,
                                         colors =
@@ -227,12 +253,22 @@ public fun SearchScreen(
                                                 unfocusedIndicatorColor = Color.Transparent,
                                             ),
                                         trailingIcon = {
-                                            if (searchQuery.isNotBlank()) {
-                                                IconButton(onClick = viewModel::clearSearch) {
-                                                    Icon(
-                                                        imageVector = Icons.Filled.Clear,
-                                                        contentDescription = stringResource(R.string.clearSearch),
-                                                    )
+                                            // Fixed-size slot so the field doesn't shift when the icon appears
+                                            Box(
+                                                modifier = Modifier.size(28.dp),
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                AnimatedVisibility(
+                                                    visible = searchQuery.isNotBlank(),
+                                                    enter = fadeIn() + scaleIn(),
+                                                    exit = fadeOut() + scaleOut(),
+                                                ) {
+                                                    IconButton(onClick = viewModel::clearSearch) {
+                                                        Icon(
+                                                            imageVector = Icons.Filled.Clear,
+                                                            contentDescription = stringResource(R.string.clearSearch),
+                                                        )
+                                                    }
                                                 }
                                             }
                                         },
@@ -530,6 +566,14 @@ private fun LocalSearchResults(
     onClearHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // While typing, past searches containing the query act as live suggestions
+    val matchingHistory =
+        if (query.isNotEmpty()) {
+            searchHistory.filter { it.query.contains(query, ignoreCase = true) }
+        } else {
+            emptyList()
+        }
+
     when {
         query.isEmpty() -> {
             if (searchHistory.isNotEmpty()) {
@@ -548,26 +592,82 @@ private fun LocalSearchResults(
         }
 
         results.isEmpty() -> {
-            EmptyState(
-                message = stringResource(R.string.noLocalBooksFound, query),
-            )
+            if (matchingHistory.isNotEmpty()) {
+                SearchHistorySuggestions(
+                    suggestions = matchingHistory,
+                    onItemClick = onHistoryItemClick,
+                )
+            } else {
+                EmptyState(
+                    message = stringResource(R.string.noLocalBooksFound, query),
+                )
+            }
         }
 
         else -> {
-            // Use UnifiedBooksView for local results
-            UnifiedBooksView(
-                books = results,
-                displayMode = BookDisplayMode.GRID_COMPACT,
-                actionsProvider =
-                    BookActionsProvider(
-                        onBookClick = onBookClick,
-                        onBookLongPress = {},
-                        onToggleFavorite = { _, _ -> },
-                        favoriteIds = emptySet(),
-                        showProgress = false,
-                        showFavoriteButton = false,
-                    ),
-                modifier = modifier.fillMaxSize(),
+            Column(modifier = modifier.fillMaxSize()) {
+                if (matchingHistory.isNotEmpty()) {
+                    SearchHistorySuggestions(
+                        suggestions = matchingHistory,
+                        onItemClick = onHistoryItemClick,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
+                // Use UnifiedBooksView for local results
+                UnifiedBooksView(
+                    books = results,
+                    displayMode = BookDisplayMode.GRID_COMPACT,
+                    actionsProvider =
+                        BookActionsProvider(
+                            onBookClick = onBookClick,
+                            onBookLongPress = {},
+                            onToggleFavorite = { _, _ -> },
+                            favoriteIds = emptySet(),
+                            showProgress = false,
+                            showFavoriteButton = false,
+                        ),
+                    modifier =
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Live search-history suggestions shown while the query is non-empty.
+ * Reuses the history section title; tapping a suggestion fills the query
+ * (which re-runs that past search).
+ */
+@Composable
+private fun SearchHistorySuggestions(
+    suggestions: List<SearchHistoryItem>,
+    onItemClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.recentSearches),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        suggestions.forEach { item ->
+            ListItem(
+                headlineContent = { Text(item.query) },
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Filled.History,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { onItemClick(item.query) },
             )
         }
     }

@@ -5,9 +5,14 @@
 ## Utility (hack/)
 
 .PHONY: changelog
-changelog: ## Generate CHANGELOG.md from git history
-	@echo "Generating CHANGELOG.md..."
-	@bash hack/generate-changelog.sh
+changelog: ## Generate CHANGELOG.md from git history (git-cliff, falls back to hack script)
+	@if command -v git-cliff >/dev/null 2>&1; then \
+		echo "🔄 Generating CHANGELOG.md via git-cliff (cliff.toml)..."; \
+		git-cliff --config cliff.toml --output CHANGELOG.md; \
+	else \
+		echo "🔄 git-cliff not found, falling back to hack/generate-changelog.sh..."; \
+		bash hack/generate-changelog.sh; \
+	fi
 	@echo "✅ CHANGELOG.md generated"
 
 .PHONY: module-graph

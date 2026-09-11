@@ -2620,6 +2620,8 @@
     <!-- Сообщения об ошибках -->
     <string name="error_title">Ошибка</string>
     <string name="error_something_goes_wrong">Что-то пошло не так</string>
+    <string name="errorDetailsTitle">Подробнее</string>
+    <string name="errorDetailsCopied">Скопировано</string>
     <string name="noDataAvailable">Данные недоступны</string>
     <string name="noConnection">Нет сетевого подключения</string>
     <string name="notFound">Ресурс не найден</string>

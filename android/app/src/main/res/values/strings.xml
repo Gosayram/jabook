@@ -2630,6 +2630,8 @@
     <!-- Error Messages -->
     <string name="error_title">Error</string>
     <string name="error_something_goes_wrong">Something went wrong</string>
+    <string name="errorDetailsTitle">View details</string>
+    <string name="errorDetailsCopied">Copied</string>
     <string name="noDataAvailable">No data available</string>
     <string name="noConnection">No network connection</string>
     <string name="notFound">Resource not found</string>

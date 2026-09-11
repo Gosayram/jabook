@@ -14,8 +14,15 @@
 
 package com.jabook.app.jabook.compose.designsystem.component
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -83,6 +90,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
+import com.jabook.app.jabook.compose.core.theme.MotionTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
 import com.jabook.app.jabook.compose.data.model.DownloadStatus
@@ -176,6 +184,56 @@ public fun UnifiedBookCard(
 private fun rememberMorphCardShape(progress: Float): androidx.compose.ui.graphics.Shape {
     // ponytail: static fallback, progress still drives shape choice without Morph dependency
     return if (progress > 0.5f) RoundedCornerShape(20.dp) else RoundedCornerShape(12.dp)
+}
+
+/**
+ * Favorite icon with a quick scale-crossfade pop on toggle (spotube heart_button pattern).
+ *
+ * ponytail: effects speed — PRESS_DURATION_MS (150ms) tween, not spring; effects must not overshoot.
+ *
+ * @param isFavorite Current favorite state (key for the transition)
+ * @param unselectedTint Icon tint when not favorited
+ * @param modifier Modifier for the icon
+ */
+@Composable
+private fun AnimatedFavoriteIcon(
+    isFavorite: Boolean,
+    unselectedTint: Color,
+    modifier: Modifier = Modifier,
+) {
+    val spec = tween<Float>(durationMillis = MotionTokens.PRESS_DURATION_MS)
+    AnimatedContent(
+        targetState = isFavorite,
+        transitionSpec = {
+            (scaleIn(initialScale = 0.5f, animationSpec = spec) + fadeIn(spec))
+                .togetherWith(scaleOut(targetScale = 0.5f, animationSpec = spec) + fadeOut(spec))
+        },
+        label = "favoriteToggle",
+        modifier = modifier,
+    ) { favorite ->
+        Icon(
+            imageVector =
+                if (favorite) {
+                    Icons.Filled.Favorite
+                } else {
+                    Icons.Outlined.FavoriteBorder
+                },
+            contentDescription =
+                stringResource(
+                    if (favorite) {
+                        R.string.removeFromFavorites
+                    } else {
+                        R.string.addToFavorites
+                    },
+                ),
+            tint =
+                if (favorite) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    unselectedTint
+                },
+        )
+    }
 }
 
 /**
@@ -303,25 +361,9 @@ private fun GridBookCard(
                             .align(Alignment.TopEnd)
                             .sizeIn(minWidth = 48.dp, minHeight = 48.dp),
                 ) {
-                    Icon(
-                        imageVector =
-                            if (isFavorite) {
-                                Icons.Filled.Favorite
-                            } else {
-                                Icons.Outlined.FavoriteBorder
-                            },
-                        contentDescription =
-                            if (isFavorite) {
-                                stringResource(R.string.removeFromFavorites)
-                            } else {
-                                stringResource(R.string.addToFavorites)
-                            },
-                        tint =
-                            if (isFavorite) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface
-                            },
+                    AnimatedFavoriteIcon(
+                        isFavorite = isFavorite,
+                        unselectedTint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(AdaptiveUtils.getIconSize(effectiveWSC)),
                     )
                 }
@@ -684,25 +726,9 @@ private fun ListBookCard(
                     onClick = { actionsProvider.onToggleFavorite(book.id, !isFavorite) },
                     modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp),
                 ) {
-                    Icon(
-                        imageVector =
-                            if (isFavorite) {
-                                Icons.Filled.Favorite
-                            } else {
-                                Icons.Outlined.FavoriteBorder
-                            },
-                        contentDescription =
-                            if (isFavorite) {
-                                stringResource(R.string.removeFromFavorites)
-                            } else {
-                                stringResource(R.string.addToFavorites)
-                            },
-                        tint =
-                            if (isFavorite) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
+                    AnimatedFavoriteIcon(
+                        isFavorite = isFavorite,
+                        unselectedTint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
