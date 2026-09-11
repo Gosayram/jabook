@@ -104,7 +104,6 @@ import androidx.compose.material3.adaptive.layout.AnimatedPane
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffold
 import androidx.compose.material3.adaptive.layout.SupportingPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberSupportingPaneScaffoldNavigator
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.runtime.Composable
@@ -514,8 +513,8 @@ public fun PlayerScreen(
         }
     }
 
-    // Back priority chain. ModalBottomSheets and the rating Dialog register their
-    // own back handlers and win while shown. StatsOverlay is a plain
+    // Back priority chain. ModalBottomSheets register their own back handlers
+    // and win while shown. StatsOverlay is a plain
     // AnimatedVisibility with no handler, so it must be dismissed here first.
     // Then collapse the supporting chapters pane, then navigate back to library.
     // androidx.activity.compose.BackHandler already participates in Android 14+
@@ -535,7 +534,6 @@ public fun PlayerScreen(
 
     // Playback Speed Sheet
     if (showSpeedSheet) {
-        val speedSheetState = rememberModalBottomSheetState()
         PlaybackSpeedSheet(
             currentSpeed = playbackSpeed,
             pitchCorrectionEnabled = pitchCorrectionEnabled,
@@ -546,7 +544,6 @@ public fun PlayerScreen(
                 viewModel.dispatch(PlayerIntent.SetPitchCorrectionEnabled(enabled))
             },
             onDismiss = { showSpeedSheet = false },
-            sheetState = speedSheetState,
         )
     }
 

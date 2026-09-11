@@ -2145,6 +2145,14 @@
     <string name="repeatTrack">Repeat track</string>
     <!-- Repeat entire playlist mode -->
     <string name="repeatPlaylist">Repeat playlist</string>
+    <!-- A-B repeat menu item title -->
+    <string name="abRepeatTitle">A-B Repeat</string>
+    <!-- A-B repeat is inactive -->
+    <string name="abRepeatInactive">Inactive</string>
+    <!-- A-B repeat: point A is set -->
+    <string name="abRepeatActive">A set</string>
+    <!-- A-B repeat: full A→B range is active -->
+    <string name="abRepeatRangeActive">A→B active</string>
     <!-- Sleep timer label -->
     <string name="timerLabel">Timer</string>
     <!-- Playback speed label -->
@@ -2987,7 +2995,6 @@
     <string name="historyStatusCancelled">Cancelled</string>
     <string name="historyRetry">Retry</string>
     <string name="settingsProfileGuest">Guest</string>
-    <string name="settingsProfileStats">%1$d books · %2$d h listened · %3$d favorites</string>
     <string name="settingsSignIn">Sign in</string>
     <string name="settingsGeneral">General</string>
     <string name="settingsLanguage">Interface language</string>
@@ -3047,7 +3054,6 @@
     <string name="statistics">Statistics</string>
     <string name="showStatistics">Show statistics</string>
     <string name="hideStatistics">Hide statistics</string>
-    <string name="approximateSpeedDistribution">Approximate speed distribution</string>
     <string name="discovery">Подборка</string>
 
     <!-- Library accessibility & localization -->

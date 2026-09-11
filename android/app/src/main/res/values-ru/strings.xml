@@ -2153,6 +2153,14 @@
     <string name="repeatTrack">Повторять трек</string>
     <!-- Режим повтора всего плейлиста -->
     <string name="repeatPlaylist">Повторять плейлист</string>
+    <!-- Пункт меню повтора A-B -->
+    <string name="abRepeatTitle">Повтор A-B</string>
+    <!-- Повтор A-B не активен -->
+    <string name="abRepeatInactive">Не активен</string>
+    <!-- Повтор A-B: задана точка A -->
+    <string name="abRepeatActive">Задан</string>
+    <!-- Повтор A-B: активен весь диапазон A→B -->
+    <string name="abRepeatRangeActive">Повтор A→B активен</string>
     <!-- Метка таймера сна -->
     <string name="timerLabel">Таймер</string>
     <!-- Метка скорости воспроизведения -->
@@ -3027,7 +3035,6 @@
     <string name="historyStatusCancelled">Отменено</string>
     <string name="historyRetry">Повторить</string>
     <string name="settingsProfileGuest">Гость</string>
-    <string name="settingsProfileStats">%1$d книг · %2$d ч прослушано · %3$d в избранном</string>
     <string name="settingsSignIn">Войти</string>
     <string name="settingsGeneral">Общее</string>
     <string name="settingsLanguage">Язык интерфейса</string>
@@ -3089,7 +3096,6 @@
     <string name="statistics">Статистика</string>
     <string name="showStatistics">Показать статистику</string>
     <string name="hideStatistics">Скрыть статистику</string>
-    <string name="approximateSpeedDistribution">Примерное распределение скоростей</string>
     <string name="discovery">Подборка</string>
 
     <!-- Library accessibility & localization -->

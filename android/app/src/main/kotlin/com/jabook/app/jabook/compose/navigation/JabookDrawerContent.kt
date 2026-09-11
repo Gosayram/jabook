@@ -54,7 +54,6 @@ public fun JabookDrawerContent(
     onNavigateToRecentArrivals: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToAuth: () -> Unit,
-    onNavigateToAbout: () -> Unit,
     accountProfile: AccountProfile = AccountProfile(stringResource(R.string.settingsProfileGuest), ""),
     modifier: Modifier = Modifier,
 ) {
@@ -123,7 +122,7 @@ public fun JabookDrawerContent(
             NavigationDrawerItem(
                 label = { Text(stringResource(R.string.settings)) },
                 icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
-                selected = false,
+                selected = currentDestination?.hierarchy?.any { it.hasRoute<SettingsRoute>() } == true,
                 onClick = onNavigateToSettings,
                 modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
             )

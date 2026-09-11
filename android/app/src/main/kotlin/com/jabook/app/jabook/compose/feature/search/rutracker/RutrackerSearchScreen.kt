@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -50,7 +49,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -85,6 +83,7 @@ import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverWaterfallPolicy
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
+import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.RutrackerSearchResult
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -534,15 +533,11 @@ private fun FilterBottomSheet(
     var tempMinSizeMb by remember { mutableIntStateOf(filters.minSizeMb ?: 0) }
     var tempMaxSizeMb by remember { mutableIntStateOf(filters.maxSizeMb ?: 0) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        modifier = modifier,
-    ) {
+    JabookModalBottomSheet(onDismissRequest = onDismiss, modifier = modifier) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding()
                     .imePadding()
                     .padding(16.dp),
         ) {

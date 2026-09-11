@@ -141,12 +141,12 @@ public fun PlayerOverflowMenuSheet(
 
         OverflowMenuItemWithSubtitle(
             icon = Icons.Filled.Repeat,
-            title = "A-B Repeat",
+            title = stringResource(R.string.abRepeatTitle),
             subtitle =
                 when (abRepeatState.phase) {
-                    ABRepeatPhase.INACTIVE -> "Inactive"
-                    ABRepeatPhase.A_SET -> "A set"
-                    ABRepeatPhase.ACTIVE -> "A→B active"
+                    ABRepeatPhase.INACTIVE -> stringResource(R.string.abRepeatInactive)
+                    ABRepeatPhase.A_SET -> stringResource(R.string.abRepeatActive)
+                    ABRepeatPhase.ACTIVE -> stringResource(R.string.abRepeatRangeActive)
                 },
             onClick = {
                 onABRepeatClick()

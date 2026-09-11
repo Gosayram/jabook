@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
@@ -35,8 +34,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -60,6 +57,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.processors.SpeedDialPolicy
+import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 
 /**
  * Bottom sheet for selecting playback speed.
@@ -86,7 +84,6 @@ public fun PlaybackSpeedSheet(
     onSpeedSelected: (Float) -> Unit,
     onPitchCorrectionChanged: (Boolean) -> Unit,
     onDismiss: () -> Unit,
-    sheetState: SheetState,
 ) {
     var sliderSpeed by remember { mutableFloatStateOf(currentSpeed) }
     var fineTuneSpeed by remember { mutableFloatStateOf(currentSpeed) }
@@ -106,16 +103,12 @@ public fun PlaybackSpeedSheet(
             mutableStateListOf<Float>()
         }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-    ) {
+    JabookModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .navigationBarsPadding(),
+                    .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(

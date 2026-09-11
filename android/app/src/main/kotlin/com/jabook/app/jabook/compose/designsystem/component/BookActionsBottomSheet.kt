@@ -18,7 +18,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
@@ -31,8 +30,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -60,7 +57,6 @@ import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
  *
  * @param book The book for which to show actions
  * @param actionsProvider Provider containing action callbacks
- * @param sheetState State for controlling the bottom sheet
  * @param onDismiss Callback when sheet is dismissed
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,19 +64,14 @@ import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 public fun BookActionsBottomSheet(
     book: Book,
     actionsProvider: BookActionsProvider,
-    sheetState: SheetState,
     onDismiss: () -> Unit,
 ) {
     val onDeleteBook = actionsProvider.onDeleteBook
     var showDeleteConfirmation by remember(book.id) { mutableStateOf(false) }
-    var deleteConfirmationConsumed by remember(book.id) { mutableStateOf(false) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-    ) {
+    JabookModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
-            modifier = Modifier.fillMaxWidth().navigationBarsPadding(),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             // Sheet header with book title
             Text(
@@ -152,7 +143,6 @@ public fun BookActionsBottomSheet(
                     modifier =
                         Modifier.clickableWithoutRipple {
                             showDeleteConfirmation = true
-                            deleteConfirmationConsumed = false
                         },
                 )
             }
@@ -167,8 +157,6 @@ public fun BookActionsBottomSheet(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        if (deleteConfirmationConsumed) return@TextButton
-                        deleteConfirmationConsumed = true
                         showDeleteConfirmation = false
                         onDeleteBook(book.id)
                         onDismiss()

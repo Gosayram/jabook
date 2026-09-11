@@ -226,14 +226,6 @@ public class SettingsViewModel
                     initialValue = emptyMap(),
                 )
 
-        public val booksForStats: StateFlow<List<com.jabook.app.jabook.compose.domain.model.Book>> =
-            getLibraryUseCase(com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY)
-                .stateIn(
-                    scope = viewModelScope,
-                    started = SharingStarted.WhileSubscribed(5000),
-                    initialValue = emptyList(),
-                )
-
         public fun scanLibrary() {
             viewModelScope.launch {
                 // Check if scan folders are configured
@@ -313,12 +305,6 @@ public class SettingsViewModel
             }
         }
 
-        public fun updateSortOrder(sortOrder: com.jabook.app.jabook.compose.data.model.BookSortOrder) {
-            viewModelScope.launch {
-                userPreferencesRepository.setSortOrder(sortOrder)
-            }
-        }
-
         public fun updateAutoPlayNext(enabled: Boolean) {
             viewModelScope.launch {
                 userPreferencesRepository.setAutoPlayNext(enabled)
@@ -337,12 +323,6 @@ public class SettingsViewModel
             }
         }
 
-        public fun updateHaptics(enabled: Boolean) {
-            viewModelScope.launch {
-                userPreferencesRepository.setHapticsEnabled(enabled)
-            }
-        }
-
         public fun updatePlaybackSpeed(speed: Float) {
             viewModelScope.launch {
                 userPreferencesRepository.setPlaybackSpeed(speed)
@@ -350,12 +330,6 @@ public class SettingsViewModel
         }
 
         // ===== New Proto DataStore API =====
-
-        public fun updateProtoTheme(themeMode: com.jabook.app.jabook.compose.data.preferences.ThemeMode) {
-            viewModelScope.launch {
-                settingsRepository.updateThemeMode(themeMode)
-            }
-        }
 
         public fun updateDynamicColors(enabled: Boolean) {
             viewModelScope.launch {
@@ -473,26 +447,6 @@ public class SettingsViewModel
                     bands = bands,
                     preampMillibels = preampMillibels,
                 )
-            }
-        }
-
-        public fun updateNotifications(
-            enabled: Boolean? = null,
-            downloadNotifications: Boolean? = null,
-            playerNotifications: Boolean? = null,
-        ) {
-            viewModelScope.launch {
-                settingsRepository.updateNotificationSettings(
-                    notificationsEnabled = enabled,
-                    downloadNotifications = downloadNotifications,
-                    playerNotifications = playerNotifications,
-                )
-            }
-        }
-
-        public fun resetToDefaults() {
-            viewModelScope.launch {
-                settingsRepository.resetToDefaults()
             }
         }
 
@@ -785,15 +739,6 @@ public class SettingsViewModel
         public fun resetAllBookSettings() {
             viewModelScope.launch {
                 updateBookSettingsUseCase.resetAll()
-            }
-        }
-
-        /**
-         * Normalizes all chapter titles (e.g. "Chapter 1").
-         */
-        public fun normalizeAllChapters() {
-            viewModelScope.launch {
-                booksRepository.normalizeAllChapters()
             }
         }
     }

@@ -267,11 +267,6 @@ public fun JabookApp(
                             appState.navController.navigate(com.jabook.app.jabook.compose.feature.auth.AuthRoute)
                             scope.launch { drawerState.close() }
                         },
-                        onNavigateToAbout = {
-                            // ponytail: no AboutRoute exists — About is inside Settings
-                            appState.navigateToTopLevelDestination(TopLevelDestination.SETTINGS)
-                            scope.launch { drawerState.close() }
-                        },
                         accountProfile =
                             when (val status = authStatus) {
                                 is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated ->
@@ -370,7 +365,9 @@ public fun JabookApp(
                                             hasNextChapter = hasNextChapter,
                                             hasPreviousChapter = hasPreviousChapter,
                                             onMiniPlayerClick = {
-                                                appState.navController.navigate(PlayerRoute(bookId = book.id))
+                                                appState.navController.navigate(PlayerRoute(bookId = book.id)) {
+                                                    launchSingleTop = true
+                                                }
                                             },
                                             onDismiss = {
                                                 miniPlayerViewModel.pause()

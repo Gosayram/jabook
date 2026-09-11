@@ -14,14 +14,10 @@
 
 package com.jabook.app.jabook.compose.feature.settings
 
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -123,10 +119,8 @@ import com.jabook.app.jabook.compose.data.permissions.PersistedTreeUriPermission
 import com.jabook.app.jabook.compose.designsystem.component.endItemShape
 import com.jabook.app.jabook.compose.designsystem.component.leadingItemShape
 import com.jabook.app.jabook.compose.designsystem.component.middleItemShape
-import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.feature.library.ListeningHeatmap
 import com.jabook.app.jabook.compose.feature.library.ProductivePeriod
-import com.jabook.app.jabook.compose.feature.library.SpeedDonutChart
 import com.jabook.app.jabook.compose.feature.library.WeeklyRecapState
 import com.jabook.app.jabook.compose.feature.library.YearRecapState
 import com.jabook.app.jabook.compose.feature.library.shareYearRecap
@@ -218,7 +212,6 @@ public fun SettingsScreen(
     val coroutineScope = rememberCoroutineScope()
     val weeklyRecap by viewModel.weeklyRecapState.collectAsStateWithLifecycle()
     val yearRecap by viewModel.yearRecapState.collectAsStateWithLifecycle()
-    val statsBooks by viewModel.booksForStats.collectAsStateWithLifecycle()
     val dailyListeningMinutes by viewModel.dailyListeningMinutes.collectAsStateWithLifecycle()
     var showStatsExpanded by remember { mutableStateOf(false) }
 
@@ -880,16 +873,6 @@ public fun SettingsScreen(
                 if (showStatsExpanded) {
                     ListeningHeatmap(
                         data = dailyListeningMinutes,
-                        modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
-                    )
-                    Text(
-                        text = stringResource(R.string.approximateSpeedDistribution),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = contentPadding),
-                    )
-                    SpeedDonutChart(
-                        distribution = buildSpeedDistribution(statsBooks),
                         modifier = Modifier.padding(horizontal = contentPadding, vertical = 6.dp),
                     )
                 }
@@ -2475,30 +2458,6 @@ private fun formatTimestamp(millis: Long): String =
     com.jabook.app.jabook.compose.util.DateTimeFormatter
         .formatGOST(millis)
 
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-private fun openSystemLanguageSettings(context: Context) {
-    val appLanguageIntent =
-        Intent(Settings.ACTION_APP_LOCALE_SETTINGS).apply {
-            data = Uri.fromParts("package", context.packageName, null)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-
-    val fallbackIntent =
-        Intent(Settings.ACTION_LOCALE_SETTINGS).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-
-    try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.startActivity(appLanguageIntent)
-        } else {
-            context.startActivity(fallbackIntent)
-        }
-    } catch (_: ActivityNotFoundException) {
-        context.startActivity(fallbackIntent)
-    }
-}
-
 @Composable
 private fun AccentSwatchSelector(
     selectedIndex: Int,
@@ -2600,11 +2559,6 @@ private fun ProfileHeader(
                             else -> stringResource(R.string.settingsProfileGuest)
                         }
                     Text(text = name, style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        text = stringResource(R.string.settingsProfileStats, 0, 0, 0),
-                        style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
             }
             if (authStatus !is com.jabook.app.jabook.compose.domain.model.AuthStatus.Authenticated) {
@@ -2671,23 +2625,6 @@ private fun StackedSegmentedControl(
             }
         }
     }
-}
-
-// ponytail: bucket minutes are invented ms constants scaled by rewind/forward counts, not real
-// per-speed listening time; approximate by design until a per-speed DAO query exists
-private fun buildSpeedDistribution(books: List<Book>): Map<Float, Long> {
-    if (books.isEmpty()) {
-        return emptyMap()
-    }
-    val base = books.size.toLong().coerceAtLeast(1L)
-    val fast = books.count { (it.forwardDuration ?: 0) >= 30 }.toLong()
-    val slow = books.count { (it.rewindDuration ?: 0) >= 20 }.toLong()
-    val normal = (base - fast - slow).coerceAtLeast(1L)
-    return mapOf(
-        1.0f to normal * 60_000L,
-        1.25f to fast.coerceAtLeast(1L) * 40_000L,
-        0.9f to slow.coerceAtLeast(1L) * 35_000L,
-    )
 }
 
 @Composable

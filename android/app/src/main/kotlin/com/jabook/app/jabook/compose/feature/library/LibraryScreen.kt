@@ -83,7 +83,6 @@ import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaf
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
@@ -1205,7 +1204,6 @@ public fun LibraryScreen(
             BookActionsBottomSheet(
                 book = book,
                 actionsProvider = contextMenuActionsProvider,
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
                 onDismiss = { selectedBookForActions = null },
             )
         }

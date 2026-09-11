@@ -28,7 +28,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -147,28 +146,6 @@ public fun TorrentDetailsScreen(
             val isBuffering by viewModel.isBuffering.collectAsStateWithLifecycle()
             val monitoredHash by viewModel.monitoredHash.collectAsStateWithLifecycle()
 
-            // Only show the buffering dialog for THIS screen's torrent — the monitor
-            // is a singleton and may be streaming a different hash in background.
-            if (isBuffering && monitoredHash == viewModel.hash) {
-                AlertDialog(
-                    onDismissRequest = { /* Disable dismiss */ },
-                    title = { Text(stringResource(R.string.torrentBufferingTitle)) },
-                    text = {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            CircularProgressIndicator()
-                            Text(
-                                stringResource(R.string.torrentBufferingDescription),
-                                modifier = Modifier.padding(top = 8.dp),
-                            )
-                        }
-                    },
-                    confirmButton = {},
-                )
-            }
-
             LazyColumn(
                 modifier =
                     Modifier
@@ -177,6 +154,21 @@ public fun TorrentDetailsScreen(
                 contentPadding = PaddingValues(contentPadding),
                 verticalArrangement = Arrangement.spacedBy(itemSpacing),
             ) {
+                // Inline buffering banner for THIS screen's torrent — the monitor
+                // is a singleton and may be streaming a different hash in background.
+                if (isBuffering && monitoredHash == viewModel.hash) {
+                    item {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            Text(
+                                stringResource(R.string.torrentBufferingDescription),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                        }
+                    }
+                }
+
                 item {
                     // Header Info
                     Card(modifier = Modifier.fillMaxWidth()) {
