@@ -65,6 +65,7 @@ internal class PlayerListener(
     coroutineScope: kotlinx.coroutines.CoroutineScope? = null,
     private val onIsPlayingChanged: ((Boolean) -> Unit)? = null,
     private val onTerminalPlaybackError: (String) -> Unit = {},
+    onManualSeek: (() -> Unit)? = null,
 ) : Player.Listener {
     private var ownedScope: kotlinx.coroutines.CoroutineScope? = null
 
@@ -139,6 +140,7 @@ internal class PlayerListener(
             bookCompletionTracker = bookCompletionTracker,
             playerErrorHandler = playerErrorHandler,
             getRepeatMode = { getActivePlayer().repeatMode },
+            onManualSeek = onManualSeek,
         )
 
     private val playbackEventProcessor: PlaybackEventProcessor =

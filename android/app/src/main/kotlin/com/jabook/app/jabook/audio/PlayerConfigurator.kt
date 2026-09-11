@@ -166,6 +166,7 @@ internal class PlayerConfigurator(
                     coroutineScope = service.playerServiceScope, // Pass coroutine scope for debounce
                     onIsPlayingChanged = { isPlaying -> service.onPlaybackIsPlayingChanged(isPlaying) },
                     onTerminalPlaybackError = service::reportTerminalPlaybackError,
+                    onManualSeek = { service.playbackController?.finalizeActiveTransitionNow() },
                 )
 
             playerListener?.let {

@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.feature.player
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
@@ -33,6 +34,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -120,16 +122,16 @@ public fun SquigglySlider(
     isPlaying: Boolean = false,
     squiggleAmplitude: Dp = 3.dp,
     squiggleWavelength: Dp = 20.dp,
-    trackHeight: Dp = 4.dp, // Standard Material track is roughly 4dp; use SliderSize trackHeight for M3 XS-XL 16/24/40/56/96
+    trackHeight: Dp = 16.dp, // M3 XS track (sliders/page.md); use SliderSize trackHeight for M3 XS-XL 16/24/40/56/96
     thumbRadius: Dp = 10.dp,
     chapterMarkersFractions: List<Float> = emptyList(),
     bookmarkMarkersFractions: List<Float> = emptyList(),
     abRepeatRange: Pair<Float, Float>? = null,
     waveformData: FloatArray = FloatArray(0),
     activeTrackColor: Color = MaterialTheme.colorScheme.primary,
-    inactiveTrackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+    inactiveTrackColor: Color = MaterialTheme.colorScheme.secondaryContainer,
     abRepeatRangeColor: Color = activeTrackColor.copy(alpha = 0.35f),
-    chapterMarkerColor: Color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+    chapterMarkerColor: Color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.65f),
     bookmarkMarkerColor: Color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.9f),
     valueFormatter: ValueFormatter? = null,
     sliderSize: SliderSize? = null, // ponytail: when set, overrides trackHeight/handle per M3 tokens
@@ -162,6 +164,23 @@ public fun SquigglySlider(
     // ponytail: effective sizes — size token overrides explicit Dp when provided
     val effectiveTrackHeight = sliderSize?.trackHeight ?: trackHeight
     val effectiveThumbRadius = sliderSize?.let { it.handleHeight / 2 } ?: thumbRadius
+    // M3 expressive vertical-line handle: 4dp x 44dp (XS); shrinks in width, grows in height on press/drag
+    val handleWidth = sliderSize?.handleWidth ?: 4.dp
+    val handleHeight = sliderSize?.handleHeight ?: 44.dp
+    val animatedHandleWidth by animateDpAsState(
+        targetValue = if (isInteracting) 3.dp else handleWidth,
+        label = "handle_width",
+    )
+    val animatedHandleHeight by animateDpAsState(
+        targetValue = if (isInteracting) handleHeight + 4.dp else handleHeight,
+        label = "handle_height",
+    )
+    val handleColor =
+        if (enabled) {
+            activeTrackColor
+        } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        }
 
     // Animation for the wave phase (movement)
     val infiniteTransition = rememberInfiniteTransition(label = "wave_phase")
@@ -228,7 +247,8 @@ public fun SquigglySlider(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(effectiveThumbRadius * 2), // Match container
+                    // ponytail: at least track + 8dp so waveform stays visible around the thicker M3 track
+                    .height(maxOf(effectiveThumbRadius * 2, effectiveTrackHeight + 8.dp)), // Match container
         ) {
             val width = size.width
             val height = size.height
@@ -256,7 +276,8 @@ public fun SquigglySlider(
             // Draw cached waveform behind the track for quick visual density preview.
             if (waveformData.isNotEmpty()) {
                 val baseline = centerY
-                val availableHalfHeight = (effectiveThumbRadius.toPx() - effectiveTrackHeight.toPx()).coerceAtLeast(2f)
+                // ponytail: track half-height + 4dp — waveform pokes past the 16dp track instead of hiding under it
+                val availableHalfHeight = (effectiveTrackHeight.toPx() / 2f + 4.dp.toPx()).coerceAtLeast(2f)
                 val stepX = width / waveformData.size.toFloat()
                 var x = 0f
                 for (sample in waveformData) {
@@ -422,13 +443,25 @@ public fun SquigglySlider(
             interactionSource = interactionSource,
             colors =
                 SliderDefaults.colors(
-                    thumbColor = activeTrackColor, // Visible Thumb
+                    thumbColor = Color.Transparent, // Round thumb replaced by M3 vertical-line handle below
                     activeTrackColor = Color.Transparent, // Hidden standard track
                     inactiveTrackColor = Color.Transparent, // Hidden standard track
-                    disabledThumbColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                    disabledThumbColor = Color.Transparent,
                     disabledActiveTrackColor = Color.Transparent,
                     disabledInactiveTrackColor = Color.Transparent,
                 ),
+            thumb = {
+                // M3 expressive handle: vertical line 4x44dp, shrinks/grows while pressed or dragging
+                Box(
+                    modifier =
+                        Modifier
+                            .size(width = animatedHandleWidth, height = animatedHandleHeight)
+                            .background(
+                                color = handleColor,
+                                shape = RoundedCornerShape(animatedHandleWidth / 2),
+                            ),
+                )
+            },
         )
 
         if (valueFormatter != null && isInteracting && sliderWidthPx > 0) {
@@ -440,7 +473,8 @@ public fun SquigglySlider(
                 }
             val range = (normalizedRange.endInclusive - normalizedRange.start).takeIf { it > 0f && it.isFinite() } ?: 1f
             val fraction = ((safeValue - normalizedRange.start) / range).coerceIn(0f, 1f)
-            val thumbRadiusPx = with(density) { effectiveThumbRadius.toPx() }
+            // ponytail: M3 centers the slot thumb at handleWidth/2 inset, so tooltip follows that
+            val thumbRadiusPx = with(density) { (handleWidth / 2).toPx() }
             val xOffset = (thumbRadiusPx + fraction * (sliderWidthPx - 2 * thumbRadiusPx)).toInt()
             val xOffsetDp = with(density) { xOffset.toDp() }
             val sliderWidthDp = with(density) { sliderWidthPx.toDp() }

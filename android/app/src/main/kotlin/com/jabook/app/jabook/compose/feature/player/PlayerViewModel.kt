@@ -21,6 +21,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.PlaylistItem
+import com.jabook.app.jabook.audio.WaveformCache
+import com.jabook.app.jabook.audio.WaveformExtractor
 import com.jabook.app.jabook.audio.data.repository.ListeningSessionRepository
 import com.jabook.app.jabook.audio.data.repository.PlaybackPositionRepository
 import com.jabook.app.jabook.audio.processors.SpeedMemoryHierarchy
@@ -146,7 +148,11 @@ public class PlayerViewModel
 
         private val seekbarWaveformHandler =
             PlayerSeekbarWaveformHandler(
-                visualizerWaveformData = visualizerWaveformData,
+                bookId = bookId,
+                getChaptersUseCase = getChaptersUseCase,
+                playerController = playerController,
+                waveformExtractor = WaveformExtractor(context),
+                waveformCache = WaveformCache(context),
                 viewModelScope = viewModelScope,
             )
 

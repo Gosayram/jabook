@@ -392,10 +392,13 @@ public class AudioPlayerController
                 override fun onDisconnected(controller: MediaController) {
                     // Service died (swipe, system trim, crash). Reset the controller so the
                     // UI can reconnect on the next command instead of going stale forever.
+                    // Also clear the loaded book id: the new controller starts empty, and a
+                    // stale id would make callers skip reloading ("already bound" shortcut).
                     logger.w { "MediaController disconnected — resetting for reconnect" }
                     if (mediaController === controller) {
                         mediaController = null
                     }
+                    _currentBookId.value = null
                     _connectionState.value = ConnectionState.DISCONNECTED
                     controller.release()
                     mediaControllerFuture?.let { MediaController.releaseFuture(it) }
@@ -1156,6 +1159,11 @@ public class AudioPlayerController
                 commandName = "play",
                 pendingCommand = PlayCommand,
             ) { controller ->
+                // play() is a no-op on an unprepared/empty player (e.g. fresh after
+                // reconnect), so prepare first — this resumes via pending load state.
+                if (controller.playbackState == Player.STATE_IDLE || controller.mediaItemCount == 0) {
+                    controller.prepare()
+                }
                 controller.play()
             }
         }

@@ -66,12 +66,13 @@ class PlayerIntentCommandRouterTest {
     }
 
     @Test
-    fun `routePlaybackIntent returns null for idempotent play command`() {
+    fun `routePlaybackIntent emits play command even when already playing`() {
         val state = activeState(isPlaying = true)
 
         val command = PlayerIntentCommandRouter.routePlaybackIntent(PlayerIntent.Play, state, state, currentPositionMs = 0L)
 
-        assertNull(command)
+        // Idempotent: always emit so stale UI state can't silently drop the intent.
+        assertEquals(PlayerCommand.Play, command)
     }
 
     @Test

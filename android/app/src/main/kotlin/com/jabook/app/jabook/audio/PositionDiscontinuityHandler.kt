@@ -39,6 +39,7 @@ internal class PositionDiscontinuityHandler(
     private val bookCompletionTracker: BookCompletionTracker,
     private val playerErrorHandler: PlayerErrorHandler,
     private val getRepeatMode: () -> Int = { Player.REPEAT_MODE_OFF },
+    private val onManualSeek: (() -> Unit)? = null,
 ) {
     /**
      * Handles position discontinuity events (track changes, seeks, auto-transitions).
@@ -67,6 +68,11 @@ internal class PositionDiscontinuityHandler(
             reason == Player.DISCONTINUITY_REASON_SEEK ||
                 reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
         val isAutoTransition = reason == Player.DISCONTINUITY_REASON_AUTO_TRANSITION
+
+        // UI slider seeks go through MediaController straight to the session player,
+        // bypassing PlaybackController.seekTo — finalize any in-flight crossfade here
+        // so the seek isn't erased by the transition teardown. No-op without a transition.
+        if (isManualSeek) onManualSeek?.invoke()
 
         // Handle book completion state during discontinuities
         if (getIsBookCompleted()) {

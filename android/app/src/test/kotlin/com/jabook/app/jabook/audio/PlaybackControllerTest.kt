@@ -166,12 +166,14 @@ class PlaybackControllerTest {
             whenever(exoPlayer.currentPosition).thenReturn(50_000L)
 
             var consumeCalls = 0
+            var fakeNow = 1_000_000L
             playbackController =
                 PlaybackController(
                     getActivePlayer = { exoPlayer },
                     playerServiceScope = testScope,
                     resetInactivityTimer = { resetTimerCallCount++ },
                     getResumeRewindSeconds = { 10 },
+                    nowMsProvider = { fakeNow },
                     consumeSleepTimerStopFlag = {
                         consumeCalls++
                         consumeCalls == 1
@@ -180,6 +182,11 @@ class PlaybackControllerTest {
 
             playbackController.play()
             advanceUntilIdle()
+            // Sleep-timer stop: pause records lastPauseTime; 31 min pass before
+            // the user returns, so FIXED resume rewind applies on the next play.
+            playbackController.pause()
+            advanceUntilIdle()
+            fakeNow += 31 * 60 * 1000L
             playbackController.play()
             advanceUntilIdle()
 

@@ -295,31 +295,20 @@ internal object PlayerIntentCommandRouter {
         currentPositionMs: Long,
     ): PlayerCommand? =
         when (intent) {
+            // Play/pause commands are idempotent — always emit so stale UI state
+            // (e.g. after service reconnect) can't silently drop the user's intent.
             PlayerIntent.TogglePlayPause -> {
-                val activeCurrentState = currentState as? PlayerState.Active
-                val targetState = reducedState as? PlayerState.Active
-                if (activeCurrentState == null || targetState == null || activeCurrentState == targetState) {
-                    null
-                } else if (targetState.isPlaying) {
-                    PlayerCommand.Play
-                } else {
+                // Decide from the authoritative actual state, not the rendered
+                // (possibly stale) reduced state: if really paused, toggle = Play.
+                val actual = currentState as? PlayerState.Active
+                if (actual?.isPlaying == true) {
                     PlayerCommand.Pause
-                }
-            }
-            PlayerIntent.Play -> {
-                if (reducedState == currentState) {
-                    null
                 } else {
                     PlayerCommand.Play
                 }
             }
-            PlayerIntent.Pause -> {
-                if (reducedState == currentState) {
-                    null
-                } else {
-                    PlayerCommand.Pause
-                }
-            }
+            PlayerIntent.Play -> PlayerCommand.Play
+            PlayerIntent.Pause -> PlayerCommand.Pause
             PlayerIntent.SkipNext -> PlayerCommand.SkipToNext
             PlayerIntent.SkipPrevious -> PlayerCommand.SkipToPrevious
             is PlayerIntent.SeekTo -> {
