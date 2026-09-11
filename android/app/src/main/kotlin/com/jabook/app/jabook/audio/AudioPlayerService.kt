@@ -505,6 +505,12 @@ public class AudioPlayerService : MediaLibraryService() {
                 )
             if (foregroundStartResult == ForegroundStartResult.FAILED) {
                 LogUtils.e("AudioPlayerService", "Failed to start foreground with both notifications")
+            } else if (foregroundStartResult == ForegroundStartResult.DENIED_BY_SYSTEM) {
+                // ponytail: Android 14/15 FGS ban (background start) — no session will ever
+                // attach, the "initializing" notification would hang forever. Die quietly.
+                LogUtils.w("AudioPlayerService", "Foreground start denied by system, stopping")
+                stopSelf()
+                return
             } else {
                 LogUtils.d("AudioPlayerService", "startForeground() completed: $foregroundStartResult")
             }
@@ -529,6 +535,23 @@ public class AudioPlayerService : MediaLibraryService() {
             PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
             LogUtils.i("AudioPlayerService", "onCreate() completed successfully")
+            // ponytail: the minimal "initializing" notification has no TTL — if no
+            // controller ever attaches a playlist (timeout, init failure), kill the
+            // service instead of hanging the banner forever.
+            playerServiceScope.launch {
+                delay(15_000)
+                if (!isFullyInitializedFlag ||
+                    mediaLibrarySession == null ||
+                    getActivePlayer().mediaItemCount == 0
+                ) {
+                    LogUtils.w("AudioPlayerService", "No media after init timeout, stopping stuck service")
+                    androidx.core.app.ServiceCompat.stopForeground(
+                        this@AudioPlayerService,
+                        androidx.core.app.ServiceCompat.STOP_FOREGROUND_REMOVE,
+                    )
+                    stopSelf()
+                }
+            }
         } catch (e: Exception) {
             LogUtils.e("AudioPlayerService", "onCreate() failed", e)
             throw e

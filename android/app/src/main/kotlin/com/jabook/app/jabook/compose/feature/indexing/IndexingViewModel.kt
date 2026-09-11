@@ -22,6 +22,7 @@ import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexProgress
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
 import com.jabook.app.jabook.compose.data.local.dao.IndexMetadata
+import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.remote.RuTrackerError
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.data.worker.IndexingWorkScheduler
@@ -34,6 +35,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -49,6 +51,7 @@ public class IndexingViewModel
         private val authRepository: AuthRepository,
         private val withAuthorisedCheckUseCase: WithAuthorisedCheckUseCase,
         private val indexingWorkScheduler: IndexingWorkScheduler,
+        private val settingsRepository: SettingsRepository,
         private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
         private companion object {
@@ -105,7 +108,9 @@ public class IndexingViewModel
                 _isIndexing.value = true
                 _indexingStartTime.value = System.currentTimeMillis()
                 _indexingProgress.value = IndexingProgress.Idle
-                indexingWorkScheduler.enqueue()
+                viewModelScope.launch {
+                    indexingWorkScheduler.enqueue(resolveSelectedForumIdsOrNull())
+                }
                 startIndexingWorkMonitor()
                 // Progress will be updated from service via broadcast or we can observe service state
                 // For now, we'll update state when service completes
@@ -123,9 +128,10 @@ public class IndexingViewModel
                     try {
                         // Use WithAuthorisedCheckUseCase to ensure authentication before indexing
                         // RuTracker requires authentication to access forum pages
+                        val forumIds = resolveSelectedForumIdsOrAll()
                         withAuthorisedCheckUseCase(operationId = "indexing") {
                             forumIndexer.indexForums(
-                                forumIds = RutrackerApi.AUDIOBOOKS_FORUM_IDS,
+                                forumIds = forumIds,
                                 preloadCovers = true,
                             ) { progress ->
                                 _indexingProgress.value = progress
@@ -238,7 +244,9 @@ public class IndexingViewModel
             }
 
             // Start foreground service
-            indexingWorkScheduler.enqueue()
+            viewModelScope.launch {
+                indexingWorkScheduler.enqueue(resolveSelectedForumIdsOrNull())
+            }
             _isIndexing.value = true
             _indexingStartTime.value = System.currentTimeMillis()
             startIndexingWorkMonitor()
@@ -268,6 +276,21 @@ public class IndexingViewModel
             } finally {
                 _clearingInProgress.value = false
             }
+
+        // ponytail: blank selection = all forums; null skips KEY_FORUM_IDS entirely
+        private suspend fun resolveSelectedForumIdsOrNull(): String? {
+            val selected =
+                try {
+                    settingsRepository.userPreferences.first().selectedForumIds
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    ""
+                }
+            return selected.ifBlank { null }
+        }
+
+        private suspend fun resolveSelectedForumIdsOrAll(): String = resolveSelectedForumIdsOrNull() ?: RutrackerApi.AUDIOBOOKS_FORUM_IDS
 
         private fun startIndexingWorkMonitor() {
             if (indexingMonitorJob?.isActive == true) {

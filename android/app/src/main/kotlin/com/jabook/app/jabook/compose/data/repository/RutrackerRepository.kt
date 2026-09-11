@@ -91,6 +91,16 @@ public interface RutrackerRepository {
         query: String,
         forumIds: String? = null,
     ): Flow<Result<List<RutrackerSearchResult>, AppError>>
+
+    /**
+     * Most recently indexed topics.
+     *
+     * ponytail: дата индексации, не релиза — см. OfflineSearchDao.getRecentTopics.
+     */
+    public suspend fun getRecentTopics(
+        limit: Int = 20,
+        offset: Int = 0,
+    ): Result<List<RutrackerSearchResult>, AppError>
 }
 
 /**
@@ -383,4 +393,17 @@ public class RutrackerRepositoryImpl
 
         /** Escapes LIKE wildcards so a token like "100%" doesn't match everything. */
         private fun escapeLike(token: String): String = token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+        override suspend fun getRecentTopics(
+            limit: Int,
+            offset: Int,
+        ): Result<List<RutrackerSearchResult>, AppError> =
+            try {
+                val entities = offlineSearchDao.getRecentTopics(limit, offset)
+                Result.Success(entities.map { it.toSearchResult() }.toDomainFromIndex())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Result.Error(e.toAppError())
+            }
     }

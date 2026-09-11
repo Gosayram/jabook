@@ -164,6 +164,9 @@ message UserPreferences {
   // Auto-sleep timer: automatically pause playback after a set duration when playing.
   bool auto_sleep_timer_enabled = 72;
   int32 auto_sleep_timer_minutes = 73; // Duration in minutes (default: 30)
+
+  // Selected forum IDs for indexing, comma-separated. Empty = all forums.
+  string selected_forum_ids = 74;
 }
 
 message SleepTimerState {

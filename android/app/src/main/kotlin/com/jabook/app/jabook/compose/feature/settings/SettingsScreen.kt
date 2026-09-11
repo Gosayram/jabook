@@ -29,6 +29,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -1328,6 +1329,100 @@ public fun SettingsScreen(
             }
 
             val indexTopicsCount = pluralStringResource(R.plurals.indexTopicsCount, indexSize, indexSize)
+
+            // Forum selection for indexing (ponytail: minimal — chip list + 2 presets)
+            val allForumIds = com.jabook.app.jabook.compose.data.remote.api.RutrackerApi.AUDIOBOOKS_FORUM_IDS
+            val quickPreset = "574,1036" // ponytail: popular child forums
+            var selectedForums by rememberSaveable { mutableStateOf("") }
+            var forumSelectorExpanded by rememberSaveable { mutableStateOf(false) }
+
+            LaunchedEffect(Unit) {
+                val prefs = viewModel.protoSettings.value
+                selectedForums = prefs.selectedForumIds
+            }
+
+            val effectiveForums = selectedForums.ifBlank { allForumIds }
+            val forumCount = effectiveForums.split(",").size
+
+            SettingsItem(
+                title = "Forums to index",
+                subtitle =
+                    if (selectedForums.isBlank()) {
+                        "All forums ($forumCount)"
+                    } else {
+                        "Selected: $forumCount forums"
+                    },
+                onClick = { forumSelectorExpanded = !forumSelectorExpanded },
+            )
+
+            if (forumSelectorExpanded) {
+                Column(modifier = Modifier.padding(horizontal = contentPadding, vertical = 4.dp)) {
+                    // Preset buttons
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = selectedForums.isBlank(),
+                            onClick = {
+                                selectedForums = ""
+                                viewModel.updateSelectedForumIds("")
+                            },
+                            label = { Text("All") },
+                        )
+                        FilterChip(
+                            selected = selectedForums == quickPreset,
+                            onClick = {
+                                selectedForums = quickPreset
+                                viewModel.updateSelectedForumIds(quickPreset)
+                            },
+                            label = { Text("Quick (2)") },
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    // Forum chips
+                    val chips = effectiveForums.split(",").map { it.trim() }
+                    val selectedSet =
+                        remember(selectedForums) {
+                            selectedForums
+                                .split(",")
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
+                                .toSet()
+                        }
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        chips.forEach { forumId ->
+                            val isSel = forumId in selectedSet || (selectedForums.isBlank())
+                            FilterChip(
+                                selected = isSel,
+                                onClick = {
+                                    val newSet =
+                                        if (selectedForums.isBlank()) {
+                                            // Selecting from "all" → only this one
+                                            setOf(forumId)
+                                        } else if (forumId in selectedSet) {
+                                            selectedSet - forumId
+                                        } else {
+                                            selectedSet + forumId
+                                        }
+                                    val newIds = newSet.joinToString(",")
+                                    selectedForums = newIds
+                                    viewModel.updateSelectedForumIds(newIds)
+                                },
+                                label = { Text("Forum $forumId") },
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Affects offline indexing only",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
             SettingsItem(
                 title =
                     if (indexSize == 0) {

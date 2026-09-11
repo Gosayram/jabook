@@ -69,6 +69,10 @@ public class RutrackerSearchViewModel
         private val _sortOrder = MutableStateFlow(RutrackerSortOrder.RELEVANCE)
         public val sortOrder: StateFlow<RutrackerSortOrder> = _sortOrder.asStateFlow()
 
+        // ponytail: дата индексации, не релиза — см. OfflineSearchDao.getRecentTopics
+        private val _recentTopics = MutableStateFlow<List<SearchResultUi>>(emptyList())
+        public val recentTopics: StateFlow<List<SearchResultUi>> = _recentTopics.asStateFlow()
+
         // Store original results for client-side filtering/sorting
         private var originalResults: List<RutrackerSearchResult> = emptyList()
         private var searchJob: Job? = null
@@ -244,6 +248,33 @@ public class RutrackerSearchViewModel
                 .filter { it.isNotBlank() }
                 .distinct()
                 .forEach(coverLoader::loadCover)
+        }
+
+        /**
+         * Load most recently indexed topics for the "Новые поступления" shelf.
+         * No-op when already loaded; call again after indexing completes.
+         */
+        public fun loadRecentTopics(limit: Int = 20) {
+            if (_recentTopics.value.isNotEmpty()) return
+            viewModelScope.launch {
+                try {
+                    val result = repository.getRecentTopics(limit, 0)
+                    if (result is DomainResult.Success) {
+                        val libraryUrls = librarySourceUrls.value
+                        _recentTopics.value =
+                            result.data.map {
+                                SearchResultUi(
+                                    result = it,
+                                    isInLibrary = libraryUrls.any { url -> url.contains(it.topicId) },
+                                )
+                            }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    logger.e(e) { "Failed to load recent topics" }
+                }
+            }
         }
 
         /**

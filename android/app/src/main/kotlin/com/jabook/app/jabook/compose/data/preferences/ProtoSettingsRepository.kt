@@ -130,6 +130,8 @@ public interface SettingsRepository {
 
     public suspend fun updateAutoSleepTimerMinutes(minutes: Int)
 
+    public suspend fun updateSelectedForumIds(ids: String)
+
     public val bassBoostStrength: Flow<Int>
 
     public suspend fun updateBassBoostStrength(strength: Int)
@@ -478,6 +480,12 @@ public class ProtoSettingsRepository
             val safeMinutes = minutes.coerceIn(5, 240)
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setAutoSleepTimerMinutes(safeMinutes).build()
+            }
+        }
+
+        override suspend fun updateSelectedForumIds(ids: String) {
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setSelectedForumIds(ids).build()
             }
         }
 

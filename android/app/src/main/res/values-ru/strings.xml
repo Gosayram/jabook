@@ -2777,6 +2777,8 @@
     <string name="search_rutracker">Поиск в RuTracker</string>
     <string name="search_query">Поиск запроса</string>
     <string name="enter_search_query">Введите поисковый запрос чтобы начать</string>
+    <string name="recently_indexed_title">Недавно проиндексировано</string>
+    <string name="recently_indexed_subtitle">по дате индексации, не релиза</string>
 
     <!-- Фильтры и сортировка -->
     <string name="filters_and_sort">Фильтры и сортировка</string>

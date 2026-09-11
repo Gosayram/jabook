@@ -32,15 +32,19 @@ public class IndexingWorkScheduler
     constructor(
         private val workManager: WorkManager,
     ) {
-        public fun enqueue() {
+        public fun enqueue(forumIds: String? = null) {
+            val inputDataBuilder =
+                Data
+                    .Builder()
+                    .putBoolean(IndexingWorker.KEY_PRELOAD_COVERS, true)
+            // ponytail: blank = all forums (worker falls back), skip key entirely
+            if (!forumIds.isNullOrBlank()) {
+                inputDataBuilder.putString(IndexingWorker.KEY_FORUM_IDS, forumIds)
+            }
             val request =
                 OneTimeWorkRequestBuilder<IndexingWorker>()
-                    .setInputData(
-                        Data
-                            .Builder()
-                            .putBoolean(IndexingWorker.KEY_PRELOAD_COVERS, true)
-                            .build(),
-                    ).setConstraints(WorkConstraintsPolicy.userInitiatedDownload())
+                    .setInputData(inputDataBuilder.build())
+                    .setConstraints(WorkConstraintsPolicy.userInitiatedDownload())
                     .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
                     .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 15, TimeUnit.SECONDS)
                     .addTag(IndexingWorker.WORK_NAME_ONE_TIME)

@@ -224,6 +224,27 @@ public interface OfflineSearchDao {
     ): List<CachedTopicEntity>
 
     /**
+     * Most recently indexed topics ("Новые поступления").
+     *
+     * ponytail: ORDER BY timestamp — это дата индексации, НЕ дата релиза.
+     * Реальные даты релиза из viewforum не парсятся (нужны миграция + индекс registered_date).
+     *
+     * @param limit Maximum number of results
+     * @param offset Pagination offset
+     */
+    @Query(
+        """
+        SELECT * FROM cached_topics
+        ORDER BY timestamp DESC
+        LIMIT :limit OFFSET :offset
+    """,
+    )
+    public suspend fun getRecentTopics(
+        limit: Int = 20,
+        offset: Int = 0,
+    ): List<CachedTopicEntity>
+
+    /**
      * Get topics that need updating (older than threshold or different index version).
      *
      * @param maxAgeMs Maximum age in milliseconds (topics older than this need update)

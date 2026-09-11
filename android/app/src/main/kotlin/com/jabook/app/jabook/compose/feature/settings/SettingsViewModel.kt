@@ -773,6 +773,12 @@ public class SettingsViewModel
             }
         }
 
+        public fun updateSelectedForumIds(ids: String) {
+            viewModelScope.launch {
+                settingsRepository.updateSelectedForumIds(ids)
+            }
+        }
+
         /**
          * Resets all per-book custom seek settings to global defaults.
          */

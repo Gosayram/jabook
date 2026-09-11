@@ -2779,6 +2779,8 @@
     <string name="search_rutracker">Search RuTracker</string>
     <string name="search_query">Search query</string>
     <string name="enter_search_query">Enter search query to find audiobooks</string>
+    <string name="recently_indexed_title">Recently indexed</string>
+    <string name="recently_indexed_subtitle">by index date, not release date</string>
 
     <!-- Filters and Sorting -->
     <string name="filters_and_sort">Filters &amp; Sort</string>

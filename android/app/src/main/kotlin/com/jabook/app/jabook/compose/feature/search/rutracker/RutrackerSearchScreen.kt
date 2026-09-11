@@ -116,6 +116,7 @@ public fun RutrackerSearchScreen(
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val searchState by viewModel.searchState.collectAsStateWithLifecycle()
+    val recentTopics by viewModel.recentTopics.collectAsStateWithLifecycle()
     val filters by viewModel.filters.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
 
@@ -137,6 +138,10 @@ public fun RutrackerSearchScreen(
     LaunchedEffect(Unit) {
         indexingViewModel.getIndexSize()
         indexCheckCompleted = true
+    }
+
+    LaunchedEffect(indexSize) {
+        if (indexSize > 0) viewModel.loadRecentTopics()
     }
 
     // Show indexing dialog when indexing is active
@@ -385,15 +390,47 @@ public fun RutrackerSearchScreen(
             // Results
             when (val state = searchState) {
                 is SearchState.Empty -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            stringResource(R.string.enter_search_query),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                    if (recentTopics.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                stringResource(R.string.enter_search_query),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        // ponytail: дата индексации, не релиза — см. OfflineSearchDao.getRecentTopics
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(itemSpacing),
+                            contentPadding = PaddingValues(vertical = itemSpacing),
+                        ) {
+                            item {
+                                Text(
+                                    text = stringResource(R.string.recently_indexed_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                            }
+                            item {
+                                Text(
+                                    text = stringResource(R.string.recently_indexed_subtitle),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            items(recentTopics, key = { it.result.topicId }) { uiModel ->
+                                SearchResultCard(
+                                    result = uiModel.result,
+                                    isInLibrary = uiModel.isInLibrary,
+                                    onClick = { onTopicClick(uiModel.result.topicId) },
+                                    onCoverNeeded = viewModel::requestCoverLoad,
+                                )
+                            }
+                        }
                     }
                 }
 

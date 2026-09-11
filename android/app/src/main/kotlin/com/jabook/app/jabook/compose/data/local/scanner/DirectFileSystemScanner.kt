@@ -289,10 +289,18 @@ public class DirectFileSystemScanner
                     // Update last_scan_timestamp for all scan paths after successful scan.
                     // NOTE: Completed is emitted by HybridBookScanner after this returns.
                     // Use the pre-scan start time so files modified mid-scan are not skipped next run.
-                    for (path in customPaths) {
-                        scanPathDao.updateLastScanTimestamp(path, scanStartTime)
+                    // Update last_scan_timestamp only when nothing failed: failed dirs
+                    // must be retried on the next run, not hidden forever by a bumped
+                    // timestamp combined with the incremental cutoff.
+                    // ponytail: full rescan on any failure; per-dir timestamps if this proves slow.
+                    if (failedDirs.isEmpty()) {
+                        for (path in customPaths) {
+                            scanPathDao.updateLastScanTimestamp(path, scanStartTime)
+                        }
+                        logger.i { "Updated scan timestamps for ${customPaths.size} paths" }
+                    } else {
+                        logger.w { "Skipping timestamp bump: ${failedDirs.size} dirs failed, will retry next scan" }
                     }
-                    logger.i { "Updated scan timestamps for ${customPaths.size} paths" }
 
                     Result.Success(scannedBooks)
                 } catch (e: Exception) {
@@ -420,6 +428,9 @@ public class DirectFileSystemScanner
                     "aac",
                     "wma",
                     "oga",
+                    // ponytail: synced with MimeTypeValidationPolicy.SUPPORTED_EXTENSIONS.
+                    "webm",
+                    "mkv",
                 )
 
             /** Extensions that may contain embedded Nero chapter atoms. */
