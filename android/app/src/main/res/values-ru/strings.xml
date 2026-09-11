@@ -2370,6 +2370,17 @@
     <string name="dynamicColorsDescription">Подстраивать цвета приложения под обои на Android 12+</string>
     <string name="accentColorTitle">Цвет акцента</string>
     <string name="accentColorDescription">Выберите запасной цвет, если динамические цвета отключены</string>
+    <!-- Названия цветов акцента (доступность), порядок соответствует CURATED_ACCENT_SWATCHES -->
+    <string-array name="accentSwatchNames">
+        <item>Фиолетовый</item>
+        <item>Индиго</item>
+        <item>Синий</item>
+        <item>Бирюзовый</item>
+        <item>Зелёный</item>
+        <item>Золотой</item>
+        <item>Янтарный</item>
+        <item>Терракотовый</item>
+    </string-array>
     <!-- Настройки шрифта -->
     <string name="fontTitle">Шрифт</string>
     <!-- Выберите шрифт -->
@@ -3075,6 +3086,12 @@
     <string name="playerCoverModeDescription">Выберите способ отображения обложки</string>
     <string name="coverModeCard">Карточка</string>
     <string name="coverModeVinyl">Винил</string>
+
+    <!-- Layout mode override -->
+    <string name="layoutModeTitle">Режим макета</string>
+    <string name="layoutModeAdaptive">Системный</string>
+    <string name="layoutModeCompact">Компактный</string>
+    <string name="layoutModeExpanded">Расширенный</string>
 
     <!-- Search Discovery V4 -->
     <string name="searchModeLocal">Библиотека</string>

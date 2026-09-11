@@ -37,6 +37,8 @@ public interface SettingsRepository {
 
     public suspend fun updatePlayerCoverMode(mode: Int)
 
+    public suspend fun updateLayoutMode(mode: Int)
+
     public suspend fun updateAudioSettings(
         rewindSeconds: Int? = null,
         forwardSeconds: Int? = null,
@@ -219,6 +221,13 @@ public class ProtoSettingsRepository
             val safeMode = mode.coerceIn(0, 1)
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setPlayerCoverMode(safeMode).build()
+            }
+        }
+
+        override suspend fun updateLayoutMode(mode: Int) {
+            val safeMode = mode.coerceIn(0, 2)
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setLayoutMode(safeMode).build()
             }
         }
 

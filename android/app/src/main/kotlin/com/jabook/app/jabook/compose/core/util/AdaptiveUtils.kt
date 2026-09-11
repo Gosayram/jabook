@@ -15,12 +15,17 @@
 package com.jabook.app.jabook.compose.core.util
 
 import android.content.Context
+import androidx.compose.foundation.layout.BoxConstraints
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowHeightSizeClass
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.takeOrElse
 import com.jabook.app.jabook.compose.core.theme.SpacingTokens
 
 /**
@@ -30,17 +35,37 @@ import com.jabook.app.jabook.compose.core.theme.SpacingTokens
  * following Material Design 3 guidelines.
  */
 public object AdaptiveUtils {
+    /** User layout-mode override values (user_preferences.layout_mode). */
+    public const val LAYOUT_MODE_ADAPTIVE: Int = 0
+    public const val LAYOUT_MODE_COMPACT: Int = 1
+    public const val LAYOUT_MODE_EXPANDED: Int = 2
+
     /**
-     * Gets effective window size class, applying device-specific overrides.
+     * Gets effective window size class, applying the user layout-mode override.
      *
      * @param windowSizeClass Original WindowSizeClass from calculateWindowSizeClass
-     * @param context Android context for device detection
-     * @return WindowSizeClass with device-specific overrides applied
+     * @param context Android context (unused, kept for call-site stability)
+     * @param layoutMode User override: [LAYOUT_MODE_ADAPTIVE] (default), [LAYOUT_MODE_COMPACT] or [LAYOUT_MODE_EXPANDED]
+     * @return WindowSizeClass with the override applied, or the input unchanged when adaptive/null
      */
+    @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     public fun getEffectiveWindowSizeClass(
         windowSizeClass: WindowSizeClass?,
         @Suppress("UNUSED_PARAMETER") context: Context,
-    ): WindowSizeClass? = windowSizeClass
+        layoutMode: Int = LAYOUT_MODE_ADAPTIVE,
+    ): WindowSizeClass? {
+        val base = windowSizeClass ?: return null
+        if (layoutMode == LAYOUT_MODE_ADAPTIVE) return base
+        // ponytail: override rebuilds WSC from a representative size; height class settles on
+        // Medium (800dp) — no height-class consumer exists today. Add height passthrough if one appears.
+        val width =
+            when (layoutMode) {
+                LAYOUT_MODE_COMPACT -> 400.dp
+                LAYOUT_MODE_EXPANDED -> 1000.dp
+                else -> return base
+            }
+        return WindowSizeClass.calculateFromSize(DpSize(width, 800.dp))
+    }
 
     /**
      * Resolves window size class with device-specific overrides and compact fallback.
@@ -363,3 +388,47 @@ public object AdaptiveUtils {
     // cross-layout Ruler alignment adds measurability cost for no current misalignment. Wire when a shared header/grid
     // ruler is visibly off.
 }
+
+// --- Container-based breakpoints ---
+// Container vs window semantics: [AdaptiveUtils] classifies the whole window; these helpers
+// classify the space a composable actually gets. A pane, navigation rail or drawer can shrink
+// a container far below its window class (an Expanded window can hold a Compact detail pane),
+// so derive in-pane layout decisions from the pane's own bounds, not the window class.
+
+/** Container width breakpoints (dp), spotube constrains.dart ladder: xs 480, sm 640, md 820, lg 1024, xl 1280. */
+public val ContainerBreakpoints: List<Dp> = listOf(480.dp, 640.dp, 820.dp, 1024.dp, 1280.dp)
+
+/**
+ * Maps container bounds to a [WindowSizeClass], reusing the same compact/medium/expanded
+ * thresholds as the window-based helpers — a 700dp-wide detail pane reports Medium even on
+ * an Expanded window. Unbounded dimensions fall back to a compact phone baseline.
+ */
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
+public fun containerWindowSizeClass(
+    containerWidth: Dp,
+    containerHeight: Dp,
+): WindowSizeClass =
+    WindowSizeClass.calculateFromSize(
+        DpSize(containerWidth.takeOrElse { 360.dp }, containerHeight.takeOrElse { 800.dp }),
+    )
+
+/** [BoxConstraints] variant of [containerWindowSizeClass] for custom Layout measurers. */
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
+public fun BoxConstraints.windowSizeClass(): WindowSizeClass = containerWindowSizeClass(maxWidth, maxHeight)
+
+/**
+ * Picks a value by the effective width class from [LocalWindowSizeClass] (so the user's
+ * layout-mode override is respected). Window-agnostic; prefer [containerWindowSizeClass]
+ * when per-pane measurement matters.
+ */
+@Composable
+public fun <T> rememberBreakpointValue(
+    compact: T,
+    medium: T,
+    expanded: T,
+): T =
+    when (LocalWindowSizeClass.current?.widthSizeClass) {
+        WindowWidthSizeClass.Medium -> medium
+        WindowWidthSizeClass.Expanded -> expanded
+        else -> compact
+    }

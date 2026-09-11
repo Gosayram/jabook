@@ -297,6 +297,16 @@ public class SettingsViewModel
                 initialValue = List(10) { 0 },
             )
 
+        /** User layout-mode override (0 adaptive, 1 compact, 2 expanded). */
+        public val layoutMode: StateFlow<Int> =
+            settingsRepository.userPreferences
+                .map { it.layoutMode }
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = 0,
+                )
+
         // ===== Old preferences API (kept for compatibility) =====
 
         public fun updateTheme(theme: com.jabook.app.jabook.compose.data.model.AppTheme) {
@@ -346,6 +356,12 @@ public class SettingsViewModel
         public fun updatePlayerCoverMode(mode: Int) {
             viewModelScope.launch {
                 settingsRepository.updatePlayerCoverMode(mode)
+            }
+        }
+
+        public fun updateLayoutMode(mode: Int) {
+            viewModelScope.launch {
+                settingsRepository.updateLayoutMode(mode)
             }
         }
 

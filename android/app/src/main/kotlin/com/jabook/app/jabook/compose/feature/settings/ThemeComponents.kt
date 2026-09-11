@@ -16,7 +16,6 @@ package com.jabook.app.jabook.compose.feature.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,10 +51,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
@@ -259,6 +258,8 @@ internal fun AccentSwatchSelector(
     selectedIndex: Int,
     onSwatchSelected: (Int) -> Unit,
 ) {
+    // Localized color names for a11y; falls back to the curated English name
+    val swatchNames = stringArrayResource(R.array.accentSwatchNames)
     Row(
         modifier =
             Modifier
@@ -289,17 +290,19 @@ internal fun AccentSwatchSelector(
                                     shape = androidx.compose.foundation.shape.CircleShape,
                                 )
                             },
-                        ).clickable(onClick = { onSwatchSelected(index) })
-                        .semantics {
-                            selected = isSelected
-                            contentDescription = swatch.name
+                        ).selectable(
+                            selected = isSelected,
+                            onClick = { onSwatchSelected(index) },
+                            role = Role.RadioButton,
+                        ).semantics {
+                            contentDescription = swatchNames.getOrElse(index) { swatch.name }
                         },
                 contentAlignment = androidx.compose.ui.Alignment.Center,
             ) {
                 if (isSelected) {
                     Icon(
                         imageVector = Icons.Filled.Check,
-                        contentDescription = swatch.name,
+                        contentDescription = null,
                         modifier = Modifier.size(20.dp),
                         tint =
                             if (swatch.primary.luminance() < 0.5f) {

@@ -19,6 +19,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -64,7 +65,7 @@ import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberTooltipState
-import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -91,8 +92,8 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.AudioQualityInfo
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverUtils
-import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.core.util.UiFormatters
+import com.jabook.app.jabook.compose.core.util.containerWindowSizeClass
 import com.jabook.app.jabook.compose.designsystem.component.MetadataPill
 import com.jabook.app.jabook.compose.designsystem.component.QualityBadge
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -115,7 +116,7 @@ import com.jabook.app.jabook.compose.domain.model.Chapter
  * @param onAllChaptersClick Callback to view all chapters
  * @param modifier Modifier for the root composable
  */
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3WindowSizeClassApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 public fun BookDetailPane(
     book: Book?,
@@ -132,13 +133,44 @@ public fun BookDetailPane(
     embedded: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val windowSizeClass =
-        LocalWindowSizeClass.current
-            ?: androidx.compose.material3.windowsizeclass.WindowSizeClass.calculateFromSize(
-                androidx.compose.ui.unit
-                    .DpSize(360.dp, 800.dp),
-            )
+    BoxWithConstraints(modifier = modifier) {
+        // Container-based: the pane's own width (after list-detail split) decides the layout,
+        // not the window class — an Expanded window can host a Compact detail pane.
+        BookDetailPaneContent(
+            windowSizeClass = containerWindowSizeClass(maxWidth, maxHeight),
+            book = book,
+            chapters = chapters,
+            audioQuality = audioQuality,
+            onPlayClick = onPlayClick,
+            onClose = onClose,
+            onToggleFavorite = onToggleFavorite,
+            onNavigateToAudioSettings = onNavigateToAudioSettings,
+            onShareClick = onShareClick,
+            onDownloadClick = onDownloadClick,
+            onChapterClick = onChapterClick,
+            onAllChaptersClick = onAllChaptersClick,
+            embedded = embedded,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BookDetailPaneContent(
+    windowSizeClass: WindowSizeClass,
+    book: Book?,
+    chapters: List<Chapter>,
+    audioQuality: AudioQualityInfo?,
+    onPlayClick: () -> Unit,
+    onClose: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onNavigateToAudioSettings: () -> Unit,
+    onShareClick: (() -> Unit)?,
+    onDownloadClick: (() -> Unit)?,
+    onChapterClick: ((Chapter) -> Unit)?,
+    onAllChaptersClick: (() -> Unit)?,
+    embedded: Boolean,
+) {
     val maxContentWidth = AdaptiveUtils.getMaxContentWidth(windowSizeClass)
     Scaffold(
         topBar = {

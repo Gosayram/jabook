@@ -2410,6 +2410,17 @@
     <string name="dynamicColorsDescription">Adapt app colors to your wallpaper on Android 12+</string>
     <string name="accentColorTitle">Accent color</string>
     <string name="accentColorDescription">Choose a fallback accent color when dynamic colors are disabled</string>
+    <!-- Accent swatch color names (accessibility), order matches CURATED_ACCENT_SWATCHES -->
+    <string-array name="accentSwatchNames">
+        <item>Violet</item>
+        <item>Indigo</item>
+        <item>Blue</item>
+        <item>Turquoise</item>
+        <item>Green</item>
+        <item>Gold</item>
+        <item>Amber</item>
+        <item>Terracotta</item>
+    </string-array>
     <!-- Font settings title -->
     <string name="fontTitle">Font</string>
     <!-- Choose font family -->
@@ -3031,6 +3042,12 @@
     <string name="playerCoverModeDescription">Choose how the cover art is displayed</string>
     <string name="coverModeCard">Card</string>
     <string name="coverModeVinyl">Vinyl</string>
+
+    <!-- Layout mode override -->
+    <string name="layoutModeTitle">Layout Mode</string>
+    <string name="layoutModeAdaptive">System</string>
+    <string name="layoutModeCompact">Compact</string>
+    <string name="layoutModeExpanded">Expanded</string>
 
     <!-- Search Discovery V4 -->
     <string name="searchModeLocal">Library</string>

@@ -408,6 +408,8 @@ internal class FakeSettingsRepository(
 
     override suspend fun updatePlayerCoverMode(mode: Int) = Unit
 
+    override suspend fun updateLayoutMode(mode: Int) = Unit
+
     override suspend fun addCustomMirror(domain: String) {
         state.update { prefs ->
             val builder = prefs.toBuilder()

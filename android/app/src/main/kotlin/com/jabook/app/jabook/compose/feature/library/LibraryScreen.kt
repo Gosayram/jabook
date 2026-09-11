@@ -39,7 +39,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -51,8 +50,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Whatshot
 import androidx.compose.material3.DockedSearchBar
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -113,6 +110,8 @@ import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
+import com.jabook.app.jabook.compose.designsystem.component.AdaptiveMenu
+import com.jabook.app.jabook.compose.designsystem.component.AdaptiveMenuItem
 import com.jabook.app.jabook.compose.designsystem.component.BookActionsBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.ChipRow
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
@@ -1124,6 +1123,9 @@ private fun LibraryViewMode.isGrid(): Boolean = this == LibraryViewMode.GRID_COM
 /**
  * Shared library overflow menu for both compact and expanded top bars.
  *
+ * Presentation adapts via [AdaptiveMenu]: dropdown on medium/expanded widths,
+ * modal bottom sheet on compact widths.
+ *
  * @param expanded Whether the menu is shown
  * @param onDismiss Called to hide the menu
  * @param sortOrder Current book sort order
@@ -1155,139 +1157,106 @@ private fun LibraryOverflowMenu(
     onNavigateToFavorites: () -> Unit,
     onNavigateToSettings: () -> Unit,
 ) {
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismiss,
-    ) {
-        DropdownMenuItem(
-            text = {
-                if (showAllItems) {
-                    Column {
-                        Text(text = stringResource(R.string.sort_by))
-                        Text(
-                            text = stringResource(sortOrder.displayStringRes()),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                } else {
-                    Text(text = stringResource(R.string.sort_by))
-                }
-            },
-            onClick = {
-                onDismiss()
-                onShowSortSheet()
-            },
-            leadingIcon = {
-                Icon(imageVector = Icons.AutoMirrored.Filled.Sort, contentDescription = null)
-            },
-        )
-        DropdownMenuItem(
-            text = { Text(text = stringResource(R.string.viewModeList)) },
-            onClick = {
-                onDismiss()
-                onViewModeChanged(LibraryViewMode.LIST_COMPACT)
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.List,
-                    contentDescription = null,
-                )
-            },
-            trailingIcon = {
-                if (!viewMode.isGrid()) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            },
-        )
-        DropdownMenuItem(
-            text = { Text(text = stringResource(R.string.viewModeGrid)) },
-            onClick = {
-                onDismiss()
-                onViewModeChanged(LibraryViewMode.GRID_COMPACT)
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Filled.GridView,
-                    contentDescription = null,
-                )
-            },
-            trailingIcon = {
-                if (viewMode.isGrid()) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            },
-        )
-        if (showAllItems) {
-            DropdownMenuItem(
-                text = { Text(text = stringResource(R.string.discovery)) },
-                onClick = {
-                    onDismiss()
-                    onToggleDiscovery()
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Whatshot,
-                        contentDescription = null,
-                        tint =
+    val menuItems =
+        buildList {
+            add(
+                AdaptiveMenuItem(
+                    title = stringResource(R.string.sort_by),
+                    subtitle = if (showAllItems) stringResource(sortOrder.displayStringRes()) else null,
+                    leadingIcon = Icons.AutoMirrored.Filled.Sort,
+                    onClick = {
+                        onDismiss()
+                        onShowSortSheet()
+                    },
+                ),
+            )
+            add(
+                AdaptiveMenuItem(
+                    title = stringResource(R.string.viewModeList),
+                    leadingIcon = Icons.AutoMirrored.Filled.List,
+                    isSelected = !viewMode.isGrid(),
+                    onClick = {
+                        onDismiss()
+                        onViewModeChanged(LibraryViewMode.LIST_COMPACT)
+                    },
+                ),
+            )
+            add(
+                AdaptiveMenuItem(
+                    title = stringResource(R.string.viewModeGrid),
+                    leadingIcon = Icons.Filled.GridView,
+                    isSelected = viewMode.isGrid(),
+                    onClick = {
+                        onDismiss()
+                        onViewModeChanged(LibraryViewMode.GRID_COMPACT)
+                    },
+                ),
+            )
+            if (showAllItems) {
+                add(
+                    AdaptiveMenuItem(
+                        title = stringResource(R.string.discovery),
+                        leadingIcon = Icons.Default.Whatshot,
+                        leadingIconTint =
                             if (showDiscovery) {
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             },
-                    )
-                },
+                        onClick = {
+                            onDismiss()
+                            onToggleDiscovery()
+                        },
+                    ),
+                )
+            }
+            add(
+                AdaptiveMenuItem(
+                    title = stringResource(R.string.account),
+                    leadingIcon = Icons.Filled.Person,
+                    onClick = {
+                        onDismiss()
+                        onNavigateToAuth()
+                    },
+                ),
+            )
+            add(
+                AdaptiveMenuItem(
+                    title = stringResource(R.string.downloads),
+                    leadingIcon = Icons.Filled.Download,
+                    onClick = {
+                        onDismiss()
+                        onNavigateToDownloads()
+                    },
+                ),
+            )
+            add(
+                AdaptiveMenuItem(
+                    title = stringResource(R.string.favoritesTitle),
+                    leadingIcon = Icons.Filled.FavoriteBorder,
+                    onClick = {
+                        onDismiss()
+                        onNavigateToFavorites()
+                    },
+                ),
+            )
+            add(
+                AdaptiveMenuItem(
+                    title = stringResource(R.string.settings),
+                    leadingIcon = Icons.Default.Settings,
+                    onClick = {
+                        onDismiss()
+                        onNavigateToSettings()
+                    },
+                ),
             )
         }
-        DropdownMenuItem(
-            text = { Text(text = stringResource(R.string.account)) },
-            onClick = {
-                onDismiss()
-                onNavigateToAuth()
-            },
-            leadingIcon = {
-                Icon(imageVector = Icons.Filled.Person, contentDescription = null)
-            },
-        )
-        DropdownMenuItem(
-            text = { Text(text = stringResource(R.string.downloads)) },
-            onClick = {
-                onDismiss()
-                onNavigateToDownloads()
-            },
-            leadingIcon = {
-                Icon(imageVector = Icons.Filled.Download, contentDescription = null)
-            },
-        )
-        DropdownMenuItem(
-            text = { Text(text = stringResource(R.string.favoritesTitle)) },
-            onClick = {
-                onDismiss()
-                onNavigateToFavorites()
-            },
-            leadingIcon = {
-                Icon(imageVector = Icons.Filled.FavoriteBorder, contentDescription = null)
-            },
-        )
-        DropdownMenuItem(
-            text = { Text(text = stringResource(R.string.settings)) },
-            onClick = {
-                onDismiss()
-                onNavigateToSettings()
-            },
-            leadingIcon = {
-                Icon(imageVector = Icons.Default.Settings, contentDescription = null)
-            },
-        )
-    }
+
+    AdaptiveMenu(
+        expanded = expanded,
+        onDismiss = onDismiss,
+        items = menuItems,
+    )
 }
 
 private enum class LibraryQuickFilter {

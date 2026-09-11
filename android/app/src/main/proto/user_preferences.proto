@@ -159,6 +159,9 @@ message UserPreferences {
 
   // Selected forum IDs for indexing, comma-separated. Empty = all forums.
   string selected_forum_ids = 74;
+
+  // Layout mode override: 0 = adaptive (follow window), 1 = force compact, 2 = force expanded.
+  int32 layout_mode = 75;
 }
 
 message SleepTimerState {

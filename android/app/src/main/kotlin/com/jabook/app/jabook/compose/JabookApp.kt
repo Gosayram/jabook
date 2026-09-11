@@ -46,11 +46,17 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -59,6 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.navigation.JabookAppState
 import com.jabook.app.jabook.compose.navigation.JabookNavHost
@@ -71,6 +78,9 @@ import com.jabook.app.jabook.ui.theme.JabookTheme
 import kotlinx.coroutines.launch
 
 internal const val SETTINGS_BADGE_TEST_TAG: String = "settings_badge"
+
+/** Bottom clearance the shell reserves for the MiniPlayer; snackbar hosts offset above it. */
+internal val MINI_PLAYER_FOOTER_CLEARANCE: Dp = 72.dp
 
 /**
  * Root composable for the Jabook app.
@@ -98,12 +108,20 @@ public fun JabookApp(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val activeDownloadsCount by settingsViewModel.activeDownloadsCount.collectAsStateWithLifecycle()
     val authStatus by settingsViewModel.authStatus.collectAsStateWithLifecycle()
+    val layoutMode by settingsViewModel.layoutMode.collectAsStateWithLifecycle()
 
     // Detect if this is a beta/dev/stage flavor by checking package name
     // Beta: com.jabook.app.jabook.beta, Dev: .dev, Stage: .stage, Prod: com.jabook.app.jabook
     val context = LocalContext.current
     val packageName = context.packageName
     val isBetaFlavor = packageName.endsWith(".beta") || packageName.endsWith(".dev") || packageName.endsWith(".stage")
+
+    // Effective WSC applies the user layout-mode override once at the shell, so every
+    // LocalWindowSizeClass consumer (and rememberBreakpointValue) respects it.
+    val effectiveWindowSizeClass =
+        remember(windowSizeClass, layoutMode) {
+            AdaptiveUtils.getEffectiveWindowSizeClass(windowSizeClass, context, layoutMode)
+        }
 
     // Permission State
     val permissionUiState by permissionViewModel.uiState.collectAsStateWithLifecycle()
@@ -124,6 +142,11 @@ public fun JabookApp(
         when (uiState) {
             is MainActivityUiState.Success -> (uiState as MainActivityUiState.Success).useDynamicColors
             else -> false
+        }
+    val accentSwatchIndex =
+        when (uiState) {
+            is MainActivityUiState.Success -> (uiState as MainActivityUiState.Success).accentSwatchIndex
+            else -> 0
         }
 
     // If onboarding is not completed, we show it.
@@ -198,10 +221,11 @@ public fun JabookApp(
         darkTheme = darkTheme,
         amoledMode = isAmoledMode,
         dynamicColor = useDynamicColors,
+        accentSwatchIndex = accentSwatchIndex,
         isBetaFlavor = isBetaFlavor,
         selectedFont = selectedFont,
     ) {
-        CompositionLocalProvider(LocalWindowSizeClass provides windowSizeClass) {
+        CompositionLocalProvider(LocalWindowSizeClass provides effectiveWindowSizeClass) {
             // Mini-player state management using MiniPlayerViewModel
             // MiniPlayerViewModel is a lightweight wrapper around AudioPlayerController
             // Safe to instantiate at app root (no navigation dependencies)
@@ -311,7 +335,22 @@ public fun JabookApp(
                             )
                         }
                     },
-                    modifier = Modifier.fillMaxSize(),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            // ponytail: global Space play/pause — BUBBLING onKeyEvent, so a focused
+                            // TextField consumes Space first (returning true stops bubbling before
+                            // this root handler); we only ever see un-consumed events.
+                            .onKeyEvent { event ->
+                                val miniPlayerActive =
+                                    currentBook != null && isMiniPlayerVisible && !isOnPlayerScreen
+                                if (event.type == KeyEventType.KeyUp && event.key == Key.Spacebar && miniPlayerActive) {
+                                    miniPlayerViewModel.togglePlayPause()
+                                    true
+                                } else {
+                                    false
+                                }
+                            },
                 ) {
                     // ponytail: SharedTransitionLayout wraps both NavHost and mini-player so cover
                     // morphs via sharedElement ("cover_${bookId}") instead of crossfade.
@@ -342,7 +381,11 @@ public fun JabookApp(
                                             .align(Alignment.BottomCenter)
                                             .padding(
                                                 bottom =
-                                                    if (currentBook != null && isMiniPlayerVisible && !isOnPlayerScreen) 72.dp else 16.dp,
+                                                    if (currentBook != null && isMiniPlayerVisible && !isOnPlayerScreen) {
+                                                        MINI_PLAYER_FOOTER_CLEARANCE
+                                                    } else {
+                                                        16.dp
+                                                    },
                                             ),
                                 )
                             }

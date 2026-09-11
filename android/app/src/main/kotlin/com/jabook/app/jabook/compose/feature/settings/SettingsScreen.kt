@@ -334,6 +334,32 @@ public fun SettingsScreen(
                 }
             }
 
+            // Layout mode override (adaptive / compact / expanded)
+            SettingsItemWithContent(
+                title = stringResource(R.string.layoutModeTitle),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    listOf(
+                        AdaptiveUtils.LAYOUT_MODE_ADAPTIVE to R.string.layoutModeAdaptive,
+                        AdaptiveUtils.LAYOUT_MODE_COMPACT to R.string.layoutModeCompact,
+                        AdaptiveUtils.LAYOUT_MODE_EXPANDED to R.string.layoutModeExpanded,
+                    ).forEach { (mode, labelRes) ->
+                        FilterChip(
+                            selected = protoSettings.layoutMode == mode,
+                            onClick = { viewModel.updateLayoutMode(mode) },
+                            label = { Text(stringResource(labelRes)) },
+                            modifier =
+                                Modifier.semantics {
+                                    role = Role.RadioButton
+                                    selected = protoSettings.layoutMode == mode
+                                },
+                        )
+                    }
+                }
+            }
+
             HorizontalDivider()
 
             // ─── 4. Playback ───────────────────────────────────────────────

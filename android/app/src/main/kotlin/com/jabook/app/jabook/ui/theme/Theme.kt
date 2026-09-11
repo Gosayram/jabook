@@ -31,7 +31,10 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
+import com.jabook.app.jabook.compose.core.theme.getAccentSwatch
+import com.jabook.app.jabook.compose.core.theme.getDefaultAccentIndex
 import com.materialkolor.hct.Hct
+import com.materialkolor.scheme.SchemeContent
 
 // Beta Light Color Scheme (Cyber-Premium Tech)
 private val BetaLightColorScheme =
@@ -246,43 +249,18 @@ private val ProdDarkColorScheme =
         onTertiaryFixedVariant = Color(0xFF5C4200),
     )
 
-/**
- * Jabook application theme with flavor-specific branding.
- *
- * Beta flavor: Cyber-Premium Tech (Deep Navy + Neon Green)
- * Prod flavor: Royal Premium (Deep Purple + Luxury Gold)
- * Dev/Stage flavors: Use beta theme
- *
- * @param darkTheme Whether to use dark theme. Defaults to system setting.
- * @param isBetaFlavor Whether this is beta/dev/stage flavor (true) or prod (false). Defaults to true.
- * @param selectedFont The selected font preference (DEFAULT, SYSTEM, or Google Font)
- * @param content The composable content to be themed.
- */
-// AMOLED Dark Color Scheme (True Black)
-// Optimized for OLED screens: pure black background saves battery
-private val AmoledDarkColorScheme =
-    ProdDarkColorScheme.copy(
-        background = androidx.compose.ui.graphics.Color.Black,
-        surface = androidx.compose.ui.graphics.Color.Black,
-        // Keep variant surfaces slightly above pure black to preserve visual separation.
-        surfaceVariant =
-            androidx.compose.ui.graphics
-                .Color(0xFF121212),
-        // Surface containers for layered UI elements (cards, sheets, dialogs)
-        // Graduated from pure black to maintain visual hierarchy
-        surfaceContainerLowest = androidx.compose.ui.graphics.Color.Black,
-        surfaceContainerLow =
-            androidx.compose.ui.graphics
-                .Color(0xFF0A0A0A),
-        surfaceContainer =
-            androidx.compose.ui.graphics
-                .Color(0xFF121212),
-        surfaceContainerHigh =
-            androidx.compose.ui.graphics
-                .Color(0xFF1A1A1A),
-        surfaceContainerHighest =
-            androidx.compose.ui.graphics
-                .Color(0xFF222222),
+// AMOLED ramp (True Black): pure black background saves battery on OLED screens.
+// Keeps variant surfaces slightly above black to preserve visual separation.
+private fun ColorScheme.withAmoledSurfaces(): ColorScheme =
+    copy(
+        background = Color.Black,
+        surface = Color.Black,
+        surfaceVariant = Color(0xFF121212),
+        surfaceContainerLowest = Color.Black,
+        surfaceContainerLow = Color(0xFF0A0A0A),
+        surfaceContainer = Color(0xFF121212),
+        surfaceContainerHigh = Color(0xFF1A1A1A),
+        surfaceContainerHighest = Color(0xFF222222),
     )
 
 // ponytail: M3 shape tokens 10/10 — 5 core in MaterialTheme.shapes (L=16 fixed, was 20), 5 extended as top-level ShapeTokens (None 0, L-inc 20, XL-inc 32, XXL 48, Full CircleShape) — stdlib only, no new dep
@@ -426,6 +404,76 @@ public fun ColorScheme.withContrast(
         ContrastLevel.High -> withHighContrast(isDark)
     }
 
+/**
+ * Builds a complete Material 3 [ColorScheme] from a curated accent swatch seed
+ * (spotube pattern: named swatch → per-accent scheme via MCU [SchemeContent]).
+ *
+ * Returns `null` for the default swatch index ([getDefaultAccentIndex]) or an
+ * out-of-range index so flavor branding applies unchanged.
+ *
+ * Contrast: the scheme is generated at MCU Standard (contrastLevel 0.0); Medium/High
+ * are applied afterwards by the shared [ColorScheme.withContrast] pass in
+ * [JabookTheme], so flavor/dynamic/swatch schemes all go through one contrast system.
+ */
+public fun accentSwatchColorScheme(
+    swatchIndex: Int,
+    isDark: Boolean,
+): ColorScheme? {
+    if (swatchIndex == getDefaultAccentIndex()) return null
+    val swatch = getAccentSwatch(swatchIndex) ?: return null
+    val scheme = SchemeContent(Hct.fromInt(swatch.primary.toArgb()), isDark, 0.0)
+    return (if (isDark) darkColorScheme() else lightColorScheme()).copy(
+        primary = Color(scheme.primary),
+        onPrimary = Color(scheme.onPrimary),
+        primaryContainer = Color(scheme.primaryContainer),
+        onPrimaryContainer = Color(scheme.onPrimaryContainer),
+        inversePrimary = Color(scheme.inversePrimary),
+        secondary = Color(scheme.secondary),
+        onSecondary = Color(scheme.onSecondary),
+        secondaryContainer = Color(scheme.secondaryContainer),
+        onSecondaryContainer = Color(scheme.onSecondaryContainer),
+        tertiary = Color(scheme.tertiary),
+        onTertiary = Color(scheme.onTertiary),
+        tertiaryContainer = Color(scheme.tertiaryContainer),
+        onTertiaryContainer = Color(scheme.onTertiaryContainer),
+        background = Color(scheme.background),
+        onBackground = Color(scheme.onBackground),
+        surface = Color(scheme.surface),
+        onSurface = Color(scheme.onSurface),
+        surfaceVariant = Color(scheme.surfaceVariant),
+        onSurfaceVariant = Color(scheme.onSurfaceVariant),
+        surfaceTint = Color(scheme.surfaceTint),
+        inverseSurface = Color(scheme.inverseSurface),
+        inverseOnSurface = Color(scheme.inverseOnSurface),
+        error = Color(scheme.error),
+        onError = Color(scheme.onError),
+        errorContainer = Color(scheme.errorContainer),
+        onErrorContainer = Color(scheme.onErrorContainer),
+        outline = Color(scheme.outline),
+        outlineVariant = Color(scheme.outlineVariant),
+        scrim = Color(scheme.scrim),
+        surfaceDim = Color(scheme.surfaceDim),
+        surfaceBright = Color(scheme.surfaceBright),
+        surfaceContainerLowest = Color(scheme.surfaceContainerLowest),
+        surfaceContainerLow = Color(scheme.surfaceContainerLow),
+        surfaceContainer = Color(scheme.surfaceContainer),
+        surfaceContainerHigh = Color(scheme.surfaceContainerHigh),
+        surfaceContainerHighest = Color(scheme.surfaceContainerHighest),
+        primaryFixed = Color(scheme.primaryFixed),
+        primaryFixedDim = Color(scheme.primaryFixedDim),
+        onPrimaryFixed = Color(scheme.onPrimaryFixed),
+        onPrimaryFixedVariant = Color(scheme.onPrimaryFixedVariant),
+        secondaryFixed = Color(scheme.secondaryFixed),
+        secondaryFixedDim = Color(scheme.secondaryFixedDim),
+        onSecondaryFixed = Color(scheme.onSecondaryFixed),
+        onSecondaryFixedVariant = Color(scheme.onSecondaryFixedVariant),
+        tertiaryFixed = Color(scheme.tertiaryFixed),
+        tertiaryFixedDim = Color(scheme.tertiaryFixedDim),
+        onTertiaryFixed = Color(scheme.onTertiaryFixed),
+        onTertiaryFixedVariant = Color(scheme.onTertiaryFixedVariant),
+    )
+}
+
 // Required API per task: simple function that copies light scheme with higher contrast via adjustLightness.
 // Delegates to generic withMediumContrast/withHighContrast for reuse.
 public fun createMediumContrastColorScheme(
@@ -475,9 +523,19 @@ public fun rememberContrastLevel(highContrastEnabled: Boolean = false): Contrast
  * Prod flavor: Royal Premium (Deep Purple + Luxury Gold)
  * Dev/Stage flavors: Use beta theme
  *
+ * Color scheme precedence (highest wins):
+ * 1. AMOLED ramp (dark + [amoledMode]) — pure black surfaces on top of any base
+ * 2. Dynamic color (Android 12+, [dynamicColor]) — wallpaper colors win over swatch
+ * 3. Accent swatch ([accentSwatchIndex] >= 1, non-default) — [SchemeContent] scheme
+ *    from the swatch seed
+ * 4. Flavor branding (Beta/Prod light/dark)
+ *
+ * All bases then go through the single [ContrastLevel] pass ([ColorScheme.withContrast]).
+ *
  * @param darkTheme Whether to use dark theme. Defaults to system setting.
  * @param amoledMode Whether to use pure black background (AMOLED mode). Only applies if darkTheme is true.
  * @param contrastLevel M3 contrast level (Standard/Medium/High) — gated by Settings→Accessibility or system highTextContrastEnabled.
+ * @param accentSwatchIndex Persisted accent swatch index (proto `accent_swatch_index`); 0 = default (flavor branding).
  * @param isBetaFlavor Whether this is beta/dev/stage flavor (true) or prod (false). Defaults to true.
  * @param selectedFont The selected font preference (DEFAULT, SYSTEM, or Google Font)
  * @param content The composable content to be themed.
@@ -490,17 +548,24 @@ public fun JabookTheme(
     // Dynamic color is available on Android 12+
     // Disabled by default to enforce Premium Branding identity
     dynamicColor: Boolean = false,
+    accentSwatchIndex: Int = getDefaultAccentIndex(),
     isBetaFlavor: Boolean = true,
     selectedFont: com.jabook.app.jabook.compose.data.model.AppFont = com.jabook.app.jabook.compose.data.model.AppFont.DEFAULT,
     content: @Composable () -> Unit,
 ) {
-    // AMOLED Mode takes priority over dynamic colors to ensure pure black background
-    // Dynamic colors would override the black background with wallpaper-based colors
+    // ponytail: precedence AMOLED > dynamicColor (S+) > accent swatch (> default index) > flavor branding
+    val swatchScheme =
+        if (accentSwatchIndex != getDefaultAccentIndex()) {
+            accentSwatchColorScheme(accentSwatchIndex, darkTheme)
+        } else {
+            null
+        }
     val baseScheme =
         when {
             // AMOLED Mode (always dark, overrides dynamic colors and flavor themes)
-            darkTheme && amoledMode -> AmoledDarkColorScheme
-            // Dynamic color is available on Android 12+ (only when not in AMOLED mode)
+            darkTheme && amoledMode -> (swatchScheme ?: ProdDarkColorScheme).withAmoledSurfaces()
+            // Dynamic color is available on Android 12+ (only when not in AMOLED mode);
+            // wins over the accent swatch
             dynamicColor && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S -> {
                 val context = LocalView.current.context
                 if (darkTheme) {
@@ -511,6 +576,7 @@ public fun JabookTheme(
                     androidx.compose.material3.dynamicLightColorScheme(context)
                 }
             }
+            swatchScheme != null -> swatchScheme
             isBetaFlavor && darkTheme -> BetaDarkColorScheme
             isBetaFlavor && !darkTheme -> BetaLightColorScheme
             !isBetaFlavor && darkTheme -> ProdDarkColorScheme
@@ -550,20 +616,6 @@ public fun JabookTheme(
             large = RoundedCornerShape(16.dp),
             extraLarge = RoundedCornerShape(28.dp),
         )
-
-    // ponytail: M3 1.4 fallback — MotionScheme/MaterialShapes not in 1.4 (expressive 1.5 only).
-    // Fallback to MotionTokens as primary, 4 eager shapes as RoundedCornerShape 28dp+20dp stdlib only.
-    val expressiveCookie9: RoundedCornerShape = RoundedCornerShape(28.dp)
-    val expressiveCookie4: RoundedCornerShape = RoundedCornerShape(20.dp)
-    val expressiveCookie6: RoundedCornerShape = RoundedCornerShape(20.dp)
-    val expressivePuffy: RoundedCornerShape = RoundedCornerShape(28.dp)
-
-    @Suppress("UNUSED_VARIABLE")
-    val expressiveShapesUsed = listOf(expressiveCookie9, expressiveCookie4, expressiveCookie6, expressivePuffy)
-
-    // ponytail: touch registry so lazy shapes are not dead code — used by cards/fab/sheets (RoundedCornerShape fallback)
-    @Suppress("UNUSED_VARIABLE")
-    val expressiveRegistryTouch = ExpressiveShapes.allShapes.size
 
     MaterialTheme(
         colorScheme = colorScheme,

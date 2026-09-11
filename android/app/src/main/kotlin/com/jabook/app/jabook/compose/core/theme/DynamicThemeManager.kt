@@ -22,13 +22,9 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.palette.graphics.Palette
 import com.materialkolor.blend.Blend
 import com.materialkolor.dislike.DislikeAnalyzer
-import com.materialkolor.hct.Cam16
 import com.materialkolor.hct.Hct
 import com.materialkolor.palettes.TonalPalette
 import com.materialkolor.quantize.QuantizerCelebi
-import com.materialkolor.scheme.SchemeContent
-import com.materialkolor.scheme.SchemeExpressive
-import com.materialkolor.scheme.SchemeVibrant
 import com.materialkolor.score.Score
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -64,7 +60,8 @@ public data class PlayerThemeColors(
  * - Hct.fromInt / TonalPalette / Score / DislikeAnalyzer
  * - Guaranteed 7:1 contrast for high-contrast on-colors via tone (0..100)
  * - Blend.harmonize for gradient harmonization
- * - Cam16 + SchemeContent/SchemeVibrant/SchemeExpressive referenced for tonal schemes
+ * - Muted-first swatch fallback per channel (spotube use_palette_color pattern) so
+ *   light surfaces never inherit oversaturated vibrant tones
  */
 public object DynamicThemeManager {
     private val cache = androidx.collection.LruCache<String, PlayerThemeColors>(20)
@@ -84,19 +81,21 @@ public object DynamicThemeManager {
             val lightVibrant = palette.lightVibrantSwatch
             val muted = palette.mutedSwatch
             val darkMuted = palette.darkMutedSwatch
+            val lightMuted = palette.lightMutedSwatch
             val dominant = palette.dominantSwatch
 
+            // ponytail: muted ?? vibrant per-channel — muted tones are safe on light surfaces
             var primary =
                 ranked.firstOrNull()?.let { Color(it) }
+                    ?: muted?.rgb?.let(::Color)
                     ?: vibrant?.rgb?.let(::Color)
-                    ?: lightVibrant?.rgb?.let(::Color)
                     ?: dominant?.rgb?.let(::Color)
                     ?: Color(0xFF6750A4)
             primary = fixDislikeColor(primary)
 
             var secondary =
-                darkVibrant?.rgb?.let(::Color)
-                    ?: muted?.rgb?.let(::Color)
+                muted?.rgb?.let(::Color)
+                    ?: darkVibrant?.rgb?.let(::Color)
                     ?: Color(0xFF625B71)
             secondary = fixDislikeColor(secondary)
 
@@ -110,13 +109,13 @@ public object DynamicThemeManager {
             val onPrimary = ensureContrast(primary, targetRatio = 4.5)
             val onSurface = ensureContrast(surface, targetRatio = 4.5)
 
-            var gradientAccent = lightVibrant?.rgb?.let(::Color) ?: secondary
+            var gradientAccent =
+                lightMuted?.rgb?.let(::Color)
+                    ?: lightVibrant?.rgb?.let(::Color)
+                    ?: secondary
             gradientAccent = fixDislikeColor(gradientAccent)
             // MCU Blend.harmonize for tonal coherence
             gradientAccent = Color(Blend.harmonize(gradientAccent.toArgb(), primary.toArgb()))
-            // Reference Cam16 + Scheme variants to satisfy MCU migration (no-op tonal schemes)
-            @Suppress("UNUSED_VARIABLE")
-            val schemeProbe = probeSchemes(primary.toArgb())
 
             val gradientColors = listOf(container, primary, gradientAccent)
 
@@ -220,23 +219,7 @@ public object DynamicThemeManager {
         return Score.score(quantizeMap, 1, null, true)
     }
 
-    // Reference Cam16 + SchemeContent/SchemeVibrant/SchemeExpressive for migration completeness
-    private fun probeSchemes(seedArgb: Int): Int {
-        val hct = Hct.fromInt(seedArgb)
-        val content = SchemeContent(hct, false, 0.0)
-        val vibrant = SchemeVibrant(hct, false, 0.0)
-        val expressive = SchemeExpressive(hct, false, 0.0)
-        // Cam16 distance as tonal probe
-        val cam = Cam16.fromInt(seedArgb)
-        val cam2 = Cam16.fromInt(content.primary)
-
-        @Suppress("UNUSED_VARIABLE")
-        val d = cam.distance(cam2)
-        // Prefer vibrant's primary as probe result; ensures all imports are used
-        return vibrant.primary
-    }
-
-    // Convenience for Theme.kt: opaque outline, surface tone 98, neutral chroma 6
+    /** Convenience for Theme.kt: opaque outline, surface tone 98, neutral chroma 6 */
     internal fun neutralSurface(tone: Double = 98.0): Color {
         // Neutral chroma 6 at tone 98/ dark tones
         val hct = Hct.from(0.0, 6.0, tone)
