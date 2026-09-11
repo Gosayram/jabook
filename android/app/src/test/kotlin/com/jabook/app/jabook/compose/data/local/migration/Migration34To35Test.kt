@@ -82,12 +82,26 @@ class Migration34To35Test {
 
         MIGRATION_34_35.migrate(db)
 
-        // Unique index must exist after migration.
+        // Room's auto-generated index name must exist after migration.
         assertEquals(
             1,
-            db.query("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_search_history_normalized_query'").use {
+            db.query("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='index_search_history_normalized_query'").use {
                 it.moveToFirst()
                 it.getInt(0)
+            },
+        )
+
+        // normalized_query must have NO default (Room schema validation is strict).
+        assertEquals(
+            0,
+            db.query("PRAGMA table_info(search_history)").use { cursor ->
+                var withDefault = 0
+                while (cursor.moveToNext()) {
+                    if (cursor.getString(1) == "normalized_query") {
+                        if (!cursor.isNull(4)) withDefault++
+                    }
+                }
+                withDefault
             },
         )
 

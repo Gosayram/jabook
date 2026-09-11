@@ -20,10 +20,18 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 /**
  * Migration from database version 34 to 35.
  *
- * Adds normalized_query column to search_history for deduplication, backfills
- * existing rows, deduplicates (pre-existing "foo" / "foo " / "FOO" rows all
- * normalize to the same key — creating the unique index before dedup crashed
- * with SQLiteConstraintException 2067), then creates the unique index.
+ * Adds `normalized_query` to search_history for deduplication. Follows Room's
+ * recreate-table recipe because schema validation is strict on two details:
+ *
+ * 1. The entity column has no DEFAULT — `ALTER TABLE ADD COLUMN ... DEFAULT ''`
+ *    (required by SQLite for NOT NULL on a non-empty table) fails validation.
+ *    Fix: backfill via a temp column, rebuild the table, drop the temp column
+ *    with the table.
+ * 2. Room expects the auto-generated index name `index_search_history_normalized_query`.
+ *
+ * Pre-existing "Foo" / "foo " / "  FOO" rows all normalize to the same key, so
+ * dedup (newest id wins) runs BEFORE the unique index is created — otherwise
+ * `CREATE UNIQUE INDEX` crashes with SQLiteConstraintException 2067.
  *
  * The SQL normalization mirrors the Kotlin runtime one
  * (`query.trim().replace(Regex("\\s+"), " ").lowercase()`): tab/CR/LF → space,
@@ -31,18 +39,34 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 public val MIGRATION_34_35: Migration =
     Migration(34, 35) { db: SupportSQLiteDatabase ->
-        db.execSQL("ALTER TABLE search_history ADD COLUMN normalized_query TEXT NOT NULL DEFAULT ''")
         db.execSQL(
-            "UPDATE search_history SET normalized_query = LOWER(TRIM(" +
+            "CREATE TABLE IF NOT EXISTS `search_history_new` (" +
+                "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                "`query` TEXT NOT NULL, " +
+                "`normalized_query` TEXT NOT NULL, " +
+                "`timestamp` INTEGER NOT NULL, " +
+                "`result_count` INTEGER NOT NULL)",
+        )
+        // Temp normalized column on the old table (default required by SQLite for
+        // NOT NULL ADD COLUMN); it disappears together with the old table.
+        db.execSQL("ALTER TABLE search_history ADD COLUMN _tmp_normalized TEXT NOT NULL DEFAULT ''")
+        db.execSQL(
+            "UPDATE search_history SET _tmp_normalized = LOWER(TRIM(" +
                 "REPLACE(REPLACE(REPLACE(" +
                 "REPLACE(REPLACE(REPLACE(query, char(9), ' '), char(10), ' '), char(13), ' '), " +
                 "' ', '~!'), '!~', ''), '~!', ' ')" +
-                ")) WHERE normalized_query = ''",
+                "))",
         )
         // Keep the newest row per normalized key; must run BEFORE the unique index.
         db.execSQL(
             "DELETE FROM search_history WHERE id NOT IN " +
-                "(SELECT MAX(id) FROM search_history GROUP BY normalized_query)",
+                "(SELECT MAX(id) FROM search_history GROUP BY _tmp_normalized)",
         )
-        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_search_history_normalized_query ON search_history (normalized_query)")
+        db.execSQL(
+            "INSERT INTO `search_history_new` (`id`, `query`, `normalized_query`, `timestamp`, `result_count`) " +
+                "SELECT `id`, `query`, `_tmp_normalized`, `timestamp`, `result_count` FROM `search_history`",
+        )
+        db.execSQL("DROP TABLE `search_history`")
+        db.execSQL("ALTER TABLE `search_history_new` RENAME TO `search_history`")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_search_history_normalized_query` ON `search_history` (`normalized_query`)")
     }
