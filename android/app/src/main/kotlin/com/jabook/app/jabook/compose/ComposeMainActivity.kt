@@ -30,6 +30,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.core.splashscreen.SplashScreen
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -78,6 +79,7 @@ public class ComposeMainActivity : AppCompatActivity() {
 
     private var deepLinkIntent by androidx.compose.runtime.mutableStateOf<Intent?>(null)
     private var hasReportedFullyDrawn: Boolean = false
+    private var splashScreen: SplashScreen? = null
     private var isPlayerScreenVisible: Boolean = false
     private var autoPipEnabled: Boolean = false
 
@@ -123,7 +125,11 @@ public class ComposeMainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         // Handle splash screen transition
         // This must be called before super.onCreate()
-        installSplashScreen()
+        // Canonical splashscreen idiom: hold the splash until first meaningful content
+        // (hasReportedFullyDrawn is set by onFirstMeaningfulContentDrawn) instead of
+        // unmounting at the first drawable frame — prevents a blank/flappy first frame.
+        splashScreen = installSplashScreen()
+        splashScreen?.setKeepOnScreenCondition { !hasReportedFullyDrawn }
 
         // Enable edge-to-edge display (Android 15+ recommended pattern)
         enableEdgeToEdge()

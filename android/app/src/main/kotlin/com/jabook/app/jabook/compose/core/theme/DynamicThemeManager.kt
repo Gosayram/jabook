@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.palette.graphics.Palette
 import com.materialkolor.blend.Blend
+import com.materialkolor.contrast.Contrast
 import com.materialkolor.dislike.DislikeAnalyzer
 import com.materialkolor.hct.Hct
 import com.materialkolor.palettes.TonalPalette
@@ -28,8 +29,6 @@ import com.materialkolor.quantize.QuantizerCelebi
 import com.materialkolor.score.Score
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.max
-import kotlin.math.min
 
 /**
  * Theme colors extracted from artwork with HCT-based contrast guarantees.
@@ -68,12 +67,25 @@ public object DynamicThemeManager {
 
     public suspend fun extractColors(bitmap: Bitmap): PlayerThemeColors =
         withContext(Dispatchers.Default) {
+            // ponytail: single bilinear downscale (max dim ≤ 128) shared by Celebi + Palette — both previously ran over full-res
+            val extractionBitmap =
+                if (maxOf(bitmap.width, bitmap.height) <= 128) {
+                    bitmap
+                } else {
+                    val scale = 128f / maxOf(bitmap.width, bitmap.height)
+                    Bitmap.createScaledBitmap(
+                        bitmap,
+                        (bitmap.width * scale).toInt().coerceAtLeast(1),
+                        (bitmap.height * scale).toInt().coerceAtLeast(1),
+                        true,
+                    )
+                }
             // MCU QuantizerCelebi quantization (offline, no Palette dependency for core path)
-            val ranked = quantizeAndScore(bitmap)
+            val ranked = quantizeAndScore(extractionBitmap)
             // Fallback to Palette for swatch extraction when Celebi map is small
             val palette =
                 Palette
-                    .from(bitmap)
+                    .from(extractionBitmap)
                     .maximumColorCount(32)
                     .generate()
             val vibrant = palette.vibrantSwatch
@@ -153,58 +165,22 @@ public object DynamicThemeManager {
         return color
     }
 
-    /** Ensure foreground has at least [targetRatio] contrast via HCT tone (0..100), not HSL lightness */
+    /** Ensure foreground has at least [targetRatio] contrast via MCU closed-form tone math (0..100) */
     internal fun ensureContrast(
         background: Color,
         targetRatio: Double = 4.5,
     ): Color {
-        val bgLuminance = background.luminance().toDouble()
-        val whiteContrast = contrastRatio(1.0, bgLuminance)
-        if (whiteContrast >= targetRatio) return Color.White
-        val blackContrast = contrastRatio(0.0, bgLuminance)
-        if (blackContrast >= targetRatio) return Color.Black
-        return if (bgLuminance < 0.5) {
-            adjustToneForContrast(Color.White, background, targetRatio)
-        } else {
-            adjustToneForContrast(Color.Black, background, targetRatio)
-        }
-    }
-
-    private fun contrastRatio(
-        l1: Double,
-        l2: Double,
-    ): Double {
-        val lighter = max(l1, l2)
-        val darker = min(l1, l2)
-        return (lighter + 0.05) / (darker + 0.05)
-    }
-
-    /** Binary search on HCT tone 0..100 (perceptual), not HSL lightness */
-    private fun adjustToneForContrast(
-        startColor: Color,
-        background: Color,
-        targetRatio: Double,
-    ): Color {
-        val bgLuminance = background.luminance().toDouble()
-        val startHct = Hct.fromInt(startColor.toArgb())
-        val hue = startHct.hue
-        val chroma = startHct.chroma
-        var lo = 0.0
-        var hi = 100.0
-        var best = startHct.tone
-        for (i in 0..20) {
-            val mid = (lo + hi) / 2
-            val testArgb = Hct.from(hue, chroma, mid).toInt()
-            val testColor = Color(testArgb)
-            val ratio = contrastRatio(testColor.luminance().toDouble(), bgLuminance)
-            if (ratio >= targetRatio) {
-                best = mid
-                if (bgLuminance < 0.5) hi = mid else lo = mid
+        val bgTone = Hct.fromInt(background.toArgb()).tone
+        if (Contrast.ratioOfTones(100.0, bgTone) >= targetRatio) return Color.White
+        if (Contrast.ratioOfTones(0.0, bgTone) >= targetRatio) return Color.Black
+        // Mid-tone surface: boundary tone on the neutral palette (lighter/darker clamp to 100/0 when unreachable)
+        val tone =
+            if (background.luminance() < 0.5) {
+                Contrast.lighterUnsafe(bgTone, targetRatio)
             } else {
-                if (bgLuminance < 0.5) lo = mid else hi = mid
+                Contrast.darkerUnsafe(bgTone, targetRatio)
             }
-        }
-        return Color(Hct.from(hue, chroma, best).toInt())
+        return Color(Hct.from(0.0, 0.0, tone).toInt())
     }
 
     /** MCU QuantizerCelebi + Score ranking */

@@ -342,48 +342,6 @@ public object AdaptiveUtils {
             else -> 40.dp
         }
 
-    // --- 5-breakpoint pane widths (foundations/layout) ---
-
-    /** Canonical 5 breakpoints overlayed on WSC: widthDp maps to compact/medium/expanded/large/xl. */
-    public fun getBreakpoint(screenWidthDp: Int): Int =
-        when {
-            screenWidthDp < 600 -> 0 // compact
-            screenWidthDp < 840 -> 1 // medium
-            screenWidthDp < 1200 -> 2 // expanded (360 pane)
-            screenWidthDp < 1600 -> 3 // large (412 pane)
-            else -> 4 // xl (412 centered)
-        }
-
-    /** Supporting pane width per spec: 360 expanded, 412 large/xl, 360 otherwise. */
-    public fun getSupportingPaneWidth(screenWidthDp: Int): Dp =
-        when (getBreakpoint(screenWidthDp)) {
-            3, 4 -> 412.dp
-            else -> 360.dp
-        }
-
-    /** ponytail: WSC fallback 360 — WSC can't distinguish large/xl (ceiling), use getSupportingPaneWidth(screenWidthDp: Int) for 412 where widthDp available. */
-    public fun getSupportingPaneWidth(windowSizeClass: WindowSizeClass?): Dp {
-        // ponytail: WSC alone can't distinguish large/xl (ceiling) -> 360; Int overload returns 412 for large/xl.
-        if (windowSizeClass == null) return 360.dp
-        return when (windowSizeClass.widthSizeClass) {
-            WindowWidthSizeClass.Expanded -> 360.dp // ponytail ceiling: large/xl needs widthDp overload for 412
-            else -> 360.dp
-        }
-    }
-
-    /**
-     * Override PaneScaffoldDirective to enforce the 24dp pane partition spacer
-     * (M3 breakpoints spec) + canonical pane width.
-     * Use via `directive = remember(widthDp, baseDirective){ canonicalDirective(baseDirective, widthDp) }`
-     */
-    public fun canonicalDirective(
-        base: androidx.compose.material3.adaptive.layout.PaneScaffoldDirective,
-        screenWidthDp: Int,
-    ): androidx.compose.material3.adaptive.layout.PaneScaffoldDirective {
-        val paneWidth = getSupportingPaneWidth(screenWidthDp)
-        return base.copy(defaultPanePreferredWidth = paneWidth, horizontalPartitionSpacerSize = 24.dp)
-    }
-
     // ponytail: Ruler API (Compose UI 1.7+) available but skipped — grid spacing already 8dp-aligned via SpacingTokens;
     // cross-layout Ruler alignment adds measurability cost for no current misalignment. Wire when a shared header/grid
     // ruler is visibly off.

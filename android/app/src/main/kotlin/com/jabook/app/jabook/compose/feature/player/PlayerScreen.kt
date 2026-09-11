@@ -286,21 +286,15 @@ public fun PlayerScreen(
     var showBookmarkSheet by rememberSaveable { mutableStateOf(false) }
     var showLyrics by rememberSaveable { mutableStateOf(false) }
 
-    // Navigator for SupportingPaneScaffold — supporting pane for chapters, 360/412 widths, 8dp spacer
+    // Navigator for SupportingPaneScaffold — supporting pane for chapters, library-default 360/412 widths, 24dp spacer
     val scaffoldNavigator = rememberSupportingPaneScaffoldNavigator()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val context = androidx.compose.ui.platform.LocalContext.current
     val audioManager = remember(context) { context.getSystemService<AudioManager>() }
     val wsc = LocalWindowSizeClass.current
-    val resolved = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
     val isCompactScreen =
-        resolved?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
-    val playerScreenWidthDp = LocalConfiguration.current.screenWidthDp
-    val playerCanonicalDirective =
-        remember(scaffoldNavigator.scaffoldDirective, playerScreenWidthDp) {
-            AdaptiveUtils.canonicalDirective(scaffoldNavigator.scaffoldDirective, playerScreenWidthDp)
-        }
+        wsc?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Compact
     val openSettingsLabel = stringResource(R.string.openSettings)
     val notificationPermissionPlaybackHint = stringResource(R.string.notificationPermissionPlaybackHint)
     val audioVisualizerPermissionHint = stringResource(R.string.audioVisualizerPermissionHint)
@@ -506,8 +500,8 @@ public fun PlayerScreen(
     }
 
     // ponytail: auto-open supporting pane on Expanded when book loaded
-    LaunchedEffect(resolved?.widthSizeClass, uiState is PlayerState.Active) {
-        if (resolved?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Expanded &&
+    LaunchedEffect(wsc?.widthSizeClass, uiState is PlayerState.Active) {
+        if (wsc?.widthSizeClass == androidx.compose.material3.windowsizeclass.WindowWidthSizeClass.Expanded &&
             uiState is PlayerState.Active &&
             !scaffoldNavigator.canNavigateBack()
         ) {
@@ -729,9 +723,9 @@ public fun PlayerScreen(
 
     // Player content
 
-    // SupportingPaneScaffold for adaptive chapter display (5 breakpoints 360/412, 8dp)
+    // SupportingPaneScaffold for adaptive chapter display (library-default 360/412 widths, 24dp spacer)
     SupportingPaneScaffold(
-        directive = playerCanonicalDirective,
+        directive = scaffoldNavigator.scaffoldDirective,
         value = scaffoldNavigator.scaffoldValue,
         mainPane = {
             AnimatedPane(modifier = Modifier) {
@@ -1084,15 +1078,15 @@ public fun PlayerScreen(
                                                                         ),
                                                                     ),
                                                                 ),
-                                                            blurRadius = 24.dp,
+                                                            blurRadius = GlassmorphismTokens.PLAYER_CONTROLS_BLUR,
                                                         ),
                                                 ) {
-                                                    // Half-resolution blur input (~75% fewer pixels,
-                                                    // visually imperceptible) — haze's built-in
+                                                    // 80%-resolution blur input — haze docs: ≥0.8 is
+                                                    // imperceptible vs full-res; haze's built-in
                                                     // downscaled-blur pattern.
                                                     inputScale =
                                                         dev.chrisbanes.haze.HazeInputScale
-                                                            .Fixed(0.5f)
+                                                            .Fixed(0.8f)
                                                     // Pre-S / power-save: no RenderEffect, fall back to a tint scrim.
                                                     fallbackTint =
                                                         dev.chrisbanes.haze.HazeTint(
@@ -1645,8 +1639,7 @@ private fun PlayerContent(
     val currentOnSetVisualizerEnabled by rememberUpdatedState(onSetVisualizerEnabled)
     // Get window size class for adaptive sizing
     val context = LocalContext.current
-    val wsc = LocalWindowSizeClass.current
-    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
+    val windowSizeClass = LocalWindowSizeClass.current
 
     // Adaptive sizes for compact screens (phones)
     val isCompact =

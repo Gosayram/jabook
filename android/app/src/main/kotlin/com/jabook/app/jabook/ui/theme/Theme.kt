@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.jabook.app.jabook.compose.core.theme.getAccentSwatch
 import com.jabook.app.jabook.compose.core.theme.getDefaultAccentIndex
+import com.materialkolor.contrast.Contrast
 import com.materialkolor.hct.Hct
 import com.materialkolor.scheme.SchemeContent
 
@@ -288,40 +289,22 @@ private fun adjustLightness(
     delta: Float,
 ): Color = adjustTone(color, delta.toDouble() * 100)
 
-// MCU 7:1 contrast via tone search using TonalPalette
+// MCU closed-form 7:1 contrast: white/black fast-path, else boundary tone via Contrast.lighterUnsafe/darkerUnsafe
 private fun ensureContrastTone(
     background: Color,
     targetRatio: Double = 7.0,
 ): Color {
-    val bg = background
-    // Try white/black first; else binary search tone preserving hue/chroma of bg complement
-    val white = Color.White
-    val black = Color.Black
-    val bgLum = bg.luminance().toDouble()
-
-    fun ratio(
-        l1: Double,
-        l2: Double,
-    ): Double = (maxOf(l1, l2) + 0.05) / (minOf(l1, l2) + 0.05)
-    if (ratio(1.0, bgLum) >= targetRatio) return white
-    if (ratio(0.0, bgLum) >= targetRatio) return black
-    // Tone search on neutral palette tone 0..100
-    val startHct = Hct.fromInt(if (bgLum < 0.5) white.toArgb() else black.toArgb())
-    var lo = 0.0
-    var hi = 100.0
-    var best = startHct.tone
-    repeat(20) {
-        val mid = (lo + hi) / 2
-        val c = Color(Hct.from(startHct.hue, startHct.chroma, mid).toInt())
-        val r = ratio(c.luminance().toDouble(), bgLum)
-        if (r >= targetRatio) {
-            best = mid
-            if (bgLum < 0.5) hi = mid else lo = mid
+    val bgTone = Hct.fromInt(background.toArgb()).tone
+    if (Contrast.ratioOfTones(100.0, bgTone) >= targetRatio) return Color.White
+    if (Contrast.ratioOfTones(0.0, bgTone) >= targetRatio) return Color.Black
+    // Mid-tone surface: boundary tone on the neutral palette (lighter/darker clamp to 100/0 when unreachable)
+    val tone =
+        if (background.luminance() < 0.5) {
+            Contrast.lighterUnsafe(bgTone, targetRatio)
         } else {
-            if (bgLum < 0.5) lo = mid else hi = mid
+            Contrast.darkerUnsafe(bgTone, targetRatio)
         }
-    }
-    return Color(Hct.from(startHct.hue, startHct.chroma, best).toInt())
+    return Color(Hct.from(0.0, 0.0, tone).toInt())
 }
 
 private fun ColorScheme.withMediumContrast(isDark: Boolean): ColorScheme =
@@ -411,17 +394,26 @@ public fun ColorScheme.withContrast(
  * Returns `null` for the default swatch index ([getDefaultAccentIndex]) or an
  * out-of-range index so flavor branding applies unchanged.
  *
- * Contrast: the scheme is generated at MCU Standard (contrastLevel 0.0); Medium/High
- * are applied afterwards by the shared [ColorScheme.withContrast] pass in
- * [JabookTheme], so flavor/dynamic/swatch schemes all go through one contrast system.
+ * Contrast: the scheme is generated natively at the MCU contrast level
+ * ([ContrastLevel.Medium] → 0.5, [ContrastLevel.High] → 1.0) so the official
+ * ContrastCurve tunes all roles consistently; the shared hand-tuned
+ * [ColorScheme.withContrast] pass is NOT applied on top of swatch schemes
+ * (flavor/dynamic schemes still use it).
  */
 public fun accentSwatchColorScheme(
     swatchIndex: Int,
     isDark: Boolean,
+    contrastLevel: ContrastLevel = ContrastLevel.Standard,
 ): ColorScheme? {
     if (swatchIndex == getDefaultAccentIndex()) return null
     val swatch = getAccentSwatch(swatchIndex) ?: return null
-    val scheme = SchemeContent(Hct.fromInt(swatch.primary.toArgb()), isDark, 0.0)
+    val mcuContrastLevel =
+        when (contrastLevel) {
+            ContrastLevel.Standard -> 0.0
+            ContrastLevel.Medium -> 0.5
+            ContrastLevel.High -> 1.0
+        }
+    val scheme = SchemeContent(Hct.fromInt(swatch.primary.toArgb()), isDark, mcuContrastLevel)
     return (if (isDark) darkColorScheme() else lightColorScheme()).copy(
         primary = Color(scheme.primary),
         onPrimary = Color(scheme.onPrimary),
@@ -530,7 +522,8 @@ public fun rememberContrastLevel(highContrastEnabled: Boolean = false): Contrast
  *    from the swatch seed
  * 4. Flavor branding (Beta/Prod light/dark)
  *
- * All bases then go through the single [ContrastLevel] pass ([ColorScheme.withContrast]).
+ * Swatch bases carry the native MCU ContrastCurve for [contrastLevel]; other bases
+ * go through the [ContrastLevel] pass ([ColorScheme.withContrast]).
  *
  * @param darkTheme Whether to use dark theme. Defaults to system setting.
  * @param amoledMode Whether to use pure black background (AMOLED mode). Only applies if darkTheme is true.
@@ -554,9 +547,10 @@ public fun JabookTheme(
     content: @Composable () -> Unit,
 ) {
     // ponytail: precedence AMOLED > dynamicColor (S+) > accent swatch (> default index) > flavor branding
+    val usingSwatchScheme = accentSwatchIndex != getDefaultAccentIndex()
     val swatchScheme =
-        if (accentSwatchIndex != getDefaultAccentIndex()) {
-            accentSwatchColorScheme(accentSwatchIndex, darkTheme)
+        if (usingSwatchScheme) {
+            accentSwatchColorScheme(accentSwatchIndex, darkTheme, contrastLevel)
         } else {
             null
         }
@@ -582,8 +576,14 @@ public fun JabookTheme(
             !isBetaFlavor && darkTheme -> ProdDarkColorScheme
             else -> ProdLightColorScheme
         }
-    // ponytail: apply M3 medium/high contrast variants via tonal HSL copy (no new palette)
-    val colorScheme = if (contrastLevel == ContrastLevel.Standard) baseScheme else baseScheme.withContrast(contrastLevel, darkTheme)
+    // ponytail: flavor/dynamic get the M3 hand-tuned medium/high pass; swatch schemes carry the
+    // native MCU ContrastCurve from [accentSwatchColorScheme] — no second pass on top
+    val colorScheme =
+        if (contrastLevel == ContrastLevel.Standard || swatchScheme != null) {
+            baseScheme
+        } else {
+            baseScheme.withContrast(contrastLevel, darkTheme)
+        }
 
     // Create typography based on font preference
     // Use FontUtils to get FontFamily (supports both bundled and Google Fonts)

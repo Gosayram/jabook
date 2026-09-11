@@ -106,7 +106,6 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.SideEffect
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
-import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.data.model.BookSortOrder
 import com.jabook.app.jabook.compose.data.model.LibraryViewMode
@@ -270,23 +269,15 @@ public fun LibraryScreen(
     // Get context for permission check in pull-to-refresh
     val context = LocalContext.current
 
-    // Compute WindowSizeClass once at screen level
-    val wsc = LocalWindowSizeClass.current
-    val windowSizeClass =
-        wsc?.let {
-            AdaptiveUtils
-                .resolveWindowSizeClassOrNull(it, context)
-        } ?: wsc
+    // Compute WindowSizeClass once at screen level — the shell (JabookApp) already
+    // applied the user's layout-mode override before providing it.
+    val windowSizeClass = LocalWindowSizeClass.current
     val isCompact =
         windowSizeClass?.widthSizeClass == WindowWidthSizeClass.Compact
 
-    // 🎯 Navigator for ListDetailPaneScaffold — canonical ListDetail (feed) per foundations/layout
+    // 🎯 Navigator for ListDetailPaneScaffold — canonical ListDetail (feed) per foundations/layout.
+    // navigator.scaffoldDirective is the library default: 24dp partition spacer, 360/412 pane widths.
     val navigator = rememberListDetailPaneScaffoldNavigator<String>()
-    val screenWidthDp = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-    val canonicalDirective =
-        remember(navigator.scaffoldDirective, screenWidthDp) {
-            AdaptiveUtils.canonicalDirective(navigator.scaffoldDirective, screenWidthDp)
-        }
 
     // The selected book id is the navigator's current detail contentKey — the
     // navigator is saveable, so this survives configuration change (no mirror state).
@@ -616,9 +607,9 @@ public fun LibraryScreen(
                 }
             }
         } else {
-            // 🎯 ListDetailPaneScaffold - Material 3 Adaptive component (5-breakpoint 360/412 widths, 8dp spacer)
+            // 🎯 ListDetailPaneScaffold - Material 3 Adaptive component (5-breakpoint 360/412 widths, 24dp spacer)
             ListDetailPaneScaffold(
-                directive = canonicalDirective,
+                directive = navigator.scaffoldDirective,
                 value = navigator.scaffoldValue,
                 listPane = {
                     AnimatedPane {

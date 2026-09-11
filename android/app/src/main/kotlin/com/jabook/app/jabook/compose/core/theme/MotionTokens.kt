@@ -16,13 +16,16 @@ package com.jabook.app.jabook.compose.core.theme
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.SpringSpec
+import androidx.compose.animation.core.spring
 
 /**
  * Shared motion tokens for Compose animations.
  *
- * Keep all canonical durations/easings here to avoid hardcoded animation values
+ * Keep all canonical durations/easings/springs here to avoid hardcoded animation values
  * spread across screens.
- * ponytail: fallback for non-scheme cases (shimmer/rotation infinite) — scheme springs via MaterialTheme.motionScheme elsewhere
+ * ponytail: m3 1.4 motionScheme/ExpressiveMotionTokens are internal — expressive springs vendored here as public tokens
  */
 public object MotionTokens {
     public const val SHORT1: Int = 50
@@ -63,4 +66,19 @@ public object MotionTokens {
 
     /** Linear easing — used for micro state changes (icon toggles, badges). */
     public val Linear: Easing = CubicBezierEasing(0f, 0f, 1f, 1f)
+
+    // M3 expressive spring specs (values from material3 1.4 internal ExpressiveMotionTokens):
+    // spatial motion uses bouncy springs (overshoot into place), effects use critically-damped (never overshoot)
+
+    /** Spatial default spring — position/size transitions. */
+    public fun spatialSpring(): SpringSpec<Float> = spring(dampingRatio = 0.8f, stiffness = 380f)
+
+    /** Fast spatial spring — quick spatial transitions (container transforms, large moves). */
+    public fun fastSpatialSpring(): SpringSpec<Float> = spring(dampingRatio = 0.6f, stiffness = 800f)
+
+    /** Effects default spring — critically damped, no overshoot (color, opacity, small scale). */
+    public fun effectsSpring(): SpringSpec<Float> = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = 1600f)
+
+    /** Fast effects spring — critically damped, snap-like (state ticks, small icon changes). */
+    public fun fastEffectsSpring(): SpringSpec<Float> = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = 3800f)
 }

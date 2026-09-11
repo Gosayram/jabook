@@ -16,7 +16,6 @@ package com.jabook.app.jabook.compose.designsystem.component
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -178,16 +177,6 @@ public fun UnifiedBookCard(
 }
 
 /**
- * Ponytail: M3 1.4 fallback — expressive Morph (Square->Cookie4Sided via MaterialShapes) not in 1.4.
- * Fallback to RoundedCornerShape 12dp->20dp morph via animate; graphics-shapes 1.1.0 kept but unused.
- */
-@Composable
-private fun rememberMorphCardShape(progress: Float): androidx.compose.ui.graphics.Shape {
-    // ponytail: static fallback, progress still drives shape choice without Morph dependency
-    return if (progress > 0.5f) RoundedCornerShape(20.dp) else RoundedCornerShape(12.dp)
-}
-
-/**
  * Favorite icon with a quick scale-crossfade pop on toggle (spotube heart_button pattern).
  *
  * ponytail: effects speed — PRESS_DURATION_MS (150ms) tween, not spring; effects must not overshoot.
@@ -274,14 +263,14 @@ private fun GridBookCard(
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
         )
 
-    // ponytail: expressive morph on selection — 0=Square, 1=Cookie4Sided
-    val morphProgress by animateFloatAsState(
-        targetValue = if (isSelected) 1f else 0f,
-        animationSpec = spring(dampingRatio = 0.7f, stiffness = 300f),
-        label = "cardMorph",
-    )
-    val morphShape = rememberMorphCardShape(morphProgress)
-    val cardShape = if (isSelectionMode) morphShape else CardDefaults.shape
+    // ponytail: selection shape — static 20dp when selected (CardDefaults.shape is 12dp); the old
+    // morphProgress spring animated a hard if>0.5f snap, i.e. machinery for a non-animation
+    val cardShape =
+        if (isSelectionMode && isSelected) {
+            RoundedCornerShape(20.dp)
+        } else {
+            CardDefaults.shape
+        }
 
     Card(
         shape = cardShape,
