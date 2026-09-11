@@ -188,7 +188,7 @@ public class AudioPlayerController
 
         private data object PlayCommand : PendingControllerCommand {
             override fun execute(controller: MediaController) {
-                controller.play()
+                controller.prepareAndPlay()
             }
         }
 
@@ -1045,7 +1045,7 @@ public class AudioPlayerController
                         }
 
                         if (request.autoPlay && !controller.isPlaying) {
-                            controller.play()
+                            controller.prepareAndPlay()
                         }
                         publishLoadedBook(request.bookId)
                         pendingLoadRequest = null
@@ -1084,7 +1084,7 @@ public class AudioPlayerController
                     }
                     publishLoadedBook(request.bookId)
                     if (request.autoPlay) {
-                        controller.play()
+                        controller.prepareAndPlay()
                     }
                     pendingLoadRequest = null
                     loadBookRetryAttempts = 0
@@ -1159,12 +1159,7 @@ public class AudioPlayerController
                 commandName = "play",
                 pendingCommand = PlayCommand,
             ) { controller ->
-                // play() is a no-op on an unprepared/empty player (e.g. fresh after
-                // reconnect), so prepare first — this resumes via pending load state.
-                if (controller.playbackState == Player.STATE_IDLE || controller.mediaItemCount == 0) {
-                    controller.prepare()
-                }
-                controller.play()
+                controller.prepareAndPlay()
             }
         }
 
@@ -1421,3 +1416,10 @@ public class AudioPlayerController
             const val POSITION_UPDATE_INTERVAL_MS: Long = 250L
         }
     }
+
+// play() is a no-op on an unprepared/empty player (e.g. fresh after reconnect),
+// so prepare first — this resumes via pending load state.
+private fun MediaController.prepareAndPlay() {
+    if (playbackState == Player.STATE_IDLE || mediaItemCount == 0) prepare()
+    play()
+}

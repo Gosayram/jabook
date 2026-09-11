@@ -44,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -114,6 +115,10 @@ public fun interface ValueFormatter {
  * tap-to-jump and drag. The long-press bookmark detector below only fires after the
  * long-press timeout and consumes the remaining gesture, so it never competes with
  * normal taps or drags (and tolerates the Slider already consuming the down event).
+ *
+ * Smoothed playhead: the drawn position glides toward the external [value] over ~90% of
+ * the observed update interval, so ~250ms position polls render as continuous motion
+ * (Rhythm WaveSlider pattern). Gliding is skipped during drags and when reduce-motion is on.
  *
  * @param value Current value (0f..1f usually, but depends on valueRange)
  * @param onValueChange Callback for value change
@@ -253,11 +258,43 @@ public fun SquigglySlider(
     // stomps the in-flight drag state each time the player position ticks. Sync externally
     // only while the user is not dragging.
     val sliderState = rememberSliderState(valueRange = normalizedRange)
+
+    // Smoothed playhead: glide toward the external value over ~90% of the observed update
+    // interval so ~250ms position polls read as continuous motion (Rhythm WaveSlider pattern).
+    // Runs a frame loop only per prop change (≤interval duration); skipped while dragging
+    // and under reduce-motion. The SliderState sync below is driven from the rendered value.
+    var renderedValue by remember { mutableFloatStateOf(coercedValue) }
+    var lastTargetNs by remember { mutableLongStateOf(0L) }
+
     if (!sliderState.isDragging) {
-        sliderState.value = coercedValue
+        sliderState.value = renderedValue
     }
     sliderState.onValueChange = onValueChange
     sliderState.onValueChangeFinished = onValueChangeFinished
+    LaunchedEffect(coercedValue, enabled) {
+        val startNs = withFrameNanos { it }
+        val intervalMs =
+            if (lastTargetNs > 0L) {
+                ((startNs - lastTargetNs) / 1_000_000L).coerceIn(16L, 1000L)
+            } else {
+                250L
+            }
+        lastTargetNs = startNs
+        val from = renderedValue
+        val to = coercedValue
+        if (sliderState.isDragging || reduceMotion || from == to) {
+            renderedValue = to
+            return@LaunchedEffect
+        }
+        val durationMs = (intervalMs * 0.9f).toInt().coerceAtLeast(16)
+        val start = withFrameNanos { it }
+        while (isActive) {
+            if (sliderState.isDragging) return@LaunchedEffect // hand off to the drag value
+            val t = ((withFrameNanos { it } - start) / (durationMs * 1_000_000f)).coerceIn(0f, 1f)
+            renderedValue = from + (to - from) * t
+            if (t >= 1f) return@LaunchedEffect
+        }
+    }
 
     // Latest callback without restarting the pointerInput below (callers pass fresh
     // lambdas every recomposition; keyed restarts cancel in-progress gestures).
@@ -339,11 +376,12 @@ public fun SquigglySlider(
             val height = size.height
             val centerY = height / 2
 
-            // Calculate progress ratio (0..1) with protection against division by zero
+            // Calculate progress ratio (0..1) with protection against division by zero.
+            // Drawn from the smoothed renderedValue so the playhead glides between polls.
             val range = normalizedRange.endInclusive - normalizedRange.start
             val fraction =
                 if (range > 0 && range.isFinite()) {
-                    ((coercedValue - normalizedRange.start) / range).coerceIn(0f, 1f)
+                    ((renderedValue - normalizedRange.start) / range).coerceIn(0f, 1f)
                 } else {
                     0f
                 }

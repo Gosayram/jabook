@@ -21,15 +21,17 @@ import java.util.concurrent.TimeUnit
  *
  * Different contexts require different timeout values:
  * - Widget updates need faster timeouts (1s) for better UX
- * - Regular operations use default timeout (2s)
+ * - Regular operations use default timeout (5s)
  * - Quick fallback operations use very short timeout (500ms) for fast fallback
  */
 public object MediaControllerConstants {
     /**
-     * Default timeout for MediaController operations (2 seconds).
+     * Default timeout for MediaController operations (5 seconds).
      * Used for regular operations like initialization in controllers.
      */
-    public const val DEFAULT_TIMEOUT_SECONDS: Int = 2
+    // Cold low-end devices can take >2s to build the session; retry loop recovers,
+    // but a 5s wait removes the "button does nothing" window.
+    public const val DEFAULT_TIMEOUT_SECONDS: Int = 5
 
     /**
      * Timeout for widget updates (1 second).

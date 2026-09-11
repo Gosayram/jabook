@@ -518,8 +518,14 @@ internal class PlaybackController(
      * @param seconds Number of seconds to rewind (default: 15)
      */
     public fun rewind(seconds: Int = 15) {
-        // ponytail: player getters must stay on Main (SimpleBasePlayer.verifyApplicationThread)
-        check(Looper.getMainLooper() == Looper.myLooper()) { "player getters must stay on Main" }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            performRewind(seconds)
+        } else {
+            playerServiceScope.launch(Dispatchers.Main) { performRewind(seconds) }
+        }
+    }
+
+    private fun performRewind(seconds: Int) {
         finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
@@ -536,8 +542,14 @@ internal class PlaybackController(
      * @param seconds Number of seconds to forward (default: 30)
      */
     public fun forward(seconds: Int = 30) {
-        // ponytail: player getters must stay on Main (SimpleBasePlayer.verifyApplicationThread)
-        check(Looper.getMainLooper() == Looper.myLooper()) { "player getters must stay on Main" }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            performForward(seconds)
+        } else {
+            playerServiceScope.launch(Dispatchers.Main) { performForward(seconds) }
+        }
+    }
+
+    private fun performForward(seconds: Int) {
         finalizeActiveTransition?.invoke()
         val player = getActivePlayer()
         val currentPosition = player.currentPosition
