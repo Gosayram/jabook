@@ -46,7 +46,6 @@ import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -92,6 +91,7 @@ import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.HtmlToAnnotatedString
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
+import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.RemoteImage
 import com.jabook.app.jabook.compose.domain.model.RutrackerTopicDetails
 import com.jabook.app.jabook.ui.theme.LeecherOrange
@@ -226,7 +226,7 @@ public fun TopicScreen(
             }
 
             is TopicUiState.Error -> {
-                ErrorContent(
+                ErrorScreen(
                     message = state.message,
                     onRetry = viewModel::retry,
                     modifier =
@@ -1063,34 +1063,6 @@ private fun CommentItem(
                             },
                 )
             }
-        }
-    }
-}
-
-/**
- * Error content with retry button.
- */
-@Composable
-private fun ErrorContent(
-    message: String,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = message.ifEmpty { stringResource(R.string.anErrorOccurred) },
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.error,
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        Button(onClick = onRetry) {
-            Text(stringResource(R.string.retry))
         }
     }
 }

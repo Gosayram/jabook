@@ -694,6 +694,7 @@ public fun PlayerScreen(
         val state = uiState as PlayerState.Active
         JabookModalBottomSheet(
             onDismissRequest = { showBookmarkSheet = false },
+            title = stringResource(R.string.bookmarks),
         ) {
             BookmarksSheet(
                 bookmarks = state.bookmarks,

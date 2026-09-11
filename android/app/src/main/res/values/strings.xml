@@ -364,6 +364,25 @@
     <string name="crossfade_title">Crossfade</string>
     <string name="crossfade_desc">Fade out current track while fading in next track</string>
     <string name="crossfade_duration">Crossfade Duration</string>
+    <string name="crossfade_between_books_title">Crossfade Between Books</string>
+    <string name="crossfade_between_books_desc">Smooth transition when switching books (0 = instant switch)</string>
+    <string name="auto_rewind_on_pause_title">Auto-Rewind on Pause</string>
+    <string name="auto_rewind_on_pause_desc">Rewind a few seconds when pausing, so resuming replays the last words</string>
+    <string name="auto_rewind_seconds_title">Auto-Rewind Duration</string>
+
+    <!-- Audio DSP levels -->
+    <string name="drc_level_desc">Compress dynamic range: quiet parts stay audible, loud parts stay comfortable</string>
+    <string name="speech_compressor_title">Speech Compression</string>
+    <string name="speech_compressor_desc">Evens out speech volume for clearer narration</string>
+    <string name="noise_gate_title">Noise Reduction</string>
+    <string name="noise_gate_desc">Reduces background noise between phrases</string>
+    <string name="audio_level_off">Off</string>
+    <string name="audio_level_gentle">Gentle</string>
+    <string name="audio_level_light">Light</string>
+    <string name="audio_level_moderate">Moderate</string>
+    <string name="audio_level_medium">Medium</string>
+    <string name="audio_level_strong">Strong</string>
+    <string name="audio_level_aggressive">Aggressive</string>
     
     <string name="skip_silence_title">Skip Silence</string>
     <string name="skip_silence_desc">Skip silent parts during playback</string>

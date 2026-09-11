@@ -361,6 +361,8 @@ public class SettingsViewModel
             headsetAutoplayEnabled: Boolean? = null,
             volumeBoost: String? = null,
             drcLevel: String? = null,
+            speechCompressorLevel: String? = null,
+            noiseGateLevel: String? = null,
             speechEnhancer: Boolean? = null,
             normalizeVolume: Boolean? = null,
             autoVolumeLeveling: Boolean? = null,
@@ -370,10 +372,13 @@ public class SettingsViewModel
             skipSilenceMode: com.jabook.app.jabook.compose.data.preferences.SkipSilenceMode? = null,
             crossfadeEnabled: Boolean? = null,
             crossfadeDurationMs: Long? = null,
+            crossfadeBetweenBooksMs: Long? = null,
             notificationActionSlots: List<Int>? = null,
             notificationLockscreenPrivate: Boolean? = null,
             autoSleepTimerEnabled: Boolean? = null,
             autoSleepTimerMinutes: Int? = null,
+            autoRewindOnPause: Boolean? = null,
+            autoRewindSeconds: Int? = null,
         ) {
             viewModelScope.launch {
                 settingsRepository.updateAudioSettings(
@@ -388,6 +393,8 @@ public class SettingsViewModel
                     headsetAutoplayEnabled = headsetAutoplayEnabled,
                     volumeBoost = volumeBoost,
                     drcLevel = drcLevel,
+                    speechCompressorLevel = speechCompressorLevel,
+                    noiseGateLevel = noiseGateLevel,
                     speechEnhancer = speechEnhancer,
                     normalizeVolume = normalizeVolume,
                     autoVolumeLeveling = autoVolumeLeveling,
@@ -397,10 +404,13 @@ public class SettingsViewModel
                     skipSilenceMode = skipSilenceMode,
                     crossfadeEnabled = crossfadeEnabled,
                     crossfadeDurationMs = crossfadeDurationMs,
+                    crossfadeBetweenBooksMs = crossfadeBetweenBooksMs,
                     notificationActionSlots = notificationActionSlots,
                     notificationLockscreenPrivate = notificationLockscreenPrivate,
                     autoSleepTimerEnabled = autoSleepTimerEnabled,
                     autoSleepTimerMinutes = autoSleepTimerMinutes,
+                    autoRewindOnPause = autoRewindOnPause,
+                    autoRewindSeconds = autoRewindSeconds,
                 )
             }
         }

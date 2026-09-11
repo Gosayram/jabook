@@ -591,6 +591,45 @@ public fun SettingsScreen(
                 )
             }
 
+            // Crossfade between different books
+            SettingsSliderItem(
+                title = stringResource(R.string.crossfade_between_books_title),
+                subtitle = stringResource(R.string.crossfade_between_books_desc),
+                sliderValue = protoSettings.crossfadeBetweenBooksMs.toFloat(),
+                onValueChange = { viewModel.updateAudioSettings(crossfadeBetweenBooksMs = it.toLong()) },
+                valueRange = 0f..2000f,
+                steps = 19,
+                valueFormatter = { "${(it.toInt() / 100) * 100} ms" },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            // Auto-rewind on pause
+            SettingsSwitchItem(
+                title = stringResource(R.string.auto_rewind_on_pause_title),
+                subtitle = stringResource(R.string.auto_rewind_on_pause_desc),
+                checked = protoSettings.autoRewindOnPause,
+                onCheckedChange = { viewModel.updateAudioSettings(autoRewindOnPause = it) },
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+                smallSpacing = smallSpacing,
+            )
+
+            if (protoSettings.autoRewindOnPause) {
+                SettingsSliderItem(
+                    title = stringResource(R.string.auto_rewind_seconds_title),
+                    sliderValue = protoSettings.autoRewindSeconds.toFloat(),
+                    onValueChange = { viewModel.updateAudioSettings(autoRewindSeconds = it.toInt()) },
+                    valueRange = 1f..10f,
+                    steps = 8,
+                    valueFormatter = { "${it.toInt()} s" },
+                    contentPadding = contentPadding,
+                    itemSpacing = itemSpacing,
+                    smallSpacing = smallSpacing,
+                )
+            }
+
             // Skip Silence
             SettingsSwitchItem(
                 title = stringResource(R.string.skip_silence_title),

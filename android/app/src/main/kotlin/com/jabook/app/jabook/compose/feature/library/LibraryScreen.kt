@@ -24,18 +24,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -43,7 +39,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Download
@@ -55,14 +50,12 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Whatshot
-import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material3.DockedSearchBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
@@ -70,7 +63,6 @@ import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -96,7 +88,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -126,10 +117,10 @@ import com.jabook.app.jabook.compose.designsystem.component.BookActionsBottomShe
 import com.jabook.app.jabook.compose.designsystem.component.ChipRow
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
-import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomSheet
 import com.jabook.app.jabook.compose.designsystem.component.LibraryFilterChip
 import com.jabook.app.jabook.compose.designsystem.component.LibraryLoadingSkeleton
-import com.jabook.app.jabook.compose.designsystem.component.connectedItemShape
+import com.jabook.app.jabook.compose.designsystem.component.SortOrderBottomSheet
+import com.jabook.app.jabook.compose.designsystem.component.displayStringRes
 import com.jabook.app.jabook.compose.domain.model.Book
 import com.jabook.app.jabook.compose.domain.model.BookActionsProvider
 import com.jabook.app.jabook.compose.domain.model.BookDisplayMode
@@ -405,164 +396,21 @@ public fun LibraryScreen(
                                         contentDescription = stringResource(R.string.overflowMenu),
                                     )
                                 }
-                                DropdownMenu(
+                                LibraryOverflowMenu(
                                     expanded = showOverflowMenu,
-                                    onDismissRequest = { showOverflowMenu = false },
-                                ) {
-                                    val currentSortLabel =
-                                        when (sortOrder) {
-                                            BookSortOrder.BY_ACTIVITY ->
-                                                stringResource(
-                                                    R.string.sort_by_activity,
-                                                )
-                                            BookSortOrder.TITLE_ASC ->
-                                                stringResource(
-                                                    R.string.sort_title_asc,
-                                                )
-                                            BookSortOrder.TITLE_DESC ->
-                                                stringResource(
-                                                    R.string.sort_title_desc,
-                                                )
-                                            BookSortOrder.AUTHOR_ASC ->
-                                                stringResource(
-                                                    R.string.sort_author_asc,
-                                                )
-                                            BookSortOrder.AUTHOR_DESC ->
-                                                stringResource(
-                                                    R.string.sort_author_desc,
-                                                )
-                                            BookSortOrder.RECENTLY_ADDED ->
-                                                stringResource(
-                                                    R.string.sort_recently_added,
-                                                )
-                                            BookSortOrder.OLDEST_FIRST ->
-                                                stringResource(
-                                                    R.string.sort_oldest_first,
-                                                )
-                                        }
-                                    DropdownMenuItem(
-                                        text = {
-                                            Column {
-                                                Text(text = stringResource(R.string.sort_by))
-                                                Text(
-                                                    text = currentSortLabel,
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                )
-                                            }
-                                        },
-                                        onClick = {
-                                            showOverflowMenu = false
-                                            showSortBottomSheet = true
-                                        },
-                                        leadingIcon = {
-                                            Icon(imageVector = Icons.AutoMirrored.Filled.Sort, contentDescription = null)
-                                        },
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(text = stringResource(R.string.viewModeList)) },
-                                        onClick = {
-                                            showOverflowMenu = false
-                                            viewModel.onViewModeChanged(LibraryViewMode.LIST_COMPACT)
-                                        },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.List,
-                                                contentDescription = null,
-                                            )
-                                        },
-                                        trailingIcon = {
-                                            if (!viewMode.isGrid()) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Check,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                )
-                                            }
-                                        },
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(text = stringResource(R.string.viewModeGrid)) },
-                                        onClick = {
-                                            showOverflowMenu = false
-                                            viewModel.onViewModeChanged(LibraryViewMode.GRID_COMPACT)
-                                        },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Filled.GridView,
-                                                contentDescription = null,
-                                            )
-                                        },
-                                        trailingIcon = {
-                                            if (viewMode.isGrid()) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Check,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.primary,
-                                                )
-                                            }
-                                        },
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(text = stringResource(R.string.discovery)) },
-                                        onClick = {
-                                            showOverflowMenu = false
-                                            showDiscovery = !showDiscovery
-                                        },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Default.Whatshot,
-                                                contentDescription = null,
-                                                tint =
-                                                    if (showDiscovery) {
-                                                        MaterialTheme.colorScheme.primary
-                                                    } else {
-                                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                                    },
-                                            )
-                                        },
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(text = stringResource(R.string.account)) },
-                                        onClick = {
-                                            showOverflowMenu = false
-                                            safeNavigateToAuth()
-                                        },
-                                        leadingIcon = {
-                                            Icon(imageVector = Icons.Filled.Person, contentDescription = null)
-                                        },
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(text = stringResource(R.string.downloads)) },
-                                        onClick = {
-                                            showOverflowMenu = false
-                                            safeNavigateToDownloads()
-                                        },
-                                        leadingIcon = {
-                                            Icon(imageVector = Icons.Filled.Download, contentDescription = null)
-                                        },
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(text = stringResource(R.string.favoritesTitle)) },
-                                        onClick = {
-                                            showOverflowMenu = false
-                                            safeNavigateToFavorites()
-                                        },
-                                        leadingIcon = {
-                                            Icon(imageVector = Icons.Filled.FavoriteBorder, contentDescription = null)
-                                        },
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text(text = stringResource(R.string.settings)) },
-                                        onClick = {
-                                            showOverflowMenu = false
-                                            safeNavigateToSettings()
-                                        },
-                                        leadingIcon = {
-                                            Icon(imageVector = Icons.Default.Settings, contentDescription = null)
-                                        },
-                                    )
-                                }
+                                    onDismiss = { showOverflowMenu = false },
+                                    sortOrder = sortOrder,
+                                    viewMode = viewMode,
+                                    showAllItems = true,
+                                    showDiscovery = showDiscovery,
+                                    onToggleDiscovery = { showDiscovery = !showDiscovery },
+                                    onShowSortSheet = { showSortBottomSheet = true },
+                                    onViewModeChanged = viewModel::onViewModeChanged,
+                                    onNavigateToAuth = safeNavigateToAuth,
+                                    onNavigateToDownloads = safeNavigateToDownloads,
+                                    onNavigateToFavorites = safeNavigateToFavorites,
+                                    onNavigateToSettings = safeNavigateToSettings,
+                                )
                             }
                         },
                     )
@@ -830,99 +678,21 @@ public fun LibraryScreen(
                                                     contentDescription = stringResource(R.string.overflowMenu),
                                                 )
                                             }
-                                            DropdownMenu(
+                                            LibraryOverflowMenu(
                                                 expanded = showOverflowMenu,
-                                                onDismissRequest = { showOverflowMenu = false },
-                                            ) {
-                                                DropdownMenuItem(
-                                                    text = { Text(text = stringResource(R.string.sort_by)) },
-                                                    onClick = {
-                                                        showOverflowMenu = false
-                                                        showSortBottomSheet = true
-                                                    },
-                                                    leadingIcon = {
-                                                        Icon(imageVector = Icons.AutoMirrored.Filled.Sort, contentDescription = null)
-                                                    },
-                                                )
-                                                DropdownMenuItem(
-                                                    text = { Text(text = stringResource(R.string.viewModeList)) },
-                                                    onClick = {
-                                                        showOverflowMenu = false
-                                                        viewModel.onViewModeChanged(LibraryViewMode.LIST_COMPACT)
-                                                    },
-                                                    leadingIcon = {
-                                                        Icon(imageVector = Icons.AutoMirrored.Filled.List, contentDescription = null)
-                                                    },
-                                                    trailingIcon = {
-                                                        if (!viewMode.isGrid()) {
-                                                            Icon(
-                                                                imageVector = Icons.Default.Check,
-                                                                contentDescription = null,
-                                                                tint = MaterialTheme.colorScheme.primary,
-                                                            )
-                                                        }
-                                                    },
-                                                )
-                                                DropdownMenuItem(
-                                                    text = { Text(text = stringResource(R.string.viewModeGrid)) },
-                                                    onClick = {
-                                                        showOverflowMenu = false
-                                                        viewModel.onViewModeChanged(LibraryViewMode.GRID_COMPACT)
-                                                    },
-                                                    leadingIcon = {
-                                                        Icon(imageVector = Icons.Filled.GridView, contentDescription = null)
-                                                    },
-                                                    trailingIcon = {
-                                                        if (viewMode.isGrid()) {
-                                                            Icon(
-                                                                imageVector = Icons.Default.Check,
-                                                                contentDescription = null,
-                                                                tint = MaterialTheme.colorScheme.primary,
-                                                            )
-                                                        }
-                                                    },
-                                                )
-                                                DropdownMenuItem(
-                                                    text = { Text(text = stringResource(R.string.account)) },
-                                                    onClick = {
-                                                        showOverflowMenu = false
-                                                        safeNavigateToAuth()
-                                                    },
-                                                    leadingIcon = {
-                                                        Icon(imageVector = Icons.Filled.Person, contentDescription = null)
-                                                    },
-                                                )
-                                                DropdownMenuItem(
-                                                    text = { Text(text = stringResource(R.string.downloads)) },
-                                                    onClick = {
-                                                        showOverflowMenu = false
-                                                        safeNavigateToDownloads()
-                                                    },
-                                                    leadingIcon = {
-                                                        Icon(imageVector = Icons.Default.Download, contentDescription = null)
-                                                    },
-                                                )
-                                                DropdownMenuItem(
-                                                    text = { Text(text = stringResource(R.string.favoritesTitle)) },
-                                                    onClick = {
-                                                        showOverflowMenu = false
-                                                        safeNavigateToFavorites()
-                                                    },
-                                                    leadingIcon = {
-                                                        Icon(imageVector = Icons.Filled.FavoriteBorder, contentDescription = null)
-                                                    },
-                                                )
-                                                DropdownMenuItem(
-                                                    text = { Text(text = stringResource(R.string.settingsTitle)) },
-                                                    onClick = {
-                                                        showOverflowMenu = false
-                                                        safeNavigateToSettings()
-                                                    },
-                                                    leadingIcon = {
-                                                        Icon(imageVector = Icons.Default.Settings, contentDescription = null)
-                                                    },
-                                                )
-                                            }
+                                                onDismiss = { showOverflowMenu = false },
+                                                sortOrder = sortOrder,
+                                                viewMode = viewMode,
+                                                showAllItems = false,
+                                                showDiscovery = false,
+                                                onToggleDiscovery = {},
+                                                onShowSortSheet = { showSortBottomSheet = true },
+                                                onViewModeChanged = viewModel::onViewModeChanged,
+                                                onNavigateToAuth = safeNavigateToAuth,
+                                                onNavigateToDownloads = safeNavigateToDownloads,
+                                                onNavigateToFavorites = safeNavigateToFavorites,
+                                                onNavigateToSettings = safeNavigateToSettings,
+                                            )
                                         }
                                     },
                                 )
@@ -1352,68 +1122,171 @@ private fun inferGenreFromBook(
 private fun LibraryViewMode.isGrid(): Boolean = this == LibraryViewMode.GRID_COMPACT || this == LibraryViewMode.GRID_COMFORTABLE
 
 /**
- * Sort order bottom sheet.
+ * Shared library overflow menu for both compact and expanded top bars.
+ *
+ * @param expanded Whether the menu is shown
+ * @param onDismiss Called to hide the menu
+ * @param sortOrder Current book sort order
+ * @param viewMode Current library view mode
+ * @param showAllItems True for the compact top bar, which additionally shows
+ *   the current-sort subtitle and the Discovery toggle
+ * @param showDiscovery Current discovery visibility (used when [showAllItems])
+ * @param onToggleDiscovery Toggles the discovery section (used when [showAllItems])
+ * @param onShowSortSheet Opens the sort order bottom sheet
+ * @param onViewModeChanged Switches list/grid view mode
+ * @param onNavigateToAuth Navigates to the account screen
+ * @param onNavigateToDownloads Navigates to the downloads screen
+ * @param onNavigateToFavorites Navigates to the favorites screen
+ * @param onNavigateToSettings Navigates to the settings screen
  */
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
-private fun SortOrderBottomSheet(
-    currentSortOrder: BookSortOrder,
-    onSortOrderChanged: (BookSortOrder) -> Unit,
+private fun LibraryOverflowMenu(
+    expanded: Boolean,
     onDismiss: () -> Unit,
+    sortOrder: BookSortOrder,
+    viewMode: LibraryViewMode,
+    showAllItems: Boolean,
+    showDiscovery: Boolean,
+    onToggleDiscovery: () -> Unit,
+    onShowSortSheet: () -> Unit,
+    onViewModeChanged: (LibraryViewMode) -> Unit,
+    onNavigateToAuth: () -> Unit,
+    onNavigateToDownloads: () -> Unit,
+    onNavigateToFavorites: () -> Unit,
+    onNavigateToSettings: () -> Unit,
 ) {
-    JabookModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            text = stringResource(R.string.sort_by),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+    ) {
+        DropdownMenuItem(
+            text = {
+                if (showAllItems) {
+                    Column {
+                        Text(text = stringResource(R.string.sort_by))
+                        Text(
+                            text = stringResource(sortOrder.displayStringRes()),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    Text(text = stringResource(R.string.sort_by))
+                }
+            },
+            onClick = {
+                onDismiss()
+                onShowSortSheet()
+            },
+            leadingIcon = {
+                Icon(imageVector = Icons.AutoMirrored.Filled.Sort, contentDescription = null)
+            },
         )
-        val sortEntries = BookSortOrder.entries
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            sortEntries.forEachIndexed { index, order ->
-                val shape = connectedItemShape(index, sortEntries.size)
-                Surface(
-                    shape = shape,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.fillMaxWidth().clip(shape),
-                ) {
-                    ListItem(
-                        headlineContent = {
-                            Text(
-                                text =
-                                    when (order) {
-                                        BookSortOrder.BY_ACTIVITY ->
-                                            stringResource(R.string.sort_by_activity)
-                                        BookSortOrder.TITLE_ASC ->
-                                            stringResource(R.string.sort_title_asc)
-                                        BookSortOrder.TITLE_DESC ->
-                                            stringResource(R.string.sort_title_desc)
-                                        BookSortOrder.AUTHOR_ASC ->
-                                            stringResource(R.string.sort_author_asc)
-                                        BookSortOrder.AUTHOR_DESC ->
-                                            stringResource(R.string.sort_author_desc)
-                                        BookSortOrder.RECENTLY_ADDED ->
-                                            stringResource(R.string.sort_recently_added)
-                                        BookSortOrder.OLDEST_FIRST ->
-                                            stringResource(R.string.sort_oldest_first)
-                                    },
-                            )
-                        },
-                        leadingContent = {
-                            if (order == currentSortOrder) {
-                                Icon(imageVector = Icons.Default.Check, contentDescription = null)
-                            } else {
-                                Spacer(modifier = Modifier.size(24.dp))
-                            }
-                        },
-                        modifier = Modifier.combinedClickable(onClick = { onSortOrderChanged(order) }),
+        DropdownMenuItem(
+            text = { Text(text = stringResource(R.string.viewModeList)) },
+            onClick = {
+                onDismiss()
+                onViewModeChanged(LibraryViewMode.LIST_COMPACT)
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.List,
+                    contentDescription = null,
+                )
+            },
+            trailingIcon = {
+                if (!viewMode.isGrid()) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                 }
-            }
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(text = stringResource(R.string.viewModeGrid)) },
+            onClick = {
+                onDismiss()
+                onViewModeChanged(LibraryViewMode.GRID_COMPACT)
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Filled.GridView,
+                    contentDescription = null,
+                )
+            },
+            trailingIcon = {
+                if (viewMode.isGrid()) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            },
+        )
+        if (showAllItems) {
+            DropdownMenuItem(
+                text = { Text(text = stringResource(R.string.discovery)) },
+                onClick = {
+                    onDismiss()
+                    onToggleDiscovery()
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Whatshot,
+                        contentDescription = null,
+                        tint =
+                            if (showDiscovery) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                    )
+                },
+            )
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        DropdownMenuItem(
+            text = { Text(text = stringResource(R.string.account)) },
+            onClick = {
+                onDismiss()
+                onNavigateToAuth()
+            },
+            leadingIcon = {
+                Icon(imageVector = Icons.Filled.Person, contentDescription = null)
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(text = stringResource(R.string.downloads)) },
+            onClick = {
+                onDismiss()
+                onNavigateToDownloads()
+            },
+            leadingIcon = {
+                Icon(imageVector = Icons.Filled.Download, contentDescription = null)
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(text = stringResource(R.string.favoritesTitle)) },
+            onClick = {
+                onDismiss()
+                onNavigateToFavorites()
+            },
+            leadingIcon = {
+                Icon(imageVector = Icons.Filled.FavoriteBorder, contentDescription = null)
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(text = stringResource(R.string.settings)) },
+            onClick = {
+                onDismiss()
+                onNavigateToSettings()
+            },
+            leadingIcon = {
+                Icon(imageVector = Icons.Default.Settings, contentDescription = null)
+            },
+        )
     }
 }
 

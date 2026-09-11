@@ -80,7 +80,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.audio.processors.DRCLevel
 import com.jabook.app.jabook.audio.processors.EqualizerPreset
+import com.jabook.app.jabook.audio.processors.NoiseGateLevel
+import com.jabook.app.jabook.audio.processors.SpeechCompressorLevel
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
@@ -197,6 +200,110 @@ public fun AudioSettingsScreen(
                     modifier = Modifier.padding(horizontal = contentPadding).padding(bottom = 24.dp),
                 )
             }
+
+            // Audio DSP levels
+            SettingsSection(
+                title = stringResource(R.string.audioEnhancementTitle),
+                contentPadding = contentPadding,
+                itemSpacing = itemSpacing,
+            )
+
+            val selectedDrcLevel =
+                remember(protoSettings.drcLevel) {
+                    runCatching { DRCLevel.valueOf(protoSettings.drcLevel) }.getOrDefault(DRCLevel.Off)
+                }
+            SettingsItemWithContent(
+                title = stringResource(R.string.drcLevelTitle),
+                subtitle = stringResource(R.string.drc_level_desc),
+            ) {
+                LevelChipRow(
+                    current = selectedDrcLevel.name,
+                    options = DRCLevel.entries.map { it.name },
+                    labels =
+                        mapOf(
+                            "Off" to R.string.audio_level_off,
+                            "Gentle" to R.string.audio_level_gentle,
+                            "Medium" to R.string.audio_level_medium,
+                            "Strong" to R.string.audio_level_strong,
+                        ),
+                    onSelect = { viewModel.updateAudioSettings(drcLevel = it) },
+                )
+            }
+
+            val selectedSpeechCompressorLevel =
+                remember(protoSettings.speechCompressorLevel) {
+                    runCatching { SpeechCompressorLevel.valueOf(protoSettings.speechCompressorLevel) }
+                        .getOrDefault(SpeechCompressorLevel.Off)
+                }
+            SettingsItemWithContent(
+                title = stringResource(R.string.speech_compressor_title),
+                subtitle = stringResource(R.string.speech_compressor_desc),
+            ) {
+                LevelChipRow(
+                    current = selectedSpeechCompressorLevel.name,
+                    options = SpeechCompressorLevel.entries.map { it.name },
+                    labels =
+                        mapOf(
+                            "Off" to R.string.audio_level_off,
+                            "Gentle" to R.string.audio_level_gentle,
+                            "Moderate" to R.string.audio_level_moderate,
+                            "Aggressive" to R.string.audio_level_aggressive,
+                        ),
+                    onSelect = { viewModel.updateAudioSettings(speechCompressorLevel = it) },
+                )
+            }
+
+            val selectedNoiseGateLevel =
+                remember(protoSettings.noiseGateLevel) {
+                    runCatching { NoiseGateLevel.valueOf(protoSettings.noiseGateLevel) }.getOrDefault(NoiseGateLevel.Off)
+                }
+            SettingsItemWithContent(
+                title = stringResource(R.string.noise_gate_title),
+                subtitle = stringResource(R.string.noise_gate_desc),
+            ) {
+                LevelChipRow(
+                    current = selectedNoiseGateLevel.name,
+                    options = NoiseGateLevel.entries.map { it.name },
+                    labels =
+                        mapOf(
+                            "Off" to R.string.audio_level_off,
+                            "Light" to R.string.audio_level_light,
+                            "Medium" to R.string.audio_level_medium,
+                            "Strong" to R.string.audio_level_strong,
+                        ),
+                    onSelect = { viewModel.updateAudioSettings(noiseGateLevel = it) },
+                )
+            }
+
+            Spacer(modifier = Modifier.padding(bottom = 24.dp))
+        }
+    }
+}
+
+@Composable
+private fun LevelChipRow(
+    current: String,
+    options: List<String>,
+    labels: Map<String, Int>,
+    onSelect: (String) -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+    ) {
+        options.forEach { option ->
+            FilterChip(
+                selected = current == option,
+                onClick = { onSelect(option) },
+                label = {
+                    Text(stringResource(labels.getValue(option)))
+                },
+                modifier =
+                    Modifier.semantics {
+                        role = Role.Checkbox
+                        selected = current == option
+                    },
+            )
         }
     }
 }

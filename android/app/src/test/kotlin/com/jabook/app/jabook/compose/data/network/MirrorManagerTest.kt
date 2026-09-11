@@ -361,11 +361,14 @@ internal class FakeSettingsRepository(
         skipSilenceMode: SkipSilenceMode?,
         crossfadeEnabled: Boolean?,
         crossfadeDurationMs: Long?,
+        crossfadeBetweenBooksMs: Long?,
         noiseGateLevel: String?,
         notificationActionSlots: List<Int>?,
         notificationLockscreenPrivate: Boolean?,
         autoSleepTimerEnabled: Boolean?,
         autoSleepTimerMinutes: Int?,
+        autoRewindOnPause: Boolean?,
+        autoRewindSeconds: Int?,
     ) = Unit
 
     override suspend fun updateAutoSleepTimerEnabled(enabled: Boolean) = Unit

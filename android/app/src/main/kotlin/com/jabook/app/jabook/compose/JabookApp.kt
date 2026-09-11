@@ -253,7 +253,8 @@ public fun JabookApp(
                         },
                         onNavigateToRecentArrivals = {
                             appState.navController.navigate(
-                                com.jabook.app.jabook.compose.navigation.RutrackerSearchRoute(),
+                                com.jabook.app.jabook.compose.navigation
+                                    .RutrackerSearchRoute(),
                             ) {
                                 launchSingleTop = true
                             }

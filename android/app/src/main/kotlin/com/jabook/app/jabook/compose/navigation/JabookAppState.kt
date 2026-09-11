@@ -114,22 +114,27 @@ public class JabookAppState(
     /**
      * Navigates to the Library screen.
      *
-     * This clears the back stack and navigates to the library as the root destination.
-     * Useful for returning to the main screen from anywhere in the app.
+     * Uses the same save/restore state semantics as the other top-level
+     * destinations so the library's scroll position and state survive
+     * round trips.
      */
     public fun navigateToLibrary() {
-        navigationLogger.d { "Navigating to Library (clearing back stack)" }
-        navController.navigate(LibraryRoute) {
-            // Clear the entire back stack INCLUDING the current destination
-            popUpTo(navController.graph.findStartDestination().id) {
-                inclusive = true // Remove everything including start destination
-                saveState = false
+        navigationLogger.d { "Navigating to Library" }
+        val topLevelNavOptions =
+            navOptions {
+                // Pop up to the start destination of the graph to
+                // avoid building up a large stack of destinations
+                // on the back stack as users select items
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                // Avoid multiple copies of the same destination when
+                // reselecting the same item
+                launchSingleTop = true
+                // Restore state when reselecting a previously selected item
+                restoreState = true
             }
-            // Single instance of library
-            launchSingleTop = true
-            // Don't restore state - fresh start
-            restoreState = false
-        }
+        navController.navigate(LibraryRoute, topLevelNavOptions)
         navigationLogger.d { "Navigated to Library" }
     }
 }

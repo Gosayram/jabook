@@ -343,6 +343,25 @@
     <string name="crossfade_title">Плавный переход (Crossfade)</string>
     <string name="crossfade_desc">Плавное затухание текущего трека при начале следующего</string>
     <string name="crossfade_duration">Длительность перехода</string>
+    <string name="crossfade_between_books_title">Плавный переход между книгами</string>
+    <string name="crossfade_between_books_desc">Плавный переход при переключении книги (0 — мгновенное переключение)</string>
+    <string name="auto_rewind_on_pause_title">Автоперемотка при паузе</string>
+    <string name="auto_rewind_on_pause_desc">Отматывать несколько секунд назад при паузе, чтобы при продолжении переслушать последние слова</string>
+    <string name="auto_rewind_seconds_title">Длительность автоперемотки</string>
+
+    <!-- Уровни обработки звука -->
+    <string name="drc_level_desc">Сжатие динамического диапазона: тихие фрагменты остаются слышимыми, громкие — комфортными</string>
+    <string name="speech_compressor_title">Компрессия речи</string>
+    <string name="speech_compressor_desc">Выравнивает громкость речи для более чёткого повествования</string>
+    <string name="noise_gate_title">Шумоподавление</string>
+    <string name="noise_gate_desc">Уменьшает фоновый шум между фразами</string>
+    <string name="audio_level_off">Выкл</string>
+    <string name="audio_level_gentle">Слабая</string>
+    <string name="audio_level_light">Лёгкое</string>
+    <string name="audio_level_moderate">Умеренная</string>
+    <string name="audio_level_medium">Средняя</string>
+    <string name="audio_level_strong">Сильная</string>
+    <string name="audio_level_aggressive">Агрессивная</string>
 
     <string name="skip_silence_title">Пропуск тишины</string>
     <string name="skip_silence_desc">Пропускать тихие участки в аудио</string>

@@ -534,7 +534,7 @@ public fun JabookNavHost(
             ) {
                 com.jabook.app.jabook.compose.feature.debug.DebugScreen(
                     onNavigateBack = {
-                        navController.popBackStack()
+                        navController.navigateUp()
                     },
                 )
             }
@@ -546,7 +546,7 @@ public fun JabookNavHost(
             TopicScreen(
                 topicId = route.topicId,
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.navigateUp()
                 },
                 onNavigateToTopic = { topicId ->
                     navController.navigate(TopicRoute(topicId = topicId)) {
@@ -565,7 +565,7 @@ public fun JabookNavHost(
         ) {
             FavoritesScreen(
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.navigateUp()
                 },
                 onNavigateToTopic = { topicId: String ->
                     navController.navigate(TopicRoute(topicId = topicId)) {

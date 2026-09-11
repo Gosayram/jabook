@@ -72,7 +72,10 @@ public fun AudioSettingsSheet(
     ) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    JabookModalBottomSheet(onDismissRequest = onDismiss) {
+    JabookModalBottomSheet(
+        onDismissRequest = onDismiss,
+        title = stringResource(R.string.audioEnhancementTitle),
+    ) {
         Column(
             modifier =
                 Modifier
@@ -81,11 +84,6 @@ public fun AudioSettingsSheet(
                     .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                text = stringResource(R.string.audioEnhancementTitle),
-                style = MaterialTheme.typography.titleLarge,
-            )
-
             // Volume Boost Section
             Text(
                 text = stringResource(R.string.volumeBoostTitle),

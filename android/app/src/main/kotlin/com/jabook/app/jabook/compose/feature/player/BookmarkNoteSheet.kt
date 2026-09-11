@@ -30,7 +30,6 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -120,15 +119,12 @@ internal fun BookmarkNoteSheet(
             onDismiss()
         },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        title = stringResource(R.string.bookmarkNoteSheetTitle),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().imePadding().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = stringResource(R.string.bookmarkNoteSheetTitle),
-                style = MaterialTheme.typography.titleMedium,
-            )
             OutlinedTextField(
                 value = note,
                 onValueChange = onNoteChange,

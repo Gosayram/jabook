@@ -28,7 +28,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -37,12 +36,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -68,7 +65,7 @@ import com.jabook.app.jabook.compose.designsystem.component.JabookModalBottomShe
  *
  * Features:
  * - Preset chips for quick selection of common speeds
- * - Long-press on any preset opens fine-tuning slider (0.5x - 3.5x)
+ * - Inline fine-tune slider (0.5x - 3.5x) snapped to SpeedDialPolicy steps
  * - Live preview of current speed
  * - Pitch correction toggle
  *
@@ -86,8 +83,6 @@ public fun PlaybackSpeedSheet(
     onDismiss: () -> Unit,
 ) {
     var sliderSpeed by remember { mutableFloatStateOf(currentSpeed) }
-    var fineTuneSpeed by remember { mutableFloatStateOf(currentSpeed) }
-    var showFineTuneDialog by remember { mutableStateOf(false) }
     val recentSpeeds =
         rememberSaveable(
             saver =
@@ -103,7 +98,10 @@ public fun PlaybackSpeedSheet(
             mutableStateListOf<Float>()
         }
 
-    JabookModalBottomSheet(onDismissRequest = onDismiss) {
+    JabookModalBottomSheet(
+        onDismissRequest = onDismiss,
+        title = stringResource(R.string.playbackSpeed),
+    ) {
         Column(
             modifier =
                 Modifier
@@ -111,14 +109,6 @@ public fun PlaybackSpeedSheet(
                     .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                text = stringResource(R.string.playbackSpeed),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -164,11 +154,46 @@ public fun PlaybackSpeedSheet(
                     onSpeedSelected(speed)
                     addRecentSpeed(recentSpeeds, speed)
                 },
-                onPresetLongClick = { speed ->
-                    fineTuneSpeed = speed
-                    showFineTuneDialog = true
-                },
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = stringResource(R.string.fineTuneSpeed),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Slider(
+                value = sliderSpeed,
+                onValueChange = { next ->
+                    val snapped = SpeedDialPolicy.snapToStep(next)
+                    if (snapped != sliderSpeed) {
+                        sliderSpeed = snapped
+                        onSpeedSelected(snapped)
+                    }
+                },
+                valueRange = SpeedDialPolicy.MIN_SPEED..SpeedDialPolicy.MAX_SPEED,
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = SpeedDialPolicy.formatSpeed(SpeedDialPolicy.MIN_SPEED),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = SpeedDialPolicy.formatSpeed(SpeedDialPolicy.MAX_SPEED),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -234,79 +259,6 @@ public fun PlaybackSpeedSheet(
             }
         }
     }
-
-    if (showFineTuneDialog) {
-        SpeedFineTuneDialog(
-            initialSpeed = fineTuneSpeed,
-            onSpeedSelected = { speed ->
-                sliderSpeed = speed
-                onSpeedSelected(speed)
-                addRecentSpeed(recentSpeeds, speed)
-            },
-            onDismiss = { showFineTuneDialog = false },
-        )
-    }
-}
-
-@Composable
-private fun SpeedFineTuneDialog(
-    initialSpeed: Float,
-    onSpeedSelected: (Float) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var sliderSpeed by remember { mutableFloatStateOf(initialSpeed) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(text = stringResource(R.string.fineTuneSpeed))
-        },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(
-                    text = SpeedDialPolicy.formatSpeed(sliderSpeed),
-                    style = MaterialTheme.typography.displaySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.Center,
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Slider(
-                    value = sliderSpeed,
-                    onValueChange = { sliderSpeed = SpeedDialPolicy.snapToStep(it) },
-                    valueRange = SpeedDialPolicy.MIN_SPEED..SpeedDialPolicy.MAX_SPEED,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        text = SpeedDialPolicy.formatSpeed(SpeedDialPolicy.MIN_SPEED),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = SpeedDialPolicy.formatSpeed(SpeedDialPolicy.MAX_SPEED),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    onSpeedSelected(SpeedDialPolicy.snapToStep(sliderSpeed))
-                    onDismiss()
-                },
-            ) {
-                Text(stringResource(R.string.close))
-            }
-        },
-    )
 }
 
 internal fun isSpeedSelected(

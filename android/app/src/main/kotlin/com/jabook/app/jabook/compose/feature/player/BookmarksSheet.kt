@@ -65,13 +65,9 @@ public fun BookmarksSheet(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = stringResource(R.string.bookmarks),
-                style = MaterialTheme.typography.titleLarge,
-            )
             if (bookmarks.isNotEmpty()) {
                 Text(
                     text = stringResource(R.string.bookmarkCount, bookmarks.size),

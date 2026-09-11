@@ -87,6 +87,7 @@ public fun SleepTimerSheet(
     JabookModalBottomSheet(
         onDismissRequest = onDismiss,
         modifier = modifier,
+        title = stringResource(R.string.sleepTimerTitle),
     ) {
         val context = LocalContext.current
         val hapticFeedback = LocalHapticFeedback.current
@@ -95,14 +96,6 @@ public fun SleepTimerSheet(
                 Modifier
                     .fillMaxWidth(),
         ) {
-            Text(
-                text = stringResource(R.string.sleepTimerTitle),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-
-            Spacer(Modifier.height(16.dp))
-
             when (currentState) {
                 is SleepTimerState.Idle -> {
                     lastUsedDurationMinutes?.let { minutes ->

@@ -14,10 +14,9 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -36,12 +35,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.audio.processors.SpeedDialPolicy
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun SpeedPresetsRow(
     currentSpeed: Float,
     onPresetClick: (Float) -> Unit,
-    onPresetLongClick: (Float) -> Unit,
     modifier: Modifier = Modifier,
     presets: List<Float> = SPEED_PRESETS,
 ) {
@@ -59,10 +57,9 @@ internal fun SpeedPresetsRow(
                 modifier =
                     Modifier
                         .heightIn(min = 48.dp)
-                        .combinedClickable(
+                        .clickable(
                             role = Role.Button,
                             onClick = { onPresetClick(speed) },
-                            onLongClick = { onPresetLongClick(speed) },
                         ).clip(chipShape)
                         .background(
                             color =

@@ -59,11 +59,14 @@ public interface SettingsRepository {
         skipSilenceMode: SkipSilenceMode? = null,
         crossfadeEnabled: Boolean? = null,
         crossfadeDurationMs: Long? = null,
+        crossfadeBetweenBooksMs: Long? = null,
         noiseGateLevel: String? = null,
         notificationActionSlots: List<Int>? = null,
         notificationLockscreenPrivate: Boolean? = null,
         autoSleepTimerEnabled: Boolean? = null,
         autoSleepTimerMinutes: Int? = null,
+        autoRewindOnPause: Boolean? = null,
+        autoRewindSeconds: Int? = null,
     )
 
     public suspend fun updateNotificationSettings(
@@ -241,11 +244,14 @@ public class ProtoSettingsRepository
             skipSilenceMode: SkipSilenceMode?,
             crossfadeEnabled: Boolean?,
             crossfadeDurationMs: Long?,
+            crossfadeBetweenBooksMs: Long?,
             noiseGateLevel: String?,
             notificationActionSlots: List<Int>?,
             notificationLockscreenPrivate: Boolean?,
             autoSleepTimerEnabled: Boolean?,
             autoSleepTimerMinutes: Int?,
+            autoRewindOnPause: Boolean?,
+            autoRewindSeconds: Int?,
         ) {
             dataStore.updateData { preferences ->
                 val builder = preferences.toBuilder()
@@ -270,6 +276,7 @@ public class ProtoSettingsRepository
                 skipSilenceMode?.let { builder.setSkipSilenceMode(it) }
                 crossfadeEnabled?.let { builder.setCrossfadeEnabled(it) }
                 crossfadeDurationMs?.let { builder.setCrossfadeDurationMs(it) }
+                crossfadeBetweenBooksMs?.let { builder.setCrossfadeBetweenBooksMs(it.coerceIn(0L, 5000L)) }
                 noiseGateLevel?.let { builder.setNoiseGateLevel(it) }
                 notificationActionSlots?.let { slots ->
                     builder.clearNotificationActionSlots()
@@ -278,6 +285,8 @@ public class ProtoSettingsRepository
                 notificationLockscreenPrivate?.let { builder.setNotificationLockscreenPrivate(it) }
                 autoSleepTimerEnabled?.let { builder.setAutoSleepTimerEnabled(it) }
                 autoSleepTimerMinutes?.let { builder.setAutoSleepTimerMinutes(it.coerceIn(5, 240)) }
+                autoRewindOnPause?.let { builder.setAutoRewindOnPause(it) }
+                autoRewindSeconds?.let { builder.setAutoRewindSeconds(it.coerceIn(0, 10)) }
                 builder.build()
             }
         }

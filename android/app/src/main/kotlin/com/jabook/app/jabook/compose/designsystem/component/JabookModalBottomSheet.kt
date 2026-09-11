@@ -19,11 +19,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -38,6 +41,7 @@ public fun JabookModalBottomSheet(
     modifier: Modifier = Modifier,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     shape: Shape? = null,
+    title: String? = null,
     content: @Composable () -> Unit,
 ) {
     val resolvedShape = shape ?: ExpressiveShapes.defaultSheetShape()
@@ -55,7 +59,19 @@ public fun JabookModalBottomSheet(
             // 28dp top inset — sheet never covers status area; scrim dismiss is default onDismissRequest
             contentWindowInsets = { WindowInsets(top = 28.dp) },
             content = {
-                Column(modifier = sheetModifier.fillMaxWidth().navigationBarsPadding()) { content() }
+                Column(modifier = sheetModifier.fillMaxWidth().navigationBarsPadding()) {
+                    if (title != null) {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                        )
+                    }
+                    content()
+                }
             },
         )
     }

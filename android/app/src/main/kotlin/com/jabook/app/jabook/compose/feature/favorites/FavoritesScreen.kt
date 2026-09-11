@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
@@ -68,6 +67,7 @@ import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
 import com.jabook.app.jabook.compose.designsystem.component.ConfirmDialog
+import com.jabook.app.jabook.compose.designsystem.component.SortOrderBottomSheet
 import com.jabook.app.jabook.compose.domain.model.FavoriteItem
 import com.jabook.app.jabook.compose.ui.favorites.FavoritesViewModel
 import kotlinx.coroutines.launch
@@ -212,54 +212,12 @@ public fun FavoritesScreen(
                                 }
                             }
                         } else {
-                            // Sort menu
+                            // Sort sheet
                             IconButton(onClick = { showSortMenu = true }) {
                                 Icon(
                                     Icons.AutoMirrored.Filled.Sort,
                                     contentDescription = stringResource(R.string.sort_by),
                                 )
-                            }
-                            DropdownMenu(
-                                expanded = showSortMenu,
-                                onDismissRequest = { showSortMenu = false },
-                            ) {
-                                com.jabook.app.jabook.compose.data.model.BookSortOrder.entries.forEach { order ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                text =
-                                                    when (order) {
-                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.BY_ACTIVITY ->
-                                                            stringResource(R.string.sort_by_activity)
-                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_ASC ->
-                                                            stringResource(R.string.sort_title_asc)
-                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.TITLE_DESC ->
-                                                            stringResource(R.string.sort_title_desc)
-                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_ASC ->
-                                                            stringResource(R.string.sort_author_asc)
-                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.AUTHOR_DESC ->
-                                                            stringResource(R.string.sort_author_desc)
-                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.RECENTLY_ADDED ->
-                                                            stringResource(R.string.sort_recently_added)
-                                                        com.jabook.app.jabook.compose.data.model.BookSortOrder.OLDEST_FIRST ->
-                                                            stringResource(R.string.sort_oldest_first)
-                                                    },
-                                            )
-                                        },
-                                        onClick = {
-                                            viewModel.onSortOrderChanged(order)
-                                            showSortMenu = false
-                                        },
-                                        leadingIcon = {
-                                            if (order == sortOrder) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Check,
-                                                    contentDescription = null,
-                                                )
-                                            }
-                                        },
-                                    )
-                                }
                             }
 
                             // Normal mode: show menu
@@ -354,6 +312,17 @@ public fun FavoritesScreen(
                 selectedIds.clear()
             },
             onDismiss = { showClearAllDialog = false },
+        )
+    }
+
+    if (showSortMenu) {
+        SortOrderBottomSheet(
+            currentSortOrder = sortOrder,
+            onSortOrderChanged = { order ->
+                viewModel.onSortOrderChanged(order)
+                showSortMenu = false
+            },
+            onDismiss = { showSortMenu = false },
         )
     }
 }
