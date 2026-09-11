@@ -24,14 +24,12 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -150,26 +148,16 @@ public fun BookActionsBottomSheet(
     }
 
     if (showDeleteConfirmation && onDeleteBook != null) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text(stringResource(R.string.deleteConfirmationTitle)) },
-            text = { Text(stringResource(R.string.deleteConfirmationMessage)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteConfirmation = false
-                        onDeleteBook(book.id)
-                        onDismiss()
-                    },
-                ) {
-                    Text(stringResource(R.string.deleteButton))
-                }
+        ConfirmDialog(
+            title = stringResource(R.string.deleteConfirmationTitle),
+            text = stringResource(R.string.deleteConfirmationMessage),
+            confirmLabel = stringResource(R.string.deleteButton),
+            onConfirm = {
+                showDeleteConfirmation = false
+                onDeleteBook(book.id)
+                onDismiss()
             },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirmation = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
+            onDismiss = { showDeleteConfirmation = false },
         )
     }
 }

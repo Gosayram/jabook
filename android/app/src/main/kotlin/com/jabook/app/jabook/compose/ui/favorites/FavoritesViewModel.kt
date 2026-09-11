@@ -176,6 +176,19 @@ public class FavoritesViewModel
         }
 
         /**
+         * Restore previously removed favorites (undo support).
+         */
+        public fun restoreFavorites(items: List<FavoriteItem>) {
+            viewModelScope.launch {
+                items.forEach { item ->
+                    favoritesRepository
+                        .addToFavorites(item)
+                        .onFailure { it.message?.let { m -> _errorMessages.trySend(m) } }
+                }
+            }
+        }
+
+        /**
          * Clear all favorites.
          */
         public fun clearAllFavorites() {

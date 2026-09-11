@@ -279,8 +279,10 @@ public fun PlayerScreen(
     var showStatsOverlay by rememberSaveable { mutableStateOf(false) }
     var isBookmarkNoteSheetVisible by rememberSaveable { mutableStateOf(false) }
 
-    // Vinyl Mode State
-    var isVinylMode by rememberSaveable { mutableStateOf(false) }
+    // Vinyl Mode State — driven by the player_cover_mode setting (0 = card, 1 = vinyl);
+    // the pref is the source of truth, persisted from the Settings screen.
+    val playerCoverMode by viewModel.playerCoverMode.collectAsStateWithLifecycle()
+    val isVinylMode = playerCoverMode == 1
     var showBookmarkSheet by rememberSaveable { mutableStateOf(false) }
     var showLyrics by rememberSaveable { mutableStateOf(false) }
 

@@ -68,7 +68,6 @@ public class ProtoBackedUserPreferencesRepository
                         onboardingCompleted = preferences.onboardingCompleted,
                         storageFallbackEnabled = preferences.storageFallbackEnabled,
                         spotlightCompleted = preferences.spotlightCompleted,
-                        hapticsEnabled = preferences.hapticsEnabled,
                         languageCode = preferences.languageCode.ifBlank { "ru" },
                     )
                 }
@@ -113,10 +112,6 @@ public class ProtoBackedUserPreferencesRepository
 
         override suspend fun setSpotlightCompleted(completed: Boolean) {
             update { spotlightCompleted = completed }
-        }
-
-        override suspend fun setHapticsEnabled(enabled: Boolean) {
-            update { hapticsEnabled = enabled }
         }
 
         override suspend fun setLanguage(languageCode: String) {

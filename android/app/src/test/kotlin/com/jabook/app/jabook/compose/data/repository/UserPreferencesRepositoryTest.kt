@@ -114,19 +114,6 @@ class UserPreferencesRepositoryTest {
         }
 
     @Test
-    fun `haptics enabled persists`() =
-        runTest {
-            val (repo, file) = createRepository()
-            val initial = repo.userData.first()
-            assertTrue(initial.hapticsEnabled)
-
-            repo.setHapticsEnabled(false)
-            val updated = repo.userData.first()
-            assertFalse(updated.hapticsEnabled)
-            file.delete()
-        }
-
-    @Test
     fun `language preference persists`() =
         runTest {
             val (repo, file) = createRepository()

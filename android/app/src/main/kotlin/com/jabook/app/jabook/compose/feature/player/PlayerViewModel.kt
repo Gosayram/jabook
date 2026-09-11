@@ -395,6 +395,12 @@ public class PlayerViewModel
                 .map { it.autoSleepTimerMinutes.coerceIn(5, 240) }
                 .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = 30)
 
+        /** Player cover mode: 0 = card, 1 = vinyl. */
+        public val playerCoverMode: StateFlow<Int> =
+            settingsRepository.userPreferences
+                .map { it.playerCoverMode }
+                .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5000), initialValue = 0)
+
         private val speedHandler =
             PlayerSpeedHandler(
                 bookId = bookId,

@@ -327,8 +327,6 @@ internal class FakeSettingsRepository(
     override val userPreferences: Flow<UserPreferences> = state
     override val playerStateSnapshot: Flow<PlayerStateSnapshotPreference?> = MutableStateFlow(null)
 
-    override val bassBoostStrength: Flow<Int> = MutableStateFlow(0)
-
     override val audioVisualizerMode: Flow<Int> = MutableStateFlow(0)
 
     override val customEqBands: Flow<List<Int>> = MutableStateFlow(emptyList())
@@ -340,8 +338,6 @@ internal class FakeSettingsRepository(
     override suspend fun updateThemeMode(themeMode: ThemeMode) = Unit
 
     override suspend fun updateDynamicColors(enabled: Boolean) = Unit
-
-    override suspend fun updateBassBoostStrength(strength: Int) = Unit
 
     override suspend fun updateAudioSettings(
         rewindSeconds: Int?,
@@ -366,10 +362,6 @@ internal class FakeSettingsRepository(
         crossfadeEnabled: Boolean?,
         crossfadeDurationMs: Long?,
         noiseGateLevel: String?,
-        singleClickAction: Int?,
-        doubleClickAction: Int?,
-        tripleClickAction: Int?,
-        longPressAction: Int?,
         notificationActionSlots: List<Int>?,
         notificationLockscreenPrivate: Boolean?,
         autoSleepTimerEnabled: Boolean?,

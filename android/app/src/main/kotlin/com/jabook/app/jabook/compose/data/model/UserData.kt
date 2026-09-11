@@ -31,7 +31,6 @@ public data class UserData(
     val onboardingCompleted: Boolean = false,
     val storageFallbackEnabled: Boolean = false,
     val spotlightCompleted: Boolean = false,
-    val hapticsEnabled: Boolean = true,
     val languageCode: String = "ru",
 )
 

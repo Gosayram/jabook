@@ -60,10 +60,6 @@ public interface SettingsRepository {
         crossfadeEnabled: Boolean? = null,
         crossfadeDurationMs: Long? = null,
         noiseGateLevel: String? = null,
-        singleClickAction: Int? = null,
-        doubleClickAction: Int? = null,
-        tripleClickAction: Int? = null,
-        longPressAction: Int? = null,
         notificationActionSlots: List<Int>? = null,
         notificationLockscreenPrivate: Boolean? = null,
         autoSleepTimerEnabled: Boolean? = null,
@@ -131,10 +127,6 @@ public interface SettingsRepository {
     public suspend fun updateAutoSleepTimerMinutes(minutes: Int)
 
     public suspend fun updateSelectedForumIds(ids: String)
-
-    public val bassBoostStrength: Flow<Int>
-
-    public suspend fun updateBassBoostStrength(strength: Int)
 
     public val audioVisualizerMode: Flow<Int>
 
@@ -250,10 +242,6 @@ public class ProtoSettingsRepository
             crossfadeEnabled: Boolean?,
             crossfadeDurationMs: Long?,
             noiseGateLevel: String?,
-            singleClickAction: Int?,
-            doubleClickAction: Int?,
-            tripleClickAction: Int?,
-            longPressAction: Int?,
             notificationActionSlots: List<Int>?,
             notificationLockscreenPrivate: Boolean?,
             autoSleepTimerEnabled: Boolean?,
@@ -283,10 +271,6 @@ public class ProtoSettingsRepository
                 crossfadeEnabled?.let { builder.setCrossfadeEnabled(it) }
                 crossfadeDurationMs?.let { builder.setCrossfadeDurationMs(it) }
                 noiseGateLevel?.let { builder.setNoiseGateLevel(it) }
-                singleClickAction?.let { builder.setSingleClickAction(it) }
-                doubleClickAction?.let { builder.setDoubleClickAction(it) }
-                tripleClickAction?.let { builder.setTripleClickAction(it) }
-                longPressAction?.let { builder.setLongPressAction(it) }
                 notificationActionSlots?.let { slots ->
                     builder.clearNotificationActionSlots()
                     builder.addAllNotificationActionSlots(slots)
@@ -436,16 +420,6 @@ public class ProtoSettingsRepository
         override suspend fun updateSpotlightCompleted(completed: Boolean) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setSpotlightCompleted(completed).build()
-            }
-        }
-
-        override val bassBoostStrength: Flow<Int> =
-            userPreferences.map { it.bassBoostStrength }
-
-        override suspend fun updateBassBoostStrength(strength: Int) {
-            val safeStrength = strength.coerceIn(0, 100)
-            dataStore.updateData { preferences ->
-                preferences.toBuilder().setBassBoostStrength(safeStrength).build()
             }
         }
 

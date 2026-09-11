@@ -2043,7 +2043,7 @@
     <!-- Сообщение когда закладки очищены -->
     <string name="favoritesCleared">Закладки очищены</string>
     <!-- Сообщение когда закладки удалены -->
-    <string name="favoritesDeleted">Удалено закладок: {count}</string>
+    <string name="favoritesDeleted">Удалено закладок: %1$d</string>
     <!-- Сообщение при попытке удалить, но закладки не выбраны -->
     <string name="noFavoritesSelected">Закладки не выбраны</string>
     <!-- Метка для количества выбранных элементов -->
@@ -2960,6 +2960,7 @@
     <string name="torrentEtaLabel">Осталось: %1$s</string>
     <string name="manageFiles">Управление файлами</string>
     <string name="deleteDownloadConfirmMessage">Вы уверены, что хотите удалить "%1$s"?</string>
+    <string name="deleteAllCompletedConfirmMessage">Вы уверены, что хотите удалить все завершённые загрузки?</string>
     <string name="deleteDownloadWithFiles">Также удалить загруженные файлы</string>
     <string name="indexingForumsSectionTitle">Индексация форумов</string>
     <string name="forumsToIndex">Форумы для индексации</string>

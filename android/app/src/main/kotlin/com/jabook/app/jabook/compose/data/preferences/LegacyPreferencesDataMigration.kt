@@ -65,7 +65,6 @@ public class LegacyPreferencesDataMigration
             private val ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
             private val STORAGE_FALLBACK_ENABLED = booleanPreferencesKey("storage_fallback_enabled")
             private val SPOTLIGHT_COMPLETED = booleanPreferencesKey("spotlight_completed")
-            private val HAPTICS_ENABLED = booleanPreferencesKey("haptics_enabled")
             private val LANGUAGE_CODE = stringPreferencesKey("language_code")
         }
 
@@ -117,7 +116,6 @@ public class LegacyPreferencesDataMigration
                     preferences[ONBOARDING_COMPLETED]?.let { onboardingCompleted = it }
                     preferences[STORAGE_FALLBACK_ENABLED]?.let { storageFallbackEnabled = it }
                     preferences[SPOTLIGHT_COMPLETED]?.let { spotlightCompleted = it }
-                    preferences[HAPTICS_ENABLED]?.let { hapticsEnabled = it }
                     preferences[LANGUAGE_CODE]?.takeIf { it.isNotBlank() }?.let { languageCode = it }
                     // Fresh copy = fields 66/67 above already carry explicit values (possibly
                     // `false`). Stamp schema 8 so the v8 default-true migration step skips this

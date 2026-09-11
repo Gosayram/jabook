@@ -116,6 +116,7 @@ import com.jabook.app.jabook.compose.data.model.AppTheme
 import com.jabook.app.jabook.compose.data.model.ScanProgress
 import com.jabook.app.jabook.compose.data.network.MirrorHealth
 import com.jabook.app.jabook.compose.data.permissions.PersistedTreeUriPermissionGuard
+import com.jabook.app.jabook.compose.designsystem.component.ConfirmDialog
 import com.jabook.app.jabook.compose.designsystem.component.endItemShape
 import com.jabook.app.jabook.compose.designsystem.component.leadingItemShape
 import com.jabook.app.jabook.compose.designsystem.component.middleItemShape
@@ -732,25 +733,15 @@ public fun SettingsScreen(
             )
 
             if (showResetBookSettingsDialog) {
-                AlertDialog(
-                    onDismissRequest = { showResetBookSettingsDialog = false },
-                    title = { Text(stringResource(R.string.resetAllBookSettings)) },
-                    text = { Text(stringResource(R.string.resetAllBookSettingsConfirmation)) },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                viewModel.resetAllBookSettings()
-                                showResetBookSettingsDialog = false
-                            },
-                        ) {
-                            Text(stringResource(R.string.resetButton))
-                        }
+                ConfirmDialog(
+                    title = stringResource(R.string.resetAllBookSettings),
+                    text = stringResource(R.string.resetAllBookSettingsConfirmation),
+                    confirmLabel = stringResource(R.string.resetButton),
+                    onConfirm = {
+                        viewModel.resetAllBookSettings()
+                        showResetBookSettingsDialog = false
                     },
-                    dismissButton = {
-                        TextButton(onClick = { showResetBookSettingsDialog = false }) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                    },
+                    onDismiss = { showResetBookSettingsDialog = false },
                 )
             }
 
@@ -1043,25 +1034,15 @@ public fun SettingsScreen(
             )
 
             if (showDeleteAllDialog) {
-                AlertDialog(
-                    onDismissRequest = { showDeleteAllDialog = false },
-                    title = { Text(stringResource(R.string.deleteAllDownloads)) },
-                    text = { Text(stringResource(R.string.deleteAllConfirmation)) },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                viewModel.deleteAllTorrents(true)
-                                showDeleteAllDialog = false
-                            },
-                        ) {
-                            Text(stringResource(R.string.deleteButton))
-                        }
+                ConfirmDialog(
+                    title = stringResource(R.string.deleteAllDownloads),
+                    text = stringResource(R.string.deleteAllConfirmation),
+                    confirmLabel = stringResource(R.string.deleteButton),
+                    onConfirm = {
+                        viewModel.deleteAllTorrents(true)
+                        showDeleteAllDialog = false
                     },
-                    dismissButton = {
-                        TextButton(onClick = { showDeleteAllDialog = false }) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                    },
+                    onDismiss = { showDeleteAllDialog = false },
                 )
             }
 
@@ -1107,29 +1088,15 @@ public fun SettingsScreen(
             )
 
             if (showImportConfirmation) {
-                AlertDialog(
-                    onDismissRequest = { showImportConfirmation = false },
-                    title = { Text(stringResource(R.string.importBackup)) },
-                    text = {
-                        Text(
-                            stringResource(R.string.thisWillReplaceYourCurrentSettingsAreYouSureYouWan),
-                        )
+                ConfirmDialog(
+                    title = stringResource(R.string.importBackup),
+                    text = stringResource(R.string.thisWillReplaceYourCurrentSettingsAreYouSureYouWan),
+                    confirmLabel = stringResource(R.string.importButton),
+                    onConfirm = {
+                        selectedBackupUri?.let { viewModel.importData(it) }
+                        showImportConfirmation = false
                     },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                selectedBackupUri?.let { viewModel.importData(it) }
-                                showImportConfirmation = false
-                            },
-                        ) {
-                            Text(stringResource(R.string.importButton))
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showImportConfirmation = false }) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                    },
+                    onDismiss = { showImportConfirmation = false },
                 )
             }
 
@@ -1221,32 +1188,19 @@ public fun SettingsScreen(
             )
 
             if (showClearCacheDialog) {
-                AlertDialog(
-                    onDismissRequest = { showClearCacheDialog = false },
-                    title = { Text(stringResource(R.string.clearCache)) },
-                    text = {
-                        Text(
-                            stringResource(
-                                R.string.clearCacheConfirmation,
-                                cacheStats?.let { UiFormatters.formatFileSize(it.totalSize) } ?: stringResource(R.string.unknown),
-                            ),
-                        )
+                ConfirmDialog(
+                    title = stringResource(R.string.clearCache),
+                    text =
+                        stringResource(
+                            R.string.clearCacheConfirmation,
+                            cacheStats?.let { UiFormatters.formatFileSize(it.totalSize) } ?: stringResource(R.string.unknown),
+                        ),
+                    confirmLabel = stringResource(R.string.clearButton),
+                    onConfirm = {
+                        viewModel.clearCache()
+                        showClearCacheDialog = false
                     },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                viewModel.clearCache()
-                                showClearCacheDialog = false
-                            },
-                        ) {
-                            Text(stringResource(R.string.clearButton))
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showClearCacheDialog = false }) {
-                            Text(stringResource(R.string.cancel))
-                        }
-                    },
+                    onDismiss = { showClearCacheDialog = false },
                 )
             }
 
@@ -1567,35 +1521,21 @@ public fun SettingsScreen(
                     )
 
                     if (showClearConfirmDialog) {
-                        androidx.compose.material3.AlertDialog(
-                            onDismissRequest = { showClearConfirmDialog = false },
-                            title = { Text(stringResource(R.string.resetIndexDialogTitle)) },
-                            text = {
-                                Text(
-                                    stringResource(R.string.resetIndexDialogMessage, indexTopicsCount),
-                                )
-                            },
-                            confirmButton = {
-                                androidx.compose.material3.TextButton(
-                                    onClick = {
-                                        showClearConfirmDialog = false
-                                        coroutineScope.launch {
-                                            val success = indexingViewModel.clearIndex()
-                                            if (success) {
-                                                indexSize = indexingViewModel.getIndexSize()
-                                                indexMetadata = indexingViewModel.getIndexMetadata()
-                                            }
-                                        }
-                                    },
-                                ) {
-                                    Text(stringResource(R.string.reset))
+                        ConfirmDialog(
+                            title = stringResource(R.string.resetIndexDialogTitle),
+                            text = stringResource(R.string.resetIndexDialogMessage, indexTopicsCount),
+                            confirmLabel = stringResource(R.string.reset),
+                            onConfirm = {
+                                showClearConfirmDialog = false
+                                coroutineScope.launch {
+                                    val success = indexingViewModel.clearIndex()
+                                    if (success) {
+                                        indexSize = indexingViewModel.getIndexSize()
+                                        indexMetadata = indexingViewModel.getIndexMetadata()
+                                    }
                                 }
                             },
-                            dismissButton = {
-                                androidx.compose.material3.TextButton(onClick = { showClearConfirmDialog = false }) {
-                                    Text(stringResource(R.string.cancel))
-                                }
-                            },
+                            onDismiss = { showClearConfirmDialog = false },
                         )
                     }
                 }

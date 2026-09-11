@@ -84,6 +84,7 @@ import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.core.util.UiFormatters
 import com.jabook.app.jabook.compose.data.permissions.PersistedTreeUriPermissionGuard
 import com.jabook.app.jabook.compose.data.torrent.TorrentDownload
+import com.jabook.app.jabook.compose.designsystem.component.ConfirmDialog
 import com.jabook.app.jabook.compose.designsystem.component.EmptyState
 import com.jabook.app.jabook.compose.designsystem.component.ErrorScreen
 import com.jabook.app.jabook.compose.designsystem.component.LoadingScreen
@@ -141,6 +142,7 @@ public fun TorrentDownloadsScreen(
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
 
     var downloadToDelete by remember { mutableStateOf<TorrentDownload?>(null) }
+    var showDeleteCompletedDialog by remember { mutableStateOf(false) }
 
     val pendingMagnetLink by viewModel.pendingMagnetLink.collectAsStateWithLifecycle()
     val pendingDownloadPath by viewModel.pendingDownloadPath.collectAsStateWithLifecycle()
@@ -266,6 +268,20 @@ public fun TorrentDownloadsScreen(
         )
     }
 
+    if (showDeleteCompletedDialog) {
+        // ponytail: decorative Delete icon (contentDescription = null) dropped — ConfirmDialog is text-only
+        ConfirmDialog(
+            title = stringResource(R.string.delete_download),
+            text = stringResource(R.string.deleteAllCompletedConfirmMessage),
+            confirmLabel = stringResource(R.string.delete_download),
+            onConfirm = {
+                viewModel.deleteAllCompleted()
+                showDeleteCompletedDialog = false
+            },
+            onDismiss = { showDeleteCompletedDialog = false },
+        )
+    }
+
     Scaffold(
         // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -324,7 +340,7 @@ public fun TorrentDownloadsScreen(
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.delete_download)) },
                                 onClick = {
-                                    viewModel.deleteAllCompleted()
+                                    showDeleteCompletedDialog = true
                                     menuExpanded = false
                                 },
                                 leadingIcon = {

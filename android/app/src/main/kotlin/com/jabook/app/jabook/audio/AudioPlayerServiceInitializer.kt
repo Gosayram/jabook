@@ -127,6 +127,10 @@ public class AudioPlayerServiceInitializer(
                 },
                 audioFader = service.audioFader,
                 settingsRepository = service.settingsRepository,
+                isShakeToExtendEnabled = {
+                    // Effective default is enabled (proto field 35 is `optional`, migrated/serialized to true).
+                    cachedUserPreferences?.sleepTimerShakeExtendEnabled ?: true
+                },
                 saveSleepTimerStateToDataStore = { state ->
                     // Fire-and-forget: DataStore is the sole persistence sink for
                     // this manager (no SharedPreferences fallback is wired).

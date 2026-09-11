@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,10 +39,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -52,11 +52,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -65,8 +67,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.designsystem.component.ConfirmDialog
 import com.jabook.app.jabook.compose.domain.model.FavoriteItem
 import com.jabook.app.jabook.compose.ui.favorites.FavoritesViewModel
+import kotlinx.coroutines.launch
 
 /**
  * Favorites screen displaying user's favorite audiobooks.
@@ -82,6 +86,9 @@ public fun FavoritesScreen(
     val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val sortOrder by viewModel.sortOrder.collectAsStateWithLifecycle()
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateBack = dropUnlessResumed { navigationClickGuard.run(onNavigateBack) }
@@ -184,9 +191,21 @@ public fun FavoritesScreen(
                             if (selectedIds.isNotEmpty()) {
                                 IconButton(
                                     onClick = {
+                                        val removedFavorites = favorites.filter { it.topicId in selectedIds }
                                         viewModel.removeMultipleFavorites(selectedIds.toList())
                                         selectedIds.clear()
                                         isSelectionMode = false
+                                        scope.launch {
+                                            val result =
+                                                snackbarHostState.showSnackbar(
+                                                    message = context.getString(R.string.favoritesDeleted, removedFavorites.size),
+                                                    actionLabel = context.getString(R.string.undoAction),
+                                                    duration = SnackbarDuration.Indefinite,
+                                                )
+                                            if (result == SnackbarResult.ActionPerformed) {
+                                                viewModel.restoreFavorites(removedFavorites)
+                                            }
+                                        }
                                     },
                                 ) {
                                     Icon(Icons.Default.Delete, stringResource(R.string.deleteSelected))
@@ -443,21 +462,12 @@ private fun ClearAllFavoritesDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.clearAllFavoritesTitle)) },
-        text = {
-            Text(stringResource(R.string.thisWillRemoveAllFavoriteAudiobooksThisActionCanno))
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.clearAll), color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
+    ConfirmDialog(
+        title = stringResource(R.string.clearAllFavoritesTitle),
+        text = stringResource(R.string.thisWillRemoveAllFavoriteAudiobooksThisActionCanno),
+        confirmLabel = stringResource(R.string.clearAll),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        destructive = true,
     )
 }

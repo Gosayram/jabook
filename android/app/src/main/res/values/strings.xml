@@ -2035,7 +2035,7 @@
     <!-- Message when favorites are cleared -->
     <string name="favoritesCleared">Favorites cleared</string>
     <!-- Message when favorites are deleted -->
-    <string name="favoritesDeleted">{count} favorite(s) deleted</string>
+    <string name="favoritesDeleted">%1$d favorite(s) deleted</string>
     <!-- Message when trying to delete but no favorites are selected -->
     <string name="noFavoritesSelected">No favorites selected</string>
     <!-- Label for selected items count -->
@@ -2925,6 +2925,7 @@
     <string name="torrentEtaLabel">ETA: %1$s</string>
     <string name="manageFiles">Manage files</string>
     <string name="deleteDownloadConfirmMessage">Are you sure you want to delete "%1$s"?</string>
+    <string name="deleteAllCompletedConfirmMessage">Are you sure you want to delete all completed downloads?</string>
     <string name="deleteDownloadWithFiles">Also delete downloaded files</string>
     <string name="indexingForumsSectionTitle">Forum indexing</string>
     <string name="forumsToIndex">Forums to index</string>

@@ -47,6 +47,7 @@ import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
@@ -542,6 +543,16 @@ public fun LibraryScreen(
                                         },
                                     )
                                     DropdownMenuItem(
+                                        text = { Text(text = stringResource(R.string.favoritesTitle)) },
+                                        onClick = {
+                                            showOverflowMenu = false
+                                            safeNavigateToFavorites()
+                                        },
+                                        leadingIcon = {
+                                            Icon(imageVector = Icons.Filled.FavoriteBorder, contentDescription = null)
+                                        },
+                                    )
+                                    DropdownMenuItem(
                                         text = { Text(text = stringResource(R.string.settings)) },
                                         onClick = {
                                             showOverflowMenu = false
@@ -889,6 +900,16 @@ public fun LibraryScreen(
                                                     },
                                                     leadingIcon = {
                                                         Icon(imageVector = Icons.Default.Download, contentDescription = null)
+                                                    },
+                                                )
+                                                DropdownMenuItem(
+                                                    text = { Text(text = stringResource(R.string.favoritesTitle)) },
+                                                    onClick = {
+                                                        showOverflowMenu = false
+                                                        safeNavigateToFavorites()
+                                                    },
+                                                    leadingIcon = {
+                                                        Icon(imageVector = Icons.Filled.FavoriteBorder, contentDescription = null)
                                                     },
                                                 )
                                                 DropdownMenuItem(

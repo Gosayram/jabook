@@ -92,11 +92,6 @@ public interface UserPreferencesRepository {
     public suspend fun setSpotlightCompleted(completed: Boolean)
 
     /**
-     * Update haptics enabled setting.
-     */
-    public suspend fun setHapticsEnabled(enabled: Boolean)
-
-    /**
      * Update language setting.
      */
     public suspend fun setLanguage(languageCode: String)

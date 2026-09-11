@@ -33,7 +33,6 @@ class UserPreferencesDataMigrationTest {
         assertEquals(ResumeRewindMode.SMART, defaults.resumeRewindMode)
         assertEquals(2.5f, defaults.holdToBoostSpeed)
         assertTrue(defaults.autoLoadCoversOnCellular)
-        assertTrue(defaults.hapticsEnabled)
     }
 
     @Test
@@ -127,22 +126,6 @@ class UserPreferencesDataMigrationTest {
 
             assertEquals(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION, migrated.schemaVersion)
             assertEquals(0, migrated.audioVisualizerMode)
-        }
-
-    @Test
-    fun `migrate enables haptics for schema six data that predates its explicit default`() =
-        runTest {
-            val schemaSix =
-                UserPreferences
-                    .newBuilder()
-                    .setSchemaVersion(6)
-                    .setHapticsEnabled(false)
-                    .build()
-
-            val migrated = migration.migrate(schemaSix)
-
-            assertEquals(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION, migrated.schemaVersion)
-            assertTrue(migrated.hapticsEnabled)
         }
 
     @Test

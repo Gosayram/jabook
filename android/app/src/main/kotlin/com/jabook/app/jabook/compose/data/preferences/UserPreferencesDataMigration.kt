@@ -108,10 +108,10 @@ public class UserPreferencesDataMigration : DataMigration<UserPreferences> {
             migrated = builder.build()
         }
 
-        // v7: match the app-wide haptics default for existing Proto stores.
+        // v7: version bump only — haptics_enabled (field 52) was fully dead and removed
+        // from the schema (reserved). Kept so pre-v7 stores stay on the version ladder.
         if (migrated.schemaVersion < 7) {
             val builder = migrated.toBuilder()
-            builder.hapticsEnabled = true
             builder.schemaVersion = 7
             migrated = builder.build()
         }
