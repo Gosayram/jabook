@@ -67,10 +67,23 @@ public class WaveformExtractor(
         withContext(Dispatchers.Default) {
             val extractor = MediaExtractor()
             try {
-                if (path.startsWith("content:")) {
-                    extractor.setDataSource(context, Uri.parse(path), null)
-                } else {
-                    extractor.setDataSource(path)
+                when {
+                    path.startsWith("content:") -> {
+                        extractor.setDataSource(context, Uri.parse(path), null)
+                    }
+                    path.startsWith("http://") || path.startsWith("https://") -> {
+                        // ponytail: remote streams never get a waveform — whole-file MediaCodec
+                        // decode would burn CPU for the whole download; add streaming support
+                        // only if a feature ever needs it
+                        return@withContext FloatArray(0)
+                    }
+                    else -> {
+                        val uri = Uri.parse(path)
+                        // MediaExtractor.setDataSource(String) expects a local path —
+                        // "file://…" URIs (URL-encoded) fail to open, so decode them first
+                        val localPath = if (uri.scheme == "file") uri.path ?: path else path
+                        extractor.setDataSource(localPath)
+                    }
                 }
 
                 var trackIndex = -1

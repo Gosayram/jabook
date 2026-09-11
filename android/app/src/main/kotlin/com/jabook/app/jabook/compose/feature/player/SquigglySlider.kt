@@ -14,17 +14,14 @@
 
 package com.jabook.app.jabook.compose.feature.player
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -41,12 +38,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSliderState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -54,8 +56,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -69,6 +74,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.jabook.app.jabook.compose.core.util.rememberReduceMotion
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withTimeout
 import kotlin.math.sin
 
 internal const val SQUIGGLY_SLIDER_TAG: String = "squiggly_slider_track"
@@ -95,6 +102,18 @@ public fun interface ValueFormatter {
 /**
  * A Premium "Squiggly" Slider that shows a sine wave animation when active/playing.
  * The wave straightens out when the user interacts (drags/presses) for precision.
+ *
+ * The squiggle is a behavior port of AOSP SquigglyProgress (Android 13+ media squiggle):
+ * asymmetric amplitude animation (800ms in with 60ms delay, CubicBezier(0.05, 0.7, 0.1, 1);
+ * 550ms out, CubicBezier(0, 0, 0, 1)), phase advancing at 1 wavelength/second only while the
+ * wave is visible, a 1.5λ linear taper starting at the playhead, and a dual-clip draw where
+ * one full-width sine is drawn twice — active color up to the playhead, dimmed inactive color
+ * past it.
+ *
+ * Gesture ownership: the embedded Material [Slider] is the single source of truth for
+ * tap-to-jump and drag. The long-press bookmark detector below only fires after the
+ * long-press timeout and consumes the remaining gesture, so it never competes with
+ * normal taps or drags (and tolerates the Slider already consuming the down event).
  *
  * @param value Current value (0f..1f usually, but depends on valueRange)
  * @param onValueChange Callback for value change
@@ -154,7 +173,6 @@ public fun SquigglySlider(
     val isDragged by interactionSource.collectIsDraggedAsState()
     val isInteracting = isPressed || isDragged
     var sliderWidthPx by remember { mutableStateOf(0) }
-    var sliderWindowOffset by remember { mutableStateOf(IntOffset.Zero) }
     var tooltipWidthDp by remember { mutableStateOf(56.dp) }
     val density = LocalDensity.current
 
@@ -182,23 +200,12 @@ public fun SquigglySlider(
             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
         }
 
-    // Animation for the wave phase (movement)
-    val infiniteTransition = rememberInfiniteTransition(label = "wave_phase")
-    val phase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec =
-            infiniteRepeatable(
-                animation = tween(2000, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart,
-            ),
-        label = "phase",
-    )
-
-    // Animation for amplitude:
-    // - 0f when interacting (straight line for precision)
-    // - 0f when not playing (static straight or subtle?) -> Let's do 0f for static if paused, or maybe keep subtle?
-    // Plan said "Squiggly Slider". Usually it's squiggly when playing.
+    // AOSP SquigglyProgress amplitude:
+    // - 0f when interacting (straight line for precision, like AOSP animate=false on touch)
+    // - 0f when paused or reduceMotion
+    // - 1f while playing
+    // Asymmetric per AOSP: slow ease-in (800ms + 60ms delay) rising into the wave, quicker
+    // settle (550ms) back to a straight track.
     val targetAmplitude =
         if (reduceMotion || isInteracting) {
             0f
@@ -207,11 +214,54 @@ public fun SquigglySlider(
         } else {
             0f
         }
+    val amplitudeInSpec =
+        tween<Float>(durationMillis = 800, delayMillis = 60, easing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f))
+    val amplitudeOutSpec =
+        tween<Float>(durationMillis = 550, easing = CubicBezierEasing(0f, 0f, 0f, 1f))
     val animatedAmplitudeScale by animateFloatAsState(
         targetValue = targetAmplitude,
-        animationSpec = tween(300),
+        animationSpec = if (targetAmplitude > 0.5f) amplitudeInSpec else amplitudeOutSpec,
         label = "amplitude",
     )
+
+    // AOSP SquigglyProgress phase: 1 wavelength per second, advanced ONLY while the wave is
+    // visible (amplitude > 0.01). When flat, the loop reads state without writing it, so no
+    // frames are invalidated. reduceMotion forces amplitude to 0, which idles the loop too.
+    var squigglePhase by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) {
+        var lastFrameNs = 0L
+        while (isActive) {
+            withFrameNanos { now ->
+                if (lastFrameNs > 0L && animatedAmplitudeScale > 0.01f) {
+                    val deltaSec = (now - lastFrameNs) / 1_000_000_000f
+                    squigglePhase = (squigglePhase + deltaSec) % 1f // phase in wavelengths
+                }
+                lastFrameNs = now
+            }
+        }
+    }
+
+    val coercedValue =
+        if (value.isFinite()) {
+            value.coerceIn(normalizedRange.start, normalizedRange.endInclusive)
+        } else {
+            normalizedRange.start
+        }
+
+    // SliderState overload instead of the value-overload: material3 1.4.0's value-overload
+    // writes `state.value = value` on EVERY recomposition with no isDragging guard, which
+    // stomps the in-flight drag state each time the player position ticks. Sync externally
+    // only while the user is not dragging.
+    val sliderState = rememberSliderState(valueRange = normalizedRange)
+    if (!sliderState.isDragging) {
+        sliderState.value = coercedValue
+    }
+    sliderState.onValueChange = onValueChange
+    sliderState.onValueChangeFinished = onValueChangeFinished
+
+    // Latest callback without restarting the pointerInput below (callers pass fresh
+    // lambdas every recomposition; keyed restarts cancel in-progress gestures).
+    val currentOnLongPress by rememberUpdatedState(onLongPress)
 
     Box(
         modifier =
@@ -220,26 +270,61 @@ public fun SquigglySlider(
                 // setProgress) with any a11y semantics provided by callers into a single
                 // TalkBack node — otherwise both are exposed as separate focusable elements.
                 .semantics(mergeDescendants = true) {}
-                .heightIn(min = 48.dp) // touch target; Canvas stays centered at thumbRadius*2
-                .height(effectiveThumbRadius * 2)
+                // 48dp interactive touch target (the embedded Slider enforces its own minimum
+                // interactive size); the visible track stays centered at thumbRadius*2.
+                .heightIn(min = 48.dp)
                 .onSizeChanged { sliderWidthPx = it.width }
-                .onGloballyPositioned { coordinates ->
-                    val topLeft = coordinates.localToWindow(Offset.Zero)
-                    sliderWindowOffset = IntOffset(topLeft.x.toInt(), topLeft.y.toInt())
-                }.pointerInput(onLongPress, enabled, normalizedRange, isRtl) {
-                    if (onLongPress == null || !enabled) return@pointerInput
-                    detectTapGestures(
-                        onLongPress = { offset ->
-                            if (size.width <= 0) return@detectTapGestures
-                            val rawFraction = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
-                            val fraction = if (isRtl) 1f - rawFraction else rawFraction
-                            val longPressValue =
-                                normalizedRange.start +
-                                    fraction * (normalizedRange.endInclusive - normalizedRange.start)
-                            onLongPress(longPressValue)
-                        },
-                    )
-                }, // Ensure enough height for thumb
+                .pointerInput(enabled, normalizedRange, isRtl) {
+                    awaitEachGesture {
+                        val onLongPress = currentOnLongPress ?: return@awaitEachGesture
+                        // The embedded Slider's tap detector consumes the down before this
+                        // parent node sees it (main pass is child-first), so accept an
+                        // already-consumed down — requireUnconsumed = false.
+                        awaitFirstDown(requireUnconsumed = false)
+                        var lastPressed: PointerInputChange? = null
+                        var cancelled = false
+                        try {
+                            withTimeout(viewConfiguration.longPressTimeoutMillis) {
+                                while (true) {
+                                    val event = awaitPointerEvent(PointerEventPass.Main)
+                                    val change = event.changes.firstOrNull()
+                                    val pad = extendedTouchPadding
+                                    val outOfBounds =
+                                        change != null &&
+                                            (
+                                                change.position.x < -pad.width ||
+                                                    change.position.x > size.width + pad.width ||
+                                                    change.position.y < -pad.height ||
+                                                    change.position.y > size.height + pad.height
+                                            )
+                                    if (change == null || change.isConsumed || !change.pressed || outOfBounds) {
+                                        // Drag took over, finger lifted, or drifted away.
+                                        cancelled = true
+                                        break
+                                    }
+                                    lastPressed = change
+                                }
+                            }
+                        } catch (_: PointerEventTimeoutCancellationException) {
+                            // Held still past the timeout — long press detected.
+                        }
+                        val pressed = lastPressed
+                        if (cancelled || pressed == null) return@awaitEachGesture
+                        // Consume the remainder on the initial pass so descendants (the
+                        // embedded Slider) see consumed events and cancel their tap-to-jump.
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            event.changes.forEach { it.consume() }
+                            if (event.changes.all { !it.pressed }) break
+                        }
+                        val rawFraction = (pressed.position.x / size.width.toFloat()).coerceIn(0f, 1f)
+                        val fraction = if (isRtl) 1f - rawFraction else rawFraction
+                        onLongPress(
+                            normalizedRange.start +
+                                fraction * (normalizedRange.endInclusive - normalizedRange.start),
+                        )
+                    }
+                },
         contentAlignment = Alignment.Center,
     ) {
         // Custom Track Drawing
@@ -248,24 +333,17 @@ public fun SquigglySlider(
                 Modifier
                     .fillMaxWidth()
                     // ponytail: at least track + 8dp so waveform stays visible around the thicker M3 track
-                    .height(maxOf(effectiveThumbRadius * 2, effectiveTrackHeight + 8.dp)), // Match container
+                    .height(maxOf(effectiveThumbRadius * 2, effectiveTrackHeight + 8.dp)),
         ) {
             val width = size.width
             val height = size.height
             val centerY = height / 2
 
-            // Validate and sanitize value: check for NaN, Infinity, and ensure it's in valid range
-            val sanitizedValue =
-                when {
-                    !value.isFinite() -> normalizedRange.start // Default to start if invalid
-                    else -> value.coerceIn(normalizedRange.start, normalizedRange.endInclusive)
-                }
-
             // Calculate progress ratio (0..1) with protection against division by zero
             val range = normalizedRange.endInclusive - normalizedRange.start
             val fraction =
                 if (range > 0 && range.isFinite()) {
-                    ((sanitizedValue - normalizedRange.start) / range).coerceIn(0f, 1f)
+                    ((coercedValue - normalizedRange.start) / range).coerceIn(0f, 1f)
                 } else {
                     0f
                 }
@@ -294,23 +372,96 @@ public fun SquigglySlider(
                 }
             }
 
-            // Draw Inactive Track — mirrored for RTL to match Material Slider thumb
-            if (isRtl) {
-                drawLine(
-                    color = inactiveTrackColor,
-                    start = Offset(0f, centerY),
-                    end = Offset(width - activeWidth, centerY),
-                    strokeWidth = effectiveTrackHeight.toPx(),
-                    cap = StrokeCap.Round,
-                )
+            // Squiggle + track — AOSP SquigglyProgress draw: one full-width sine drawn twice
+            // with clips (active color up to the playhead, dimmed inactive color past it), so
+            // the wave continues PAST the playhead with a 1.5λ linear taper. When flat, fall
+            // back to the plain two-segment track.
+            val amplitudePx = squiggleAmplitude.toPx() * animatedAmplitudeScale
+            val waveVisible = amplitudePx >= 1f && activeWidth > 0f
+            if (waveVisible) {
+                val wavelengthPx = squiggleWavelength.toPx()
+                val strokePx = effectiveTrackHeight.toPx()
+                val taperLength = wavelengthPx * 1.5f // ponytail: 1.5λ post-playhead fade (AOSP)
+                val path = Path()
+                path.moveTo(if (isRtl) width else 0f, centerY)
+                val step = wavelengthPx / 8f
+                var x = 0f
+                while (x <= width) {
+                    // Full amplitude up to the playhead, then linear fade to zero.
+                    val coeff =
+                        if (x <= activeWidth) {
+                            1f
+                        } else {
+                            ((activeWidth + taperLength - x) / taperLength).coerceIn(0f, 1f)
+                        }
+                    val yOffset =
+                        amplitudePx * coeff * sin(2 * Math.PI * (x / wavelengthPx - squigglePhase)).toFloat()
+                    val drawX = if (isRtl) width - x else x
+                    path.lineTo(drawX, centerY + yOffset)
+                    x += step
+                }
+                val clipTop = amplitudePx + strokePx
+                val playheadX = if (isRtl) width - activeWidth else activeWidth
+                clipRect(
+                    left = 0f,
+                    top = centerY - clipTop,
+                    right = playheadX,
+                    bottom = centerY + clipTop,
+                ) {
+                    drawPath(path, activeTrackColor, style = Stroke(strokePx, cap = StrokeCap.Round))
+                }
+                clipRect(
+                    left = playheadX,
+                    top = centerY - clipTop,
+                    right = size.width,
+                    bottom = centerY + clipTop,
+                ) {
+                    drawPath(
+                        path,
+                        inactiveTrackColor.copy(alpha = 0.30f), // AOSP DISABLED_ALPHA 77
+                        style = Stroke(strokePx, cap = StrokeCap.Round),
+                    )
+                }
             } else {
-                drawLine(
-                    color = inactiveTrackColor,
-                    start = Offset(activeWidth, centerY),
-                    end = Offset(width, centerY),
-                    strokeWidth = effectiveTrackHeight.toPx(),
-                    cap = StrokeCap.Round,
-                )
+                // Draw Inactive Track — mirrored for RTL to match Material Slider thumb
+                if (isRtl) {
+                    drawLine(
+                        color = inactiveTrackColor,
+                        start = Offset(0f, centerY),
+                        end = Offset(width - activeWidth, centerY),
+                        strokeWidth = effectiveTrackHeight.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                } else {
+                    drawLine(
+                        color = inactiveTrackColor,
+                        start = Offset(activeWidth, centerY),
+                        end = Offset(width, centerY),
+                        strokeWidth = effectiveTrackHeight.toPx(),
+                        cap = StrokeCap.Round,
+                    )
+                }
+
+                // Flat played side while the wave is straightened (or animating in/out).
+                if (activeWidth > 0f) {
+                    if (isRtl) {
+                        drawLine(
+                            color = activeTrackColor,
+                            start = Offset(width - activeWidth, centerY),
+                            end = Offset(width, centerY),
+                            strokeWidth = effectiveTrackHeight.toPx(),
+                            cap = StrokeCap.Round,
+                        )
+                    } else {
+                        drawLine(
+                            color = activeTrackColor,
+                            start = Offset(0f, centerY),
+                            end = Offset(activeWidth, centerY),
+                            strokeWidth = effectiveTrackHeight.toPx(),
+                            cap = StrokeCap.Round,
+                        )
+                    }
+                }
             }
 
             // ponytail: stop dot 4dp diameter at inactive end when track contrast <3:1 (sliders/page.md, progress-indicators/page.md)
@@ -342,60 +493,6 @@ public fun SquigglySlider(
                 }
             }
 
-            // Draw Active Track (Squiggly) — RTL draws on right side
-            if (activeWidth > 0) {
-                val amplitudePx = squiggleAmplitude.toPx() * animatedAmplitudeScale
-                val wavelengthPx = squiggleWavelength.toPx()
-
-                if (amplitudePx < 1f) {
-                    if (isRtl) {
-                        drawLine(
-                            color = activeTrackColor,
-                            start = Offset(width - activeWidth, centerY),
-                            end = Offset(width, centerY),
-                            strokeWidth = effectiveTrackHeight.toPx(),
-                            cap = StrokeCap.Round,
-                        )
-                    } else {
-                        drawLine(
-                            color = activeTrackColor,
-                            start = Offset(0f, centerY),
-                            end = Offset(activeWidth, centerY),
-                            strokeWidth = effectiveTrackHeight.toPx(),
-                            cap = StrokeCap.Round,
-                        )
-                    }
-                } else {
-                    val path = Path()
-                    if (isRtl) {
-                        path.moveTo(width, centerY)
-                    } else {
-                        path.moveTo(0f, centerY)
-                    }
-                    val transitionLength = wavelengthPx * 1.5f // ponytail: 1.5λ fade, hidden by thumb
-                    val step = 5f
-                    var x = 0f
-                    while (x <= activeWidth) {
-                        val relX = x / wavelengthPx
-                        // ponytail: Gramophone lerpInvSat(activeWidth+len/2, activeWidth-len/2, x)
-                        val coeff = ((activeWidth + transitionLength / 2 - x) / transitionLength).coerceIn(0f, 1f)
-                        val yOffset = amplitudePx * coeff * sin(2 * Math.PI * (relX - phase)).toFloat()
-                        val drawX = if (isRtl) width - activeWidth + x else x
-                        path.lineTo(drawX, centerY + yOffset)
-                        x += step
-                    }
-                    drawPath(
-                        path = path,
-                        color = activeTrackColor,
-                        style =
-                            Stroke(
-                                width = effectiveTrackHeight.toPx(),
-                                cap = StrokeCap.Round,
-                            ),
-                    )
-                }
-            }
-
             // Draw chapter markers over the track.
             val markerHalfHeight = (effectiveTrackHeight.toPx() * 1.5f).coerceAtLeast(3f)
             sanitizedChapterMarkers.forEach { markerFraction ->
@@ -423,23 +520,15 @@ public fun SquigglySlider(
             }
         }
 
-        // Invisible Material Slider to handle interactions and Thumb
-        // We make the track transparent colors so we see our custom Canvas below
+        // Material Slider handles ALL pointer interactions (tap-to-jump, drag, a11y);
+        // its own track/thumb are transparent so the Canvas below is the only visual.
         Slider(
-            value =
-                if (value.isFinite()) {
-                    value.coerceIn(normalizedRange.start, normalizedRange.endInclusive)
-                } else {
-                    normalizedRange.start
-                },
-            onValueChange = onValueChange,
+            state = sliderState,
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .testTag(SQUIGGLY_SLIDER_TAG),
             enabled = enabled,
-            valueRange = normalizedRange,
-            onValueChangeFinished = onValueChangeFinished,
             interactionSource = interactionSource,
             colors =
                 SliderDefaults.colors(
@@ -465,14 +554,8 @@ public fun SquigglySlider(
         )
 
         if (valueFormatter != null && isInteracting && sliderWidthPx > 0) {
-            val safeValue =
-                if (value.isFinite()) {
-                    value.coerceIn(normalizedRange.start, normalizedRange.endInclusive)
-                } else {
-                    normalizedRange.start
-                }
             val range = (normalizedRange.endInclusive - normalizedRange.start).takeIf { it > 0f && it.isFinite() } ?: 1f
-            val fraction = ((safeValue - normalizedRange.start) / range).coerceIn(0f, 1f)
+            val fraction = ((coercedValue - normalizedRange.start) / range).coerceIn(0f, 1f)
             // ponytail: M3 centers the slot thumb at handleWidth/2 inset, so tooltip follows that
             val thumbRadiusPx = with(density) { (handleWidth / 2).toPx() }
             val xOffset = (thumbRadiusPx + fraction * (sliderWidthPx - 2 * thumbRadiusPx)).toInt()
@@ -484,10 +567,11 @@ public fun SquigglySlider(
                     sliderWidthDp = sliderWidthDp,
                     tooltipWidthDp = tooltipWidthDp,
                 )
+            // ponytail: Popup offset is relative to this Box (was double-counting window coords)
             val popupOffset =
                 IntOffset(
-                    x = sliderWindowOffset.x + with(density) { clampedOffset.roundToPx() },
-                    y = sliderWindowOffset.y + with(density) { (-30).dp.roundToPx() },
+                    x = with(density) { clampedOffset.roundToPx() },
+                    y = with(density) { (-30).dp.roundToPx() },
                 )
 
             Popup(
@@ -496,7 +580,7 @@ public fun SquigglySlider(
                 properties = PopupProperties(focusable = false, clippingEnabled = false),
             ) {
                 Text(
-                    text = valueFormatter.format(safeValue),
+                    text = valueFormatter.format(coercedValue),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                     color = MaterialTheme.colorScheme.inverseOnSurface,
                     modifier =

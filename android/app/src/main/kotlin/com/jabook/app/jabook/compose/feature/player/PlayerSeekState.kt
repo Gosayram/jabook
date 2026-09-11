@@ -75,6 +75,7 @@ internal class PlayerSeekState internal constructor(
             ChapterSeekbarPolicy.resolveSeekTarget(
                 chapters = chapters,
                 progress = displayedProgress.value,
+                fallbackDurationMs = timeline.totalDurationMs,
             )
         }
 
@@ -132,6 +133,7 @@ internal class PlayerSeekState internal constructor(
                 ChapterSeekbarPolicy.resolveSeekTarget(
                     chapters = chapters,
                     progress = targetProgress,
+                    fallbackDurationMs = timeline.totalDurationMs,
                 )
             pendingSeekPosition = targetProgress
             if (target.chapterIndex != currentChapterIndex) {
@@ -147,7 +149,7 @@ internal class PlayerSeekState internal constructor(
 
 /**
  * Remembers [PlayerSeekState] for [state] and keeps its live/pending/drag progress reconciled with
- * the player timeline (coalescing, pending-seek convergence, 1.5s stale-seek safety timeout).
+ * the player timeline (coalescing, pending-seek convergence, 4s stale-seek safety timeout).
  */
 @Composable
 internal fun rememberPlayerSeekState(
@@ -161,6 +163,7 @@ internal fun rememberPlayerSeekState(
             chapters = state.chapters,
             currentChapterIndex = state.currentChapterIndex,
             currentChapterPositionMs = currentPositionMs.coerceAtLeast(0L),
+            fallbackDurationMs = state.book.totalDuration.inWholeMilliseconds,
         )
     val seekState = remember { PlayerSeekState(chapterTimeline) }
     seekState.timeline = chapterTimeline
@@ -191,12 +194,18 @@ internal fun rememberPlayerSeekState(
     // to avoid post-seek jump-back jitter.
     LaunchedEffect(playerProgress, seekState.pendingSeekPosition, seekState.isDragging) {
         if (!seekState.isDragging && seekState.pendingSeekPosition != null) {
+            val totalMs = chapterTimeline.totalDurationMs
+            // Converged when within max(2s, 2% of duration) of the target so slow seeks on
+            // big/offloaded files aren't treated as diverged.
+            val convergenceThreshold =
+                if (totalMs > 0L) maxOf(0.02f, 2000f / totalMs) else 0.02f
             val result =
                 SliderSeekSyncPolicy.resolveFromPlayerProgress(
                     playerProgress = playerProgress,
                     currentSliderPosition = seekState.pendingSeekPosition ?: playerProgress,
                     isDragging = false,
                     awaitingSeekSync = true,
+                    convergenceThreshold = convergenceThreshold,
                 )
             if (!result.awaitingSeekSync) {
                 seekState.pendingSeekPosition = null
@@ -214,9 +223,10 @@ internal fun rememberPlayerSeekState(
     }
 
     // Guard against stale pending seek flag if player progress update is delayed.
+    // 4s: slow seeks on big files / offloaded audio (500ms publish epsilon) must not snap back.
     LaunchedEffect(seekState.pendingSeekPosition) {
         if (seekState.pendingSeekPosition != null) {
-            delay(1500L)
+            delay(4000L)
             seekState.pendingSeekPosition = null
         }
     }

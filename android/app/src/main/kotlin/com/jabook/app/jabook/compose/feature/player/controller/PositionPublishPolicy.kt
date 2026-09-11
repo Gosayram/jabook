@@ -18,7 +18,10 @@ import kotlin.math.abs
 
 internal object PositionPublishPolicy {
     private const val POSITION_UPDATE_EPSILON_MS: Long = 120L
-    private const val OFFLOAD_UPDATE_EPSILON_MS: Long = 1000L
+
+    // ponytail: 500ms (was 1000) — offloaded seek feedback must land inside the 4s stale-seek timeout;
+    // seek-target-crossing detection would need controller state, not worth the coupling.
+    private const val OFFLOAD_UPDATE_EPSILON_MS: Long = 500L
 
     fun shouldPublish(
         previousPositionMs: Long,

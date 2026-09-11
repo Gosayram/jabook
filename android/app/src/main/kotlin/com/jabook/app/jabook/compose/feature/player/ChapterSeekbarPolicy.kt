@@ -40,33 +40,21 @@ internal object ChapterSeekbarPolicy {
         chapters: List<Chapter>,
         currentChapterIndex: Int,
         currentChapterPositionMs: Long,
+        fallbackDurationMs: Long = 0L,
     ): ChapterSeekbarTimeline {
-        val playableIndices = playableChapterIndices(chapters)
-        val durations = playableIndices.map { chapters[it].duration.inWholeMilliseconds }
+        val durations =
+            effectiveDurations(chapters, fallbackDurationMs)
+                ?: return ChapterSeekbarTimeline(
+                    totalDurationMs = 0L,
+                    globalPositionMs = 0L,
+                    chapterMarkersFractions = emptyList(),
+                )
         val totalDuration = durations.sum()
-        if (playableIndices.isEmpty() || totalDuration <= 0L) {
-            return ChapterSeekbarTimeline(
-                totalDurationMs = 0L,
-                globalPositionMs = 0L,
-                chapterMarkersFractions = emptyList(),
-            )
-        }
 
         val safeChapterIndex = currentChapterIndex.coerceIn(0, chapters.lastIndex)
-        val currentPlayablePos = playableIndices.indexOfLast { it <= safeChapterIndex }
-        val chapterOffset =
-            if (currentPlayablePos >= 0) {
-                durations.take(currentPlayablePos).sum()
-            } else {
-                0L
-            }
+        val chapterOffset = durations.take(safeChapterIndex).sum()
         val localPosition = currentChapterPositionMs.coerceAtLeast(0L)
-        val safeLocalPosition =
-            if (currentPlayablePos >= 0) {
-                localPosition.coerceAtMost(durations[currentPlayablePos])
-            } else {
-                0L
-            }
+        val safeLocalPosition = localPosition.coerceAtMost(durations[safeChapterIndex])
         val globalPosition = (chapterOffset + safeLocalPosition).coerceIn(0L, totalDuration)
 
         val markers = mutableListOf<Float>()
@@ -93,16 +81,15 @@ internal object ChapterSeekbarPolicy {
     fun resolveSeekTarget(
         chapters: List<Chapter>,
         progress: Float,
+        fallbackDurationMs: Long = 0L,
     ): ChapterSeekTarget {
-        val playableIndices = playableChapterIndices(chapters)
-        val durations = playableIndices.map { chapters[it].duration.inWholeMilliseconds }
+        val durations =
+            effectiveDurations(chapters, fallbackDurationMs)
+                ?: return ChapterSeekTarget(
+                    chapterIndex = 0,
+                    chapterPositionMs = 0L,
+                )
         val totalDuration = durations.sum()
-        if (playableIndices.isEmpty() || totalDuration <= 0L) {
-            return ChapterSeekTarget(
-                chapterIndex = 0,
-                chapterPositionMs = 0L,
-            )
-        }
 
         val clampedProgress = progress.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 0f
         val targetGlobalPosition = (clampedProgress * totalDuration.toFloat()).toLong().coerceIn(0L, totalDuration)
@@ -114,7 +101,7 @@ internal object ChapterSeekbarPolicy {
             val isLast = index == durations.lastIndex
             if (targetGlobalPosition < nextOffset || isLast) {
                 return ChapterSeekTarget(
-                    chapterIndex = playableIndices[index],
+                    chapterIndex = index,
                     chapterPositionMs = (targetGlobalPosition - offset).coerceAtLeast(0L).coerceAtMost(chapterDuration),
                 )
             }
@@ -122,11 +109,25 @@ internal object ChapterSeekbarPolicy {
         }
 
         return ChapterSeekTarget(
-            chapterIndex = playableIndices.last(),
+            chapterIndex = chapters.lastIndex,
             chapterPositionMs = durations.last(),
         )
     }
 
-    private fun playableChapterIndices(chapters: List<Chapter>): List<Int> =
-        chapters.indices.filter { chapters[it].duration.inWholeMilliseconds > 0L }
+    /**
+     * Per-chapter durations aligned with original playlist indices (zero-duration chapters kept as
+     * zero-width segments — the service playlist includes them, so excluding them here would cause
+     * index divergence). When every duration is 0 (failed metadata scans) and a fallback duration is
+     * available, distribute it evenly so the slider remains seekable.
+     */
+    private fun effectiveDurations(
+        chapters: List<Chapter>,
+        fallbackDurationMs: Long,
+    ): List<Long>? {
+        if (chapters.isEmpty()) return null
+        val durations = chapters.map { it.duration.inWholeMilliseconds.coerceAtLeast(0L) }
+        if (durations.sum() > 0L) return durations
+        val each = if (fallbackDurationMs > 0L) fallbackDurationMs / durations.size else 0L
+        return if (each > 0L) List(durations.size) { each } else null
+    }
 }
