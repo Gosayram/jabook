@@ -15,7 +15,6 @@
 package com.jabook.app.jabook.compose.core.util
 
 import android.content.Context
-import androidx.compose.foundation.layout.BoxConstraints
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowHeightSizeClass
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
@@ -412,12 +411,7 @@ public fun containerWindowSizeClass(
         DpSize(containerWidth.takeOrElse { 360.dp }, containerHeight.takeOrElse { 800.dp }),
     )
 
-/** [BoxConstraints] variant of [containerWindowSizeClass] for custom Layout measurers. */
-@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
-public fun BoxConstraints.windowSizeClass(): WindowSizeClass = containerWindowSizeClass(maxWidth, maxHeight)
-
-/**
- * Picks a value by the effective width class from [LocalWindowSizeClass] (so the user's
+/** Picks a value by the effective width class from [LocalWindowSizeClass] (so the user's
  * layout-mode override is respected). Window-agnostic; prefer [containerWindowSizeClass]
  * when per-pane measurement matters.
  */

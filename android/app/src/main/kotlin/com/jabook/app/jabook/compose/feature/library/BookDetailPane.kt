@@ -205,7 +205,6 @@ private fun BookDetailPaneContent(
                 },
             )
         },
-        modifier = modifier,
     ) { padding ->
         if (book == null) {
             // Empty state when no book is selected

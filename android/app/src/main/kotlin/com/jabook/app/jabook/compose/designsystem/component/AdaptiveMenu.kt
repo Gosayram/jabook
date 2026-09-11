@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -74,6 +75,7 @@ public data class AdaptiveMenuItem(
  * @param headerTitle Optional title shown above the items in the sheet variant
  * @param modifier Modifier for the dropdown variant; ignored by the modal sheet
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 public fun AdaptiveMenu(
     expanded: Boolean,
