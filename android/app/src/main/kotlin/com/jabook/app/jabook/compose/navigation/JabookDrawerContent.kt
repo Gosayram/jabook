@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -50,6 +51,7 @@ public fun JabookDrawerContent(
     destinations: List<TopLevelDestination>,
     currentDestination: NavDestination?,
     onNavigateToDestination: (TopLevelDestination) -> Unit,
+    onNavigateToRecentArrivals: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToAuth: () -> Unit,
     onNavigateToAbout: () -> Unit,
@@ -98,6 +100,14 @@ public fun JabookDrawerContent(
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                 )
             }
+
+            NavigationDrawerItem(
+                label = { Text(stringResource(R.string.recently_indexed_title)) },
+                icon = { Icon(Icons.Filled.NewReleases, contentDescription = null) },
+                selected = currentDestination?.hierarchy?.any { it.hasRoute<RutrackerSearchRoute>() } == true,
+                onClick = onNavigateToRecentArrivals,
+                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+            )
         }
 
         // Sticky Footer (Divider + Secondary Items)

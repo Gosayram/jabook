@@ -35,7 +35,6 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okio.Path.Companion.toPath
@@ -70,9 +69,6 @@ public class JabookApplication :
     /** Recovers stale listening sessions left open by a previous process death. */
     @Inject
     public lateinit var listeningSessionRepository: ListeningSessionRepository
-
-    @Inject
-    public lateinit var settingsRepository: com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 
     /** ANR watchdog — active only in debug/beta builds via LogUtils gating. */
     private val anrWatchdog: AnrWatchdog = AnrWatchdog()
@@ -324,39 +320,27 @@ public class JabookApplication :
                     .setRequiresBatteryNotLow(true)
                     .build()
 
-            // ponytail: read selected forums from proto; first() suspends but
-            // scheduling is already on IO via CoroutineScope — safe. Blank = all.
-            val selectedForums =
-                kotlinx.coroutines
-                    .runBlocking {
-                        settingsRepository.userPreferences.first().selectedForumIds
-                    }.ifBlank { null }
-
-            val inputDataBuilder = androidx.work.Data.Builder()
-            if (!selectedForums.isNullOrBlank()) {
-                inputDataBuilder.putString(
-                    com.jabook.app.jabook.compose.data.worker.IndexingWorker.KEY_FORUM_IDS,
-                    selectedForums,
-                )
-            }
-
             val workRequest =
                 androidx.work
                     .PeriodicWorkRequestBuilder<
                         com.jabook.app.jabook.compose.data.worker.IndexingWorker,
                     >(24, java.util.concurrent.TimeUnit.HOURS)
                     .setConstraints(constraints)
-                    .setInputData(inputDataBuilder.build())
+                    .setInputData(
+                        androidx.work.workDataOf(
+                            com.jabook.app.jabook.compose.data.worker.IndexingWorker.KEY_USE_SELECTED_FORUM_IDS to true,
+                        ),
+                    )
                     .setInitialDelay(6, java.util.concurrent.TimeUnit.HOURS)
                     .addTag("periodic_indexing")
                     .build()
 
             androidx.work.WorkManager.getInstance(this).enqueueUniquePeriodicWork(
                 com.jabook.app.jabook.compose.data.worker.IndexingWorker.WORK_NAME_PERIODIC,
-                androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+                androidx.work.ExistingPeriodicWorkPolicy.UPDATE,
                 workRequest,
             )
-            LogUtils.d("JabookApplication", "Periodic indexing scheduled (daily, Wi-Fi only, forums=$selectedForums)")
+            LogUtils.d("JabookApplication", "Periodic indexing scheduled (daily, Wi-Fi only, selected forums)")
         } catch (e: Exception) {
             LogUtils.e("JabookApplication", "Failed to schedule periodic indexing", e)
         }

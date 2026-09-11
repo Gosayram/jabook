@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.compose.data.local.scanner
 
+import android.content.ContentResolver
 import android.content.Context
 import com.jabook.app.jabook.compose.core.logger.Logger
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
@@ -25,7 +26,10 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.isNull
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 /**
@@ -165,5 +169,35 @@ class MediaStoreBookScannerSelectionTest {
                 listOf("Chapter 1", "Chapter 3", "07 - The Call"),
                 book.chapters.map { it.title },
             )
+        }
+
+    @Test
+    fun `default scan does not require MediaStore category flags`() =
+        runTest {
+            val context = mock<Context>()
+            val contentResolver = mock<ContentResolver>()
+            val scanPathDao = mock<ScanPathDao>()
+
+            whenever(context.contentResolver).thenReturn(contentResolver)
+            whenever(scanPathDao.getAllPathsList()).thenReturn(emptyList())
+            whenever(
+                contentResolver.query(
+                    any(),
+                    any(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                ),
+            ).thenReturn(null)
+
+            MediaStoreBookScanner(
+                context = context,
+                metadataParser = FakeParser(emptyMap()),
+                scanPathDao = scanPathDao,
+                encodingDetector = EncodingDetector(loggerFactory),
+                loggerFactory = loggerFactory,
+            ).scanAudiobooks()
+
+            verify(contentResolver).query(anyOrNull(), anyOrNull(), isNull(), isNull(), isNull())
         }
 }

@@ -30,12 +30,14 @@ import com.jabook.app.jabook.compose.core.logger.LoggerFactory
 import com.jabook.app.jabook.compose.data.indexing.ForumIndexer
 import com.jabook.app.jabook.compose.data.indexing.IndexingInProgressException
 import com.jabook.app.jabook.compose.data.indexing.IndexingProgress
+import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.remote.api.RutrackerApi
 import com.jabook.app.jabook.compose.domain.repository.AuthRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -57,6 +59,7 @@ public class IndexingWorker
         @Assisted params: WorkerParameters,
         private val forumIndexer: ForumIndexer,
         private val authRepository: AuthRepository,
+        private val settingsRepository: SettingsRepository,
         private val loggerFactory: LoggerFactory,
     ) : CoroutineWorker(context, params) {
         public companion object {
@@ -73,6 +76,7 @@ public class IndexingWorker
             public const val KEY_PROGRESS_MESSAGE: String = "progress_message"
             public const val KEY_TOPICS_INDEXED: String = "topics_indexed"
             public const val KEY_FORUM_IDS: String = "forumIds"
+            public const val KEY_USE_SELECTED_FORUM_IDS: String = "useSelectedForumIds"
             public const val KEY_PRELOAD_COVERS: String = "preloadCovers"
 
             internal fun parseForumIds(input: String?): String {
@@ -88,6 +92,12 @@ public class IndexingWorker
                     forumIds.joinToString(",")
                 }
             }
+
+            internal fun resolveForumIds(
+                inputForumIds: String?,
+                selectedForumIds: String?,
+                useSelectedForumIds: Boolean,
+            ): String = parseForumIds(if (useSelectedForumIds) selectedForumIds else inputForumIds)
         }
 
         private val logger = loggerFactory.get(TAG)
@@ -124,7 +134,26 @@ public class IndexingWorker
                         // runtime/security variant). Degrade to background rather than crash.
                         logger.w { "FGS start not allowed for indexing worker: ${e.message}" }
                     }
-                    val forumIds = parseForumIds(inputData.getString(KEY_FORUM_IDS))
+                    val useSelectedForumIds = inputData.getBoolean(KEY_USE_SELECTED_FORUM_IDS, false)
+                    val selectedForumIds =
+                        if (useSelectedForumIds) {
+                            try {
+                                settingsRepository.userPreferences.first().selectedForumIds
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                logger.w { "Could not read selected forums; indexing all forums: ${e.message}" }
+                                null
+                            }
+                        } else {
+                            null
+                        }
+                    val forumIds =
+                        resolveForumIds(
+                            inputForumIds = inputData.getString(KEY_FORUM_IDS),
+                            selectedForumIds = selectedForumIds,
+                            useSelectedForumIds = useSelectedForumIds,
+                        )
                     val preloadCovers = inputData.getBoolean(KEY_PRELOAD_COVERS, false)
 
                     // Check auth before indexing — RuTracker requires login for forum pages

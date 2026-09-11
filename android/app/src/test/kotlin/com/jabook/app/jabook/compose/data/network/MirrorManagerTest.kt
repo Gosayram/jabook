@@ -438,6 +438,8 @@ internal class FakeSettingsRepository(
         state.update { prefs -> prefs.toBuilder().setAutoSwitchMirror(enabled).build() }
     }
 
+    override suspend fun updateSelectedForumIds(ids: String) = Unit
+
     override suspend fun updateDownloadPath(path: String) = Unit
 
     override suspend fun updateWifiOnly(enabled: Boolean) = Unit

@@ -731,6 +731,12 @@ private fun SearchResultCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
+                Text(
+                    result.category,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Stats row

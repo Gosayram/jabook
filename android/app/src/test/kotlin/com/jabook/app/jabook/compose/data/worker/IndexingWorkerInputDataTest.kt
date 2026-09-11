@@ -46,4 +46,16 @@ class IndexingWorkerInputDataTest {
 
         assertEquals(RutrackerApi.AUDIOBOOKS_FORUM_IDS, parsed)
     }
+
+    @Test
+    fun `resolveForumIds uses persisted selection for periodic work`() {
+        val forumIds =
+            IndexingWorker.resolveForumIds(
+                inputForumIds = "400",
+                selectedForumIds = "574,1036",
+                useSelectedForumIds = true,
+            )
+
+        assertEquals("574,1036", forumIds)
+    }
 }

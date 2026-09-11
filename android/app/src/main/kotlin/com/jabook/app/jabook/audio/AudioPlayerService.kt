@@ -535,6 +535,14 @@ public class AudioPlayerService : MediaLibraryService() {
             PlayerPerformanceLogger.log("Service", "initialization complete")
             PlayerPerformanceLogger.summary()
             LogUtils.i("AudioPlayerService", "onCreate() completed successfully")
+            // Media3 owns the notification once playback has content. Until then, remove the
+            // mandatory bootstrap notification so its "Initializing" text cannot persist.
+            if (getActivePlayer().mediaItemCount == 0) {
+                androidx.core.app.ServiceCompat.stopForeground(
+                    this,
+                    androidx.core.app.ServiceCompat.STOP_FOREGROUND_REMOVE,
+                )
+            }
             // ponytail: the minimal "initializing" notification has no TTL — if no
             // controller ever attaches a playlist (timeout, init failure), kill the
             // service instead of hanging the banner forever.

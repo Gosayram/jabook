@@ -98,11 +98,6 @@ public class MediaStoreBookScanner
                     MediaStore.Audio.Media.TITLE,
                 )
 
-            // We query all music/audio files and filter in code for flexibility
-            // Ideally we would add selection for paths, but LIKE with many paths is complex in SQL
-            val selection =
-                "(${MediaStore.Audio.Media.IS_MUSIC} = 1 OR ${MediaStore.Audio.Media.IS_AUDIOBOOK} = 1)"
-
             val audioFiles = mutableListOf<AudioFileInfo>()
 
             try {
@@ -110,7 +105,7 @@ public class MediaStoreBookScanner
                     .query(
                         MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                         projection,
-                        selection,
+                        null,
                         null,
                         null,
                     )?.use { cursor ->

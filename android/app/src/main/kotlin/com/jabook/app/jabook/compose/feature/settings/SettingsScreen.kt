@@ -1330,15 +1330,14 @@ public fun SettingsScreen(
 
             val indexTopicsCount = pluralStringResource(R.plurals.indexTopicsCount, indexSize, indexSize)
 
-            // Forum selection for indexing (ponytail: minimal — chip list + 2 presets)
+            // Forum selection for indexing (ponytail: direct multi-select with a two-forum preset)
             val allForumIds = com.jabook.app.jabook.compose.data.remote.api.RutrackerApi.AUDIOBOOKS_FORUM_IDS
             val quickPreset = "574,1036" // ponytail: popular child forums
-            var selectedForums by rememberSaveable { mutableStateOf("") }
+            var selectedForums by rememberSaveable { mutableStateOf(protoSettings.selectedForumIds) }
             var forumSelectorExpanded by rememberSaveable { mutableStateOf(false) }
 
-            LaunchedEffect(Unit) {
-                val prefs = viewModel.protoSettings.value
-                selectedForums = prefs.selectedForumIds
+            LaunchedEffect(protoSettings.selectedForumIds) {
+                selectedForums = protoSettings.selectedForumIds
             }
 
             val effectiveForums = selectedForums.ifBlank { allForumIds }
@@ -1378,7 +1377,7 @@ public fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     // Forum chips
-                    val chips = effectiveForums.split(",").map { it.trim() }
+                    val chips = allForumIds.split(",").map { it.trim() }
                     val selectedSet =
                         remember(selectedForums) {
                             selectedForums
@@ -1406,7 +1405,7 @@ public fun SettingsScreen(
                                         } else {
                                             selectedSet + forumId
                                         }
-                                    val newIds = newSet.joinToString(",")
+                                    val newIds = chips.filter { it in newSet }.joinToString(",")
                                     selectedForums = newIds
                                     viewModel.updateSelectedForumIds(newIds)
                                 },

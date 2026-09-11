@@ -251,6 +251,14 @@ public fun JabookApp(
                             appState.navigateToTopLevelDestination(destination)
                             scope.launch { drawerState.close() }
                         },
+                        onNavigateToRecentArrivals = {
+                            appState.navController.navigate(
+                                com.jabook.app.jabook.compose.navigation.RutrackerSearchRoute,
+                            ) {
+                                launchSingleTop = true
+                            }
+                            scope.launch { drawerState.close() }
+                        },
                         onNavigateToSettings = {
                             appState.navigateToTopLevelDestination(TopLevelDestination.SETTINGS)
                             scope.launch { drawerState.close() }
