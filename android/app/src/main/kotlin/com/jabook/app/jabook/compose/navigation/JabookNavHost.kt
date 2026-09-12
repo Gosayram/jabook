@@ -26,7 +26,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.toRoute
 import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
-import com.jabook.app.jabook.compose.core.theme.MotionTokens // ponytail: kept for shimmer/rotation infinite specs not covered by motionScheme
+import com.jabook.app.jabook.compose.core.theme.LocalJabookMotionScheme
 import com.jabook.app.jabook.compose.feature.favorites.FavoritesScreen
 import com.jabook.app.jabook.compose.feature.library.LibraryScreen
 import com.jabook.app.jabook.compose.feature.player.PlayerScreen
@@ -72,10 +72,8 @@ public fun JabookNavHost(
         }
     }
 
-    // ponytail: M3 1.4 fallback — motionScheme not in 1.4, use MotionTokens tween
-    val fastEffects =
-        androidx.compose.animation.core
-            .tween<Float>(durationMillis = MotionTokens.SHORT2)
+    val motionScheme = LocalJabookMotionScheme.current
+    val fastEffects = motionScheme.fastEffectsSpec<Float>()
 
     NavHost(
         navController = navController,
@@ -91,33 +89,21 @@ public fun JabookNavHost(
                     slideIntoContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Up,
                         animationSpec =
-                            androidx.compose.animation.core.tween(
-                                durationMillis = MotionTokens.MEDIUM2,
-                                easing = MotionTokens.Emphasized,
-                            ),
+                            motionScheme.defaultSpatialSpec(),
                     ) +
                         androidx.compose.animation.fadeIn(
                             animationSpec =
-                                androidx.compose.animation.core.tween(
-                                    durationMillis = MotionTokens.MEDIUM2,
-                                    easing = MotionTokens.Emphasized,
-                                ),
+                                motionScheme.defaultEffectsSpec(),
                         )
                 else ->
                     slideIntoContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Left,
                         animationSpec =
-                            androidx.compose.animation.core.tween(
-                                durationMillis = MotionTokens.MEDIUM2,
-                                easing = MotionTokens.Emphasized,
-                            ),
+                            motionScheme.defaultSpatialSpec(),
                     ) +
                         androidx.compose.animation.fadeIn(
                             animationSpec =
-                                androidx.compose.animation.core.tween(
-                                    durationMillis = MotionTokens.MEDIUM2,
-                                    easing = MotionTokens.Emphasized,
-                                ),
+                                motionScheme.defaultEffectsSpec(),
                         )
             }
         },
@@ -131,33 +117,21 @@ public fun JabookNavHost(
                     slideOutOfContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Up,
                         animationSpec =
-                            androidx.compose.animation.core.tween(
-                                durationMillis = MotionTokens.MEDIUM2,
-                                easing = MotionTokens.Emphasized,
-                            ),
+                            motionScheme.defaultSpatialSpec(),
                     ) +
                         androidx.compose.animation.fadeOut(
                             animationSpec =
-                                androidx.compose.animation.core.tween(
-                                    durationMillis = MotionTokens.MEDIUM2,
-                                    easing = MotionTokens.Emphasized,
-                                ),
+                                motionScheme.defaultEffectsSpec(),
                         )
                 else ->
                     slideOutOfContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Left,
                         animationSpec =
-                            androidx.compose.animation.core.tween(
-                                durationMillis = MotionTokens.MEDIUM2,
-                                easing = MotionTokens.Emphasized,
-                            ),
+                            motionScheme.defaultSpatialSpec(),
                     ) +
                         androidx.compose.animation.fadeOut(
                             animationSpec =
-                                androidx.compose.animation.core.tween(
-                                    durationMillis = MotionTokens.MEDIUM2,
-                                    easing = MotionTokens.Emphasized,
-                                ),
+                                motionScheme.defaultEffectsSpec(),
                         )
             }
         },
@@ -166,42 +140,27 @@ public fun JabookNavHost(
                 initialState.destination.isTopLevelRoute() && targetState.destination.isTopLevelRoute() ->
                     androidx.compose.animation.fadeIn(
                         animationSpec =
-                            androidx.compose.animation.core.tween(
-                                durationMillis = MotionTokens.SHORT2,
-                                easing = MotionTokens.Emphasized,
-                            ),
+                        fastEffects,
                     )
                 initialState.destination.isPlayerRoute() ->
                     slideIntoContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Down,
                         animationSpec =
-                            androidx.compose.animation.core.tween(
-                                durationMillis = MotionTokens.MEDIUM2,
-                                easing = MotionTokens.Emphasized,
-                            ),
+                            motionScheme.defaultSpatialSpec(),
                     ) +
                         androidx.compose.animation.fadeIn(
                             animationSpec =
-                                androidx.compose.animation.core.tween(
-                                    durationMillis = MotionTokens.MEDIUM2,
-                                    easing = MotionTokens.Emphasized,
-                                ),
+                                motionScheme.defaultEffectsSpec(),
                         )
                 else ->
                     slideIntoContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Right,
                         animationSpec =
-                            androidx.compose.animation.core.tween(
-                                durationMillis = MotionTokens.MEDIUM2,
-                                easing = MotionTokens.Emphasized,
-                            ),
+                            motionScheme.defaultSpatialSpec(),
                     ) +
                         androidx.compose.animation.fadeIn(
                             animationSpec =
-                                androidx.compose.animation.core.tween(
-                                    durationMillis = MotionTokens.MEDIUM2,
-                                    easing = MotionTokens.Emphasized,
-                                ),
+                                motionScheme.defaultEffectsSpec(),
                         )
             }
         },
@@ -210,42 +169,27 @@ public fun JabookNavHost(
                 initialState.destination.isTopLevelRoute() && targetState.destination.isTopLevelRoute() ->
                     androidx.compose.animation.fadeOut(
                         animationSpec =
-                            androidx.compose.animation.core.tween(
-                                durationMillis = MotionTokens.SHORT2,
-                                easing = MotionTokens.Emphasized,
-                            ),
+                        fastEffects,
                     )
                 initialState.destination.isPlayerRoute() ->
                     slideOutOfContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Down,
                         animationSpec =
-                            androidx.compose.animation.core.tween(
-                                durationMillis = MotionTokens.MEDIUM2,
-                                easing = MotionTokens.Emphasized,
-                            ),
+                            motionScheme.defaultSpatialSpec(),
                     ) +
                         androidx.compose.animation.fadeOut(
                             animationSpec =
-                                androidx.compose.animation.core.tween(
-                                    durationMillis = MotionTokens.MEDIUM2,
-                                    easing = MotionTokens.Emphasized,
-                                ),
+                                motionScheme.defaultEffectsSpec(),
                         )
                 else ->
                     slideOutOfContainer(
                         androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Right,
                         animationSpec =
-                            androidx.compose.animation.core.tween(
-                                durationMillis = MotionTokens.MEDIUM2,
-                                easing = MotionTokens.Emphasized,
-                            ),
+                            motionScheme.defaultSpatialSpec(),
                     ) +
                         androidx.compose.animation.fadeOut(
                             animationSpec =
-                                androidx.compose.animation.core.tween(
-                                    durationMillis = MotionTokens.MEDIUM2,
-                                    easing = MotionTokens.Emphasized,
-                                ),
+                                motionScheme.defaultEffectsSpec(),
                         )
             }
         },
