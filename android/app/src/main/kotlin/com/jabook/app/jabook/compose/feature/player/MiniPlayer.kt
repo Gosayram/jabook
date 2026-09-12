@@ -60,7 +60,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -172,6 +174,8 @@ public fun MiniPlayer(
     val currentOnNextClick by rememberUpdatedState(onNextClick)
     val currentOnPreviousClick by rememberUpdatedState(onPreviousClick)
     val dismissActionLabel = stringResource(R.string.dismissAction)
+    val nextChapterActionLabel = stringResource(R.string.nextChapter)
+    val previousChapterActionLabel = stringResource(R.string.previousChapter)
 
     Surface(
         modifier =
@@ -190,8 +194,17 @@ public fun MiniPlayer(
                                 currentOnDismiss()
                                 true
                             },
+                            CustomAccessibilityAction(nextChapterActionLabel) {
+                                if (hasNextChapter) currentOnNextClick()
+                                true
+                            },
+                            CustomAccessibilityAction(previousChapterActionLabel) {
+                                if (hasPreviousChapter) currentOnPreviousClick()
+                                true
+                            },
                         )
                 }.clickable(
+                    role = Role.Button,
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = {
@@ -301,7 +314,7 @@ public fun MiniPlayer(
                     }
                 AsyncImage(
                     model = imageRequest,
-                    contentDescription = title,
+                    contentDescription = null,
                     modifier = coverModifier,
                     contentScale = ContentScale.Crop,
                     placeholder = ColorPainter(MaterialTheme.colorScheme.surfaceVariant),

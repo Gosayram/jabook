@@ -54,6 +54,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -267,11 +269,15 @@ private fun FeaturesStep(
     onSkip: () -> Unit = onNext,
 ) {
     val pagerState = rememberPagerState(pageCount = { 3 })
+    val pagerPaneTitle = stringResource(R.string.pageOfPages, pagerState.currentPage + 1, 3)
 
     Box(modifier = Modifier.fillMaxSize()) {
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize(),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .semantics { paneTitle = pagerPaneTitle },
         ) { page ->
             // Calculate absolute offset for this page
             val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction

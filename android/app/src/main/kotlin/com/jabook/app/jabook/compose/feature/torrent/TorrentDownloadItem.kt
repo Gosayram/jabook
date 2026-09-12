@@ -46,6 +46,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
@@ -65,9 +68,13 @@ public fun TorrentDownloadItem(
     onItemClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val displayName = download.name.ifBlank { download.hash.take(16) }
     Card(
         onClick = onItemClick,
-        modifier = modifier.fillMaxWidth(),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .semantics { role = Role.Button },
         colors =
             CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -127,14 +134,14 @@ public fun TorrentDownloadItem(
                         IconButton(onClick = onPauseClick) {
                             Icon(
                                 imageVector = Icons.Default.Pause,
-                                contentDescription = stringResource(R.string.pause_download),
+                                contentDescription = "${stringResource(R.string.pause_download)}, $displayName",
                             )
                         }
                     } else if (download.state == TorrentState.PAUSED) {
                         IconButton(onClick = onResumeClick) {
                             Icon(
                                 imageVector = Icons.Default.PlayArrow,
-                                contentDescription = stringResource(R.string.resume_download),
+                                contentDescription = "${stringResource(R.string.resume_download)}, $displayName",
                             )
                         }
                     }
@@ -143,7 +150,7 @@ public fun TorrentDownloadItem(
                     IconButton(onClick = onDeleteClick) {
                         Icon(
                             imageVector = Icons.Default.Delete,
-                            contentDescription = stringResource(R.string.delete_download),
+                            contentDescription = "${stringResource(R.string.delete_download)}, $displayName",
                             tint = MaterialTheme.colorScheme.error,
                         )
                     }

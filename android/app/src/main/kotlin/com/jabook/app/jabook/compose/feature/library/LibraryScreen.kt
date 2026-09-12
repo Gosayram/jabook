@@ -364,7 +364,7 @@ public fun LibraryScreen(
                             IconButton(onClick = onMenuClick) {
                                 Icon(
                                     imageVector = Icons.Default.Menu,
-                                    contentDescription = stringResource(R.string.app_name),
+                                    contentDescription = stringResource(R.string.menu),
                                 )
                             }
                         },
@@ -648,7 +648,7 @@ public fun LibraryScreen(
                                         IconButton(onClick = onMenuClick) {
                                             Icon(
                                                 imageVector = Icons.Default.Menu,
-                                                contentDescription = stringResource(R.string.app_name),
+                                                contentDescription = stringResource(R.string.menu),
                                             )
                                         }
                                     },

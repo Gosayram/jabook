@@ -1310,6 +1310,7 @@ private fun PlayerLandscapeLayout(
     val playbackPositionLabel = stringResource(R.string.playbackPositionLabel)
     val seekBackwardActionLabel = stringResource(R.string.seekBackwardDescription, state.rewindInterval)
     val seekForwardActionLabel = stringResource(R.string.seekForwardDescription, state.forwardInterval)
+    val addBookmarkActionLabel = stringResource(R.string.addBookmark)
 
     Row(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
         Box(
@@ -1482,6 +1483,19 @@ private fun PlayerLandscapeLayout(
                                         label = seekForwardActionLabel,
                                     ) {
                                         onSeekForward()
+                                        true
+                                    },
+                                    CustomAccessibilityAction(
+                                        label = addBookmarkActionLabel,
+                                    ) {
+                                        if (seekState.timeline.totalDurationMs > 0) {
+                                            val target =
+                                                ChapterSeekbarPolicy.resolveSeekTarget(
+                                                    chapters = state.chapters,
+                                                    progress = seekState.displayedProgress.value.coerceIn(0f, 1f),
+                                                )
+                                            onAddBookmarkAtPosition(target.chapterIndex, target.chapterPositionMs) { }
+                                        }
                                         true
                                     },
                                 )
@@ -1958,20 +1972,9 @@ private fun PlayerContent(
                             stringResource(R.string.seekBackwardDescription, state.rewindInterval)
                         val seekForwardActionLabel =
                             stringResource(R.string.seekForwardDescription, state.forwardInterval)
-
-                        SquigglySlider(
-                            value = seekState.displayedProgress.value,
-                            onValueChange = { newProgress ->
-                                onScrubbingMode(true)
-                                seekState.onSliderValueChange(newProgress, hapticFeedback)
-                            },
-                            onValueChangeFinished = {
-                                HapticManager.performTap(hapticFeedback)
-                                onScrubbingMode(false)
-                                seekState.onSliderValueChangeFinished(onSeek, onSelectChapter)
-                            },
-                            onLongPress = { pressedProgress ->
-                                if (seekState.timeline.totalDurationMs <= 0) return@SquigglySlider
+                        val addBookmarkActionLabel = stringResource(R.string.addBookmark)
+                        val addBookmarkAtProgress: (Float) -> Unit = { pressedProgress ->
+                            if (seekState.timeline.totalDurationMs > 0) {
                                 val target =
                                     ChapterSeekbarPolicy.resolveSeekTarget(
                                         chapters = state.chapters,
@@ -2006,7 +2009,21 @@ private fun PlayerContent(
                                         showBookmarkNoteSheet = true
                                     }
                                 }
+                            }
+                        }
+
+                        SquigglySlider(
+                            value = seekState.displayedProgress.value,
+                            onValueChange = { newProgress ->
+                                onScrubbingMode(true)
+                                seekState.onSliderValueChange(newProgress, hapticFeedback)
                             },
+                            onValueChangeFinished = {
+                                HapticManager.performTap(hapticFeedback)
+                                onScrubbingMode(false)
+                                seekState.onSliderValueChangeFinished(onSeek, onSelectChapter)
+                            },
+                            onLongPress = addBookmarkAtProgress,
                             isPlaying = state.isPlaying,
                             chapterMarkersFractions = seekState.timeline.chapterMarkersFractions,
                             bookmarkMarkersFractions = seekState.bookmarkMarkersFractions.value,
@@ -2052,6 +2069,12 @@ private fun PlayerContent(
                                                     label = seekForwardActionLabel,
                                                 ) {
                                                     onSeekForward()
+                                                    true
+                                                },
+                                                CustomAccessibilityAction(
+                                                    label = addBookmarkActionLabel,
+                                                ) {
+                                                    addBookmarkAtProgress(seekState.displayedProgress.value)
                                                     true
                                                 },
                                             )

@@ -2364,6 +2364,8 @@
     <string name="noBookmarksDescription">Long press on the seekbar to add a bookmark</string>
     <string name="jumpToBookmark">Jump to bookmark</string>
     <string name="deleteBookmark">Delete bookmark</string>
+    <string name="addBookmark">Add bookmark</string>
+    <string name="menu">Menu</string>
     <!-- Smallest First -->
     <string name="smallestFirst">Smallest First</string>
     <!-- Tap to open app and resume playback -->

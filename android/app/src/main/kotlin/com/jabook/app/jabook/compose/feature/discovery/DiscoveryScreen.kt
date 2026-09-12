@@ -31,10 +31,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.carousel.HorizontalMultiBrowseCarousel
+import androidx.compose.material3.carousel.rememberCarouselState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
@@ -45,6 +48,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -126,6 +130,7 @@ public fun DiscoveryScreen(
                 title = stringResource(R.string.discoveryTrending),
                 books = uiState.trending,
                 onBookClick = onBookClick,
+                useCarousel = true,
             )
         }
         item {
@@ -196,26 +201,45 @@ private fun GreetingHeader() {
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DiscoveryShelf(
     title: String,
     books: List<Book>,
     onBookClick: (Book) -> Unit,
+    useCarousel: Boolean = false,
 ) {
     Text(
         text = title,
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
     )
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(horizontal = 16.dp),
-    ) {
-        items(books, key = { it.id }, contentType = { "discovery_book" }) { book ->
+    if (useCarousel) {
+        HorizontalMultiBrowseCarousel(
+            state = rememberCarouselState(itemCount = { books.size }),
+            preferredItemWidth = 148.dp,
+            itemSpacing = 10.dp,
+            contentPadding = PaddingValues(horizontal = 16.dp),
+        ) { index ->
+            val book = books[index]
             DiscoveryBookCard(
                 book = book,
                 onClick = { onBookClick(book) },
+                modifier = Modifier.fillMaxWidth(),
             )
+        }
+    } else {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+        ) {
+            items(books, key = { it.id }, contentType = { "discovery_book" }) { book ->
+                DiscoveryBookCard(
+                    book = book,
+                    onClick = { onBookClick(book) },
+                    modifier = Modifier.width(148.dp),
+                )
+            }
         }
     }
     Spacer(modifier = Modifier.height(10.dp))
@@ -225,12 +249,10 @@ private fun DiscoveryShelf(
 private fun DiscoveryBookCard(
     book: Book,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier =
-            Modifier
-                .width(148.dp)
-                .clickable(onClickLabel = stringResource(R.string.open_book_details), onClick = onClick),
+        modifier = modifier.clickable(role = Role.Button, onClickLabel = stringResource(R.string.open_book_details), onClick = onClick),
     ) {
         Box(
             modifier =
@@ -277,7 +299,7 @@ private fun GenreTile(
             modifier
                 .height(84.dp)
                 .background(genre.color, RoundedCornerShape(14.dp))
-                .clickable(onClickLabel = stringResource(R.string.browse_genre), onClick = onClick),
+                .clickable(role = Role.Button, onClickLabel = stringResource(R.string.browse_genre), onClick = onClick),
     ) {
         Row(
             modifier =

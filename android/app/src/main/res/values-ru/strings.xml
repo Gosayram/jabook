@@ -2319,6 +2319,8 @@
     <string name="noBookmarksDescription">Долгое нажатие на ползунок для добавления закладки</string>
     <string name="jumpToBookmark">Перейти к закладке</string>
     <string name="deleteBookmark">Удалить закладку</string>
+    <string name="addBookmark">Добавить закладку</string>
+    <string name="menu">Меню</string>
     <!-- Самый маленький первый -->
     <string name="smallestFirst">Самый маленький первый</string>
     <string name="tapToOpenAppAndResumePlayback">Нажмите, чтобы открыть приложение и возобновить воспроизведение.</string>
