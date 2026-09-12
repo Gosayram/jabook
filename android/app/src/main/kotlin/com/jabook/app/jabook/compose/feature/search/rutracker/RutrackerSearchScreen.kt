@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
@@ -72,6 +73,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -562,6 +564,8 @@ private fun FilterBottomSheet(
                 onValueChange = { tempMinSeeders = it.toIntOrNull() ?: 0 },
                 label = { Text(stringResource(R.string.min_seeders)) },
                 modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -572,6 +576,8 @@ private fun FilterBottomSheet(
                 onValueChange = { tempMinSizeMb = it.toIntOrNull() ?: 0 },
                 label = { Text(stringResource(R.string.min_size_mb)) },
                 modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -582,6 +588,8 @@ private fun FilterBottomSheet(
                 onValueChange = { tempMaxSizeMb = it.toIntOrNull() ?: 0 },
                 label = { Text(stringResource(R.string.max_size_mb)) },
                 modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
 
             Spacer(modifier = Modifier.height(itemSpacing))

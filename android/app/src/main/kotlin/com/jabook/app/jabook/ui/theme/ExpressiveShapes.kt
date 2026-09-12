@@ -23,7 +23,8 @@ import androidx.compose.ui.unit.dp
 // ponytail: M3 1.4 fallback — MaterialShapes/MotionScheme not in material3 1.4.0 (expressive 1.5 only).
 // Replaced 35 RoundedPolygon (MaterialShapes) with RoundedCornerShape stdlib only.
 // 4 eager shapes live in Theme.kt (28dp/20dp); 31 here are lazy Shape aliases for cards/fab/sheets routing.
-// graphics-shapes Morph kept available (1.1.0) but not used — fallback to RoundedCornerShape for UnifiedBookCard.
+// graphics-shapes NOT declared as a dependency — add androidx.graphics:graphics-shapes:1.1.0
+// to libs.versions.toml before importing Morph (the vendored copy proves the version).
 
 public object ExpressiveShapes {
     // --- cards ---
