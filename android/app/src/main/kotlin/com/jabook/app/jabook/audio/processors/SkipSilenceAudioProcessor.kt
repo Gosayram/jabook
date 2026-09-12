@@ -113,7 +113,7 @@ public class SkipSilenceAudioProcessor(
             enabled &&
             inputAudioFormat.encoding == android.media.AudioFormat.ENCODING_PCM_16BIT &&
             inputAudioFormat.channelCount > 0
-        return outputAudioFormat!!
+        return checkNotNull(outputAudioFormat)
     }
 
     override fun isActive(): Boolean = isActive
@@ -125,7 +125,7 @@ public class SkipSilenceAudioProcessor(
         val remaining = inputBuffer.remaining()
         ensureQueuedInputCapacity(remaining)
         queuedInputBytes += remaining
-        queuedInputBuffer!!.put(inputBuffer)
+        checkNotNull(queuedInputBuffer).put(inputBuffer)
     }
 
     private fun ensureQueuedInputCapacity(additionalBytes: Int) {
@@ -146,20 +146,21 @@ public class SkipSilenceAudioProcessor(
     }
 
     override fun getOutput(): ByteBuffer {
-        if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
+        val existingOutputBuffer = outputBuffer
+        if (existingOutputBuffer?.hasRemaining() == true) return existingOutputBuffer
         if (queuedInputBytes == 0) {
             return EMPTY_BUFFER
         }
 
         val out =
-            if (outputBuffer == null || outputBuffer!!.capacity() < queuedInputBytes) {
+            if (existingOutputBuffer == null || existingOutputBuffer.capacity() < queuedInputBytes) {
                 ByteBuffer.allocateDirect(queuedInputBytes).order(ByteOrder.nativeOrder()).also {
                     outputBuffer = it
                 }
             } else {
-                outputBuffer!!.clear()
-                outputBuffer
-            } ?: return EMPTY_BUFFER
+                existingOutputBuffer.clear()
+                existingOutputBuffer
+            }
 
         queuedInputBuffer?.let { buf ->
             buf.flip()

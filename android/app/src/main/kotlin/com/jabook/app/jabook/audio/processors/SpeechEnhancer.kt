@@ -117,7 +117,7 @@ public class SpeechEnhancer : AudioProcessor {
                 "peakEqFreq=${peakEqFreqHz}Hz (+${peakEqGainDb}dB)",
         )
 
-        return outputAudioFormat!!
+        return checkNotNull(outputAudioFormat)
     }
 
     override fun isActive(): Boolean = isActive
@@ -131,7 +131,7 @@ public class SpeechEnhancer : AudioProcessor {
             val remaining = inputBuffer.remaining()
             ensureQueuedInputCapacity(remaining)
             queuedInputBytes += remaining
-            queuedInputBuffer!!.put(inputBuffer)
+            checkNotNull(queuedInputBuffer).put(inputBuffer)
         }
     }
 
@@ -153,7 +153,8 @@ public class SpeechEnhancer : AudioProcessor {
     }
 
     override fun getOutput(): ByteBuffer {
-        if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
+        val existingOutputBuffer = outputBuffer
+        if (existingOutputBuffer?.hasRemaining() == true) return existingOutputBuffer
         if (!isActive || queuedInputBytes == 0) {
             return EMPTY_BUFFER
         }
@@ -161,14 +162,14 @@ public class SpeechEnhancer : AudioProcessor {
         val totalSize = queuedInputBytes
 
         val preparedOutputBuffer =
-            if (outputBuffer == null || outputBuffer!!.capacity() < totalSize) {
+            if (existingOutputBuffer == null || existingOutputBuffer.capacity() < totalSize) {
                 ByteBuffer.allocateDirect(totalSize).order(ByteOrder.nativeOrder()).also {
                     outputBuffer = it
                 }
             } else {
-                outputBuffer!!.clear()
-                outputBuffer
-            } ?: return EMPTY_BUFFER
+                existingOutputBuffer.clear()
+                existingOutputBuffer
+            }
 
         queuedInputBuffer?.let { buf ->
             buf.flip()

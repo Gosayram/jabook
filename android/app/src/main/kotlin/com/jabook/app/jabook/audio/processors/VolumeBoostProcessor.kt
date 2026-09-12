@@ -82,7 +82,7 @@ public class VolumeBoostProcessor(
                 "isActive=$isActive",
         )
 
-        return outputAudioFormat!!
+        return checkNotNull(outputAudioFormat)
     }
 
     override fun isActive(): Boolean = isActive
@@ -103,7 +103,7 @@ public class VolumeBoostProcessor(
             val remaining = inputBuffer.remaining()
             ensureQueuedInputCapacity(remaining)
             queuedInputBytes += remaining
-            queuedInputBuffer!!.put(inputBuffer)
+            checkNotNull(queuedInputBuffer).put(inputBuffer)
         }
     }
 
@@ -125,7 +125,8 @@ public class VolumeBoostProcessor(
     }
 
     override fun getOutput(): ByteBuffer {
-        if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
+        val existingOutputBuffer = outputBuffer
+        if (existingOutputBuffer?.hasRemaining() == true) return existingOutputBuffer
         if (!isActive || queuedInputBytes == 0) {
             return EMPTY_BUFFER
         }
@@ -133,14 +134,14 @@ public class VolumeBoostProcessor(
         val totalSize = queuedInputBytes
 
         val preparedOutputBuffer =
-            if (outputBuffer == null || outputBuffer!!.capacity() < totalSize) {
+            if (existingOutputBuffer == null || existingOutputBuffer.capacity() < totalSize) {
                 ByteBuffer.allocateDirect(totalSize).order(ByteOrder.nativeOrder()).also {
                     outputBuffer = it
                 }
             } else {
-                outputBuffer!!.clear()
-                outputBuffer
-            } ?: return EMPTY_BUFFER
+                existingOutputBuffer.clear()
+                existingOutputBuffer
+            }
 
         queuedInputBuffer?.let { buf ->
             buf.flip()

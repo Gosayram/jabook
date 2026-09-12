@@ -111,7 +111,7 @@ public class LoudnessNormalizer(
                 "isActive=$isActive",
         )
 
-        return outputAudioFormat!!
+        return checkNotNull(outputAudioFormat)
     }
 
     override fun isActive(): Boolean = isActive
@@ -127,7 +127,7 @@ public class LoudnessNormalizer(
             val remaining = inputBuffer.remaining()
             ensureQueuedInputCapacity(remaining)
             queuedInputBytes += remaining
-            queuedInputBuffer!!.put(inputBuffer)
+            checkNotNull(queuedInputBuffer).put(inputBuffer)
         }
     }
 
@@ -149,7 +149,8 @@ public class LoudnessNormalizer(
     }
 
     override fun getOutput(): ByteBuffer {
-        if (outputBuffer?.hasRemaining() == true) return outputBuffer!!
+        val existingOutputBuffer = outputBuffer
+        if (existingOutputBuffer?.hasRemaining() == true) return existingOutputBuffer
         if (!isActive || queuedInputBytes == 0) return EMPTY_BUFFER
 
         // Process all input buffers
@@ -165,14 +166,14 @@ public class LoudnessNormalizer(
 
         // Reuse output buffer when possible to avoid frequent allocations
         val preparedOutputBuffer =
-            if (outputBuffer == null || outputBuffer!!.capacity() < totalSize) {
+            if (existingOutputBuffer == null || existingOutputBuffer.capacity() < totalSize) {
                 ByteBuffer.allocateDirect(totalSize).order(ByteOrder.nativeOrder()).also {
                     outputBuffer = it
                 }
             } else {
-                outputBuffer!!.clear()
-                outputBuffer
-            } ?: return EMPTY_BUFFER
+                existingOutputBuffer.clear()
+                existingOutputBuffer
+            }
 
         // Process each input buffer
         queuedInputBuffer?.let { buf ->
