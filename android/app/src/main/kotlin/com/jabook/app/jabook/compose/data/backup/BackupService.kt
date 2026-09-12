@@ -16,7 +16,9 @@ package com.jabook.app.jabook.compose.data.backup
 
 import android.content.Context
 import android.net.Uri
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.FileProvider
+import androidx.core.os.LocaleListCompat
 import androidx.room.withTransaction
 import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.core.logger.LoggerFactory
@@ -554,6 +556,15 @@ public class BackupService
                     customMirrors = settings.customMirrors,
                 )
                 userPreferencesRepository.setLanguage(settings.languageCode)
+                // ponytail: data layer touching AppCompatDelegate — keeps restored language
+                // effective immediately instead of waiting for the next Settings entry sync.
+                if (settings.languageCode.isNotBlank() && settings.languageCode != "system") {
+                    withContext(Dispatchers.Main) {
+                        AppCompatDelegate.setApplicationLocales(
+                            LocaleListCompat.forLanguageTags(settings.languageCode),
+                        )
+                    }
+                }
 
                 logger.d { "All settings restored successfully" }
             } catch (e: Exception) {

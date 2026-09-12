@@ -80,6 +80,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.dropUnlessResumed
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.navigation.NavigationClickGuard
+import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.CoverWaterfallPolicy
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
@@ -644,7 +645,7 @@ private fun SearchResultCard(
             modifier
                 .fillMaxWidth()
                 .clickable(onClickLabel = stringResource(R.string.open_book), onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = SurfaceElevationTokens.Level2),
     ) {
         // Use adaptive padding and spacing
         val cardPadding = AdaptiveUtils.getCardPaddingOrDefault(windowSizeClass)

@@ -60,6 +60,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -98,6 +99,19 @@ public class SettingsViewModel
         private val listeningStatsUseCase: ListeningStatsUseCase,
     ) : ViewModel() {
         private val logger = loggerFactory.get("SettingsViewModel")
+
+        init {
+            // System per-app language (Android 13+) can drift from the picker's stored value —
+            // appcompat auto-stores it, so mirror it back into the app's source of truth.
+            viewModelScope.launch {
+                val appLocales = AppCompatDelegate.getApplicationLocales()
+                if (!appLocales.isEmpty) {
+                    val tags = appLocales.toLanguageTags()
+                    val stored = settingsRepository.userPreferences.first().languageCode
+                    if (stored != tags) userPreferencesRepository.setLanguage(tags)
+                }
+            }
+        }
 
         // Expose active downloads for the settings UI
         public val activeDownloads: StateFlow<List<TorrentDownload>> =

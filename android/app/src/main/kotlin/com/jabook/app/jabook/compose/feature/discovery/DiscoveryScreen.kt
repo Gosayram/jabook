@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
+import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.domain.model.Book
@@ -313,7 +314,7 @@ private fun GenreTiltedCovers(
                         .padding(end = (22 * index).dp, bottom = 4.dp)
                         .width(46.dp)
                         .height(62.dp)
-                        .shadow(4.dp, RoundedCornerShape(6.dp))
+                        .shadow(SurfaceElevationTokens.Level2, RoundedCornerShape(6.dp))
                         .clip(RoundedCornerShape(6.dp))
                         .background(Color.White.copy(alpha = 0.92f))
                         .rotate(15f - index * 8f),
