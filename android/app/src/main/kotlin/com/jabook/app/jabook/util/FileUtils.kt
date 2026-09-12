@@ -14,6 +14,7 @@
 
 package com.jabook.app.jabook.util
 
+import android.os.Environment
 import okio.FileSystem
 import okio.Path.Companion.toOkioPath
 import java.io.File
@@ -54,7 +55,9 @@ public object FileUtils {
                 val volumeId = segment.substring(0, colonIdx)
                 val relativePath = segment.substring(colonIdx + 1)
                 return if (volumeId.equals("primary", ignoreCase = true)) {
-                    "/storage/emulated/0/$relativePath"
+                    // Hardcoding "/storage/emulated/0/" breaks work profiles / secondary
+                    // users — the primary volume is /storage/emulated/<userId>.
+                    "${Environment.getExternalStorageDirectory().absolutePath}/$relativePath"
                 } else {
                     // For SD cards, the path is typically /storage/VOLUME_ID/relativePath
                     "/storage/$volumeId/$relativePath"

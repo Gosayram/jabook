@@ -508,7 +508,15 @@ public class TorrentSessionManager
                             return Result.failure(IllegalStateException("libtorrent4j linkage error: ${e.message}", e))
                         }
 
-                    session.download(effectiveMagnetUri, saveDir, flags)
+                    // Monitor-held native add: cannot race stopSession()'s native delete.
+                    val added =
+                        nativeAddTorrent { live ->
+                            live.download(effectiveMagnetUri, saveDir, flags)
+                        }
+                    if (!added) {
+                        logger.w { "Session stopped while adding torrent $hash — skipping native add" }
+                        return Result.failure(IllegalStateException("Session stopped during add"))
+                    }
                     // Track as pending until ADD_TORRENT fires, so a concurrent
                     // restoreActiveDownloads() doesn't re-add it via a second path.
                     pendingAdds.add(hash)
@@ -821,6 +829,20 @@ public class TorrentSessionManager
          * happens OUTSIDE the class monitor — holding it for the full wait would
          * block main-thread callers of sibling synchronized methods
          * (pause/resume/pauseAll from TorrentActionReceiver) and risk an ANR.
+         *
+         * Phase 3 also runs `SessionManager.stop()` OUTSIDE the class monitor:
+         * vendored SessionManager.stop() nulls its session, sleeps ~750ms, then
+         * joins the alert loop WITHOUT a timeout, and the alert handlers call the
+         * @Synchronized updateDownloads() — holding our monitor across stop()
+         * would circular-wait on the joined alert thread (deadlock/ANR).
+         *
+         * LOCKING CONTRACT: the class monitor is the only guard against native
+         * use-after-free. SessionManager.stop() deletes the native session via
+         * s.delete(), while download()/swig() read its session field with no
+         * internal lock — so EVERY native session call on the add path must go
+         * through [nativeAddTorrent] (monitor-held), and this method must null
+         * `session` under the monitor BEFORE releasing it, so a native add can
+         * never observe a non-null dying session.
          */
         public fun stopSession() {
             // Phase 1 (short, under lock): request resume data for all active handles.
@@ -860,35 +882,76 @@ public class TorrentSessionManager
                 logger.w { "Timeout waiting for save resume data alerts (${latch.count} remaining)" }
             }
 
-            // Phase 3 (short, under lock): final teardown.
-            synchronized(this) {
-                try {
-                    // Save session-level state (DHT routing table, peer lists) BEFORE stopping
-                    // so the next start boots with a warm DHT — libtorrent4j best practice.
-                    // Written on statePersistenceScope, which stopSession() does NOT cancel.
+            // Phase 3a (short, under lock): snapshot session state, capture the
+            // local session ref and null the field + cancel scope. The monitor is
+            // released BEFORE the (potentially multi-second) native stop below so
+            // the joined alert thread can still acquire it via updateDownloads().
+            val dyingSession: SessionManager? =
+                synchronized(this) {
                     try {
-                        val state = session?.saveState()
-                        if (state != null) {
-                            statePersistenceScope.launch {
-                                persistSessionState(state)
+                        // Save session-level state (DHT routing table, peer lists) BEFORE stopping
+                        // so the next start boots with a warm DHT — libtorrent4j best practice.
+                        // Written on statePersistenceScope, which stopSession() does NOT cancel.
+                        try {
+                            val state = session?.saveState()
+                            if (state != null) {
+                                statePersistenceScope.launch {
+                                    persistSessionState(state)
+                                }
+                                logger.i { "Saved torrent session state (${state.size} bytes)" }
                             }
-                            logger.i { "Saved torrent session state (${state.size} bytes)" }
+                        } catch (e: Exception) {
+                            logger.w({ "Failed to save session state on shutdown" }, e)
                         }
-                    } catch (e: Exception) {
-                        logger.w({ "Failed to save session state on shutdown" }, e)
-                    }
 
-                    torrents.clear()
-                    session?.stop()
-                    session = null
-                    sessionScope.cancel()
-                    logger.i { "Session stopped" }
-                } catch (e: Exception) {
-                    logger.e({ "Error stopping session" }, e)
-                } finally {
-                    pendingResumeDataLatch = null
+                        torrents.clear()
+                        val captured = session
+                        // Null under the monitor BEFORE releasing it: pairs with
+                        // nativeAddTorrent() so no native add can start after this
+                        // point (the native delete happens in stop() below).
+                        session = null
+                        sessionScope.cancel()
+                        logger.i { "Session stopped" }
+                        captured
+                    } catch (e: Exception) {
+                        logger.e({ "Error stopping session" }, e)
+                        null
+                    } finally {
+                        pendingResumeDataLatch = null
+                    }
                 }
+
+            // Phase 3b (no lock): stop() sleeps ~750ms and joins the alert loop
+            // without a timeout; the alert handlers need the class monitor, so
+            // this MUST stay outside it (see LOCKING CONTRACT above).
+            try {
+                dyingSession?.stop()
+            } catch (e: Exception) {
+                logger.e({ "Error stopping native session" }, e)
             }
+        }
+
+        /**
+         * Runs a raw native session add under the class monitor.
+         *
+         * libtorrent4j's SessionManager.download()/swig() read its session field
+         * with no internal lock, so a call that passes a null-check just before
+         * stopSession() nulls the field can execute JNI after SessionManager.stop()
+         * has run s.delete() — a native use-after-free (SIGSEGV). Holding the class
+         * monitor across the field read + add call, paired with stopSession()'s
+         * monitor-held field-nulling, closes that window: either the add completes
+         * before the field is nulled, or it observes null and is skipped.
+         *
+         * ALL native session calls on the add path must go through this wrapper —
+         * both [addTorrent] and [restoreActiveDownloads] do.
+         *
+         * @return false if the session was already torn down (add skipped).
+         */
+        @Synchronized
+        private fun nativeAddTorrent(add: (SessionManager) -> Unit): Boolean {
+            val live = session ?: return false
+            add(live)
+            return true
         }
 
         @Synchronized
@@ -957,7 +1020,14 @@ public class TorrentSessionManager
                                     AddTorrentParams(swigParams).apply {
                                         setSavePath(row.savePath)
                                     }
-                                session?.swig()?.async_add_torrent(params.swig())
+                                // Monitor-held native add: cannot race stopSession()'s native delete.
+                                if (!nativeAddTorrent { live ->
+                                        live.swig().async_add_torrent(params.swig())
+                                    }
+                                ) {
+                                    logger.w { "Session stopped while restoring ${row.hash} — skipping" }
+                                    return@forEach
+                                }
                                 logger.d { "Restored torrent with resume data: ${row.hash}" }
                             } else {
                                 // Restore path has no stored magnet URI (entity keeps hash only),
@@ -966,7 +1036,14 @@ public class TorrentSessionManager
                                 val magnetUri = withFallbackTrackers("magnet:?xt=urn:btih:" + row.hash)
                                 val params = AddTorrentParams.parseMagnetUri(magnetUri)
                                 params.setSavePath(row.savePath)
-                                session?.swig()?.async_add_torrent(params.swig())
+                                // Monitor-held native add: cannot race stopSession()'s native delete.
+                                if (!nativeAddTorrent { live ->
+                                        live.swig().async_add_torrent(params.swig())
+                                    }
+                                ) {
+                                    logger.w { "Session stopped while restoring ${row.hash} — skipping" }
+                                    return@forEach
+                                }
                                 logger.d { "Restored torrent via magnet URI fallback: ${row.hash}" }
                             }
                         } catch (e: Exception) {

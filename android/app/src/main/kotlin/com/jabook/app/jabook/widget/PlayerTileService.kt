@@ -49,7 +49,14 @@ public class PlayerTileService : TileService() {
             Intent(this, AudioPlayerService::class.java).apply {
                 action = "com.jabook.app.jabook.WIDGET_PLAY_PAUSE"
             }
-        startForegroundService(intent)
+        try {
+            startForegroundService(intent)
+        } catch (e: IllegalStateException) {
+            // ponytail: covers ForegroundServiceStartNotAllowedException (API 31+,
+            // e.g. locked-device tile tap on Android 14+) — throwing from a SystemUI
+            // context would crash; silently drop the tap instead.
+            LogUtils.w("PlayerTile", "Foreground service start blocked", e)
+        }
     }
 
     private fun updateTileFromPlayer() {

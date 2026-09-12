@@ -546,32 +546,10 @@ public class SettingsViewModel
         // ===== Download Settings =====
 
         public fun updateDownloadPath(uriString: String) {
-            val path = resolvePathFromUri(uriString)
+            val path = FileUtils.resolvePathFromUri(uriString)
             viewModelScope.launch {
                 settingsRepository.updateDownloadPath(path)
             }
-        }
-
-        private fun resolvePathFromUri(uriString: String): String {
-            try {
-                val uri = android.net.Uri.parse(uriString)
-                if (uri.scheme == "content" && uri.authority == "com.android.externalstorage.documents") {
-                    val path = uri.path ?: return uriString
-                    val split = path.split(":")
-                    if (split.size > 1) {
-                        val type = split[0]
-                        val relativePath = split[1]
-                        if (type.endsWith("primary")) {
-                            return "/storage/emulated/0/$relativePath"
-                        }
-                    }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                // Ignore parsing errors and return original
-            }
-            return uriString
         }
 
         public fun updateWifiOnly(enabled: Boolean) {
@@ -593,7 +571,12 @@ public class SettingsViewModel
             viewModelScope.launch {
                 val path = protoSettings.value.downloadPath
                 if (path.isNotEmpty()) {
-                    val size = FileUtils.getDirectorySize(File(path))
+                    // getDirectorySize throws if the dir vanishes mid-walk (ejected SD card):
+                    // IO dispatcher + swallow, or an uncaught error kills the process.
+                    val size =
+                        withContext(Dispatchers.IO) {
+                            runCatching { FileUtils.getDirectorySize(File(path)) }.getOrDefault(0L)
+                        }
                     _torrentStorageSize.value = size
                 }
             }

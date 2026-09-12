@@ -23,6 +23,7 @@ import com.jabook.app.jabook.compose.data.remote.model.SearchResult
 import com.jabook.app.jabook.compose.data.remote.model.TopicDetails
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
+import java.io.ByteArrayOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -64,11 +65,32 @@ public class RutrackerParser
              * Reads a response body with [MAX_HTML_BYTES] cap. Throws IllegalStateException
              * over the cap — all call sites run inside withOperation/try-catch and surface
              * it as a user-visible error, not a crash.
+             *
+             * Enforces the cap DURING the copy: `bytes()` would materialize the full
+             * response before the old post-hoc check could run, so the guard could not
+             * prevent the OOM it exists for. Known contentLength > cap is rejected before
+             * reading; unknown-length (chunked) bodies abort once the cap is exceeded.
              */
             internal fun readCappedBody(body: okhttp3.ResponseBody?): ByteArray {
                 if (body == null) return ByteArray(0)
-                return body.use { it.bytes() }.also {
-                    check(it.size <= MAX_HTML_BYTES) { "Response too large: ${it.size} bytes" }
+                val contentLength = body.contentLength()
+                if (contentLength > MAX_HTML_BYTES) {
+                    body.close()
+                    throw IllegalStateException("Response too large: $contentLength bytes")
+                }
+                return body.use { response ->
+                    val input = response.byteStream()
+                    val output = ByteArrayOutputStream(if (contentLength > 0) contentLength.toInt() else 64 * 1024)
+                    val chunk = ByteArray(64 * 1024)
+                    var total = 0
+                    while (true) {
+                        val read = input.read(chunk)
+                        if (read < 0) break
+                        total += read
+                        check(total <= MAX_HTML_BYTES) { "Response too large: $total bytes" }
+                        output.write(chunk, 0, read)
+                    }
+                    output.toByteArray()
                 }
             }
 

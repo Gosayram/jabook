@@ -69,6 +69,12 @@ public class BackupService
 
         public companion object {
             private val DEFAULT_CONFLICT_POLICY: ConflictResolutionPolicy = ConflictResolutionPolicy.KEEP_NEWER
+
+            /**
+             * Upper bound for an imported backup file. Import reads the whole SAF file
+             * into RAM; a huge/tampered file would OOM (callers catch Exception, not Error).
+             */
+            internal const val MAX_IMPORT_BYTES: Long = 32L * 1024 * 1024
         }
 
         private val json =
@@ -149,6 +155,18 @@ public class BackupService
             withContext(Dispatchers.IO) {
                 try {
                     logger.d { "Starting data import from $uri" }
+
+                    // 0. Size precheck — reject before readText() pulls the whole file into RAM
+                    val importSize =
+                        context.contentResolver
+                            .openAssetFileDescriptor(uri, "r")
+                            ?.use { it.length }
+                            ?: -1L
+                    if (importSize > MAX_IMPORT_BYTES) {
+                        throw IOException(
+                            "Backup file too large: $importSize bytes (limit $MAX_IMPORT_BYTES)",
+                        )
+                    }
 
                     // 1. Read file
                     val jsonString =
@@ -581,6 +599,8 @@ public class BackupService
             books: List<BookBackup>,
             policy: ConflictResolutionPolicy,
         ) {
+            // Empty backup section: no writes, no transaction.
+            if (books.isEmpty()) return
             val dao = database.booksDao()
 
             database.withTransaction {
@@ -689,6 +709,8 @@ public class BackupService
             favorites: List<FavoriteBackup>,
             policy: ConflictResolutionPolicy,
         ) {
+            // Empty backup section: no writes, no transaction.
+            if (favorites.isEmpty()) return
             val bookDao = database.booksDao()
             val favoriteDao = database.favoriteDao()
 
@@ -744,6 +766,8 @@ public class BackupService
             history: List<SearchHistoryBackup>,
             policy: ConflictResolutionPolicy,
         ) {
+            // Empty backup section: no writes, no transaction.
+            if (history.isEmpty()) return
             val dao = database.searchHistoryDao()
             val existingByQuery =
                 dao
@@ -793,6 +817,8 @@ public class BackupService
             paths: List<ScanPathBackup>,
             policy: ConflictResolutionPolicy,
         ) {
+            // Empty backup section: no reads, no writes, no transaction.
+            if (paths.isEmpty()) return
             val dao = database.scanPathDao()
             val existingByPath = dao.getAllPathsList().associateBy({ it.path }, { it.addedDate })
             database.withTransaction {

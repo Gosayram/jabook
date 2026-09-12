@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.backup
 
 import android.content.ContentResolver
 import android.content.Context
+import android.content.res.AssetFileDescriptor
 import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -37,9 +38,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 import java.io.ByteArrayInputStream
+import java.io.IOException
 import java.lang.reflect.InvocationTargetException
 
 @RunWith(RobolectricTestRunner::class)
@@ -202,6 +206,48 @@ class BackupServiceTest {
         } finally {
             database.close()
         }
+    }
+
+    @Test
+    fun `importFromFile rejects oversized backup before reading it`() {
+        val context: Context = mock()
+        val contentResolver: ContentResolver = mock()
+        whenever(context.contentResolver).thenReturn(contentResolver)
+        val descriptor: AssetFileDescriptor = mock()
+        whenever(descriptor.length).thenReturn(BackupService.MAX_IMPORT_BYTES + 1L)
+        whenever(
+            contentResolver.openAssetFileDescriptor(Uri.parse("content://jabook/backup"), "r"),
+        ).thenReturn(descriptor)
+
+        val service = createService(context, mock())
+
+        assertThrows(IOException::class.java) {
+            kotlinx.coroutines.runBlocking {
+                service.importFromFile(Uri.parse("content://jabook/backup"))
+            }
+        }
+        // The oversized file must never be pulled into RAM
+        verify(contentResolver, never()).openInputStream(org.mockito.kotlin.any())
+    }
+
+    @Test
+    fun `importFromFile proceeds when size descriptor is unavailable`() {
+        val context: Context = mock()
+        val contentResolver: ContentResolver = mock()
+        whenever(context.contentResolver).thenReturn(contentResolver)
+        whenever(
+            contentResolver.openAssetFileDescriptor(Uri.parse("content://jabook/backup"), "r"),
+        ).thenReturn(null)
+        whenever(contentResolver.openInputStream(Uri.parse("content://jabook/backup")))
+            .thenReturn(ByteArrayInputStream(json.encodeToString(testBackupData()).toByteArray()))
+
+        val service = createService(context, mock())
+
+        val stats =
+            kotlinx.coroutines.runBlocking {
+                service.importFromFile(Uri.parse("content://jabook/backup"))
+            }
+        assertEquals(0, stats.booksRestored)
     }
 
     private fun createService(

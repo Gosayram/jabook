@@ -16,6 +16,7 @@ package com.jabook.app.jabook.compose.data.torrent
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -55,5 +56,39 @@ class MagnetUriValidationPolicyTest {
             "abcdef0123456789abcdef0123456789abcdef01",
             MagnetUriValidationPolicy.extractInfoHash(raw),
         )
+    }
+
+    @Test
+    fun `rejects malformed percent escapes without throwing`() {
+        listOf(
+            "magnet:?xt=urn:btih:%",
+            "magnet:?xt=urn:btih:%zz",
+            "magnet:?xt=urn:btih:%e0",
+        ).forEach { raw ->
+            assertFalse(MagnetUriValidationPolicy.isValidMagnetUri(raw))
+            assertNull(MagnetUriValidationPolicy.extractInfoHash(raw))
+        }
+    }
+
+    @Test
+    fun `accepts valid percent encoded xt`() {
+        val raw = "magnet:?xt=urn%3Abtih%3A0123456789abcdef0123456789abcdef01234567"
+
+        assertTrue(MagnetUriValidationPolicy.isValidMagnetUri(raw))
+        assertEquals(
+            "0123456789abcdef0123456789abcdef01234567",
+            MagnetUriValidationPolicy.extractInfoHash(raw),
+        )
+    }
+
+    @Test
+    fun `accepts valid base32 btih magnet uri`() {
+        val raw = "magnet:?xt=urn:btih:MFRGGZDFMZTWQ2LKNNSSA5DFON2CA3TF"
+
+        assertTrue(MagnetUriValidationPolicy.isValidMagnetUri(raw))
+        val hex = MagnetUriValidationPolicy.extractInfoHash(raw)
+        assertNotNull(hex)
+        assertEquals(40, hex?.length)
+        assertTrue(hex!!.all { it.isDigit() || it in 'a'..'f' })
     }
 }

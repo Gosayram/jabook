@@ -79,8 +79,8 @@ public class TorrentDownloadService : Service() {
         startForeground()
 
         // If the service was destroyed and is immediately recreated, a still-pending
-        // async shutdown from the previous onDestroy would kill the fresh session
-        // initialized below — cancel it first.
+        // async shutdown from the previous onDestroy is neutralized by the manager's
+        // generation guard (see onDestroy) — it self-skips on generation mismatch.
         shutdownJob?.cancel()
         shutdownJob = null
 
@@ -139,15 +139,20 @@ public class TorrentDownloadService : Service() {
         releaseWakeLock()
 
         // Run shutdown on a detached scope so it can complete even as the service
-        // tears down — torrentManager.shutdown() saves resume data. A re-entered
-        // onDestroy cancels the in-flight shutdown and starts a fresh one.
+        // tears down — torrentManager.shutdown() saves resume data. Capture the
+        // generation BEFORE launching: the coroutine may not start until after
+        // Android recreated this service and its onCreate re-initialized the
+        // manager, so capturing inside the coroutine could falsely match the NEW
+        // lifecycle and tear down the fresh session. A generation mismatch makes
+        // the stale shutdown skip teardown instead.
+        val generation = torrentManager.currentGeneration
         shutdownScope?.cancel()
         shutdownScope =
             CoroutineScope(Dispatchers.IO + loggingCoroutineExceptionHandler("TorrentServiceShutdown"))
         shutdownJob =
             shutdownScope?.launch {
                 try {
-                    torrentManager.shutdown()
+                    torrentManager.shutdown(generation)
                 } catch (e: Exception) {
                     logger.e({ "Torrent shutdown failed" }, e)
                 }

@@ -36,6 +36,7 @@ import com.jabook.app.jabook.R
 import com.jabook.app.jabook.audio.processors.BookLoudnessCompensator
 import com.jabook.app.jabook.audio.processors.LufsAnalysisWorker
 import com.jabook.app.jabook.compose.data.local.dao.BooksDao
+import com.jabook.app.jabook.crash.CrashDiagnostics
 import com.jabook.app.jabook.util.LogUtils
 import com.jabook.app.jabook.utils.loggingCoroutineExceptionHandler
 import dagger.hilt.android.AndroidEntryPoint
@@ -504,17 +505,24 @@ public class AudioPlayerService : MediaLibraryService() {
                     fallbackNotificationProvider = { helper.createFallbackNotification() },
                     event = "service_on_create",
                 )
-            if (foregroundStartResult == ForegroundStartResult.FAILED) {
-                LogUtils.e("AudioPlayerService", "Failed to start foreground with both notifications")
-            } else if (foregroundStartResult == ForegroundStartResult.DENIED_BY_SYSTEM) {
-                // ponytail: Android 14/15 FGS ban (background start) — no session will ever
-                // attach, the "initializing" notification would hang forever. Die quietly.
-                LogUtils.w("AudioPlayerService", "Foreground start denied by system, stopping")
+            if (
+                foregroundStartResult == ForegroundStartResult.FAILED ||
+                foregroundStartResult == ForegroundStartResult.DENIED_BY_SYSTEM
+            ) {
+                // ponytail: Android 12/14+ FGS denial (or hard start failure) — no session
+                // will ever attach, the "initializing" notification would hang forever and
+                // the system kills the process ~10s later. Remove the notification if one
+                // partially landed and die quietly. FAILED is treated like DENIED_BY_SYSTEM
+                // (same as TorrentDownloadService) so a misclassified ISE cannot wedge us.
+                LogUtils.e("AudioPlayerService", "Foreground start not established ($foregroundStartResult), stopping")
+                androidx.core.app.ServiceCompat.stopForeground(
+                    this,
+                    androidx.core.app.ServiceCompat.STOP_FOREGROUND_REMOVE,
+                )
                 stopSelf()
                 return
-            } else {
-                LogUtils.d("AudioPlayerService", "startForeground() completed: $foregroundStartResult")
             }
+            LogUtils.d("AudioPlayerService", "startForeground() completed: $foregroundStartResult")
 
             // Set MediaSessionService.Listener for handling foreground service start exceptions
             // This is required for Android 12+ when system doesn't allow foreground service start
@@ -563,7 +571,11 @@ public class AudioPlayerService : MediaLibraryService() {
             }
         } catch (e: Exception) {
             LogUtils.e("AudioPlayerService", "onCreate() failed", e)
-            throw e
+            CrashDiagnostics.reportNonFatal("audio_service_on_create", e)
+            // ponytail: rethrowing here kills the whole process; the system already
+            // expects a foreground start and would FGS-timeout-kill us anyway —
+            // stop cleanly instead.
+            stopSelf()
         }
     }
 

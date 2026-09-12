@@ -17,6 +17,7 @@ package com.jabook.app.jabook.compose.feature.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
+import com.jabook.app.jabook.util.FileUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -40,7 +41,7 @@ public class ScanSettingsViewModel
                 )
 
         public fun addScanPath(uriString: String) {
-            val path = resolvePathFromUri(uriString)
+            val path = FileUtils.resolvePathFromUri(uriString)
             viewModelScope.launch {
                 booksRepository.addScanPath(path)
                 // Trigger rescan? The scanner runs on startup or manual refresh.
@@ -53,25 +54,5 @@ public class ScanSettingsViewModel
                 booksRepository.removeScanPath(path)
                 booksRepository.refresh()
             }
-        }
-
-        private fun resolvePathFromUri(uriString: String): String {
-            try {
-                val uri = android.net.Uri.parse(uriString)
-                if (uri.scheme == "content" && uri.authority == "com.android.externalstorage.documents") {
-                    val path = uri.path ?: return uriString
-                    val split = path.split(":")
-                    if (split.size > 1) {
-                        val type = split[0]
-                        val relativePath = split[1]
-                        if (type.endsWith("primary")) {
-                            return "/storage/emulated/0/$relativePath"
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                // Ignore parsing errors and return original
-            }
-            return uriString
         }
     }

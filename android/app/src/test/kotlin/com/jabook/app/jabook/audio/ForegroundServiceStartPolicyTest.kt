@@ -21,8 +21,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.Mockito.doThrow
+import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Unit tests for [ForegroundServiceStartPolicy].
@@ -109,5 +112,53 @@ class ForegroundServiceStartPolicyTest {
         // Verify the coordinator result enum includes the new value
         assertEquals(5, ForegroundStartResult.values().size)
         assert(ForegroundStartResult.entries.contains(ForegroundStartResult.DENIED_BY_SYSTEM))
+    }
+
+    @Test
+    @Config(sdk = [33])
+    fun `startForeground returns denied_by_system on IllegalStateException on api 31 plus`() {
+        // ForegroundServiceStartNotAllowedException (API 31+) extends
+        // IllegalStateException — the common Android 12+ background-start denial.
+        val service: Service = mock()
+        doThrow(IllegalStateException("ForegroundServiceStartNotAllowedException"))
+            .`when`(service)
+            .startForeground(any(), any<Notification>())
+
+        val outcome =
+            policy.startForeground(
+                service,
+                42,
+                mock(),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+                "test_event",
+            )
+
+        assertEquals(ForegroundStartOutcome.DENIED_BY_SYSTEM, outcome)
+        assertEquals(1, warnMessages.size)
+        assert(warnMessages[0].first.contains("foreground_start_denied"))
+    }
+
+    @Test
+    @Config(sdk = [30])
+    fun `startForeground returns failed on IllegalStateException below api 31`() {
+        // Below API 31 the system cannot throw the not-allowed exception, so an ISE
+        // is genuinely unexpected and must stay FAILED.
+        val service: Service = mock()
+        doThrow(IllegalStateException("unexpected"))
+            .`when`(service)
+            .startForeground(any(), any<Notification>())
+
+        val outcome =
+            policy.startForeground(
+                service,
+                42,
+                mock(),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+                "test_event",
+            )
+
+        assertEquals(ForegroundStartOutcome.FAILED, outcome)
+        assertEquals(1, warnMessages.size)
+        assert(warnMessages[0].first.contains("foreground_start_failed"))
     }
 }

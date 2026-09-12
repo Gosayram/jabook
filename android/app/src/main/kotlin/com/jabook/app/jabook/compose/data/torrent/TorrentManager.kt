@@ -41,6 +41,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -67,6 +68,18 @@ public class TorrentManager
 
         @Volatile
         private var isInitialized = false
+
+        // Lifecycle generation: bumped by every initialize(). A detached shutdown
+        // (launched from TorrentDownloadService.onDestroy on a scope that outlives
+        // the instance) compares its captured generation against this — if a newer
+        // initialize() won the race, the stale shutdown must not tear down the
+        // session the new lifecycle just created.
+        private val lifecycleGeneration = AtomicLong(0)
+
+        /** Monotonic lifecycle token; captured before launching a detached shutdown. */
+        public val currentGeneration: Long
+            get() = lifecycleGeneration.get()
+
         private var scope =
             CoroutineScope(
                 SupervisorJob() + Dispatchers.IO + loggingCoroutineExceptionHandler("ComposeTorrentManager"),
@@ -82,6 +95,10 @@ public class TorrentManager
          */
         @Synchronized
         public fun initialize() {
+            // Bump first: any in-flight shutdown for an older generation becomes
+            // stale the moment a new lifecycle starts — even if this call is
+            // idempotent (session already alive).
+            lifecycleGeneration.incrementAndGet()
             if (isInitialized) {
                 logger.w { "Already initialized" }
                 return
@@ -278,13 +295,30 @@ public class TorrentManager
          * Shutdown torrent system: persists resume data via [TorrentSession.stopSession]
          * and releases the native session. Safe to call repeatedly; a later
          * [initialize] restarts the session and its observers.
+         *
+         * @param expectedGeneration Lifecycle token captured by the caller. Callers
+         * launching a DETACHED shutdown (service onDestroy) must capture
+         * [currentGeneration] BEFORE launching — the coroutine may not start until
+         * after Android recreated the service and re-initialized the manager, so a
+         * capture inside the coroutine could falsely match the new lifecycle. If
+         * [initialize] has since bumped the generation, this shutdown is stale and
+         * skips teardown, leaving the live session alone.
          */
         @Synchronized
-        public fun shutdown() {
+        public fun shutdown(expectedGeneration: Long = lifecycleGeneration.get()) {
             try {
                 // Persist final states synchronously — sampling may still hold
                 // the last emission (e.g. COMPLETED/PAUSED) unsaved.
                 runBlocking { repository.saveAll(downloadsFlow.value.values.toList()) }
+                // Re-check right before the destructive call (capture raced a
+                // concurrent initialize up to this monitor boundary).
+                if (lifecycleGeneration.get() != expectedGeneration) {
+                    logger.i {
+                        "Skipping stale shutdown: session re-initialized " +
+                            "(generation $expectedGeneration != ${lifecycleGeneration.get()})"
+                    }
+                    return
+                }
                 session.stopSession()
                 dbSyncJob?.cancel()
                 dbSyncJob = null

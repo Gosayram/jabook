@@ -17,11 +17,19 @@ package com.jabook.app.jabook.compose.data.remote.parser
 import com.jabook.app.jabook.BuildConfig
 import com.jabook.app.jabook.compose.data.network.MirrorManager
 import com.jabook.app.jabook.compose.data.remote.encoding.RutrackerSimpleDecoder
+import okhttp3.MediaType
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okio.Buffer
+import okio.BufferedSource
+import okio.buffer
+import okio.source
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -31,6 +39,7 @@ import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
+import java.io.InputStream
 
 /**
  * Unit tests for RutrackerParser.
@@ -1155,5 +1164,65 @@ class RutrackerParserTest {
         // Leading bracket → remove entirely
         val result2 = method.invoke(parser, "[Аудио] Моя книга") as String
         assertEquals("Моя книга", result2)
+    }
+
+    // ============ readCappedBody Tests ============
+
+    @Test
+    fun `readCappedBody rejects known oversized content length before reading`() {
+        val body =
+            object : ResponseBody() {
+                override fun contentType(): MediaType? = "text/html".toMediaType()
+
+                override fun contentLength(): Long = RutrackerParser.MAX_HTML_BYTES + 1L
+
+                override fun source(): BufferedSource = Buffer().buffer()
+            }
+
+        assertThrows(IllegalStateException::class.java) {
+            RutrackerParser.readCappedBody(body)
+        }
+    }
+
+    @Test
+    fun `readCappedBody aborts unbounded chunked body at byte cap`() {
+        val body =
+            object : ResponseBody() {
+                private val infinite =
+                    object : InputStream() {
+                        override fun read(): Int = 'a'.code
+
+                        override fun read(
+                            b: ByteArray,
+                            off: Int,
+                            len: Int,
+                        ): Int {
+                            java.util.Arrays.fill(b, off, off + len, 'a'.code.toByte())
+                            return len
+                        }
+                    }
+
+                override fun contentType(): MediaType? = "text/html".toMediaType()
+
+                // Unknown length (chunked) — cap must be enforced during the copy
+                override fun contentLength(): Long = -1L
+
+                override fun source(): BufferedSource = infinite.source().buffer()
+            }
+
+        assertThrows(IllegalStateException::class.java) {
+            RutrackerParser.readCappedBody(body)
+        }
+    }
+
+    @Test
+    fun `readCappedBody returns small body intact`() {
+        val html = "<html><body>ok</body></html>"
+        val body = html.toResponseBody("text/html".toMediaType())
+
+        assertArrayEquals(
+            html.toByteArray(),
+            RutrackerParser.readCappedBody(body),
+        )
     }
 }

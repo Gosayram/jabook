@@ -56,6 +56,10 @@ public enum class ForegroundStartOutcome {
  * This policy:
  * - Calls the correct overload based on `Build.VERSION.SDK_INT`.
  * - Catches [SecurityException] on API 34+ and maps it to [ForegroundStartOutcome.DENIED_BY_SYSTEM].
+ * - Catches [IllegalStateException] and maps it to [ForegroundStartOutcome.DENIED_BY_SYSTEM]
+ *   on API 31+, because `ForegroundServiceStartNotAllowedException` extends
+ *   `IllegalStateException` (not `SecurityException`) and is the COMMON background-start
+ *   denial on Android 12+.
  * - Catches any other [Exception] and maps it to [ForegroundStartOutcome.FAILED].
  */
 public class ForegroundServiceStartPolicy(
@@ -99,6 +103,27 @@ public class ForegroundServiceStartPolicy(
                 e,
             )
             ForegroundStartOutcome.DENIED_BY_SYSTEM
+        } catch (e: IllegalStateException) {
+            // ForegroundServiceStartNotAllowedException (API 31+) extends
+            // IllegalStateException, NOT SecurityException — on Android 12+ a
+            // background-start denial lands here. Below API 31 that exception
+            // cannot be thrown by the system, so an ISE is genuinely unexpected
+            // and stays FAILED.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                logWarn(
+                    "foreground_start_denied event=$event notificationId=$notificationId " +
+                        "type=$serviceType api=${Build.VERSION.SDK_INT}",
+                    e,
+                )
+                ForegroundStartOutcome.DENIED_BY_SYSTEM
+            } else {
+                logWarn(
+                    "foreground_start_failed event=$event notificationId=$notificationId " +
+                        "api=${Build.VERSION.SDK_INT}",
+                    e,
+                )
+                ForegroundStartOutcome.FAILED
+            }
         } catch (e: Exception) {
             logWarn(
                 "foreground_start_failed event=$event notificationId=$notificationId " +

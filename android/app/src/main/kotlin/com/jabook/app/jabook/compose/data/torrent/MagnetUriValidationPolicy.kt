@@ -55,7 +55,11 @@ public object MagnetUriValidationPolicy {
                 }?.substringAfter("=", "")
                 ?.trim()
                 ?: return null
-        val xt = URLDecoder.decode(xtEncoded, StandardCharsets.UTF_8.name())
+        // Malformed percent-escapes (%zz, truncated %e0) throw IllegalArgumentException;
+        // app is exported+BROWSABLE for magnet:, so remote links must not crash Main.
+        val xt =
+            runCatching { URLDecoder.decode(xtEncoded, StandardCharsets.UTF_8.name()) }.getOrNull()
+                ?: return null
         if (!xt.startsWith("urn:btih:", ignoreCase = true)) return null
         val infoHash = xt.substringAfter("urn:btih:", "").trim()
         return when {

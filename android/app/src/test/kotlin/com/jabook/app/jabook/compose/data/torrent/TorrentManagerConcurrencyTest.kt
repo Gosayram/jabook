@@ -23,8 +23,10 @@ import kotlinx.coroutines.flow.emptyFlow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.mockito.kotlin.any
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -103,6 +105,78 @@ class TorrentManagerConcurrencyTest {
         manager.initialize()
 
         verify(session, times(2)).restoreActiveDownloads()
+    }
+
+    @Test
+    fun `shutdown with current generation still stops session`() {
+        val session = mock<TorrentSession>()
+        whenever(session.downloadsFlow).thenReturn(MutableStateFlow(emptyMap()))
+        val manager = newManager(session)
+
+        manager.initialize()
+        manager.shutdown()
+
+        verify(session).stopSession()
+    }
+
+    @Test
+    fun `stale shutdown with generation mismatch does not stop re-initialized session`() {
+        val session = mock<TorrentSession>()
+        whenever(session.downloadsFlow).thenReturn(MutableStateFlow(emptyMap()))
+        whenever(session.addTorrent(any(), any(), any(), any())).thenReturn(Result.success("a".repeat(40)))
+        val manager = newManager(session)
+
+        manager.initialize()
+        // User adds a torrent on the live session ("native add observed").
+        assertTrue(manager.addTorrent("magnet:?xt=urn:btih:${"a".repeat(40)}", "/dl").isSuccess)
+
+        // The old service instance captured the generation BEFORE launching its
+        // detached shutdown; Android then recreated the service first.
+        val staleGeneration = manager.currentGeneration
+        manager.initialize()
+        // The detached shutdown finally runs with the stale token.
+        manager.shutdown(staleGeneration)
+
+        // No teardown behind the new lifecycle's back: session never deleted, so
+        // the add that landed before (and any after) can never hit a freed native
+        // session.
+        verify(session, never()).stopSession()
+        assertTrue(manager.addTorrent("magnet:?xt=urn:btih:${"b".repeat(40)}", "/dl").isSuccess)
+        verify(session, times(2)).addTorrent(any(), any(), any(), any())
+    }
+
+    @Test
+    fun `delayed shutdown from previous lifecycle does not kill session created by later initialize`() {
+        val session = mock<TorrentSession>()
+        whenever(session.downloadsFlow).thenReturn(MutableStateFlow(emptyMap()))
+        val manager = newManager(session)
+
+        manager.initialize()
+        // Detached shutdown is delayed (IO dispatcher); the recreated service's
+        // onCreate wins the race and bumps the generation first.
+        val staleGeneration = manager.currentGeneration
+        manager.initialize()
+        // First (stale) shutdown completes after the second initialize.
+        manager.shutdown(staleGeneration)
+
+        // Second session survives the first shutdown's completion.
+        verify(session, never()).stopSession()
+        assertTrue(manager.currentGeneration > staleGeneration)
+    }
+
+    private fun newManager(session: TorrentSession): TorrentManager {
+        val settingsRepository = mock<SettingsRepository>()
+        whenever(settingsRepository.userPreferences).thenReturn(emptyFlow())
+        val networkMonitor = mock<NetworkMonitor>()
+        whenever(networkMonitor.networkType).thenReturn(emptyFlow())
+        return TorrentManager(
+            context = mock(),
+            session = session,
+            repository = mock(),
+            settingsRepository = settingsRepository,
+            networkMonitor = networkMonitor,
+            loggerFactory = noOpLoggerFactory(),
+        )
     }
 
     private fun noOpLoggerFactory(): LoggerFactory {

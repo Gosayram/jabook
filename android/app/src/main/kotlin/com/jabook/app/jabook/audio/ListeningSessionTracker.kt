@@ -133,6 +133,12 @@ internal class ListeningSessionTracker(
         val bookId = activeBookId
         val startPositionMs = activeSessionStartPositionMs
         val chapterIndex = activeSessionChapterIndex
+        // Capture player getters on the caller thread BEFORE launching: the save below
+        // runs on IO after possible teardown, and Media3 getters on the wrong thread
+        // are racy (IllegalStateException) — a throw there would leak the session row.
+        val positionEndMs = getCurrentPositionMs()
+        val speedFactor = getCurrentSpeed()
+        val durationMs = getCurrentDurationMs()
         activeSessionId = null
         activeBookId = null
         isStartingSession = false
@@ -144,18 +150,18 @@ internal class ListeningSessionTracker(
         // session update, so the close must outlive that cancellation.
         scope.launch(ioDispatcher + kotlinx.coroutines.NonCancellable) {
             try {
-                val positionEndMs = getCurrentPositionMs()
                 if (shouldCreditSession(
                         bookId = bookId,
                         chapterIndex = chapterIndex,
                         startPositionMs = startPositionMs,
                         positionEndMs = positionEndMs,
+                        durationMs = durationMs,
                     )
                 ) {
                     repository.finishSession(
                         sessionId = sessionId,
                         positionEndMs = positionEndMs,
-                        speedFactor = getCurrentSpeed(),
+                        speedFactor = speedFactor,
                         chapterIndex = chapterIndex,
                     )
                 } else {
@@ -176,12 +182,13 @@ internal class ListeningSessionTracker(
         chapterIndex: Int,
         startPositionMs: Long,
         positionEndMs: Long,
+        durationMs: Long,
     ): Boolean {
         val creditKey = "${bookId ?: "unknown"}#$chapterIndex"
         val credited =
             MinListenCreditPolicy.shouldCredit(
                 listenedMs = (positionEndMs - startPositionMs).coerceAtLeast(0L),
-                durationMs = getCurrentDurationMs(),
+                durationMs = durationMs,
                 alreadyCredited = creditKey in creditedChapterKeys,
             )
         if (credited) creditedChapterKeys.add(creditKey)
