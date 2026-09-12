@@ -437,6 +437,8 @@ internal class FakeSettingsRepository(
 
     override suspend fun updateSelectedForumIds(ids: String) = Unit
 
+    override suspend fun updateIndexingDaysWindow(days: Int) = Unit
+
     override suspend fun updateDownloadPath(path: String) = Unit
 
     override suspend fun updateWifiOnly(enabled: Boolean) = Unit

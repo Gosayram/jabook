@@ -57,5 +57,22 @@ class IndexingWorkSchedulerTest {
         val workSpec = requestCaptor.firstValue.workSpec
         assertEquals(NetworkType.CONNECTED, workSpec.constraints.requiredNetworkType)
         assertTrue(workSpec.input.getBoolean(IndexingWorker.KEY_PRELOAD_COVERS, false))
+        assertEquals(-1, workSpec.input.getInt(IndexingWorker.KEY_INDEXING_DAYS_WINDOW, -1))
+    }
+
+    @Test
+    fun `enqueue forwards days window in input data when provided`() {
+        scheduler.enqueue(daysWindow = 7)
+
+        verify(workManager).enqueueUniqueWork(
+            eq(IndexingWorker.WORK_NAME_ONE_TIME),
+            eq(ExistingWorkPolicy.KEEP),
+            requestCaptor.capture(),
+        )
+        assertEquals(
+            7,
+            requestCaptor.firstValue.workSpec.input
+                .getInt(IndexingWorker.KEY_INDEXING_DAYS_WINDOW, -1),
+        )
     }
 }

@@ -162,6 +162,10 @@ message UserPreferences {
 
   // Layout mode override: 0 = adaptive (follow window), 1 = force compact, 2 = force expanded.
   int32 layout_mode = 75;
+
+  // Quick indexing depth window in days (TASK-INDEX-DEPTH): only crawl topics
+  // newer than this window. 0 = All (legacy full crawl). Options: 0/1/7/14/30.
+  int32 indexing_days_window = 76;
 }
 
 message SleepTimerState {

@@ -73,7 +73,20 @@ public class DirectFileSystemScanner
         override suspend fun scanAudiobooks(): Result<List<ScannedBook>, com.jabook.app.jabook.compose.domain.model.AppError> =
             withContext(Dispatchers.IO) {
                 try {
-                    val customPaths = scanPathDao.getAllPathsList().map { it.path }
+                    // SELF-HEALING: skip rows that can never produce books (legacy
+                    // content:// URIs, deleted/unmounted folders, file-instead-of-dir)
+                    // and log them, instead of silently scanning to zero.
+                    val scannable = mutableListOf<Pair<com.jabook.app.jabook.compose.data.local.entity.ScanPathEntity, String>>()
+                    for (entity in scanPathDao.getAllPathsList()) {
+                        val normalized = ScanPathValidator.normalize(entity.path)
+                        val status = ScanPathValidator.classify(normalized)
+                        if (status == ScanPathStatus.VALID) {
+                            scannable.add(entity to normalized)
+                        } else {
+                            logger.w { "Skipping unavailable scan path ($status): ${entity.path}" }
+                        }
+                    }
+                    val customPaths = scannable.map { it.second }.distinct()
 
                     if (customPaths.isEmpty()) {
                         return@withContext Result.Success(emptyList())
@@ -103,15 +116,19 @@ public class DirectFileSystemScanner
                     logger.i { "Found $totalFiles audio files (fast scan)" }
 
                     // PHASE 1.5: INCREMENTAL SCAN FILTER
-                    // Build a map of path -> lastScanTimestamp for incremental filtering
-                    val pathEntities = scanPathDao.getAllPathsList()
-                    val pathTimestampMap = pathEntities.associate { it.path to it.lastScanTimestamp }
+                    // Build a map of normalized path -> lastScanTimestamp for incremental filtering
+                    val pathTimestampMap =
+                        scanPathDao
+                            .getAllPathsList()
+                            .associate { ScanPathValidator.normalize(it.path) to it.lastScanTimestamp }
 
-                    // Group fast files by their root scan path for per-path filtering
+                    // Group fast files by their root scan path for per-path filtering.
+                    // Boundary-safe prefix: "/books" must not match sibling "/books2".
                     val filteredFiles = mutableListOf<FastFileInfo>()
                     for (path in customPaths) {
                         val lastTimestamp = pathTimestampMap[path]
-                        val filesForPath = distinctFiles.filter { it.filePath.startsWith(path) }
+                        val prefix = if (path == "/") "/" else "$path/"
+                        val filesForPath = distinctFiles.filter { it.filePath.startsWith(prefix) }
                         val scanInfos =
                             filesForPath.map {
                                 IncrementalScanPolicy.FileScanInfo(
@@ -145,8 +162,10 @@ public class DirectFileSystemScanner
                         "Incremental scan: ${effectiveFiles.size}/$totalFiles files need processing"
                     }
 
-                    // PHASE 2: GROUP by directory
-                    val groupedByDir = effectiveFiles.groupBy { it.directory }
+                    // PHASE 2: GROUP by directory, then merge disc subfolders
+                    // ("Book/CD1", "Book/CD2") into their parent so a multi-disc
+                    // book is one book, not one book per disc.
+                    val groupedByDir = mergeDiscDirectories(effectiveFiles.groupBy { it.directory })
                     logger.i {
                         "Grouped into ${groupedByDir.size} books (by directory)"
                     }
@@ -294,10 +313,10 @@ public class DirectFileSystemScanner
                     // timestamp combined with the incremental cutoff.
                     // ponytail: full rescan on any failure; per-dir timestamps if this proves slow.
                     if (failedDirs.isEmpty()) {
-                        for (path in customPaths) {
-                            scanPathDao.updateLastScanTimestamp(path, scanStartTime)
+                        for ((entity, _) in scannable) {
+                            scanPathDao.updateLastScanTimestamp(entity.path, scanStartTime)
                         }
-                        logger.i { "Updated scan timestamps for ${customPaths.size} paths" }
+                        logger.i { "Updated scan timestamps for ${scannable.size} paths" }
                     } else {
                         logger.w { "Skipping timestamp bump: ${failedDirs.size} dirs failed, will retry next scan" }
                     }
@@ -373,6 +392,28 @@ public class DirectFileSystemScanner
         private fun File.isAudioFile(): Boolean {
             val extension = this.extension.lowercase()
             return extension in AUDIO_EXTENSIONS
+        }
+
+        /**
+         * Merges per-directory groups whose directory is a disc folder ("CD1",
+         * "Disc 2") into the parent directory group, so multi-disc books stored as
+         * Book/CD1 + Book/CD2 become a single book.
+         *
+         * ponytail: chapter order across discs falls back to filename ties when
+         * disc filenames repeat (e.g. both "01 intro.mp3") — per-disc prefixes win
+         * only via metadata track numbers. Revisit if that misorders real books.
+         */
+        private fun mergeDiscDirectories(grouped: Map<String, List<FastFileInfo>>): Map<String, List<FastFileInfo>> {
+            val merged = linkedMapOf<String, MutableList<FastFileInfo>>()
+            // Deepest first so nested disc chains (Book/CD1/Part2) collapse upward.
+            for ((dir, files) in grouped.entries.sortedByDescending { entry -> entry.key.count { it == '/' } }) {
+                var target = dir
+                if (ScanPathValidator.isDiscDirectory(File(dir).name)) {
+                    File(dir).parent?.let { parent -> target = parent }
+                }
+                merged.getOrPut(target) { mutableListOf() }.addAll(files)
+            }
+            return merged
         }
 
         /**

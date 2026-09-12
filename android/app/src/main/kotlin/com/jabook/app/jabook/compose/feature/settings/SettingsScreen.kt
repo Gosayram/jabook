@@ -19,7 +19,6 @@ import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -35,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -94,6 +94,7 @@ import com.jabook.app.jabook.compose.designsystem.component.ConfirmDialog
 import com.jabook.app.jabook.compose.designsystem.component.endItemShape
 import com.jabook.app.jabook.compose.designsystem.component.leadingItemShape
 import com.jabook.app.jabook.compose.designsystem.component.middleItemShape
+import com.jabook.app.jabook.compose.feature.indexing.ForumSelection
 import com.jabook.app.jabook.compose.feature.library.ListeningHeatmap
 import com.jabook.app.jabook.compose.feature.library.shareYearRecap
 import kotlinx.coroutines.launch
@@ -804,11 +805,20 @@ public fun SettingsScreen(
                                 is ScanProgress.Parsing -> stringResource(R.string.scan_status_parsing, p.currentBook, p.progress, p.total)
                                 is ScanProgress.Saving -> stringResource(R.string.scan_status_saving)
                                 is ScanProgress.Completed ->
-                                    pluralStringResource(
-                                        R.plurals.scan_status_complete_plural,
-                                        p.booksAdded,
-                                        p.booksAdded,
-                                    )
+                                    if (p.skippedPaths > 0) {
+                                        pluralStringResource(
+                                            R.plurals.scan_status_complete_plural,
+                                            p.booksAdded,
+                                            p.booksAdded,
+                                        ) +
+                                            " " + stringResource(R.string.scan_status_skipped_paths, p.skippedPaths)
+                                    } else {
+                                        pluralStringResource(
+                                            R.plurals.scan_status_complete_plural,
+                                            p.booksAdded,
+                                            p.booksAdded,
+                                        )
+                                    }
                                 is ScanProgress.Error -> stringResource(R.string.scan_status_error, p.message)
                             },
                         onClick =
@@ -1288,8 +1298,13 @@ public fun SettingsScreen(
 
             val indexTopicsCount = pluralStringResource(R.plurals.indexTopicsCount, indexSize, indexSize)
 
-            // Forum selection for indexing (ponytail: direct multi-select with a two-forum preset)
-            val allForumIds = com.jabook.app.jabook.compose.data.remote.api.RutrackerApi.AUDIOBOOKS_FORUM_IDS
+            // Forum selection for indexing — explicit checkbox list ("check the
+            // forums we follow"). Same persistence: selected_forum_ids comma
+            // string, blank = all forums (proto field 74).
+            val allForumIds =
+                com.jabook.app.jabook.compose.data.remote.api.RutrackerApi.AUDIOBOOKS_FORUM_IDS
+                    .split(",")
+                    .map(String::trim)
             val quickPreset = "574,1036" // ponytail: popular child forums
             var selectedForums by rememberSaveable { mutableStateOf(protoSettings.selectedForumIds) }
             var forumSelectorExpanded by rememberSaveable { mutableStateOf(false) }
@@ -1298,7 +1313,7 @@ public fun SettingsScreen(
                 selectedForums = protoSettings.selectedForumIds
             }
 
-            val effectiveForums = selectedForums.ifBlank { allForumIds }
+            val effectiveForums = selectedForums.ifBlank { allForumIds.joinToString(",") }
             val forumCount = effectiveForums.split(",").size
 
             SettingsItem(
@@ -1314,7 +1329,9 @@ public fun SettingsScreen(
 
             if (forumSelectorExpanded) {
                 Column(modifier = Modifier.padding(horizontal = contentPadding, vertical = 4.dp)) {
-                    // Preset buttons
+                    // Toggles: All = blank string (index everything); Quick =
+                    // the two most popular child forums. Both preserved from
+                    // the previous chip UI.
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = selectedForums.isBlank(),
@@ -1334,40 +1351,30 @@ public fun SettingsScreen(
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    // Forum chips
-                    val chips = allForumIds.split(",").map { it.trim() }
-                    val selectedSet =
-                        remember(selectedForums) {
-                            selectedForums
-                                .split(",")
-                                .map { it.trim() }
-                                .filter { it.isNotEmpty() }
-                                .toSet()
-                        }
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        chips.forEach { forumId ->
-                            val isSel = forumId in selectedSet || (selectedForums.isBlank())
-                            FilterChip(
-                                selected = isSel,
-                                onClick = {
-                                    val newSet =
-                                        if (selectedForums.isBlank()) {
-                                            // Selecting from "all" → only this one
-                                            setOf(forumId)
-                                        } else if (forumId in selectedSet) {
-                                            selectedSet - forumId
-                                        } else {
-                                            selectedSet + forumId
-                                        }
-                                    val newIds = chips.filter { it in newSet }.joinToString(",")
-                                    selectedForums = newIds
-                                    viewModel.updateSelectedForumIds(newIds)
-                                },
-                                label = { Text(stringResource(R.string.forumId, forumId)) },
+                    // Checkbox rows — checked set derived from the stored string
+                    val checkedSet = ForumSelection.checkedIds(selectedForums, allForumIds)
+                    allForumIds.forEach { forumId ->
+                        val checked = forumId in checkedSet
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .toggleable(
+                                        value = checked,
+                                        role = Role.Checkbox,
+                                        onValueChange = {
+                                            val newChecked = ForumSelection.toggle(checkedSet, forumId)
+                                            val newIds = ForumSelection.toStored(newChecked, allForumIds)
+                                            selectedForums = newIds
+                                            viewModel.updateSelectedForumIds(newIds)
+                                        },
+                                    ),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Checkbox(checked = checked, onCheckedChange = null)
+                            Text(
+                                text = stringResource(R.string.forumId, forumId),
+                                style = MaterialTheme.typography.bodyLarge,
                             )
                         }
                     }
@@ -1377,6 +1384,35 @@ public fun SettingsScreen(
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+
+            // Quick indexing depth window: index only what's newer than N days
+            // (0 = legacy full crawl). Keeps the 3-day re-index fast.
+            val daysWindow = protoSettings.indexingDaysWindow
+            val windowOptions = listOf(1, 7, 14, 30, 0)
+            SettingsItemWithContent(
+                title = stringResource(R.string.indexingDepthWindow),
+                subtitle = stringResource(R.string.indexingDepthWindowHint),
+            ) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    windowOptions.forEachIndexed { index, days ->
+                        SegmentedButton(
+                            selected = daysWindow == days,
+                            onClick = { viewModel.updateIndexingDaysWindow(days) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = windowOptions.size),
+                        ) {
+                            Text(
+                                text =
+                                    if (days == 0) {
+                                        stringResource(R.string.all)
+                                    } else {
+                                        stringResource(R.string.indexingWindowDays, days)
+                                    },
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                    }
                 }
             }
 

@@ -36,11 +36,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
@@ -150,14 +153,6 @@ public class ForumIndexer
             }
         }
 
-        private data class ForumBatchResult(
-            val forumId: String,
-            val indexed: Int,
-            val covers: List<String>,
-            val failed: Boolean,
-            val failureMessage: String? = null,
-        )
-
         public companion object {
             private const val TOPICS_PER_PAGE = 50
             private const val BASE_DELAY_MS = 300L
@@ -209,14 +204,26 @@ public class ForumIndexer
         /**
          * Index all audiobook forums (full index) with optimized parallel processing.
          *
+         * Forums run in parallel, bounded by [MAX_CONCURRENT_FORUMS] (semaphore — a
+         * finished forum immediately frees its slot for the next one instead of
+         * waiting on the slowest sibling of a fixed chunk). Pages within a forum
+         * stay sequential because RuTracker listings are sorted by recent activity,
+         * so the [daysWindow] early-exit relies on page order.
+         *
          * @param forumIds Comma-separated list of forum IDs to index
          * @param preloadCovers Whether to preload cover images to Coil cache (default: true)
+         * @param daysWindow Depth window in days (quick indexing). 0 = legacy full
+         *   crawl. When > 0, a forum's crawl stops at the first page whose topics
+         *   are all already indexed — the listing's date-sorted boundary. Zero new
+         *   topics across all forums is then a success ("nothing newer than window"),
+         *   not an error.
          * @param onProgress Callback with IndexingProgress updates
          * @return Total number of topics indexed
          */
         public suspend fun indexForums(
             forumIds: String,
             preloadCovers: Boolean = true,
+            daysWindow: Int = 0,
             onProgress: (suspend (IndexingProgress) -> Unit)? = null,
         ): Int {
             // Bounded wait: a second caller (periodic worker, one-time worker, or a
@@ -238,7 +245,6 @@ public class ForumIndexer
                         forumNames[id] = "Forum $id"
                     }
 
-                    var totalIndexed: Int = 0
                     val coversToPreload = mutableListOf<String>()
 
                     // Initialize per-forum statuses
@@ -257,6 +263,9 @@ public class ForumIndexer
                     logger.i { "=== FORUM INDEXING START ===" }
                     logger.i { "Using mirror: $initialMirror" }
                     logger.i { "Indexing version: $currentIndexVersion" }
+                    if (daysWindow > 0) {
+                        logger.i { "Depth window: $daysWindow days (quick indexing)" }
+                    }
                     val oldCount = getIndexSize()
                     logger.i { "Existing indexed data: $oldCount topics" }
 
@@ -269,7 +278,7 @@ public class ForumIndexer
                         ),
                     )
 
-                    // Use AtomicInteger for thread-safe progress tracking
+                    // Thread-safe progress tracking
                     val topicsIndexedAtomic =
                         java.util.concurrent.atomic
                             .AtomicInteger(0)
@@ -278,124 +287,113 @@ public class ForumIndexer
                             .AtomicInteger(0)
                     val failedForumMessages = mutableListOf<String>()
 
-                    // Process forums in parallel batches
-                    forumIdList.chunked(MAX_CONCURRENT_FORUMS).forEach { batch ->
-                        batch
+                    // Forums in parallel, bounded; pages within a forum stay sequential.
+                    coroutineScope {
+                        val forumSlots = Semaphore(MAX_CONCURRENT_FORUMS)
+                        forumIdList
                             .map { forumId ->
                                 async(Dispatchers.IO) {
-                                    // Mark forum as IN_PROGRESS
-                                    updateForumStatus(forumId, ForumState.IN_PROGRESS)
+                                    forumSlots.withPermit {
+                                        // Mark forum as IN_PROGRESS
+                                        updateForumStatus(forumId, ForumState.IN_PROGRESS)
 
-                                    try {
-                                        val (indexed, covers) =
-                                            indexForum(forumId, currentIndexVersion) { page, topicsInForum ->
-                                                // Update per-forum page progress
-                                                updateForumStatusPage(forumId, page)
+                                        try {
+                                            val (indexed, _) =
+                                                indexForum(forumId, currentIndexVersion, daysWindow) { page, topicsInForum ->
+                                                    // Update per-forum page progress
+                                                    updateForumStatusPage(forumId, page)
 
-                                                if (page == 0 || page % 2 == 0 || topicsInForum < 50) {
-                                                    val currentTotal = topicsIndexedAtomic.get()
-                                                    // Update the aggregate progress StateFlow
-                                                    val completedCount = countCompletedForums()
-                                                    _indexProgress.value =
-                                                        IndexProgress(
-                                                            currentForumName = resolveForumName(forumId),
-                                                            currentForumPage = page,
-                                                            totalForumsCompleted = completedCount,
-                                                            totalForums = forumIdList.size,
-                                                            topicsFound = currentTotal,
-                                                            errors = failedForumMessages.toList(),
-                                                            forumStatuses = _forumStatuses.value,
+                                                    if (page == 0 || page % 2 == 0 || topicsInForum < 50) {
+                                                        val currentTotal = topicsIndexedAtomic.get()
+                                                        // Update the aggregate progress StateFlow
+                                                        val completedCount = countCompletedForums()
+                                                        _indexProgress.value =
+                                                            IndexProgress(
+                                                                currentForumName = resolveForumName(forumId),
+                                                                currentForumPage = page,
+                                                                totalForumsCompleted = completedCount,
+                                                                totalForums = forumIdList.size,
+                                                                topicsFound = currentTotal,
+                                                                errors = synchronized(failedForumMessages) { failedForumMessages.toList() },
+                                                                forumStatuses = _forumStatuses.value,
+                                                            )
+                                                        onProgress?.invoke(
+                                                            IndexingProgress.InProgress(_indexProgress.value),
                                                         )
-                                                    onProgress?.invoke(
-                                                        IndexingProgress.InProgress(_indexProgress.value),
-                                                    )
+                                                    }
                                                 }
+                                            topicsIndexedAtomic.addAndGet(indexed)
+                                            updateForumStatus(
+                                                forumId,
+                                                ForumState.INDEXED,
+                                                topicsCount = indexed,
+                                                lastUpdated = System.currentTimeMillis(),
+                                            )
+                                        } catch (e: Exception) {
+                                            if (e is kotlinx.coroutines.CancellationException) throw e
+                                            val errorMsg = buildErrorMessage(forumId, 0, e)
+                                            logger.e({ "Failed to index forum $forumId" }, e)
+                                            synchronized(failedForumMessages) {
+                                                failedForumMessages.add(errorMsg)
                                             }
-                                        ForumBatchResult(
-                                            forumId = forumId,
-                                            indexed = indexed,
-                                            covers = covers,
-                                            failed = false,
-                                        )
-                                    } catch (e: Exception) {
-                                        if (e is kotlinx.coroutines.CancellationException) throw e
-                                        val errorMsg = buildErrorMessage(forumId, 0, e)
-                                        logger.e({ "Failed to index forum $forumId" }, e)
-                                        ForumBatchResult(
-                                            forumId = forumId,
-                                            indexed = 0,
-                                            covers = emptyList(),
-                                            failed = true,
-                                            failureMessage = errorMsg,
-                                        )
-                                    }
-                                }
-                            }.awaitAll()
-                            .forEach { result ->
-                                if (result.failed) {
-                                    failedForums.incrementAndGet()
-                                    synchronized(failedForumMessages) {
-                                        failedForumMessages.add(result.failureMessage ?: "${result.forumId}: unknown error")
-                                    }
-                                    updateForumStatus(
-                                        result.forumId,
-                                        ForumState.FAILED,
-                                        errorMessage = result.failureMessage,
-                                    )
-                                } else {
-                                    topicsIndexedAtomic.addAndGet(result.indexed)
-                                    updateForumStatus(
-                                        result.forumId,
-                                        ForumState.INDEXED,
-                                        topicsCount = result.indexed,
-                                        lastUpdated = System.currentTimeMillis(),
-                                    )
-                                    if (result.covers.isNotEmpty()) {
-                                        synchronized(coversToPreload) {
-                                            coversToPreload.addAll(result.covers)
+                                            failedForums.incrementAndGet()
+                                            updateForumStatus(
+                                                forumId,
+                                                ForumState.FAILED,
+                                                errorMessage = errorMsg,
+                                            )
                                         }
                                     }
                                 }
-                            }
+                            }.awaitAll()
                     }
 
-                    totalIndexed = topicsIndexedAtomic.get()
+                    val totalIndexed: Int = topicsIndexedAtomic.get()
                     val duration = System.currentTimeMillis() - startTime
 
                     if (failedForums.get() == forumIdList.size) {
+                        val messages = synchronized(failedForumMessages) { failedForumMessages.toList() }
                         val message =
                             "Indexing failed for all forums (${failedForums.get()}/${forumIdList.size}). " +
-                                failedForumMessages.take(3).joinToString("; ")
+                                messages.take(3).joinToString("; ")
                         logger.e { message }
                         _indexProgress.value =
-                            _indexProgress.value.copy(errors = failedForumMessages.toList())
+                            _indexProgress.value.copy(errors = messages)
                         onProgress?.invoke(IndexingProgress.Error(message))
                         throw IllegalStateException(message)
                     }
 
-                    // If index run produced no data, keep existing index and surface explicit failure.
-                    if (totalIndexed == 0) {
-                        val failedDetail =
-                            if (failedForumMessages.isNotEmpty()) {
-                                " Failures: ${failedForumMessages.take(3).joinToString("; ")}"
-                            } else {
-                                ""
-                            }
-                        val message =
-                            "Indexing returned zero topics. Old index preserved ($oldCount topics)." +
-                                "$failedDetail Likely auth/session or parser issue."
-                        logger.e { message }
-                        onProgress?.invoke(IndexingProgress.Error(message))
-                        throw IllegalStateException(message)
-                    }
+                    if (daysWindow <= 0) {
+                        // Full-crawl sanity guards — a full crawl must never return
+                        // (near-)empty when the old index was healthy.
+                        if (totalIndexed == 0) {
+                            val failedDetail =
+                                if (failedForumMessages.isNotEmpty()) {
+                                    " Failures: ${failedForumMessages.take(3).joinToString("; ")}"
+                                } else {
+                                    ""
+                                }
+                            val message =
+                                "Indexing returned zero topics. Old index preserved ($oldCount topics)." +
+                                    "$failedDetail Likely auth/session or parser issue."
+                            logger.e { message }
+                            onProgress?.invoke(IndexingProgress.Error(message))
+                            throw IllegalStateException(message)
+                        }
 
-                    if (oldCount > MIN_VALID_TOPICS_ABSOLUTE && totalIndexed < oldCount * MIN_VALID_RATIO) {
-                        val message =
-                            "Indexing produced too few topics ($totalIndexed) vs existing ($oldCount). " +
-                                "Old index preserved (threshold: ${(oldCount * MIN_VALID_RATIO).toInt()})."
-                        logger.w { message }
-                        onProgress?.invoke(IndexingProgress.Error(message))
-                        throw IllegalStateException(message)
+                        if (oldCount > MIN_VALID_TOPICS_ABSOLUTE && totalIndexed < oldCount * MIN_VALID_RATIO) {
+                            val message =
+                                "Indexing produced too few topics ($totalIndexed) vs existing ($oldCount). " +
+                                    "Old index preserved (threshold: ${(oldCount * MIN_VALID_RATIO).toInt()})."
+                            logger.w { message }
+                            onProgress?.invoke(IndexingProgress.Error(message))
+                            throw IllegalStateException(message)
+                        }
+                    } else if (totalIndexed == 0) {
+                        logger.i {
+                            "Quick indexing found nothing newer than the $daysWindow-day window " +
+                                "(existing index: $oldCount topics) — nothing to do"
+                        }
                     }
 
                     if (preloadCovers && coversToPreload.isNotEmpty()) {
@@ -479,12 +477,16 @@ public class ForumIndexer
          *
          * @param forumId Forum ID to index
          * @param indexVersion Current index version
+         * @param daysWindow Depth window in days; > 0 enables the known-page early-exit
+         *   (listings are sorted by recent activity, so a page whose topics are all
+         *   already indexed marks the boundary — everything deeper is older).
          * @param onProgress Progress callback with (page, topicsInForum)
          * @return Pair of (number of topics indexed, list of cover URLs to preload)
          */
         private suspend fun indexForum(
             forumId: String,
             indexVersion: Int,
+            daysWindow: Int = 0,
             onProgress: (suspend (page: Int, topicsInForum: Int) -> Unit)? = null,
         ): Pair<Int, List<String>> {
             var totalTopics: Int = 0
@@ -575,21 +577,49 @@ public class ForumIndexer
                             logger.w { "Forum $forumId page $page: filtered out $invalidCount invalid topics" }
                         }
 
-                        val newEntities = validTopics.map { it.toCachedTopicEntity(indexVersion) }
-                        entitiesBuffer.addAll(newEntities)
-                        totalTopics += validTopics.size
-
-                        if (entitiesBuffer.size >= BATCH_SIZE_FOR_DB || !hasMorePages) {
-                            val dbWriteStartTime = System.currentTimeMillis()
-                            offlineSearchDao.upsertTopics(entitiesBuffer)
-                            val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
-                            logger.d { "Forum $forumId: wrote ${entitiesBuffer.size} topics to DB in ${dbWriteTime}ms" }
-                            entitiesBuffer.clear()
+                        // Depth window: with quick indexing enabled, stop once a whole
+                        // page is already known — the date-sorted listing has no fresh
+                        // topics at or below this boundary. Pages stay sequential so
+                        // this boundary is trustworthy.
+                        var boundaryReached = false
+                        var newTopics = validTopics
+                        if (daysWindow > 0 && validTopics.isNotEmpty()) {
+                            val existingIds =
+                                offlineSearchDao
+                                    .getExistingTopicIds(validTopics.map { it.topicId })
+                                    .toSet()
+                            newTopics = validTopics.filter { it.topicId !in existingIds }
+                            if (newTopics.isEmpty()) {
+                                logger.i {
+                                    "Forum $forumId page $page: all ${validTopics.size} topics already " +
+                                        "indexed — depth window boundary reached, stopping crawl"
+                                }
+                                boundaryReached = true
+                                hasMorePages = false
+                            }
                         }
 
-                        onProgress?.invoke(page, totalTopics)
-                        politeDelay()
-                        page++
+                        if (newTopics.isNotEmpty()) {
+                            val newEntities = newTopics.map { it.toCachedTopicEntity(indexVersion) }
+                            entitiesBuffer.addAll(newEntities)
+                            totalTopics += newTopics.size
+
+                            if (entitiesBuffer.size >= BATCH_SIZE_FOR_DB || !hasMorePages) {
+                                val dbWriteStartTime = System.currentTimeMillis()
+                                offlineSearchDao.upsertTopics(entitiesBuffer)
+                                val dbWriteTime = System.currentTimeMillis() - dbWriteStartTime
+                                logger.d { "Forum $forumId: wrote ${entitiesBuffer.size} topics to DB in ${dbWriteTime}ms" }
+                                entitiesBuffer.clear()
+                            }
+                        }
+
+                        // Only the window boundary skips page advancement; a page of
+                        // all-invalid topics still advances (legacy behavior).
+                        if (!boundaryReached) {
+                            onProgress?.invoke(page, totalTopics)
+                            politeDelay()
+                            page++
+                        }
                     }
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e

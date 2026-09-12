@@ -2730,6 +2730,7 @@
         <item quantity="one">Scan complete. Added %1$d book.</item>
         <item quantity="other">Scan complete. Added %1$d books.</item>
     </plurals>
+    <string name="scan_status_skipped_paths">Skipped %1$d unavailable path(s)</string>
     <string name="scan_status_error">Error: %1$s</string>
     <!-- Content description for move chapter up button -->
     <string name="moveUp">Move Up</string>
@@ -2967,6 +2968,9 @@
     <string name="quickForumsCount">Quick (%1$d)</string>
     <string name="forumId">Forum %1$s</string>
     <string name="affectsOfflineIndexingOnly">Affects offline indexing only</string>
+    <string name="indexingDepthWindow">Quick indexing depth</string>
+    <string name="indexingDepthWindowHint">Only index topics updated within the window; All = full crawl</string>
+    <string name="indexingWindowDays">%1$d d</string>
     <string name="indexTapToCreate">Tap to create index</string>
     <string name="indexTapToUpdate">Tap to update index</string>
     <string name="indexClearingTitle">Clearing index...</string>

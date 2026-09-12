@@ -109,7 +109,10 @@ public class IndexingViewModel
                 _indexingStartTime.value = System.currentTimeMillis()
                 _indexingProgress.value = IndexingProgress.Idle
                 viewModelScope.launch {
-                    indexingWorkScheduler.enqueue(resolveSelectedForumIdsOrNull())
+                    indexingWorkScheduler.enqueue(
+                        forumIds = resolveSelectedForumIdsOrNull(),
+                        daysWindow = resolveDaysWindowOrNull(),
+                    )
                 }
                 startIndexingWorkMonitor()
                 // Progress will be updated from service via broadcast or we can observe service state
@@ -129,10 +132,12 @@ public class IndexingViewModel
                         // Use WithAuthorisedCheckUseCase to ensure authentication before indexing
                         // RuTracker requires authentication to access forum pages
                         val forumIds = resolveSelectedForumIdsOrAll()
+                        val daysWindow = resolveDaysWindowOrZero()
                         withAuthorisedCheckUseCase(operationId = "indexing") {
                             forumIndexer.indexForums(
                                 forumIds = forumIds,
                                 preloadCovers = true,
+                                daysWindow = daysWindow,
                             ) { progress ->
                                 _indexingProgress.value = progress
                             }
@@ -245,7 +250,10 @@ public class IndexingViewModel
 
             // Start foreground service
             viewModelScope.launch {
-                indexingWorkScheduler.enqueue(resolveSelectedForumIdsOrNull())
+                indexingWorkScheduler.enqueue(
+                    forumIds = resolveSelectedForumIdsOrNull(),
+                    daysWindow = resolveDaysWindowOrNull(),
+                )
             }
             _isIndexing.value = true
             _indexingStartTime.value = System.currentTimeMillis()
@@ -292,6 +300,19 @@ public class IndexingViewModel
         }
 
         private suspend fun resolveSelectedForumIdsOrAll(): String = resolveSelectedForumIdsOrNull() ?: RutrackerApi.AUDIOBOOKS_FORUM_IDS
+
+        // ponytail: window flows via scheduler input or worker's own settings read; 0 = All legacy crawl
+        @Suppress("RedundantSuspendModifier") // Flow.first() is suspend; detekt misses generated Proto types.
+        private suspend fun resolveDaysWindowOrNull(): Int? =
+            try {
+                settingsRepository.userPreferences.first().indexingDaysWindow
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+
+        private suspend fun resolveDaysWindowOrZero(): Int = resolveDaysWindowOrNull() ?: 0
 
         private fun startIndexingWorkMonitor() {
             if (indexingMonitorJob?.isActive == true) {

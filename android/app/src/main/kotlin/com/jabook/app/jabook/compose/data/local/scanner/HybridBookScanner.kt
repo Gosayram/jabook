@@ -59,26 +59,31 @@ public class HybridBookScanner
                         scanPathDao.getAllPathsList()
                     }
                 var removedCount = 0
+                var skippedPaths = 0
                 PerfTrace.section(name = "HybridBookScanner.cleanupInvalidPaths") {
                     for (pathEntity in customPaths) {
-                        // Only delete paths we can actually verify as filesystem folders.
-                        // SAF tree URIs (content://) can't be validated via File.exists() —
-                        // deleting them would silently drop valid non-primary-volume scans.
-                        if (pathEntity.path.startsWith("content:")) {
-                            logger.w {
-                                "Keeping non-filesystem scan path (unsupported storage): ${pathEntity.path}"
+                        val normalized = ScanPathValidator.normalize(pathEntity.path)
+                        when (ScanPathValidator.classify(normalized)) {
+                            ScanPathStatus.VALID -> Unit
+                            // SAF tree URIs can't be validated/scanned via File — keep the
+                            // row (don't drop user config) but COUNT it so the UI can show
+                            // "N path(s) skipped" instead of a silent zero.
+                            ScanPathStatus.UNSUPPORTED_URI -> {
+                                skippedPaths++
+                                logger.w { "Skipping non-filesystem scan path (unsupported storage): ${pathEntity.path}" }
                             }
-                            continue
-                        }
-                        val folder = java.io.File(pathEntity.path)
-                        if (folder.exists() && !folder.isDirectory) {
-                            logger.w { "Removing invalid scan folder (not a directory): ${pathEntity.path}" }
-                            scanPathDao.deletePath(pathEntity)
-                            removedCount++
-                        } else {
                             // Missing folder may be a temporarily unmounted volume (SD hiccup).
                             // Keep the path and retry next scan instead of dropping user config.
-                            logger.w { "Keeping missing scan folder (may be temporarily unmounted): ${pathEntity.path}" }
+                            ScanPathStatus.MISSING -> {
+                                skippedPaths++
+                                logger.w { "Skipping missing scan folder (may be temporarily unmounted): ${pathEntity.path}" }
+                            }
+                            ScanPathStatus.NOT_DIRECTORY -> {
+                                skippedPaths++
+                                logger.w { "Removing invalid scan folder (not a directory): ${pathEntity.path}" }
+                                scanPathDao.deletePath(pathEntity)
+                                removedCount++
+                            }
                         }
                     }
                 }
@@ -117,7 +122,7 @@ public class HybridBookScanner
                                 activeScanner.scanAudiobooks()
                             }
                         val bookCount = (result as? Result.Success)?.data?.size ?: 0
-                        _scanProgress.value = ScanProgress.Completed(bookCount, 0L)
+                        _scanProgress.value = ScanProgress.Completed(bookCount, 0L, skippedPaths)
                         result
                     } finally {
                         progressJob.cancel()

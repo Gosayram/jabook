@@ -16,6 +16,8 @@ package com.jabook.app.jabook.compose.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.jabook.app.jabook.compose.core.logger.LoggerFactory
+import com.jabook.app.jabook.compose.data.local.scanner.ScanPathValidator
 import com.jabook.app.jabook.compose.data.repository.BooksRepository
 import com.jabook.app.jabook.util.FileUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,6 +32,7 @@ public class ScanSettingsViewModel
     @Inject
     constructor(
         private val booksRepository: BooksRepository,
+        private val loggerFactory: LoggerFactory,
     ) : ViewModel() {
         public val scanPaths: StateFlow<List<String>> =
             booksRepository
@@ -41,7 +44,15 @@ public class ScanSettingsViewModel
                 )
 
         public fun addScanPath(uriString: String) {
-            val path = FileUtils.resolvePathFromUri(uriString)
+            val path = ScanPathValidator.normalize(FileUtils.resolvePathFromUri(uriString))
+            // The scanner is File-based: a raw content:// URI can never be scanned.
+            // Reject at the boundary instead of persisting a silently dead row.
+            if (path.startsWith("content://")) {
+                loggerFactory.get("ScanSettingsViewModel").w {
+                    "Rejecting non-filesystem scan path: $uriString"
+                }
+                return
+            }
             viewModelScope.launch {
                 booksRepository.addScanPath(path)
                 // Trigger rescan? The scanner runs on startup or manual refresh.

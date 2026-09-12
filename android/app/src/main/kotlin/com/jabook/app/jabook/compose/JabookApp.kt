@@ -285,6 +285,10 @@ public fun JabookApp(
                             }
                             scope.launch { drawerState.close() }
                         },
+                        onNavigateToPlayer = {
+                            appState.navigateToPlayer(currentBook?.id)
+                            scope.launch { drawerState.close() }
+                        },
                         onNavigateToSettings = {
                             appState.navigateToTopLevelDestination(TopLevelDestination.SETTINGS)
                             scope.launch { drawerState.close() }
@@ -390,6 +394,7 @@ public fun JabookApp(
                                     sharedTransitionScope = this@SharedTransitionLayout,
                                     onFirstMeaningfulContentDrawn = onFirstMeaningfulContentDrawn,
                                     onMenuClick = onMenuClick,
+                                    onPlayerShortcut = { appState.navigateToPlayer(currentBook?.id) },
                                 )
 
                                 // Snackbar host positioned above mini player

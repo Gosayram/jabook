@@ -79,6 +79,10 @@ public class IndexingWorker
             public const val KEY_USE_SELECTED_FORUM_IDS: String = "useSelectedForumIds"
             public const val KEY_PRELOAD_COVERS: String = "preloadCovers"
 
+            // Quick indexing depth window in days (0 = All). Absent (-1) → read settings.
+            public const val KEY_INDEXING_DAYS_WINDOW: String = "indexingDaysWindow"
+            private const val DAYS_WINDOW_ABSENT: Int = -1
+
             internal fun parseForumIds(input: String?): String {
                 val forumIds =
                     input
@@ -98,6 +102,15 @@ public class IndexingWorker
                 selectedForumIds: String?,
                 useSelectedForumIds: Boolean,
             ): String = parseForumIds(if (useSelectedForumIds) selectedForumIds else inputForumIds)
+
+            /**
+             * Depth window resolution: explicit input wins, otherwise the persisted
+             * setting; never negative (negative input would re-crawl everything).
+             */
+            internal fun resolveDaysWindow(
+                inputDaysWindow: Int,
+                settingsDaysWindow: Int,
+            ): Int = if (inputDaysWindow >= 0) inputDaysWindow else settingsDaysWindow.coerceAtLeast(0)
         }
 
         private val logger = loggerFactory.get(TAG)
@@ -155,6 +168,21 @@ public class IndexingWorker
                             useSelectedForumIds = useSelectedForumIds,
                         )
                     val preloadCovers = inputData.getBoolean(KEY_PRELOAD_COVERS, false)
+                    val inputDaysWindow = inputData.getInt(KEY_INDEXING_DAYS_WINDOW, DAYS_WINDOW_ABSENT)
+                    val settingsDaysWindow =
+                        if (inputDaysWindow == DAYS_WINDOW_ABSENT) {
+                            try {
+                                settingsRepository.userPreferences.first().indexingDaysWindow
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                logger.w { "Could not read days window; using 0 (All): ${e.message}" }
+                                0
+                            }
+                        } else {
+                            0 // input wins; unused
+                        }
+                    val daysWindow = resolveDaysWindow(inputDaysWindow, settingsDaysWindow)
 
                     // Check auth before indexing — RuTracker requires login for forum pages
                     if (!authRepository.isLoggedIn()) {
@@ -167,6 +195,7 @@ public class IndexingWorker
                     forumIndexer.indexForums(
                         forumIds = forumIds,
                         preloadCovers = preloadCovers,
+                        daysWindow = daysWindow,
                     ) { progress ->
                         when (progress) {
                             is IndexingProgress.InProgress -> {

@@ -748,6 +748,13 @@ public class SettingsViewModel
             }
         }
 
+        /** Quick indexing depth window in days (0 = All). */
+        public fun updateIndexingDaysWindow(days: Int) {
+            viewModelScope.launch {
+                settingsRepository.updateIndexingDaysWindow(days)
+            }
+        }
+
         /**
          * Resets all per-book custom seek settings to global defaults.
          */

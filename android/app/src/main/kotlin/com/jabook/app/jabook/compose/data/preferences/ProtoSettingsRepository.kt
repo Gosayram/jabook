@@ -133,6 +133,9 @@ public interface SettingsRepository {
 
     public suspend fun updateSelectedForumIds(ids: String)
 
+    /** Quick indexing depth window in days (0 = All). */
+    public suspend fun updateIndexingDaysWindow(days: Int)
+
     public val audioVisualizerMode: Flow<Int>
 
     public suspend fun updateAudioVisualizerMode(mode: Int)
@@ -478,6 +481,13 @@ public class ProtoSettingsRepository
         override suspend fun updateSelectedForumIds(ids: String) {
             dataStore.updateData { preferences ->
                 preferences.toBuilder().setSelectedForumIds(ids).build()
+            }
+        }
+
+        override suspend fun updateIndexingDaysWindow(days: Int) {
+            val safeDays = days.coerceIn(0, 365)
+            dataStore.updateData { preferences ->
+                preferences.toBuilder().setIndexingDaysWindow(safeDays).build()
             }
         }
 

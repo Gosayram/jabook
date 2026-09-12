@@ -84,6 +84,16 @@ public class DebugViewModel
         private val _recentSearchPreview = MutableStateFlow<List<String>>(emptyList())
         public val recentSearchPreview: StateFlow<List<String>> = _recentSearchPreview.asStateFlow()
 
+        // Declared BEFORE the init block below: the init coroutine runs eagerly on
+        // Dispatchers.Main.immediate during <init> and loadCacheStats() writes to
+        // _cacheStats synchronously (getCacheStatistics is non-suspending). Declaring
+        // it after the init block left it null at that write (crash on build 142).
+        private val _cacheStats =
+            MutableStateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?>(null)
+        public val cacheStats: StateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?> =
+            _cacheStats
+                .asStateFlow()
+
         init {
             viewModelScope.launch {
                 try {
@@ -359,12 +369,6 @@ public class DebugViewModel
                 logger.e({ "Unexpected error during mirror check" }, e)
                 emptyMap()
             }
-
-        private val _cacheStats =
-            MutableStateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?>(null)
-        public val cacheStats: StateFlow<com.jabook.app.jabook.compose.data.cache.RutrackerSearchCache.CacheStatistics?> =
-            _cacheStats
-                .asStateFlow()
 
         public fun loadCacheStats() {
             try {

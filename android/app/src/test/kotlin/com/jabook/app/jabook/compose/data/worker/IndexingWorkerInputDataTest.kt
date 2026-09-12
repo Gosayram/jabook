@@ -58,4 +58,41 @@ class IndexingWorkerInputDataTest {
 
         assertEquals("574,1036", forumIds)
     }
+
+    @Test
+    fun `resolveDaysWindow prefers explicit input over settings`() {
+        val days =
+            IndexingWorker.resolveDaysWindow(
+                inputDaysWindow = 14,
+                settingsDaysWindow = 7,
+            )
+
+        assertEquals(14, days)
+    }
+
+    @Test
+    fun `resolveDaysWindow falls back to persisted setting when input absent`() {
+        val days =
+            IndexingWorker.resolveDaysWindow(
+                inputDaysWindow = IndexingWorkerInputDataTest.DAYS_WINDOW_ABSENT,
+                settingsDaysWindow = 7,
+            )
+
+        assertEquals(7, days)
+    }
+
+    @Test
+    fun `resolveDaysWindow never returns negative`() {
+        val days =
+            IndexingWorker.resolveDaysWindow(
+                inputDaysWindow = IndexingWorkerInputDataTest.DAYS_WINDOW_ABSENT,
+                settingsDaysWindow = -5,
+            )
+
+        assertEquals(0, days)
+    }
+
+    private companion object {
+        const val DAYS_WINDOW_ABSENT = -1
+    }
 }

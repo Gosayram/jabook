@@ -78,6 +78,7 @@ public object MimeTypeValidationPolicy {
             "flac",
             "wav",
             "wma",
+            "oga",
             "webm",
             "mkv",
         )

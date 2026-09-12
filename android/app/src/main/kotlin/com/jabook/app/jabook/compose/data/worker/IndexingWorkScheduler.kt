@@ -32,7 +32,18 @@ public class IndexingWorkScheduler
     constructor(
         private val workManager: WorkManager,
     ) {
-        public fun enqueue(forumIds: String? = null) {
+        /**
+         * Enqueue a one-time index run.
+         *
+         * @param forumIds Explicit forum allowlist; null/blank = worker falls back
+         *   to persisted selection or all forums.
+         * @param daysWindow Quick-indexing depth window in days; null = worker
+         *   falls back to the persisted [com.jabook.app.jabook.compose.data.preferences.UserPreferences.indexingDaysWindow].
+         */
+        public fun enqueue(
+            forumIds: String? = null,
+            daysWindow: Int? = null,
+        ) {
             val inputDataBuilder =
                 Data
                     .Builder()
@@ -40,6 +51,9 @@ public class IndexingWorkScheduler
             // ponytail: blank = all forums (worker falls back), skip key entirely
             if (!forumIds.isNullOrBlank()) {
                 inputDataBuilder.putString(IndexingWorker.KEY_FORUM_IDS, forumIds)
+            }
+            if (daysWindow != null) {
+                inputDataBuilder.putInt(IndexingWorker.KEY_INDEXING_DAYS_WINDOW, daysWindow)
             }
             val request =
                 OneTimeWorkRequestBuilder<IndexingWorker>()

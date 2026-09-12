@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NewReleases
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -52,6 +53,7 @@ public fun JabookDrawerContent(
     currentDestination: NavDestination?,
     onNavigateToDestination: (TopLevelDestination) -> Unit,
     onNavigateToRecentArrivals: () -> Unit,
+    onNavigateToPlayer: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToAuth: () -> Unit,
     accountProfile: AccountProfile = AccountProfile(stringResource(R.string.settingsProfileGuest), ""),
@@ -99,6 +101,16 @@ public fun JabookDrawerContent(
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
                 )
             }
+
+            // Player shortcut — "Плеер" (reuses playerTitle string, not a TopLevelDestination
+            // so it stays out of the bottom bar).
+            NavigationDrawerItem(
+                label = { Text(stringResource(R.string.playerTitle)) },
+                icon = { Icon(Icons.Filled.PlayCircle, contentDescription = null) },
+                selected = currentDestination?.hierarchy?.any { it.hasRoute<PlayerRoute>() } == true,
+                onClick = onNavigateToPlayer,
+                modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
+            )
 
             NavigationDrawerItem(
                 label = { Text(stringResource(R.string.recently_indexed_title)) },

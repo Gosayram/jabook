@@ -137,4 +137,22 @@ public class JabookAppState(
         navController.navigate(LibraryRoute, topLevelNavOptions)
         navigationLogger.d { "Navigated to Library" }
     }
+
+    /**
+     * Dedicated player shortcut: resume the current book when one is loaded,
+     * fall back to the Library otherwise (Player needs a bookId to render).
+     *
+     * @param currentBookId Id of the currently loaded book, or null when nothing is loaded
+     */
+    public fun navigateToPlayer(currentBookId: String?) {
+        if (currentBookId != null) {
+            navigationLogger.d { "Navigating to Player for current book" }
+            navController.navigate(PlayerRoute(bookId = currentBookId)) {
+                launchSingleTop = true
+            }
+        } else {
+            navigationLogger.d { "No current book; player shortcut falls back to Library" }
+            navigateToLibrary()
+        }
+    }
 }

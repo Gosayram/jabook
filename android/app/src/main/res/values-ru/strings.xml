@@ -2715,6 +2715,7 @@
     <string name="scan_status_discovery">Поиск файлов (%d)...</string>
     <string name="scan_status_parsing">Парсинг: %1$s (%2$d/%3$d)</string>
     <string name="scan_status_saving">Сохранение в базу данных...</string>
+    <string name="scan_status_skipped_paths">Пропущено недоступных путей: %1$d</string>
     <string name="scan_status_complete">Сканирование завершено. Добавлено книг: %1$d.</string>
     <plurals name="scan_status_complete_plural">
         <item quantity="one">Сканирование завершено. Добавлена %1$d книга.</item>
@@ -3002,6 +3003,9 @@
     <string name="quickForumsCount">Быстро (%1$d)</string>
     <string name="forumId">Форум %1$s</string>
     <string name="affectsOfflineIndexingOnly">Влияет только на офлайн-индексацию</string>
+    <string name="indexingDepthWindow">Глубина быстрой индексации</string>
+    <string name="indexingDepthWindowHint">Индексировать только темы за период; «Все» — полная индексация</string>
+    <string name="indexingWindowDays">%1$d д</string>
     <string name="indexTapToCreate">Нажмите для создания индекса</string>
     <string name="indexTapToUpdate">Нажмите для обновления индекса</string>
     <string name="indexClearingTitle">Очистка индекса...</string>

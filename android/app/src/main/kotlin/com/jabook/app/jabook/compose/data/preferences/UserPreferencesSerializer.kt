@@ -63,6 +63,7 @@ public object UserPreferencesSerializer : Serializer<UserPreferences> {
             .setPlayerSnapshotSleepMode("idle")
             .setAutoPlayNext(true)
             .setPitchCorrectionEnabled(true)
+            .setIndexingDaysWindow(7) // Quick indexing default; existing installs keep 0 (All)
             .setSchemaVersion(UserPreferencesDataMigration.CURRENT_SCHEMA_VERSION)
             .build()
 

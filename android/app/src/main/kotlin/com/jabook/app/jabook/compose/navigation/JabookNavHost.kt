@@ -57,6 +57,7 @@ public fun JabookNavHost(
     sharedTransitionScope: androidx.compose.animation.SharedTransitionScope? = null,
     onFirstMeaningfulContentDrawn: () -> Unit = {},
     onMenuClick: () -> Unit = {},
+    onPlayerShortcut: () -> Unit = {},
 ) {
     val navController = appState.navController
 
@@ -299,6 +300,7 @@ public fun JabookNavHost(
                 },
                 onFirstMeaningfulContentDrawn = onFirstMeaningfulContentDrawn,
                 onMenuClick = onMenuClick,
+                onNavigateToPlayer = onPlayerShortcut,
                 sharedTransitionScope = sharedTransitionScope,
                 animatedVisibilityScope = this,
             )

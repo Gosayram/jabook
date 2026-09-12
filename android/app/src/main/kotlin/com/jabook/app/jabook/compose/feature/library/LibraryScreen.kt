@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Whatshot
@@ -161,6 +162,7 @@ public fun LibraryScreen(
     onNavigateToSettings: () -> Unit = {},
     onNavigateToScanSettings: () -> Unit = {},
     onNavigateToAuth: () -> Unit = {},
+    onNavigateToPlayer: () -> Unit = {},
     onFirstMeaningfulContentDrawn: () -> Unit = {},
     onMenuClick: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -400,6 +402,7 @@ public fun LibraryScreen(
                                     onNavigateToDownloads = safeNavigateToDownloads,
                                     onNavigateToFavorites = safeNavigateToFavorites,
                                     onNavigateToSettings = safeNavigateToSettings,
+                                    onNavigateToPlayer = onNavigateToPlayer,
                                 )
                             }
                         },
@@ -682,6 +685,7 @@ public fun LibraryScreen(
                                                 onNavigateToDownloads = safeNavigateToDownloads,
                                                 onNavigateToFavorites = safeNavigateToFavorites,
                                                 onNavigateToSettings = safeNavigateToSettings,
+                                                onNavigateToPlayer = onNavigateToPlayer,
                                             )
                                         }
                                     },
@@ -1131,6 +1135,7 @@ private fun LibraryViewMode.isGrid(): Boolean = this == LibraryViewMode.GRID_COM
  * @param onNavigateToDownloads Navigates to the downloads screen
  * @param onNavigateToFavorites Navigates to the favorites screen
  * @param onNavigateToSettings Navigates to the settings screen
+ * @param onNavigateToPlayer Opens the player for the current book (falls back to Library)
  */
 @Composable
 private fun LibraryOverflowMenu(
@@ -1147,9 +1152,20 @@ private fun LibraryOverflowMenu(
     onNavigateToDownloads: () -> Unit,
     onNavigateToFavorites: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToPlayer: () -> Unit,
 ) {
     val menuItems =
         buildList {
+            add(
+                AdaptiveMenuItem(
+                    title = stringResource(R.string.playerTitle),
+                    leadingIcon = Icons.Filled.PlayCircle,
+                    onClick = {
+                        onDismiss()
+                        onNavigateToPlayer()
+                    },
+                ),
+            )
             add(
                 AdaptiveMenuItem(
                     title = stringResource(R.string.sort_by),

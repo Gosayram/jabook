@@ -24,6 +24,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
@@ -123,7 +124,7 @@ class TorrentManagerConcurrencyTest {
     fun `stale shutdown with generation mismatch does not stop re-initialized session`() {
         val session = mock<TorrentSession>()
         whenever(session.downloadsFlow).thenReturn(MutableStateFlow(emptyMap()))
-        whenever(session.addTorrent(any(), any(), any(), any())).thenReturn(Result.success("a".repeat(40)))
+        whenever(session.addTorrent(any(), any(), anyOrNull(), anyOrNull())).thenReturn(Result.success("a".repeat(40)))
         val manager = newManager(session)
 
         manager.initialize()
@@ -142,7 +143,7 @@ class TorrentManagerConcurrencyTest {
         // session.
         verify(session, never()).stopSession()
         assertTrue(manager.addTorrent("magnet:?xt=urn:btih:${"b".repeat(40)}", "/dl").isSuccess)
-        verify(session, times(2)).addTorrent(any(), any(), any(), any())
+        verify(session, times(2)).addTorrent(any(), any(), anyOrNull(), anyOrNull())
     }
 
     @Test
