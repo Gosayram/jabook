@@ -67,22 +67,6 @@ public object AdaptiveUtils {
     }
 
     /**
-     * Resolves window size class with device-specific overrides and compact fallback.
-     */
-    public fun resolveWindowSizeClass(
-        windowSizeClass: WindowSizeClass,
-        context: Context,
-    ): WindowSizeClass = getEffectiveWindowSizeClass(windowSizeClass, context) ?: windowSizeClass
-
-    /**
-     * Resolves nullable window size class with device-specific overrides.
-     */
-    public fun resolveWindowSizeClassOrNull(
-        windowSizeClass: WindowSizeClass?,
-        context: Context,
-    ): WindowSizeClass? = windowSizeClass?.let { resolveWindowSizeClass(it, context) }
-
-    /**
      * Returns adaptive padding with compact fallback when size class is unavailable.
      */
     public fun getContentPaddingOrDefault(windowSizeClass: WindowSizeClass?): Dp = windowSizeClass?.let { getContentPadding(it) } ?: 16.dp

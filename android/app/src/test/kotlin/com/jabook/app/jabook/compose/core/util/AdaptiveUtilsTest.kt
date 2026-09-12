@@ -14,15 +14,11 @@
 
 package com.jabook.app.jabook.compose.core.util
 
-import android.content.Context
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -30,23 +26,6 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 @org.junit.experimental.categories.Category(com.jabook.app.jabook.test.SlowTest::class)
 class AdaptiveUtilsTest {
-    @Test
-    fun `resolveWindowSizeClass returns null when input is null`() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-
-        assertNull(AdaptiveUtils.resolveWindowSizeClassOrNull(windowSizeClass = null, context = context))
-    }
-
-    @Test
-    fun `resolveWindowSizeClass keeps compact width class for compact windows`() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val compactWindow = window(widthDp = 360, heightDp = 800)
-
-        val resolved = AdaptiveUtils.resolveWindowSizeClass(compactWindow, context)
-
-        assertEquals(WindowWidthSizeClass.Compact, resolved.widthSizeClass)
-    }
-
     @Test
     fun `nullable adaptive values use compact defaults when window size class is missing`() {
         assertEquals(16.dp, AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass = null))

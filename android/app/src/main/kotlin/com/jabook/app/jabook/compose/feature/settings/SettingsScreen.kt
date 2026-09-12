@@ -42,12 +42,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,6 +63,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -166,8 +171,7 @@ public fun SettingsScreen(
                     ).show()
             }
         }
-    val wsc = LocalWindowSizeClass.current
-    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
+    val windowSizeClass = LocalWindowSizeClass.current
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
     val smallSpacing = AdaptiveUtils.getSmallSpacingOrDefault(windowSizeClass)
@@ -186,11 +190,14 @@ public fun SettingsScreen(
     val safeNavigateToAudioSettings = dropUnlessResumed { navigationClickGuard.run(onNavigateToAudioSettings) }
     val safeNavigateToDownloads = dropUnlessResumed { navigationClickGuard.run(onNavigateToDownloads) }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.navSettingsText)) },
+                scrollBehavior = scrollBehavior,
             )
         },
         modifier = modifier,
@@ -200,6 +207,7 @@ public fun SettingsScreen(
                 Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .nestedScroll(scrollBehavior.nestedScrollConnection)
                     .verticalScroll(rememberScrollState()),
         ) {
             // ─── 1. Profile ────────────────────────────────────────────────
@@ -308,29 +316,18 @@ public fun SettingsScreen(
                 title = stringResource(R.string.playerCoverModeTitle),
                 subtitle = stringResource(R.string.playerCoverModeDescription),
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    FilterChip(
-                        selected = protoSettings.playerCoverMode == 0,
-                        onClick = { viewModel.updatePlayerCoverMode(0) },
-                        label = { Text(stringResource(R.string.coverModeCard)) },
-                        modifier =
-                            Modifier.semantics {
-                                role = Role.RadioButton
-                                selected = protoSettings.playerCoverMode == 0
-                            },
-                    )
-                    FilterChip(
-                        selected = protoSettings.playerCoverMode == 1,
-                        onClick = { viewModel.updatePlayerCoverMode(1) },
-                        label = { Text(stringResource(R.string.coverModeVinyl)) },
-                        modifier =
-                            Modifier.semantics {
-                                role = Role.RadioButton
-                                selected = protoSettings.playerCoverMode == 1
-                            },
-                    )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    listOf(
+                        0 to R.string.coverModeCard,
+                        1 to R.string.coverModeVinyl,
+                    ).forEachIndexed { index, (mode, labelRes) ->
+                        SegmentedButton(
+                            selected = protoSettings.playerCoverMode == mode,
+                            onClick = { viewModel.updatePlayerCoverMode(mode) },
+                            label = { Text(stringResource(labelRes)) },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = 2),
+                        )
+                    }
                 }
             }
 
@@ -338,23 +335,17 @@ public fun SettingsScreen(
             SettingsItemWithContent(
                 title = stringResource(R.string.layoutModeTitle),
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     listOf(
                         AdaptiveUtils.LAYOUT_MODE_ADAPTIVE to R.string.layoutModeAdaptive,
                         AdaptiveUtils.LAYOUT_MODE_COMPACT to R.string.layoutModeCompact,
                         AdaptiveUtils.LAYOUT_MODE_EXPANDED to R.string.layoutModeExpanded,
-                    ).forEach { (mode, labelRes) ->
-                        FilterChip(
+                    ).forEachIndexed { index, (mode, labelRes) ->
+                        SegmentedButton(
                             selected = protoSettings.layoutMode == mode,
                             onClick = { viewModel.updateLayoutMode(mode) },
                             label = { Text(stringResource(labelRes)) },
-                            modifier =
-                                Modifier.semantics {
-                                    role = Role.RadioButton
-                                    selected = protoSettings.layoutMode == mode
-                                },
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = 3),
                         )
                     }
                 }

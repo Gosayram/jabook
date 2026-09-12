@@ -47,6 +47,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -64,8 +65,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -96,9 +97,7 @@ public fun AudioSettingsScreen(
     onNavigateUp: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
-    val wsc = LocalWindowSizeClass.current
-    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
+    val windowSizeClass = LocalWindowSizeClass.current
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
     val smallSpacing = AdaptiveUtils.getSmallSpacingOrDefault(windowSizeClass)
@@ -114,6 +113,8 @@ public fun AudioSettingsScreen(
     val navigationClickGuard = remember { NavigationClickGuard() }
     val safeNavigateUp = dropUnlessResumed { navigationClickGuard.run(onNavigateUp) }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
         // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -128,6 +129,7 @@ public fun AudioSettingsScreen(
                         )
                     }
                 },
+                scrollBehavior = scrollBehavior,
             )
         },
     ) { padding ->
@@ -136,6 +138,7 @@ public fun AudioSettingsScreen(
                 Modifier
                     .fillMaxSize()
                     .padding(padding)
+                    .nestedScroll(scrollBehavior.nestedScrollConnection)
                     .verticalScroll(rememberScrollState()),
         ) {
             // Equalizer

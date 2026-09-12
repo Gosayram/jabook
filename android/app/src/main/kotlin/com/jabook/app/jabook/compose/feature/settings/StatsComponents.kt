@@ -17,7 +17,6 @@ package com.jabook.app.jabook.compose.feature.settings
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,12 +37,14 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -126,45 +127,14 @@ internal fun StackedSegmentedControl(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 8.dp),
         )
-        Row(modifier = Modifier.fillMaxWidth()) {
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             options.forEachIndexed { index, (labelText, value) ->
-                val isSelected = value == selectedValue
-                val shape =
-                    when (index) {
-                        0 ->
-                            androidx.compose.foundation.shape
-                                .RoundedCornerShape(topStartPercent = 50, bottomStartPercent = 50)
-                        options.lastIndex ->
-                            androidx.compose.foundation.shape
-                                .RoundedCornerShape(topEndPercent = 50, bottomEndPercent = 50)
-                        else -> RectangleShape
-                    }
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .height(40.dp)
-                            .background(
-                                if (isSelected) {
-                                    MaterialTheme.colorScheme.secondaryContainer
-                                } else {
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                },
-                                shape,
-                            ).clickable { onSelect(value) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = labelText,
-                        style = MaterialTheme.typography.labelMedium,
-                        color =
-                            if (isSelected) {
-                                MaterialTheme.colorScheme.onSecondaryContainer
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                    )
-                }
+                SegmentedButton(
+                    selected = value == selectedValue,
+                    onClick = { onSelect(value) },
+                    label = { Text(labelText) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = options.size),
+                )
             }
         }
     }

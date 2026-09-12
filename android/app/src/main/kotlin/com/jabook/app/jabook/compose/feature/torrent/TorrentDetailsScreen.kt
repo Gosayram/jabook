@@ -54,7 +54,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -76,10 +75,7 @@ public fun TorrentDetailsScreen(
     onPlayBook: (String) -> Unit,
     viewModel: TorrentDetailsViewModel = hiltViewModel(),
 ) {
-    // Get window size class for adaptive sizing
-    val context = LocalContext.current
-    val wsc = LocalWindowSizeClass.current
-    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
+    val windowSizeClass = LocalWindowSizeClass.current
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 

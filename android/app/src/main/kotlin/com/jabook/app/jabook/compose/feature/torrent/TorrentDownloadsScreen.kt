@@ -59,6 +59,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -68,6 +69,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -105,7 +107,6 @@ public fun TorrentDownloadsScreen(
     modifier: Modifier = Modifier,
     viewModel: TorrentDownloadsViewModel = hiltViewModel(),
 ) {
-    // Get window size class for adaptive sizing
     val context = LocalContext.current
     val persistedTreePermissionGuard =
         remember(context) {
@@ -125,8 +126,7 @@ public fun TorrentDownloadsScreen(
                 },
             )
         }
-    val wsc = LocalWindowSizeClass.current
-    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
+    val windowSizeClass = LocalWindowSizeClass.current
     val contentPadding = AdaptiveUtils.getContentPaddingOrDefault(windowSizeClass)
     val itemSpacing = AdaptiveUtils.getItemSpacingOrDefault(windowSizeClass)
 
@@ -282,6 +282,8 @@ public fun TorrentDownloadsScreen(
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
         // TopAppBar applies statusBars insets itself; zeroed to avoid double inset under NavigationSuiteScaffold.
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -297,6 +299,7 @@ public fun TorrentDownloadsScreen(
                         )
                     }
                 },
+                scrollBehavior = scrollBehavior,
                 actions = {
                     Box {
                         var menuExpanded by remember { mutableStateOf(false) }
@@ -358,7 +361,8 @@ public fun TorrentDownloadsScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(padding),
+                    .padding(padding)
+                    .nestedScroll(scrollBehavior.nestedScrollConnection),
         ) {
             when (val state = uiState) {
                 is TorrentDownloadsUiState.Loading -> {

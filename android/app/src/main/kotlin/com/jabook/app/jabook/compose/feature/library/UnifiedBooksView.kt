@@ -89,13 +89,8 @@ public fun UnifiedBooksView(
     selectedIds: Set<String> = emptySet(),
     onToggleSelection: ((String) -> Unit)? = null,
 ) {
-    // Get WindowSizeClass from parameter or calculate from LocalContext
-    val context = LocalContext.current
-    val effectiveWindowSizeClass =
-        windowSizeClass
-            ?: LocalWindowSizeClass.current?.let {
-                AdaptiveUtils.resolveWindowSizeClassOrNull(it, context)
-            }
+    // Get WindowSizeClass from parameter or shell-provided Local (user layout-mode override already applied)
+    val effectiveWindowSizeClass = windowSizeClass ?: LocalWindowSizeClass.current
 
     when {
         displayMode.isGrid() ->

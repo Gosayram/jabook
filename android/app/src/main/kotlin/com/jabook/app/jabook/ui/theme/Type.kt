@@ -47,7 +47,9 @@ private fun scaledLineHeight(
 ): TextUnit = if (height == LanguageHeight.Small) base else (base.value * height.factor).sp
 
 // ponytail: helper — wdth/GRAD/opsz per style; if axis missing in font (e.g. Inter lacks GRAD/opsz) Android ignores setting gracefully.
-private fun brandSettings(
+
+/** Builds variable-axis settings shared by bundled variable fonts and downloaded Google Fonts. */
+public fun brandSettings(
     width: Float = 100f,
     grade: Int? = null,
     opsz: TextUnit? = null,

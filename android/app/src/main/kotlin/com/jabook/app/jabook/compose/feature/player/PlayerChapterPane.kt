@@ -60,7 +60,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -70,7 +69,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jabook.app.jabook.R
-import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.domain.model.Chapter
 import com.jabook.app.jabook.ui.theme.EmphasizedTypography
@@ -98,10 +96,8 @@ public fun PlayerChapterPane(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val lazyListState = rememberLazyListState()
 
-    // Use Material 3 WindowSizeClass for adaptive padding
-    val context = LocalContext.current
-    val wsc = LocalWindowSizeClass.current
-    val windowSizeClass = wsc?.let { AdaptiveUtils.resolveWindowSizeClassOrNull(it, context) } ?: wsc
+    // Use Material 3 WindowSizeClass for adaptive padding (user layout-mode override already applied in shell)
+    val windowSizeClass = LocalWindowSizeClass.current
 
     val horizontalPadding: Dp =
         when (windowSizeClass?.widthSizeClass) {

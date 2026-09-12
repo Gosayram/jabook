@@ -22,10 +22,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.googlefonts.Font
 import androidx.compose.ui.text.googlefonts.GoogleFont
+import androidx.compose.ui.unit.sp
 import com.jabook.app.jabook.R
 import com.jabook.app.jabook.compose.core.logger.LoggerFactoryImpl
 import com.jabook.app.jabook.compose.data.model.AppFont
 import com.jabook.app.jabook.ui.theme.InterFontFamily
+import com.jabook.app.jabook.ui.theme.brandSettings
 
 /**
  * Logger for FontUtils.
@@ -46,27 +48,33 @@ public object FontUtils {
             certificates = R.array.com_google_android_gms_fonts_certs,
         )
 
+    // ponytail: axes mirror bundled InterVariableFontFamily (Type.kt) — wdth 100, opsz per weight;
+    // downloaded fonts without those axes ignore the settings gracefully.
     private fun loadGoogleFontFamily(fontName: String): FontFamily =
         FontFamily(
             Font(
                 googleFont = GoogleFont(fontName),
                 fontProvider = provider,
                 weight = FontWeight.Normal,
+                variationSettings = brandSettings(opsz = 16.sp),
             ),
             Font(
                 googleFont = GoogleFont(fontName),
                 fontProvider = provider,
                 weight = FontWeight.Medium,
+                variationSettings = brandSettings(opsz = 16.sp),
             ),
             Font(
                 googleFont = GoogleFont(fontName),
                 fontProvider = provider,
                 weight = FontWeight.SemiBold,
+                variationSettings = brandSettings(opsz = 32.sp),
             ),
             Font(
                 googleFont = GoogleFont(fontName),
                 fontProvider = provider,
                 weight = FontWeight.Bold,
+                variationSettings = brandSettings(opsz = 57.sp),
             ),
         )
 
