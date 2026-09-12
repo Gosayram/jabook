@@ -1860,11 +1860,6 @@ private fun PlayerContent(
                     }
                 }
 
-                // Spacer before cover
-                item {
-                    Spacer(modifier = Modifier.height(if (isCompact) 8.dp else 12.dp))
-                }
-
                 // Book cover
                 item {
                     val imageModifier =
@@ -1892,11 +1887,6 @@ private fun PlayerContent(
                         onSeek = onSeek,
                         currentPositionMs = currentPositionMs,
                     )
-                }
-
-                // Spacer after cover
-                item {
-                    Spacer(modifier = Modifier.height(if (isCompact) 12.dp else 16.dp))
                 }
 
                 // Book info — title maxLines 2 with ellipsis; full text exposed via semantics for TalkBack.

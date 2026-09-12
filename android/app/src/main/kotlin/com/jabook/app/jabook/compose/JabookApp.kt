@@ -153,6 +153,8 @@ public fun JabookApp(
     // If onboarding is not completed, we show it.
     // It will handle its own internal navigation and permissions.
     if (!onboardingCompleted && uiState is MainActivityUiState.Success) {
+        // Onboarding IS meaningful content — the splash must not wait for the library.
+        androidx.compose.runtime.LaunchedEffect(Unit) { onFirstMeaningfulContentDrawn() }
         JabookTheme(
             darkTheme = isSystemInDarkTheme(),
             dynamicColor = useDynamicColors,
@@ -170,6 +172,7 @@ public fun JabookApp(
 
     // Existing check for storage permission
     if (!permissionUiState.hasStoragePermission && onboardingCompleted && !permissionSkipped) {
+        androidx.compose.runtime.LaunchedEffect(Unit) { onFirstMeaningfulContentDrawn() }
         com.jabook.app.jabook.compose.feature.permissions.PermissionScreen(
             onPermissionsGranted = { permissionViewModel.checkPermissions() },
             onSkip = { permissionSkipped = true },

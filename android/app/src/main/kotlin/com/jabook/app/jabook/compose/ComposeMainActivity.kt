@@ -50,6 +50,7 @@ import com.jabook.app.jabook.compose.data.torrent.TorrentManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -109,6 +110,9 @@ public class ComposeMainActivity : AppCompatActivity() {
                 "/rutracker",
             )
 
+        /** Splash must never pin the screen longer than this, whatever the UI gates do. */
+        private const val SPLASH_WATCHDOG_TIMEOUT_MS = 2_500L
+
         internal fun isAllowedJabookDeepLink(
             uri: Uri,
             isDebugBuild: Boolean = BuildConfig.DEBUG,
@@ -160,6 +164,16 @@ public class ComposeMainActivity : AppCompatActivity() {
                     isPlayerScreenVisible = isVisible
                 },
             )
+        }
+
+        // Splash watchdog: gates that never reach LibraryScreen (onboarding, permission
+        // screen, a hung DataStore read) would otherwise pin the system splash forever.
+        lifecycleScope.launch {
+            delay(SPLASH_WATCHDOG_TIMEOUT_MS)
+            if (!hasReportedFullyDrawn) {
+                reportFullyDrawn()
+                hasReportedFullyDrawn = true
+            }
         }
     }
 

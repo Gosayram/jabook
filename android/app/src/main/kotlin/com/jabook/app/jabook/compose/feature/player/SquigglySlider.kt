@@ -389,7 +389,9 @@ public fun SquigglySlider(
             // Ensure activeWidth is valid and finite
             val activeWidth = (width * fraction.coerceIn(0f, 1f)).coerceAtLeast(0f).coerceAtMost(width)
 
-            // Draw cached waveform behind the track for quick visual density preview.
+            // Waveform IS the track when data exists: bars before the playhead use the
+            // active color, bars after it the dimmed inactive color. No flat/squiggle
+            // track is drawn on top — the transparent Material Slider keeps gestures/a11y.
             if (waveformData.isNotEmpty()) {
                 val baseline = centerY
                 // ponytail: track half-height + 4dp — waveform pokes past the 16dp track instead of hiding under it
@@ -397,107 +399,108 @@ public fun SquigglySlider(
                 val stepX = width / waveformData.size.toFloat()
                 var x = 0f
                 for (sample in waveformData) {
-                    val amplitude = sample.coerceIn(0f, 1f)
+                    val amplitude = sample.coerceIn(0f, 1f).coerceAtLeast(0.05f)
                     val yOffset = amplitude * availableHalfHeight
+                    val played = if (isRtl) x >= width - activeWidth else x <= activeWidth
                     drawLine(
-                        color = inactiveTrackColor.copy(alpha = 0.22f),
+                        color = if (played) activeTrackColor else inactiveTrackColor.copy(alpha = 0.35f),
                         start = Offset(x, baseline - yOffset),
                         end = Offset(x, baseline + yOffset),
-                        strokeWidth = 1.dp.toPx(),
+                        strokeWidth = 2.dp.toPx(),
                         cap = StrokeCap.Round,
                     )
                     x += stepX
                 }
-            }
-
-            // Squiggle + track — AOSP SquigglyProgress draw: one full-width sine drawn twice
-            // with clips (active color up to the playhead, dimmed inactive color past it), so
-            // the wave continues PAST the playhead with a 1.5λ linear taper. When flat, fall
-            // back to the plain two-segment track.
-            val amplitudePx = squiggleAmplitude.toPx() * animatedAmplitudeScale
-            val waveVisible = amplitudePx >= 1f && activeWidth > 0f
-            if (waveVisible) {
-                val wavelengthPx = squiggleWavelength.toPx()
-                val strokePx = effectiveTrackHeight.toPx()
-                val taperLength = wavelengthPx * 1.5f // ponytail: 1.5λ post-playhead fade (AOSP)
-                val path = Path()
-                path.moveTo(if (isRtl) width else 0f, centerY)
-                val step = wavelengthPx / 8f
-                var x = 0f
-                while (x <= width) {
-                    // Full amplitude up to the playhead, then linear fade to zero.
-                    val coeff =
-                        if (x <= activeWidth) {
-                            1f
-                        } else {
-                            ((activeWidth + taperLength - x) / taperLength).coerceIn(0f, 1f)
-                        }
-                    val yOffset =
-                        amplitudePx * coeff * sin(2 * Math.PI * (x / wavelengthPx - squigglePhase)).toFloat()
-                    val drawX = if (isRtl) width - x else x
-                    path.lineTo(drawX, centerY + yOffset)
-                    x += step
-                }
-                val clipTop = amplitudePx + strokePx
-                val playheadX = if (isRtl) width - activeWidth else activeWidth
-                clipRect(
-                    left = 0f,
-                    top = centerY - clipTop,
-                    right = playheadX,
-                    bottom = centerY + clipTop,
-                ) {
-                    drawPath(path, activeTrackColor, style = Stroke(strokePx, cap = StrokeCap.Round))
-                }
-                clipRect(
-                    left = playheadX,
-                    top = centerY - clipTop,
-                    right = size.width,
-                    bottom = centerY + clipTop,
-                ) {
-                    drawPath(
-                        path,
-                        inactiveTrackColor.copy(alpha = 0.30f), // AOSP DISABLED_ALPHA 77
-                        style = Stroke(strokePx, cap = StrokeCap.Round),
-                    )
-                }
             } else {
-                // Draw Inactive Track — mirrored for RTL to match Material Slider thumb
-                if (isRtl) {
-                    drawLine(
-                        color = inactiveTrackColor,
-                        start = Offset(0f, centerY),
-                        end = Offset(width - activeWidth, centerY),
-                        strokeWidth = effectiveTrackHeight.toPx(),
-                        cap = StrokeCap.Round,
-                    )
+                // Squiggle + track — AOSP SquigglyProgress draw: one full-width sine drawn twice
+                // with clips (active color up to the playhead, dimmed inactive color past it), so
+                // the wave continues PAST the playhead with a 1.5λ linear taper. When flat, fall
+                // back to the plain two-segment track.
+                val amplitudePx = squiggleAmplitude.toPx() * animatedAmplitudeScale
+                val waveVisible = amplitudePx >= 1f && activeWidth > 0f
+                if (waveVisible) {
+                    val wavelengthPx = squiggleWavelength.toPx()
+                    val strokePx = effectiveTrackHeight.toPx()
+                    val taperLength = wavelengthPx * 1.5f // ponytail: 1.5λ post-playhead fade (AOSP)
+                    val path = Path()
+                    path.moveTo(if (isRtl) width else 0f, centerY)
+                    val step = wavelengthPx / 8f
+                    var x = 0f
+                    while (x <= width) {
+                        // Full amplitude up to the playhead, then linear fade to zero.
+                        val coeff =
+                            if (x <= activeWidth) {
+                                1f
+                            } else {
+                                ((activeWidth + taperLength - x) / taperLength).coerceIn(0f, 1f)
+                            }
+                        val yOffset =
+                            amplitudePx * coeff * sin(2 * Math.PI * (x / wavelengthPx - squigglePhase)).toFloat()
+                        val drawX = if (isRtl) width - x else x
+                        path.lineTo(drawX, centerY + yOffset)
+                        x += step
+                    }
+                    val clipTop = amplitudePx + strokePx
+                    val playheadX = if (isRtl) width - activeWidth else activeWidth
+                    clipRect(
+                        left = 0f,
+                        top = centerY - clipTop,
+                        right = playheadX,
+                        bottom = centerY + clipTop,
+                    ) {
+                        drawPath(path, activeTrackColor, style = Stroke(strokePx, cap = StrokeCap.Round))
+                    }
+                    clipRect(
+                        left = playheadX,
+                        top = centerY - clipTop,
+                        right = size.width,
+                        bottom = centerY + clipTop,
+                    ) {
+                        drawPath(
+                            path,
+                            inactiveTrackColor.copy(alpha = 0.30f), // AOSP DISABLED_ALPHA 77
+                            style = Stroke(strokePx, cap = StrokeCap.Round),
+                        )
+                    }
                 } else {
-                    drawLine(
-                        color = inactiveTrackColor,
-                        start = Offset(activeWidth, centerY),
-                        end = Offset(width, centerY),
-                        strokeWidth = effectiveTrackHeight.toPx(),
-                        cap = StrokeCap.Round,
-                    )
-                }
-
-                // Flat played side while the wave is straightened (or animating in/out).
-                if (activeWidth > 0f) {
+                    // Draw Inactive Track — mirrored for RTL to match Material Slider thumb
                     if (isRtl) {
                         drawLine(
-                            color = activeTrackColor,
-                            start = Offset(width - activeWidth, centerY),
-                            end = Offset(width, centerY),
+                            color = inactiveTrackColor,
+                            start = Offset(0f, centerY),
+                            end = Offset(width - activeWidth, centerY),
                             strokeWidth = effectiveTrackHeight.toPx(),
                             cap = StrokeCap.Round,
                         )
                     } else {
                         drawLine(
-                            color = activeTrackColor,
-                            start = Offset(0f, centerY),
-                            end = Offset(activeWidth, centerY),
+                            color = inactiveTrackColor,
+                            start = Offset(activeWidth, centerY),
+                            end = Offset(width, centerY),
                             strokeWidth = effectiveTrackHeight.toPx(),
                             cap = StrokeCap.Round,
                         )
+                    }
+
+                    // Flat played side while the wave is straightened (or animating in/out).
+                    if (activeWidth > 0f) {
+                        if (isRtl) {
+                            drawLine(
+                                color = activeTrackColor,
+                                start = Offset(width - activeWidth, centerY),
+                                end = Offset(width, centerY),
+                                strokeWidth = effectiveTrackHeight.toPx(),
+                                cap = StrokeCap.Round,
+                            )
+                        } else {
+                            drawLine(
+                                color = activeTrackColor,
+                                start = Offset(0f, centerY),
+                                end = Offset(activeWidth, centerY),
+                                strokeWidth = effectiveTrackHeight.toPx(),
+                                cap = StrokeCap.Round,
+                            )
+                        }
                     }
                 }
             }
