@@ -765,7 +765,7 @@ public class SettingsViewModel
         }
     }
 
-private fun resolveProductivePeriodFromHour(peakHour: Int): ProductivePeriod {
+internal fun resolveProductivePeriodFromHour(peakHour: Int): ProductivePeriod {
     if (peakHour < 0) return ProductivePeriod.UNKNOWN
     return when (peakHour) {
         in 5..11 -> ProductivePeriod.MORNING

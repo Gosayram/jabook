@@ -28,6 +28,8 @@ import com.jabook.app.jabook.compose.data.preferences.SettingsRepository
 import com.jabook.app.jabook.compose.data.repository.UserPreferencesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,7 +44,7 @@ public data class PermissionUiState(
     val hasStoragePermission: Boolean = false,
     val hasNotificationPermission: Boolean = false,
     val storageAccessLevel: StorageAccessLevel = StorageAccessLevel.LIMITED,
-    val limitedModeRestrictions: List<StorageCapability> = StorageAccessLevelPolicy.limitedModeRestrictions,
+    val limitedModeRestrictions: ImmutableList<StorageCapability> = StorageAccessLevelPolicy.limitedModeRestrictions.toImmutableList(),
     val isFullAccessRecommended: Boolean = StorageAccessLevelPolicy.isFullAccessRecommended(),
 )
 

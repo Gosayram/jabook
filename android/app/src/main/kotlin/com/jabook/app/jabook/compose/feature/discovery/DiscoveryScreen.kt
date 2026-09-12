@@ -53,14 +53,16 @@ import com.jabook.app.jabook.compose.core.theme.SurfaceElevationTokens
 import com.jabook.app.jabook.compose.core.util.AdaptiveUtils
 import com.jabook.app.jabook.compose.core.util.LocalWindowSizeClass
 import com.jabook.app.jabook.compose.domain.model.Book
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import java.time.LocalTime
 
 @Immutable
 public data class DiscoveryUiState(
-    val continueListening: List<Book> = emptyList(),
-    val trending: List<Book> = emptyList(),
-    val personalized: List<Book> = emptyList(),
-    val genres: List<DiscoveryGenre> = emptyList(),
+    val continueListening: ImmutableList<Book> = persistentListOf(),
+    val trending: ImmutableList<Book> = persistentListOf(),
+    val personalized: ImmutableList<Book> = persistentListOf(),
+    val genres: ImmutableList<DiscoveryGenre> = persistentListOf(),
 )
 
 public enum class ListeningMood(
@@ -80,7 +82,7 @@ public data class DiscoveryGenre(
     val id: String,
     val title: String,
     val color: Color,
-    val coverHints: List<String> = emptyList(),
+    val coverHints: ImmutableList<String> = persistentListOf(),
 )
 
 @Composable

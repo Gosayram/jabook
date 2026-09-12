@@ -1107,6 +1107,7 @@ public class AudioPlayerController
                 logger.e {
                     "loadBook retry limit reached for ${request.bookId ?: "unknown-book"} after ${request.retryAttempt} attempts ($reason)"
                 }
+                _terminalPlaybackErrors.tryEmit(context.getString(R.string.failedToLoadAudioMessage))
                 pendingLoadRequest = null
                 loadBookRetryAttempts = request.retryAttempt
                 return

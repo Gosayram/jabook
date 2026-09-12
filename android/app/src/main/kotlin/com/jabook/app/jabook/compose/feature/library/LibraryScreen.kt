@@ -129,6 +129,7 @@ import com.jabook.app.jabook.compose.feature.discovery.DiscoveryUiState
 import com.jabook.app.jabook.compose.feature.discovery.ListeningMood
 import com.jabook.app.jabook.compose.feature.onboarding.SpotlightOverlay
 import com.jabook.app.jabook.ui.theme.GenreAccentColors
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
@@ -1068,14 +1069,18 @@ private fun buildDiscoveryUiState(
                     id = "genre-${entry.key}",
                     title = entry.key,
                     color = colorPalette[index % colorPalette.size],
-                    coverHints = entry.value.map { it.title.take(1).ifBlank { "?" } }.take(2),
+                    coverHints =
+                        entry.value
+                            .map { it.title.take(1).ifBlank { "?" } }
+                            .take(2)
+                            .toImmutableList(),
                 )
             }
     return DiscoveryUiState(
-        continueListening = continueListening,
-        trending = trending,
-        personalized = personalized,
-        genres = genres,
+        continueListening = continueListening.toImmutableList(),
+        trending = trending.toImmutableList(),
+        personalized = personalized.toImmutableList(),
+        genres = genres.toImmutableList(),
     )
 }
 
